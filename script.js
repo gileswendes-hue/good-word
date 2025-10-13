@@ -16,6 +16,8 @@ const mostlyGoodList = document.getElementById('mostlyGoodList');
 const mostlyBadList = document.getElementById('mostlyBadList');
 const leftArrow = document.querySelector('.left-arrow');
 const rightArrow = document.querySelector('.right-arrow');
+// NEW: Element for displaying engagement messages
+const engagementMessageBox = document.getElementById('engagementMessageBox'); 
 
 // --- Dragging Variables ---
 let isDragging = false;
@@ -23,16 +25,35 @@ let startX;
 let currentX;
 
 // --- Helper Functions ---
+
+/**
+ * Displays an engagement message briefly.
+ * @param {string} message The message text to display.
+ */
+function displayEngagementMessage(message) {
+    if (message) {
+        engagementMessageBox.textContent = message;
+        engagementMessageBox.classList.add('visible');
+
+        // Hide the message after 4 seconds
+        setTimeout(() => {
+            engagementMessageBox.classList.remove('visible');
+            // Clear text after transition to prevent flicker
+            setTimeout(() => {
+                engagementMessageBox.textContent = '';
+            }, 500); // Matches CSS transition time
+        }, 4000);
+    }
+}
+
 async function fetchRandomWord() {
     try {
-        // FIXED: Changed endpoint from /random-word to /get-word to match the backend index.js
         const response = await fetch(`${API_BASE_URL}/get-word`); 
         
         if (response.status === 404) {
              // This is how the backend signals that the word list is exhausted
             currentWordSpan.textContent = "NO MORE WORDS!";
             wordCard.style.opacity = 0; // Hide card for better effect
-            // Disable voting mechanisms here if needed
             return null;
         }
 
@@ -67,9 +88,14 @@ async function fetchTopWords() {
     }
 }
 
-async function submitVote(wordId, voteType) { // 'good' or 'bad'
+/**
+ * Submits a vote and returns the response data, which now includes engagementMessage.
+ * @param {string} wordId 
+ * @param {string} voteType 'good' or 'bad'
+ * @returns {object|null} The response data or null on failure.
+ */
+async function submitVote(wordId, voteType) { 
     try {
-        // Calls the /api/vote endpoint (which is implemented in index.js)
         const response = await fetch(`${API_BASE_URL}/vote`, {
             method: 'POST',
             headers: {
@@ -127,10 +153,10 @@ function renderTopWords(topWords) {
         const li = document.createElement('li');
         const total = word.goodVotes + word.badVotes;
         
-        // --- FIX FOR NAN% ---
+        // FIX: Handles division by zero (NaN)
         const percentage = total > 0 
             ? Math.round((word.goodVotes / total) * 100) 
-            : 0; // If total is 0, percentage is 0
+            : 0; 
 
         li.innerHTML = `${word.word} <span class="percentage">(${percentage}% GOOD)</span>`;
         mostlyGoodList.appendChild(li);
@@ -140,10 +166,10 @@ function renderTopWords(topWords) {
         const li = document.createElement('li');
         const total = word.goodVotes + word.badVotes;
         
-        // --- FIX FOR NAN% ---
+        // FIX: Handles division by zero (NaN)
         const percentage = total > 0 
             ? Math.round((word.badVotes / total) * 100) 
-            : 0; // If total is 0, percentage is 0
+            : 0; 
 
         li.innerHTML = `${word.word} <span class="percentage">(${percentage}% BAD)</span>`;
         mostlyBadList.appendChild(li);
@@ -155,7 +181,7 @@ async function loadGameData() {
     const word = await fetchRandomWord();
     updateWordCard(word);
     
-    // Fetch and render top words (assuming the backend has the placeholder)
+    // Fetch and render top words
     const topWords = await fetchTopWords();
     renderTopWords(topWords);
 }
@@ -167,8 +193,13 @@ async function handleVote(voteType) {
     wordCard.style.transition = 'transform 0.3s ease-out';
     wordCard.style.transform = `translateX(${voteType === 'good' ? '-150%' : '150%'})`;
 
-    // The backend uses currentWordData.word as the ID
-    await submitVote(currentWordData.word, voteType); 
+    const responseData = await submitVote(currentWordData.word, voteType); 
+
+    // --- NEW ENGAGEMENT LOGIC ---
+    if (responseData && responseData.engagementMessage) {
+        displayEngagementMessage(responseData.engagementMessage);
+    }
+    // ----------------------------
 
     // Wait for animation, then load next word
     setTimeout(async () => {
