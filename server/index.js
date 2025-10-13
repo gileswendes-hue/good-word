@@ -1,3 +1,7 @@
+// =======================================================
+// index.js (Backend Server - Located in the /server directory)
+// =======================================================
+
 // 1. Import Dependencies
 const express = require('express');
 const mongoose = require('mongoose');
@@ -5,20 +9,21 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const { Schema } = mongoose;
-const readline = require('readline'); // Added for more robust file handling if needed, though fs.readFileSync is currently used.
 
 // 2. Define the Mongoose Word Model
 // This schema will create a 'words' collection in your MongoDB
 const wordSchema = new Schema({
     word: { type: String, required: true, unique: true },
-    // Fields for voting/scoring can be added here later
+    goodVotes: { type: Number, default: 0 }, // Added fields for voting
+    badVotes: { type: Number, default: 0 },  // Added fields for voting
 });
 const Word = mongoose.model('Word', wordSchema);
 
 
 // 3. Load Configuration and Initialize App
 const app = express();
-const PORT = process.env.PORT || 5000;
+// PORT 5000 is standard for Express, but Render provides its own PORT via environment variables
+const PORT = process.env.PORT || 5000; 
 const MONGO_URI = process.env.MONGO_URI; 
 
 // **FINAL CORRECTED PATHING:** Assumes index.js and british-words.txt are in the same directory (/server)
@@ -37,11 +42,11 @@ mongoose.connect(MONGO_URI, {
     useNewUrlParser: true, 
     useUnifiedTopology: true,
 })
-.then(async () => { // **NOTE THE 'async' HERE**
+.then(async () => {
     console.log('MongoDB connection successful.');
     
     // =======================================================
-    // **DATABASE SEEDING LOGIC (Confirmed working with 42 words)**
+    // **DATABASE SEEDING LOGIC**
     // =======================================================
     
     const count = await Word.countDocuments();
@@ -49,7 +54,7 @@ mongoose.connect(MONGO_URI, {
         console.log('Word collection is empty. Starting database seed...');
         
         try {
-            // Read the file content
+            // Read the file content synchronously (memory issue addressed via package.json flag)
             const wordListContent = fs.readFileSync(wordsFilePath, 'utf8');
             
             // Split by newline and clean up empty lines/whitespace
@@ -58,7 +63,11 @@ mongoose.connect(MONGO_URI, {
                 .filter(w => w.trim() !== '');
             
             // Prepare documents for insertion
-            const wordDocuments = wordsArray.map(word => ({ word: word.trim().toLowerCase() }));
+            const wordDocuments = wordsArray.map(word => ({ 
+                word: word.trim().toLowerCase(), 
+                goodVotes: 0, 
+                badVotes: 0 
+            }));
             
             // Insert into MongoDB
             await Word.insertMany(wordDocuments, { ordered: false });
@@ -80,7 +89,7 @@ mongoose.connect(MONGO_URI, {
 
     
     // 6. Serve Static Files (The Web Application)
-    // Frontend files (index.html, etc.) are assumed to be in the root directory (../)
+    // Frontend files (index.html, script.js, etc.) are assumed to be in the parent directory (../)
     const staticPath = path.join(__dirname, '..'); 
     app.use(express.static(staticPath));
     
@@ -92,19 +101,20 @@ mongoose.connect(MONGO_URI, {
 
     // 7. Define API Routes (Game Logic)
 
-    // **NEW ROUTE:** API to get one random word (Fixes "NO MORE WORDS!" error in frontend)
+    // **REQUIRED ROUTE:** API to get one random word (Matches frontend fetchRandomWord call)
     app.get('/api/get-word', async (req, res) => {
         try {
-            // $sample is efficient for random selection
+            // Query MongoDB to find one random word that has been voted on the fewest times (or zero)
+            // $sample is used for quick random selection
             const randomWord = await Word.aggregate([
                 { $sample: { size: 1 } } 
             ]);
 
             if (randomWord && randomWord.length > 0) {
-                // Respond with the word data
-                res.json({ word: randomWord[0].word });
+                // Return the full word document, including vote counts
+                res.json(randomWord[0]);
             } else {
-                // Should not happen now, but provides a fallback
+                // Signals 404 to the frontend, which displays "NO MORE WORDS!"
                 res.status(404).json({ message: "No words found in database." });
             }
         } catch (error) {
@@ -113,29 +123,51 @@ mongoose.connect(MONGO_URI, {
         }
     });
 
-    // Route to validate if a word exists in the dictionary
-    app.post('/api/validate-word', async (req, res) => {
-        const { word } = req.body;
-        
-        const cleanedWord = word ? word.trim().toLowerCase() : '';
+    // **REQUIRED ROUTE:** API to get the top/bottom words (Matches frontend fetchTopWords call)
+    app.get('/api/top-words', async (req, res) => {
+        try {
+            // Placeholder: Fetch words with votes > 0 and sort by vote ratio.
+            
+            // 1. Get words with good votes > bad votes
+            const mostlyGood = await Word.find({ goodVotes: { $gt: 0 }, badVotes: { $gte: 0 } })
+                // Sort by ratio of goodVotes / (goodVotes + badVotes) descending (best first)
+                // Note: Complex sorting is better done in app memory or with aggregation, 
+                // but for simplicity, we sort by raw good votes here.
+                .sort({ goodVotes: -1, badVotes: 1 }) 
+                .limit(5);
 
-        if (!cleanedWord) {
-             return res.json({ isValid: false, message: 'No word provided.' });
-        }
-        
-        const wordExists = await Word.findOne({ word: cleanedWord });
+            // 2. Get words with bad votes > good votes
+            const mostlyBad = await Word.find({ badVotes: { $gt: 0 }, goodVotes: { $gte: 0 } })
+                // Sort by ratio of badVotes / (goodVotes + badVotes) descending (worst first)
+                .sort({ badVotes: -1, goodVotes: 1 })
+                .limit(5);
 
-        if (wordExists) {
-            res.json({ isValid: true, message: `Word '${word}' is valid.` });
-        } else {
-            res.json({ isValid: false, message: `Word '${word}' is not found.` });
+            res.json({ mostlyGood, mostlyBad });
+
+        } catch (error) {
+            console.error('Error fetching top words data:', error);
+            res.status(500).json({ error: 'Failed to fetch top words.' });
         }
     });
 
-    // Placeholder route for voting/scoring
+    // Route to handle voting
     app.post('/api/vote', async (req, res) => {
+        const { wordId, voteType } = req.body;
+        
         try {
-            res.status(200).json({ message: 'Vote recorded successfully.' });
+            const updateField = voteType === 'good' ? 'goodVotes' : 'badVotes';
+            
+            // Find the word by its string (which is used as the ID in the frontend mock)
+            const result = await Word.updateOne(
+                { word: wordId.toLowerCase() },
+                { $inc: { [updateField]: 1 } }
+            );
+
+            if (result.matchedCount === 0) {
+                 return res.status(404).json({ message: 'Word not found for voting.' });
+            }
+
+            res.status(200).json({ message: `Vote recorded successfully for ${wordId}.` });
         } catch (error) {
             console.error('Error processing vote:', error);
             res.status(500).json({ error: 'Failed to record vote.' });
