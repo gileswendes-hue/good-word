@@ -1,245 +1,263 @@
-// =======================================================
-// index.js (Backend Server - Located in the /server directory)
-// =======================================================
-
-// 1. Import Dependencies
 const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const path = require('path');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const fs = require('fs');
-const { Schema } = mongoose;
+const path = require('path');
 
-// 2. Define the Mongoose Word Model
-// This schema will create a 'words' collection in your MongoDB
-const wordSchema = new Schema({
-    word: { type: String, required: true, unique: true },
-    goodVotes: { type: Number, default: 0 }, // Added fields for voting
-    badVotes: { type: Number, default: 0 },  // Added fields for voting
-    totalVotes: { type: Number, default: 0 }, // Track total votes for easier sorting
-});
-const Word = mongoose.model('Word', wordSchema);
-
-
-// 3. Load Configuration and Initialize App
 const app = express();
-// PORT 5000 is standard for Express, but Render provides its own PORT via environment variables
-const PORT = process.env.PORT || 5000; 
-const MONGO_URI = process.env.MONGO_URI; 
+const port = process.env.PORT || 3000;
 
-// **FINAL CORRECTED PATHING:** Assumes index.js and british-words.txt are in the same directory (/server)
-const wordsFilePath = path.join(__dirname, 'british-words.txt'); 
+// Middleware to parse JSON bodies
+app.use(express.json());
 
+// --- Environment Variables and Configuration ---
+const dbName = process.env.MONGO_DB_NAME || 'goodWordGame';
+const wordCollectionName = 'words';
 
-// --- Configuration Checks ---
-if (!MONGO_URI) {
-    console.error("FATAL ERROR: MONGO_URI environment variable is not set.");
+// Use environment variable for MongoDB URI
+const uri = process.env.MONGO_URI; 
+
+if (!uri) {
+    console.error("FATAL ERROR: MONGO_URI is not set. The application cannot connect to the database.");
     process.exit(1);
 }
 
+// Create a MongoClient with a Stable API version
+const client = new new MongoClient(uri, {
+    serverApi: {
+        version: ServerApiVersion.v1,
+        strict: true,
+        deprecationErrors: true,
+    }
+});
 
-// 4. Connect to MongoDB and Start Server
-mongoose.connect(MONGO_URI, {
-    useNewUrlParser: true, 
-    useUnifiedTopology: true,
-})
-.then(async () => {
-    console.log('MongoDB connection successful.');
-    
-    // =======================================================
-    // **DATABASE SEEDING LOGIC**
-    // =======================================================
-    
-    const count = await Word.countDocuments();
-    if (count === 0) {
-        console.log('Word collection is empty. Starting database seed...');
-        
-        try {
-            // Read the file content synchronously (memory issue addressed via package.json flag)
-            const wordListContent = fs.readFileSync(wordsFilePath, 'utf8');
+let db; // Global variable to hold the database connection
+
+// --- Seeding Logic ---
+
+/**
+ * Seeds the word list into the database if the collection is empty.
+ * Reads words from british-words.txt.
+ * @param {object} collection The MongoDB collection object.
+ */
+async function seedWords(collection) {
+    try {
+        const count = await collection.countDocuments();
+
+        if (count === 0) {
+            console.log('Database is empty. Starting word seeding...');
             
-            // Split by newline and clean up empty lines/whitespace
-            const wordsArray = wordListContent
-                .split(/\r?\n/) 
-                .filter(w => w.trim() !== '');
+            // Assuming british-words.txt is in the server directory
+            const filePath = path.join(__dirname, 'british-words.txt');
+            const fileContent = fs.readFileSync(filePath, 'utf8');
             
-            // Prepare documents for insertion
-            const wordDocuments = wordsArray.map(word => ({ 
-                word: word.trim().toLowerCase(), 
-                goodVotes: 0, 
-                badVotes: 0,
-                totalVotes: 0 // Initialize new field
-            }));
-            
-            // Insert into MongoDB
-            await Word.insertMany(wordDocuments, { ordered: false });
-            console.log(`Successfully inserted ${wordDocuments.length} words.`);
-            
-        } catch (fileError) {
-            console.error(`FATAL FILE ERROR: Failed to read or process ${path.basename(wordsFilePath)}.`);
-            console.error('File Read/Seed Error details:', fileError.message); 
+            // Filter out empty lines and trim whitespace, then map to documents
+            const words = fileContent
+                .split('\n')
+                .map(line => line.trim())
+                .filter(word => word.length > 0)
+                .map(word => ({
+                    word: word.toUpperCase(), // Store words in uppercase for consistency
+                    goodVotes: 0,
+                    badVotes: 0,
+                    totalVotes: 0,
+                }));
+
+            if (words.length > 0) {
+                const result = await collection.insertMany(words);
+                console.log(`Successfully seeded ${result.insertedCount} words.`);
+            } else {
+                console.log('Word list file was empty or contained no valid words.');
+            }
+        } else {
+            console.log(`Database already contains ${count} words. Seeding skipped.`);
         }
-    } else {
-        console.log(`Word collection already contains ${count} words. Skipping seed.`);
+    } catch (error) {
+        console.error('Error during word seeding:', error);
+    }
+}
+
+// --- Database Connection and Initialization ---
+
+async function connectAndInitialize() {
+    try {
+        await client.connect();
+        db = client.db(dbName);
+        console.log("Successfully connected to MongoDB!");
+
+        const wordCollection = db.collection(wordCollectionName);
+        await seedWords(wordCollection); // Check and seed words on startup
+
+        // Start Express server after successful DB connection and seeding
+        app.listen(port, () => {
+            console.log(`Server running on port ${port}`);
+        });
+
+    } catch (error) {
+        console.error("Failed to connect to MongoDB or initialize:", error);
+        // Exit the process if connection fails
+        process.exit(1);
+    }
+}
+
+// Call the async initialization function
+connectAndInitialize();
+
+// --- API Routes ---
+
+/**
+ * Route to fetch a single word, prioritizing unvoted words.
+ */
+app.get('/api/get-word', async (req, res) => {
+    try {
+        const collection = db.collection(wordCollectionName);
+
+        // Aggregation Pipeline to prioritize unvoted or least-voted words
+        const pipeline = [
+            // 1. Prioritize words with 0 total votes
+            { $match: { totalVotes: 0 } }, 
+            { $sample: { size: 1 } },
+        ];
+
+        let wordResult = await collection.aggregate(pipeline).toArray();
+
+        // 2. If no unvoted words, fall back to words with the lowest total votes
+        if (wordResult.length === 0) {
+            console.log("No unvoted words left, fetching least-voted word.");
+            const fallbackPipeline = [
+                // Sort by ascending total votes
+                { $sort: { totalVotes: 1 } }, 
+                // Limit to the top 10 least voted words (to keep $sample efficient)
+                { $limit: 10 }, 
+                // Then pick one randomly
+                { $sample: { size: 1 } }, 
+            ];
+            wordResult = await collection.aggregate(fallbackPipeline).toArray();
+        }
+
+        if (wordResult.length > 0) {
+            res.json(wordResult[0]);
+        } else {
+            // If the collection is entirely empty or exhausted
+            res.status(404).send({ message: "No words available." });
+        }
+
+    } catch (error) {
+        console.error("Error in /api/get-word:", error);
+        res.status(500).send({ message: "Internal server error." });
+    }
+});
+
+
+/**
+ * Route to record a vote and return an engagement message.
+ */
+app.post('/api/vote', async (req, res) => {
+    const { wordId, voteType } = req.body;
+
+    if (!wordId || !voteType) {
+        return res.status(400).send({ message: "Missing wordId or voteType." });
     }
 
+    try {
+        const collection = db.collection(wordCollectionName);
+        const objectId = new ObjectId(wordId);
 
-    // 5. Configure Middleware
-    app.use(cors()); 
-    app.use(express.json()); 
-    app.use(express.urlencoded({ extended: true })); 
-
-    
-    // 6. Serve Static Files (The Web Application)
-    // Frontend files (index.html, script.js, etc.) are assumed to be in the parent directory (../)
-    const staticPath = path.join(__dirname, '..'); 
-    app.use(express.static(staticPath));
-    
-    // Serve index.html for the base URL
-    app.get('/', (req, res) => {
-        res.sendFile(path.join(staticPath, 'index.html'));
-    });
-
-
-    // 7. Define API Routes (Game Logic)
-
-    // **IMPROVED ROUTE:** API to get one random word, prioritizing unvoted words
-    app.get('/api/get-word', async (req, res) => {
-        try {
-            // Find a random word that has the MINIMUM number of votes.
-            const randomWord = await Word.aggregate([
-                // 1. Sort by totalVotes ascending (0 votes first)
-                { $sort: { totalVotes: 1 } },
-                // 2. Group by totalVotes and sample 1 word from the smallest group
-                { 
-                    $group: { 
-                        _id: "$totalVotes", 
-                        words: { $push: "$$ROOT" } 
-                    } 
-                },
-                // 3. Sort groups by the number of votes (the smallest vote count first)
-                { $sort: { _id: 1 } },
-                // 4. Sample 1 word from the first group (the words with the lowest vote count)
-                { $limit: 1 },
-                { $unwind: "$words" },
-                { $replaceRoot: { newRoot: "$words" } },
-                { $sample: { size: 1 } } // Final random selection from the lowest-voted group
-            ]);
-
-            if (randomWord && randomWord.length > 0) {
-                // Return the full word document, including vote counts
-                res.json(randomWord[0]);
-            } else {
-                // Signals 404 to the frontend, which displays "NO MORE WORDS!"
-                res.status(404).json({ message: "No words found in database." });
-            }
-        } catch (error) {
-            console.error('Error fetching random word:', error);
-            res.status(500).json({ error: 'Failed to fetch word.' });
-        }
-    });
-
-    // **REQUIRED ROUTE:** API to get the top/bottom words (Matches frontend fetchTopWords call)
-    app.get('/api/top-words', async (req, res) => {
-        try {
-            // --- UPDATED AGGREGATION FOR CORRECT SORTING ---
-            
-            // 1. Get mostly good words (Score = Ratio + (Volume/1000) for tie-breaking)
-            const mostlyGood = await Word.aggregate([
-                // Must have at least one vote to be considered 'top'
-                { $match: { totalVotes: { $gt: 0 } } },
-                // Calculate the score: Ratio (0 to 1) + TotalVotes (small bonus for confidence)
-                { $addFields: { 
-                    goodRatio: { $divide: ["$goodVotes", "$totalVotes"] },
-                } },
-                // Sort by the raw ratio first (desc), then totalVotes (desc)
-                { $sort: { goodRatio: -1, totalVotes: -1 } }, 
-                { $limit: 5 }
-            ]);
-
-            // 2. Get mostly bad words (Score = Ratio + (Volume/1000) for tie-breaking)
-            const mostlyBad = await Word.aggregate([
-                // Must have at least one vote to be considered 'top'
-                { $match: { totalVotes: { $gt: 0 } } },
-                // Calculate the score: Bad Ratio (0 to 1) + TotalVotes (small bonus for confidence)
-                 { $addFields: { 
-                    badRatio: { $divide: ["$badVotes", "$totalVotes"] },
-                } },
-                // Sort by the raw bad ratio first (desc), then totalVotes (desc)
-                { $sort: { badRatio: -1, totalVotes: -1 } },
-                { $limit: 5 }
-            ]);
-
-            res.json({ mostlyGood, mostlyBad });
-
-        } catch (error) {
-            console.error('Error fetching top words data:', error);
-            res.status(500).json({ error: 'Failed to fetch top words.' });
-        }
-    });
-
-    // Route to handle voting
-    app.post('/api/vote', async (req, res) => {
-        const { wordId, voteType } = req.body;
-        const word = wordId.toLowerCase();
+        let engagementMessage = null;
         
-        try {
-            // 1. Fetch the current document state BEFORE the update
-            const currentWordDoc = await Word.findOne({ word });
-            
-            if (!currentWordDoc) {
-                 return res.status(404).json({ message: 'Word not found for voting.' });
-            }
-            
-            let engagementMessage = null;
-
-            // 2. Determine the engagement message (Priority: First Vote > First Good/Bad Vote)
-            
-            if (currentWordDoc.totalVotes === 0) {
-                // Highest Priority: This is the very first vote
-                engagementMessage = `🎉 Congratulations! You cast the first vote on "${wordId}"!`;
-            } else if (voteType === 'good' && currentWordDoc.goodVotes === 0) {
-                // Second Priority: First Good Vote (but not the first overall vote)
-                engagementMessage = `👍 You gave "${wordId}" its first Good Vote!`;
-            } else if (voteType === 'bad' && currentWordDoc.badVotes === 0) {
-                // Third Priority: First Bad Vote (but not the first overall vote)
-                engagementMessage = `👎 You gave "${wordId}" its first Bad Vote!`;
-            }
-
-            // 3. Prepare the update
-            const updateField = voteType === 'good' ? 'goodVotes' : 'badVotes';
-            
-            // 4. Perform the update
-            const result = await Word.updateOne(
-                { word },
-                { 
-                    $inc: { 
-                        [updateField]: 1,
-                        totalVotes: 1 // Increment totalVotes with every vote
-                    } 
-                }
-            );
-
-            // 5. Respond with the message (if one was generated)
-            res.status(200).json({ 
-                message: `Vote recorded successfully for ${wordId}.`,
-                engagementMessage: engagementMessage // Send the message back to the frontend
-            });
-        } catch (error) {
-            console.error('Error processing vote:', error);
-            res.status(500).json({ error: 'Failed to record vote.' });
+        // 1. Get the current state of the word before updating
+        const currentWord = await collection.findOne({ _id: objectId });
+        
+        // Safety check
+        if (!currentWord) {
+            return res.status(404).send({ message: "Word not found." });
         }
-    });
+        
+        // 2. Determine the engagement message (Highest priority check first)
+        // Check for first vote ever on this word
+        if (currentWord.totalVotes === 0) {
+            engagementMessage = "Awesome! You were the first to vote on this word. Keep it going!";
+        } 
+        // Check for first good vote on this word
+        else if (voteType === 'good' && currentWord.goodVotes === 0) {
+            engagementMessage = "First vote in for GOOD! You've started the positive trend!";
+        } 
+        // Check for first bad vote on this word
+        else if (voteType === 'bad' && currentWord.badVotes === 0) {
+            engagementMessage = "First vote in for BAD! That word has some explaining to do.";
+        }
+
+        // 3. Prepare the database update
+        const incrementField = voteType === 'good' ? 'goodVotes' : 'badVotes';
+        
+        const updateResult = await collection.updateOne(
+            { _id: objectId },
+            { 
+                $inc: { 
+                    [incrementField]: 1, 
+                    totalVotes: 1 
+                } 
+            }
+        );
+
+        if (updateResult.modifiedCount === 1) {
+            res.status(200).json({ success: true, engagementMessage });
+        } else {
+            res.status(500).send({ message: "Failed to update vote count." });
+        }
+
+    } catch (error) {
+        console.error("Error in /api/vote:", error);
+        res.status(500).send({ message: "Internal server error." });
+    }
+});
 
 
-    // 8. Start the Express Server
-    app.listen(PORT, () => {
-        console.log(`Server is listening on port ${PORT}`);
-    });
-})
-.catch(err => {
-    // Essential final catch for DB connection errors
-    console.error('FATAL DB CONNECTION ERROR: The server is crashing immediately!');
-    console.error('Error details:', err.message); 
-    process.exit(1); 
+/**
+ * Route to fetch the top 10 most "good" and top 10 most "bad" words.
+ */
+app.get('/api/top-words', async (req, res) => {
+    try {
+        const collection = db.collection(wordCollectionName);
+
+        // Aggregation to calculate ratios and filter only voted words
+        const pipeline = [
+            { $match: { totalVotes: { $gt: 0 } } }, // Only show words with at least one vote
+            {
+                $addFields: {
+                    // Calculate ratio of good votes to total votes
+                    goodRatio: { $divide: ["$goodVotes", "$totalVotes"] },
+                    // Calculate ratio of bad votes to total votes
+                    badRatio: { $divide: ["$badVotes", "$totalVotes"] }
+                }
+            }
+        ];
+
+        const allVotedWords = await collection.aggregate(pipeline).toArray();
+
+        // --- Mostly Good (Highest Good Ratio, tie-break by total volume) ---
+        const mostlyGood = allVotedWords
+            .sort((a, b) => {
+                if (b.goodRatio !== a.goodRatio) {
+                    return b.goodRatio - a.goodRatio; // Sort by Ratio descending
+                }
+                return b.totalVotes - a.totalVotes; // Tie-break by Total Votes descending
+            })
+            .slice(0, 10) // Take top 10
+
+        // --- Mostly Bad (Highest Bad Ratio, tie-break by total volume) ---
+        const mostlyBad = allVotedWords
+            .sort((a, b) => {
+                if (b.badRatio !== a.badRatio) {
+                    return b.badRatio - a.badRatio; // Sort by Ratio descending
+                }
+                return b.totalVotes - a.totalVotes; // Tie-break by Total Votes descending
+            })
+            .slice(0, 10); // Take top 10
+        
+        res.json({ mostlyGood, mostlyBad });
+
+    } catch (error) {
+        console.error("Error in /api/top-words:", error);
+        res.status(500).send({ message: "Internal server error." });
+    }
 });
