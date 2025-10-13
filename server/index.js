@@ -5,6 +5,7 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const { Schema } = mongoose;
+const readline = require('readline'); // Added for more robust file handling if needed, though fs.readFileSync is currently used.
 
 // 2. Define the Mongoose Word Model
 // This schema will create a 'words' collection in your MongoDB
@@ -18,7 +19,7 @@ const Word = mongoose.model('Word', wordSchema);
 // 3. Load Configuration and Initialize App
 const app = express();
 const PORT = process.env.PORT || 5000;
-const MONGO_URI = process.env.MONGO_URI; // Set in Render environment variables
+const MONGO_URI = process.env.MONGO_URI; 
 
 // **FINAL CORRECTED PATHING:** Assumes index.js and british-words.txt are in the same directory (/server)
 const wordsFilePath = path.join(__dirname, 'british-words.txt'); 
@@ -40,16 +41,15 @@ mongoose.connect(MONGO_URI, {
     console.log('MongoDB connection successful.');
     
     // =======================================================
-    // **DATABASE SEEDING LOGIC (Using Final Corrected Path)**
+    // **DATABASE SEEDING LOGIC (Confirmed working with 42 words)**
     // =======================================================
     
-    // Check if the collection is already populated
     const count = await Word.countDocuments();
     if (count === 0) {
         console.log('Word collection is empty. Starting database seed...');
         
         try {
-            // Read the file content using the corrected path
+            // Read the file content
             const wordListContent = fs.readFileSync(wordsFilePath, 'utf8');
             
             // Split by newline and clean up empty lines/whitespace
@@ -65,7 +65,6 @@ mongoose.connect(MONGO_URI, {
             console.log(`Successfully inserted ${wordDocuments.length} words.`);
             
         } catch (fileError) {
-            // This error log is crucial if the path is wrong or the file is corrupted
             console.error(`FATAL FILE ERROR: Failed to read or process ${path.basename(wordsFilePath)}.`);
             console.error('File Read/Seed Error details:', fileError.message); 
         }
@@ -81,7 +80,7 @@ mongoose.connect(MONGO_URI, {
 
     
     // 6. Serve Static Files (The Web Application)
-    // Frontend files (index.html, etc.) are still assumed to be in the root directory (../)
+    // Frontend files (index.html, etc.) are assumed to be in the root directory (../)
     const staticPath = path.join(__dirname, '..'); 
     app.use(express.static(staticPath));
     
@@ -92,7 +91,28 @@ mongoose.connect(MONGO_URI, {
 
 
     // 7. Define API Routes (Game Logic)
-    
+
+    // **NEW ROUTE:** API to get one random word (Fixes "NO MORE WORDS!" error in frontend)
+    app.get('/api/get-word', async (req, res) => {
+        try {
+            // $sample is efficient for random selection
+            const randomWord = await Word.aggregate([
+                { $sample: { size: 1 } } 
+            ]);
+
+            if (randomWord && randomWord.length > 0) {
+                // Respond with the word data
+                res.json({ word: randomWord[0].word });
+            } else {
+                // Should not happen now, but provides a fallback
+                res.status(404).json({ message: "No words found in database." });
+            }
+        } catch (error) {
+            console.error('Error fetching random word:', error);
+            res.status(500).json({ error: 'Failed to fetch word.' });
+        }
+    });
+
     // Route to validate if a word exists in the dictionary
     app.post('/api/validate-word', async (req, res) => {
         const { word } = req.body;
