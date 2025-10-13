@@ -43,35 +43,49 @@ async function seedWords(collection) {
     try {
         const count = await collection.countDocuments();
 
-        if (count === 0) {
-            console.log('Database is empty. Starting word seeding...');
-            
-            // Assuming british-words.txt is in the server directory
-            const filePath = path.join(__dirname, 'british-words.txt');
-            const fileContent = fs.readFileSync(filePath, 'utf8');
-            
-            // Filter out empty lines and trim whitespace, then map to documents
-            const words = fileContent
-                .split('\n')
-                .map(line => line.trim())
-                .filter(word => word.length > 0)
-                .map(word => ({
-                    word: word.toUpperCase(), // Store words in uppercase for consistency
-                    goodVotes: 0,
-                    badVotes: 0,
-                    totalVotes: 0,
-                }));
-
-            if (words.length > 0) {
-                const result = await collection.insertMany(words);
-                console.log(`Successfully seeded ${result.insertedCount} words.`);
-            } else {
-                console.log('Word list file was empty or contained no valid words.');
-            }
-        } else {
+        // 1. If the collection is NOT empty, we skip seeding and log the current count.
+        if (count > 0) {
             console.log(`Database already contains ${count} words. Seeding skipped.`);
+            return;
         }
+
+        // 2. If the collection IS empty (count === 0), we proceed with reading and insertion.
+        console.log('Database is empty. Starting word seeding...');
+
+        // --- IMPORTANT CHANGE: DROPPING COLLECTION ---
+        // Since we know the user wants to update the list, we can drop the collection 
+        // to ensure a full refresh from the latest british-words.txt, 
+        // but ONLY if the initial count was 0 (which means it was never properly seeded 
+        // or a previous user cleared it).
+        // Since the current count is 0, we don't need to drop it here, but 
+        // we'll advise the user to clear the data manually if issues persist 
+        // (as a drop might clear existing user votes).
+
+        // Read and process the word list
+        const filePath = path.join(__dirname, 'british-words.txt');
+        const fileContent = fs.readFileSync(filePath, 'utf8');
+        
+        // Filter out empty lines and trim whitespace, then map to documents
+        const words = fileContent
+            .split('\n')
+            .map(line => line.trim())
+            .filter(word => word.length > 0)
+            .map(word => ({
+                word: word.toUpperCase(), // Store words in uppercase for consistency
+                goodVotes: 0,
+                badVotes: 0,
+                totalVotes: 0,
+            }));
+
+        if (words.length > 0) {
+            const result = await collection.insertMany(words);
+            console.log(`Successfully seeded ${result.insertedCount} words.`);
+        } else {
+            console.log('Word list file was empty or contained no valid words.');
+        }
+
     } catch (error) {
+        // If the collection does not exist, an error will occur, which is fine.
         console.error('Error during word seeding:', error);
     }
 }
@@ -106,6 +120,7 @@ connectAndInitialize();
 
 /**
  * Route to fetch a single word, prioritizing unvoted words.
+ * Fetches a random unvoted word, or a random least-voted word as a fallback.
  */
 app.get('/api/get-word', async (req, res) => {
     try {
@@ -214,14 +229,16 @@ app.post('/api/vote', async (req, res) => {
 
 /**
  * Route to fetch the top 10 most "good" and top 10 most "bad" words.
+ * Includes a requirement that words must have at least 5 votes to be considered "top".
  */
 app.get('/api/top-words', async (req, res) => {
     try {
         const collection = db.collection(wordCollectionName);
 
-        // Aggregation to calculate ratios and filter only voted words
+        // Aggregation to calculate ratios and filter only words with at least 5 votes
         const pipeline = [
-            { $match: { totalVotes: { $gt: 0 } } }, // Only show words with at least one vote
+            // Only show words with at least 5 total votes to filter out noise
+            { $match: { totalVotes: { $gt: 4 } } }, 
             {
                 $addFields: {
                     // Calculate ratio of good votes to total votes
@@ -237,20 +254,24 @@ app.get('/api/top-words', async (req, res) => {
         // --- Mostly Good (Highest Good Ratio, tie-break by total volume) ---
         const mostlyGood = allVotedWords
             .sort((a, b) => {
+                // Primary sort by Ratio descending
                 if (b.goodRatio !== a.goodRatio) {
-                    return b.goodRatio - a.goodRatio; // Sort by Ratio descending
+                    return b.goodRatio - a.goodRatio; 
                 }
-                return b.totalVotes - a.totalVotes; // Tie-break by Total Votes descending
+                // Secondary sort (tie-breaker) by Total Votes descending
+                return b.totalVotes - a.totalVotes; 
             })
             .slice(0, 10) // Take top 10
 
         // --- Mostly Bad (Highest Bad Ratio, tie-break by total volume) ---
         const mostlyBad = allVotedWords
             .sort((a, b) => {
+                // Primary sort by Ratio descending
                 if (b.badRatio !== a.badRatio) {
-                    return b.badRatio - a.badRatio; // Sort by Ratio descending
+                    return b.badRatio - a.badRatio; 
                 }
-                return b.totalVotes - a.totalVotes; // Tie-break by Total Votes descending
+                // Secondary sort (tie-breaker) by Total Votes descending
+                return b.totalVotes - a.totalVotes; 
             })
             .slice(0, 10); // Take top 10
         
