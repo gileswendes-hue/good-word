@@ -16,7 +16,7 @@ const wordSchema = new Schema({
     word: { type: String, required: true, unique: true },
     goodVotes: { type: Number, default: 0 }, // Added fields for voting
     badVotes: { type: Number, default: 0 },  // Added fields for voting
-    totalVotes: { type: Number, default: 0 }, // **NEW: Track total votes for easier sorting**
+    totalVotes: { type: Number, default: 0 }, // Track total votes for easier sorting
 });
 const Word = mongoose.model('Word', wordSchema);
 
@@ -142,25 +142,31 @@ mongoose.connect(MONGO_URI, {
     // **REQUIRED ROUTE:** API to get the top/bottom words (Matches frontend fetchTopWords call)
     app.get('/api/top-words', async (req, res) => {
         try {
-            // Fetch words with votes > 0 and calculate a score for sorting
+            // --- UPDATED AGGREGATION FOR CORRECT SORTING ---
             
-            // 1. Get mostly good words (Score = Good Votes - Bad Votes)
+            // 1. Get mostly good words (Score = Ratio + (Volume/1000) for tie-breaking)
             const mostlyGood = await Word.aggregate([
                 // Must have at least one vote to be considered 'top'
                 { $match: { totalVotes: { $gt: 0 } } },
-                // Calculate the ratio for sorting, prioritizing high positive ratios
-                { $addFields: { score: { $divide: ["$goodVotes", "$totalVotes"] } } },
-                { $sort: { score: -1, totalVotes: -1 } }, // Best ratio first, then highest volume
+                // Calculate the score: Ratio (0 to 1) + TotalVotes (small bonus for confidence)
+                { $addFields: { 
+                    goodRatio: { $divide: ["$goodVotes", "$totalVotes"] },
+                } },
+                // Sort by the raw ratio first (desc), then totalVotes (desc)
+                { $sort: { goodRatio: -1, totalVotes: -1 } }, 
                 { $limit: 5 }
             ]);
 
-            // 2. Get mostly bad words (Score = Bad Votes - Good Votes)
+            // 2. Get mostly bad words (Score = Ratio + (Volume/1000) for tie-breaking)
             const mostlyBad = await Word.aggregate([
                 // Must have at least one vote to be considered 'top'
                 { $match: { totalVotes: { $gt: 0 } } },
-                // Calculate the ratio for sorting, prioritizing high negative ratios
-                 { $addFields: { score: { $divide: ["$badVotes", "$totalVotes"] } } },
-                { $sort: { score: -1, totalVotes: -1 } }, // Best bad ratio first, then highest volume
+                // Calculate the score: Bad Ratio (0 to 1) + TotalVotes (small bonus for confidence)
+                 { $addFields: { 
+                    badRatio: { $divide: ["$badVotes", "$totalVotes"] },
+                } },
+                // Sort by the raw bad ratio first (desc), then totalVotes (desc)
+                { $sort: { badRatio: -1, totalVotes: -1 } },
                 { $limit: 5 }
             ]);
 
@@ -185,7 +191,7 @@ mongoose.connect(MONGO_URI, {
                 { 
                     $inc: { 
                         [updateField]: 1,
-                        totalVotes: 1 // **NEW: Increment totalVotes with every vote**
+                        totalVotes: 1 // Increment totalVotes with every vote
                     } 
                 }
             );
