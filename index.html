@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Good Word / Bad Word</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="game-container">
+        <div class="logo">
+            <img src="logo.png" alt="Good Word / Bad Word Logo">
+        </div>
+
+        <div class="word-card-wrapper">
+            <div class="arrow left-arrow" aria-label="Vote Good Word">&#8592;</div>
+            <div id="wordCard" class="word-card" draggable="true">
+                <span id="currentWord">Loading...</span>
+            </div>
+            <div class="arrow right-arrow" aria-label="Vote Bad Word">&#8594;</div>
+        </div>
+
+        <div class="vote-buttons">
+            <button id="goodWordBtn" class="vote-btn good-btn">
+                <span class="icon">&#10003;</span> Good Word
+            </button>
+            <button id="badWordBtn" class="vote-btn bad-btn">
+                <span class="icon">&#10006;</span> Bad Word
+            </button>
+        </div>
+
+        <div class="top-words-section">
+            <h2>Top Voted Words</h2>
+            <div class="top-words-lists">
+                <div class="mostly-good">
+                    <h3>Mostly Good</h3>
+                    <ul id="mostlyGoodList">
+                        <li>CUDDLE <span class="percentage">(78% GOOD)</span></li>
+                        <li>BLANKET <span class="percentage">(65% GOOD)</span></li>
+                    </ul>
+                </div>
+                <div class="mostly-bad">
+                    <h3>Mostly Bad</h3>
+                    <ul id="mostlyBadList">
+                        <li>SPIDER <span class="percentage">(88% BAD)</span></li>
+                        <li>NAILS <span class="percentage">(55% BAD)</span></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
