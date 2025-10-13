@@ -3,6 +3,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors'); // If your frontend is on a different port/domain
 const path = require('path');
+const fs = require('fs');
 // dotenv is not needed on Render if you set environment variables in the dashboard
 
 // 2. Load Configuration and Initialize App
@@ -90,3 +91,4 @@ mongoose.connect(MONGO_URI, {
     process.exit(1); 
 
 });
+
