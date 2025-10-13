@@ -1,5 +1,10 @@
+// =======================================================
+// script.js (Located in the root directory)
+// =======================================================
+
 // --- Configuration ---
-const API_BASE_URL = 'http://localhost:3000/api'; // *** IMPORTANT: CHANGE THIS TO YOUR ACTUAL BACKEND URL ***
+// **FIXED:** Changed to a relative path '/api'. This is CRUCIAL for Render deployment.
+const API_BASE_URL = '/api'; 
 const DRAG_THRESHOLD = 100; // Pixels to drag to register a vote
 let currentWordData = null; // Stores the current word and its ID/meta-data
 
@@ -21,27 +26,50 @@ let currentX;
 // --- Helper Functions ---
 async function fetchRandomWord() {
     try {
-        const response = await fetch(`${API_BASE_URL}/random-word`);
+        // **FIXED:** Changed endpoint from /random-word to /get-word to match the backend index.js
+        const response = await fetch(`${API_BASE_URL}/get-word`); 
+        
+        if (response.status === 404) {
+             // This is how the backend signals that the word list is exhausted
+            currentWordSpan.textContent = "NO MORE WORDS!";
+            wordCard.style.opacity = 0; // Hide card for better effect
+            // Disable voting mechanisms here if needed
+            return null;
+        }
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
+        
         const data = await response.json();
-        return data; // Should contain { id: '...', word: '...', goodVotes: N, badVotes: M }
+        
+        // The backend returns { word: "..." } for /get-word.
+        // We will mock the necessary fields (id, votes) for the frontend logic to work.
+        return { 
+            id: data.word, // Use word itself as ID for now
+            word: data.word, 
+            goodVotes: 0, 
+            badVotes: 0 
+        }; 
     } catch (error) {
         console.error("Error fetching random word:", error);
         currentWordSpan.textContent = "Error loading word :(";
+        wordCard.style.opacity = 1; 
         return null;
     }
 }
 
 async function fetchTopWords() {
     try {
+        // NOTE: This endpoint still needs proper implementation in index.js, 
+        // but we assume the placeholder is now in place to prevent a 404 crash.
         const response = await fetch(`${API_BASE_URL}/top-words`);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
-        return data; // Should contain { mostlyGood: [], mostlyBad: [] }
+        // The response must contain { mostlyGood: [], mostlyBad: [] }
+        return data; 
     } catch (error) {
         console.error("Error fetching top words:", error);
         return { mostlyGood: [], mostlyBad: [] };
@@ -50,6 +78,7 @@ async function fetchTopWords() {
 
 async function submitVote(wordId, voteType) { // 'good' or 'bad'
     try {
+        // Calls the /api/vote endpoint (which is a placeholder in index.js)
         const response = await fetch(`${API_BASE_URL}/vote`, {
             method: 'POST',
             headers: {
@@ -68,9 +97,12 @@ async function submitVote(wordId, voteType) { // 'good' or 'bad'
 }
 
 function updateWordCard(wordData) {
-    if (!wordData) {
-        currentWordSpan.textContent = "No more words!"; // Or some error message
+    wordCard.style.opacity = 1; 
+
+    if (!wordData || !wordData.word) {
+        currentWordSpan.textContent = "NO MORE WORDS!"; 
         wordCard.className = 'word-card'; // Reset styles
+        wordCard.style.opacity = 0; 
         return;
     }
 
@@ -78,7 +110,7 @@ function updateWordCard(wordData) {
     currentWordSpan.textContent = wordData.word;
     wordCard.style.transform = 'translateX(0)'; // Reset position
 
-    // Determine border color based on existing votes
+    // Determine border color based on existing votes (mocked as 0 for initial fetch)
     const totalVotes = wordData.goodVotes + wordData.badVotes;
     wordCard.className = 'word-card'; // Reset existing classes
 
@@ -116,8 +148,11 @@ function renderTopWords(topWords) {
 }
 
 async function loadGameData() {
+    currentWordSpan.textContent = 'Loading...'; // Show loading state
     const word = await fetchRandomWord();
     updateWordCard(word);
+    
+    // Fetch and render top words (assuming the backend has the placeholder)
     const topWords = await fetchTopWords();
     renderTopWords(topWords);
 }
@@ -129,7 +164,8 @@ async function handleVote(voteType) {
     wordCard.style.transition = 'transform 0.3s ease-out';
     wordCard.style.transform = `translateX(${voteType === 'good' ? '-150%' : '150%'})`;
 
-    await submitVote(currentWordData.id, voteType); // Send vote to backend
+    // The backend uses currentWordData.id which we set to the word string
+    await submitVote(currentWordData.id, voteType); 
 
     // Wait for animation, then load next word
     setTimeout(async () => {
@@ -160,38 +196,52 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// Drag and Drop
-wordCard.addEventListener('mousedown', (e) => {
-    if (e.button !== 0) return; // Only left click
+// Drag and Drop (Mouse and Touch support for drag events)
+
+// Combined start event handler
+function handleDragStart(e) {
+    // Check if touch event or mouse event
+    const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+    if (e.type.startsWith('mouse') && e.button !== 0) return; // Only left click for mouse
+
     isDragging = true;
-    startX = e.clientX;
+    startX = clientX;
     wordCard.classList.add('dragged');
     wordCard.style.transition = 'none'; // Disable transition during drag
-});
+}
 
-wordCard.addEventListener('mousemove', (e) => {
+// Combined move event handler
+function handleDragMove(e) {
     if (!isDragging) return;
-    currentX = e.clientX;
+    
+    const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+    currentX = clientX;
     const deltaX = currentX - startX;
     wordCard.style.transform = `translateX(${deltaX}px)`;
 
-    // Optional: Visually hint the background based on drag direction
-    if (deltaX < -DRAG_THRESHOLD / 2) {
-        document.body.style.background = `linear-gradient(to right, ${getComputedStyle(document.documentElement).getPropertyValue('--good-color')} 0%, #fff 50%, #ffe0e0 100%)`;
-    } else if (deltaX > DRAG_THRESHOLD / 2) {
-        document.body.style.background = `linear-gradient(to right, #e0ffe0 0%, #fff 50%, ${getComputedStyle(document.documentElement).getPropertyValue('--bad-color')} 100%)`;
-    } else {
-        document.body.style.background = `linear-gradient(to right, #e0ffe0 0%, #fff 50%, #ffe0e0 100%)`;
-    }
-});
+    // Update background color based on drag direction
+    const bodyStyle = document.body.style;
+    const goodColor = getComputedStyle(document.documentElement).getPropertyValue('--good-color').trim();
+    const badColor = getComputedStyle(document.documentElement).getPropertyValue('--bad-color').trim();
 
-wordCard.addEventListener('mouseup', async (e) => {
+    if (deltaX < -DRAG_THRESHOLD / 2) { // Dragging left (Good)
+        bodyStyle.background = `linear-gradient(to right, ${goodColor} 0%, #fff 50%, #fff 100%)`;
+    } else if (deltaX > DRAG_THRESHOLD / 2) { // Dragging right (Bad)
+        bodyStyle.background = `linear-gradient(to left, ${badColor} 0%, #fff 50%, #fff 100%)`;
+    } else { // Neutral/Reset
+        bodyStyle.background = 'linear-gradient(to right, #e0ffe0 0%, #fff 50%, #ffe0e0 100%)';
+    }
+    e.preventDefault(); // Prevent scrolling on touch devices during drag
+}
+
+// Combined end event handler
+async function handleDragEnd(e) {
     if (!isDragging) return;
     isDragging = false;
     wordCard.classList.remove('dragged');
 
     const deltaX = currentX - startX;
-    document.body.style.background = `linear-gradient(to right, #e0ffe0 0%, #fff 50%, #ffe0e0 100%)`; // Reset background
+    document.body.style.background = 'linear-gradient(to right, #e0ffe0 0%, #fff 50%, #ffe0e0 100%)'; // Reset background
 
     if (deltaX < -DRAG_THRESHOLD) { // Dragged left (Good Word)
         await handleVote('good');
@@ -201,17 +251,23 @@ wordCard.addEventListener('mouseup', async (e) => {
         wordCard.style.transition = 'transform 0.2s ease-out';
         wordCard.style.transform = 'translateX(0)';
     }
-});
+}
+
+wordCard.addEventListener('mousedown', handleDragStart);
+document.addEventListener('mousemove', handleDragMove); // Use document for continuous drag
+document.addEventListener('mouseup', handleDragEnd); 
+
+// Touch Events
+wordCard.addEventListener('touchstart', handleDragStart);
+document.addEventListener('touchmove', handleDragMove);
+document.addEventListener('touchend', handleDragEnd);
+
 
 // Handle mouseleave if dragging ends outside the card (e.g., dragged off screen)
 wordCard.addEventListener('mouseleave', (e) => {
     if (isDragging) {
         // Treat as if mouseup occurred without a decisive drag
-        isDragging = false;
-        wordCard.classList.remove('dragged');
-        wordCard.style.transition = 'transform 0.2s ease-out';
-        wordCard.style.transform = 'translateX(0)';
-        document.body.style.background = `linear-gradient(to right, #e0ffe0 0%, #fff 50%, #ffe0e0 100%)`; // Reset background
+        handleDragEnd();
     }
 });
 
