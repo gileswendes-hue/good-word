@@ -98,6 +98,8 @@ async function seedWords(collection) {
 // --- Database Connection and Initialization ---
 
 async function connectAndInitialize() {
+    // --- DIAGNOSTIC ADDITION ---
+    console.log("--- Server initialization sequence started. ---");
     try {
         await client.connect();
         db = client.db(dbName);
