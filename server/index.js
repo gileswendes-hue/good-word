@@ -35,31 +35,37 @@ let db; // Global variable to hold the database connection
 // --- Seeding Logic ---
 
 /**
- * Seeds the word list into the database if the collection is empty.
- * Reads words from british-words.txt.
+ * Seeds the word list into the database.
+ * IMPORTANT: It now DROPS the existing 'words' collection to ensure a fresh reload.
  * @param {object} collection The MongoDB collection object.
  */
 async function seedWords(collection) {
     try {
+        // --- IMPORTANT FIX: DROP THE COLLECTION FOR A FRESH RELOAD ---
+        // We attempt to drop the collection first. If it doesn't exist, MongoDB throws an error, 
+        // which we catch and safely ignore.
+        console.log(`Checking for existing '${wordCollectionName}' collection...`);
+        try {
+            const dropResult = await collection.drop();
+            console.log(`Successfully dropped existing '${wordCollectionName}' collection.`);
+        } catch (error) {
+            if (error.codeName !== 'NamespaceNotFound') {
+                // If it's any error other than the collection not existing, log it.
+                console.warn(`Warning: Could not drop collection (may not exist yet): ${error.message}`);
+            } else {
+                console.log(`'${wordCollectionName}' collection not found. Proceeding with initial seed.`);
+            }
+        }
+        
+        // After dropping (or attempting to drop), the count will be 0, ensuring we seed.
         const count = await collection.countDocuments();
-
-        // 1. If the collection is NOT empty, we skip seeding and log the current count.
         if (count > 0) {
-            console.log(`Database already contains ${count} words. Seeding skipped.`);
+            // This case should now rarely happen, only if drop failed for some reason
+            console.log(`Database still contains ${count} words after drop attempt. Seeding skipped.`);
             return;
         }
 
-        // 2. If the collection IS empty (count === 0), we proceed with reading and insertion.
-        console.log('Database is empty. Starting word seeding...');
-
-        // --- IMPORTANT CHANGE: DROPPING COLLECTION ---
-        // Since we know the user wants to update the list, we can drop the collection 
-        // to ensure a full refresh from the latest british-words.txt, 
-        // but ONLY if the initial count was 0 (which means it was never properly seeded 
-        // or a previous user cleared it).
-        // Since the current count is 0, we don't need to drop it here, but 
-        // we'll advise the user to clear the data manually if issues persist 
-        // (as a drop might clear existing user votes).
+        console.log('Starting word seeding from british-words.txt...');
 
         // Read and process the word list
         const filePath = path.join(__dirname, 'british-words.txt');
@@ -85,8 +91,7 @@ async function seedWords(collection) {
         }
 
     } catch (error) {
-        // If the collection does not exist, an error will occur, which is fine.
-        console.error('Error during word seeding:', error);
+        console.error('Fatal Error during word seeding:', error);
     }
 }
 
