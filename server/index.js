@@ -181,13 +181,37 @@ mongoose.connect(MONGO_URI, {
     // Route to handle voting
     app.post('/api/vote', async (req, res) => {
         const { wordId, voteType } = req.body;
+        const word = wordId.toLowerCase();
         
         try {
+            // 1. Fetch the current document state BEFORE the update
+            const currentWordDoc = await Word.findOne({ word });
+            
+            if (!currentWordDoc) {
+                 return res.status(404).json({ message: 'Word not found for voting.' });
+            }
+            
+            let engagementMessage = null;
+
+            // 2. Determine the engagement message (Priority: First Vote > First Good/Bad Vote)
+            
+            if (currentWordDoc.totalVotes === 0) {
+                // Highest Priority: This is the very first vote
+                engagementMessage = `🎉 Congratulations! You cast the first vote on "${wordId}"!`;
+            } else if (voteType === 'good' && currentWordDoc.goodVotes === 0) {
+                // Second Priority: First Good Vote (but not the first overall vote)
+                engagementMessage = `👍 You gave "${wordId}" its first Good Vote!`;
+            } else if (voteType === 'bad' && currentWordDoc.badVotes === 0) {
+                // Third Priority: First Bad Vote (but not the first overall vote)
+                engagementMessage = `👎 You gave "${wordId}" its first Bad Vote!`;
+            }
+
+            // 3. Prepare the update
             const updateField = voteType === 'good' ? 'goodVotes' : 'badVotes';
             
-            // Find the word by its string (which is used as the ID in the frontend mock)
+            // 4. Perform the update
             const result = await Word.updateOne(
-                { word: wordId.toLowerCase() },
+                { word },
                 { 
                     $inc: { 
                         [updateField]: 1,
@@ -196,11 +220,11 @@ mongoose.connect(MONGO_URI, {
                 }
             );
 
-            if (result.matchedCount === 0) {
-                 return res.status(404).json({ message: 'Word not found for voting.' });
-            }
-
-            res.status(200).json({ message: `Vote recorded successfully for ${wordId}.` });
+            // 5. Respond with the message (if one was generated)
+            res.status(200).json({ 
+                message: `Vote recorded successfully for ${wordId}.`,
+                engagementMessage: engagementMessage // Send the message back to the frontend
+            });
         } catch (error) {
             console.error('Error processing vote:', error);
             res.status(500).json({ error: 'Failed to record vote.' });
