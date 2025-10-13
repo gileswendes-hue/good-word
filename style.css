@@ -74,7 +74,8 @@ body {
     text-transform: uppercase;
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
     cursor: grab;
-    transition: transform 0.2s ease, border-color 0.4s ease;
+    /* Add transform to the transition property for slide out animation */
+    transition: transform 0.4s ease, border-color 0.4s ease, opacity 0.4s ease;
     user-select: none;
     position: relative; /* For dragging */
     z-index: 10;
@@ -83,6 +84,19 @@ body {
 .word-card.good-border { border-color: var(--good-color); }
 .word-card.bad-border { border-color: var(--bad-color); }
 .word-card.dragged { cursor: grabbing; transform: scale(1.05); }
+
+/* NEW: Animation classes for voting action */
+/* Slide to the left (Good Word) */
+.word-card.slide-out-good {
+    transform: translateX(-400px) scale(0.8);
+    opacity: 0;
+}
+
+/* Slide to the right (Bad Word) */
+.word-card.slide-out-bad {
+    transform: translateX(400px) scale(0.8);
+    opacity: 0;
+}
 
 
 /* Vote Buttons */
