@@ -12,6 +12,9 @@ const PORT = process.env.PORT || 5000;
 // Get the MongoDB URI from Render's environment variables
 const MONGO_URI = process.env.MONGO_URI; 
 
+// Use __dirname to get the directory of the currently executing script
+const wordsFilePath = path.join(__dirname, 'british-words.txt');
+
 // --- Configuration Checks ---
 if (!MONGO_URI) {
     console.error("FATAL ERROR: MONGO_URI environment variable is not set.");
@@ -85,4 +88,5 @@ mongoose.connect(MONGO_URI, {
     // This line tells Render to stop the process, 
     // but the error message should now appear in the logs.
     process.exit(1); 
+
 });
