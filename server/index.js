@@ -16,6 +16,7 @@ const wordSchema = new Schema({
     word: { type: String, required: true, unique: true },
     goodVotes: { type: Number, default: 0 }, // Added fields for voting
     badVotes: { type: Number, default: 0 },  // Added fields for voting
+    totalVotes: { type: Number, default: 0 }, // **NEW: Track total votes for easier sorting**
 });
 const Word = mongoose.model('Word', wordSchema);
 
@@ -66,7 +67,8 @@ mongoose.connect(MONGO_URI, {
             const wordDocuments = wordsArray.map(word => ({ 
                 word: word.trim().toLowerCase(), 
                 goodVotes: 0, 
-                badVotes: 0 
+                badVotes: 0,
+                totalVotes: 0 // Initialize new field
             }));
             
             // Insert into MongoDB
@@ -101,13 +103,27 @@ mongoose.connect(MONGO_URI, {
 
     // 7. Define API Routes (Game Logic)
 
-    // **REQUIRED ROUTE:** API to get one random word (Matches frontend fetchRandomWord call)
+    // **IMPROVED ROUTE:** API to get one random word, prioritizing unvoted words
     app.get('/api/get-word', async (req, res) => {
         try {
-            // Query MongoDB to find one random word that has been voted on the fewest times (or zero)
-            // $sample is used for quick random selection
+            // Find a random word that has the MINIMUM number of votes.
             const randomWord = await Word.aggregate([
-                { $sample: { size: 1 } } 
+                // 1. Sort by totalVotes ascending (0 votes first)
+                { $sort: { totalVotes: 1 } },
+                // 2. Group by totalVotes and sample 1 word from the smallest group
+                { 
+                    $group: { 
+                        _id: "$totalVotes", 
+                        words: { $push: "$$ROOT" } 
+                    } 
+                },
+                // 3. Sort groups by the number of votes (the smallest vote count first)
+                { $sort: { _id: 1 } },
+                // 4. Sample 1 word from the first group (the words with the lowest vote count)
+                { $limit: 1 },
+                { $unwind: "$words" },
+                { $replaceRoot: { newRoot: "$words" } },
+                { $sample: { size: 1 } } // Final random selection from the lowest-voted group
             ]);
 
             if (randomWord && randomWord.length > 0) {
@@ -126,21 +142,27 @@ mongoose.connect(MONGO_URI, {
     // **REQUIRED ROUTE:** API to get the top/bottom words (Matches frontend fetchTopWords call)
     app.get('/api/top-words', async (req, res) => {
         try {
-            // Placeholder: Fetch words with votes > 0 and sort by vote ratio.
+            // Fetch words with votes > 0 and calculate a score for sorting
             
-            // 1. Get words with good votes > bad votes
-            const mostlyGood = await Word.find({ goodVotes: { $gt: 0 }, badVotes: { $gte: 0 } })
-                // Sort by ratio of goodVotes / (goodVotes + badVotes) descending (best first)
-                // Note: Complex sorting is better done in app memory or with aggregation, 
-                // but for simplicity, we sort by raw good votes here.
-                .sort({ goodVotes: -1, badVotes: 1 }) 
-                .limit(5);
+            // 1. Get mostly good words (Score = Good Votes - Bad Votes)
+            const mostlyGood = await Word.aggregate([
+                // Must have at least one vote to be considered 'top'
+                { $match: { totalVotes: { $gt: 0 } } },
+                // Calculate the ratio for sorting, prioritizing high positive ratios
+                { $addFields: { score: { $divide: ["$goodVotes", "$totalVotes"] } } },
+                { $sort: { score: -1, totalVotes: -1 } }, // Best ratio first, then highest volume
+                { $limit: 5 }
+            ]);
 
-            // 2. Get words with bad votes > good votes
-            const mostlyBad = await Word.find({ badVotes: { $gt: 0 }, goodVotes: { $gte: 0 } })
-                // Sort by ratio of badVotes / (goodVotes + badVotes) descending (worst first)
-                .sort({ badVotes: -1, goodVotes: 1 })
-                .limit(5);
+            // 2. Get mostly bad words (Score = Bad Votes - Good Votes)
+            const mostlyBad = await Word.aggregate([
+                // Must have at least one vote to be considered 'top'
+                { $match: { totalVotes: { $gt: 0 } } },
+                // Calculate the ratio for sorting, prioritizing high negative ratios
+                 { $addFields: { score: { $divide: ["$badVotes", "$totalVotes"] } } },
+                { $sort: { score: -1, totalVotes: -1 } }, // Best bad ratio first, then highest volume
+                { $limit: 5 }
+            ]);
 
             res.json({ mostlyGood, mostlyBad });
 
@@ -160,7 +182,12 @@ mongoose.connect(MONGO_URI, {
             // Find the word by its string (which is used as the ID in the frontend mock)
             const result = await Word.updateOne(
                 { word: wordId.toLowerCase() },
-                { $inc: { [updateField]: 1 } }
+                { 
+                    $inc: { 
+                        [updateField]: 1,
+                        totalVotes: 1 // **NEW: Increment totalVotes with every vote**
+                    } 
+                }
             );
 
             if (result.matchedCount === 0) {
