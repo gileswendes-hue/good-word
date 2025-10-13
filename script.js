@@ -3,7 +3,6 @@
 // =======================================================
 
 // --- Configuration ---
-// **FIXED:** Changed to a relative path '/api'. This is CRUCIAL for Render deployment.
 const API_BASE_URL = '/api'; 
 const DRAG_THRESHOLD = 100; // Pixels to drag to register a vote
 let currentWordData = null; // Stores the current word and its ID/meta-data
@@ -26,7 +25,7 @@ let currentX;
 // --- Helper Functions ---
 async function fetchRandomWord() {
     try {
-        // **FIXED:** Changed endpoint from /random-word to /get-word to match the backend index.js
+        // FIXED: Changed endpoint from /random-word to /get-word to match the backend index.js
         const response = await fetch(`${API_BASE_URL}/get-word`); 
         
         if (response.status === 404) {
@@ -43,14 +42,8 @@ async function fetchRandomWord() {
         
         const data = await response.json();
         
-        // The backend returns { word: "..." } for /get-word.
-        // We will mock the necessary fields (id, votes) for the frontend logic to work.
-        return { 
-            id: data.word, // Use word itself as ID for now
-            word: data.word, 
-            goodVotes: 0, 
-            badVotes: 0 
-        }; 
+        // The backend returns the full word document, including totalVotes, goodVotes, badVotes
+        return data; 
     } catch (error) {
         console.error("Error fetching random word:", error);
         currentWordSpan.textContent = "Error loading word :(";
@@ -61,8 +54,6 @@ async function fetchRandomWord() {
 
 async function fetchTopWords() {
     try {
-        // NOTE: This endpoint still needs proper implementation in index.js, 
-        // but we assume the placeholder is now in place to prevent a 404 crash.
         const response = await fetch(`${API_BASE_URL}/top-words`);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -78,7 +69,7 @@ async function fetchTopWords() {
 
 async function submitVote(wordId, voteType) { // 'good' or 'bad'
     try {
-        // Calls the /api/vote endpoint (which is a placeholder in index.js)
+        // Calls the /api/vote endpoint (which is implemented in index.js)
         const response = await fetch(`${API_BASE_URL}/vote`, {
             method: 'POST',
             headers: {
@@ -110,7 +101,7 @@ function updateWordCard(wordData) {
     currentWordSpan.textContent = wordData.word;
     wordCard.style.transform = 'translateX(0)'; // Reset position
 
-    // Determine border color based on existing votes (mocked as 0 for initial fetch)
+    // Determine border color based on existing votes
     const totalVotes = wordData.goodVotes + wordData.badVotes;
     wordCard.className = 'word-card'; // Reset existing classes
 
@@ -134,15 +125,27 @@ function renderTopWords(topWords) {
 
     topWords.mostlyGood.forEach(word => {
         const li = document.createElement('li');
-        const percentage = word.goodVotes / (word.goodVotes + word.badVotes) * 100;
-        li.innerHTML = `${word.word} <span class="percentage">(${Math.round(percentage)}% GOOD)</span>`;
+        const total = word.goodVotes + word.badVotes;
+        
+        // --- FIX FOR NAN% ---
+        const percentage = total > 0 
+            ? Math.round((word.goodVotes / total) * 100) 
+            : 0; // If total is 0, percentage is 0
+
+        li.innerHTML = `${word.word} <span class="percentage">(${percentage}% GOOD)</span>`;
         mostlyGoodList.appendChild(li);
     });
 
     topWords.mostlyBad.forEach(word => {
         const li = document.createElement('li');
-        const percentage = word.badVotes / (word.goodVotes + word.badVotes) * 100;
-        li.innerHTML = `${word.word} <span class="percentage">(${Math.round(percentage)}% BAD)</span>`;
+        const total = word.goodVotes + word.badVotes;
+        
+        // --- FIX FOR NAN% ---
+        const percentage = total > 0 
+            ? Math.round((word.badVotes / total) * 100) 
+            : 0; // If total is 0, percentage is 0
+
+        li.innerHTML = `${word.word} <span class="percentage">(${percentage}% BAD)</span>`;
         mostlyBadList.appendChild(li);
     });
 }
@@ -164,8 +167,8 @@ async function handleVote(voteType) {
     wordCard.style.transition = 'transform 0.3s ease-out';
     wordCard.style.transform = `translateX(${voteType === 'good' ? '-150%' : '150%'})`;
 
-    // The backend uses currentWordData.id which we set to the word string
-    await submitVote(currentWordData.id, voteType); 
+    // The backend uses currentWordData.word as the ID
+    await submitVote(currentWordData.word, voteType); 
 
     // Wait for animation, then load next word
     setTimeout(async () => {
