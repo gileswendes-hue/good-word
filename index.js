@@ -109,11 +109,9 @@ app.get('/api/get-word', async (req, res) => {
         if (randomWords.length > 0) {
             const wordData = randomWords[0];
 
-            // CRITICAL FIX: Explicitly ensure the ID is included in the response object
-            // Mongoose's .aggregate() results often don't have the virtual 'id' or the raw '_id' accessible by default.
-            // We ensure that we send the '_id' field back to the client.
+            // CRITICAL FIX: Ensure the response structure is always consistent and uses 'id'
             const responseWord = {
-                id: wordData._id, // Send the ID field
+                id: wordData._id.toString(), // Convert ObjectId to string for 'id' field
                 word: wordData.word
             };
 
@@ -133,6 +131,7 @@ app.get('/api/get-word', async (req, res) => {
 app.post('/api/vote', async (req, res) => {
     const { wordId, classification } = req.body;
 
+    // We rely on the client sending wordId which maps to the MongoDB _id string.
     if (!wordId || (classification !== 'good' && classification !== 'bad')) {
         return res.status(400).json({ success: false, message: "Invalid wordId or classification provided." });
     }
@@ -195,7 +194,7 @@ app.get('/api/top-words', async (req, res) => {
 connectDB().then(() => {
     // 2. Start the Express server only after DB connection is successful
     app.listen(PORT, () => {
-        console.log(`Server is listening on port ${PORT} (Backend Version: v1.7.3 CRITICAL FIX: Word ID missing in /get-word)`);
+        console.log(`Server is listening on port ${PORT} (Backend Version: v1.7.4 FINAL FIX: Standardized /get-word response)`);
     });
 }).catch(() => {
     console.error("Server startup failed due to critical database error. Process stopped.");
