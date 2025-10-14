@@ -123,6 +123,14 @@ async function connectAndInitialize() {
         // Assuming your 'index.html' is two directories up (e.g., in the project root)
         app.use(express.static(path.join(__dirname, '..', '..'))); 
 
+        // FIX: Explicit route to serve index.html when root URL is requested
+        // This resolves the "Cannot GET /" error by manually sending the file.
+        app.get('/', (req, res) => {
+            // This path assumes index.js is in 'server' and index.html is in the project root
+            const indexPath = path.join(__dirname, '..', '..', 'index.html');
+            res.sendFile(indexPath);
+        });
+
         // Start Express server after successful DB connection and seeding
         app.listen(port, () => {
             console.log(`Server running on port ${port}`);
