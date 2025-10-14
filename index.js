@@ -173,7 +173,7 @@ app.get('/api/get-word', dbCheck, async (req, res) => {
             // Ensure ID is present and returned
             const responseWord = {
                 id: wordData._id.toString(), // Convert ObjectId to string for frontend
-                word: wordData.word
+                word: wordData.word.toUpperCase() // Explicitly ensure uppercase
             };
 
             res.json(responseWord);
@@ -242,10 +242,16 @@ app.get('/api/top-words', dbCheck, async (req, res) => {
             .limit(5)
             .select('word goodVotes badVotes');
 
-        // Convert Mongoose documents to plain objects to trigger virtuals (like 'id')
+        // Helper function to ensure word is uppercase and virtuals are included
+        const formatWordOutput = (wordDoc) => {
+            const obj = wordDoc.toObject();
+            obj.word = obj.word.toUpperCase();
+            return obj;
+        };
+
         res.json({
-            mostlyGood: mostlyGood.map(w => w.toObject()),
-            mostlyBad: mostlyBad.map(w => w.toObject()),
+            mostlyGood: mostlyGood.map(formatWordOutput),
+            mostlyBad: mostlyBad.map(formatWordOutput),
         });
     } catch (error) {
         console.error("Error fetching top words:", error);
@@ -266,6 +272,6 @@ connectDB().finally(() => {
     // 2. Start the Express server regardless of DB connection status
     app.listen(PORT, () => {
         const dbStatus = isDbConnected ? "CONNECTED" : "DISCONNECTED (API calls will fail)"
-        console.log(`Server is listening on port ${PORT} (Backend Version: v1.8.1 FIX: DB Status Check & Empty DB Return, DB status: ${dbStatus})`);
+        console.log(`Server is listening on port ${PORT} (Backend Version: v1.8.2 FIX: Enforce Uppercase Output, DB status: ${dbStatus})`);
     });
 });
