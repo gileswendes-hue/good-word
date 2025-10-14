@@ -4,7 +4,7 @@
 
 // --- Configuration ---
 const API_BASE_URL = '/api'; 
-const APP_VERSION = '1.5.9'; // Bumping version for critical DOM element lookup fix
+const APP_VERSION = '1.5.10'; // Bumping version for robust wordCard/list lookup
 const API_TIMEOUT_MS = 1000; 
 const MAX_RETRIES = 1; 
 const LOADING_DELAY_MS = 150; 
@@ -12,7 +12,8 @@ const LOADING_DELAY_MS = 150;
 let currentWordData = null; // Stores the current word and its ID/meta-data
 let isVoting = false; // Flag to prevent double votes during animation/fetch
 
-// --- DOM Elements (Declared, but assignment moved to DOMContentLoaded) ---
+// --- Global DOM Variables (Assigned in initializeApp) ---
+// We keep them global but initialize them inside the function
 let wordCard; 
 let goodWordBtn;
 let badWordBtn;
@@ -62,10 +63,9 @@ async function apiCall(endpoint, options = {}) {
             console.error(`[API] Attempt ${i + 1} failed for ${endpoint}:`, error.message);
             
             if (i === MAX_RETRIES - 1) {
-                // Throw final error if max attempts reached (which is 1 attempt now)
+                // Throw final error if max attempts reached
                 throw new Error(`Failed to fetch data after ${MAX_RETRIES} attempt(s). Error: ${error.message}`);
             }
-            // Wait only if MAX_RETRIES was > 1
             await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1))); 
         }
     }
@@ -74,11 +74,10 @@ async function apiCall(endpoint, options = {}) {
 
 /**
  * Displays an engagement message briefly.
- * NOTE: Requires engagementMessageBox to be initialized.
  * @param {string} message The message text to display.
  */
 function displayEngagementMessage(message) {
-    if (!engagementMessageBox) return; // Null check for safety
+    if (!engagementMessageBox) return; 
     if (message) {
         engagementMessageBox.textContent = message;
         engagementMessageBox.classList.add('visible');
@@ -86,7 +85,6 @@ function displayEngagementMessage(message) {
         // Hide the message after 4 seconds
         setTimeout(() => {
             engagementMessageBox.classList.remove('visible');
-            // Clear text after transition to prevent flicker
             setTimeout(() => {
                 engagementMessageBox.textContent = '';
             }, 500); // Matches CSS transition time
@@ -94,7 +92,7 @@ function displayEngagementMessage(message) {
     }
 }
 
-// --- Rewritten fetch functions using the new apiCall ---
+// --- Fetch functions ---
 
 async function fetchRandomWord() {
     try {
@@ -116,7 +114,8 @@ async function fetchTopWords() {
         return data;
     } catch (error) {
         console.error("Error fetching top words:", error.message);
-        return { mostlyGood: [], mostlyBad: [] };
+        // We still need to return a structure for renderTopWords to work
+        return { mostlyGood: [], mostlyBad: [] }; 
     }
 }
 
@@ -136,25 +135,34 @@ async function submitVote(wordId, voteType) { 
 
 /**
  * Updates the card with new word data and initiates an instant update.
+ * Now ensures the global `wordCard` variable is updated after replacement.
  * @param {object} wordData - The data for the next word.
  */
 function updateWordCard(wordData) {
     return new Promise(resolve => {
+        // Find the most current wordCard in the DOM if our global reference is null
         if (!wordCard) {
-            console.error("Error: wordCard element is missing. Cannot update UI.");
+             wordCard = document.getElementById('wordCard');
+        }
+
+        if (!wordCard) {
+            console.error("FATAL ERROR: wordCard element could not be found for update. Skipping UI update.");
             resolve();
             return;
         }
 
+        const parent = wordCard.parentNode;
+
+        // --- Handle 'DB EMPTY' or error state ---
         if (!wordData || !wordData.word || wordData.word === "DB EMPTY") {
             const displayMessage = wordData && wordData.word === "DB EMPTY" ? "DATABASE EMPTY" : "NO MORE WORDS!";
             
-            // Perform full replacement to clear state
-            const parent = wordCard.parentNode;
+            // 1. Remove the old card
             if (wordCard && typeof wordCard.remove === 'function') {
                 wordCard.remove();
             }
 
+            // 2. Create and configure the new placeholder card
             const placeholderCard = document.createElement('div');
             placeholderCard.id = 'wordCard';
             placeholderCard.className = 'word-card neutral-border';
@@ -165,21 +173,22 @@ function updateWordCard(wordData) {
             placeholderSpan.textContent = displayMessage;
             placeholderCard.appendChild(placeholderSpan);
             
-            // Re-insert placeholder
-            if (parent) {
-                 parent.insertBefore(placeholderCard, document.querySelector('.top-words-lists'));
+            // 3. Re-insert placeholder
+            const wrapper = document.querySelector('.word-card-wrapper') || parent;
+            if (wrapper) {
+                 wrapper.appendChild(placeholderCard);
             }
 
-            wordCard = placeholderCard;
+            // 4. CRITICAL: Update global reference
+            wordCard = placeholderCard; 
             currentWordData = null; 
             resolve();
             return;
         }
 
-        // --- Replace the entire word card element for clean state ---
+        // --- Handle normal word update ---
         
-        const parent = wordCard.parentNode;
-        
+        // 1. Create a brand new, clean card element
         const newCard = document.createElement('div');
         newCard.id = 'wordCard';
         newCard.className = 'word-card';
@@ -187,24 +196,25 @@ function updateWordCard(wordData) {
         
         const newWordSpan = document.createElement('span');
         newWordSpan.id = 'currentWord';
-        newWordSpan.textContent = wordData.word; // Set content here
+        newWordSpan.textContent = wordData.word; 
         newCard.appendChild(newWordSpan);
         
-        if (wordCard && typeof wordCard.remove === 'function') {
-            wordCard.remove();
+        // 2. Replace the old card with the new one
+        if (wordCard.parentNode) {
+            wordCard.parentNode.replaceChild(newCard, wordCard);
+        } else {
+            // Fallback insertion if somehow the old card was detached
+             const wrapper = document.querySelector('.word-card-wrapper') || parent;
+            if (wrapper) {
+                 wrapper.appendChild(newCard);
+            }
         }
+
+        // 3. CRITICAL: Update global references
         wordCard = newCard;
         currentWordData = wordData;
         
-        // Insert the new card back into the DOM
-        const referenceElement = document.querySelector('.top-words-lists');
-        if (parent && referenceElement) {
-             parent.insertBefore(newCard, referenceElement.parentNode); 
-        } else if (parent) {
-             parent.appendChild(newCard); 
-        }
-        
-        // Determine border color based on existing votes 
+        // 4. Determine border color 
         const goodVotes = wordData.goodVotes || 0;
         const badVotes = wordData.badVotes || 0;
         const totalVotes = goodVotes + badVotes;
@@ -229,9 +239,12 @@ function updateWordCard(wordData) {
 function renderTopWords(topWords) {
     console.log("[DEBUG] Starting renderTopWords with data:", topWords); 
     
-    // CRITICAL: Ensure list elements exist before trying to manipulate them
+    // CRITICAL: Re-check list elements if not already initialized
+    if (!mostlyGoodList) mostlyGoodList = document.getElementById('mostlyGoodList');
+    if (!mostlyBadList) mostlyBadList = document.getElementById('mostlyBadList');
+
     if (!mostlyGoodList || !mostlyBadList) {
-        console.error("Error: Top word list containers (mostlyGoodList or mostlyBadList) are not initialized.");
+        console.error("Error: Top word list containers (mostlyGoodList or mostlyBadList) are not initialized or missing from HTML.");
         return; 
     }
     
@@ -260,6 +273,7 @@ function renderTopWords(topWords) {
         });
     }
 
+    // Call renderList with the specific arrays from the API response structure
     renderList(topWords.mostlyGood, mostlyGoodList, 'good');
     renderList(topWords.mostlyBad, mostlyBadList, 'bad');
     
@@ -275,7 +289,9 @@ async function loadCardAndLeaderboard() {
     
     let loadingTimeout = null;
 
-    const currentWordElement = wordCard ? wordCard.querySelector('#currentWord') : null;
+    // Check for the element before trying to set the loading message
+    const currentWordElement = document.getElementById('currentWord');
+
     if (currentWordElement) {
         loadingTimeout = setTimeout(() => {
             currentWordElement.textContent = 'Loading...';
@@ -283,11 +299,11 @@ async function loadCardAndLeaderboard() {
         }, LOADING_DELAY_MS);
     }
     
-    // 1. Start both promises concurrently for speed.
+    // 1. Start both promises concurrently
     const wordPromise = fetchRandomWord();
     const leaderboardPromise = fetchTopWords(); 
 
-    // 2. Wait only for the critical word to load.
+    // 2. Wait for the word
     const word = await wordPromise; 
     
     // 3. Clear the timeout 
@@ -295,15 +311,15 @@ async function loadCardAndLeaderboard() {
         clearTimeout(loadingTimeout);
     }
 
-    // 4. Update the card instantly 
+    // 4. Update the card
     await updateWordCard(word);
     
-    // 5. UNLOCK INPUT IMMEDIATELY after the word card is visible
+    // 5. UNLOCK INPUT after the word card is visible
     if (currentWordData && currentWordData.word) {
         isVoting = false; 
     }
 
-    // 6. Wait for and render top words (This is now background work)
+    // 6. Wait for and render top words
     const topWords = await leaderboardPromise;
     console.log("[DEBUG] Leaderboard data received. Calling renderTopWords."); 
     renderTopWords(topWords);
@@ -319,7 +335,7 @@ async function handleVote(voteType) {
 
     const wordId = currentWordData.wordId; 
     
-    // 1. Submit the vote (runs concurrently with the loading state)
+    // 1. Submit the vote
     const responseData = await submitVote(wordId, voteType); 
 
     if (responseData && responseData.engagementMessage) {
@@ -341,7 +357,6 @@ function setAppVersion() {
 
 /**
  * Initializes all DOM references and event listeners after the DOM is fully loaded.
- * This is the fix for the "goodWordBtn is null" error.
  */
 function initializeApp() {
     // --- ASSIGN GLOBAL DOM ELEMENTS HERE ---
@@ -355,7 +370,7 @@ function initializeApp() {
     engagementMessageBox = document.getElementById('engagementMessageBox');
     appVersionDisplay = document.getElementById('appVersionDisplay');
 
-    // --- SETUP EVENT LISTENERS (NOW THAT ELEMENTS ARE GUARANTEED TO EXIST) ---
+    // --- SETUP EVENT LISTENERS ---
     if (goodWordBtn) goodWordBtn.addEventListener('click', () => handleVote('good'));
     if (badWordBtn) badWordBtn.addEventListener('click', () => handleVote('bad'));
     if (leftArrow) leftArrow.addEventListener('click', () => handleVote('good'));
@@ -374,7 +389,8 @@ function initializeApp() {
 
     // --- START APPLICATION ---
     setAppVersion();
-    loadCardAndLeaderboard();
+    // Start the whole process, which handles the initial word card render
+    loadCardAndLeaderboard(); 
 }
 
 // --- Initial Load ---
