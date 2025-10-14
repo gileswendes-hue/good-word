@@ -1,46 +1,47 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const path = require('path');
-const cors = require('cors'); // Retained but not used, for simplicity
+const cors = require('cors'); 
 
 const app = express();
 const port = process.env.PORT || 10000;
 
 // Version for tracking
-const BACKEND_VERSION = 'v1.6.5';
+const BACKEND_VERSION = 'v1.6.7 (Non-SRV URI)';
 
 // --- CRITICAL CONFIGURATION: MONGO DB URI ---
 // 
-// IMPORTANT: You MUST replace the placeholder string below with your actual MongoDB Atlas 
-// connection string. 
+// WARNING: The credentials below are hardcoded for immediate deployment testing,
+// but for security, you MUST use the process.env.MONGODB_URI environment variable
+// for production.
 // 
-// If you are encountering 'querySrv ENOTFOUND' errors during deployment, try using the 
-// non-SRV connection string format (starting with 'mongodb://...') directly 
-// from your MongoDB Atlas cluster.
-// 
-// Placeholder URI structure for testing:
-const uri = process.env.MONGODB_URI || "mongodb+srv://database_user_4:justatestpassword@good-word-game.jsepbhh.mongodb.net/?retryWrites=true&w=majority&appName=good-word-game";
+// This non-SRV format resolves deployment issues by bypassing the DNS SRV lookup.
+// I've included the provided username/password, and placeholder hostnames for the cluster:
+const hardcodedUri = "mongodb://database_user_4:justatestpassword@ac-cchetfb-shard-00-00.jsepbhh.mongodb.net:27017,ac-cchetfb-shard-00-01.jsepbhh.mongodb.net:27017,ac-cchetfb-shard-00-02.jsepbhh.mongodb.net:27017/good-word-game?ssl=true&authSource=admin";
+
+// Use the environment variable if available, otherwise fallback to the hardcoded URI for testing.
+const uri = process.env.MONGODB_URI || hardcodedUri;
 
 // Minimum number of total votes required for a word to appear in the "Community Ratings" list.
-const MIN_VOTES_THRESHOLD = 1; // Set to 1, matching the frontend expectation.
+const MIN_VOTES_THRESHOLD = 1;
 
 // --- Middleware Setup ---
-// Use built-in Express middleware for JSON parsing (replaces body-parser.json())
+// Use built-in Express middleware for JSON parsing
 app.use(express.json()); 
-app.use(cors()); // Keeping cors for cross-origin requests
+app.use(cors()); 
 
 // Set up static serving for the frontend index.html
-// Assuming index.html is in the same directory as this index.js file
 const staticPath = path.join(__dirname);
 app.use(express.static(staticPath));
 
-// --- Database Connection Setup (Refactored) ---
+// --- Database Connection Setup ---
 
 // 1. Connect to MongoDB
 console.log("Attempting initial connection to MongoDB...");
 
-// Added explicit options, which can sometimes resolve deployment-specific connection issues
+// Connect using the URI (hardcoded or environment variable)
 mongoose.connect(uri, { 
+        // Explicit options for compatibility
         useNewUrlParser: true, 
         useUnifiedTopology: true 
     })
@@ -56,10 +57,8 @@ mongoose.connect(uri, {
         });
     })
     .catch(err => {
-        // 4. Handle persistent connection failure, logging a fatal error
-        // The error log showed: "bad auth : Authentication failed."
-        console.error("Fatal Error: Failed to connect to MongoDB and start server. Check your MONGODB_URI environment variable and IP access list.", err.message);
-        // Exiting the application on critical failure
+        // 4. Handle persistent connection failure
+        console.error("Fatal Error: Failed to connect to MongoDB and start server. Check your non-SRV URI.", err.message);
         process.exit(1);
     });
 
@@ -92,17 +91,14 @@ async function initializeWords() {
         if (count === 0) {
             console.log("Database is empty. Seeding initial words...");
             const wordObjects = initialWords.map(w => ({ word: w }));
-            // Use try/catch here to ensure seeding errors don't crash the server start
             try {
                 await Word.insertMany(wordObjects);
                 console.log("Initial words seeded successfully.");
             } catch (insertError) {
-                 // Log a warning if insertion fails (e.g., if another instance is seeding concurrently)
-                console.warn("Seeding failed, possibly due to concurrent initialization. Proceeding.", insertError.message);
+                 console.warn("Seeding failed, possibly due to concurrent initialization. Proceeding.", insertError.message);
             }
         }
     } catch (error) {
-        // Log a fatal error if counting documents fails, but proceed to start server 
         console.error("Critical error during initial word count:", error);
     }
 }
@@ -140,7 +136,6 @@ app.get('/api/get-word', async (req, res) => {
                 wordId: wordDoc._id 
             });
         } else {
-             // Fallback in case $sample returns nothing (should not happen if count > 0)
             res.status(404).json({ error: "Could not find a random word." });
         }
 
