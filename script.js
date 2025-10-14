@@ -117,7 +117,7 @@ function updateWordCard(wordData) {
         
         // 1. Ensure the card is fully reset (no slide-out classes)
         wordCard.className = 'word-card';
-        // The transform reset and class removal now happen inside handleVote's timeout
+        // The card visual reset now happens in handleVote's timeout using style.cssText
         
         // This is important: Set opacity to 0 *without* transition, then use a timeout to transition to 1
         wordCard.style.transition = 'none'; 
@@ -222,24 +222,13 @@ async function handleVote(voteType) {
 
     // 4. Wait for the animation to finish
     setTimeout(async () => {
-        // Step 4a: CRITICAL FIX: Use requestAnimationFrame to guarantee the browser registers the reset 
-        // before proceeding to load the next word, which initiates a new transition.
-        
-        // Temporarily disable transition
-        wordCard.style.transition = 'none'; 
-        
-        // 1st frame: Apply the transform reset and remove the slide class
-        requestAnimationFrame(() => {
-            wordCard.style.transform = 'translateX(0)';
-            wordCard.classList.remove(slideClass);
+        // CRITICAL FIX: Use cssText to force reset ALL inline styles and remove the class.
+        // This is a stronger way to force the card back to its neutral (centered) position
+        // and eliminate any lingering transform/transition overrides from the previous vote.
+        wordCard.style.cssText = ''; // Clears all inline styles (transform, transition)
+        wordCard.classList.remove(slideClass);
 
-            // 2nd frame: Re-enable transition for the next slide-out
-            requestAnimationFrame(() => {
-                wordCard.style.transition = '';
-            });
-        });
-
-        // Step 4b: Load the next card, which will reset the state and unlock 'isVoting' after fade-in
+        // Load the next card, which will reset the state and unlock 'isVoting' after fade-in
         await loadCardAndLeaderboard(); 
     }, ANIMATION_DURATION); 
 }
