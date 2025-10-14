@@ -2,20 +2,22 @@ const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const path = require('path');
-const cors = require('cors'); // Using cors for development/local testing
+const cors = require('cors'); 
 
 const app = express();
 const port = process.env.PORT || 10000;
 
 // --- CRITICAL CONFIGURATION: MONGO DB URI ---
 // 
-// IMPORTANT: The 'ENOTFOUND' error you were receiving means Node.js cannot resolve the
-// MongoDB cluster's network address. Please replace this placeholder with your actual
-// Atlas connection string and ensure your Atlas Network Access settings allow
-// connections from '0.0.0.0/0' (anywhere) or your specific hosting IP.
+// IMPORTANT: You MUST replace the placeholder string below with your actual MongoDB Atlas 
+// connection string. 
 // 
-// Example structure: "mongodb+srv://<USER>:<PASSWORD>@<CLUSTER_NAME>.mongodb.net/word_classifier?retryWrites=true&w=majority"
-const uri = process.env.MONGODB_URI || "mongodb+srv://user:password@cluster0.abcde.mongodb.net/word_classifier?retryWrites=true&w=majority";
+// Since you were getting 'querySrv ENOTFOUND', you should use the 
+// standard connection format (starting with 'mongodb://...') if possible, 
+// or ensure your Atlas Network Access settings allow connections from your deployment IP.
+// 
+// Cluster name reverted to 'good-word-game.jsepbhh.mongodb.net'
+const uri = process.env.MONGODB_URI || "mongodb+srv://database_user_4:justatestpassword@good-word-game.jsepbhh.mongodb.net/?retryWrites=true&w=majority";
 
 // Minimum number of total votes required for a word to appear in the "Community Ratings" list.
 const MIN_VOTES_THRESHOLD = 1; // Set to 1, matching the frontend expectation.
@@ -24,6 +26,7 @@ const MIN_VOTES_THRESHOLD = 1; // Set to 1, matching the frontend expectation.
 app.use(cors());
 app.use(bodyParser.json());
 
+// Set up static serving for the frontend index.html
 // Assuming index.html is in the same directory as this index.js file
 const staticPath = path.join(__dirname);
 app.use(express.static(staticPath));
@@ -218,4 +221,4 @@ app.get('/api/top-words', async (req, res) => {
 });
 
 // Version for tracking
-// v1.5.8
+// v1.6.0
