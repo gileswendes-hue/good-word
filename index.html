@@ -11,7 +11,7 @@
     <style>
         /* Custom CSS for Card Animation and Fonts */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
-        
+                
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f0f4f8; /* Light gray-blue background */
@@ -21,27 +21,23 @@
             align-items: center;
             padding: 2rem;
         }
-
         /* Styling for the main word card and top-words */
         #wordCard, #mostlyGoodCard, #mostlyBadCard {
             transition: all 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 10px 15px rgba(0, 0, 0, 0.1);
         }
-
         /* FADE OUT CLASS: Used to hide the current word card */
         .fade-out {
             opacity: 0;
             transform: translateY(20px);
             pointer-events: none; /* Disable interaction during fade */
         }
-
         /* FADE IN CLASS: Used to show the next word card */
         .fade-in {
             opacity: 1;
             transform: translateY(0);
             pointer-events: auto;
         }
-
         /* Style the ratings list */
         .rating-item {
             display: flex;
@@ -53,7 +49,6 @@
         .rating-item:last-child {
             border-bottom: none;
         }
-
         /* Responsive adjustments for mobile */
         @media (max-width: 768px) {
             body {
@@ -76,9 +71,7 @@
     </style>
 </head>
 <body class="selection:bg-indigo-300 selection:text-indigo-900">
-
     <div id="appContainer" class="max-w-xl w-full bg-white rounded-3xl p-8 shadow-2xl border border-gray-100 relative">
-
         <!-- Header -->
         <div class="text-center mb-8">
             <h1 class="text-4xl font-extrabold text-gray-900">Word Classifier</h1>
@@ -108,32 +101,35 @@
 
         <!-- Community Ratings Section -->
         <h2 class="text-2xl font-bold text-gray-700 text-center mt-10 mb-6 border-b pb-2">Community Ratings</h2>
-        
+                
         <div id="topWordsContainer" class="flex flex-col md:flex-row gap-4">
-            
-            <!-- Mostly Good Card -->
+                        <!-- Mostly Good Card -->
             <div id="mostlyGoodCard" class="flex-1 p-5 rounded-xl border-4 border-green-300 bg-green-50 shadow-inner">
                 <h3 class="text-xl font-bold text-green-700 mb-4">Mostly Good</h3>
                 <div id="goodRatingsList" class="space-y-2 text-gray-700">
+                    <!-- Placeholder text updated to 1-vote minimum -->
                     <p class="text-sm text-gray-500 italic">No words meet the 1-vote minimum yet.</p>
                 </div>
             </div>
-            
-            <!-- Mostly Bad Card -->
+                        <!-- Mostly Bad Card -->
             <div id="mostlyBadCard" class="flex-1 p-5 rounded-xl border-4 border-red-300 bg-red-50 shadow-inner">
                 <h3 class="text-xl font-bold text-red-700 mb-4">Mostly Bad</h3>
                 <div id="badRatingsList" class="space-y-2 text-gray-700">
+                    <!-- Placeholder text updated to 1-vote minimum -->
                     <p class="text-sm text-gray-500 italic">No words meet the 1-vote minimum yet.</p>
                 </div>
             </div>
         </div>
-        
-        <!-- UPDATED: Version Number -->
-        <div class="text-xs text-gray-400 mt-4 text-right">v1.5.7</div>
-
+                
+        <!-- UPDATED: Version Number to show both FE and BE -->
+        <div class="text-xs text-gray-400 mt-4 text-right">
+            FE: v1.6.3 | BE: <span id="backendVersion">v1.6.2</span>
+        </div>
     </div>
-
     <script>
+        // Frontend Version
+        const FRONTEND_VERSION = 'v1.6.3';
+
         // Use Lucide Icons
         lucide.createIcons();
 
@@ -146,6 +142,7 @@
         const badButton = document.getElementById('badButton');
         const goodRatingsList = document.getElementById('goodRatingsList');
         const badRatingsList = document.getElementById('badRatingsList');
+        const backendVersionSpan = document.getElementById('backendVersion');
 
         // --- State ---
         let currentWord = null;
@@ -154,12 +151,32 @@
         // --- API Calls ---
 
         /**
+         * Fetches the backend version and updates the display.
+         */
+        async function fetchBackendVersion() {
+            try {
+                const response = await fetch('/api/version');
+                if (response.ok) {
+                    const data = await response.json();
+                    backendVersionSpan.textContent = data.version;
+                } else {
+                    backendVersionSpan.textContent = 'Error';
+                    console.error("Failed to fetch backend version.");
+                }
+            } catch (error) {
+                backendVersionSpan.textContent = 'Offline';
+                console.error("Backend version fetch failed:", error);
+            }
+        }
+
+        /**
          * Fetches a new word from the backend.
          */
         async function fetchWord() {
             if (isFetching) return;
             isFetching = true;
 
+            // Start fade out
             wordDisplay.classList.add('fade-out');
             loadingIndicator.classList.remove('hidden');
 
@@ -198,10 +215,10 @@
         async function sendVote(voteType) {
             if (!currentWord || isFetching) return;
             isFetching = true;
-            
+
             // Immediately start fade out of the current word
             wordCard.classList.add('fade-out');
-            
+
             try {
                 const response = await fetch('/api/vote', {
                     method: 'POST',
@@ -215,9 +232,8 @@
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
-
                 const data = await response.json();
-                
+
                 // Show engagement message if provided
                 if (data.engagementMessage) {
                     engagementMessage.textContent = data.engagementMessage;
@@ -236,7 +252,6 @@
                 wordCard.classList.remove('fade-out');
                 wordCard.classList.add('fade-in');
 
-
             } catch (error) {
                 console.error("Failed to submit vote:", error);
                 // On error, revert card state
@@ -248,14 +263,14 @@
                 isFetching = false;
             }
         }
-        
+
         /**
          * Fetches and displays the top 10 good and top 10 bad words.
          */
         async function fetchTopWords() {
             goodRatingsList.innerHTML = '<p class="text-sm text-gray-500 italic animate-pulse">Updating...</p>';
             badRatingsList.innerHTML = '<p class="text-sm text-gray-500 italic animate-pulse">Updating...</p>';
-
+            
             try {
                 const response = await fetch('/api/top-words');
                 if (!response.ok) {
@@ -265,11 +280,8 @@
 
                 // Render Mostly Good List
                 goodRatingsList.innerHTML = ''; // Clear loading message
-                // The minimumVotesMessage reflects the backend logic (now set to 1 vote).
-                const minimumVotesMessage = 'No words meet the 1-vote minimum yet.'; 
-
                 if (data.mostlyGood.length === 0) {
-                    goodRatingsList.innerHTML = `<p class="text-sm text-gray-500 italic">${minimumVotesMessage}</p>`;
+                    goodRatingsList.innerHTML = '<p class="text-sm text-gray-500 italic">No words meet the 1-vote minimum yet.</p>';
                 } else {
                     data.mostlyGood.forEach(wordData => {
                         const ratio = wordData.goodRatio * 100;
@@ -282,7 +294,7 @@
                 // Render Mostly Bad List
                 badRatingsList.innerHTML = ''; // Clear loading message
                 if (data.mostlyBad.length === 0) {
-                    badRatingsList.innerHTML = `<p class="text-sm text-gray-500 italic">${minimumVotesMessage}</p>`;
+                    badRatingsList.innerHTML = '<p class="text-sm text-gray-500 italic">No words meet the 1-vote minimum yet.</p>';
                 } else {
                     data.mostlyBad.forEach(wordData => {
                         const ratio = wordData.badRatio * 100;
@@ -291,7 +303,7 @@
                         badRatingsList.appendChild(item);
                     });
                 }
-                
+                            
             } catch (error) {
                 console.error("Failed to fetch top words:", error);
                 goodRatingsList.innerHTML = '<p class="text-sm text-red-500">Error loading data.</p>';
@@ -312,21 +324,27 @@
             return div;
         }
 
-
         // --- Event Listeners and Initialization ---
-        
+                
         // Setup listeners for voting buttons
         goodButton.addEventListener('click', () => sendVote('good'));
         badButton.addEventListener('click', () => sendVote('bad'));
 
         // Initialize the app
         document.addEventListener('DOMContentLoaded', () => {
-            // Initial fetch to load the first word and top words list
+            // Display FE version
+            document.querySelector('.text-xs.text-gray-400 span').textContent = FRONTEND_VERSION;
+
+            // Initial fetch to load the first word, top words list, and backend version
             fetchWord();
             fetchTopWords();
+            fetchBackendVersion();
 
             // Set up a refresh interval for the top words list every 15 seconds
-            setInterval(fetchTopWords, 15000); 
+            setInterval(fetchTopWords, 15000);
+            
+            // Set up a refresh interval for the backend version every 30 seconds (in case of redeploy)
+            setInterval(fetchBackendVersion, 30000); 
         });
 
         // Add keyboard support for quicker voting
@@ -337,7 +355,6 @@
                 sendVote('bad'); // Assume right is traditionally "bad" or negative
             }
         });
-
     </script>
 </body>
 </html>
