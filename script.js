@@ -4,7 +4,7 @@
 
 // --- Configuration ---
 const API_BASE_URL = '/api'; 
-const APP_VERSION = '1.5.0'; // Added version number for deployment verification
+const APP_VERSION = '1.5.1'; // Bumping version for this fix
 // Removed DRAG_THRESHOLD as dragging is no longer supported
 // Removed ANIMATION_DURATION: We are moving to an instant card swap to prevent sticking/double-click issues.
 let currentWordData = null; // Stores the current word and its ID/meta-data
@@ -117,17 +117,25 @@ function updateWordCard(wordData) {
         currentWordSpan.textContent = wordData.word;
         
         // 1. Instantly reset ALL styles to ensure the card is centered and visible.
-        wordCard.style.cssText = 'opacity: 1;';
+        // CRITICAL FIX: Added position: relative to ensure version number is anchored correctly.
+        wordCard.style.cssText = 'opacity: 1; position: relative;'; 
         wordCard.className = 'word-card';
         
-        // --- Display Version Number (New) ---
+        // --- Display Version Number ---
+        // 2. Clean up previous version element if it exists before adding a new one.
+        const oldVersionElement = wordCard.querySelector('.app-version-tag');
+        if (oldVersionElement) {
+            oldVersionElement.remove();
+        }
+
         const versionElement = document.createElement('span');
+        versionElement.classList.add('app-version-tag'); // Added class for easy lookup
         versionElement.textContent = `v${APP_VERSION}`;
         versionElement.style.cssText = 'position: absolute; bottom: 5px; right: 5px; font-size: 0.7em; color: #999;';
         wordCard.appendChild(versionElement);
-        // ------------------------------------
+        // ------------------------------
 
-        // 2. Determine border color based on existing votes
+        // 3. Determine border color based on existing votes
         const totalVotes = wordData.goodVotes + wordData.badVotes;
         if (totalVotes === 0) {
             wordCard.classList.add('neutral-border');
