@@ -9,7 +9,7 @@ const port = process.env.PORT || 10000;
 
 // Version for tracking
 // Updated version to reflect the attempt to fix the seeding path
-const BACKEND_VERSION = 'v1.8.0 (Seeding Path Diagnostic Update)'; 
+const BACKEND_VERSION = 'v1.8.1 (Fixed Index.html Path)'; 
 
 // --- CRITICAL CONFIGURATION: MONGO DB URI ---
 // WARNING: The credentials below are hardcoded for immediate deployment testing,
@@ -275,5 +275,7 @@ app.get('*', (req, res) => {
     }
     
     // Serve the index.html file from the public directory
+    // NOTE: This MUST use 'publicPath' which was defined earlier,
+    // or simply use path.join(__dirname, 'public', 'index.html')
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
