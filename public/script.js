@@ -3,12 +3,11 @@ const API_URL_BASE = '/api';
 const WORD_CARD_TRANSITION_DURATION = 400; // ms
 
 // --- DOM Elements ---
-// Ensure the IDs here match your index.html exactly: vote-good, vote-bad
 const currentWordEl = document.getElementById('currentWord');
 const wordIdInput = document.getElementById('word-id');
 const wordCardEl = document.getElementById('wordCard');
-const voteGoodBtn = document.getElementById('vote-good'); // Correct ID mapping
-const voteBadBtn = document.getElementById('vote-bad');   // Correct ID mapping
+const voteGoodBtn = document.getElementById('vote-good');
+const voteBadBtn = document.getElementById('vote-bad');
 const engagementMessageBox = document.getElementById('engagementMessageBox');
 const mostlyGoodListEl = document.getElementById('mostly-good-list');
 const mostlyBadListEl = document.getElementById('mostly-bad-list');
@@ -112,17 +111,15 @@ async function loadNewWord() {
         const response = await fetchWithRetry(`${API_URL_BASE}/get-word`);
         const data = await response.json();
 
-        // CRITICAL FIX: Check for all possible ID keys returned by the server
-        const wordId = data.id || data._id || data.wordId; 
+        // The server is now guaranteed to return the ID as 'id'
+        const wordId = data.id; 
 
         if (data && data.word && wordId) {
             currentWordEl.textContent = data.word;
             wordIdInput.value = wordId;
-            // Now the debug log should show the ID
             console.debug(`[API] New word returned: ${data.word} (ID: ${wordId})`); 
         } else {
-            // This warning should now only appear if the server returns literally nothing useful
-            console.warn("[API] Received empty, invalid, or ID-less word data (after checking all keys):", data); 
+            console.error("[API] Failed to get valid word data (Word or ID missing):", data); 
             currentWordEl.textContent = "No words available or ID missing.";
             wordIdInput.value = '';
         }
@@ -143,7 +140,6 @@ async function sendVote(classification) {
 
     if (!wordId || word === "LOADING..." || word.startsWith("ERROR:")) {
         displayEngagementMessage("Please wait for the current word to load before voting.", 'neutral');
-        // This error should now only trigger if the input field is still empty after loadNewWord ran.
         console.error("VOTE ERROR: wordId is missing or invalid:", wordId || '<empty_string>'); 
         return;
     }
@@ -180,13 +176,15 @@ async function sendVote(classification) {
             await loadNewWord(); 
             await loadTopWords(); 
         } else {
-            // If API returns success: false, or HTTP status is not OK
+            // If API returns success: false, or HTTP status is not OK (e.g., 400 Bad Request)
             console.error("Server response on failure:", result);
+            // Throwing an error here triggers the catch block below for consistent handling
             throw new Error(result.message || `Failed to submit vote. Server responded with status: ${response.status}`);
         }
     } catch (error) {
+        // The error object might contain the original status code from fetchWithRetry
         console.error("Error submitting vote:", error);
-        console.warn("Attempted payload:", payload); // Log the attempted payload on error
+        console.warn("Attempted payload:", payload);
         displayEngagementMessage("ERROR: Could not submit vote. Check console for details.", 'bad');
         // If vote failed, re-load the word just in case
         await loadNewWord(); 
@@ -271,7 +269,6 @@ function renderTopWords(data) {
 
 
 // --- Event Listeners ---
-// Use the correctly retrieved variables: voteGoodBtn and voteBadBtn
 voteGoodBtn.addEventListener('click', () => sendVote('good'));
 voteBadBtn.addEventListener('click', () => sendVote('bad'));
 
@@ -285,8 +282,6 @@ function init() {
     
     // 2. Load the leaderboard (top words)
     loadTopWords();
-
-    // The engagementMessageBox is only styled via JavaScript now. We don't need a separate display logic here.
 }
 
 // Start the application after the DOM is fully loaded
