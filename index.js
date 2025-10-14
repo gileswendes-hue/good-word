@@ -11,6 +11,10 @@ const MONGO_URI = process.env.MONGODB_URI;
 
 // --- Middleware ---
 app.use(express.json()); // for parsing application/json
+
+// CRITICAL FIX: The path.join needs to correctly handle the structure where
+// index.js is in 'server' and static files are in 'public'.
+// We are serving static files from the directory one level up, in 'public'.
 app.use(express.static(path.join(__dirname, '../public'))); // Serve static files from the 'public' directory
 
 // --- MongoDB/Mongoose Setup ---
@@ -71,11 +75,13 @@ async function seedDatabase() {
         const count = await Word.countDocuments();
         if (count === 0) {
             console.log("Database is empty. Seeding initial words...");
+            
+            // CRITICAL FIX: british-words.txt is in the 'server' directory, so we reference it directly from __dirname.
             const filePath = path.join(__dirname, 'british-words.txt');
             
             // Check if file exists before trying to read
             if (!fs.existsSync(filePath)) {
-                 console.error("ERROR: Word list file 'british-words.txt' not found at expected path.");
+                 console.error("ERROR: Word list file 'british-words.txt' not found at expected path. Check server directory.");
                  return;
             }
 
@@ -98,7 +104,7 @@ async function seedDatabase() {
     } catch (error) {
         // Handle potential EBUSY or file reading errors
         if (error.code === 'ENOENT') {
-            console.error("ERROR: Word list file 'british-words.txt' not found at expected path.");
+            console.error("ERROR: Word list file 'british-words.txt' not found.");
         } else if (error.code === 11000) {
              // 11000 is the MongoDB duplicate key error (safe to ignore after initial seed)
              console.warn("Initial words seeded successfully (with duplicate warnings).");
@@ -140,8 +146,7 @@ app.get('/api/get-word', dbCheck, async (req, res) => {
         if (randomWords.length > 0) {
             const wordData = randomWords[0];
 
-            // CRITICAL FIX: Ensure the response structure is always consistent and uses 'id'
-            // The result of aggregate $sample returns the _id, which needs to be converted.
+            // Ensure the response structure is always consistent and uses 'id'
             const responseWord = {
                 id: wordData._id.toString(), // Convert ObjectId to string for 'id' field
                 word: wordData.word
@@ -185,8 +190,6 @@ app.post('/api/vote', dbCheck, async (req, res) => {
         }
     } catch (error) {
         console.error("Error updating vote:", error);
-        // Log the attempted wordId for easier debugging
-        console.error("Failed to update wordId:", wordId, "with classification:", classification);
         res.status(500).json({ success: false, message: "Internal server error while recording vote." });
     }
 });
@@ -221,13 +224,22 @@ app.get('/api/top-words', dbCheck, async (req, res) => {
     }
 });
 
+
+// CRITICAL FIX: Handle the root route (and all other routes not caught by API)
+// This must come AFTER all specific API routes.
+app.get('*', (req, res) => {
+    // __dirname points to the 'server' folder. We need to go up one level to the root
+    // and then down into 'public' to find index.html.
+    res.sendFile(path.join(__dirname, '../public', 'index.html'));
+});
+
 // --- Server Startup ---
 
 // 1. Connect to the database (which now handles failure gracefully)
 connectDB().finally(() => {
     // 2. Start the Express server regardless of DB connection status
     app.listen(PORT, () => {
-        const dbStatus = isDbConnected ? "CONNECTED" : "DISCONNECTED (API calls will fail)";
-        console.log(`Server is listening on port ${PORT} (Backend Version: v1.7.6 FIX: Robust DB connection check - Status: ${dbStatus})`);
+        const dbStatus = isDbConnected ? "CONNECTED" : "DISCONNECTED (API calls will fail)"
+        console.log(`Server is listening on port ${PORT} (Backend Version: v1.7.7 FIX: Root route, DB status: ${dbStatus})`);
     });
 });
