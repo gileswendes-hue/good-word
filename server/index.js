@@ -7,6 +7,9 @@ const cors = require('cors');
 const app = express();
 const port = process.env.PORT || 10000;
 
+// Version for tracking
+const BACKEND_VERSION = 'v1.6.2';
+
 // --- CRITICAL CONFIGURATION: MONGO DB URI ---
 // 
 // IMPORTANT: You MUST replace the placeholder string below with your actual MongoDB Atlas 
@@ -53,7 +56,7 @@ async function connectToMongoAndStartServer(attempt = 1) {
         
         // Start server only after DB is connected
         app.listen(port, () => {
-            console.log(`Server is listening on port ${port}`);
+            console.log(`Server is listening on port ${port} (Backend Version: ${BACKEND_VERSION})`);
         });
 
     } catch (err) {
@@ -118,7 +121,12 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(staticPath, 'index.html'));
 });
 
-// 2. GET a new random word
+// 2. GET backend version
+app.get('/api/version', (req, res) => {
+    res.json({ version: BACKEND_VERSION });
+});
+
+// 3. GET a new random word
 app.get('/api/get-word', async (req, res) => {
     try {
         const count = await Word.countDocuments();
@@ -148,7 +156,7 @@ app.get('/api/get-word', async (req, res) => {
     }
 });
 
-// 3. POST a vote for a word
+// 4. POST a vote for a word
 app.post('/api/vote', async (req, res) => {
     const { wordId, voteType } = req.body;
 
@@ -178,7 +186,7 @@ app.post('/api/vote', async (req, res) => {
     }
 });
 
-// 4. GET top rated words for community display
+// 5. GET top rated words for community display
 app.get('/api/top-words', async (req, res) => {
     try {
         // Find words that have met the minimum vote threshold
@@ -219,6 +227,3 @@ app.get('/api/top-words', async (req, res) => {
         res.status(500).json({ error: "Internal Server Error" });
     }
 });
-
-// Version for tracking
-// v1.6.0
