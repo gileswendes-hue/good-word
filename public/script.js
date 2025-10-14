@@ -1,0 +1,292 @@
+// =======================================================
+// script.js (Located in the public directory)
+// =======================================================
+
+// --- Configuration ---
+const API_BASE_URL = '/api'; 
+const APP_VERSION = '1.5.2'; // Bumping version for this fix
+// Removed DRAG_THRESHOLD as dragging is no longer supported
+// Removed ANIMATION_DURATION: We are moving to an instant card swap to prevent sticking/double-click issues.
+let currentWordData = null; // Stores the current word and its ID/meta-data
+let isVoting = false; // Flag to prevent double votes during animation/fetch
+
+// --- DOM Elements ---
+const appContainer = document.getElementById('appContainer'); // Assuming the wordCard's parent exists
+let wordCard = document.getElementById('wordCard'); // Now a 'let' because we may replace it
+const currentWordSpan = document.getElementById('currentWord');
+const goodWordBtn = document.getElementById('goodWordBtn');
+const badWordBtn = document.getElementById('badWordBtn');
+const mostlyGoodList = document.getElementById('mostlyGoodList');
+const mostlyBadList = document.getElementById('mostlyBadList');
+const leftArrow = document.querySelector('.left-arrow');
+const rightArrow = document.querySelector('.right-arrow');
+const engagementMessageBox = document.getElementById('engagementMessageBox'); 
+// New DOM element for version display (must exist on the main page)
+const appVersionDisplay = document.getElementById('appVersionDisplay');
+
+// --- Helper Functions ---
+
+/**
+ * Displays an engagement message briefly.
+ * @param {string} message The message text to display.
+ */
+function displayEngagementMessage(message) {
+    if (message) {
+        engagementMessageBox.textContent = message;
+        engagementMessageBox.classList.add('visible');
+
+        // Hide the message after 4 seconds
+        setTimeout(() => {
+            engagementMessageBox.classList.remove('visible');
+            // Clear text after transition to prevent flicker
+            setTimeout(() => {
+                engagementMessageBox.textContent = '';
+            }, 500); // Matches CSS transition time
+        }, 4000);
+    }
+}
+
+async function fetchRandomWord() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/get-word`); 
+        
+        if (response.status === 404) {
+            currentWordSpan.textContent = "NO MORE WORDS!";
+            wordCard.style.opacity = 0;
+            return null;
+        }
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        return data; 
+    } catch (error) {
+        console.error("Error fetching random word:", error);
+        currentWordSpan.textContent = "Error loading word :(";
+        wordCard.style.opacity = 1; 
+        return null;
+    }
+}
+
+async function fetchTopWords() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/top-words`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        return data; 
+    } catch (error) {
+        console.error("Error fetching top words:", error);
+        return { mostlyGood: [], mostlyBad: [] };
+    }
+}
+
+async function submitVote(wordId, voteType) { 
+    try {
+        const response = await fetch(`${API_BASE_URL}/vote`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ wordId, voteType }),
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return await response.json();
+    } catch (error) {
+        console.error("Error submitting vote:", error);
+        return null;
+    }
+}
+
+/**
+ * Updates the card with new word data and initiates an instant update.
+ * Now performs a destructive replacement to eliminate all lingering CSS state.
+ * @param {object} wordData - The data for the next word.
+ */
+function updateWordCard(wordData) {
+    return new Promise(resolve => {
+        if (!wordData || !wordData.word) {
+            currentWordSpan.textContent = "NO MORE WORDS!";
+            wordCard.className = 'word-card';
+            wordCard.style.opacity = 0;
+            resolve();
+            return;
+        }
+
+        // --- CRITICAL FIX: Replace the entire word card element ---
+        
+        // 1. Store the parent node before removal
+        const parent = wordCard.parentNode;
+        
+        // 2. Create a brand new, clean card element
+        const newCard = document.createElement('div');
+        newCard.id = 'wordCard';
+        newCard.className = 'word-card';
+        newCard.style.cssText = 'opacity: 1;'; // Start visible and clean
+        
+        // 3. Create the word span element inside the new card
+        const newWordSpan = document.createElement('span');
+        newWordSpan.id = 'currentWord';
+        newCard.appendChild(newWordSpan);
+        
+        // 4. Update global reference to the new element
+        wordCard.remove();
+        wordCard = newCard;
+        currentWordData = wordData;
+        
+        // 5. Insert the new card back into the DOM
+        // The HTML structure puts the wrapper first, so we use parent.appendChild(newCard)
+        // to insert it back into the word-card-wrapper where it belongs.
+        const wrapper = document.querySelector('.word-card-wrapper');
+        if (wrapper) {
+            wrapper.insertBefore(newCard, rightArrow); // Insert before the right arrow
+        }
+        
+        // 6. Update the content
+        newWordSpan.textContent = wordData.word;
+        // ---------------------------------------------------------
+        
+        // 7. Determine border color based on existing votes
+        const totalVotes = wordData.goodVotes + wordData.badVotes;
+        if (totalVotes === 0) {
+            wordCard.classList.add('neutral-border');
+        } else {
+            const goodPercentage = (wordData.goodVotes + wordData.badVotes) * 100; // Original logic bug, fixed below
+            
+            // Fix: Calculate percentage based on goodVotes / totalVotes
+            const actualGoodPercentage = (wordData.goodVotes / totalVotes) * 100; 
+
+            if (actualGoodPercentage > 60) {
+                wordCard.classList.add('good-border');
+            } else if (actualGoodPercentage < 40) {
+                wordCard.classList.add('bad-border');
+            } else {
+                wordCard.classList.add('neutral-border');
+            }
+        }
+        
+        // Resolve immediately as the content is now visible
+        resolve(); 
+    });
+}
+
+function renderTopWords(topWords) {
+    mostlyGoodList.innerHTML = '';
+    mostlyBadList.innerHTML = '';
+
+    topWords.mostlyGood.forEach(word => {
+        const total = word.totalVotes; // Total votes is already calculated in the backend and included here
+        const percentage = total > 0 
+            ? Math.round((word.goodRatio) * 100) 
+            : 0; 
+
+        const li = document.createElement('li');
+        li.innerHTML = `${word.word} <span class="percentage">(${percentage}% GOOD)</span>`;
+        mostlyGoodList.appendChild(li);
+    });
+
+    topWords.mostlyBad.forEach(word => {
+        const total = word.totalVotes;
+        const percentage = total > 0 
+            ? Math.round((word.badRatio) * 100) 
+            : 0; 
+
+        const li = document.createElement('li');
+        li.innerHTML = `${word.word} <span class="percentage">(${percentage}% BAD)</span>`;
+        mostlyBadList.appendChild(li);
+    });
+}
+
+/**
+ * Fetches the next word, updates the card, and updates the leaderboards.
+ * Uses instant card swapping.
+ */
+async function loadCardAndLeaderboard() {
+    isVoting = true; // Lock input while fetching the next word
+    
+    // Check if the current wordCard exists before trying to access its content
+    const currentWordSpanElement = wordCard ? wordCard.querySelector('#currentWord') : null;
+    if (currentWordSpanElement) {
+        currentWordSpanElement.textContent = 'Loading...';
+    }
+    
+    // 1. Fetch the new word data
+    const word = await fetchRandomWord();
+    
+    // 2. Update the card instantly using the destructive replacement method
+    await updateWordCard(word);
+    
+    // 3. UNLOCK INPUT IMMEDIATELY AFTER CONTENT UPDATE
+    isVoting = false; 
+    
+    // 4. Fetch and render top words in the background
+    const topWords = await fetchTopWords();
+    renderTopWords(topWords);
+}
+
+/**
+ * Primary function to handle voting via button or arrow.
+ * @param {string} voteType 'good' or 'bad'
+ */
+async function handleVote(voteType) {
+    if (!currentWordData || !currentWordData.wordId || isVoting) return; // Prevent double vote
+    isVoting = true; // Lock input immediately upon vote
+
+    const wordId = currentWordData.wordId; // Use the wordId, not the word text
+    
+    // 1. Submit the vote (runs concurrently with the loading state)
+    const responseData = await submitVote(wordId, voteType); 
+
+    if (responseData && responseData.engagementMessage) {
+        displayEngagementMessage(responseData.engagementMessage);
+    }
+
+    // 2. Clear the card content immediately to show 'Loading...' briefly
+    // The destructive replacement in updateWordCard handles the rest.
+    if (wordCard.querySelector('#currentWord')) {
+        wordCard.querySelector('#currentWord').textContent = ''; 
+    }
+
+    // 3. Load the next card immediately (no setTimeout required)
+    await loadCardAndLeaderboard(); 
+}
+
+/**
+ * Sets the version number on a dedicated display element.
+ */
+function setAppVersion() {
+    if (appVersionDisplay) {
+        appVersionDisplay.textContent = `v${APP_VERSION}`;
+    }
+}
+
+// --- Event Listeners ---
+
+// Button Clicks (Handles goodWordBtn, badWordBtn)
+goodWordBtn.addEventListener('click', () => handleVote('good'));
+badWordBtn.addEventListener('click', () => handleVote('bad'));
+
+// Arrow Clicks (Handles leftArrow, rightArrow)
+leftArrow.addEventListener('click', () => handleVote('good'));
+rightArrow.addEventListener('click', () => handleVote('bad'));
+
+
+// Keyboard Input
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft' && !isVoting) {
+        e.preventDefault();
+        handleVote('good');
+    } else if (e.key === 'ArrowRight' && !isVoting) {
+        e.preventDefault();
+        handleVote('bad');
+    }
+});
+
+// --- Initial Load ---
+document.addEventListener('DOMContentLoaded', () => {
+    setAppVersion();
+    loadCardAndLeaderboard();
+});

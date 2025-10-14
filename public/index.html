@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Good Word Game</title>
+    <!-- Link to the game's styles -->
+    <link rel="stylesheet" href="style.css">
+    <!-- Font Awesome for icons and Poppins font -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <div class="game-container" id="appContainer">
+        <header>
+            <h1><span class="logo">Word Classification Challenge</span></h1>
+            <p>Decide if the word is **GOOD** (left) or **BAD** (right) for humanity.</p>
+        </header>
+
+        <!-- Engagement message box (hidden by default, shown on first vote) -->
+        <div id="engagementMessageBox"></div>
+
+        <!-- Word Card Area -->
+        <div class="word-card-wrapper">
+            <!-- Left Arrow (Good) -->
+            <div class="arrow left-arrow" title="Good (Left Arrow Key)">
+                <i class="fas fa-chevron-left"></i>
+            </div>
+            
+            <!-- Main Word Card -->
+            <div class="word-card" id="wordCard">
+                <span id="currentWord">Loading...</span>
+            </div>
+
+            <!-- Right Arrow (Bad) -->
+            <div class="arrow right-arrow" title="Bad (Right Arrow Key)">
+                <i class="fas fa-chevron-right"></i>
+            </div>
+        </div>
+
+        <!-- Vote Buttons -->
+        <div class="vote-buttons">
+            <button class="vote-btn good-btn" id="goodWordBtn">
+                <span class="icon"><i class="fas fa-thumbs-up"></i></span> GOOD
+            </button>
+            <button class="vote-btn bad-btn" id="badWordBtn">
+                <span class="icon"><i class="fas fa-thumbs-down"></i></span> BAD
+            </button>
+        </div>
+
+        <!-- Community Ratings/Leaderboard Section -->
+        <div class="top-words-section">
+            <h2>Community Ratings</h2>
+            <div class="top-words-lists">
+                <div class="mostly-good">
+                    <h3>Mostly Good Words</h3>
+                    <ul id="mostlyGoodList">
+                        <!-- List items populated by script.js -->
+                    </ul>
+                </div>
+                <div class="mostly-bad">
+                    <h3>Mostly Bad Words</h3>
+                    <ul id="mostlyBadList">
+                        <!-- List items populated by script.js -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <small>App Version: <span id="appVersionDisplay"></span></small>
+        </footer>
+    </div>
+    
+    <!-- Link to the game logic -->
+    <script src="script.js"></script>
+</body>
+</html>
