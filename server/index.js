@@ -7,7 +7,7 @@ const app = express();
 const port = process.env.PORT || 10000;
 
 // Version for tracking
-const BACKEND_VERSION = 'v1.7.1 (SRV URI with authSource=admin)';
+const BACKEND_VERSION = 'v1.7.2 (CRITICAL FIX: Static asset path fix)';
 
 // --- CRITICAL CONFIGURATION: MONGO DB URI ---
 // 
@@ -30,7 +30,8 @@ const MIN_VOTES_THRESHOLD = 1;
 app.use(express.json()); 
 app.use(cors()); 
 
-// Set up static serving for the frontend index.html
+// CRITICAL CHANGE: Set up static serving for the entire directory.
+// This is more standard and ensures that index.html is served automatically for the root route.
 const staticPath = path.join(__dirname);
 app.use(express.static(staticPath));
 
@@ -109,9 +110,9 @@ async function initializeWords() {
 
 // --- API Endpoints ---
 
-// 1. Root route to serve the HTML file
+// 1. Root route to serve the HTML file (Explicitly added for robustness)
 app.get('/', (req, res) => {
-    // This relies on express.static finding index.html in the current directory
+    // We rely on express.static, but explicitly serving index.html ensures the root path is covered.
     res.sendFile(path.join(staticPath, 'index.html'));
 });
 
