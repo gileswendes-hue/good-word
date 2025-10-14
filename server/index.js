@@ -1,3 +1,4 @@
+// --- Backend Server for Good/Bad Word Game ---
 const express = require('express');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const fs = require('fs');
@@ -22,7 +23,8 @@ if (!uri) {
 }
 
 // Create a MongoClient with a Stable API version
-const client = new new MongoClient(uri, {
+// FIX: Removed the extra 'new' keyword to correctly instantiate MongoClient
+const client = new MongoClient(uri, { 
     serverApi: {
         version: ServerApiVersion.v1,
         strict: true,
@@ -68,7 +70,16 @@ async function seedWords(collection) {
         console.log('Starting word seeding from british-words.txt...');
 
         // Read and process the word list
+        // NOTE: This assumes 'british-words.txt' is in the same directory as index.js
         const filePath = path.join(__dirname, 'british-words.txt');
+        
+        // Check if the file exists before trying to read it
+        if (!fs.existsSync(filePath)) {
+            console.error(`FATAL ERROR: Word list file not found at: ${filePath}`);
+            console.error("Please ensure 'british-words.txt' is in the same directory as index.js.");
+            return;
+        }
+        
         const fileContent = fs.readFileSync(filePath, 'utf8');
         
         // Filter out empty lines and trim whitespace, then map to documents
@@ -107,6 +118,10 @@ async function connectAndInitialize() {
 
         const wordCollection = db.collection(wordCollectionName);
         await seedWords(wordCollection); // Check and seed words on startup
+
+        // Serve the static HTML file from the project root directory
+        // Assuming your 'index.html' is two directories up (e.g., in the project root)
+        app.use(express.static(path.join(__dirname, '..', '..'))); 
 
         // Start Express server after successful DB connection and seeding
         app.listen(port, () => {
@@ -157,7 +172,16 @@ app.get('/api/get-word', async (req, res) => {
         }
 
         if (wordResult.length > 0) {
-            res.json(wordResult[0]);
+            // IMPORTANT: Map the _id field to 'wordId' (or just include _id) 
+            // so the frontend has a valid ID for voting.
+            const wordData = {
+                wordId: wordResult[0]._id, // MongoDB ObjectId
+                word: wordResult[0].word,
+                goodVotes: wordResult[0].goodVotes,
+                badVotes: wordResult[0].badVotes,
+                totalVotes: wordResult[0].totalVotes,
+            };
+            res.json(wordData);
         } else {
             // If the collection is entirely empty or exhausted
             res.status(404).send({ message: "No words available." });
@@ -174,10 +198,16 @@ app.get('/api/get-word', async (req, res) => {
  * Route to record a vote and return an engagement message.
  */
 app.post('/api/vote', async (req, res) => {
-    const { wordId, voteType } = req.body;
+    // The frontend sends the word's ID, which we map to the ObjectId type
+    const { wordId, voteType } = req.body; 
 
     if (!wordId || !voteType) {
         return res.status(400).send({ message: "Missing wordId or voteType." });
+    }
+    
+    // Validate wordId structure before converting to ObjectId
+    if (!ObjectId.isValid(wordId)) {
+        return res.status(400).send({ message: "Invalid word ID format." });
     }
 
     try {
@@ -268,7 +298,7 @@ app.get('/api/top-words', async (req, res) => {
                 // Secondary sort (tie-breaker) by Total Votes descending
                 return b.totalVotes - a.totalVotes; 
             })
-            .slice(0, 10) // Take top 10
+            .slice(0, 10); // Take top 10
 
         // --- Mostly Bad (Highest Bad Ratio, tie-break by total volume) ---
         const mostlyBad = allVotedWords
