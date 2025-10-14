@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 
 const app = express();
+// Use the recommended port structure for external deployment environments
 const PORT = process.env.PORT || 10000;
 const MONGO_URI = process.env.MONGODB_URI;
 
@@ -32,6 +33,9 @@ wordSchema.set('toObject', { virtuals: true });
 
 const Word = mongoose.model('Word', wordSchema);
 
+// Flag to track database connection status
+let isDbConnected = false;
+
 /**
  * Initializes the MongoDB connection and seeds the database if empty.
  */
@@ -39,20 +43,21 @@ async function connectDB() {
     console.log("Attempting initial connection to MongoDB...");
 
     if (!MONGO_URI) {
-        console.error("CRITICAL ERROR: MONGODB_URI environment variable is not set.");
-        throw new Error("Missing MONGODB_URI. Cannot connect to database.");
+        console.error("WARNING: MONGODB_URI environment variable is not set. Database features will be unavailable.");
+        isDbConnected = false;
+        return; // Do not throw, allow server to start
     }
 
     try {
         await mongoose.connect(MONGO_URI);
         console.log("MongoDB connection successful.");
+        isDbConnected = true;
         await seedDatabase();
     } catch (error) {
-        console.error("Fatal Error: Failed to connect to MongoDB and start server. Check your MONGO_URI, or network access.");
-        // Log the full error, excluding the URI for security
+        console.error("WARNING: Failed to connect to MongoDB. Database features will be unavailable.");
+        // Log the full error for debugging, excluding the URI for security
         console.error("Connection Error Details:", error.message);
-        // Exiting the process after a critical failure
-        process.exit(1); 
+        isDbConnected = false;
     }
 }
 
@@ -60,11 +65,20 @@ async function connectDB() {
  * Seeds the database with words from british-words.txt if the collection is empty.
  */
 async function seedDatabase() {
+    if (!isDbConnected) return; // Skip seeding if not connected
+    
     try {
         const count = await Word.countDocuments();
         if (count === 0) {
             console.log("Database is empty. Seeding initial words...");
             const filePath = path.join(__dirname, 'british-words.txt');
+            
+            // Check if file exists before trying to read
+            if (!fs.existsSync(filePath)) {
+                 console.error("ERROR: Word list file 'british-words.txt' not found at expected path.");
+                 return;
+            }
+
             const data = fs.readFileSync(filePath, 'utf8');
             const words = data.split('\n')
                               .map(w => w.trim().toUpperCase())
@@ -84,7 +98,7 @@ async function seedDatabase() {
     } catch (error) {
         // Handle potential EBUSY or file reading errors
         if (error.code === 'ENOENT') {
-            console.error("ERROR: Word list file 'british-words.txt' not found at expected path:", path.join(__dirname, 'british-words.txt'));
+            console.error("ERROR: Word list file 'british-words.txt' not found at expected path.");
         } else if (error.code === 11000) {
              // 11000 is the MongoDB duplicate key error (safe to ignore after initial seed)
              console.warn("Initial words seeded successfully (with duplicate warnings).");
@@ -94,12 +108,29 @@ async function seedDatabase() {
     }
 }
 
+// --- API Route Utility ---
+
+/**
+ * Middleware to check database connection status before handling a route.
+ */
+function dbCheck(req, res, next) {
+    if (!isDbConnected) {
+        console.warn(`[DB_CHECK] API call to ${req.path} failed: Database is not connected.`);
+        return res.status(503).json({ 
+            success: false, 
+            message: "Service Unavailable: Database connection failed. Please check MONGODB_URI." 
+        });
+    }
+    next();
+}
+
+
 // --- API Routes ---
 
 /**
  * [GET] /api/get-word - Retrieves a random word to be classified.
  */
-app.get('/api/get-word', async (req, res) => {
+app.get('/api/get-word', dbCheck, async (req, res) => {
     try {
         // Use $sample to efficiently get a random document
         const randomWords = await Word.aggregate([
@@ -118,7 +149,8 @@ app.get('/api/get-word', async (req, res) => {
 
             res.json(responseWord);
         } else {
-            res.status(404).json({ message: "No words found in the database." });
+            // This is unlikely if seeding worked, but good to handle
+            res.status(404).json({ message: "No words found in the database. Try re-seeding." });
         }
     } catch (error) {
         console.error("Error fetching random word:", error);
@@ -129,7 +161,7 @@ app.get('/api/get-word', async (req, res) => {
 /**
  * [POST] /api/vote - Submits a vote for a word.
  */
-app.post('/api/vote', async (req, res) => {
+app.post('/api/vote', dbCheck, async (req, res) => {
     const { wordId, classification } = req.body;
 
     // We rely on the client sending wordId which maps to the MongoDB _id string.
@@ -162,7 +194,7 @@ app.post('/api/vote', async (req, res) => {
 /**
  * [GET] /api/top-words - Retrieves the top 5 good and top 5 bad words.
  */
-app.get('/api/top-words', async (req, res) => {
+app.get('/api/top-words', dbCheck, async (req, res) => {
     try {
         // Fetch top 5 words by net good votes (Good - Bad)
         // Sort by total good votes (Good)
@@ -191,12 +223,11 @@ app.get('/api/top-words', async (req, res) => {
 
 // --- Server Startup ---
 
-// 1. Connect to the database
-connectDB().then(() => {
-    // 2. Start the Express server only after DB connection is successful
+// 1. Connect to the database (which now handles failure gracefully)
+connectDB().finally(() => {
+    // 2. Start the Express server regardless of DB connection status
     app.listen(PORT, () => {
-        console.log(`Server is listening on port ${PORT} (Backend Version: v1.7.5 FINAL FIX: Guaranteed 'id' field)`);
+        const dbStatus = isDbConnected ? "CONNECTED" : "DISCONNECTED (API calls will fail)";
+        console.log(`Server is listening on port ${PORT} (Backend Version: v1.7.6 FIX: Robust DB connection check - Status: ${dbStatus})`);
     });
-}).catch(() => {
-    console.error("Server startup failed due to critical database error. Process stopped.");
 });
