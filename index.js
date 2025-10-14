@@ -8,8 +8,8 @@ const app = express();
 const port = process.env.PORT || 10000;
 
 // Version for tracking
-// Increased version to reflect the final explicit index.html serve route fix
-const BACKEND_VERSION = 'v1.7.8 (FINAL FIX: Confirmed Root Index Pathing)'; 
+// Updated version to reflect the attempt to fix the seeding path
+const BACKEND_VERSION = 'v1.8.0 (Seeding Path Diagnostic Update)'; 
 
 // --- CRITICAL CONFIGURATION: MONGO DB URI ---
 // WARNING: The credentials below are hardcoded for immediate deployment testing,
@@ -27,7 +27,7 @@ const MIN_VOTES_THRESHOLD = 1;
 app.use(express.json()); 
 app.use(cors()); 
 
-// CRITICAL PATH: Define the public folder path, which is at the root level alongside index.js
+// CRITICAL PATH 1: Define the public folder path, which is at the root level alongside index.js
 const publicPath = path.join(__dirname, 'public');
 console.log(`[${BACKEND_VERSION}] Serving static files from path: ${publicPath}`); 
 // Tell Express to serve all static assets (CSS, JS, images) from the public folder
@@ -92,45 +92,56 @@ async function initializeWords() {
         if (count === 0) {
             let wordsToSeed = [];
             
-            // CRITICAL PATH: british-words.txt is in the 'server' folder, next to index.js.
+            // CRITICAL PATH 2: Path to the word list file
+            // Since index.js is in the root, and server is a sibling directory.
             const filePath = path.join(__dirname, 'server', 'british-words.txt');
             
-            console.log(`Attempting to read word list from: ${filePath}`);
+            console.log(`[Seeding] Attempting to read word list from: ${filePath}`);
 
-            try {
-                // Read the file synchronously to ensure words are loaded before proceeding
-                const fileContent = fs.readFileSync(filePath, 'utf8');
-                // Split the content by newline, filter out empty lines, trim whitespace, and convert to lowercase
-                wordsToSeed = fileContent
-                    .split(/\r?\n/)
-                    .map(word => word.trim().toLowerCase())
-                    .filter(word => word.length > 0);
-                
-                console.log(`Successfully loaded ${wordsToSeed.length} words from british-words.txt.`);
+            if (fs.existsSync(filePath)) {
+                try {
+                    // Read the file synchronously to ensure words are loaded before proceeding
+                    const fileContent = fs.readFileSync(filePath, 'utf8');
+                    
+                    // Split the content by newline, filter out empty lines, trim whitespace, and convert to lowercase
+                    wordsToSeed = fileContent
+                        .split(/\r?\n/)
+                        .map(word => word.trim().toLowerCase())
+                        .filter(word => word.length > 0);
+                    
+                    console.log(`[Seeding] Success! Loaded ${wordsToSeed.length} words from british-words.txt.`);
 
-            } catch (fileError) {
-                console.warn(`Warning: Could not read 'british-words.txt' (${fileError.code}). Falling back to hardcoded list.`);
+                } catch (fileError) {
+                    // This catches errors like permission denied or malformed file content
+                    console.error(`[Seeding] ERROR reading file at ${filePath}:`, fileError.message);
+                    console.warn("[Seeding] Falling back to hardcoded list.");
+                    wordsToSeed = fallbackWords;
+                }
+            } else {
+                console.warn(`[Seeding] WARNING: File not found at path: ${filePath}`);
+                console.warn("[Seeding] Falling back to hardcoded list.");
                 wordsToSeed = fallbackWords;
             }
 
-            if (wordsToSeed.length > 0) {
-                console.log(`Database is empty. Seeding ${wordsToSeed.length} words...`);
+
+            if (wordsToSeed.length > 0 && wordsToSeed[0] !== "NO WORDS") { // Ensure fallback didn't return an error message
+                console.log(`[Seeding] Database is empty. Seeding ${wordsToSeed.length} words...`);
                 // Use a Set to ensure uniqueness and then map to Mongoose objects
                 const uniqueWordObjects = [...new Set(wordsToSeed)].map(word => ({ word: word }));
                 
                 try {
                     // Mongoose insertMany will handle large arrays efficiently
                     await Word.insertMany(uniqueWordObjects, { ordered: false }); 
-                    console.log(`Initial ${uniqueWordObjects.length} unique words seeded successfully.`);
+                    console.log(`[Seeding] Initial ${uniqueWordObjects.length} unique words seeded successfully.`);
                 } catch (insertError) {
                      // Warn instead of exiting if insertion fails (e.g., due to concurrent runs or duplicates)
-                     console.warn("Seeding failed, possibly due to concurrent initialization or duplicates. Proceeding.", insertError.message);
+                     console.warn("[Seeding] Failed to insert all words, possibly due to concurrent initialization or duplicates. Proceeding.", insertError.message);
                 }
             } else {
-                 console.log("No words found to seed the database.");
+                 console.log("[Seeding] No words found in file or fallback list to seed the database.");
             }
         } else {
-            console.log(`Database already contains ${count} words. Skipping seeding.`);
+            console.log(`[Seeding] Database already contains ${count} words. Skipping seeding.`);
         }
     } catch (error) {
         // This is where the permission error occurred. If it fails here, it should exit in the main catch block.
@@ -152,7 +163,12 @@ app.get('/api/get-word', async (req, res) => {
     try {
         const count = await Word.countDocuments();
         if (count === 0) {
-            return res.status(200).json({ word: "NO WORDS", wordId: null });
+            // Updated behavior for empty database
+            return res.status(200).json({ 
+                word: "DB EMPTY", 
+                wordId: null, 
+                message: "Database is empty. Check server logs for seeding errors." 
+            });
         }
         
         // Get a random document
@@ -250,7 +266,7 @@ app.get('/api/top-words', async (req, res) => {
 
 
 // CRITICAL FIX: Explicitly serve index.html for the root path (/) and any other path
-// that isn't handled by the API. This ensures the single-page application loads correctly.
+// that isn't handled by the API. 
 app.get('*', (req, res) => {
     // Check if the request is for an API route
     if (req.url.startsWith('/api')) {
@@ -259,6 +275,5 @@ app.get('*', (req, res) => {
     }
     
     // Serve the index.html file from the public directory
-    // This is the correct path relative to the index.js file's location.
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
