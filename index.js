@@ -2,21 +2,18 @@ const express = require('express');
 const mongoose = require('mongoose');
 const path = require('path');
 const cors = require('cors'); 
+const fs = require('fs'); 
 
 const app = express();
 const port = process.env.PORT || 10000;
 
 // Version for tracking
-const BACKEND_VERSION = 'v1.7.3 (CRITICAL FIX: Public Folder Setup)';
+const BACKEND_VERSION = 'v1.7.6 (CRITICAL FIX: Root Pathing)'; 
 
 // --- CRITICAL CONFIGURATION: MONGO DB URI ---
-// 
 // WARNING: The credentials below are hardcoded for immediate deployment testing,
 // but for security, you MUST use the process.env.MONGODB_URI environment variable
 // for production.
-// 
-// Standard SRV format is used, with the database name in the path and the
-// CRITICAL FIX: authSource=admin parameter added to resolve the 'bad auth' error.
 const hardcodedUri = "mongodb+srv://database_user_4:justatestpassword@ac-cchetfb.jsepbhh.mongodb.net/good-word-game?retryWrites=true&w=majority&appName=ac-cchetfb&authSource=admin";
 
 // Use the environment variable if available (RECOMMENDED), otherwise fallback to the hardcoded URI.
@@ -26,13 +23,12 @@ const uri = process.env.MONGODB_URI || hardcodedUri;
 const MIN_VOTES_THRESHOLD = 1;
 
 // --- Middleware Setup ---
-// Use built-in Express middleware for JSON parsing
 app.use(express.json()); 
 app.use(cors()); 
 
-// CRITICAL CHANGE: Set up static serving to look inside a 'public' folder.
-// This resolves the ENOENT error by instructing Express to look in the relative path.
+// CRITICAL PATH FIX #1: index.js is now in the root, so the public path is directly beside it.
 const publicPath = path.join(__dirname, 'public');
+console.log(`[${BACKEND_VERSION}] Serving static files from path: ${publicPath}`); 
 app.use(express.static(publicPath));
 
 // --- Database Connection Setup ---
@@ -77,7 +73,8 @@ const Word = mongoose.model('Word', wordSchema);
 
 // --- Initial Data Seeding ---
 
-const initialWords = [
+// This list is now the fallback if british-words.txt is not found.
+const fallbackWords = [
     "harmony", "disaster", "joy", "gloom", "truth", "lie", "success", 
     "failure", "kindness", "cruelty", "wisdom", "stupid", "brave", "coward",
     "freedom", "prison", "peace", "war", "beautiful", "ugly"
@@ -85,20 +82,54 @@ const initialWords = [
 
 /**
  * Seeds the database with a predefined list of words if the collection is empty.
+ * Attempts to load words from 'british-words.txt' first.
  */
 async function initializeWords() {
     try {
         const count = await Word.countDocuments();
         if (count === 0) {
-            console.log("Database is empty. Seeding initial words...");
-            const wordObjects = initialWords.map(w => ({ word: w }));
+            let wordsToSeed = [];
+            
+            // CRITICAL PATH FIX #2: british-words.txt is now in the 'server' folder,
+            // which is next to index.js (in the root).
+            const filePath = path.join(__dirname, 'server', 'british-words.txt');
+            
+            console.log(`Attempting to read word list from: ${filePath}`);
+
             try {
-                await Word.insertMany(wordObjects);
-                console.log("Initial words seeded successfully.");
-            } catch (insertError) {
-                 // Warn instead of exiting if insertion fails (e.g., due to concurrent runs)
-                 console.warn("Seeding failed, possibly due to concurrent initialization. Proceeding.", insertError.message);
+                // Read the file synchronously to ensure words are loaded before proceeding
+                const fileContent = fs.readFileSync(filePath, 'utf8');
+                // Split the content by newline, filter out empty lines, trim whitespace, and convert to lowercase
+                wordsToSeed = fileContent
+                    .split(/\r?\n/)
+                    .map(word => word.trim().toLowerCase())
+                    .filter(word => word.length > 0);
+                
+                console.log(`Successfully loaded ${wordsToSeed.length} words from british-words.txt.`);
+
+            } catch (fileError) {
+                console.warn(`Warning: Could not read 'british-words.txt' (${fileError.code}). Falling back to hardcoded list.`);
+                wordsToSeed = fallbackWords;
             }
+
+            if (wordsToSeed.length > 0) {
+                console.log(`Database is empty. Seeding ${wordsToSeed.length} words...`);
+                // Use a Set to ensure uniqueness and then map to Mongoose objects
+                const uniqueWordObjects = [...new Set(wordsToSeed)].map(word => ({ word: word }));
+                
+                try {
+                    // Mongoose insertMany will handle large arrays efficiently
+                    await Word.insertMany(uniqueWordObjects, { ordered: false }); 
+                    console.log(`Initial ${uniqueWordObjects.length} unique words seeded successfully.`);
+                } catch (insertError) {
+                     // Warn instead of exiting if insertion fails (e.g., due to concurrent runs or duplicates)
+                     console.warn("Seeding failed, possibly due to concurrent initialization or duplicates. Proceeding.", insertError.message);
+                }
+            } else {
+                 console.log("No words found to seed the database.");
+            }
+        } else {
+            console.log(`Database already contains ${count} words. Skipping seeding.`);
         }
     } catch (error) {
         // This is where the permission error occurred. If it fails here, it should exit in the main catch block.
@@ -109,9 +140,6 @@ async function initializeWords() {
 
 
 // --- API Endpoints ---
-
-// NOTE: Express.static serving the 'public' folder will automatically serve 
-// public/index.html when the root path '/' is requested.
 
 // 1. GET backend version
 app.get('/api/version', (req, res) => {
