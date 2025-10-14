@@ -7,14 +7,24 @@ const fs = require('fs');
 const app = express();
 // Use the recommended port structure for external deployment environments
 const PORT = process.env.PORT || 10000;
-const MONGO_URI = process.env.MONGODB_URI; // CRITICAL: This MUST be set in your environment variables!
+const MONGO_URI = process.env.MONGODB_URI;
+
+// =========================================================================
+// CRITICAL FIX: PATHING FOR DEPLOYMENT ENVIRONMENTS (Using process.cwd())
+// This ensures paths are reliable regardless of the execution context.
+const PROJECT_ROOT = process.cwd(); 
+const PUBLIC_PATH = path.join(PROJECT_ROOT, 'public'); 
+const INDEX_HTML_PATH = path.join(PUBLIC_PATH, 'index.html');
+
+// Assuming british-words.txt is located in the 'server' directory next to index.js
+const WORDS_FILE_PATH = path.join(PROJECT_ROOT, 'server', 'british-words.txt');
+// =========================================================================
 
 // --- Middleware ---
 app.use(express.json()); // for parsing application/json
 
-// Serving static files: This assumes index.js is in /server and static files are in /public
-// path.join(__dirname, '../public') correctly points one level up and into the 'public' folder.
-app.use(express.static(path.join(__dirname, '../public'))); 
+// Use the robust path to serve static files from the 'public' directory
+app.use(express.static(PUBLIC_PATH)); 
 
 // --- MongoDB/Mongoose Setup ---
 
@@ -50,7 +60,7 @@ async function connectDB() {
         console.error("!! CRITICAL WARNING: MONGODB_URI environment variable is NOT set. Database features will fail. !!");
         console.error("==========================================================================================");
         isDbConnected = false;
-        return; // Do not throw, allow server to start so frontend can display the DB error message
+        return; 
     }
 
     try {
@@ -60,7 +70,6 @@ async function connectDB() {
         await seedDatabase();
     } catch (error) {
         console.error("WARNING: Failed to connect to MongoDB. Database features will be unavailable.");
-        // Log the error message for debugging
         console.error("Connection Error Details:", error.message); 
         isDbConnected = false;
     }
@@ -70,19 +79,18 @@ async function connectDB() {
  * Seeds the database with words from british-words.txt if the collection is empty.
  */
 async function seedDatabase() {
-    if (!isDbConnected) return; // Skip seeding if not connected
+    if (!isDbConnected) return; 
     
     try {
         const count = await Word.countDocuments();
         if (count === 0) {
             console.log("Database is empty. Seeding initial words...");
             
-            // Path: british-words.txt MUST be in the same directory as index.js (the 'server' directory)
-            const filePath = path.join(__dirname, 'british-words.txt');
+            // Use the robust, project-root-relative path
+            const filePath = WORDS_FILE_PATH; 
             
-            // Check if file exists before trying to read
             if (!fs.existsSync(filePath)) {
-                console.error("ERROR: Word list file 'british-words.txt' not found at expected path. Seeding aborted.");
+                console.error(`ERROR: Word list file 'british-words.txt' not found at expected path: ${filePath}. Seeding aborted.`);
                 return;
             }
 
@@ -96,7 +104,6 @@ async function seedDatabase() {
                                  badVotes: 0
                              }));
             
-            // Insert only new documents, ignoring duplicates (though words are unique here)
             await Word.insertMany(words, { ordered: false, rawResult: true });
             console.log(`Initial words seeded successfully. Total words: ${words.length}.`);
         } else {
@@ -106,7 +113,6 @@ async function seedDatabase() {
         if (error.code === 'ENOENT') {
             console.error("ERROR: Word list file 'british-words.txt' not found.");
         } else if (error.code === 11000) {
-             // 11000 is the MongoDB duplicate key error (safe to ignore after initial seed)
              console.warn("Initial words seeded successfully (with duplicate warnings).");
         } else {
             console.error("Error during database seeding:", error.message);
@@ -118,7 +124,6 @@ async function seedDatabase() {
 
 /**
  * Middleware to check database connection status before handling a route.
- * Returns 503 Service Unavailable if DB is down.
  */
 function dbCheck(req, res, next) {
     if (!isDbConnected) {
@@ -132,13 +137,12 @@ function dbCheck(req, res, next) {
 }
 
 
-// --- API Routes ---
+// --- API Routes (No changes here, they are fine) ---
 
 /**
- * [GET] /api/health - Retrieves the server and database health status. (NEW)
+ * [GET] /api/health - Retrieves the server and database health status.
  */
 app.get('/api/health', (req, res) => {
-    // Determine the status based on the connection flag
     const httpStatus = isDbConnected ? 200 : 503;
 
     res.status(httpStatus).json({
@@ -158,20 +162,16 @@ app.get('/api/health', (req, res) => {
  */
 app.get('/api/get-word', dbCheck, async (req, res) => {
     try {
-        // Use $sample to efficiently get a random document
         const randomWords = await Word.aggregate([
             { $sample: { size: 1 } }
         ]);
 
         if (randomWords.length > 0) {
             const wordData = randomWords[0];
-
-            // Map Mongoose _id to client-friendly 'id' field
             const responseWord = {
                 id: wordData._id.toString(), 
                 word: wordData.word
             };
-
             res.json(responseWord);
         } else {
             res.status(404).json({ message: "No words found in the database. Try re-seeding." });
@@ -188,7 +188,6 @@ app.get('/api/get-word', dbCheck, async (req, res) => {
 app.post('/api/vote', dbCheck, async (req, res) => {
     const { wordId, classification } = req.body;
 
-    // Validate input
     if (!wordId || (classification !== 'good' && classification !== 'bad')) {
         return res.status(400).json({ success: false, message: "Invalid wordId or classification provided." });
     }
@@ -199,7 +198,7 @@ app.post('/api/vote', dbCheck, async (req, res) => {
         const result = await Word.findByIdAndUpdate(
             wordId,
             { $inc: { [updateField]: 1 } },
-            { new: true } // Return the updated document
+            { new: true }
         );
 
         if (result) {
@@ -218,20 +217,17 @@ app.post('/api/vote', dbCheck, async (req, res) => {
  */
 app.get('/api/top-words', dbCheck, async (req, res) => {
     try {
-        // Fetch top 5 words by good votes (and bad votes as a tie-breaker)
         const mostlyGood = await Word.find({})
             .sort({ goodVotes: -1, badVotes: 1 }) 
             .limit(5)
             .select('word goodVotes badVotes');
 
-        // Fetch top 5 words by bad votes (and good votes as a tie-breaker)
         const mostlyBad = await Word.find({})
             .sort({ badVotes: -1, goodVotes: 1 }) 
             .limit(5)
             .select('word goodVotes badVotes');
 
         res.json({
-            // Convert Mongoose documents to plain objects to trigger virtuals (like 'id')
             mostlyGood: mostlyGood.map(w => w.toObject()),
             mostlyBad: mostlyBad.map(w => w.toObject()),
         });
@@ -242,11 +238,10 @@ app.get('/api/top-words', dbCheck, async (req, res) => {
 });
 
 
-// CRITICAL FIX: Handles the root route (and all other routes not caught by API)
-// This ensures that for any non-API path, the application serves the frontend index.html
+// CRITICAL FIX: Use the robust absolute path for serving index.html
+// This handles all non-API requests by returning the main HTML file.
 app.get('*', (req, res) => {
-    // __dirname is '/server'. We go up one level ('..') and into '/public'
-    res.sendFile(path.join(__dirname, '../public', 'index.html'));
+    res.sendFile(INDEX_HTML_PATH);
 });
 
 // --- Server Startup ---
@@ -256,6 +251,6 @@ connectDB().finally(() => {
     // 2. Start the Express server regardless of DB connection status
     app.listen(PORT, () => {
         const dbStatus = isDbConnected ? "CONNECTED" : "DISCONNECTED (API calls will fail)"
-        console.log(`Server is listening on port ${PORT} (Backend Version: v1.7.8 FIX: Pathing, DB status: ${dbStatus})`);
+        console.log(`Server is listening on port ${PORT} (Backend Version: v1.7.9 FIX: Robust Pathing, DB status: ${dbStatus})`);
     });
 });
