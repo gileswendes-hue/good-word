@@ -5,7 +5,7 @@
 // --- Configuration ---
 const API_BASE_URL = '/api'; 
 const DRAG_THRESHOLD = 100; // Pixels to drag to register a vote
-const ANIMATION_DURATION = 400; // Match CSS transition time in ms
+const ANIMATION_DURATION = 500; // Match CSS transition time in ms (400) + safety buffer (100)
 let currentWordData = null; // Stores the current word and its ID/meta-data
 let isVoting = false; // Flag to prevent double votes during animation/fetch
 
@@ -104,47 +104,52 @@ async function submitVote(wordId, voteType) { 
 
 /**
  * Updates the card with new word data and initiates a fade-in effect.
+ * Now returns a Promise that resolves when the fade-in is complete.
  * @param {object} wordData - The data for the next word.
  */
 function updateWordCard(wordData) {
-    if (!wordData || !wordData.word) {
-        currentWordSpan.textContent = "NO MORE WORDS!";
-        wordCard.className = 'word-card';
-        wordCard.style.opacity = 0;
-        return;
-    }
-
-    currentWordData = wordData;
-    currentWordSpan.textContent = wordData.word;
-    
-    // 1. Ensure the card is fully reset (no drag, no slide-out classes)
-    wordCard.className = 'word-card';
-    wordCard.style.transform = 'translateX(0)'; 
-    // This is important: Set opacity to 0 *without* transition, then use a timeout to transition to 1
-    wordCard.style.transition = 'none'; 
-    wordCard.style.opacity = 0;
-
-    // 2. Determine border color based on existing votes
-    const totalVotes = wordData.goodVotes + wordData.badVotes;
-    if (totalVotes === 0) {
-        wordCard.classList.add('neutral-border');
-    } else {
-        const goodPercentage = (wordData.goodVotes / totalVotes) * 100;
-        if (goodPercentage > 60) {
-            wordCard.classList.add('good-border');
-        } else if (goodPercentage < 40) {
-            wordCard.classList.add('bad-border');
-        } else {
-            wordCard.classList.add('neutral-border');
+    return new Promise(resolve => {
+        if (!wordData || !wordData.word) {
+            currentWordSpan.textContent = "NO MORE WORDS!";
+            wordCard.className = 'word-card';
+            wordCard.style.opacity = 0;
+            resolve();
+            return;
         }
-    }
 
-    // 3. Fade in the new word card
-    setTimeout(() => {
-        // Re-enable CSS transitions for drag/vote
-        wordCard.style.transition = ''; 
-        wordCard.style.opacity = 1;
-    }, 50); // Small delay to force transition
+        currentWordData = wordData;
+        currentWordSpan.textContent = wordData.word;
+        
+        // 1. Ensure the card is fully reset (no drag, no slide-out classes)
+        wordCard.className = 'word-card';
+        wordCard.style.transform = 'translateX(0)'; 
+        // This is important: Set opacity to 0 *without* transition, then use a timeout to transition to 1
+        wordCard.style.transition = 'none'; 
+        wordCard.style.opacity = 0;
+
+        // 2. Determine border color based on existing votes
+        const totalVotes = wordData.goodVotes + wordData.badVotes;
+        if (totalVotes === 0) {
+            wordCard.classList.add('neutral-border');
+        } else {
+            const goodPercentage = (wordData.goodVotes / totalVotes) * 100;
+            if (goodPercentage > 60) {
+                wordCard.classList.add('good-border');
+            } else if (goodPercentage < 40) {
+                wordCard.classList.add('bad-border');
+            } else {
+                wordCard.classList.add('neutral-border');
+            }
+        }
+
+        // 3. Fade in the new word card
+        setTimeout(() => {
+            // Re-enable CSS transitions for drag/vote
+            wordCard.style.transition = ''; 
+            wordCard.style.opacity = 1;
+            resolve(); // Resolve promise after visual change is applied
+        }, 50); // Small delay to force transition
+    });
 }
 
 function renderTopWords(topWords) {
@@ -176,21 +181,22 @@ function renderTopWords(topWords) {
 
 /**
  * Fetches the next word, updates the card, and updates the leaderboards.
- * Crucially, it releases the 'isVoting' lock immediately after the new card is ready.
+ * Now precisely waits for the card to visually settle before unlocking the UI.
  */
 async function loadCardAndLeaderboard() {
     isVoting = true; // Lock input while fetching the next word
     currentWordSpan.textContent = 'Loading...';
     
-    // 1. Fetch and display the new word card
+    // 1. Fetch the new word data
     const word = await fetchRandomWord();
-    updateWordCard(word);
     
-    // 2. *** CRITICAL FIX: UNLOCK INPUT HERE ***
-    // The card is now visible and ready for the user to interact with.
+    // 2. Update and wait for the card to visually fade in (resolves after 50ms)
+    await updateWordCard(word);
+    
+    // 3. *** CRITICAL FIX: UNLOCK INPUT ONLY AFTER VISUAL COMPLETION ***
     isVoting = false; 
     
-    // 3. Fetch and render top words in the background (no need to block input)
+    // 4. Fetch and render top words in the background (no need to block input)
     const topWords = await fetchTopWords();
     renderTopWords(topWords);
 }
@@ -219,7 +225,7 @@ async function handleVote(voteType) {
 
     // 3. Wait for the animation to finish, then load the next word
     setTimeout(async () => {
-        // Load the next card, which will reset the state and unlock 'isVoting'
+        // Load the next card, which will reset the state and unlock 'isVoting' after fade-in
         await loadCardAndLeaderboard(); 
     }, ANIMATION_DURATION); 
 }
