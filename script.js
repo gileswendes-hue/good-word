@@ -5,7 +5,7 @@
 // --- Configuration ---
 const API_BASE_URL = '/api'; 
 // Removed DRAG_THRESHOLD as dragging is no longer supported
-const ANIMATION_DURATION = 500; // Match CSS transition time in ms (400) + safety buffer (100)
+// Removed ANIMATION_DURATION: We are moving to an instant card swap to prevent sticking/double-click issues.
 let currentWordData = null; // Stores the current word and its ID/meta-data
 let isVoting = false; // Flag to prevent double votes during animation/fetch
 
@@ -98,11 +98,11 @@ async function submitVote(wordId, voteType) { 
 }
 
 /**
- * Updates the card with new word data and initiates a fade-in effect.
- * Now returns a Promise that resolves when the fade-in is complete.
+ * Updates the card with new word data and initiates an instant update.
  * @param {object} wordData - The data for the next word.
  */
 function updateWordCard(wordData) {
+    // Return an immediate resolve since we are no longer waiting for a visual transition
     return new Promise(resolve => {
         if (!wordData || !wordData.word) {
             currentWordSpan.textContent = "NO MORE WORDS!";
@@ -115,13 +115,9 @@ function updateWordCard(wordData) {
         currentWordData = wordData;
         currentWordSpan.textContent = wordData.word;
         
-        // 1. Ensure the card is fully reset (no slide-out classes)
+        // 1. Instantly reset ALL styles to ensure the card is centered and visible.
+        wordCard.style.cssText = 'opacity: 1;';
         wordCard.className = 'word-card';
-        // The card visual reset now happens in handleVote's timeout using style.cssText
-        
-        // This is important: Set opacity to 0 *without* transition, then use a timeout to transition to 1
-        wordCard.style.transition = 'none'; 
-        wordCard.style.opacity = 0;
 
         // 2. Determine border color based on existing votes
         const totalVotes = wordData.goodVotes + wordData.badVotes;
@@ -137,14 +133,9 @@ function updateWordCard(wordData) {
                 wordCard.classList.add('neutral-border');
             }
         }
-
-        // 3. Fade in the new word card
-        setTimeout(() => {
-            // Re-enable CSS transitions 
-            wordCard.style.transition = ''; 
-            wordCard.style.opacity = 1;
-            resolve(); // Resolve promise after visual change is applied
-        }, 50); // Small delay to force transition
+        
+        // Resolve immediately as the content is now visible
+        resolve(); 
     });
 }
 
@@ -177,7 +168,7 @@ function renderTopWords(topWords) {
 
 /**
  * Fetches the next word, updates the card, and updates the leaderboards.
- * Precisely waits for the card to visually settle before unlocking the UI.
+ * Uses instant card swapping.
  */
 async function loadCardAndLeaderboard() {
     isVoting = true; // Lock input while fetching the next word
@@ -186,13 +177,13 @@ async function loadCardAndLeaderboard() {
     // 1. Fetch the new word data
     const word = await fetchRandomWord();
     
-    // 2. Update and wait for the card to visually fade in (resolves after 50ms)
+    // 2. Update the card instantly
     await updateWordCard(word);
     
-    // 3. UNLOCK INPUT ONLY AFTER VISUAL COMPLETION
+    // 3. UNLOCK INPUT IMMEDIATELY AFTER CONTENT UPDATE
     isVoting = false; 
     
-    // 4. Fetch and render top words in the background (no need to block input)
+    // 4. Fetch and render top words in the background
     const topWords = await fetchTopWords();
     renderTopWords(topWords);
 }
@@ -206,31 +197,22 @@ async function handleVote(voteType) {
     isVoting = true; // Lock input immediately upon vote
 
     const wordId = currentWordData.word;
-
-    // 1. Determine and store the class for removal later
-    const slideClass = voteType === 'good' ? 'slide-out-good' : 'slide-out-bad';
     
-    // 2. Immediately trigger the CSS slide-out animation
-    wordCard.classList.add(slideClass);
-
-    // 3. Submit the vote (runs concurrently with the animation)
+    // 1. Submit the vote (runs concurrently with the loading state)
     const responseData = await submitVote(wordId, voteType); 
 
     if (responseData && responseData.engagementMessage) {
         displayEngagementMessage(responseData.engagementMessage);
     }
 
-    // 4. Wait for the animation to finish
-    setTimeout(async () => {
-        // CRITICAL FIX: Use cssText to force reset ALL inline styles and remove the class.
-        // This is a stronger way to force the card back to its neutral (centered) position
-        // and eliminate any lingering transform/transition overrides from the previous vote.
-        wordCard.style.cssText = ''; // Clears all inline styles (transform, transition)
-        wordCard.classList.remove(slideClass);
+    // 2. Clear the card content and reset styles immediately to show 'Loading...' briefly
+    // This provides an immediate visual feedback and clears any stuck CSS state.
+    wordCard.style.cssText = ''; 
+    wordCard.className = 'word-card';
+    currentWordSpan.textContent = ''; 
 
-        // Load the next card, which will reset the state and unlock 'isVoting' after fade-in
-        await loadCardAndLeaderboard(); 
-    }, ANIMATION_DURATION); 
+    // 3. Load the next card immediately (no setTimeout required)
+    await loadCardAndLeaderboard(); 
 }
 
 // --- Event Listeners ---
