@@ -8,18 +8,18 @@ const app = express();
 const port = process.env.PORT || 10000;
 
 // Version for tracking
-const BACKEND_VERSION = 'v1.6.2';
+const BACKEND_VERSION = 'v1.6.3';
 
 // --- CRITICAL CONFIGURATION: MONGO DB URI ---
 // 
 // IMPORTANT: You MUST replace the placeholder string below with your actual MongoDB Atlas 
 // connection string. 
 // 
-// Since you were getting 'querySrv ENOTFOUND', you should use the 
-// standard connection format (starting with 'mongodb://...') if possible, 
-// or ensure your Atlas Network Access settings allow connections from your deployment IP.
+// If you are encountering 'querySrv ENOTFOUND' errors during deployment, try using the 
+// non-SRV connection string format (starting with 'mongodb://...') directly 
+// from your MongoDB Atlas cluster.
 // 
-// Cluster name reverted to 'good-word-game.jsepbhh.mongodb.net'
+// Placeholder URI structure for testing:
 const uri = process.env.MONGODB_URI || "mongodb+srv://database_user_4:justatestpassword@good-word-game.jsepbhh.mongodb.net/?retryWrites=true&w=majority&appName=good-word-game";
 
 // Minimum number of total votes required for a word to appear in the "Community Ratings" list.
@@ -45,7 +45,7 @@ async function connectToMongoAndStartServer(attempt = 1) {
     if (attempt > 1) {
         console.log(`Attempting reconnection to MongoDB... (Attempt ${attempt}/${MAX_RETRIES})`);
     } else {
-        console.log(`Using MongoDB URI: ${uri.substring(0, 40)}... (Note: Only first 40 chars logged)`);
+        console.log(`Attempting initial connection to MongoDB...`);
     }
 
     try {
@@ -60,6 +60,8 @@ async function connectToMongoAndStartServer(attempt = 1) {
         });
 
     } catch (err) {
+        // If the error is not a connection failure (e.g., if it occurs within initializeWords),
+        // we might not want to retry, but since it's the connect block, we retry.
         console.error(`Attempt ${attempt} failed:`, err.message);
         
         if (attempt < MAX_RETRIES) {
@@ -105,11 +107,19 @@ async function initializeWords() {
         if (count === 0) {
             console.log("Database is empty. Seeding initial words...");
             const wordObjects = initialWords.map(w => ({ word: w }));
-            await Word.insertMany(wordObjects);
-            console.log("Initial words seeded successfully.");
+            // Use try/catch here to ensure seeding errors don't crash the server start
+            try {
+                await Word.insertMany(wordObjects);
+                console.log("Initial words seeded successfully.");
+            } catch (insertError) {
+                 // Log a warning if insertion fails (e.g., if another instance is seeding concurrently)
+                console.warn("Seeding failed, possibly due to concurrent initialization. Proceeding.", insertError.message);
+            }
         }
     } catch (error) {
-        console.error("Error during word initialization:", error);
+        // Log a fatal error if counting documents fails, but proceed to start server 
+        // as this might be temporary and the connection is technically open.
+        console.error("Critical error during initial word count:", error);
     }
 }
 
