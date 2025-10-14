@@ -112,16 +112,17 @@ async function loadNewWord() {
         const response = await fetchWithRetry(`${API_URL_BASE}/get-word`);
         const data = await response.json();
 
-        // Check for both 'id' (preferred) and '_id' (MongoDB default)
-        const wordId = data.id || data._id;
+        // CRITICAL FIX: Check for all possible ID keys returned by the server
+        const wordId = data.id || data._id || data.wordId; 
 
         if (data && data.word && wordId) {
             currentWordEl.textContent = data.word;
             wordIdInput.value = wordId;
-            console.debug(`[API] New word returned: ${data.word} (ID: ${wordId})`);
+            // Now the debug log should show the ID
+            console.debug(`[API] New word returned: ${data.word} (ID: ${wordId})`); 
         } else {
-            // Log what we received if the required fields are missing
-            console.warn("[API] Received empty, invalid, or ID-less word data:", data);
+            // This warning should now only appear if the server returns literally nothing useful
+            console.warn("[API] Received empty, invalid, or ID-less word data (after checking all keys):", data); 
             currentWordEl.textContent = "No words available or ID missing.";
             wordIdInput.value = '';
         }
@@ -142,8 +143,8 @@ async function sendVote(classification) {
 
     if (!wordId || word === "LOADING..." || word.startsWith("ERROR:")) {
         displayEngagementMessage("Please wait for the current word to load before voting.", 'neutral');
-        // Log the missing wordId for quick debugging
-        console.error("VOTE ERROR: wordId is missing or invalid:", wordId); 
+        // This error should now only trigger if the input field is still empty after loadNewWord ran.
+        console.error("VOTE ERROR: wordId is missing or invalid:", wordId || '<empty_string>'); 
         return;
     }
 
