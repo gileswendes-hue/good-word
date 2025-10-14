@@ -81,8 +81,8 @@ async function seedDatabase() {
             
             // Check if file exists before trying to read
             if (!fs.existsSync(filePath)) {
-                 console.error("ERROR: Word list file 'british-words.txt' not found at expected path. Check server directory.");
-                 return;
+                console.error("ERROR: Word list file 'british-words.txt' not found at expected path. Check server directory.");
+                return;
             }
 
             const data = fs.readFileSync(filePath, 'utf8');
@@ -132,6 +132,26 @@ function dbCheck(req, res, next) {
 
 
 // --- API Routes ---
+
+/**
+ * [GET] /api/health - Retrieves the server and database health status. (NEW)
+ * Responds with 200 (UP) or 503 (DEGRADED/DOWN).
+ */
+app.get('/api/health', (req, res) => {
+    // Determine the status based on the connection flag
+    const httpStatus = isDbConnected ? 200 : 503;
+
+    res.status(httpStatus).json({
+        status: httpStatus === 200 ? 'UP' : 'DEGRADED',
+        database: {
+            status: isDbConnected ? 'OK' : 'DOWN',
+            message: isDbConnected ? 'MongoDB connection successful.' : 'MongoDB connection failed or is not configured.'
+        },
+        uptime: process.uptime(),
+        timestamp: new Date().toISOString()
+    });
+});
+
 
 /**
  * [GET] /api/get-word - Retrieves a random word to be classified.
@@ -199,22 +219,21 @@ app.post('/api/vote', dbCheck, async (req, res) => {
  */
 app.get('/api/top-words', dbCheck, async (req, res) => {
     try {
-        // Fetch top 5 words by net good votes (Good - Bad)
-        // Sort by total good votes (Good)
+        // Fetch top 5 words by total good votes
         const mostlyGood = await Word.find({})
             .sort({ goodVotes: -1, badVotes: 1 }) // Primary sort: Good votes descending, Secondary sort: Bad votes ascending
             .limit(5)
             // Use .select() to ensure only necessary fields are sent, including the virtual 'id'
             .select('word goodVotes badVotes');
 
-        // Fetch top 5 words by net bad votes (Bad - Good)
-        // Sort by total bad votes (Bad)
+        // Fetch top 5 words by total bad votes
         const mostlyBad = await Word.find({})
             .sort({ badVotes: -1, goodVotes: 1 }) // Primary sort: Bad votes descending, Secondary sort: Good votes ascending
             .limit(5)
             .select('word goodVotes badVotes');
 
         res.json({
+            // Use .map(w => w.toObject()) to explicitly trigger virtuals and convert Mongoose documents
             mostlyGood: mostlyGood.map(w => w.toObject()),
             mostlyBad: mostlyBad.map(w => w.toObject()),
         });
@@ -240,6 +259,6 @@ connectDB().finally(() => {
     // 2. Start the Express server regardless of DB connection status
     app.listen(PORT, () => {
         const dbStatus = isDbConnected ? "CONNECTED" : "DISCONNECTED (API calls will fail)"
-        console.log(`Server is listening on port ${PORT} (Backend Version: v1.7.7 FIX: Root route, DB status: ${dbStatus})`);
+        console.log(`Server is listening on port ${PORT} (Backend Version: v1.7.8 FIX: Added /api/health route, DB status: ${dbStatus})`);
     });
 });
