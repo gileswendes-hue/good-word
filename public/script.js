@@ -1,302 +1,290 @@
-// --- Configuration ---
-const API_URL_BASE = '/api';
-const WORD_CARD_TRANSITION_DURATION = 400; // ms, must match CSS transition duration
+/**
+ * ====================================================================
+ * Client-Side JavaScript for "Good Word/Bad Word" App
+ * ====================================================================
+ *
+ * This script handles all client-server interaction, UI updates, and
+ * error management for the voting application.
+ */
 
-// --- DOM Elements ---
+// --- Constants and DOM Element References ---
+const API_URL = '/api';
+const RETRY_LIMIT = 3;
+const APP_VERSION = 'v1.0.0-client'; // Client version identifier
+
+// Get DOM elements
 const currentWordEl = document.getElementById('currentWord');
 const wordIdInput = document.getElementById('word-id');
-const wordCardEl = document.getElementById('wordCard');
 const voteGoodBtn = document.getElementById('vote-good');
 const voteBadBtn = document.getElementById('vote-bad');
-const engagementMessageBox = document.getElementById('engagementMessageBox');
-const mostlyGoodListEl = document.getElementById('mostly-good-list');
-const mostlyBadListEl = document.getElementById('mostly-bad-list');
-const versionDisplayEl = document.getElementById('version-display'); // For displaying version/status
-
-// Array of critical elements to check
-const criticalElements = [
-    { element: currentWordEl, name: 'currentWord (Word Display)' },
-    { element: wordIdInput, name: 'word-id (Hidden Input)' },
-    { element: wordCardEl, name: 'wordCard (Card Container)' },
-    { element: voteGoodBtn, name: 'vote-good (Good Button)' },
-    { element: voteBadBtn, name: 'vote-bad (Bad Button)' },
-    { element: engagementMessageBox, name: 'engagementMessageBox (Message Box)' },
-    { element: mostlyGoodListEl, name: 'mostly-good-list (Good Leaderboard)' },
-    { element: mostlyBadListEl, name: 'mostly-bad-list (Bad Leaderboard)' },
-];
-
-// Ensure all critical elements are found before proceeding
-const missingElement = criticalElements.find(item => !item.element);
-
-if (missingElement) {
-    const errorMsg = `CRITICAL ERROR: The required DOM element "${missingElement.name}" is missing from the HTML. Check the element ID.`;
-    console.error(errorMsg);
-    
-    // Display error message to user if possible
-    const appContainer = document.getElementById('app-container');
-    if(appContainer) {
-        // Replace app content with a clear error message using simple, robust styling
-        appContainer.innerHTML = `<div class="p-8 text-center text-red-600 bg-red-50 rounded-xl shadow-lg border border-red-200 mt-10">
-            <h2 class="text-2xl font-bold mb-3">Initialization Failed</h2>
-            <p class="text-base">${errorMsg}</p>
-            <p class="mt-4 text-sm text-gray-500">Please verify the IDs in your index.html file.</p>
-        </div>`;
-    } 
-    // Prevent execution of further logic
-    throw new Error("Missing required DOM element(s).");
-}
-
+const engagementMsgBox = document.getElementById('engagementMessageBox');
+const mostlyGoodList = document.getElementById('mostly-good-list');
+const mostlyBadList = document.getElementById('mostly-bad-list');
+const wordCard = document.getElementById('wordCard');
+const versionDisplay = document.getElementById('version-display');
 
 // --- Utility Functions ---
 
 /**
- * Retries a fetch request with exponential backoff on failure.
- * @param {string} url - The URL to fetch.
- * @param {Object} options - Fetch request options.
- * @param {number} maxRetries - Maximum number of retries.
- * @returns {Promise<Response>} - The successful response.
+ * Implements a fetch wrapper with exponential backoff and retry logic.
+ * @param {string} url - The API endpoint URL.
+ * @param {object} options - Fetch request options (method, headers, body, etc.).
+ * @param {number} attempt - Current retry attempt number (default 1).
  */
-async function fetchWithRetry(url, options = {}, maxRetries = 3) {
-    for (let i = 0; i < maxRetries; i++) {
-        try {
-            const response = await fetch(url, options);
-            if (!response.ok) {
-                // If response is not OK (e.g., 503 from dbCheck), throw to trigger retry
-                throw new Error(`HTTP error! Status: ${response.status}`);
-            }
-            return response;
-        } catch (error) {
-            // Log with console.warn to indicate a non-fatal retry attempt
-            console.warn(`Fetch attempt ${i + 1} failed for ${url}: ${error.message}`);
-            if (i === maxRetries - 1) throw error; // Re-throw last error
-
-            const delay = Math.pow(2, i) * 1000; // 1s, 2s, 4s
-            await new Promise(resolve => setTimeout(resolve, delay));
-        }
-    }
-}
-
-/**
- * Displays a temporary engagement message (like "Voted Good!").
- * @param {string} message - The message content.
- * @param {string} type - 'good', 'bad', or 'neutral'.
- */
-function displayEngagementMessage(message, type = 'neutral') {
-    // Determine color based on type, matching the CSS styles
-    const colorMap = {
-        // These colors correspond to the colors defined in the CSS
-        good: { bg: '#d4edda', text: '#155724' },   // Light Green, Dark Green
-        bad: { bg: '#f8d7da', text: '#721c24' },     // Light Red, Dark Red
-        neutral: { bg: '#cce5ff', text: '#004085' }  // Light Blue, Dark Blue
-    };
-
-    const colors = colorMap[type] || colorMap.neutral;
-
-    engagementMessageBox.textContent = message;
-    // Directly setting style properties since CSS classes only handle visibility/animation
-    engagementMessageBox.style.backgroundColor = colors.bg;
-    engagementMessageBox.style.color = colors.text;
-
-    engagementMessageBox.classList.add('visible');
-
-    setTimeout(() => {
-        engagementMessageBox.classList.remove('visible');
-    }, 2000);
-}
-
-/**
- * Fetches a new word and updates the UI.
- */
-async function loadNewWord() {
-    console.debug("[API] Making call to: /api/get-word");
+async function retryFetch(url, options = {}, attempt = 1) {
+    const delay = Math.pow(2, attempt) * 100 + Math.random() * 100; // Exponential delay + jitter
     
-    // Set loading state and reset card
-    currentWordEl.textContent = "LOADING...";
-    wordIdInput.value = ''; // Clear previous ID
-    wordCardEl.classList.remove('good-border', 'bad-border'); // Remove previous vote borders
-    wordCardEl.classList.add('neutral-border'); // Set default neutral border
-
     try {
-        const response = await fetchWithRetry(`${API_URL_BASE}/get-word`);
-        const data = await response.json();
+        const response = await fetch(url, options);
 
         if (response.status === 503) {
-             throw new Error(data.message || "Server error: Database unavailable.");
+             // 503 Service Unavailable often means the database is down (per index.js logic)
+             throw new Error("Service Unavailable: Database offline. Cannot complete request.");
+        }
+        
+        if (!response.ok) {
+            // Throw an error for non-503 HTTP error status codes (e.g., 400, 500)
+            const errorBody = await response.json().catch(() => ({ message: 'Unknown error' }));
+            throw new Error(`HTTP error! Status: ${response.status}. Message: ${errorBody.message || 'Server error.'}`);
         }
 
-        // The server response is expected to have 'word' and 'id' (from the virtual property)
-        const wordId = data.id; 
+        return response.json();
 
-        if (data && data.word && wordId) {
-            currentWordEl.textContent = data.word;
-            wordIdInput.value = wordId;
-            console.debug(`[API] New word returned: ${data.word} (ID: ${wordId})`); 
-        } else {
-            console.error("[API] Failed to get valid word data (Word or ID missing):", data); 
-            currentWordEl.textContent = "NO WORD: Invalid server response.";
-        }
     } catch (error) {
-        console.error("Error fetching word:", error);
-        currentWordEl.textContent = "ERROR: DB Connection Failed. Check Server Logs.";
-        displayEngagementMessage("Server Error: Cannot connect to database.", 'bad');
+        console.error(`Attempt ${attempt} failed for ${url}:`, error.message);
+        
+        if (attempt < RETRY_LIMIT) {
+            console.log(`Retrying in ${delay.toFixed(0)}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            return retryFetch(url, options, attempt + 1);
+        } else {
+            console.error(`Fetch failed after ${RETRY_LIMIT} attempts.`);
+            throw error; // Propagate the error after final attempt failure
+        }
     }
 }
 
 /**
- * Sends a user vote to the API.
- * @param {string} classification - 'good' or 'bad'.
+ * Displays a temporary message in the engagement box.
+ * @param {string} message - The message text.
+ * @param {string} type - 'success', 'error', or 'info' (for styling).
  */
-async function sendVote(classification) {
-    const wordId = wordIdInput.value;
-    const word = currentWordEl.textContent;
+function displayMessage(message, type = 'info') {
+    engagementMsgBox.textContent = message;
+    engagementMsgBox.classList.remove('bg-blue-100', 'text-blue-800', 'bg-green-100', 'text-green-800', 'bg-red-100', 'text-red-800');
+    
+    switch (type) {
+        case 'success':
+            engagementMsgBox.classList.add('bg-green-100', 'text-green-800');
+            break;
+        case 'error':
+            engagementMsgBox.classList.add('bg-red-100', 'text-red-800');
+            break;
+        case 'info':
+        default:
+            engagementMsgBox.classList.add('bg-blue-100', 'text-blue-800');
+            break;
+    }
+    engagementMsgBox.style.display = 'block';
+    
+    // Auto-hide the message after a delay
+    setTimeout(() => {
+        engagementMsgBox.style.display = 'none';
+    }, 3000);
+}
 
-    if (!wordId || word === "LOADING..." || word.startsWith("ERROR:")) {
-        displayEngagementMessage("Please wait for a valid word to load before voting.", 'neutral');
-        console.error("VOTE ERROR: wordId is missing or invalid."); 
+/**
+ * Disables/Enables the voting buttons.
+ * @param {boolean} disabled - True to disable, false to enable.
+ */
+function setVotingDisabled(disabled) {
+    voteGoodBtn.disabled = disabled;
+    voteBadBtn.disabled = disabled;
+    // Add visual feedback for disabled state
+    if (disabled) {
+        voteGoodBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        voteBadBtn.classList.add('opacity-50', 'cursor-not-allowed');
+    } else {
+        voteGoodBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        voteBadBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
+}
+
+
+// --- API Call and UI Update Functions ---
+
+/**
+ * Fetches a new random word from the server and updates the UI.
+ */
+async function fetchWord() {
+    setVotingDisabled(true);
+    currentWordEl.textContent = 'Fetching new word...';
+    wordIdInput.value = '';
+
+    // Reset card animation classes
+    wordCard.classList.remove('good-vote', 'bad-vote', 'neutral-border');
+    wordCard.classList.add('neutral-border');
+
+    try {
+        const data = await retryFetch(`${API_URL}/get-word`);
+
+        // Check for the expected response structure
+        if (data && data.word && data.id) {
+            currentWordEl.textContent = data.word;
+            wordIdInput.value = data.id;
+            setVotingDisabled(false);
+        } else {
+            throw new Error("Invalid response format from server.");
+        }
+
+    } catch (error) {
+        const message = error.message.includes('Database offline') 
+            ? "Database connection failed. Please check server logs." 
+            : `Could not load word: ${error.message}`;
+            
+        currentWordEl.textContent = 'FAILED TO LOAD';
+        displayMessage(message, 'error');
+        console.error("Fetch Word Error:", error);
+    }
+}
+
+/**
+ * Fetches the top 5 good and bad words and updates the rankings section.
+ */
+async function fetchTopWords() {
+    try {
+        const data = await retryFetch(`${API_URL}/top-words`);
+
+        if (data && data.mostlyGood && data.mostlyBad) {
+            updateRankingList(mostlyGoodList, data.mostlyGood, 'good');
+            updateRankingList(mostlyBadList, data.mostlyBad, 'bad');
+        } else {
+            throw new Error("Invalid response format for top words.");
+        }
+    } catch (error) {
+        const message = error.message.includes('Database offline') 
+            ? "Cannot load rankings (DB offline)." 
+            : "Failed to load community ratings.";
+            
+        displayMessage(message, 'error');
+        console.error("Fetch Top Words Error:", error);
+        // Clear lists and show error message
+        mostlyGoodList.innerHTML = `<li class="text-center italic text-red-500 text-sm">${message}</li>`;
+        mostlyBadList.innerHTML = `<li class="text-center italic text-red-500 text-sm">${message}</li>`;
+    }
+}
+
+/**
+ * Helper function to populate a ranking list element.
+ * @param {HTMLElement} listEl - The ul element to update.
+ * @param {Array<Object>} words - Array of word objects {word, goodVotes, badVotes}.
+ * @param {string} type - 'good' or 'bad' for styling.
+ */
+function updateRankingList(listEl, words, type) {
+    if (words.length === 0) {
+        listEl.innerHTML = '<li class="text-center italic text-sm text-gray-400">No votes recorded yet.</li>';
         return;
     }
 
-    const payload = { wordId, classification };
-    
-    // 1. Prepare UI for vote transition
-    voteGoodBtn.disabled = true;
-    voteBadBtn.disabled = true;
+    listEl.innerHTML = ''; // Clear previous entries
 
-    // Apply animation class based on vote
-    const slideClass = classification === 'good' ? 'slide-out-good' : 'slide-out-bad';
-    wordCardEl.classList.add(slideClass);
+    words.forEach((word, index) => {
+        const listItem = document.createElement('li');
+        listItem.className = 'flex justify-between items-center p-2 rounded-lg transition duration-150 ease-in-out hover:bg-gray-100';
+        
+        const voteCount = type === 'good' ? word.goodVotes : word.badVotes;
+        const colorClass = type === 'good' ? 'text-green-600' : 'text-red-600';
+        const rankIcon = ['🥇', '🥈', '🥉'][index] || '';
 
-    // Wait for the animation to finish
-    await new Promise(resolve => setTimeout(resolve, WORD_CARD_TRANSITION_DURATION));
-    
-    // 2. Perform API call
-    console.debug(`[API] Making call to: /api/vote with classification: ${classification}`);
+        listItem.innerHTML = `
+            <span class="font-bold text-gray-700">${rankIcon} ${word.word}</span>
+            <span class="font-mono text-sm ${colorClass} bg-white px-2 py-1 rounded-full shadow-sm">
+                ${voteCount} Votes
+            </span>
+        `;
+        listEl.appendChild(listItem);
+    });
+}
+
+
+/**
+ * Submits a vote to the server.
+ * @param {string} classification - 'good' or 'bad'.
+ */
+async function submitVote(classification) {
+    const wordId = wordIdInput.value;
+    const currentWord = currentWordEl.textContent;
+
+    if (!wordId || currentWord === 'FAILED TO LOAD') {
+        displayMessage("Please wait for a word to load before voting.", 'info');
+        return;
+    }
+
+    setVotingDisabled(true);
+
+    // 1. UI Feedback: Animate the card based on the vote
+    const voteClass = classification === 'good' ? 'good-vote' : 'bad-vote';
+    wordCard.classList.remove('neutral-border');
+    wordCard.classList.add(voteClass);
+
     try {
-        const response = await fetchWithRetry(`${API_URL_BASE}/vote`, {
+        const response = await retryFetch(`${API_URL}/vote`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body: JSON.stringify({ wordId, classification })
         });
 
-        const result = await response.json();
-        
-        // 3. Update UI after successful vote
-        if (response.ok && result.success) { 
-            displayEngagementMessage(`Voted '${word}' as ${classification.toUpperCase()}!`, classification);
-            // After successful vote, load next word and refresh leaderboard
-            await loadNewWord(); 
-            await loadTopWords(); 
+        if (response.success) {
+            displayMessage(`Voted "${classification.toUpperCase()}" for "${currentWord}". Great job!`, 'success');
         } else {
-            console.error("Server response on vote failure:", result);
-            // Throwing an error here triggers the catch block below for consistent handling
-            throw new Error(result.message || `Failed to submit vote. Server responded with status: ${response.status}`);
+            // Should be caught by retryFetch, but handle explicit failure messages
+            displayMessage(`Vote failed: ${response.message || 'Unknown error'}`, 'error');
         }
+
     } catch (error) {
-        console.error("Error submitting vote:", error);
-        displayEngagementMessage("ERROR: Could not submit vote. Database likely unavailable.", 'bad');
-        // If vote failed, re-load the word just in case
-        await loadNewWord(); 
+        console.error("Submit Vote Error:", error);
+        displayMessage(`Failed to record vote: ${error.message}`, 'error');
+
     } finally {
-        // 4. Reset UI
-        wordCardEl.classList.remove(slideClass);
-        voteGoodBtn.disabled = false;
-        voteBadBtn.disabled = false;
-    }
-}
-
-/**
- * Fetches and renders the top words leaderboard.
- */
-async function loadTopWords() {
-    console.debug("[API] Making call to: /api/top-words");
-    
-    // Set loading state for lists
-    const loadingHtml = '<li class="text-center italic text-sm text-gray-500 p-2">Loading...</li>';
-    mostlyGoodListEl.innerHTML = loadingHtml;
-    mostlyBadListEl.innerHTML = loadingHtml;
-
-    try {
-        const response = await fetchWithRetry(`${API_URL_BASE}/top-words`);
-        const data = await response.json();
+        // 2. Fetch the next word and update the rankings
+        await Promise.all([
+            fetchWord(),
+            fetchTopWords()
+        ]);
         
-        if (response.status === 503) {
-             throw new Error(data.message || "Server error: Database unavailable.");
-        }
-
-        console.debug("[API] /top-words returned:", data);
-        
-        // Render lists
-        renderTopWords(data);
-
-    } catch (error) {
-        console.error("Error fetching top words:", error);
-        const errorHtml = '<li class="text-center text-red-500 text-sm p-2">Error loading leaderboard.</li>';
-        mostlyGoodListEl.innerHTML = errorHtml;
-        mostlyBadListEl.innerHTML = errorHtml;
+        // 3. Clean up the animation class after the new word has loaded
+        setTimeout(() => {
+            wordCard.classList.remove('good-vote', 'bad-vote');
+            wordCard.classList.add('neutral-border');
+        }, 300); // Give a slight delay after new word load
     }
 }
 
-/**
- * Renders the top word data into the leaderboard lists.
- * @param {Object} data - Object containing mostlyGood and mostlyBad arrays.
- */
-function renderTopWords(data) {
-    
-    // Helper function to render a list
-    const renderList = (listElement, words, isGoodList) => {
-        listElement.innerHTML = ''; // Clear existing content
+// --- Event Listeners and Initialization ---
 
-        if (!words || words.length === 0) {
-            listElement.innerHTML = '<li class="text-center italic text-sm text-gray-500 p-2">No data yet! Be the first to vote.</li>';
-            return;
-        }
-
-        words.forEach(item => {
-            const totalVotes = item.goodVotes + item.badVotes;
-            const listTypeVoteCount = isGoodList ? item.goodVotes : item.badVotes;
-            
-            // Percentage of the dominant vote type for this word
-            const percentage = totalVotes > 0 ? ((listTypeVoteCount / totalVotes) * 100).toFixed(0) : 0;
-            
-            const listItem = document.createElement('li');
-            listItem.className = 'py-2 border-b last:border-b-0 border-gray-200 flex justify-between items-center px-2';
-            
-            // Apply color based on list type (Good list = green, Bad list = red)
-            const colorClass = isGoodList ? 'text-green-600' : 'text-red-600';
-            
-            listItem.innerHTML = `
-                <span class="font-medium text-gray-800">${item.word}</span>
-                <span class="percentage font-bold ${colorClass}">${percentage}%</span>
-            `;
-            listElement.appendChild(listItem);
-        });
-    };
-
-    renderList(mostlyGoodListEl, data.mostlyGood, true);
-    renderList(mostlyBadListEl, data.mostlyBad, false);
-}
+// Attach event handlers to the buttons
+voteGoodBtn.addEventListener('click', () => submitVote('good'));
+voteBadBtn.addEventListener('click', () => submitVote('bad'));
 
 
-// --- Event Listeners ---
-voteGoodBtn.addEventListener('click', () => sendVote('good'));
-voteBadBtn.addEventListener('click', () => sendVote('bad'));
-
-
-// --- Initialization ---
-function init() {
-    console.log("Good Word/Bad Word client app initializing...");
-    
-    // 1. Set version display
-    if (versionDisplayEl) {
-         versionDisplayEl.textContent = 'v1.7.7 (Client)';
+// Initial Setup on Load
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Display client version
+    if (versionDisplay) {
+        versionDisplay.textContent = APP_VERSION;
     }
-
-    // 2. Load the first word
-    loadNewWord();
     
-    // 3. Load the leaderboard (top words)
-    loadTopWords();
-}
+    // 2. Clear initial messages
+    engagementMsgBox.style.display = 'none';
 
-// Start the application after the DOM is fully loaded
-document.addEventListener('DOMContentLoaded', init);
+    // 3. Start the application flow
+    fetchWord();
+    fetchTopWords();
+
+    // 4. Set interval to refresh rankings every 15 seconds
+    setInterval(fetchTopWords, 15000);
+});
+
+// Expose functions for debugging
+window.fetchWord = fetchWord;
+window.fetchTopWords = fetchTopWords;
