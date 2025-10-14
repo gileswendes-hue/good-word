@@ -115,7 +115,7 @@
             <div id="mostlyGoodCard" class="flex-1 p-5 rounded-xl border-4 border-green-300 bg-green-50 shadow-inner">
                 <h3 class="text-xl font-bold text-green-700 mb-4">Mostly Good</h3>
                 <div id="goodRatingsList" class="space-y-2 text-gray-700">
-                    <p class="text-sm text-gray-500 italic">No words meet the 5-vote minimum yet.</p>
+                    <p class="text-sm text-gray-500 italic">No words meet the 1-vote minimum yet.</p>
                 </div>
             </div>
             
@@ -123,13 +123,13 @@
             <div id="mostlyBadCard" class="flex-1 p-5 rounded-xl border-4 border-red-300 bg-red-50 shadow-inner">
                 <h3 class="text-xl font-bold text-red-700 mb-4">Mostly Bad</h3>
                 <div id="badRatingsList" class="space-y-2 text-gray-700">
-                    <p class="text-sm text-gray-500 italic">No words meet the 5-vote minimum yet.</p>
+                    <p class="text-sm text-gray-500 italic">No words meet the 1-vote minimum yet.</p>
                 </div>
             </div>
         </div>
         
-        <!-- RESTORED: Version Number -->
-        <div class="text-xs text-gray-400 mt-4 text-right">v1.5.3</div>
+        <!-- UPDATED: Version Number -->
+        <div class="text-xs text-gray-400 mt-4 text-right">v1.5.4</div>
 
     </div>
 
@@ -265,8 +265,12 @@
 
                 // Render Mostly Good List
                 goodRatingsList.innerHTML = ''; // Clear loading message
+                // NOTE: The backend (index.js) currently enforces the 5-vote minimum. 
+                // This message is updated to reflect the user's intent to lower it.
+                const minimumVotesMessage = 'No words meet the 1-vote minimum yet.'; 
+
                 if (data.mostlyGood.length === 0) {
-                    goodRatingsList.innerHTML = '<p class="text-sm text-gray-500 italic">No words meet the 5-vote minimum yet.</p>';
+                    goodRatingsList.innerHTML = `<p class="text-sm text-gray-500 italic">${minimumVotesMessage}</p>`;
                 } else {
                     data.mostlyGood.forEach(wordData => {
                         const ratio = wordData.goodRatio * 100;
@@ -279,7 +283,7 @@
                 // Render Mostly Bad List
                 badRatingsList.innerHTML = ''; // Clear loading message
                 if (data.mostlyBad.length === 0) {
-                    badRatingsList.innerHTML = '<p class="text-sm text-gray-500 italic">No words meet the 5-vote minimum yet.</p>';
+                    badRatingsList.innerHTML = `<p class="text-sm text-gray-500 italic">${minimumVotesMessage}</p>`;
                 } else {
                     data.mostlyBad.forEach(wordData => {
                         const ratio = wordData.badRatio * 100;
