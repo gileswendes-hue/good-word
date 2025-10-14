@@ -1,281 +1,202 @@
+// --- Dependencies ---
 const express = require('express');
 const mongoose = require('mongoose');
 const path = require('path');
-const cors = require('cors'); 
-const fs = require('fs'); 
+const fs = require('fs');
 
 const app = express();
-const port = process.env.PORT || 10000;
+const PORT = process.env.PORT || 10000;
+const MONGO_URI = process.env.MONGODB_URI;
 
-// Version for tracking
-// Updated version to reflect the attempt to fix the seeding path
-const BACKEND_VERSION = 'v1.8.1 (Fixed Index.html Path)'; 
+// --- Middleware ---
+app.use(express.json()); // for parsing application/json
+app.use(express.static(path.join(__dirname, '../public'))); // Serve static files from the 'public' directory
 
-// --- CRITICAL CONFIGURATION: MONGO DB URI ---
-// WARNING: The credentials below are hardcoded for immediate deployment testing,
-// but for security, you MUST use the process.env.MONGODB_URI environment variable
-// for production.
-const hardcodedUri = "mongodb+srv://database_user_4:justatestpassword@ac-cchetfb.jsepbhh.mongodb.net/good-word-game?retryWrites=true&w=majority&appName=ac-cchetfb&authSource=admin";
+// --- MongoDB/Mongoose Setup ---
 
-// Use the environment variable if available (RECOMMENDED), otherwise fallback to the hardcoded URI.
-const uri = process.env.MONGODB_URI || hardcodedUri;
-
-// Minimum number of total votes required for a word to appear in the "Community Ratings" list.
-const MIN_VOTES_THRESHOLD = 1;
-
-// --- Middleware Setup ---
-app.use(express.json()); 
-app.use(cors()); 
-
-// CRITICAL PATH 1: Define the public folder path, which is at the root level alongside index.js
-const publicPath = path.join(__dirname, 'public');
-console.log(`[${BACKEND_VERSION}] Serving static files from path: ${publicPath}`); 
-// Tell Express to serve all static assets (CSS, JS, images) from the public folder
-app.use(express.static(publicPath));
-
-// --- Database Connection Setup ---
-
-// 1. Connect to MongoDB
-console.log(`[${BACKEND_VERSION}] Using URI (first 40 chars): ${uri.substring(0, 40)}...`);
-console.log("Attempting initial connection to MongoDB...");
-
-// Connect using the URI (hardcoded or environment variable)
-mongoose.connect(uri)
-    .then(() => {
-        console.log("MongoDB connection successful.");
-        // 2. Initialize words only after a successful connection
-        return initializeWords();
-    })
-    .then(() => {
-        // 3. Start server only after DB is connected and seeded
-        app.listen(port, () => {
-            console.log(`Server is listening on port ${port} (Backend Version: ${BACKEND_VERSION})`);
-        });
-    })
-    .catch(err => {
-        // 4. Handle persistent connection failure
-        console.error("Fatal Error: Failed to connect to MongoDB and start server. Check your URI, network access, or user permissions.", err.message);
-        console.error("Mongoose Error Details:", err.name);
-        // Exit process to ensure deployment platform recognizes the failure
-        process.exit(1);
-    });
-
-// --- Mongoose Schema and Model ---
-
+// Define the schema for a Word
 const wordSchema = new mongoose.Schema({
-    word: { type: String, required: true, unique: true },
+    word: { type: String, required: true, unique: true, index: true },
     goodVotes: { type: Number, default: 0 },
     badVotes: { type: Number, default: 0 },
-    createdAt: { type: Date, default: Date.now }
 });
 
-// The model 'Word' will use the collection 'words' in the connected DB ('good-word-game')
+// Virtual property for 'id' to expose '_id' as 'id' in JSON responses
+wordSchema.virtual('id').get(function() {
+    return this._id.toHexString();
+});
+
+// Ensure virtuals are included in toJSON output
+wordSchema.set('toJSON', { virtuals: true });
+wordSchema.set('toObject', { virtuals: true });
+
 const Word = mongoose.model('Word', wordSchema);
 
-
-// --- Initial Data Seeding ---
-
-// This list is now the fallback if british-words.txt is not found.
-const fallbackWords = [
-    "harmony", "disaster", "joy", "gloom", "truth", "lie", "success", 
-    "failure", "kindness", "cruelty", "wisdom", "stupid", "brave", "coward",
-    "freedom", "prison", "peace", "war", "beautiful", "ugly"
-];
-
 /**
- * Seeds the database with a predefined list of words if the collection is empty.
- * Attempts to load words from 'british-words.txt' first.
+ * Initializes the MongoDB connection and seeds the database if empty.
  */
-async function initializeWords() {
+async function connectDB() {
+    console.log("Attempting initial connection to MongoDB...");
+
+    if (!MONGO_URI) {
+        console.error("CRITICAL ERROR: MONGODB_URI environment variable is not set.");
+        throw new Error("Missing MONGODB_URI. Cannot connect to database.");
+    }
+
     try {
-        const count = await Word.countDocuments();
-        if (count === 0) {
-            let wordsToSeed = [];
-            
-            // CRITICAL PATH 2: Path to the word list file
-            // Since index.js is in the root, and server is a sibling directory.
-            const filePath = path.join(__dirname, 'server', 'british-words.txt');
-            
-            console.log(`[Seeding] Attempting to read word list from: ${filePath}`);
-
-            if (fs.existsSync(filePath)) {
-                try {
-                    // Read the file synchronously to ensure words are loaded before proceeding
-                    const fileContent = fs.readFileSync(filePath, 'utf8');
-                    
-                    // Split the content by newline, filter out empty lines, trim whitespace, and convert to lowercase
-                    wordsToSeed = fileContent
-                        .split(/\r?\n/)
-                        .map(word => word.trim().toLowerCase())
-                        .filter(word => word.length > 0);
-                    
-                    console.log(`[Seeding] Success! Loaded ${wordsToSeed.length} words from british-words.txt.`);
-
-                } catch (fileError) {
-                    // This catches errors like permission denied or malformed file content
-                    console.error(`[Seeding] ERROR reading file at ${filePath}:`, fileError.message);
-                    console.warn("[Seeding] Falling back to hardcoded list.");
-                    wordsToSeed = fallbackWords;
-                }
-            } else {
-                console.warn(`[Seeding] WARNING: File not found at path: ${filePath}`);
-                console.warn("[Seeding] Falling back to hardcoded list.");
-                wordsToSeed = fallbackWords;
-            }
-
-
-            if (wordsToSeed.length > 0 && wordsToSeed[0] !== "NO WORDS") { // Ensure fallback didn't return an error message
-                console.log(`[Seeding] Database is empty. Seeding ${wordsToSeed.length} words...`);
-                // Use a Set to ensure uniqueness and then map to Mongoose objects
-                const uniqueWordObjects = [...new Set(wordsToSeed)].map(word => ({ word: word }));
-                
-                try {
-                    // Mongoose insertMany will handle large arrays efficiently
-                    await Word.insertMany(uniqueWordObjects, { ordered: false }); 
-                    console.log(`[Seeding] Initial ${uniqueWordObjects.length} unique words seeded successfully.`);
-                } catch (insertError) {
-                     // Warn instead of exiting if insertion fails (e.g., due to concurrent runs or duplicates)
-                     console.warn("[Seeding] Failed to insert all words, possibly due to concurrent initialization or duplicates. Proceeding.", insertError.message);
-                }
-            } else {
-                 console.log("[Seeding] No words found in file or fallback list to seed the database.");
-            }
-        } else {
-            console.log(`[Seeding] Database already contains ${count} words. Skipping seeding.`);
-        }
+        await mongoose.connect(MONGO_URI);
+        console.log("MongoDB connection successful.");
+        await seedDatabase();
     } catch (error) {
-        // This is where the permission error occurred. If it fails here, it should exit in the main catch block.
-        console.error("Critical error during initial word count (Permission Check):", error.message);
-        throw error; // Re-throw to be caught by the main connection catch
+        console.error("Fatal Error: Failed to connect to MongoDB and start server. Check your MONGO_URI, or network access.");
+        // Log the full error, excluding the URI for security
+        console.error("Connection Error Details:", error.message);
+        // Exiting the process after a critical failure
+        process.exit(1); 
     }
 }
 
-
-// --- API Endpoints ---
-
-// 1. GET backend version
-app.get('/api/version', (req, res) => {
-    res.json({ version: BACKEND_VERSION });
-});
-
-// 2. GET a new random word
-app.get('/api/get-word', async (req, res) => {
+/**
+ * Seeds the database with words from british-words.txt if the collection is empty.
+ */
+async function seedDatabase() {
     try {
         const count = await Word.countDocuments();
         if (count === 0) {
-            // Updated behavior for empty database
-            return res.status(200).json({ 
-                word: "DB EMPTY", 
-                wordId: null, 
-                message: "Database is empty. Check server logs for seeding errors." 
-            });
+            console.log("Database is empty. Seeding initial words...");
+            const filePath = path.join(__dirname, 'british-words.txt');
+            const data = fs.readFileSync(filePath, 'utf8');
+            const words = data.split('\n')
+                              .map(w => w.trim().toUpperCase())
+                              .filter(w => w.length > 0)
+                              .map(word => ({
+                                  word: word,
+                                  goodVotes: 0,
+                                  badVotes: 0
+                              }));
+            
+            // Insert only new documents, ignoring duplicates (though words are unique here)
+            await Word.insertMany(words, { ordered: false, rawResult: true });
+            console.log(`Initial words seeded successfully. Total words: ${words.length}.`);
+        } else {
+            console.log(`Database already contains ${count} words. Seeding skipped.`);
         }
-        
-        // Get a random document
+    } catch (error) {
+        // Handle potential EBUSY or file reading errors
+        if (error.code === 'ENOENT') {
+            console.error("ERROR: Word list file 'british-words.txt' not found at expected path:", path.join(__dirname, 'british-words.txt'));
+        } else if (error.code === 11000) {
+             // 11000 is the MongoDB duplicate key error (safe to ignore after initial seed)
+             console.warn("Initial words seeded successfully (with duplicate warnings).");
+        } else {
+            console.error("Error during database seeding:", error.message);
+        }
+    }
+}
+
+// --- API Routes ---
+
+/**
+ * [GET] /api/get-word - Retrieves a random word to be classified.
+ */
+app.get('/api/get-word', async (req, res) => {
+    try {
+        // Use $sample to efficiently get a random document
         const randomWords = await Word.aggregate([
             { $sample: { size: 1 } }
         ]);
 
         if (randomWords.length > 0) {
-            const wordDoc = randomWords[0];
-            res.json({
-                word: wordDoc.word.toUpperCase(),
-                wordId: wordDoc._id 
-            });
-        } else {
-            res.status(404).json({ error: "Could not find a random word." });
-        }
+            const wordData = randomWords[0];
 
+            // CRITICAL FIX: Explicitly ensure the ID is included in the response object
+            // Mongoose's .aggregate() results often don't have the virtual 'id' or the raw '_id' accessible by default.
+            // We ensure that we send the '_id' field back to the client.
+            const responseWord = {
+                id: wordData._id, // Send the ID field
+                word: wordData.word
+            };
+
+            res.json(responseWord);
+        } else {
+            res.status(404).json({ message: "No words found in the database." });
+        }
     } catch (error) {
-        console.error("Error fetching word:", error);
-        res.status(500).json({ error: "Internal Server Error" });
+        console.error("Error fetching random word:", error);
+        res.status(500).json({ message: "Internal server error while fetching word." });
     }
 });
 
-// 3. POST a vote for a word
+/**
+ * [POST] /api/vote - Submits a vote for a word.
+ */
 app.post('/api/vote', async (req, res) => {
-    const { wordId, voteType } = req.body;
+    const { wordId, classification } = req.body;
 
-    if (!wordId || (voteType !== 'good' && voteType !== 'bad')) {
-        return res.status(400).json({ error: "Invalid wordId or voteType" });
+    if (!wordId || (classification !== 'good' && classification !== 'bad')) {
+        return res.status(400).json({ success: false, message: "Invalid wordId or classification provided." });
     }
+
+    const updateField = classification === 'good' ? 'goodVotes' : 'badVotes';
 
     try {
-        let updateQuery = {};
-        if (voteType === 'good') {
-            updateQuery = { $inc: { goodVotes: 1 } };
+        const result = await Word.findByIdAndUpdate(
+            wordId,
+            { $inc: { [updateField]: 1 } },
+            { new: true }
+        );
+
+        if (result) {
+            res.json({ success: true, message: "Vote recorded." });
         } else {
-            updateQuery = { $inc: { badVotes: 1 } };
+            res.status(404).json({ success: false, message: "Word not found." });
         }
-
-        const result = await Word.findByIdAndUpdate(wordId, updateQuery, { new: true });
-        
-        let engagementMessage = "";
-        if (result && (result.goodVotes + result.badVotes) === 1) {
-            engagementMessage = `Thanks! You cast the first vote for "${result.word}".`;
-        }
-
-        res.json({ success: true, engagementMessage });
     } catch (error) {
-        console.error("Error submitting vote:", error);
-        res.status(500).json({ error: "Internal Server Error" });
+        console.error("Error updating vote:", error);
+        // Log the attempted wordId for easier debugging
+        console.error("Failed to update wordId:", wordId, "with classification:", classification);
+        res.status(500).json({ success: false, message: "Internal server error while recording vote." });
     }
 });
 
-// 4. GET top rated words for community display
+/**
+ * [GET] /api/top-words - Retrieves the top 5 good and top 5 bad words.
+ */
 app.get('/api/top-words', async (req, res) => {
     try {
-        // Find words that have met the minimum vote threshold
-        const ratedWords = await Word.find({ 
-            $expr: { $gte: [{ $add: ["$goodVotes", "$badVotes"] }, MIN_VOTES_THRESHOLD] }
-        });
+        // Fetch top 5 words by net good votes (Good - Bad)
+        // Sort by total good votes (Good)
+        const mostlyGood = await Word.find({})
+            .sort({ goodVotes: -1, badVotes: 1 }) // Primary sort: Good votes descending, Secondary sort: Bad votes ascending
+            .limit(5)
+            // Use .select() to ensure only necessary fields are sent, including the virtual 'id'
+            .select('word goodVotes badVotes');
 
-        // Calculate ratios and sort/filter the words
-        const wordsWithRatio = ratedWords.map(wordDoc => {
-            const totalVotes = wordDoc.goodVotes + wordDoc.badVotes;
-            return {
-                word: wordDoc.word.toUpperCase(),
-                totalVotes: totalVotes,
-                goodRatio: totalVotes > 0 ? wordDoc.goodVotes / totalVotes : 0,
-                badRatio: totalVotes > 0 ? wordDoc.badVotes / totalVotes : 0,
-            };
-        });
-
-        // Filter and sort for Mostly Good (highest good ratio)
-        const mostlyGood = wordsWithRatio
-            .filter(w => w.goodRatio >= 0.5) // Only include words rated 50% or more as good
-            .sort((a, b) => b.goodRatio - a.goodRatio)
-            .slice(0, 10); // Take top 10
-
-        // Filter and sort for Mostly Bad (highest bad ratio)
-        const mostlyBad = wordsWithRatio
-            .filter(w => w.badRatio >= 0.5) // Only include words rated 50% or more as bad
-            .sort((a, b) => b.badRatio - a.badRatio)
-            .slice(0, 10); // Take top 10
+        // Fetch top 5 words by net bad votes (Bad - Good)
+        // Sort by total bad votes (Bad)
+        const mostlyBad = await Word.find({})
+            .sort({ badVotes: -1, goodVotes: 1 }) // Primary sort: Bad votes descending, Secondary sort: Good votes ascending
+            .limit(5)
+            .select('word goodVotes badVotes');
 
         res.json({
-            mostlyGood,
-            mostlyBad
+            mostlyGood: mostlyGood.map(w => w.toObject()),
+            mostlyBad: mostlyBad.map(w => w.toObject()),
         });
-
     } catch (error) {
         console.error("Error fetching top words:", error);
-        res.status(500).json({ error: "Internal Server Error" });
+        res.status(500).json({ message: "Internal server error while fetching top words." });
     }
 });
 
+// --- Server Startup ---
 
-// CRITICAL FIX: Explicitly serve index.html for the root path (/) and any other path
-// that isn't handled by the API. 
-app.get('*', (req, res) => {
-    // Check if the request is for an API route
-    if (req.url.startsWith('/api')) {
-        // If it's an API route and we reached here, it means the API route was not found.
-        return res.status(404).send('API endpoint not found.');
-    }
-    
-    // Serve the index.html file from the public directory
-    // NOTE: This MUST use 'publicPath' which was defined earlier,
-    // or simply use path.join(__dirname, 'public', 'index.html')
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+// 1. Connect to the database
+connectDB().then(() => {
+    // 2. Start the Express server only after DB connection is successful
+    app.listen(PORT, () => {
+        console.log(`Server is listening on port ${PORT} (Backend Version: v1.7.3 CRITICAL FIX: Word ID missing in /get-word)`);
+    });
+}).catch(() => {
+    console.error("Server startup failed due to critical database error. Process stopped.");
 });
