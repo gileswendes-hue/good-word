@@ -3,76 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Good Word Game</title>
-    <!-- Link to the game's styles -->
-    <link rel="stylesheet" href="style.css">
-    <!-- Font Awesome for icons and Poppins font -->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <title>Word Classifier</title>
+    <!-- Load Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Use Inter font family -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f7f7;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+    </style>
+    <!-- We will use script.js for the dynamic logic -->
 </head>
-<body>
-    <div class="game-container" id="appContainer">
-        <header>
-            <h1><span class="logo">Word Classification Challenge</span></h1>
-            <p>Decide if the word is **GOOD** (left) or **BAD** (right) for humanity.</p>
+<body class="p-4 md:p-8">
+
+    <div id="app-container" class="w-full max-w-lg bg-white shadow-2xl rounded-xl p-6 md:p-10 border border-gray-100 transform transition duration-500 hover:shadow-3xl">
+        
+        <!-- Header Section -->
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-extrabold text-gray-800 tracking-tight">
+                Word Classifier
+            </h1>
+            <p class="mt-2 text-lg text-gray-500 font-medium">
+                Is the word mostly <span class="text-green-600 font-bold">Good</span> or mostly <span class="text-red-600 font-bold">Bad</span>?
+            </p>
         </header>
 
-        <!-- Engagement message box (hidden by default, shown on first vote) -->
-        <div id="engagementMessageBox"></div>
-
-        <!-- Word Card Area -->
-        <div class="word-card-wrapper">
-            <!-- Left Arrow (Good) -->
-            <div class="arrow left-arrow" title="Good (Left Arrow Key)">
-                <i class="fas fa-chevron-left"></i>
-            </div>
-            
-            <!-- Main Word Card -->
-            <div class="word-card" id="wordCard">
-                <span id="currentWord">Loading...</span>
+        <!-- Voting Section -->
+        <section id="voting-section" class="mb-10">
+            <div class="relative p-6 md:p-8 border-4 border-dashed border-gray-300 rounded-lg text-center bg-gray-50">
+                <p class="text-sm font-semibold text-gray-500 uppercase tracking-widest mb-2">Word to Classify</p>
+                <div id="word-display" class="text-6xl md:text-8xl font-black text-gray-900 tracking-wider">
+                    LOADING...
+                </div>
+                <input type="hidden" id="word-id">
             </div>
 
-            <!-- Right Arrow (Bad) -->
-            <div class="arrow right-arrow" title="Bad (Right Arrow Key)">
-                <i class="fas fa-chevron-right"></i>
+            <!-- Vote Buttons -->
+            <div class="flex justify-between mt-6 space-x-4">
+                <button id="vote-good" data-vote="good" 
+                    class="flex-1 px-4 py-4 text-white text-lg font-bold rounded-xl shadow-lg 
+                           bg-green-500 hover:bg-green-600 transition duration-200 
+                           hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-4 focus:ring-green-300">
+                    👍 Good Word
+                </button>
+                <button id="vote-bad" data-vote="bad" 
+                    class="flex-1 px-4 py-4 text-white text-lg font-bold rounded-xl shadow-lg 
+                           bg-red-500 hover:bg-red-600 transition duration-200 
+                           hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-4 focus:ring-red-300">
+                    👎 Bad Word
+                </button>
             </div>
-        </div>
 
-        <!-- Vote Buttons -->
-        <div class="vote-buttons">
-            <button class="vote-btn good-btn" id="goodWordBtn">
-                <span class="icon"><i class="fas fa-thumbs-up"></i></span> GOOD
-            </button>
-            <button class="vote-btn bad-btn" id="badWordBtn">
-                <span class="icon"><i class="fas fa-thumbs-down"></i></span> BAD
-            </button>
-        </div>
+            <!-- Message Box -->
+            <div id="message-box" class="mt-4 p-3 text-center text-sm font-semibold rounded-lg hidden">
+                <!-- Message will be displayed here -->
+            </div>
+        </section>
 
-        <!-- Community Ratings/Leaderboard Section -->
-        <div class="top-words-section">
-            <h2>Community Ratings</h2>
-            <div class="top-words-lists">
-                <div class="mostly-good">
-                    <h3>Mostly Good Words</h3>
-                    <ul id="mostlyGoodList">
-                        <!-- List items populated by script.js -->
+        <!-- Community Ratings Section -->
+        <section id="community-ratings" class="mt-8 pt-6 border-t border-gray-200">
+            <h2 class="text-2xl font-bold text-gray-800 text-center mb-6">
+                Community Ratings
+            </h2>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                
+                <!-- Mostly Good List -->
+                <div class="bg-green-50/70 p-4 rounded-lg shadow-inner border border-green-100">
+                    <h3 class="text-xl font-semibold text-green-700 mb-3 text-center">Mostly Good</h3>
+                    <ul id="mostly-good-list" class="space-y-2 text-gray-700">
+                        <li class="text-center italic text-sm">Loading...</li>
                     </ul>
                 </div>
-                <div class="mostly-bad">
-                    <h3>Mostly Bad Words</h3>
-                    <ul id="mostlyBadList">
-                        <!-- List items populated by script.js -->
+                
+                <!-- Mostly Bad List -->
+                <div class="bg-red-50/70 p-4 rounded-lg shadow-inner border border-red-100">
+                    <h3 class="text-xl font-semibold text-red-700 mb-3 text-center">Mostly Bad</h3>
+                    <ul id="mostly-bad-list" class="space-y-2 text-gray-700">
+                        <li class="text-center italic text-sm">Loading...</li>
                     </ul>
                 </div>
             </div>
-        </div>
+        </section>
         
-        <footer>
-            <small>App Version: <span id="appVersionDisplay"></span></small>
+        <!-- Footer / Version Display -->
+        <footer class="text-center mt-8 text-xs text-gray-400">
+            <span id="version-display">v1.0.0</span>
         </footer>
     </div>
-    
-    <!-- Link to the game logic -->
-    <script src="script.js"></script>
+
+    <!-- Script tag for all client-side logic -->
+    <script type="module" src="script.js"></script>
 </body>
 </html>
