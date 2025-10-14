@@ -7,7 +7,7 @@ const app = express();
 const port = process.env.PORT || 10000;
 
 // Version for tracking
-const BACKEND_VERSION = 'v1.6.7 (Non-SRV URI)';
+const BACKEND_VERSION = 'v1.6.9 (Non-SRV URI, DB name reverted)';
 
 // --- CRITICAL CONFIGURATION: MONGO DB URI ---
 // 
@@ -15,8 +15,7 @@ const BACKEND_VERSION = 'v1.6.7 (Non-SRV URI)';
 // but for security, you MUST use the process.env.MONGODB_URI environment variable
 // for production.
 // 
-// This non-SRV format resolves deployment issues by bypassing the DNS SRV lookup.
-// I've included the provided username/password, and placeholder hostnames for the cluster:
+// Non-SRV format: Reverted the database name to 'good-word-game' (hyphenated)
 const hardcodedUri = "mongodb://database_user_4:justatestpassword@ac-cchetfb-shard-00-00.jsepbhh.mongodb.net:27017,ac-cchetfb-shard-00-01.jsepbhh.mongodb.net:27017,ac-cchetfb-shard-00-02.jsepbhh.mongodb.net:27017/good-word-game?ssl=true&authSource=admin";
 
 // Use the environment variable if available, otherwise fallback to the hardcoded URI for testing.
@@ -58,7 +57,8 @@ mongoose.connect(uri, {
     })
     .catch(err => {
         // 4. Handle persistent connection failure
-        console.error("Fatal Error: Failed to connect to MongoDB and start server. Check your non-SRV URI.", err.message);
+        // Now expecting a "permission denied" or similar error if Atlas user privileges are incorrect.
+        console.error("Fatal Error: Failed to connect to MongoDB and start server.", err.message);
         process.exit(1);
     });
 
@@ -71,6 +71,7 @@ const wordSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now }
 });
 
+// The model 'Word' will use the collection 'words' in the connected DB ('good-word-game')
 const Word = mongoose.model('Word', wordSchema);
 
 
@@ -95,11 +96,14 @@ async function initializeWords() {
                 await Word.insertMany(wordObjects);
                 console.log("Initial words seeded successfully.");
             } catch (insertError) {
+                 // Warn instead of exiting if insertion fails (e.g., due to concurrent runs)
                  console.warn("Seeding failed, possibly due to concurrent initialization. Proceeding.", insertError.message);
             }
         }
     } catch (error) {
-        console.error("Critical error during initial word count:", error);
+        // This is where the permission error occurred. If it fails here, it should exit in the main catch block.
+        console.error("Critical error during initial word count (Permission Check):", error.message);
+        throw error; // Re-throw to be caught by the main connection catch
     }
 }
 
@@ -108,6 +112,7 @@ async function initializeWords() {
 
 // 1. Root route to serve the HTML file
 app.get('/', (req, res) => {
+    // This relies on express.static finding index.html in the current directory
     res.sendFile(path.join(staticPath, 'index.html'));
 });
 
