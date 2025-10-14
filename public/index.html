@@ -6,14 +6,12 @@
     <title>Good Word/Bad Word</title>
     <!-- Load Tailwind CSS via CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Link to external stylesheet for custom CSS -->
-    <link rel="stylesheet" href="styles.css">
+    <!-- Link to the custom styles for transitions and card appearance -->
+    <link rel="stylesheet" href="style.css">
     
-    <!-- Inline styles are only kept for font import now, but we will move this to styles.css too for cleanliness -->
     <style>
-        /* To keep the Tailwind classes clean, we only keep basic body layout definitions here */
+        /* Basic body layout to center the content vertically and horizontally */
         body {
-            /* This is now mostly handled by the body classes and styles.css */
             display: flex;
             justify-content: center;
             align-items: flex-start;
@@ -21,7 +19,6 @@
             padding: 2rem 1rem;
         }
     </style>
-    <!-- We will use script.js for the dynamic logic -->
 </head>
 <body class="p-4 md:p-8 bg-gray-100">
 
@@ -41,13 +38,14 @@
         <section id="voting-section" class="mb-10">
             <!-- Word Card Wrapper: This container holds the dynamically replaced wordCard -->
             <div class="word-card-wrapper">
-                <!-- Initial word card element (will be replaced by script.js) -->
-                <!-- CRITICAL: ID changed from 'word-display' to 'wordCard' and content element added -->
+                
+                <!-- The word card element that handles visual transitions/borders and holds the word -->
                 <div id="wordCard" class="word-card neutral-border">
                     <p class="text-sm font-semibold text-gray-500 uppercase tracking-widest mb-2">Word to Classify</p>
                     <span id="currentWord" class="text-word">
                         LOADING...
                     </span>
+                    <!-- Hidden input to store the current word's database ID -->
                     <input type="hidden" id="word-id">
                 </div>
             </div>
@@ -68,7 +66,7 @@
                 </button>
             </div>
 
-            <!-- Engagement Message Box (Hidden by default) -->
+            <!-- Engagement Message Box (Hidden by default, shown by script.js) -->
             <div id="engagementMessageBox" class="mt-4 p-3 text-center bg-blue-100 text-blue-800 text-sm font-semibold rounded-lg">
                 <!-- Dynamic message appears here -->
             </div>
