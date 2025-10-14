@@ -23,7 +23,6 @@ if (!uri) {
 }
 
 // Create a MongoClient with a Stable API version
-// FIX: Removed the extra 'new' keyword to correctly instantiate MongoClient
 const client = new MongoClient(uri, { 
     serverApi: {
         version: ServerApiVersion.v1,
@@ -44,25 +43,20 @@ let db; // Global variable to hold the database connection
 async function seedWords(collection) {
     try {
         // --- IMPORTANT FIX: DROP THE COLLECTION FOR A FRESH RELOAD ---
-        // We attempt to drop the collection first. If it doesn't exist, MongoDB throws an error, 
-        // which we catch and safely ignore.
         console.log(`Checking for existing '${wordCollectionName}' collection...`);
         try {
             const dropResult = await collection.drop();
             console.log(`Successfully dropped existing '${wordCollectionName}' collection.`);
         } catch (error) {
             if (error.codeName !== 'NamespaceNotFound') {
-                // If it's any error other than the collection not existing, log it.
                 console.warn(`Warning: Could not drop collection (may not exist yet): ${error.message}`);
             } else {
                 console.log(`'${wordCollectionName}' collection not found. Proceeding with initial seed.`);
             }
         }
         
-        // After dropping (or attempting to drop), the count will be 0, ensuring we seed.
         const count = await collection.countDocuments();
         if (count > 0) {
-            // This case should now rarely happen, only if drop failed for some reason
             console.log(`Database still contains ${count} words after drop attempt. Seeding skipped.`);
             return;
         }
@@ -70,7 +64,6 @@ async function seedWords(collection) {
         console.log('Starting word seeding from british-words.txt...');
 
         // Read and process the word list
-        // NOTE: This assumes 'british-words.txt' is in the same directory as index.js
         const filePath = path.join(__dirname, 'british-words.txt');
         
         // Check if the file exists before trying to read it
@@ -109,7 +102,6 @@ async function seedWords(collection) {
 // --- Database Connection and Initialization ---
 
 async function connectAndInitialize() {
-    // --- DIAGNOSTIC ADDITION ---
     console.log("--- Server initialization sequence started. ---");
     try {
         await client.connect();
@@ -119,17 +111,10 @@ async function connectAndInitialize() {
         const wordCollection = db.collection(wordCollectionName);
         await seedWords(wordCollection); // Check and seed words on startup
 
-        // Serve the static HTML file from the project root directory
-        // Assuming your 'index.html' is two directories up (e.g., in the project root)
-        app.use(express.static(path.join(__dirname, '..', '..'))); 
-
-        // FIX: Explicit route to serve index.html when root URL is requested
-        // This resolves the "Cannot GET /" error by manually sending the file.
-        app.get('/', (req, res) => {
-            // This path assumes index.js is in 'server' and index.html is in the project root
-            const indexPath = path.join(__dirname, '..', '..', 'index.html');
-            res.sendFile(indexPath);
-        });
+        // FIX: Reverting to the simpler express.static call, pointing to the parent directory.
+        // This is often the fix when the server file (index.js) is in a 'server/' folder 
+        // but index.html is in the project root.
+        app.use(express.static(path.join(__dirname, '..'))); 
 
         // Start Express server after successful DB connection and seeding
         app.listen(port, () => {
@@ -180,8 +165,6 @@ app.get('/api/get-word', async (req, res) => {
         }
 
         if (wordResult.length > 0) {
-            // IMPORTANT: Map the _id field to 'wordId' (or just include _id) 
-            // so the frontend has a valid ID for voting.
             const wordData = {
                 wordId: wordResult[0]._id, // MongoDB ObjectId
                 word: wordResult[0].word,
@@ -206,7 +189,6 @@ app.get('/api/get-word', async (req, res) => {
  * Route to record a vote and return an engagement message.
  */
 app.post('/api/vote', async (req, res) => {
-    // The frontend sends the word's ID, which we map to the ObjectId type
     const { wordId, voteType } = req.body; 
 
     if (!wordId || !voteType) {
