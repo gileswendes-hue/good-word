@@ -3,358 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Good/Bad Word Classifier</title>
-    <!-- Load Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Load Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <style>
-        /* Custom CSS for Card Animation and Fonts */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
-                
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f0f4f8; /* Light gray-blue background */
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 2rem;
-        }
-        /* Styling for the main word card and top-words */
-        #wordCard, #mostlyGoodCard, #mostlyBadCard {
-            transition: all 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05), 0 10px 15px rgba(0, 0, 0, 0.1);
-        }
-        /* FADE OUT CLASS: Used to hide the current word card */
-        .fade-out {
-            opacity: 0;
-            transform: translateY(20px);
-            pointer-events: none; /* Disable interaction during fade */
-        }
-        /* FADE IN CLASS: Used to show the next word card */
-        .fade-in {
-            opacity: 1;
-            transform: translateY(0);
-            pointer-events: auto;
-        }
-        /* Style the ratings list */
-        .rating-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.5rem 0;
-            border-bottom: 1px dashed #e5e7eb;
-        }
-        .rating-item:last-child {
-            border-bottom: none;
-        }
-        /* Responsive adjustments for mobile */
-        @media (max-width: 768px) {
-            body {
-                padding: 1rem;
-            }
-            #appContainer {
-                padding: 1rem;
-            }
-            #wordDisplay {
-                font-size: 1.5rem;
-            }
-            #topWordsContainer {
-                flex-direction: column;
-            }
-            #mostlyGoodCard, #mostlyBadCard {
-                width: 100%;
-                margin-top: 1rem;
-            }
-        }
-    </style>
+    <title>Good Word Game</title>
+    <!-- Link to the game's styles -->
+    <link rel="stylesheet" href="style.css">
+    <!-- Font Awesome for icons and Poppins font -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
-<body class="selection:bg-indigo-300 selection:text-indigo-900">
-    <div id="appContainer" class="max-w-xl w-full bg-white rounded-3xl p-8 shadow-2xl border border-gray-100 relative">
-        <!-- Header -->
-        <div class="text-center mb-8">
-            <h1 class="text-4xl font-extrabold text-gray-900">Word Classifier</h1>
-            <p class="text-gray-500 mt-2">Is the word mostly <span class="font-bold text-green-600">Good</span> or <span class="font-bold text-red-600">Bad</span>?</p>
-            <!-- RESTORED: Original Logo Image -->
-            <img src="https://i.imgur.com/K5z5V5Z.png" alt="Good Word / Bad Word Logo" class="mx-auto mt-4 w-24 h-24 object-contain">
-        </div>
+<body>
+    <div class="game-container" id="appContainer">
+        <header>
+            <h1><span class="logo">Word Classification Challenge</span></h1>
+            <p>Decide if the word is **GOOD** (left) or **BAD** (right) for humanity.</p>
+        </header>
 
-        <!-- Word Card Section -->
-        <div id="wordCard" class="bg-yellow-100 border-4 border-yellow-500 rounded-xl p-6 text-center shadow-lg fade-in transition-all duration-500">
-            <div id="loading" class="text-gray-500 text-lg font-semibold animate-pulse hidden">Loading word...</div>
-            <p id="wordDisplay" class="text-4xl font-black text-gray-900 tracking-wider">Loading...</p>
-            <div id="engagementMessage" class="mt-4 text-sm font-medium text-indigo-600 hidden"></div>
-        </div>
+        <!-- Engagement message box (hidden by default, shown on first vote) -->
+        <div id="engagementMessageBox"></div>
 
-        <!-- Voting Buttons -->
-        <div class="flex justify-center space-x-4 mt-6">
-            <button id="goodButton" class="flex items-center justify-center bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg shadow-md transition duration-200 transform hover:scale-105 active:scale-95">
-                <i data-lucide="check-circle" class="w-5 h-5 mr-2"></i>
-                Good Word
-            </button>
-            <button id="badButton" class="flex items-center justify-center bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-lg shadow-md transition duration-200 transform hover:scale-105 active:scale-95">
-                <i data-lucide="x-circle" class="w-5 h-5 mr-2"></i>
-                Bad Word
-            </button>
-        </div>
-
-        <!-- Community Ratings Section -->
-        <h2 class="text-2xl font-bold text-gray-700 text-center mt-10 mb-6 border-b pb-2">Community Ratings</h2>
-                
-        <div id="topWordsContainer" class="flex flex-col md:flex-row gap-4">
-                        <!-- Mostly Good Card -->
-            <div id="mostlyGoodCard" class="flex-1 p-5 rounded-xl border-4 border-green-300 bg-green-50 shadow-inner">
-                <h3 class="text-xl font-bold text-green-700 mb-4">Mostly Good</h3>
-                <div id="goodRatingsList" class="space-y-2 text-gray-700">
-                    <!-- Placeholder text updated to 1-vote minimum -->
-                    <p class="text-sm text-gray-500 italic">No words meet the 1-vote minimum yet.</p>
-                </div>
+        <!-- Word Card Area -->
+        <div class="word-card-wrapper">
+            <!-- Left Arrow (Good) -->
+            <div class="arrow left-arrow" title="Good (Left Arrow Key)">
+                <i class="fas fa-chevron-left"></i>
             </div>
-                        <!-- Mostly Bad Card -->
-            <div id="mostlyBadCard" class="flex-1 p-5 rounded-xl border-4 border-red-300 bg-red-50 shadow-inner">
-                <h3 class="text-xl font-bold text-red-700 mb-4">Mostly Bad</h3>
-                <div id="badRatingsList" class="space-y-2 text-gray-700">
-                    <!-- Placeholder text updated to 1-vote minimum -->
-                    <p class="text-sm text-gray-500 italic">No words meet the 1-vote minimum yet.</p>
-                </div>
+            
+            <!-- Main Word Card -->
+            <div class="word-card" id="wordCard">
+                <span id="currentWord">Loading...</span>
+            </div>
+
+            <!-- Right Arrow (Bad) -->
+            <div class="arrow right-arrow" title="Bad (Right Arrow Key)">
+                <i class="fas fa-chevron-right"></i>
             </div>
         </div>
-                
-        <!-- UPDATED: Version Number to show both FE and BE -->
-        <div class="text-xs text-gray-400 mt-4 text-right">
-            FE: v1.6.3 | BE: <span id="backendVersion">v1.6.2</span>
+
+        <!-- Vote Buttons -->
+        <div class="vote-buttons">
+            <button class="vote-btn good-btn" id="goodWordBtn">
+                <span class="icon"><i class="fas fa-thumbs-up"></i></span> GOOD
+            </button>
+            <button class="vote-btn bad-btn" id="badWordBtn">
+                <span class="icon"><i class="fas fa-thumbs-down"></i></span> BAD
+            </button>
         </div>
+
+        <!-- Community Ratings/Leaderboard Section -->
+        <div class="top-words-section">
+            <h2>Community Ratings</h2>
+            <div class="top-words-lists">
+                <div class="mostly-good">
+                    <h3>Mostly Good Words</h3>
+                    <ul id="mostlyGoodList">
+                        <!-- List items populated by script.js -->
+                    </ul>
+                </div>
+                <div class="mostly-bad">
+                    <h3>Mostly Bad Words</h3>
+                    <ul id="mostlyBadList">
+                        <!-- List items populated by script.js -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <small>App Version: <span id="appVersionDisplay"></span></small>
+        </footer>
     </div>
-    <script>
-        // Frontend Version
-        const FRONTEND_VERSION = 'v1.6.3';
-
-        // Use Lucide Icons
-        lucide.createIcons();
-
-        // --- DOM Elements ---
-        const wordCard = document.getElementById('wordCard');
-        const wordDisplay = document.getElementById('wordDisplay');
-        const loadingIndicator = document.getElementById('loading');
-        const engagementMessage = document.getElementById('engagementMessage');
-        const goodButton = document.getElementById('goodButton');
-        const badButton = document.getElementById('badButton');
-        const goodRatingsList = document.getElementById('goodRatingsList');
-        const badRatingsList = document.getElementById('badRatingsList');
-        const backendVersionSpan = document.getElementById('backendVersion');
-
-        // --- State ---
-        let currentWord = null;
-        let isFetching = false;
-
-        // --- API Calls ---
-
-        /**
-         * Fetches the backend version and updates the display.
-         */
-        async function fetchBackendVersion() {
-            try {
-                const response = await fetch('/api/version');
-                if (response.ok) {
-                    const data = await response.json();
-                    backendVersionSpan.textContent = data.version;
-                } else {
-                    backendVersionSpan.textContent = 'Error';
-                    console.error("Failed to fetch backend version.");
-                }
-            } catch (error) {
-                backendVersionSpan.textContent = 'Offline';
-                console.error("Backend version fetch failed:", error);
-            }
-        }
-
-        /**
-         * Fetches a new word from the backend.
-         */
-        async function fetchWord() {
-            if (isFetching) return;
-            isFetching = true;
-
-            // Start fade out
-            wordDisplay.classList.add('fade-out');
-            loadingIndicator.classList.remove('hidden');
-
-            try {
-                const response = await fetch('/api/get-word');
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                const data = await response.json();
-                currentWord = data;
-
-                // Update UI after a short delay to allow fade-out effect to be visible
-                setTimeout(() => {
-                    wordDisplay.textContent = currentWord.word;
-                    wordDisplay.classList.remove('fade-out');
-                    wordDisplay.classList.add('fade-in');
-                    loadingIndicator.classList.add('hidden');
-                }, 300); // 300ms matches the CSS transition time
-
-            } catch (error) {
-                console.error("Failed to fetch word:", error);
-                wordDisplay.textContent = "ERROR LOADING WORD";
-                loadingIndicator.classList.add('hidden');
-                wordDisplay.classList.remove('fade-out');
-                wordDisplay.classList.add('fade-in');
-            } finally {
-                isFetching = false;
-                engagementMessage.classList.add('hidden'); // Clear previous message
-            }
-        }
-
-        /**
-         * Sends a vote for the current word.
-         * @param {string} voteType 'good' or 'bad'
-         */
-        async function sendVote(voteType) {
-            if (!currentWord || isFetching) return;
-            isFetching = true;
-
-            // Immediately start fade out of the current word
-            wordCard.classList.add('fade-out');
-
-            try {
-                const response = await fetch('/api/vote', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        wordId: currentWord.wordId,
-                        voteType: voteType
-                    })
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                const data = await response.json();
-
-                // Show engagement message if provided
-                if (data.engagementMessage) {
-                    engagementMessage.textContent = data.engagementMessage;
-                    engagementMessage.classList.remove('hidden');
-                } else {
-                    engagementMessage.classList.add('hidden');
-                }
-
-                // Fetch the next word and update top words concurrently
-                await Promise.all([
-                    fetchWord(), 
-                    fetchTopWords()
-                ]);
-
-                // After fetching, ensure the card fades back in (already handled in fetchWord, but safe to check)
-                wordCard.classList.remove('fade-out');
-                wordCard.classList.add('fade-in');
-
-            } catch (error) {
-                console.error("Failed to submit vote:", error);
-                // On error, revert card state
-                wordCard.classList.remove('fade-out');
-                wordCard.classList.add('fade-in');
-                engagementMessage.textContent = "Error submitting vote. Try again.";
-                engagementMessage.classList.remove('hidden');
-            } finally {
-                isFetching = false;
-            }
-        }
-
-        /**
-         * Fetches and displays the top 10 good and top 10 bad words.
-         */
-        async function fetchTopWords() {
-            goodRatingsList.innerHTML = '<p class="text-sm text-gray-500 italic animate-pulse">Updating...</p>';
-            badRatingsList.innerHTML = '<p class="text-sm text-gray-500 italic animate-pulse">Updating...</p>';
-            
-            try {
-                const response = await fetch('/api/top-words');
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                const data = await response.json();
-
-                // Render Mostly Good List
-                goodRatingsList.innerHTML = ''; // Clear loading message
-                if (data.mostlyGood.length === 0) {
-                    goodRatingsList.innerHTML = '<p class="text-sm text-gray-500 italic">No words meet the 1-vote minimum yet.</p>';
-                } else {
-                    data.mostlyGood.forEach(wordData => {
-                        const ratio = wordData.goodRatio * 100;
-                        const ratioText = `${ratio.toFixed(0)}% Good`;
-                        const item = createRatingItem(wordData.word, ratioText, 'text-green-600', 'text-green-500');
-                        goodRatingsList.appendChild(item);
-                    });
-                }
-
-                // Render Mostly Bad List
-                badRatingsList.innerHTML = ''; // Clear loading message
-                if (data.mostlyBad.length === 0) {
-                    badRatingsList.innerHTML = '<p class="text-sm text-gray-500 italic">No words meet the 1-vote minimum yet.</p>';
-                } else {
-                    data.mostlyBad.forEach(wordData => {
-                        const ratio = wordData.badRatio * 100;
-                        const ratioText = `${ratio.toFixed(0)}% Bad`;
-                        const item = createRatingItem(wordData.word, ratioText, 'text-red-600', 'text-red-500');
-                        badRatingsList.appendChild(item);
-                    });
-                }
-                            
-            } catch (error) {
-                console.error("Failed to fetch top words:", error);
-                goodRatingsList.innerHTML = '<p class="text-sm text-red-500">Error loading data.</p>';
-                badRatingsList.innerHTML = '<p class="text-sm text-red-500">Error loading data.</p>';
-            }
-        }
-
-        /**
-         * Helper function to create a list item for the ratings sections.
-         */
-        function createRatingItem(word, ratioText, wordColorClass, ratioColorClass) {
-            const div = document.createElement('div');
-            div.className = 'rating-item';
-            div.innerHTML = `
-                <span class="font-semibold ${wordColorClass}">${word}</span>
-                <span class="${ratioColorClass} text-sm font-medium">(${ratioText})</span>
-            `;
-            return div;
-        }
-
-        // --- Event Listeners and Initialization ---
-                
-        // Setup listeners for voting buttons
-        goodButton.addEventListener('click', () => sendVote('good'));
-        badButton.addEventListener('click', () => sendVote('bad'));
-
-        // Initialize the app
-        document.addEventListener('DOMContentLoaded', () => {
-            // Display FE version
-            document.querySelector('.text-xs.text-gray-400 span').textContent = FRONTEND_VERSION;
-
-            // Initial fetch to load the first word, top words list, and backend version
-            fetchWord();
-            fetchTopWords();
-            fetchBackendVersion();
-
-            // Set up a refresh interval for the top words list every 15 seconds
-            setInterval(fetchTopWords, 15000);
-            
-            // Set up a refresh interval for the backend version every 30 seconds (in case of redeploy)
-            setInterval(fetchBackendVersion, 30000); 
-        });
-
-        // Add keyboard support for quicker voting
-        document.addEventListener('keydown', (event) => {
-            if (event.key === 'ArrowLeft') {
-                sendVote('good'); // Assume left is traditionally "good" or positive
-            } else if (event.key === 'ArrowRight') {
-                sendVote('bad'); // Assume right is traditionally "bad" or negative
-            }
-        });
-    </script>
+    
+    <!-- Link to the game logic -->
+    <script src="script.js"></script>
 </body>
 </html>
