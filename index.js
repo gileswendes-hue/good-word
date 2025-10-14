@@ -85,10 +85,9 @@ async function seedDatabase() {
         if (count === 0) {
             console.log("Database is empty. Seeding initial words...");
             
-            // Use the robust, project-root-relative path
             const filePath = WORDS_FILE_PATH; 
             
-            // Check if file exists before trying to read (CRITICAL FIX)
+            // Check if file exists before trying to read
             if (!fs.existsSync(filePath)) {
                 console.error(`ERROR: Word list file 'british-words.txt' not found at expected path: ${filePath}. Seeding aborted.`);
                 return;
@@ -98,13 +97,13 @@ async function seedDatabase() {
             const words = data.split('\n')
                              .map(w => w.trim().toUpperCase())
                              .filter(w => w.length > 0)
-                             // Map words into Mongoose documents
                              .map(word => ({
                                  word: word,
                                  goodVotes: 0,
                                  badVotes: 0
                              }));
             
+            // Use insertMany to efficiently add all words
             await Word.insertMany(words, { ordered: false, rawResult: true });
             console.log(`Initial words seeded successfully. Total words: ${words.length}.`);
         } else {
@@ -112,7 +111,7 @@ async function seedDatabase() {
         }
     } catch (error) {
         if (error.code === 'ENOENT') {
-            console.error("ERROR: Word list file 'british-words.txt' not found.");
+            console.error("ERROR: Word list file 'british-words.txt' not found. Check file path and structure.");
         } else if (error.code === 11000) {
              console.warn("Initial words seeded successfully (with duplicate warnings).");
         } else {
@@ -171,13 +170,21 @@ app.get('/api/get-word', dbCheck, async (req, res) => {
         if (randomWords.length > 0) {
             const wordData = randomWords[0];
             
-            // CRITICAL: Ensure we return the ID as a string, which Mongoose does via virtuals
-            const responseWord = wordData.toObject(); 
+            // Ensure ID is present and returned
+            const responseWord = {
+                id: wordData._id.toString(), // Convert ObjectId to string for frontend
+                word: wordData.word
+            };
 
             res.json(responseWord);
         } else {
-            // Updated status code to match the frontend error message logic
-            res.status(500).json({ message: "No words found in the database. Try re-seeding." });
+            // Handle case where $sample returns nothing (DB is empty after connection/seeding failure)
+            console.warn("Database is connected but collection is empty.");
+            res.status(200).json({ 
+                word: "EMPTY DB", 
+                id: "000000000000000000000000", // Placeholder ID
+                message: "No words found. Database may need seeding."
+            });
         }
     } catch (error) {
         console.error("Error fetching random word:", error);
@@ -189,10 +196,9 @@ app.get('/api/get-word', dbCheck, async (req, res) => {
  * [POST] /api/vote - Submits a vote for a word.
  */
 app.post('/api/vote', dbCheck, async (req, res) => {
-    // Frontend sends 'wordId', we should check for it.
     const { wordId, classification } = req.body; 
 
-    // Validate input (wordId must be present and classification must be valid)
+    // Validate input 
     if (!wordId || typeof wordId !== 'string' || wordId.trim().length === 0 || (classification !== 'good' && classification !== 'bad')) {
         console.error(`Validation failed for vote: wordId=${wordId}, classification=${classification}`);
         return res.status(400).json({ success: false, message: "Invalid wordId or classification provided. Word ID is required." });
@@ -214,7 +220,6 @@ app.post('/api/vote', dbCheck, async (req, res) => {
         }
     } catch (error) {
         console.error("Error updating vote:", error);
-        // Check if the error is due to an invalid ID format
         if (error.name === 'CastError' && error.path === '_id') {
              return res.status(400).json({ success: false, message: "Invalid word ID format." });
         }
@@ -261,6 +266,6 @@ connectDB().finally(() => {
     // 2. Start the Express server regardless of DB connection status
     app.listen(PORT, () => {
         const dbStatus = isDbConnected ? "CONNECTED" : "DISCONNECTED (API calls will fail)"
-        console.log(`Server is listening on port ${PORT} (Backend Version: v1.8.0 FIX: Seeding & Voting Logic, DB status: ${dbStatus})`);
+        console.log(`Server is listening on port ${PORT} (Backend Version: v1.8.1 FIX: DB Status Check & Empty DB Return, DB status: ${dbStatus})`);
     });
 });
