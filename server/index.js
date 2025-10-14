@@ -7,7 +7,7 @@ const app = express();
 const port = process.env.PORT || 10000;
 
 // Version for tracking
-const BACKEND_VERSION = 'v1.6.9 (Non-SRV URI, DB name reverted)';
+const BACKEND_VERSION = 'v1.7.1 (SRV URI with authSource=admin)';
 
 // --- CRITICAL CONFIGURATION: MONGO DB URI ---
 // 
@@ -15,10 +15,11 @@ const BACKEND_VERSION = 'v1.6.9 (Non-SRV URI, DB name reverted)';
 // but for security, you MUST use the process.env.MONGODB_URI environment variable
 // for production.
 // 
-// Non-SRV format: Reverted the database name to 'good-word-game' (hyphenated)
-const hardcodedUri = "mongodb://database_user_4:justatestpassword@ac-cchetfb-shard-00-00.jsepbhh.mongodb.net:27017,ac-cchetfb-shard-00-01.jsepbhh.mongodb.net:27017,ac-cchetfb-shard-00-02.jsepbhh.mongodb.net:27017/good-word-game?ssl=true&authSource=admin";
+// Standard SRV format is used, with the database name in the path and the
+// CRITICAL FIX: authSource=admin parameter added to resolve the 'bad auth' error.
+const hardcodedUri = "mongodb+srv://database_user_4:justatestpassword@ac-cchetfb.jsepbhh.mongodb.net/good-word-game?retryWrites=true&w=majority&appName=ac-cchetfb&authSource=admin";
 
-// Use the environment variable if available, otherwise fallback to the hardcoded URI for testing.
+// Use the environment variable if available (RECOMMENDED), otherwise fallback to the hardcoded URI.
 const uri = process.env.MONGODB_URI || hardcodedUri;
 
 // Minimum number of total votes required for a word to appear in the "Community Ratings" list.
@@ -36,14 +37,11 @@ app.use(express.static(staticPath));
 // --- Database Connection Setup ---
 
 // 1. Connect to MongoDB
+console.log(`[${BACKEND_VERSION}] Using URI (first 40 chars): ${uri.substring(0, 40)}...`);
 console.log("Attempting initial connection to MongoDB...");
 
 // Connect using the URI (hardcoded or environment variable)
-mongoose.connect(uri, { 
-        // Explicit options for compatibility
-        useNewUrlParser: true, 
-        useUnifiedTopology: true 
-    })
+mongoose.connect(uri)
     .then(() => {
         console.log("MongoDB connection successful.");
         // 2. Initialize words only after a successful connection
@@ -57,8 +55,9 @@ mongoose.connect(uri, {
     })
     .catch(err => {
         // 4. Handle persistent connection failure
-        // Now expecting a "permission denied" or similar error if Atlas user privileges are incorrect.
-        console.error("Fatal Error: Failed to connect to MongoDB and start server.", err.message);
+        console.error("Fatal Error: Failed to connect to MongoDB and start server. Check your URI, network access, or user permissions.", err.message);
+        console.error("Mongoose Error Details:", err.name);
+        // Exit process to ensure deployment platform recognizes the failure
         process.exit(1);
     });
 
