@@ -4,26 +4,25 @@
 
 // --- Configuration ---
 const API_BASE_URL = '/api'; 
-const APP_VERSION = '1.5.8'; // Bumping version for detailed list-loading debugging
-const API_TIMEOUT_MS = 1000; // CRITICAL: 1 second timeout for any single API request
-const MAX_RETRIES = 1; // CRITICAL: Only one attempt allowed for fastest possible response/fail
-const LOADING_DELAY_MS = 150; // NEW: Time (ms) to wait before displaying "Loading..."
+const APP_VERSION = '1.5.9'; // Bumping version for critical DOM element lookup fix
+const API_TIMEOUT_MS = 1000; 
+const MAX_RETRIES = 1; 
+const LOADING_DELAY_MS = 150; 
 
 let currentWordData = null; // Stores the current word and its ID/meta-data
 let isVoting = false; // Flag to prevent double votes during animation/fetch
 
-// --- DOM Elements ---
-const appContainer = document.getElementById('appContainer');
-let wordCard = document.getElementById('wordCard'); // 'let' because we replace it
-const currentWordSpan = document.getElementById('currentWord');
-const goodWordBtn = document.getElementById('goodWordBtn');
-const badWordBtn = document.getElementById('badWordBtn');
-const mostlyGoodList = document.getElementById('mostlyGoodList');
-const mostlyBadList = document.getElementById('mostlyBadList');
-const leftArrow = document.querySelector('.left-arrow');
-const rightArrow = document.querySelector('.right-arrow');
-const engagementMessageBox = document.getElementById('engagementMessageBox'); 
-const appVersionDisplay = document.getElementById('appVersionDisplay');
+// --- DOM Elements (Declared, but assignment moved to DOMContentLoaded) ---
+let wordCard; 
+let goodWordBtn;
+let badWordBtn;
+let mostlyGoodList;
+let mostlyBadList;
+let leftArrow;
+let rightArrow;
+let engagementMessageBox; 
+let appVersionDisplay;
+
 
 // --- Helper Functions ---
 
@@ -40,13 +39,6 @@ function requestTimeout(ms) {
 
 /**
  * Utility function to make API requests with retry and timeout logic.
- *
- * NOTE: With MAX_RETRIES set to 1, this function will succeed or fail 
- * within the API_TIMEOUT_MS (1 second).
- *
- * @param {string} endpoint - The API endpoint relative to API_BASE_URL (e.g., '/get-word').
- * @param {object} options - Fetch options.
- * @returns {Promise<object>} The JSON response body.
  */
 async function apiCall(endpoint, options = {}) {
     const url = `${API_BASE_URL}${endpoint}`;
@@ -82,9 +74,11 @@ async function apiCall(endpoint, options = {}) {
 
 /**
  * Displays an engagement message briefly.
+ * NOTE: Requires engagementMessageBox to be initialized.
  * @param {string} message The message text to display.
  */
 function displayEngagementMessage(message) {
+    if (!engagementMessageBox) return; // Null check for safety
     if (message) {
         engagementMessageBox.textContent = message;
         engagementMessageBox.classList.add('visible');
@@ -102,31 +96,23 @@ function displayEngagementMessage(message) {
 
 // --- Rewritten fetch functions using the new apiCall ---
 
-/**
- * Fetches a random word using the robust apiCall.
- */
 async function fetchRandomWord() {
     try {
         const data = await apiCall('/get-word');
         return data;
     } catch (error) {
-        // Handle critical failure during fetch
         console.error("Critical Error: Failed to fetch random word:", error.message);
-        // Display generic error on card
-        if (wordCard.querySelector('#currentWord')) {
+        if (wordCard && wordCard.querySelector('#currentWord')) {
              wordCard.querySelector('#currentWord').textContent = "API ERROR :(";
         }
         return null;
     }
 }
 
-/**
- * Fetches top words using the robust apiCall.
- */
 async function fetchTopWords() {
     try {
         const data = await apiCall('/top-words');
-        console.log("[DEBUG] API /top-words returned:", data); // DEBUG LOG
+        console.log("[DEBUG] API /top-words returned:", data); 
         return data;
     } catch (error) {
         console.error("Error fetching top words:", error.message);
@@ -134,9 +120,6 @@ async function fetchTopWords() {
     }
 }
 
-/**
- * Submits a vote using the robust apiCall.
- */
 async function submitVote(wordId, voteType) { 
     try {
         return await apiCall('/vote', {
@@ -153,21 +136,25 @@ async function submitVote(wordId, voteType) { 
 
 /**
  * Updates the card with new word data and initiates an instant update.
- * Now performs a destructive replacement to eliminate all lingering CSS state.
  * @param {object} wordData - The data for the next word.
  */
 function updateWordCard(wordData) {
     return new Promise(resolve => {
+        if (!wordCard) {
+            console.error("Error: wordCard element is missing. Cannot update UI.");
+            resolve();
+            return;
+        }
+
         if (!wordData || !wordData.word || wordData.word === "DB EMPTY") {
-            // Handle DB EMPTY or No More Words/Critical Error State
             const displayMessage = wordData && wordData.word === "DB EMPTY" ? "DATABASE EMPTY" : "NO MORE WORDS!";
             
-            // Check if wordCard is already a string or null before attempting to remove/replace
+            // Perform full replacement to clear state
+            const parent = wordCard.parentNode;
             if (wordCard && typeof wordCard.remove === 'function') {
                 wordCard.remove();
             }
 
-            // Create a clean "error" card or placeholder
             const placeholderCard = document.createElement('div');
             placeholderCard.id = 'wordCard';
             placeholderCard.className = 'word-card neutral-border';
@@ -179,55 +166,45 @@ function updateWordCard(wordData) {
             placeholderCard.appendChild(placeholderSpan);
             
             // Re-insert placeholder
-            const parent = document.getElementById('appContainer').querySelector('.word-card-wrapper');
             if (parent) {
                  parent.insertBefore(placeholderCard, document.querySelector('.top-words-lists'));
             }
 
-            // Update global references
             wordCard = placeholderCard;
-            currentWordData = null; // Clear data since we can't vote on this state
+            currentWordData = null; 
             resolve();
             return;
         }
 
-        // --- CRITICAL FIX: Replace the entire word card element ---
+        // --- Replace the entire word card element for clean state ---
         
-        // 1. Store the parent node before removal
         const parent = wordCard.parentNode;
         
-        // 2. Create a brand new, clean card element
         const newCard = document.createElement('div');
         newCard.id = 'wordCard';
         newCard.className = 'word-card';
-        newCard.style.cssText = 'opacity: 1;'; // Start visible and clean
+        newCard.style.cssText = 'opacity: 1;'; 
         
-        // 3. Create the word span element inside the new card
         const newWordSpan = document.createElement('span');
         newWordSpan.id = 'currentWord';
+        newWordSpan.textContent = wordData.word; // Set content here
         newCard.appendChild(newWordSpan);
         
-        // 4. Update global reference to the new element
         if (wordCard && typeof wordCard.remove === 'function') {
             wordCard.remove();
         }
         wordCard = newCard;
         currentWordData = wordData;
         
-        // 5. Insert the new card back into the DOM
-        // Note: Ensure the insertion point is correct relative to your HTML structure
+        // Insert the new card back into the DOM
         const referenceElement = document.querySelector('.top-words-lists');
         if (parent && referenceElement) {
              parent.insertBefore(newCard, referenceElement.parentNode); 
         } else if (parent) {
-             parent.appendChild(newCard); // Fallback if reference element not found
+             parent.appendChild(newCard); 
         }
         
-        // 6. Update the content
-        newWordSpan.textContent = wordData.word;
-        // ---------------------------------------------------------
-        
-        // 7. Determine border color based on existing votes (using 0 votes fallback if data is missing)
+        // Determine border color based on existing votes 
         const goodVotes = wordData.goodVotes || 0;
         const badVotes = wordData.badVotes || 0;
         const totalVotes = goodVotes + badVotes;
@@ -245,17 +222,16 @@ function updateWordCard(wordData) {
             }
         }
         
-        // Resolve immediately as the content is now visible
         resolve(); 
     });
 }
 
 function renderTopWords(topWords) {
-    console.log("[DEBUG] Starting renderTopWords with data:", topWords); // DEBUG LOG
+    console.log("[DEBUG] Starting renderTopWords with data:", topWords); 
     
-    // CRITICAL FIX: Check if the list elements were found in the DOM (global variables are null if not)
+    // CRITICAL: Ensure list elements exist before trying to manipulate them
     if (!mostlyGoodList || !mostlyBadList) {
-        console.error("Error: Could not find one or both top word list containers (mostlyGoodList or mostlyBadList). Please check HTML IDs.");
+        console.error("Error: Top word list containers (mostlyGoodList or mostlyBadList) are not initialized.");
         return; 
     }
     
@@ -265,18 +241,18 @@ function renderTopWords(topWords) {
     const renderList = (list, targetElement, type) => {
         if (!list || list.length === 0) {
             targetElement.innerHTML = '<li>No words rated enough yet.</li>';
-            console.log(`[DEBUG] List ${type} is empty or null.`); // DEBUG LOG
+            console.log(`[DEBUG] List ${type} is empty or null.`); 
             return;
         }
         
-        console.log(`[DEBUG] Rendering ${list.length} words for ${type} list.`); // DEBUG LOG
+        console.log(`[DEBUG] Rendering ${list.length} words for ${type} list.`); 
 
         list.forEach(word => {
             const li = document.createElement('li');
-            const total = word.goodVotes + word.badVotes;
-            // Calculate percentage based on list type
+            const total = (word.goodVotes || 0) + (word.badVotes || 0);
+            
             const percentage = total > 0
-                ? Math.round(((type === 'good' ? word.goodVotes : word.badVotes) / total) * 100)
+                ? Math.round(((type === 'good' ? (word.goodVotes || 0) : (word.badVotes || 0)) / total) * 100)
                 : 0;
 
             li.innerHTML = `${word.word} <span class="percentage">(${percentage}% ${type.toUpperCase()})</span>`;
@@ -287,26 +263,23 @@ function renderTopWords(topWords) {
     renderList(topWords.mostlyGood, mostlyGoodList, 'good');
     renderList(topWords.mostlyBad, mostlyBadList, 'bad');
     
-    console.log("[DEBUG] renderTopWords finished."); // DEBUG LOG
+    console.log("[DEBUG] renderTopWords finished."); 
 }
 
 /**
  * Fetches the next word, updates the card, and updates the leaderboards.
- * Uses instant card swapping. Now performs leaderboard fetch concurrently.
  */
 async function loadCardAndLeaderboard() {
-    console.log("[DEBUG] Starting loadCardAndLeaderboard."); // DEBUG LOG
-    isVoting = true; // Lock input while fetching the next word
+    console.log("[DEBUG] Starting loadCardAndLeaderboard."); 
+    isVoting = true; 
     
     let loadingTimeout = null;
 
-    // DEFERRED LOADING INDICATOR: Wait 150ms before showing "Loading..."
-    // This allows fast responses (e.g., < 100ms) to bypass the message entirely.
-    const currentWordElement = wordCard.querySelector('#currentWord');
+    const currentWordElement = wordCard ? wordCard.querySelector('#currentWord') : null;
     if (currentWordElement) {
         loadingTimeout = setTimeout(() => {
             currentWordElement.textContent = 'Loading...';
-            console.log("[DEBUG] Displaying 'Loading...' indicator."); // DEBUG LOG
+            console.log("[DEBUG] Displaying 'Loading...' indicator."); 
         }, LOADING_DELAY_MS);
     }
     
@@ -314,15 +287,15 @@ async function loadCardAndLeaderboard() {
     const wordPromise = fetchRandomWord();
     const leaderboardPromise = fetchTopWords(); 
 
-    // 2. Wait only for the critical word to load. This resolves or fails in max 1 second.
+    // 2. Wait only for the critical word to load.
     const word = await wordPromise; 
     
-    // 3. Clear the timeout as the word is ready (or an error occurred)
+    // 3. Clear the timeout 
     if (loadingTimeout) {
         clearTimeout(loadingTimeout);
     }
 
-    // 4. Update the card instantly using the destructive replacement method
+    // 4. Update the card instantly 
     await updateWordCard(word);
     
     // 5. UNLOCK INPUT IMMEDIATELY after the word card is visible
@@ -332,7 +305,7 @@ async function loadCardAndLeaderboard() {
 
     // 6. Wait for and render top words (This is now background work)
     const topWords = await leaderboardPromise;
-    console.log("[DEBUG] Leaderboard data received. Calling renderTopWords."); // DEBUG LOG
+    console.log("[DEBUG] Leaderboard data received. Calling renderTopWords."); 
     renderTopWords(topWords);
 }
 
@@ -341,10 +314,10 @@ async function loadCardAndLeaderboard() {
  * @param {string} voteType 'good' or 'bad'
  */
 async function handleVote(voteType) {
-    if (!currentWordData || isVoting) return; // Prevent double vote
-    isVoting = true; // Lock input immediately upon vote
+    if (!currentWordData || isVoting) return; 
+    isVoting = true; 
 
-    const wordId = currentWordData.wordId; // Use wordId from the currentWordData object
+    const wordId = currentWordData.wordId; 
     
     // 1. Submit the vote (runs concurrently with the loading state)
     const responseData = await submitVote(wordId, voteType); 
@@ -366,30 +339,43 @@ function setAppVersion() {
     }
 }
 
-// --- Event Listeners ---
+/**
+ * Initializes all DOM references and event listeners after the DOM is fully loaded.
+ * This is the fix for the "goodWordBtn is null" error.
+ */
+function initializeApp() {
+    // --- ASSIGN GLOBAL DOM ELEMENTS HERE ---
+    wordCard = document.getElementById('wordCard');
+    goodWordBtn = document.getElementById('goodWordBtn');
+    badWordBtn = document.getElementById('badWordBtn');
+    mostlyGoodList = document.getElementById('mostlyGoodList');
+    mostlyBadList = document.getElementById('mostlyBadList');
+    leftArrow = document.querySelector('.left-arrow');
+    rightArrow = document.querySelector('.right-arrow');
+    engagementMessageBox = document.getElementById('engagementMessageBox');
+    appVersionDisplay = document.getElementById('appVersionDisplay');
 
-// Button Clicks (Handles goodWordBtn, badWordBtn)
-goodWordBtn.addEventListener('click', () => handleVote('good'));
-badWordBtn.addEventListener('click', () => handleVote('bad'));
+    // --- SETUP EVENT LISTENERS (NOW THAT ELEMENTS ARE GUARANTEED TO EXIST) ---
+    if (goodWordBtn) goodWordBtn.addEventListener('click', () => handleVote('good'));
+    if (badWordBtn) badWordBtn.addEventListener('click', () => handleVote('bad'));
+    if (leftArrow) leftArrow.addEventListener('click', () => handleVote('good'));
+    if (rightArrow) rightArrow.addEventListener('click', () => handleVote('bad'));
 
-// Arrow Clicks (Handles leftArrow, rightArrow)
-leftArrow.addEventListener('click', () => handleVote('good'));
-rightArrow.addEventListener('click', () => handleVote('bad'));
+    // Keyboard Input listener remains global
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft' && !isVoting) {
+            e.preventDefault();
+            handleVote('good');
+        } else if (e.key === 'ArrowRight' && !isVoting) {
+            e.preventDefault();
+            handleVote('bad');
+        }
+    });
 
-
-// Keyboard Input
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowLeft' && !isVoting) {
-        e.preventDefault();
-        handleVote('good');
-    } else if (e.key === 'ArrowRight' && !isVoting) {
-        e.preventDefault();
-        handleVote('bad');
-    }
-});
-
-// --- Initial Load ---
-document.addEventListener('DOMContentLoaded', () => {
+    // --- START APPLICATION ---
     setAppVersion();
     loadCardAndLeaderboard();
-});
+}
+
+// --- Initial Load ---
+document.addEventListener('DOMContentLoaded', initializeApp);
