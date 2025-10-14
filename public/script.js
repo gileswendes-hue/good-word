@@ -4,9 +4,10 @@
 
 // --- Configuration ---
 const API_BASE_URL = '/api'; 
-const APP_VERSION = '1.5.5'; // Bumping version for max speed optimization
+const APP_VERSION = '1.5.8'; // Bumping version for detailed list-loading debugging
 const API_TIMEOUT_MS = 1000; // CRITICAL: 1 second timeout for any single API request
 const MAX_RETRIES = 1; // CRITICAL: Only one attempt allowed for fastest possible response/fail
+const LOADING_DELAY_MS = 150; // NEW: Time (ms) to wait before displaying "Loading..."
 
 let currentWordData = null; // Stores the current word and its ID/meta-data
 let isVoting = false; // Flag to prevent double votes during animation/fetch
@@ -124,7 +125,9 @@ async function fetchRandomWord() {
  */
 async function fetchTopWords() {
     try {
-        return await apiCall('/top-words');
+        const data = await apiCall('/top-words');
+        console.log("[DEBUG] API /top-words returned:", data); // DEBUG LOG
+        return data;
     } catch (error) {
         console.error("Error fetching top words:", error.message);
         return { mostlyGood: [], mostlyBad: [] };
@@ -248,14 +251,25 @@ function updateWordCard(wordData) {
 }
 
 function renderTopWords(topWords) {
+    console.log("[DEBUG] Starting renderTopWords with data:", topWords); // DEBUG LOG
+    
+    // CRITICAL FIX: Check if the list elements were found in the DOM (global variables are null if not)
+    if (!mostlyGoodList || !mostlyBadList) {
+        console.error("Error: Could not find one or both top word list containers (mostlyGoodList or mostlyBadList). Please check HTML IDs.");
+        return; 
+    }
+    
     mostlyGoodList.innerHTML = '';
     mostlyBadList.innerHTML = '';
 
     const renderList = (list, targetElement, type) => {
         if (!list || list.length === 0) {
             targetElement.innerHTML = '<li>No words rated enough yet.</li>';
+            console.log(`[DEBUG] List ${type} is empty or null.`); // DEBUG LOG
             return;
         }
+        
+        console.log(`[DEBUG] Rendering ${list.length} words for ${type} list.`); // DEBUG LOG
 
         list.forEach(word => {
             const li = document.createElement('li');
@@ -272,6 +286,8 @@ function renderTopWords(topWords) {
 
     renderList(topWords.mostlyGood, mostlyGoodList, 'good');
     renderList(topWords.mostlyBad, mostlyBadList, 'bad');
+    
+    console.log("[DEBUG] renderTopWords finished."); // DEBUG LOG
 }
 
 /**
@@ -279,12 +295,19 @@ function renderTopWords(topWords) {
  * Uses instant card swapping. Now performs leaderboard fetch concurrently.
  */
 async function loadCardAndLeaderboard() {
+    console.log("[DEBUG] Starting loadCardAndLeaderboard."); // DEBUG LOG
     isVoting = true; // Lock input while fetching the next word
     
-    // Set loading text on the current card before the fetch starts
+    let loadingTimeout = null;
+
+    // DEFERRED LOADING INDICATOR: Wait 150ms before showing "Loading..."
+    // This allows fast responses (e.g., < 100ms) to bypass the message entirely.
     const currentWordElement = wordCard.querySelector('#currentWord');
     if (currentWordElement) {
-        currentWordElement.textContent = 'Loading...';
+        loadingTimeout = setTimeout(() => {
+            currentWordElement.textContent = 'Loading...';
+            console.log("[DEBUG] Displaying 'Loading...' indicator."); // DEBUG LOG
+        }, LOADING_DELAY_MS);
     }
     
     // 1. Start both promises concurrently for speed.
@@ -294,16 +317,22 @@ async function loadCardAndLeaderboard() {
     // 2. Wait only for the critical word to load. This resolves or fails in max 1 second.
     const word = await wordPromise; 
     
-    // 3. Update the card instantly using the destructive replacement method
+    // 3. Clear the timeout as the word is ready (or an error occurred)
+    if (loadingTimeout) {
+        clearTimeout(loadingTimeout);
+    }
+
+    // 4. Update the card instantly using the destructive replacement method
     await updateWordCard(word);
     
-    // 4. UNLOCK INPUT IMMEDIATELY after the word card is visible
+    // 5. UNLOCK INPUT IMMEDIATELY after the word card is visible
     if (currentWordData && currentWordData.word) {
         isVoting = false; 
     }
 
-    // 5. Wait for and render top words (This is now background work)
+    // 6. Wait for and render top words (This is now background work)
     const topWords = await leaderboardPromise;
+    console.log("[DEBUG] Leaderboard data received. Calling renderTopWords."); // DEBUG LOG
     renderTopWords(topWords);
 }
 
