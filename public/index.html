@@ -1,105 +1,151 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Word Classifier</title>
-    <!-- Load Tailwind CSS via CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Use Inter font family -->
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f7f7f7;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            min-height: 100vh;
-            padding: 2rem 1rem;
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word Classifier</title>
+    <!-- Load Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Use Inter font family -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f7f7;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+        /* Custom styles for the dynamic word card */
+        .word-card-wrapper {
+            /* This is the container where the word card is placed */
+            position: relative;
+            min-height: 150px; /* Ensure space even during loading/transition */
         }
-    </style>
-    <!-- We will use script.js for the dynamic logic -->
+        .word-card {
+            padding: 2.5rem 2rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            background-color: #f9fafb;
+            transition: border-color 0.5s ease-in-out;
+            border: 4px solid #e5e7eb; /* Default light border */
+        }
+        .good-border {
+            border-color: #34d399; /* Green-400 */
+        }
+        .bad-border {
+            border-color: #f87171; /* Red-400 */
+        }
+        .neutral-border {
+            border-color: #9ca3af; /* Gray-400 */
+        }
+        .text-word {
+             font-size: 3rem; /* Adjusted for better scale */
+             line-height: 1;
+             font-weight: 900;
+             letter-spacing: -0.05em;
+             color: #1f2937;
+        }
+
+        /* Engagement Message Box Styling */
+        #engagementMessageBox {
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.5s ease, visibility 0.5s ease;
+        }
+        #engagementMessageBox.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+    </style>
+    <!-- We will use script.js for the dynamic logic -->
 </head>
 <body class="p-4 md:p-8">
 
-    <div id="app-container" class="w-full max-w-lg bg-white shadow-2xl rounded-xl p-6 md:p-10 border border-gray-100 transform transition duration-500 hover:shadow-3xl">
-        
-        <!-- Header Section -->
-        <header class="text-center mb-8">
-            <h1 class="text-4xl font-extrabold text-gray-800 tracking-tight">
-                Word Classifier
-            </h1>
-            <p class="mt-2 text-lg text-gray-500 font-medium">
-                Is the word mostly <span class="text-green-600 font-bold">Good</span> or mostly <span class="text-red-600 font-bold">Bad</span>?
-            </p>
-        </header>
+    <div id="app-container" class="w-full max-w-lg bg-white shadow-2xl rounded-xl p-6 md:p-10 border border-gray-100 transform transition duration-500 hover:shadow-3xl">
+        
+        <!-- Header Section -->
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-extrabold text-gray-800 tracking-tight">
+                Word Classifier
+            </h1>
+            <p class="mt-2 text-lg text-gray-500 font-medium">
+                Is the word mostly <span class="text-green-600 font-bold">Good</span> or mostly <span class="text-red-600 font-bold">Bad</span>?
+            </p>
+        </header>
 
-        <!-- Voting Section -->
-        <section id="voting-section" class="mb-10">
-            <div class="relative p-6 md:p-8 border-4 border-dashed border-gray-300 rounded-lg text-center bg-gray-50">
-                <p class="text-sm font-semibold text-gray-500 uppercase tracking-widest mb-2">Word to Classify</p>
-                <div id="word-display" class="text-6xl md:text-8xl font-black text-gray-900 tracking-wider">
-                    LOADING...
-                </div>
-                <input type="hidden" id="word-id">
-            </div>
+        <!-- Voting Section -->
+        <section id="voting-section" class="mb-10">
+            <!-- Word Card Wrapper: This container holds the dynamically replaced wordCard -->
+            <div class="word-card-wrapper">
+                <!-- Initial word card element (will be replaced by script.js) -->
+                <!-- CRITICAL: ID changed from 'word-display' to 'wordCard' and content element added -->
+                <div id="wordCard" class="word-card neutral-border">
+                    <p class="text-sm font-semibold text-gray-500 uppercase tracking-widest mb-2">Word to Classify</p>
+                    <span id="currentWord" class="text-word">
+                        LOADING...
+                    </span>
+                    <input type="hidden" id="word-id">
+                </div>
+            </div>
 
-            <!-- Vote Buttons -->
-            <div class="flex justify-between mt-6 space-x-4">
-                <button id="vote-good" data-vote="good" 
-                    class="flex-1 px-4 py-4 text-white text-lg font-bold rounded-xl shadow-lg 
-                           bg-green-500 hover:bg-green-600 transition duration-200 
-                           hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-4 focus:ring-green-300">
-                    👍 Good Word
-                </button>
-                <button id="vote-bad" data-vote="bad" 
-                    class="flex-1 px-4 py-4 text-white text-lg font-bold rounded-xl shadow-lg 
-                           bg-red-500 hover:bg-red-600 transition duration-200 
-                           hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-4 focus:ring-red-300">
-                    👎 Bad Word
-                </button>
-            </div>
+            <!-- Vote Buttons -->
+            <div class="flex justify-between mt-6 space-x-4">
+                <button id="vote-good" 
+                    class="flex-1 px-4 py-4 text-white text-lg font-bold rounded-xl shadow-lg 
+                           bg-green-500 hover:bg-green-600 transition duration-200 
+                           hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-4 focus:ring-green-300">
+                    <span class="left-arrow"></span> 👍 Good Word
+                </button>
+                <button id="vote-bad"
+                    class="flex-1 px-4 py-4 text-white text-lg font-bold rounded-xl shadow-lg 
+                           bg-red-500 hover:bg-red-600 transition duration-200 
+                           hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-4 focus:ring-red-300">
+                    👎 Bad Word <span class="right-arrow"></span>
+                </button>
+            </div>
 
-            <!-- Message Box -->
-            <div id="message-box" class="mt-4 p-3 text-center text-sm font-semibold rounded-lg hidden">
-                <!-- Message will be displayed here -->
-            </div>
-        </section>
+            <!-- Engagement Message Box (Hidden by default) -->
+            <div id="engagementMessageBox" class="mt-4 p-3 text-center bg-blue-100 text-blue-800 text-sm font-semibold rounded-lg">
+                <!-- Dynamic message appears here -->
+            </div>
+        </section>
 
-        <!-- Community Ratings Section -->
-        <section id="community-ratings" class="mt-8 pt-6 border-t border-gray-200">
-            <h2 class="text-2xl font-bold text-gray-800 text-center mb-6">
-                Community Ratings
-            </h2>
+        <!-- Community Ratings Section -->
+        <section id="community-ratings" class="mt-8 pt-6 border-t border-gray-200">
+            <h2 class="text-2xl font-bold text-gray-800 text-center mb-6">
+                Community Ratings
+            </h2>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                
-                <!-- Mostly Good List -->
-                <div class="bg-green-50/70 p-4 rounded-lg shadow-inner border border-green-100">
-                    <h3 class="text-xl font-semibold text-green-700 mb-3 text-center">Mostly Good</h3>
-                    <ul id="mostly-good-list" class="space-y-2 text-gray-700">
-                        <li class="text-center italic text-sm">Loading...</li>
-                    </ul>
-                </div>
-                
-                <!-- Mostly Bad List -->
-                <div class="bg-red-50/70 p-4 rounded-lg shadow-inner border border-red-100">
-                    <h3 class="text-xl font-semibold text-red-700 mb-3 text-center">Mostly Bad</h3>
-                    <ul id="mostly-bad-list" class="space-y-2 text-gray-700">
-                        <li class="text-center italic text-sm">Loading...</li>
-                    </ul>
-                </div>
-            </div>
-        </section>
-        
-        <!-- Footer / Version Display -->
-        <footer class="text-center mt-8 text-xs text-gray-400">
-            <span id="version-display">v1.0.0</span>
-        </footer>
-    </div>
+            <div class="top-words-lists grid grid-cols-1 sm:grid-cols-2 gap-4">
+                
+                <!-- Mostly Good List -->
+                <div class="bg-green-50/70 p-4 rounded-lg shadow-inner border border-green-100">
+                    <h3 class="text-xl font-semibold text-green-700 mb-3 text-center">Mostly Good</h3>
+                    <ul id="mostly-good-list" class="space-y-2 text-gray-700">
+                        <li class="text-center italic text-sm">Loading...</li>
+                    </ul>
+                </div>
+                
+                <!-- Mostly Bad List -->
+                <div class="bg-red-50/70 p-4 rounded-lg shadow-inner border border-red-100">
+                    <h3 class="text-xl font-semibold text-red-700 mb-3 text-center">Mostly Bad</h3>
+                    <ul id="mostly-bad-list" class="space-y-2 text-gray-700">
+                        <li class="text-center italic text-sm">Loading...</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Footer / Version Display -->
+        <footer class="text-center mt-8 text-xs text-gray-400">
+            App Version: <span id="version-display">v1.0.0</span>
+        </footer>
+    </div>
 
-    <!-- Script tag for all client-side logic -->
-    <script type="module" src="script.js"></script>
+    <!-- Script tag for all client-side logic -->
+    <script type="module" src="script.js"></script>
 </body>
 </html>
