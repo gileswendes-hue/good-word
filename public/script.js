@@ -112,14 +112,18 @@ async function loadNewWord() {
         const response = await fetchWithRetry(`${API_URL_BASE}/get-word`);
         const data = await response.json();
 
-        if (data && data.word) {
+        // Check for both 'id' (preferred) and '_id' (MongoDB default)
+        const wordId = data.id || data._id;
+
+        if (data && data.word && wordId) {
             currentWordEl.textContent = data.word;
-            wordIdInput.value = data.id;
-            console.debug(`[API] New word returned: ${data.word} (ID: ${data.id})`);
+            wordIdInput.value = wordId;
+            console.debug(`[API] New word returned: ${data.word} (ID: ${wordId})`);
         } else {
-            currentWordEl.textContent = "No words available.";
+            // Log what we received if the required fields are missing
+            console.warn("[API] Received empty, invalid, or ID-less word data:", data);
+            currentWordEl.textContent = "No words available or ID missing.";
             wordIdInput.value = '';
-            console.warn("[API] Received empty or invalid word data.");
         }
     } catch (error) {
         console.error("Error fetching word:", error);
@@ -138,9 +142,14 @@ async function sendVote(classification) {
 
     if (!wordId || word === "LOADING..." || word.startsWith("ERROR:")) {
         displayEngagementMessage("Please wait for the current word to load before voting.", 'neutral');
+        // Log the missing wordId for quick debugging
+        console.error("VOTE ERROR: wordId is missing or invalid:", wordId); 
         return;
     }
 
+    // Define the payload once for use in fetch and logging
+    const payload = { wordId, classification };
+    
     // 1. Prepare UI for vote transition
     voteGoodBtn.disabled = true;
     voteBadBtn.disabled = true;
@@ -153,12 +162,12 @@ async function sendVote(classification) {
     await new Promise(resolve => setTimeout(resolve, WORD_CARD_TRANSITION_DURATION));
     
     // 2. Perform API call
-    console.debug(`[API] Making call to: /api/vote with classification: ${classification}`);
+    console.debug(`[API] Making call to: /api/vote with classification: ${classification}`, payload);
     try {
         const response = await fetchWithRetry(`${API_URL_BASE}/vote`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ wordId, classification })
+            body: JSON.stringify(payload)
         });
 
         const result = await response.json();
@@ -171,10 +180,12 @@ async function sendVote(classification) {
             await loadTopWords(); 
         } else {
             // If API returns success: false, or HTTP status is not OK
+            console.error("Server response on failure:", result);
             throw new Error(result.message || `Failed to submit vote. Server responded with status: ${response.status}`);
         }
     } catch (error) {
         console.error("Error submitting vote:", error);
+        console.warn("Attempted payload:", payload); // Log the attempted payload on error
         displayEngagementMessage("ERROR: Could not submit vote. Check console for details.", 'bad');
         // If vote failed, re-load the word just in case
         await loadNewWord(); 
