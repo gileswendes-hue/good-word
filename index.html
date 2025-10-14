@@ -129,7 +129,7 @@
         </div>
         
         <!-- UPDATED: Version Number -->
-        <div class="text-xs text-gray-400 mt-4 text-right">v1.5.4</div>
+        <div class="text-xs text-gray-400 mt-4 text-right">v1.5.6</div>
 
     </div>
 
@@ -265,8 +265,7 @@
 
                 // Render Mostly Good List
                 goodRatingsList.innerHTML = ''; // Clear loading message
-                // NOTE: The backend (index.js) currently enforces the 5-vote minimum. 
-                // This message is updated to reflect the user's intent to lower it.
+                // The minimumVotesMessage reflects the backend logic (now set to 1 vote).
                 const minimumVotesMessage = 'No words meet the 1-vote minimum yet.'; 
 
                 if (data.mostlyGood.length === 0) {
