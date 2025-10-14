@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Good/Bad Word Game v1.5.2</title>
+    <title>Good/Bad Word Game v1.5.3</title>
     <!-- Load Tailwind CSS for modern styling and responsiveness -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -44,7 +44,8 @@
             font-size: 2.5rem;
             font-weight: 700;
             cursor: pointer;
-            transition: none; /* Crucial: Ensure no accidental transitions */
+            /* Ensure no transition is active, even on the new element */
+            transition: opacity 0.1s ease-out; 
         }
 
         /* Border styles for vote history */
@@ -158,12 +159,12 @@
 
     <script>
         // =======================================================
-        // script.js logic embedded here (v1.5.2)
+        // script.js logic embedded here (v1.5.3)
         // =======================================================
 
         // --- Configuration ---
         const API_BASE_URL = '/api'; 
-        const APP_VERSION = '1.5.2'; 
+        const APP_VERSION = '1.5.3'; // Updated version for this fix
         let currentWordData = null; 
         let isVoting = false; 
 
@@ -279,10 +280,10 @@
                     const noWordsElement = document.createElement('div');
                     noWordsElement.textContent = "NO MORE WORDS!";
                     noWordsElement.className = 'word-card w-full border-4 border-dashed rounded-lg shadow-lg bg-gray-50 text-gray-800';
-                    noWordsElement.style.opacity = 1;
+                    noWordsElement.style.opacity = 1; // Ensure new message is visible
                     wordCard = noWordsElement;
                     
-                    // FIX 1: Insert before the rightArrow element (a direct sibling)
+                    // Insert before the rightArrow element (a direct sibling)
                     parent.insertBefore(noWordsElement, rightArrow); 
                     resolve();
                     return;
@@ -292,7 +293,8 @@
                 const newCard = document.createElement('div');
                 newCard.id = 'wordCard';
                 newCard.className = 'word-card w-full border-4 border-dashed rounded-lg shadow-lg bg-gray-50 text-gray-800';
-                newCard.style.cssText = 'opacity: 1;'; // Start visible and clean
+                // CRUCIAL: Ensure the new card is instantly visible (opacity 1)
+                newCard.style.cssText = 'opacity: 1;'; 
                 
                 // 4. Create the word span element inside the new card
                 const newWordSpan = document.createElement('span');
@@ -304,7 +306,6 @@
                 currentWordData = wordData;
                 
                 // 6. Insert the new card back into the DOM
-                // FIX 2: Insert before the rightArrow element (a direct sibling)
                 parent.insertBefore(newCard, rightArrow); 
                 
                 // 7. Update the content
@@ -394,6 +395,10 @@
             if (!currentWordData || isVoting) return; 
             isVoting = true; 
 
+            // FIX: Immediately set the old card to be fully transparent before replacement/network wait
+            // This prevents any visual artifact or "sticking" due to event state or transition residue.
+            wordCard.style.opacity = 0; 
+            
             const wordId = currentWordData.word;
             
             // 1. Submit the vote (runs concurrently with the loading state)
@@ -403,13 +408,14 @@
                 displayEngagementMessage(responseData.engagementMessage);
             }
 
-            // 2. Clear the card content immediately to show 'Loading...' briefly
+            // 2. Clear the card content (though it's already opaque 0)
             const currentWordSpan = wordCard.querySelector('#currentWord');
             if (currentWordSpan) {
                 currentWordSpan.textContent = ''; 
             }
 
-            // 3. Load the next card immediately (no setTimeout required)
+            // 3. Load the next card, which uses updateWordCard to remove the old element 
+            // and insert the new element with opacity: 1, making the swap instantaneous and clean.
             await loadCardAndLeaderboard(); 
         }
 
