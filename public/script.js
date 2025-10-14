@@ -10,7 +10,7 @@
 // --- Constants and DOM Element References ---
 const API_URL = '/api';
 const RETRY_LIMIT = 3;
-const APP_VERSION = 'v1.0.0-client'; // Client version identifier
+const APP_VERSION = 'v2.2.7-client'; // Client version identifier
 
 // Get DOM elements
 const currentWordEl = document.getElementById('currentWord');
@@ -288,3 +288,4 @@ document.addEventListener('DOMContentLoaded', () => {
 // Expose functions for debugging
 window.fetchWord = fetchWord;
 window.fetchTopWords = fetchTopWords;
+
