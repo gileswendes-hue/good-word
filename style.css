@@ -74,8 +74,8 @@ body {
     text-transform: uppercase;
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
     cursor: grab;
-    /* Add transform to the transition property for slide out animation */
-    transition: transform 0.4s ease, border-color 0.4s ease, opacity 0.4s ease;
+    /* Updated transition property to explicitly target all related properties */
+    transition: transform 0.4s ease, border-color 0.4s ease, opacity 0.4s ease, box-shadow 0.4s ease;
     user-select: none;
     position: relative; /* For dragging */
     z-index: 10;
