@@ -4,9 +4,9 @@
 
 // --- Configuration ---
 const API_BASE_URL = '/api'; 
-const APP_VERSION = '1.5.4'; // Bumping version for faster timeout
-const API_TIMEOUT_MS = 1000; // CRITICAL CHANGE: 1 second timeout for any single API request
-const MAX_RETRIES = 2; // CRITICAL CHANGE: Reduced retries to ensure quick failure
+const APP_VERSION = '1.5.5'; // Bumping version for max speed optimization
+const API_TIMEOUT_MS = 1000; // CRITICAL: 1 second timeout for any single API request
+const MAX_RETRIES = 1; // CRITICAL: Only one attempt allowed for fastest possible response/fail
 
 let currentWordData = null; // Stores the current word and its ID/meta-data
 let isVoting = false; // Flag to prevent double votes during animation/fetch
@@ -39,6 +39,10 @@ function requestTimeout(ms) {
 
 /**
  * Utility function to make API requests with retry and timeout logic.
+ *
+ * NOTE: With MAX_RETRIES set to 1, this function will succeed or fail 
+ * within the API_TIMEOUT_MS (1 second).
+ *
  * @param {string} endpoint - The API endpoint relative to API_BASE_URL (e.g., '/get-word').
  * @param {object} options - Fetch options.
  * @returns {Promise<object>} The JSON response body.
@@ -47,7 +51,6 @@ async function apiCall(endpoint, options = {}) {
     const url = `${API_BASE_URL}${endpoint}`;
     console.log(`[API] Making call to: ${url}`);
     
-    // Using MAX_RETRIES set globally (2 attempts max)
     for (let i = 0; i < MAX_RETRIES; i++) {
         try {
             // Use Promise.race to enforce the 1-second timeout
@@ -66,10 +69,10 @@ async function apiCall(endpoint, options = {}) {
             console.error(`[API] Attempt ${i + 1} failed for ${endpoint}:`, error.message);
             
             if (i === MAX_RETRIES - 1) {
-                throw new Error(`Failed to fetch data after ${MAX_RETRIES} attempts. Error: ${error.message}`);
+                // Throw final error if max attempts reached (which is 1 attempt now)
+                throw new Error(`Failed to fetch data after ${MAX_RETRIES} attempt(s). Error: ${error.message}`);
             }
-            // Wait before retrying (exponential backoff)
-            // 1st retry: wait 1 second; 2nd retry: wait 2 seconds.
+            // Wait only if MAX_RETRIES was > 1
             await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1))); 
         }
     }
@@ -273,7 +276,7 @@ function renderTopWords(topWords) {
 
 /**
  * Fetches the next word, updates the card, and updates the leaderboards.
- * Uses instant card swapping.
+ * Uses instant card swapping. Now performs leaderboard fetch concurrently.
  */
 async function loadCardAndLeaderboard() {
     isVoting = true; // Lock input while fetching the next word
@@ -284,19 +287,23 @@ async function loadCardAndLeaderboard() {
         currentWordElement.textContent = 'Loading...';
     }
     
-    // 1. Fetch the new word data
-    const word = await fetchRandomWord();
+    // 1. Start both promises concurrently for speed.
+    const wordPromise = fetchRandomWord();
+    const leaderboardPromise = fetchTopWords(); 
+
+    // 2. Wait only for the critical word to load. This resolves or fails in max 1 second.
+    const word = await wordPromise; 
     
-    // 2. Update the card instantly using the destructive replacement method
+    // 3. Update the card instantly using the destructive replacement method
     await updateWordCard(word);
     
-    // 3. UNLOCK INPUT IMMEDIATELY AFTER CONTENT UPDATE (Only if a valid word or DB EMPTY is shown)
+    // 4. UNLOCK INPUT IMMEDIATELY after the word card is visible
     if (currentWordData && currentWordData.word) {
         isVoting = false; 
     }
 
-    // 4. Fetch and render top words in the background
-    const topWords = await fetchTopWords();
+    // 5. Wait for and render top words (This is now background work)
+    const topWords = await leaderboardPromise;
     renderTopWords(topWords);
 }
 
