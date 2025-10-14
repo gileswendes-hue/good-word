@@ -4,7 +4,7 @@
 
 // --- Configuration ---
 const API_BASE_URL = '/api'; 
-const DRAG_THRESHOLD = 100; // Pixels to drag to register a vote
+// Removed DRAG_THRESHOLD as dragging is no longer supported
 const ANIMATION_DURATION = 500; // Match CSS transition time in ms (400) + safety buffer (100)
 let currentWordData = null; // Stores the current word and its ID/meta-data
 let isVoting = false; // Flag to prevent double votes during animation/fetch
@@ -19,11 +19,6 @@ const mostlyBadList = document.getElementById('mostlyBadList');
 const leftArrow = document.querySelector('.left-arrow');
 const rightArrow = document.querySelector('.right-arrow');
 const engagementMessageBox = document.getElementById('engagementMessageBox'); 
-
-// --- Dragging Variables ---
-let isDragging = false;
-let startX = 0;
-let currentX = 0;
 
 // --- Helper Functions ---
 
@@ -181,7 +176,7 @@ function renderTopWords(topWords) {
 
 /**
  * Fetches the next word, updates the card, and updates the leaderboards.
- * Now precisely waits for the card to visually settle before unlocking the UI.
+ * Precisely waits for the card to visually settle before unlocking the UI.
  */
 async function loadCardAndLeaderboard() {
     isVoting = true; // Lock input while fetching the next word
@@ -193,7 +188,7 @@ async function loadCardAndLeaderboard() {
     // 2. Update and wait for the card to visually fade in (resolves after 50ms)
     await updateWordCard(word);
     
-    // 3. *** CRITICAL FIX: UNLOCK INPUT ONLY AFTER VISUAL COMPLETION ***
+    // 3. UNLOCK INPUT ONLY AFTER VISUAL COMPLETION
     isVoting = false; 
     
     // 4. Fetch and render top words in the background (no need to block input)
@@ -202,7 +197,7 @@ async function loadCardAndLeaderboard() {
 }
 
 /**
- * Primary function to handle voting via button, arrow, or drag.
+ * Primary function to handle voting via button or arrow.
  * @param {string} voteType 'good' or 'bad'
  */
 async function handleVote(voteType) {
@@ -216,7 +211,6 @@ async function handleVote(voteType) {
     wordCard.classList.add(slideClass);
 
     // 2. Submit the vote (runs concurrently with the animation)
-    // The response is awaited here to ensure we get the engagement message before the next word loads.
     const responseData = await submitVote(wordId, voteType); 
 
     if (responseData && responseData.engagementMessage) {
@@ -232,9 +226,11 @@ async function handleVote(voteType) {
 
 // --- Event Listeners ---
 
-// Button Clicks
+// Button Clicks (Handles goodWordBtn, badWordBtn)
 goodWordBtn.addEventListener('click', () => handleVote('good'));
 badWordBtn.addEventListener('click', () => handleVote('bad'));
+
+// Arrow Clicks (Handles leftArrow, rightArrow)
 leftArrow.addEventListener('click', () => handleVote('good'));
 rightArrow.addEventListener('click', () => handleVote('bad'));
 
@@ -250,94 +246,8 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// Drag and Drop (Mouse and Touch support for drag events)
-
-function handleDragStart(e) {
-    if (isVoting) return;
-    const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
-    if (e.type.startsWith('mouse') && e.button !== 0) return;
-
-    isDragging = true;
-    startX = clientX;
-    wordCard.classList.add('dragged');
-    // Ensure no CSS transition interferes with dragging
-    wordCard.style.transition = 'none'; 
-}
-
-function handleDragMove(e) {
-    if (!isDragging || isVoting) return;
-    
-    const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
-    currentX = clientX;
-    const deltaX = currentX - startX;
-    
-    // Only apply manual transform during drag, but maintain existing classes
-    wordCard.style.transform = `translateX(${deltaX}px)`; 
-
-    // Visual feedback for the background
-    const bodyStyle = document.body.style;
-    const goodColor = getComputedStyle(document.documentElement).getPropertyValue('--good-color').trim();
-    const badColor = getComputedStyle(document.documentElement).getPropertyValue('--bad-color').trim();
-
-    if (deltaX < -DRAG_THRESHOLD / 2) { 
-        bodyStyle.background = `linear-gradient(to right, ${goodColor} 0%, #fff 50%, #fff 100%)`;
-    } else if (deltaX > DRAG_THRESHOLD / 2) { 
-        bodyStyle.background = `linear-gradient(to left, ${badColor} 0%, #fff 50%, #fff 100%)`;
-    } else { 
-        bodyStyle.background = 'linear-gradient(to right, #e0ffe0 0%, #fff 50%, #ffe0e0 100%)';
-    }
-    e.preventDefault();
-}
-
-/**
- * Handle end of drag interaction.
- * Crucial change: Calls handleVote to use the consistent animation logic.
- */
-async function handleDragEnd() {
-    if (!isDragging || isVoting) return;
-    isDragging = false;
-    wordCard.classList.remove('dragged');
-
-    const deltaX = currentX - startX;
-    
-    // IMPORTANT: Re-enable default CSS transition
-    wordCard.style.transition = ''; 
-
-    document.body.style.background = 'linear-gradient(to right, #e0ffe0 0%, #fff 50%, #ffe0e0 100%)';
-
-    if (deltaX < -DRAG_THRESHOLD) { // Dragged left (Good Word)
-        // Use the main vote handler for consistent animation
-        await handleVote('good'); 
-    } else if (deltaX > DRAG_THRESHOLD) { // Dragged right (Bad Word)
-        // Use the main vote handler for consistent animation
-        await handleVote('bad');
-    } else { // Not enough drag, snap back immediately
-        // Only apply snap back if we are NOT voting (i.e., drag didn't pass threshold)
-        wordCard.style.transition = 'transform 0.2s ease-out';
-        wordCard.style.transform = 'translateX(0)';
-    }
-    
-    // Reset start/current positions
-    startX = 0;
-    currentX = 0;
-}
-
-// Attach event listeners
-wordCard.addEventListener('mousedown', handleDragStart);
-document.addEventListener('mousemove', handleDragMove);
-document.addEventListener('mouseup', handleDragEnd);
-
-// Touch Events
-wordCard.addEventListener('touchstart', handleDragStart);
-document.addEventListener('touchmove', handleDragMove);
-document.addEventListener('touchend', handleDragEnd);
-
-// Handle mouseleave if dragging ends outside the card 
-wordCard.addEventListener('mouseleave', () => {
-    if (isDragging) {
-        handleDragEnd();
-    }
-});
+// REMOVED: All drag and touch event handlers (handleDragStart, handleDragMove, handleDragEnd, and all corresponding listeners).
+// The logic is now solely focused on click/key input.
 
 // --- Initial Load ---
 document.addEventListener('DOMContentLoaded', loadCardAndLeaderboard);
