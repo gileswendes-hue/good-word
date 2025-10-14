@@ -69,7 +69,7 @@ body {
     border-radius: var(--border-radius);
     padding: 40px 60px; /* Increased padding */
     min-width: 300px; /* Slightly wider */
-    font-size: 7em; /* INCREASED from 5.5em to 7em for maximum desktop impact */
+    font-size: 15em; /* INCREASED from 5.5em to 7em for maximum desktop impact */
     font-weight: 900; /* BOLDER */
     text-transform: uppercase;
     text-align: center; /* Explicitly centered */
@@ -293,3 +293,4 @@ body {
         margin-bottom: 20px;
     }
 }
+
