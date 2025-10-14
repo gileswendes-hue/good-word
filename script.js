@@ -115,9 +115,11 @@ function updateWordCard(wordData) {
         currentWordData = wordData;
         currentWordSpan.textContent = wordData.word;
         
-        // 1. Ensure the card is fully reset (no drag, no slide-out classes)
+        // 1. Ensure the card is fully reset (no slide-out classes)
         wordCard.className = 'word-card';
-        wordCard.style.transform = 'translateX(0)'; 
+        // The transform reset has been moved to handleVote
+        // wordCard.style.transform = 'translateX(0)'; 
+        
         // This is important: Set opacity to 0 *without* transition, then use a timeout to transition to 1
         wordCard.style.transition = 'none'; 
         wordCard.style.opacity = 0;
@@ -139,7 +141,7 @@ function updateWordCard(wordData) {
 
         // 3. Fade in the new word card
         setTimeout(() => {
-            // Re-enable CSS transitions for drag/vote
+            // Re-enable CSS transitions 
             wordCard.style.transition = ''; 
             wordCard.style.opacity = 1;
             resolve(); // Resolve promise after visual change is applied
@@ -217,8 +219,17 @@ async function handleVote(voteType) {
         displayEngagementMessage(responseData.engagementMessage);
     }
 
-    // 3. Wait for the animation to finish, then load the next word
+    // 3. Wait for the animation to finish, then reset position and load the next word
     setTimeout(async () => {
+        // CRITICAL FIX: Instantly reset the card's position to center (0,0) before loading new content
+        wordCard.style.transition = 'none'; // Temporarily disable transition for instant reset
+        wordCard.style.transform = 'translateX(0)';
+        
+        // Re-enable transition for the next slide-out
+        setTimeout(() => {
+            wordCard.style.transition = '';
+        }, 10); 
+
         // Load the next card, which will reset the state and unlock 'isVoting' after fade-in
         await loadCardAndLeaderboard(); 
     }, ANIMATION_DURATION); 
