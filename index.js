@@ -8,8 +8,8 @@ const app = express();
 const port = process.env.PORT || 10000;
 
 // Version for tracking
-// Increased version to reflect the added explicit index.html serve route
-const BACKEND_VERSION = 'v1.7.7 (FIX: Explicit Root Pathing)'; 
+// Increased version to reflect the final explicit index.html serve route fix
+const BACKEND_VERSION = 'v1.7.8 (FINAL FIX: Confirmed Root Index Pathing)'; 
 
 // --- CRITICAL CONFIGURATION: MONGO DB URI ---
 // WARNING: The credentials below are hardcoded for immediate deployment testing,
@@ -27,9 +27,10 @@ const MIN_VOTES_THRESHOLD = 1;
 app.use(express.json()); 
 app.use(cors()); 
 
-// CRITICAL PATH: index.js is in the root, so 'public' is directly beside it.
+// CRITICAL PATH: Define the public folder path, which is at the root level alongside index.js
 const publicPath = path.join(__dirname, 'public');
 console.log(`[${BACKEND_VERSION}] Serving static files from path: ${publicPath}`); 
+// Tell Express to serve all static assets (CSS, JS, images) from the public folder
 app.use(express.static(publicPath));
 
 // --- Database Connection Setup ---
@@ -249,9 +250,7 @@ app.get('/api/top-words', async (req, res) => {
 
 
 // CRITICAL FIX: Explicitly serve index.html for the root path (/) and any other path
-// that isn't handled by the API. This is important for single-page applications (SPAs)
-// and deployment environments where Express.static might not resolve the index file
-// correctly for the root path.
+// that isn't handled by the API. This ensures the single-page application loads correctly.
 app.get('*', (req, res) => {
     // Check if the request is for an API route
     if (req.url.startsWith('/api')) {
@@ -259,6 +258,7 @@ app.get('*', (req, res) => {
         return res.status(404).send('API endpoint not found.');
     }
     
-    // Otherwise, serve the index.html file from the public directory
-    res.sendFile(path.join(publicPath, 'index.html'));
+    // Serve the index.html file from the public directory
+    // This is the correct path relative to the index.js file's location.
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
