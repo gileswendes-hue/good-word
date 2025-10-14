@@ -8,7 +8,7 @@ const app = express();
 const port = process.env.PORT || 10000;
 
 // Version for tracking
-const BACKEND_VERSION = 'v1.6.3';
+const BACKEND_VERSION = 'v1.6.4';
 
 // --- CRITICAL CONFIGURATION: MONGO DB URI ---
 // 
@@ -34,49 +34,29 @@ app.use(bodyParser.json());
 const staticPath = path.join(__dirname);
 app.use(express.static(staticPath));
 
-// --- Database Connection & Server Startup ---
-const MAX_RETRIES = 5;
-const RETRY_DELAY = 3000; // 3 seconds
+// --- Database Connection Setup (Refactored) ---
 
-/**
- * Attempts to connect to MongoDB with retries and starts the server.
- */
-async function connectToMongoAndStartServer(attempt = 1) {
-    if (attempt > 1) {
-        console.log(`Attempting reconnection to MongoDB... (Attempt ${attempt}/${MAX_RETRIES})`);
-    } else {
-        console.log(`Attempting initial connection to MongoDB...`);
-    }
+// 1. Connect to MongoDB
+console.log("Attempting initial connection to MongoDB...");
 
-    try {
-        await mongoose.connect(uri);
+mongoose.connect(uri)
+    .then(() => {
         console.log("MongoDB connection successful.");
-        
-        await initializeWords(); 
-        
-        // Start server only after DB is connected
+        // 2. Initialize words only after a successful connection
+        return initializeWords();
+    })
+    .then(() => {
+        // 3. Start server only after DB is connected and seeded
         app.listen(port, () => {
             console.log(`Server is listening on port ${port} (Backend Version: ${BACKEND_VERSION})`);
         });
-
-    } catch (err) {
-        // If the error is not a connection failure (e.g., if it occurs within initializeWords),
-        // we might not want to retry, but since it's the connect block, we retry.
-        console.error(`Attempt ${attempt} failed:`, err.message);
-        
-        if (attempt < MAX_RETRIES) {
-            console.log(`Retrying connection in ${RETRY_DELAY / 1000} seconds...`);
-            setTimeout(() => connectToMongoAndStartServer(attempt + 1), RETRY_DELAY);
-        } else {
-            console.error("Failed to connect to MongoDB after multiple retries. Exiting application.");
-            // Exiting the application on critical failure
-            process.exit(1);
-        }
-    }
-}
-
-connectToMongoAndStartServer();
-
+    })
+    .catch(err => {
+        // 4. Handle persistent connection failure, logging a fatal error
+        console.error("Fatal Error: Failed to connect to MongoDB and start server.", err.message);
+        // Exiting the application on critical failure
+        process.exit(1);
+    });
 
 // --- Mongoose Schema and Model ---
 
@@ -118,7 +98,6 @@ async function initializeWords() {
         }
     } catch (error) {
         // Log a fatal error if counting documents fails, but proceed to start server 
-        // as this might be temporary and the connection is technically open.
         console.error("Critical error during initial word count:", error);
     }
 }
