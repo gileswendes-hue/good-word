@@ -9,7 +9,7 @@ const port = process.env.PORT || 10000;
 
 // Version for tracking
 // Updated version to reflect the attempt to fix the seeding path
-const BACKEND_VERSION = 'v1.8.1 (Fixed Index.html Path)'; 
+const BACKEND_VERSION = 'v1.8.2 (CRITICAL FIX: Static asset path fix)'; 
 
 // --- CRITICAL CONFIGURATION: MONGO DB URI ---
 // WARNING: The credentials below are hardcoded for immediate deployment testing,
@@ -27,7 +27,10 @@ const MIN_VOTES_THRESHOLD = 1;
 app.use(express.json()); 
 app.use(cors()); 
 
-// CRITICAL PATH 1: Define the public folder path, which is at the root level alongside index.js
+// CRITICAL PATH 1: Define the public folder path. 
+// Use an absolute path from the project root (where index.js is).
+// Since index.js is in the root, __dirname is the root directory.
+// We are using 'public' as a relative path to the root.
 const publicPath = path.join(__dirname, 'public');
 console.log(`[${BACKEND_VERSION}] Serving static files from path: ${publicPath}`); 
 // Tell Express to serve all static assets (CSS, JS, images) from the public folder
@@ -275,7 +278,6 @@ app.get('*', (req, res) => {
     }
     
     // Serve the index.html file from the public directory
-    // NOTE: This MUST use 'publicPath' which was defined earlier,
-    // or simply use path.join(__dirname, 'public', 'index.html')
+    // We are now using the correct path construction based on index.js being in the root.
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
