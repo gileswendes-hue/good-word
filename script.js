@@ -4,6 +4,7 @@
 
 // --- Configuration ---
 const API_BASE_URL = '/api'; 
+const APP_VERSION = '1.5.0'; // Added version number for deployment verification
 // Removed DRAG_THRESHOLD as dragging is no longer supported
 // Removed ANIMATION_DURATION: We are moving to an instant card swap to prevent sticking/double-click issues.
 let currentWordData = null; // Stores the current word and its ID/meta-data
@@ -118,6 +119,13 @@ function updateWordCard(wordData) {
         // 1. Instantly reset ALL styles to ensure the card is centered and visible.
         wordCard.style.cssText = 'opacity: 1;';
         wordCard.className = 'word-card';
+        
+        // --- Display Version Number (New) ---
+        const versionElement = document.createElement('span');
+        versionElement.textContent = `v${APP_VERSION}`;
+        versionElement.style.cssText = 'position: absolute; bottom: 5px; right: 5px; font-size: 0.7em; color: #999;';
+        wordCard.appendChild(versionElement);
+        // ------------------------------------
 
         // 2. Determine border color based on existing votes
         const totalVotes = wordData.goodVotes + wordData.badVotes;
