@@ -1,14 +1,13 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const bodyParser = require('body-parser');
 const path = require('path');
-const cors = require('cors'); 
+const cors = require('cors'); // Retained but not used, for simplicity
 
 const app = express();
 const port = process.env.PORT || 10000;
 
 // Version for tracking
-const BACKEND_VERSION = 'v1.6.4';
+const BACKEND_VERSION = 'v1.6.5';
 
 // --- CRITICAL CONFIGURATION: MONGO DB URI ---
 // 
@@ -26,8 +25,9 @@ const uri = process.env.MONGODB_URI || "mongodb+srv://database_user_4:justatestp
 const MIN_VOTES_THRESHOLD = 1; // Set to 1, matching the frontend expectation.
 
 // --- Middleware Setup ---
-app.use(cors());
-app.use(bodyParser.json());
+// Use built-in Express middleware for JSON parsing (replaces body-parser.json())
+app.use(express.json()); 
+app.use(cors()); // Keeping cors for cross-origin requests
 
 // Set up static serving for the frontend index.html
 // Assuming index.html is in the same directory as this index.js file
@@ -39,7 +39,11 @@ app.use(express.static(staticPath));
 // 1. Connect to MongoDB
 console.log("Attempting initial connection to MongoDB...");
 
-mongoose.connect(uri)
+// Added explicit options, which can sometimes resolve deployment-specific connection issues
+mongoose.connect(uri, { 
+        useNewUrlParser: true, 
+        useUnifiedTopology: true 
+    })
     .then(() => {
         console.log("MongoDB connection successful.");
         // 2. Initialize words only after a successful connection
@@ -53,7 +57,8 @@ mongoose.connect(uri)
     })
     .catch(err => {
         // 4. Handle persistent connection failure, logging a fatal error
-        console.error("Fatal Error: Failed to connect to MongoDB and start server.", err.message);
+        // The error log showed: "bad auth : Authentication failed."
+        console.error("Fatal Error: Failed to connect to MongoDB and start server. Check your MONGODB_URI environment variable and IP access list.", err.message);
         // Exiting the application on critical failure
         process.exit(1);
     });
