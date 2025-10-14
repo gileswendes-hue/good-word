@@ -220,20 +220,26 @@ async function handleVote(voteType) {
         displayEngagementMessage(responseData.engagementMessage);
     }
 
-    // 4. Wait for the animation to finish, then reset position and load the next word
+    // 4. Wait for the animation to finish
     setTimeout(async () => {
-        // Step 4a: CRITICAL FIX: Instantly reset the card's position to center (0,0) 
-        // and remove the slide class to ensure the card is centered when the new word appears.
-        wordCard.style.transition = 'none'; // Temporarily disable transition for instant reset
-        wordCard.style.transform = 'translateX(0)';
-        wordCard.classList.remove(slideClass); // <-- NEW: Remove the class that caused the slide.
+        // Step 4a: CRITICAL FIX: Use requestAnimationFrame to guarantee the browser registers the reset 
+        // before proceeding to load the next word, which initiates a new transition.
         
-        // Step 4b: Re-enable transition for the next slide-out
-        setTimeout(() => {
-            wordCard.style.transition = '';
-        }, 10); 
+        // Temporarily disable transition
+        wordCard.style.transition = 'none'; 
+        
+        // 1st frame: Apply the transform reset and remove the slide class
+        requestAnimationFrame(() => {
+            wordCard.style.transform = 'translateX(0)';
+            wordCard.classList.remove(slideClass);
 
-        // Step 4c: Load the next card, which will reset the state and unlock 'isVoting' after fade-in
+            // 2nd frame: Re-enable transition for the next slide-out
+            requestAnimationFrame(() => {
+                wordCard.style.transition = '';
+            });
+        });
+
+        // Step 4b: Load the next card, which will reset the state and unlock 'isVoting' after fade-in
         await loadCardAndLeaderboard(); 
     }, ANIMATION_DURATION); 
 }
