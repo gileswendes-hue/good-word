@@ -174,16 +174,25 @@ function renderTopWords(topWords) {
     });
 }
 
-async function loadGameData() {
-    isVoting = true; // Block input while loading
-    currentWordSpan.textContent = 'Loading...';
-    const word = await fetchRandomWord();
-    updateWordCard(word);
-    
-    const topWords = await fetchTopWords();
-    renderTopWords(topWords);
+/**
+ * Fetches the next word, updates the card, and updates the leaderboards.
+ * Crucially, it releases the 'isVoting' lock immediately after the new card is ready.
+ */
+async function loadCardAndLeaderboard() {
+    isVoting = true; // Lock input while fetching the next word
+    currentWordSpan.textContent = 'Loading...';
     
-    isVoting = false; // Allow input after loading
+    // 1. Fetch and display the new word card
+    const word = await fetchRandomWord();
+    updateWordCard(word);
+    
+    // 2. *** CRITICAL FIX: UNLOCK INPUT HERE ***
+    // The card is now visible and ready for the user to interact with.
+    isVoting = false; 
+    
+    // 3. Fetch and render top words in the background (no need to block input)
+    const topWords = await fetchTopWords();
+    renderTopWords(topWords);
 }
 
 /**
@@ -192,7 +201,7 @@ async function loadGameData() {
  */
 async function handleVote(voteType) {
     if (!currentWordData || isVoting) return; // Prevent double vote
-    isVoting = true; // Lock input
+    isVoting = true; // Lock input immediately upon vote
 
     const wordId = currentWordData.word;
 
@@ -210,11 +219,8 @@ async function handleVote(voteType) {
 
     // 3. Wait for the animation to finish, then load the next word
     setTimeout(async () => {
-        // This is done after the delay:
-        // Reset the card state and load the new data which includes the fade-in
-        await loadGameData(); 
-        
-        // isVoting is set to false inside loadGameData
+        // Load the next card, which will reset the state and unlock 'isVoting'
+        await loadCardAndLeaderboard(); 
     }, ANIMATION_DURATION); 
 }
 
@@ -328,4 +334,4 @@ wordCard.addEventListener('mouseleave', () => {
 });
 
 // --- Initial Load ---
-document.addEventListener('DOMContentLoaded', loadGameData);
+document.addEventListener('DOMContentLoaded', loadCardAndLeaderboard);
