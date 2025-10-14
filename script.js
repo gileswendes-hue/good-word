@@ -117,8 +117,7 @@ function updateWordCard(wordData) {
         
         // 1. Ensure the card is fully reset (no slide-out classes)
         wordCard.className = 'word-card';
-        // The transform reset has been moved to handleVote
-        // wordCard.style.transform = 'translateX(0)'; 
+        // The transform reset and class removal now happen inside handleVote's timeout
         
         // This is important: Set opacity to 0 *without* transition, then use a timeout to transition to 1
         wordCard.style.transition = 'none'; 
@@ -208,29 +207,33 @@ async function handleVote(voteType) {
 
     const wordId = currentWordData.word;
 
-    // 1. Immediately trigger the CSS slide-out animation
+    // 1. Determine and store the class for removal later
     const slideClass = voteType === 'good' ? 'slide-out-good' : 'slide-out-bad';
+    
+    // 2. Immediately trigger the CSS slide-out animation
     wordCard.classList.add(slideClass);
 
-    // 2. Submit the vote (runs concurrently with the animation)
+    // 3. Submit the vote (runs concurrently with the animation)
     const responseData = await submitVote(wordId, voteType); 
 
     if (responseData && responseData.engagementMessage) {
         displayEngagementMessage(responseData.engagementMessage);
     }
 
-    // 3. Wait for the animation to finish, then reset position and load the next word
+    // 4. Wait for the animation to finish, then reset position and load the next word
     setTimeout(async () => {
-        // CRITICAL FIX: Instantly reset the card's position to center (0,0) before loading new content
+        // Step 4a: CRITICAL FIX: Instantly reset the card's position to center (0,0) 
+        // and remove the slide class to ensure the card is centered when the new word appears.
         wordCard.style.transition = 'none'; // Temporarily disable transition for instant reset
         wordCard.style.transform = 'translateX(0)';
+        wordCard.classList.remove(slideClass); // <-- NEW: Remove the class that caused the slide.
         
-        // Re-enable transition for the next slide-out
+        // Step 4b: Re-enable transition for the next slide-out
         setTimeout(() => {
             wordCard.style.transition = '';
         }, 10); 
 
-        // Load the next card, which will reset the state and unlock 'isVoting' after fade-in
+        // Step 4c: Load the next card, which will reset the state and unlock 'isVoting' after fade-in
         await loadCardAndLeaderboard(); 
     }, ANIMATION_DURATION); 
 }
