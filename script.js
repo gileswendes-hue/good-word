@@ -4,14 +4,15 @@
 
 // --- Configuration ---
 const API_BASE_URL = '/api'; 
-const APP_VERSION = '1.5.1'; // Bumping version for this fix
+const APP_VERSION = '1.5.2'; // Bumping version for this fix
 // Removed DRAG_THRESHOLD as dragging is no longer supported
 // Removed ANIMATION_DURATION: We are moving to an instant card swap to prevent sticking/double-click issues.
 let currentWordData = null; // Stores the current word and its ID/meta-data
 let isVoting = false; // Flag to prevent double votes during animation/fetch
 
 // --- DOM Elements ---
-const wordCard = document.getElementById('wordCard');
+const appContainer = document.getElementById('appContainer'); // Assuming the wordCard's parent exists
+let wordCard = document.getElementById('wordCard'); // Now a 'let' because we may replace it
 const currentWordSpan = document.getElementById('currentWord');
 const goodWordBtn = document.getElementById('goodWordBtn');
 const badWordBtn = document.getElementById('badWordBtn');
@@ -20,6 +21,8 @@ const mostlyBadList = document.getElementById('mostlyBadList');
 const leftArrow = document.querySelector('.left-arrow');
 const rightArrow = document.querySelector('.right-arrow');
 const engagementMessageBox = document.getElementById('engagementMessageBox'); 
+// New DOM element for version display (must exist on the main page)
+const appVersionDisplay = document.getElementById('appVersionDisplay');
 
 // --- Helper Functions ---
 
@@ -100,10 +103,10 @@ async function submitVote(wordId, voteType) { 
 
 /**
  * Updates the card with new word data and initiates an instant update.
+ * Now performs a destructive replacement to eliminate all lingering CSS state.
  * @param {object} wordData - The data for the next word.
  */
 function updateWordCard(wordData) {
-    // Return an immediate resolve since we are no longer waiting for a visual transition
     return new Promise(resolve => {
         if (!wordData || !wordData.word) {
             currentWordSpan.textContent = "NO MORE WORDS!";
@@ -113,29 +116,35 @@ function updateWordCard(wordData) {
             return;
         }
 
+        // --- CRITICAL FIX: Replace the entire word card element ---
+        
+        // 1. Store the parent node before removal
+        const parent = wordCard.parentNode;
+        
+        // 2. Create a brand new, clean card element
+        const newCard = document.createElement('div');
+        newCard.id = 'wordCard';
+        newCard.className = 'word-card';
+        newCard.style.cssText = 'opacity: 1;'; // Start visible and clean
+        
+        // 3. Create the word span element inside the new card
+        const newWordSpan = document.createElement('span');
+        newWordSpan.id = 'currentWord';
+        newCard.appendChild(newWordSpan);
+        
+        // 4. Update global reference to the new element
+        wordCard.remove();
+        wordCard = newCard;
         currentWordData = wordData;
-        currentWordSpan.textContent = wordData.word;
         
-        // 1. Instantly reset ALL styles to ensure the card is centered and visible.
-        // CRITICAL FIX: Added position: relative to ensure version number is anchored correctly.
-        wordCard.style.cssText = 'opacity: 1; position: relative;'; 
-        wordCard.className = 'word-card';
+        // 5. Insert the new card back into the DOM
+        parent.insertBefore(newCard, mostlyGoodList.parentNode); // Insert before the leaderboard section wrapper
         
-        // --- Display Version Number ---
-        // 2. Clean up previous version element if it exists before adding a new one.
-        const oldVersionElement = wordCard.querySelector('.app-version-tag');
-        if (oldVersionElement) {
-            oldVersionElement.remove();
-        }
-
-        const versionElement = document.createElement('span');
-        versionElement.classList.add('app-version-tag'); // Added class for easy lookup
-        versionElement.textContent = `v${APP_VERSION}`;
-        versionElement.style.cssText = 'position: absolute; bottom: 5px; right: 5px; font-size: 0.7em; color: #999;';
-        wordCard.appendChild(versionElement);
-        // ------------------------------
-
-        // 3. Determine border color based on existing votes
+        // 6. Update the content
+        newWordSpan.textContent = wordData.word;
+        // ---------------------------------------------------------
+        
+        // 7. Determine border color based on existing votes
         const totalVotes = wordData.goodVotes + wordData.badVotes;
         if (totalVotes === 0) {
             wordCard.classList.add('neutral-border');
@@ -188,12 +197,16 @@ function renderTopWords(topWords) {
  */
 async function loadCardAndLeaderboard() {
     isVoting = true; // Lock input while fetching the next word
-    currentWordSpan.textContent = 'Loading...';
+    
+    // Check if the current wordCard exists before trying to access its content
+    if (wordCard && wordCard.querySelector('#currentWord')) {
+        wordCard.querySelector('#currentWord').textContent = 'Loading...';
+    }
     
     // 1. Fetch the new word data
     const word = await fetchRandomWord();
     
-    // 2. Update the card instantly
+    // 2. Update the card instantly using the destructive replacement method
     await updateWordCard(word);
     
     // 3. UNLOCK INPUT IMMEDIATELY AFTER CONTENT UPDATE
@@ -221,14 +234,23 @@ async function handleVote(voteType) {
         displayEngagementMessage(responseData.engagementMessage);
     }
 
-    // 2. Clear the card content and reset styles immediately to show 'Loading...' briefly
-    // This provides an immediate visual feedback and clears any stuck CSS state.
-    wordCard.style.cssText = ''; 
-    wordCard.className = 'word-card';
-    currentWordSpan.textContent = ''; 
+    // 2. Clear the card content immediately to show 'Loading...' briefly
+    // The destructive replacement in updateWordCard handles the rest.
+    if (wordCard.querySelector('#currentWord')) {
+        wordCard.querySelector('#currentWord').textContent = ''; 
+    }
 
     // 3. Load the next card immediately (no setTimeout required)
     await loadCardAndLeaderboard(); 
+}
+
+/**
+ * Sets the version number on a dedicated display element.
+ */
+function setAppVersion() {
+    if (appVersionDisplay) {
+        appVersionDisplay.textContent = `v${APP_VERSION}`;
+    }
 }
 
 // --- Event Listeners ---
@@ -257,4 +279,7 @@ document.addEventListener('keydown', (e) => {
 // The logic is now solely focused on click/key input.
 
 // --- Initial Load ---
-document.addEventListener('DOMContentLoaded', loadCardAndLeaderboard);
+document.addEventListener('DOMContentLoaded', () => {
+    setAppVersion();
+    loadCardAndLeaderboard();
+});
