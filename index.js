@@ -8,7 +8,8 @@ const app = express();
 const port = process.env.PORT || 10000;
 
 // Version for tracking
-const BACKEND_VERSION = 'v1.7.6 (CRITICAL FIX: Root Pathing)'; 
+// Increased version to reflect the added explicit index.html serve route
+const BACKEND_VERSION = 'v1.7.7 (FIX: Explicit Root Pathing)'; 
 
 // --- CRITICAL CONFIGURATION: MONGO DB URI ---
 // WARNING: The credentials below are hardcoded for immediate deployment testing,
@@ -26,7 +27,7 @@ const MIN_VOTES_THRESHOLD = 1;
 app.use(express.json()); 
 app.use(cors()); 
 
-// CRITICAL PATH FIX #1: index.js is now in the root, so the public path is directly beside it.
+// CRITICAL PATH: index.js is in the root, so 'public' is directly beside it.
 const publicPath = path.join(__dirname, 'public');
 console.log(`[${BACKEND_VERSION}] Serving static files from path: ${publicPath}`); 
 app.use(express.static(publicPath));
@@ -90,8 +91,7 @@ async function initializeWords() {
         if (count === 0) {
             let wordsToSeed = [];
             
-            // CRITICAL PATH FIX #2: british-words.txt is now in the 'server' folder,
-            // which is next to index.js (in the root).
+            // CRITICAL PATH: british-words.txt is in the 'server' folder, next to index.js.
             const filePath = path.join(__dirname, 'server', 'british-words.txt');
             
             console.log(`Attempting to read word list from: ${filePath}`);
@@ -245,4 +245,20 @@ app.get('/api/top-words', async (req, res) => {
         console.error("Error fetching top words:", error);
         res.status(500).json({ error: "Internal Server Error" });
     }
+});
+
+
+// CRITICAL FIX: Explicitly serve index.html for the root path (/) and any other path
+// that isn't handled by the API. This is important for single-page applications (SPAs)
+// and deployment environments where Express.static might not resolve the index file
+// correctly for the root path.
+app.get('*', (req, res) => {
+    // Check if the request is for an API route
+    if (req.url.startsWith('/api')) {
+        // If it's an API route and we reached here, it means the API route was not found.
+        return res.status(404).send('API endpoint not found.');
+    }
+    
+    // Otherwise, serve the index.html file from the public directory
+    res.sendFile(path.join(publicPath, 'index.html'));
 });
