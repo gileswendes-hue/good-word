@@ -3,11 +3,12 @@ const API_URL_BASE = '/api';
 const WORD_CARD_TRANSITION_DURATION = 400; // ms
 
 // --- DOM Elements ---
+// Ensure the IDs here match your index.html exactly: vote-good, vote-bad
 const currentWordEl = document.getElementById('currentWord');
 const wordIdInput = document.getElementById('word-id');
 const wordCardEl = document.getElementById('wordCard');
-const voteGoodBtn = document.getElementById('vote-good');
-const voteBadBtn = document.getElementById('vote-bad');
+const voteGoodBtn = document.getElementById('vote-good'); // Correct ID mapping
+const voteBadBtn = document.getElementById('vote-bad');   // Correct ID mapping
 const engagementMessageBox = document.getElementById('engagementMessageBox');
 const mostlyGoodListEl = document.getElementById('mostly-good-list');
 const mostlyBadListEl = document.getElementById('mostly-bad-list');
@@ -39,9 +40,7 @@ if (missingElement) {
             <p class="text-base">${errorMsg}</p>
             <p class="mt-4 text-sm text-gray-500">Please verify the IDs in your index.html file.</p>
         </div>`;
-    } else {
-         // If app container is missing, rely on the console error
-    }
+    } 
     // Prevent execution of further logic
     throw new Error("Missing required DOM element(s).");
 }
@@ -137,7 +136,7 @@ async function sendVote(classification) {
     const wordId = wordIdInput.value;
     const word = currentWordEl.textContent;
 
-    if (!wordId) {
+    if (!wordId || word === "LOADING..." || word.startsWith("ERROR:")) {
         displayEngagementMessage("Please wait for the current word to load before voting.", 'neutral');
         return;
     }
@@ -165,18 +164,18 @@ async function sendVote(classification) {
         const result = await response.json();
         
         // 3. Update UI after successful vote
-        if (result.success) {
+        if (response.ok && result.success) { // Check both HTTP status and API response success flag
             displayEngagementMessage(`Voted '${word}' as ${classification.toUpperCase()}!`, classification);
             // After successful vote, load next word and refresh leaderboard
             await loadNewWord(); 
             await loadTopWords(); 
         } else {
-            // If API returns success: false, treat as an error
-            throw new Error(result.message || "Failed to submit vote on the server.");
+            // If API returns success: false, or HTTP status is not OK
+            throw new Error(result.message || `Failed to submit vote. Server responded with status: ${response.status}`);
         }
     } catch (error) {
         console.error("Error submitting vote:", error);
-        displayEngagementMessage("ERROR: Could not submit vote. Check your network.", 'bad');
+        displayEngagementMessage("ERROR: Could not submit vote. Check console for details.", 'bad');
         // If vote failed, re-load the word just in case
         await loadNewWord(); 
     } finally {
@@ -194,8 +193,8 @@ async function loadTopWords() {
     console.debug("[API] Making call to: /api/top-words");
     
     // Set loading state for lists
-    mostlyGoodListEl.innerHTML = '<li class="text-center italic text-sm">Loading...</li>';
-    mostlyBadListEl.innerHTML = '<li class="text-center italic text-sm">Loading...</li>';
+    mostlyGoodListEl.innerHTML = '<li class="text-center italic text-sm text-gray-400 p-2">Loading...</li>';
+    mostlyBadListEl.innerHTML = '<li class="text-center italic text-sm text-gray-400 p-2">Loading...</li>';
 
     try {
         const response = await fetchWithRetry(`${API_URL_BASE}/top-words`);
@@ -208,8 +207,8 @@ async function loadTopWords() {
 
     } catch (error) {
         console.error("Error fetching top words:", error);
-        mostlyGoodListEl.innerHTML = '<li class="text-center text-red-500 text-sm">Error loading.</li>';
-        mostlyBadListEl.innerHTML = '<li class="text-center text-red-500 text-sm">Error loading.</li>';
+        mostlyGoodListEl.innerHTML = '<li class="text-center text-red-500 text-sm p-2">Error loading.</li>';
+        mostlyBadListEl.innerHTML = '<li class="text-center text-red-500 text-sm p-2">Error loading.</li>';
     }
 }
 
@@ -219,12 +218,6 @@ async function loadTopWords() {
  */
 function renderTopWords(data) {
     console.debug("Starting renderTopWords with data:", data);
-    
-    // Check if the lists exist (already checked at init, but safe to check again)
-    if (!mostlyGoodListEl || !mostlyBadListEl) {
-        console.error("RENDER ERROR: Top word list containers are missing. Cannot update UI.");
-        return; 
-    }
     
     // Helper function to render a list
     const renderList = (listElement, words) => {
@@ -246,10 +239,14 @@ function renderTopWords(data) {
             
             const listItem = document.createElement('li');
             // Using classes defined in style.css for list items
-            listItem.className = 'py-2 border-b last:border-b-0 border-gray-200 flex justify-between items-center';
+            listItem.className = 'py-2 border-b last:border-b-0 border-gray-200 flex justify-between items-center px-4';
+            
+            // Apply color based on list type (Good list = green, Bad list = red)
+            const colorClass = listElement === mostlyGoodListEl ? 'text-green-600' : 'text-red-600';
+            
             listItem.innerHTML = `
                 <span class="font-medium text-gray-800">${item.word}</span>
-                <span class="percentage font-semibold">${percentage}%</span>
+                <span class="percentage font-bold ${colorClass}">${percentage}%</span>
             `;
             listElement.appendChild(listItem);
         });
@@ -262,6 +259,7 @@ function renderTopWords(data) {
 
 
 // --- Event Listeners ---
+// Use the correctly retrieved variables: voteGoodBtn and voteBadBtn
 voteGoodBtn.addEventListener('click', () => sendVote('good'));
 voteBadBtn.addEventListener('click', () => sendVote('bad'));
 
@@ -276,8 +274,7 @@ function init() {
     // 2. Load the leaderboard (top words)
     loadTopWords();
 
-    // 3. Display version information (already handled in HTML, but can be updated dynamically if needed)
-    // document.getElementById('version-display').textContent = "v1.0.0";
+    // The engagementMessageBox is only styled via JavaScript now. We don't need a separate display logic here.
 }
 
 // Start the application after the DOM is fully loaded
