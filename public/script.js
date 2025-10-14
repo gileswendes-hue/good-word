@@ -1,292 +1,216 @@
-// =======================================================
-// script.js (Located in the public directory)
-// =======================================================
-
-// --- Configuration ---
-const API_BASE_URL = '/api'; 
-const APP_VERSION = '1.5.2'; // Bumping version for this fix
-// Removed DRAG_THRESHOLD as dragging is no longer supported
-// Removed ANIMATION_DURATION: We are moving to an instant card swap to prevent sticking/double-click issues.
-let currentWordData = null; // Stores the current word and its ID/meta-data
-let isVoting = false; // Flag to prevent double votes during animation/fetch
-
-// --- DOM Elements ---
-const appContainer = document.getElementById('appContainer'); // Assuming the wordCard's parent exists
-let wordCard = document.getElementById('wordCard'); // Now a 'let' because we may replace it
-const currentWordSpan = document.getElementById('currentWord');
-const goodWordBtn = document.getElementById('goodWordBtn');
-const badWordBtn = document.getElementById('badWordBtn');
-const mostlyGoodList = document.getElementById('mostlyGoodList');
-const mostlyBadList = document.getElementById('mostlyBadList');
-const leftArrow = document.querySelector('.left-arrow');
-const rightArrow = document.querySelector('.right-arrow');
-const engagementMessageBox = document.getElementById('engagementMessageBox'); 
-// New DOM element for version display (must exist on the main page)
-const appVersionDisplay = document.getElementById('appVersionDisplay');
-
-// --- Helper Functions ---
-
 /**
- * Displays an engagement message briefly.
- * @param {string} message The message text to display.
- */
-function displayEngagementMessage(message) {
-    if (message) {
-        engagementMessageBox.textContent = message;
-        engagementMessageBox.classList.add('visible');
-
-        // Hide the message after 4 seconds
-        setTimeout(() => {
-            engagementMessageBox.classList.remove('visible');
-            // Clear text after transition to prevent flicker
-            setTimeout(() => {
-                engagementMessageBox.textContent = '';
-            }, 500); // Matches CSS transition time
-        }, 4000);
-    }
-}
-
-async function fetchRandomWord() {
-    try {
-        const response = await fetch(`${API_BASE_URL}/get-word`); 
-        
-        if (response.status === 404) {
-            currentWordSpan.textContent = "NO MORE WORDS!";
-            wordCard.style.opacity = 0;
-            return null;
-        }
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        return data; 
-    } catch (error) {
-        console.error("Error fetching random word:", error);
-        currentWordSpan.textContent = "Error loading word :(";
-        wordCard.style.opacity = 1; 
-        return null;
-    }
-}
-
-async function fetchTopWords() {
-    try {
-        const response = await fetch(`${API_BASE_URL}/top-words`);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        return data; 
-    } catch (error) {
-        console.error("Error fetching top words:", error);
-        return { mostlyGood: [], mostlyBad: [] };
-    }
-}
-
-async function submitVote(wordId, voteType) { 
-    try {
-        const response = await fetch(`${API_BASE_URL}/vote`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ wordId, voteType }),
-        });
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return await response.json();
-    } catch (error) {
-        console.error("Error submitting vote:", error);
-        return null;
-    }
-}
-
-/**
- * Updates the card with new word data and initiates an instant update.
- * Now performs a destructive replacement to eliminate all lingering CSS state.
- * @param {object} wordData - The data for the next word.
+ * Word Classifier Game Frontend Logic
+ * Manages UI interaction, API communication, and state.
  */
-function updateWordCard(wordData) {
-    return new Promise(resolve => {
-        if (!wordData || !wordData.word) {
-            currentWordSpan.textContent = "NO MORE WORDS!";
-            wordCard.className = 'word-card';
-            wordCard.style.opacity = 0;
-            resolve();
-            return;
-        }
 
-        // --- CRITICAL FIX: Replace the entire word card element ---
-        
-        // 1. Store the parent node before removal
-        const parent = wordCard.parentNode;
-        
-        // 2. Create a brand new, clean card element
-        const newCard = document.createElement('div');
-        newCard.id = 'wordCard';
-        newCard.className = 'word-card';
-        newCard.style.cssText = 'opacity: 1;'; // Start visible and clean
-        
-        // 3. Create the word span element inside the new card
-        const newWordSpan = document.createElement('span');
-        newWordSpan.id = 'currentWord';
-        newCard.appendChild(newWordSpan);
-        
-        // 4. Update global reference to the new element
-        wordCard.remove();
-        wordCard = newCard;
-        currentWordData = wordData;
-        
-        // 5. Insert the new card back into the DOM
-        // The HTML structure puts the wrapper first, so we use parent.appendChild(newCard)
-        // to insert it back into the word-card-wrapper where it belongs.
-        const wrapper = document.querySelector('.word-card-wrapper');
-        if (wrapper) {
-            wrapper.insertBefore(newCard, rightArrow); // Insert before the right arrow
-        }
-        
-        // 6. Update the content
-        newWordSpan.textContent = wordData.word;
-        // ---------------------------------------------------------
-        
-        // 7. Determine border color based on existing votes
-        const totalVotes = wordData.goodVotes + wordData.badVotes;
-        if (totalVotes === 0) {
-            wordCard.classList.add('neutral-border');
-        } else {
-            const goodPercentage = (wordData.goodVotes + wordData.badVotes) * 100; // Original logic bug, fixed below
+// Define the base URL for API calls.
+// In a deployment environment, this usually needs to be the domain of the running server.
+// Since the frontend and backend are served from the same Express server in this setup, 
+// using the root path ('/') should usually work, but using the full domain is safer.
+// For robust, single-server deployments, we will explicitly use the current domain.
+const BASE_URL = window.location.origin;
+
+// DOM Elements
+const wordDisplay = document.getElementById('wordDisplay');
+const wordIdInput = document.getElementById('wordIdInput');
+const loadingIndicator = document.getElementById('loadingIndicator');
+const gameContainer = document.getElementById('gameContainer');
+const goodWordsList = document.getElementById('goodWordsList');
+const badWordsList = document.getElementById('badWordsList');
+const goodButton = document.getElementById('goodButton');
+const badButton = document.getElementById('badButton');
+
+// Global state
+let currentWordId = null; 
+let isVoting = false; // Prevents double voting
+
+/**
+ * Utility function to make API requests.
+ * @param {string} endpoint - The API endpoint (e.g., '/api/get-word').
+ * @param {object} options - Fetch options (method, headers, body, etc.).
+ * @returns {Promise<object>} The JSON response body.
+ */
+async function apiCall(endpoint, options = {}) {
+    const url = `${BASE_URL}${endpoint}`;
+    console.log(`[API] Making call to: ${url}`);
+    
+    // Simple retry mechanism for intermittent network failures
+    const MAX_RETRIES = 3;
+    for (let i = 0; i < MAX_RETRIES; i++) {
+        try {
+            const response = await fetch(url, options);
             
-            // Fix: Calculate percentage based on goodVotes / totalVotes
-            const actualGoodPercentage = (wordData.goodVotes / totalVotes) * 100; 
-
-            if (actualGoodPercentage > 60) {
-                wordCard.classList.add('good-border');
-            } else if (actualGoodPercentage < 40) {
-                wordCard.classList.add('bad-border');
-            } else {
-                wordCard.classList.add('neutral-border');
+            // Check for non-2xx response (HTTP error)
+            if (!response.ok) {
+                // Read the error message from the server if available
+                const errorBody = await response.json().catch(() => ({ message: 'No detailed error message from server.' }));
+                throw new Error(`HTTP Error ${response.status}: ${errorBody.error || errorBody.message || 'Unknown server error'}`);
             }
+            
+            return await response.json();
+        } catch (error) {
+            console.error(`[API] Attempt ${i + 1} failed for ${endpoint}:`, error.message);
+            if (i === MAX_RETRIES - 1) {
+                // Throw the error after the final attempt
+                throw new Error(`Failed to fetch data after ${MAX_RETRIES} attempts. Check server status and console for details. Error: ${error.message}`);
+            }
+            // Wait before retrying (exponential backoff)
+            await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1))); 
         }
-        
-        // Resolve immediately as the content is now visible
-        resolve(); 
-    });
-}
-
-function renderTopWords(topWords) {
-    mostlyGoodList.innerHTML = '';
-    mostlyBadList.innerHTML = '';
-
-    topWords.mostlyGood.forEach(word => {
-        const total = word.totalVotes; // Total votes is already calculated in the backend and included here
-        const percentage = total > 0 
-            ? Math.round((word.goodRatio) * 100) 
-            : 0; 
-
-        const li = document.createElement('li');
-        li.innerHTML = `${word.word} <span class="percentage">(${percentage}% GOOD)</span>`;
-        mostlyGoodList.appendChild(li);
-    });
-
-    topWords.mostlyBad.forEach(word => {
-        const total = word.totalVotes;
-        const percentage = total > 0 
-            ? Math.round((word.badRatio) * 100) 
-            : 0; 
-
-        const li = document.createElement('li');
-        li.innerHTML = `${word.word} <span class="percentage">(${percentage}% BAD)</span>`;
-        mostlyBadList.appendChild(li);
-    });
-}
-
-/**
- * Fetches the next word, updates the card, and updates the leaderboards.
- * Uses instant card swapping.
- */
-async function loadCardAndLeaderboard() {
-    isVoting = true; // Lock input while fetching the next word
-    
-    // Check if the current wordCard exists before trying to access its content
-    const currentWordSpanElement = wordCard ? wordCard.querySelector('#currentWord') : null;
-    if (currentWordSpanElement) {
-        currentWordSpanElement.textContent = 'Loading...';
     }
-    
-    // 1. Fetch the new word data
-    const word = await fetchRandomWord();
-    
-    // 2. Update the card instantly using the destructive replacement method
-    await updateWordCard(word);
-    
-    // 3. UNLOCK INPUT IMMEDIATELY AFTER CONTENT UPDATE
-    isVoting = false; 
-    
-    // 4. Fetch and render top words in the background
-    const topWords = await fetchTopWords();
-    renderTopWords(topWords);
+}
+
+
+/**
+ * Fetches a new word from the backend and updates the UI.
+ */
+async function fetchNewWord() {
+    isVoting = false;
+    loadingIndicator.style.display = 'block';
+    wordDisplay.textContent = 'LOADING...';
+    goodButton.disabled = true;
+    badButton.disabled = true;
+
+    try {
+        const data = await apiCall('/api/get-word');
+        
+        if (data.word === "DB EMPTY") {
+            wordDisplay.textContent = "DATABASE EMPTY";
+            console.warn("Server reported the word database is empty.");
+        } else {
+            currentWordId = data.wordId;
+            wordDisplay.textContent = data.word;
+        }
+
+    } catch (error) {
+        // Display generic error message on screen
+        wordDisplay.textContent = 'API ERROR';
+        console.error("Critical error during word fetch:", error);
+
+        // Optionally, display more details in a message box instead of alert()
+        showMessageBox(
+            'Connection Failed', 
+            `Could not load the next word. Please check the server status in the deployment logs. Error: ${error.message}`,
+            'error'
+        );
+        
+    } finally {
+        loadingIndicator.style.display = 'none';
+        goodButton.disabled = false;
+        badButton.disabled = false;
+        isVoting = false;
+    }
 }
 
 /**
- * Primary function to handle voting via button or arrow.
- * @param {string} voteType 'good' or 'bad'
+ * Handles the voting process.
+ * @param {string} voteType - 'good' or 'bad'.
  */
 async function handleVote(voteType) {
-    if (!currentWordData || !currentWordData.wordId || isVoting) return; // Prevent double vote
-    isVoting = true; // Lock input immediately upon vote
+    if (isVoting || !currentWordId) return;
+    isVoting = true;
 
-    const wordId = currentWordData.wordId; // Use the wordId, not the word text
-    
-    // 1. Submit the vote (runs concurrently with the loading state)
-    const responseData = await submitVote(wordId, voteType); 
+    goodButton.disabled = true;
+    badButton.disabled = true;
 
-    if (responseData && responseData.engagementMessage) {
-        displayEngagementMessage(responseData.engagementMessage);
-    }
+    try {
+        await apiCall('/api/vote', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ wordId: currentWordId, voteType: voteType })
+        });
 
-    // 2. Clear the card content immediately to show 'Loading...' briefly
-    // The destructive replacement in updateWordCard handles the rest.
-    if (wordCard.querySelector('#currentWord')) {
-        wordCard.querySelector('#currentWord').textContent = ''; 
+        // Optional: Show a quick feedback message
+        console.log(`Successfully voted '${voteType}' for word ID: ${currentWordId}`);
+
+        // After voting, update the community ratings and fetch the next word
+        await Promise.all([updateCommunityRatings(), fetchNewWord()]);
+
+    } catch (error) {
+        console.error("Error submitting vote:", error);
+        showMessageBox(
+            'Vote Failed', 
+            `Could not submit your vote. Please try again. Error: ${error.message}`,
+            'warning'
+        );
+        isVoting = false;
+        goodButton.disabled = false;
+        badButton.disabled = false;
     }
-
-    // 3. Load the next card immediately (no setTimeout required)
-    await loadCardAndLeaderboard(); 
 }
 
 /**
- * Sets the version number on a dedicated display element.
+ * Fetches and updates the community ratings display.
  */
-function setAppVersion() {
-    if (appVersionDisplay) {
-        appVersionDisplay.textContent = `v${APP_VERSION}`;
+async function updateCommunityRatings() {
+    goodWordsList.innerHTML = '<li>Loading...</li>';
+    badWordsList.innerHTML = '<li>Loading...</li>';
+    
+    try {
+        const data = await apiCall('/api/top-words');
+
+        // Render Mostly Good words
+        if (data.mostlyGood && data.mostlyGood.length > 0) {
+            goodWordsList.innerHTML = data.mostlyGood
+                .map(word => `<li><span class="font-semibold">${word.word}</span> (${(word.goodRatio * 100).toFixed(0)}% Good)</li>`)
+                .join('');
+        } else {
+            goodWordsList.innerHTML = '<li>No words rated enough yet.</li>';
+        }
+
+        // Render Mostly Bad words
+        if (data.mostlyBad && data.mostlyBad.length > 0) {
+            badWordsList.innerHTML = data.mostlyBad
+                .map(word => `<li><span class="font-semibold">${word.word}</span> (${(word.badRatio * 100).toFixed(0)}% Bad)</li>`)
+                .join('');
+        } else {
+            badWordsList.innerHTML = '<li>No words rated enough yet.</li>';
+        }
+
+    } catch (error) {
+        console.error("Error fetching community ratings:", error);
+        goodWordsList.innerHTML = '<li>Failed to load rankings.</li>';
+        badWordsList.innerHTML = '<li>Failed to load rankings.</li>';
     }
 }
 
-// --- Event Listeners ---
+/**
+ * Custom function to display messages to the user without using alert()
+ * A simple implementation is used here, but in a full app, this would be a UI modal.
+ * @param {string} title 
+ * @param {string} message 
+ * @param {string} type 
+ */
+function showMessageBox(title, message, type = 'info') {
+    // In a production app, you would create a modal div here.
+    // For this environment, we rely on console logging and a temporary on-screen message.
+    console.error(`[MESSAGE BOX - ${type.toUpperCase()}] ${title}: ${message}`);
+    
+    // Temporarily display on the word display area
+    wordDisplay.textContent = `${title}: ${message.substring(0, 50)}...`;
+    
+    // Restore display after a delay (or wait for the next word fetch)
+    setTimeout(() => {
+        if (!isVoting) {
+             wordDisplay.textContent = 'API ERROR'; // Keep error status until next fetch
+        }
+    }, 5000); 
+}
 
-// Button Clicks (Handles goodWordBtn, badWordBtn)
-goodWordBtn.addEventListener('click', () => handleVote('good'));
-badWordBtn.addEventListener('click', () => handleVote('bad'));
 
-// Arrow Clicks (Handles leftArrow, rightArrow)
-leftArrow.addEventListener('click', () => handleVote('good'));
-rightArrow.addEventListener('click', () => handleVote('bad'));
+// --- Event Listeners and Initialization ---
 
+// Attach event listeners to buttons
+goodButton.addEventListener('click', () => handleVote('good'));
+badButton.addEventListener('click', () => handleVote('bad'));
 
-// Keyboard Input
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowLeft' && !isVoting) {
-        e.preventDefault();
-        handleVote('good');
-    } else if (e.key === 'ArrowRight' && !isVoting) {
-        e.preventDefault();
-        handleVote('bad');
-    }
-});
-
-// --- Initial Load ---
-document.addEventListener('DOMContentLoaded', () => {
-    setAppVersion();
-    loadCardAndLeaderboard();
-});
+// Run on page load
+window.onload = () => {
+    // Start the process: load the first word and the initial ratings
+    Promise.all([fetchNewWord(), updateCommunityRatings()]);
+    
+    // Optional: Log version info
+    apiCall('/api/version')
+        .then(data => console.log(`Backend Version: ${data.version}`))
+        .catch(() => console.log('Could not fetch backend version.'));
+};
