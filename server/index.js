@@ -28,23 +28,46 @@ app.use(bodyParser.json());
 const staticPath = path.join(__dirname);
 app.use(express.static(staticPath));
 
-// --- Database Connection ---
-mongoose.connect(uri)
-    .then(() => {
+// --- Database Connection & Server Startup ---
+const MAX_RETRIES = 5;
+const RETRY_DELAY = 3000; // 3 seconds
+
+/**
+ * Attempts to connect to MongoDB with retries and starts the server.
+ */
+async function connectToMongoAndStartServer(attempt = 1) {
+    if (attempt > 1) {
+        console.log(`Attempting reconnection to MongoDB... (Attempt ${attempt}/${MAX_RETRIES})`);
+    } else {
+        console.log(`Using MongoDB URI: ${uri.substring(0, 40)}... (Note: Only first 40 chars logged)`);
+    }
+
+    try {
+        await mongoose.connect(uri);
         console.log("MongoDB connection successful.");
-        // Initialize words after successful connection
-        initializeWords(); 
+        
+        await initializeWords(); 
         
         // Start server only after DB is connected
         app.listen(port, () => {
             console.log(`Server is listening on port ${port}`);
         });
-    })
-    .catch((err) => {
-        console.error("Failed to connect to MongoDB or start server:", err);
-        // Exiting the application on critical failure
-        process.exit(1); 
-    });
+
+    } catch (err) {
+        console.error(`Attempt ${attempt} failed:`, err.message);
+        
+        if (attempt < MAX_RETRIES) {
+            console.log(`Retrying connection in ${RETRY_DELAY / 1000} seconds...`);
+            setTimeout(() => connectToMongoAndStartServer(attempt + 1), RETRY_DELAY);
+        } else {
+            console.error("Failed to connect to MongoDB after multiple retries. Exiting application.");
+            // Exiting the application on critical failure
+            process.exit(1);
+        }
+    }
+}
+
+connectToMongoAndStartServer();
 
 
 // --- Mongoose Schema and Model ---
@@ -195,4 +218,4 @@ app.get('/api/top-words', async (req, res) => {
 });
 
 // Version for tracking
-// v1.5.7
+// v1.5.8
