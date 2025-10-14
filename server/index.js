@@ -17,7 +17,7 @@ const port = process.env.PORT || 10000;
 // or ensure your Atlas Network Access settings allow connections from your deployment IP.
 // 
 // Cluster name reverted to 'good-word-game.jsepbhh.mongodb.net'
-const uri = process.env.MONGODB_URI || "mongodb+srv://database_user_4:justatestpassword@good-word-game.jsepbhh.mongodb.net/?retryWrites=true&w=majority";
+const uri = process.env.MONGODB_URI || "mongodb+srv://database_user_4:justatestpassword@good-word-game.jsepbhh.mongodb.net/?retryWrites=true&w=majority&appName=good-word-game";
 
 // Minimum number of total votes required for a word to appear in the "Community Ratings" list.
 const MIN_VOTES_THRESHOLD = 1; // Set to 1, matching the frontend expectation.
