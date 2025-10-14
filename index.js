@@ -110,6 +110,7 @@ app.get('/api/get-word', async (req, res) => {
             const wordData = randomWords[0];
 
             // CRITICAL FIX: Ensure the response structure is always consistent and uses 'id'
+            // The result of aggregate $sample returns the _id, which needs to be converted.
             const responseWord = {
                 id: wordData._id.toString(), // Convert ObjectId to string for 'id' field
                 word: wordData.word
@@ -194,7 +195,7 @@ app.get('/api/top-words', async (req, res) => {
 connectDB().then(() => {
     // 2. Start the Express server only after DB connection is successful
     app.listen(PORT, () => {
-        console.log(`Server is listening on port ${PORT} (Backend Version: v1.7.4 FINAL FIX: Standardized /get-word response)`);
+        console.log(`Server is listening on port ${PORT} (Backend Version: v1.7.5 FINAL FIX: Guaranteed 'id' field)`);
     });
 }).catch(() => {
     console.error("Server startup failed due to critical database error. Process stopped.");
