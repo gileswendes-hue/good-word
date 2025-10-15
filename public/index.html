@@ -30,7 +30,8 @@
         /* Card Styles */
         .word-card {
             background-color: var(--card-bg);
-            border: 5px solid var(--neutral-color);
+            /* Default border is neutral, will be overwritten by .good or .bad class */
+            border: 5px solid var(--neutral-color); 
             border-radius: var(--border-radius);
             box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
             transition: all 0.3s ease-in-out;
@@ -45,10 +46,13 @@
         }
 
         .word-card.good {
-            border-color: var(--good-color);
+            border-color: var(--good-color) !important; /* Override neutral default */
         }
         .word-card.bad {
-            border-color: var(--bad-color);
+            border-color: var(--bad-color) !important; /* Override neutral default */
+        }
+        .word-card.neutral {
+             border-color: var(--neutral-color) !important; /* Override neutral default */
         }
 
         /* Button Styles */
@@ -160,7 +164,8 @@
             <h3 class="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">Submit New Word</h3>
 
             <div class="mb-4 flex space-x-2">
-                <input type="text" id="new-word-input" placeholder="Enter a word (e.g., 'Awesome')" class="p-2 border rounded-lg flex-grow focus:ring-green-500 focus:border-green-500">
+                <!-- Added focus:ring and focus:border for visual cue on error or focus -->
+                <input type="text" id="new-word-input" placeholder="Enter a word (e.g., 'Awesome')" class="p-2 border rounded-lg flex-grow focus:ring-green-500 focus:border-green-500 transition duration-150">
                 <button id="submit-new-word-btn" class="px-4 py-2 bg-yellow-500 text-white font-bold rounded-lg hover:bg-yellow-600 transition duration-150">Submit</button>
             </div>
             <p id="submission-message" class="text-sm mt-1"></p>
@@ -205,18 +210,63 @@
         const modalBodyEl = document.getElementById('modal-body');
         const modalCloseBtn = document.getElementById('modal-close-btn');
 
-        // --- State Variables ---
+        // --- State Variables and Configuration ---
         let currentWord = null;
         let isProcessing = false;
+        const POLLING_INTERVAL_MS = 15000; // Poll global rankings every 15 seconds
 
         // --- API Endpoints ---
         const API_BASE = 'https://good-word.onrender.com/api';
         const API_GET_RANDOM_WORD = `${API_BASE}/word/random`;
-        const API_GET_ALL_WORDS = `${API_BASE}/words`; // Fixed in last step
+        const API_GET_ALL_WORDS = `${API_BASE}/words`; 
         const API_VOTE = `${API_BASE}/vote`;
         const API_SUBMIT_WORD = `${API_BASE}/word/add`;
 
-        // --- Utility Functions ---
+        // --- Utility Functions for Resilience ---
+
+        const delay = ms => new Promise(res => setTimeout(res, ms));
+
+        /**
+         * Fetches an API endpoint with exponential backoff for transient server errors (5xx).
+         * @param {string} url - The URL to fetch.
+         * @param {object} options - Fetch options.
+         * @param {number} retries - Maximum number of retries.
+         * @returns {Promise<Response>} The successful response object.
+         */
+        async function fetchWithRetry(url, options = {}, retries = 3) {
+            const MAX_RETRIES = retries;
+            for (let i = 0; i < MAX_RETRIES; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    
+                    // If the response is OK (2xx) or a client error (4xx), return immediately.
+                    if (response.ok || response.status < 500) {
+                        return response;
+                    } 
+                    
+                    // Transient server error (500, 503, etc.) - retry if not the last attempt
+                    if (i < MAX_RETRIES - 1) {
+                        const delayTime = Math.pow(2, i) * 1000; // 1s, 2s, 4s
+                        console.warn(`Server Error (${response.status}) at ${url}. Retrying in ${delayTime / 1000}s...`);
+                        await delay(delayTime);
+                        continue; 
+                    }
+                    
+                    // Last retry attempt failed, throw error
+                    throw new Error(`Failed after ${MAX_RETRIES} attempts. Last status: ${response.status}.`);
+
+                } catch (error) {
+                    // Network error (CORS, DNS, etc.) - retry if not the last attempt
+                    if (i < MAX_RETRIES - 1) {
+                        const delayTime = Math.pow(2, i) * 1000;
+                        console.warn(`Network Error at ${url}. Retrying in ${delayTime / 1000}s...`);
+                        await delay(delayTime);
+                        continue;
+                    }
+                    throw error; 
+                }
+            }
+        }
 
         /**
          * Shows a custom modal message.
@@ -236,8 +286,9 @@
          */
         function setLoadingState(loading) {
             isProcessing = loading;
+            // Disable voting buttons unless a word is loaded and not loading
             goodVoteBtn.disabled = loading || !currentWord;
-            badVoteBtn.disabled = loading || !currentWord;
+            badVoteBtn.disabled = loading || !currentWord; 
             submitNewWordBtn.disabled = loading;
             newWordInput.disabled = loading;
 
@@ -251,21 +302,36 @@
         }
         
         /**
-         * Renders the current word and scores on the card.
+         * Renders the current word and scores on the card and updates the card's visual state.
          */
         function renderCurrentWord() {
+            // Remove previous state classes
+            wordCard.classList.remove('good', 'bad', 'neutral');
+
             if (!currentWord) {
-                currentWordEl.textContent = "Server returned no words.";
+                currentWordEl.textContent = "Could not load a word.";
                 goodScoreEl.textContent = '0';
                 badScoreEl.textContent = '0';
                 setLoadingState(false);
+                wordCard.classList.add('neutral');
                 return;
             }
             
+            // Calculate and apply visual status (new UX improvement)
+            const scoreDifference = (currentWord.goodVotes || 0) - (currentWord.badVotes || 0);
+            if (scoreDifference > 0) {
+                wordCard.classList.add('good');
+            } else if (scoreDifference < 0) {
+                wordCard.classList.add('bad');
+            } else {
+                wordCard.classList.add('neutral');
+            }
+
             currentWordEl.textContent = currentWord.word;
             goodScoreEl.textContent = (currentWord.goodVotes || 0).toLocaleString();
             badScoreEl.textContent = (currentWord.badVotes || 0).toLocaleString();
             
+            // Note: setLoadingState(false) is handled in fetchNextWord's finally block
             setLoadingState(false);
         }
 
@@ -275,41 +341,45 @@
         async function fetchNextWord() {
             setLoadingState(true);
             currentWord = null;
-            let responseText = '';
+            let response;
+            let data = null;
+            let diagnosticText = '';
 
             try {
-                const response = await fetch(API_GET_RANDOM_WORD, { method: 'GET' });
-                let data = null;
+                response = await fetchWithRetry(API_GET_RANDOM_WORD, { method: 'GET' });
+                
+                // CRITICAL FIX: Clone the response before attempting to read the body
+                const responseClone = response.clone(); 
 
                 try {
-                    // Attempt to parse response as JSON
                     data = await response.json();
                 } catch (e) {
-                    // If parsing fails, read as plain text for a better error message
-                    responseText = await response.text();
+                    // Fallback to reading text from the clone for detailed error diagnosis
+                    diagnosticText = await responseClone.text();
                 }
 
                 if (!response.ok) {
-                    const errorMsg = data?.message || responseText || 'Failed to fetch word. Server returned an error status.';
+                    const errorMsg = data?.message || diagnosticText || 'Failed to fetch word. Server returned an error status.';
                     throw new Error(`Server error (${response.status}): ${errorMsg}`);
+                }
+
+                // Handle valid response with bad JSON or non-JSON content
+                if (!data && response.ok) {
+                    const preview = diagnosticText.substring(0, 50).replace(/(\r\n|\n|\r)/gm, " ");
+                    throw new Error(`Invalid response format (JSON Error). Server returned: "${preview}..."`);
                 }
 
                 if (data && data.success && data.word) {
                     currentWord = data.word;
-                } else if (responseText) {
-                    // Successful status (200), but non-JSON or missing 'success' key
-                    const preview = responseText.substring(0, 100).replace(/(\r\n|\n|\r)/gm, " ");
-                    throw new Error(`Invalid response format. Server returned: "${preview}..."`);
                 } else {
-                    throw new Error(data?.message || 'No new word was returned from the server.');
+                    throw new Error(data?.message || 'No new word object was found in the server response.');
                 }
             } catch (error) {
                 console.error("Error fetching word:", error.message);
-                showMessage("Connection Error", `Could not load a new word. Please check the network connection. Error: ${error.message}`);
+                showMessage("Connection Error", `Could not load a new word. Error: ${error.message}`);
             } finally {
                 renderCurrentWord();
-                // Ensure the global list is updated after a new word is loaded
-                fetchGlobalWords();
+                // We let the polling interval handle global word updates, no need to call here
             }
         }
 
@@ -319,7 +389,6 @@
          * @param {string} classification - 'good' or 'bad'.
          */
         async function handleVote(classification) {
-            // CRITICAL GUARD: Prevent execution if state is busy or word is not loaded
             if (isProcessing) return;
             if (!currentWord || !currentWord._id || !classification) {
                 console.error("handleVote aborted: Invalid call or missing data.");
@@ -328,6 +397,7 @@
             }
             
             setLoadingState(true);
+            // Apply a temporary class for visual feedback on the vote click
             wordCard.classList.add(classification);
 
             const votePayload = {
@@ -335,29 +405,41 @@
                 classification: classification
             };
             
-            let responseText = '';
+            let response;
+            let data = null;
+            let diagnosticText = '';
 
             try {
-                const response = await fetch(API_VOTE, {
+                response = await fetchWithRetry(API_VOTE, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(votePayload),
                 });
                 
+                // Clear the temporary vote feedback class immediately
                 wordCard.classList.remove('good');
                 wordCard.classList.remove('bad');
-                
-                let data = null;
+
+                // CRITICAL FIX: Clone the response before attempting to read the body
+                const responseClone = response.clone();
+
                 try {
                     data = await response.json();
                 } catch (e) {
-                    responseText = await response.text();
+                    diagnosticText = await responseClone.text();
                 }
 
                 if (!response.ok) {
-                    const errorMsg = data?.message || responseText || 'Unknown Error';
+                    const errorMsg = data?.message || diagnosticText || 'Unknown Error';
                     throw new Error(`Vote failed (${response.status}). Server message: ${errorMsg}`);
                 }
+                
+                // Handle valid response with bad JSON or non-JSON content
+                if (!data && response.ok) {
+                    const preview = diagnosticText.substring(0, 50).replace(/(\r\n|\n|\r)/gm, " ");
+                    throw new Error(`Invalid response format (JSON Error). Server returned: "${preview}..."`);
+                }
+
 
                 if (data && data.success) {
                     // Update current word's score based on successful response
@@ -370,6 +452,7 @@
                     throw new Error(data?.message || 'Vote failed on the server.');
                 }
                 
+                // Wait a moment then fetch the next word
                 setTimeout(() => fetchNextWord(), 150); 
 
             } catch (error) {
@@ -385,34 +468,50 @@
          */
         async function handleSubmitNewWord() {
             const wordText = newWordInput.value.trim();
+            // Clear previous error states
+            newWordInput.classList.remove('border-red-500', 'ring-red-500');
+
             if (wordText.length < 2) {
                 submissionMessageEl.textContent = "Word must be at least 2 characters long.";
                 submissionMessageEl.className = 'text-sm mt-1 text-red-500';
+                // Added visual cue for invalid input (UX improvement)
+                newWordInput.classList.add('border-red-500', 'ring-red-500'); 
                 return;
             }
             
             submitNewWordBtn.disabled = true;
             const submitPayload = { word: wordText };
-            let responseText = '';
+            let response;
+            let data = null;
+            let diagnosticText = '';
 
             try {
-                 const response = await fetch(API_SUBMIT_WORD, {
+                response = await fetchWithRetry(API_SUBMIT_WORD, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(submitPayload),
                 });
 
-                let data = null;
+                // CRITICAL FIX: Clone the response before attempting to read the body
+                const responseClone = response.clone();
+
                 try {
                     data = await response.json();
                 } catch (e) {
-                    responseText = await response.text();
+                    diagnosticText = await responseClone.text();
                 }
 
                 if (!response.ok) {
-                    const errorMsg = data?.message || responseText || 'Failed to submit word.';
+                    const errorMsg = data?.message || diagnosticText || 'Failed to submit word.';
                     throw new Error(errorMsg);
                 }
+                
+                // Handle valid response with bad JSON or non-JSON content
+                if (!data && response.ok) {
+                    const preview = diagnosticText.substring(0, 50).replace(/(\r\n|\n|\r)/gm, " ");
+                    throw new Error(`Invalid response format (JSON Error). Server returned: "${preview}..."`);
+                }
+
 
                 if (data && data.success) {
                     submissionMessageEl.textContent = `'${wordText}' submitted successfully! It is now available for voting.`;
@@ -438,35 +537,51 @@
          * Fetches all words for the global ranking list.
          */
         async function fetchGlobalWords() {
-            globalWordListEl.innerHTML = '<p class="text-gray-500 italic" id="loading-list-msg">Loading global rankings...</p>';
-            let responseText = '';
+            // Only show 'Loading' message if the list is completely empty
+            if (globalWordListEl.childElementCount === 0 || globalWordListEl.querySelector('#loading-list-msg')) {
+                globalWordListEl.innerHTML = '<p class="text-gray-500 italic" id="loading-list-msg">Loading global rankings...</p>';
+            }
+
+            let response;
+            let data = null;
+            let diagnosticText = '';
 
             try {
-                const response = await fetch(API_GET_ALL_WORDS, { method: 'GET' });
-                let data = null;
+                response = await fetchWithRetry(API_GET_ALL_WORDS, { method: 'GET' });
+
+                // CRITICAL FIX: Clone the response before attempting to read the body
+                const responseClone = response.clone();
 
                 try {
                     data = await response.json();
                 } catch (e) {
-                    responseText = await response.text();
+                    diagnosticText = await responseClone.text();
                 }
 
+
                 if (!response.ok) {
-                    const errorMsg = data?.message || responseText || 'Failed to fetch list.';
+                    const errorMsg = data?.message || diagnosticText || 'Failed to fetch list.';
                     throw new Error(`Server error (${response.status}): ${errorMsg}`);
                 }
+                
+                // Handle valid response with bad JSON or non-JSON content
+                if (!data && response.ok) {
+                    const preview = diagnosticText.substring(0, 50).replace(/(\r\n|\n|\r)/gm, " ");
+                    throw new Error(`Invalid response format (JSON Error). Server returned: "${preview}..."`);
+                }
+
 
                 if (data && data.success && data.words) {
                     renderGlobalWordList(data.words);
-                } else if (responseText) {
-                    const preview = responseText.substring(0, 100).replace(/(\r\n|\n|\r)/gm, " ");
-                    throw new Error(`Invalid list format. Server returned: "${preview}..."`);
                 } else {
                     throw new Error(data?.message || 'Failed to retrieve word list.');
                 }
             } catch (error) {
                 console.error("Error fetching global word list:", error.message);
-                globalWordListEl.innerHTML = `<p class="text-red-500">Could not load rankings: ${error.message}</p>`;
+                // Only show a strong error if the list is still empty, otherwise rely on the next poll
+                if (globalWordListEl.childElementCount === 0 || globalWordListEl.querySelector('#loading-list-msg')) {
+                    globalWordListEl.innerHTML = `<p class="text-red-500">Could not load rankings: ${error.message}</p>`;
+                }
             }
         }
 
@@ -530,12 +645,14 @@
                 messageModal.classList.remove('flex');
             });
         }
-
-
+        
         // --- App Start ---
         window.onload = () => {
             setupListeners();
-            fetchNextWord(); // Start the game by fetching the first word and the list
+            fetchNextWord(); // Fetch the initial word and populate the global list (once)
+
+            // Start polling for real-time global ranking updates (UX improvement)
+            setInterval(fetchGlobalWords, POLLING_INTERVAL_MS);
         };
 
     </script>
