@@ -79,6 +79,13 @@
             line-height: 1;
             text-transform: uppercase;
         }
+        /* Adjust font size for mobile screens */
+        @media (max-width: 640px) {
+            .text-word {
+                font-size: 2.5rem;
+            }
+        }
+
 
         /* Button Styles */
         .vote-btn {
@@ -166,7 +173,7 @@
             </div>
             
             <!-- Vote Buttons -->
-            <div class="vote-buttons flex justify-center gap-6 mt-10 w-full max-w-lg">
+            <div class="vote-buttons flex flex-col sm:flex-row justify-center gap-4 sm:gap-6 mt-10 w-full max-w-lg">
                 <button id="goodWordBtn" class="vote-btn good-btn flex-1 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
                     <i class="fas fa-thumbs-up icon"></i>
                     Good Word
@@ -180,18 +187,18 @@
         
         <!-- Management and Leaderboard Section -->
         <section class="mt-12 pt-6 border-t border-gray-200 top-words-section">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold text-gray-700">Community Ratings</h2>
+            <div class="flex flex-col sm:flex-row justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-700 mb-3 sm:mb-0">Community Ratings</h2>
                 <button id="showAddWordModalBtn" class="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition duration-150 text-sm shadow-md" disabled>
                     <i class="fas fa-plus mr-2"></i>Suggest a Word
                 </button>
             </div>
             
             <!-- Top Words Leaderboard -->
-            <div class="top-words-lists flex flex-wrap justify-center gap-6">
+            <div class="top-words-lists flex flex-wrap lg:flex-nowrap justify-center gap-6">
                 
                 <!-- Mostly Good List -->
-                <div class="mostly-good bg-white p-6 rounded-xl shadow-md flex-1 min-w-[300px] lg:min-w-0 border-t-4" style="border-top-color: var(--good-color);">
+                <div class="mostly-good bg-white p-6 rounded-xl shadow-md flex-1 w-full lg:w-1/2 border-t-4" style="border-top-color: var(--good-color);">
                     <h3 class="text-lg font-bold mb-4 text-gray-700" style="color: var(--good-color);">Mostly Good</h3>
                     <ul id="mostlyGoodList" class="space-y-2">
                         <li class="text-center italic text-sm text-gray-500">Loading leaderboard...</li>
@@ -199,7 +206,7 @@
                 </div>
 
                 <!-- Mostly Bad List -->
-                <div class="mostly-bad bg-white p-6 rounded-xl shadow-md flex-1 min-w-[300px] lg:min-w-0 border-t-4" style="border-top-color: var(--bad-color);">
+                <div class="mostly-bad bg-white p-6 rounded-xl shadow-md flex-1 w-full lg:w-1/2 border-t-4 mt-6 lg:mt-0" style="border-top-color: var(--bad-color);">
                     <h3 class="text-lg font-bold mb-4 text-gray-700" style="color: var(--bad-color);">Mostly Bad</h3>
                     <ul id="mostlyBadList" class="space-y-2">
                         <li class="text-center italic text-sm text-gray-500">Loading leaderboard...</li>
@@ -210,7 +217,7 @@
 
         <!-- Footer for App Version -->
         <footer class="mt-8 text-center text-xs text-gray-400">
-            App Version: v8.7.5 (Render API Client - Body Consumption Fix)
+            App Version: v8.7.7 (Render API Client - Cold Start Resilient)
         </footer>
     </div>
     
@@ -237,6 +244,7 @@
 
     <script>
         // CRITICAL CONFIGURATION:
+        // Ensure this URL points to your deployed Render service root.
         const API_BASE_URL = 'https://good-word.onrender.com';
         
         // Hypothetical API Endpoints (You must ensure your server implements these)
@@ -246,6 +254,10 @@
         // --- GLOBAL STATE ---
         let currentWordId = null;
         let currentWordText = null;
+
+        // --- CONSTANTS ---
+        const MAX_RETRIES = 3; // Total attempts will be 4 (initial + 3 retries)
+        const RETRY_DELAY_MS = 1500; // 1.5 seconds base delay
 
         // --- DOM Elements ---
         const wordDisplay = document.getElementById('wordDisplay');
@@ -265,6 +277,13 @@
         const wordSubmissionMessage = document.getElementById('wordSubmissionMessage');
 
         // --- UTILITY FUNCTIONS ---
+
+        /**
+         * Pauses execution for a given number of milliseconds.
+         */
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
 
         /**
          * Displays a temporary status message to the user.
@@ -335,48 +354,61 @@
         // --- API INTERACTION ---
 
         /**
-         * Core fetch function to try both unclassified and random endpoints.
+         * Core fetch function with retry logic for cold starts.
          * Fetches the response text once and attempts to parse it as JSON.
          */
-        async function fetchWordFromApi(endpoint) {
+        async function fetchWithRetry(endpoint, options = {}, retries = 0) {
              const fetchUrl = `${API_BASE_URL}${endpoint}`;
-             
-             // Use CORS mode for cross-origin requests
-             const response = await fetch(fetchUrl, { mode: 'cors' });
+             const retryOptions = { ...options, mode: 'cors' };
 
-             // Read the response body as text immediately to avoid "Body consumed" errors.
-             const responseText = await response.text();
-
-            if (!response.ok) {
-                console.error(`Backend HTTP Error (${response.status}) from ${endpoint}:`, responseText.substring(0, 500));
-                
-                if (response.status === 404 && endpoint === GET_RANDOM_WORD_ENDPOINT) {
-                    return { word: null, _id: null, message: "No API fallback endpoint available." };
-                }
-                
-                if (response.status >= 500) {
-                    throw new Error(`SERVER ERROR (${response.status}). Check Render/MongoDB logs.`);
-                }
-                
-                const errorSnippet = responseText.substring(0, 50).replace(/(\r\n|\n|\r)/gm, " ");
-                throw new Error(`API Error: Status ${response.status} - Response: ${errorSnippet}...`);
-            }
-            
-            let data;
             try {
-                // Try to parse the captured text as JSON
-                data = JSON.parse(responseText);
-            } catch (jsonError) {
-                // If parsing fails, we already have the raw text for debugging
-                console.error("--- JSON PARSING FAILED ---");
-                console.error(`Attempted to parse JSON from ${endpoint} but failed. Raw Response:`, responseText.substring(0, 500));
-                console.error("This means the server returned non-JSON data (likely an HTML error page or plain text) for a 200/OK status.");
-                console.error("--- END OF RESPONSE DEBUG ---");
-                throw new Error("Invalid API response format. Check console for raw server output.");
-            }
+                const response = await fetch(fetchUrl, retryOptions);
+                const responseText = await response.text();
 
-            return data;
+                if (!response.ok) {
+                    // Check for common cold-start or temporary errors (like 5xx, or 404 from proxy)
+                    if (retries < MAX_RETRIES && (response.status === 404 || response.status >= 500)) {
+                        // Log retry attempt but do not log this as an error
+                        // console.log(`[RETRY] Cold Start or temporary error (${response.status}) on ${endpoint}. Retrying in ${RETRY_DELAY_MS * (retries + 1)}ms...`);
+                        showMessage(`Server initializing (Attempt ${retries + 1}/${MAX_RETRIES})...`, 'info');
+                        await delay(RETRY_DELAY_MS * (retries + 1)); // Exponential backoff
+                        return fetchWithRetry(endpoint, options, retries + 1);
+                    }
+
+                    // If we failed after all retries, throw the final error.
+                    console.error(`Backend HTTP Error (${response.status}) from ${endpoint}:`, responseText.substring(0, 500));
+                    
+                    if (response.status >= 500) {
+                        throw new Error(`SERVER ERROR (${response.status}). Check Render/MongoDB logs.`);
+                    }
+                    
+                    const errorSnippet = responseText.substring(0, 50).replace(/(\r\n|\n|\r)/gm, " ");
+                    throw new Error(`API Error: Status ${response.status} - Response: ${errorSnippet}...`);
+                }
+                
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                } catch (jsonError) {
+                    console.error("--- JSON PARSING FAILED ---");
+                    console.error(`Failed to parse JSON from ${endpoint}. Raw Response:`, responseText.substring(0, 500));
+                    throw new Error("Invalid API response format. Server returned non-JSON data.");
+                }
+
+                return data;
+
+            } catch (error) {
+                // Catch network errors (like CORS or actual DNS failure)
+                if (retries < MAX_RETRIES && (error.message.includes('Failed to fetch') || error instanceof TypeError)) {
+                     // console.log(`[RETRY] Network/CORS error on ${endpoint}. Retrying in ${RETRY_DELAY_MS * (retries + 1)}ms...`);
+                     showMessage(`Network issue detected (Attempt ${retries + 1}/${MAX_RETRIES})...`, 'info');
+                     await delay(RETRY_DELAY_MS * (retries + 1));
+                     return fetchWithRetry(endpoint, options, retries + 1);
+                }
+                throw error;
+            }
         }
+
 
         /**
          * Fetches the next word to classify, falling back to a random word if the pool is empty.
@@ -396,15 +428,15 @@
 
             try {
                 // 1. Try to get the next UNCLASSIFIED word
-                console.log(`1. Trying to fetch UNCLASSIFIED word from ${GET_UNCLASSIFIED_WORD_ENDPOINT}...`);
-                wordData = await fetchWordFromApi(GET_UNCLASSIFIED_WORD_ENDPOINT);
+                // console.log(`1. Trying to fetch UNCLASSIFIED word from ${GET_UNCLASSIFIED_WORD_ENDPOINT}...`);
+                wordData = await fetchWithRetry(GET_UNCLASSIFIED_WORD_ENDPOINT);
                 
                 // If the response is empty (no word/id), try the fallback
                 if (!wordData.word || !wordData._id) {
-                     console.log("-> Unclassified word pool is empty or API confirmed no words left. Trying to fetch a RANDOM word...");
+                     // console.log("-> Unclassified word pool is empty or API confirmed no words left. Trying to fetch a RANDOM word...");
 
                      // 2. Try to get a RANDOM word
-                     wordData = await fetchWordFromApi(GET_RANDOM_WORD_ENDPOINT);
+                     wordData = await fetchWithRetry(GET_RANDOM_WORD_ENDPOINT);
                 }
                 
                 // 3. Process the final wordData
@@ -414,7 +446,7 @@
                     wordDisplay.textContent = currentWordText.toUpperCase();
                     setWordBoxState('neutral', true);
                     toggleButtons(true);
-                    console.log("Word loaded:", currentWordText, "ID:", currentWordId);
+                    // console.log("Word loaded:", currentWordText, "ID:", currentWordId);
                 } else {
                     currentWordId = null;
                     currentWordText = null;
@@ -425,19 +457,9 @@
                 }
                 
             } catch (error) {
-                // Catch any generic network errors or the errors thrown from fetchWordFromApi
-                
-                // Use a general catch block to check for network/CORS issues if they manifest as TypeError
-                if (error instanceof TypeError && error.message.includes('fetch')) {
-                    console.error("CORS/Network Error Detected:", error);
-                    wordDisplay.textContent = "CORS ERROR";
-                    showMessage(`CORS Error: Please ensure your Render server includes 'app.use(cors())'.`, 'error');
-                } else {
-                    console.error("Fetch Word Error:", error.message);
-                    wordDisplay.textContent = "API ERROR";
-                    showMessage(`Connection Error: ${error.message}`, 'error'); 
-                }
-                
+                console.error("Fetch Word Error (Final Catch):", error.message);
+                wordDisplay.textContent = "API ERROR";
+                showMessage(`Connection Error: ${error.message}`, 'error'); 
                 showAddWordModalBtn.disabled = false;
             }
         }
@@ -455,28 +477,14 @@
             setWordBoxState(sentiment, true); 
 
             try {
-                const response = await fetch(`${API_BASE_URL}/api/vote`, {
+                await fetchWithRetry('/api/vote', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         wordId: currentWordId, 
                         sentiment: sentiment,
-                    }),
-                    mode: 'cors'
+                    })
                 });
-
-                // Read the response text once for uniform handling
-                const responseText = await response.text();
-
-                if (!response.ok) {
-                    let errorData = {};
-                    try { errorData = JSON.parse(responseText); } catch {}
-                    
-                    if (response.status >= 500) {
-                         throw new Error(`SERVER ERROR (Status ${response.status}). Check Render/MongoDB logs.`);
-                    }
-                    throw new Error(errorData.message || `API Error (${response.status}) on vote.`);
-                }
                 
                 showMessage(`Voted ${sentiment.toUpperCase()}!`, sentiment);
                 
@@ -493,7 +501,7 @@
         }
 
         /**
-         * Fetches the top words list from the API.
+         * Fetches the top words list from the API with retry logic.
          */
         async function fetchTopWords() {
             if (!API_BASE_URL) { return; }
@@ -502,20 +510,7 @@
             mostlyBadList.innerHTML = '<li class="text-center italic text-sm text-gray-500">Loading leaderboard...</li>';
 
             try {
-                const response = await fetch(`${API_BASE_URL}/api/top-words`, { mode: 'cors' });
-
-                const responseText = await response.text(); // Read once
-
-                if (!response.ok) {
-                    console.error("Backend Error Detail (Top Words):", responseText);
-
-                    if (response.status >= 500) {
-                         throw new Error(`SERVER ERROR (Status ${response.status}). Check Render/MongoDB logs.`);
-                    }
-                    throw new Error(`API Error: Status ${response.status}`);
-                }
-                
-                const data = JSON.parse(responseText);
+                const data = await fetchWithRetry('/api/top-words');
                 
                 // Clear and re-populate lists
                 mostlyGoodList.innerHTML = '';
@@ -565,7 +560,7 @@
 
 
             } catch (error) {
-                console.error("Fetch Top Words Error:", error.message);
+                console.error("Fetch Top Words Error (Final Catch):", error.message);
                 const errorMessage = error.message.includes('SyntaxError') ? 'API returned invalid JSON.' : error.message;
                 const errorMsgLi = `<li class="text-center italic text-sm text-red-500">Error loading list: ${errorMessage}.</li>`;
                 mostlyGoodList.innerHTML = errorMsgLi;
@@ -589,24 +584,12 @@
             submitNewWordBtn.disabled = true;
             
             try {
-                const response = await fetch(`${API_BASE_URL}/api/add-word`, {
+                await fetchWithRetry('/api/add-word', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ word: word }),
-                    mode: 'cors'
                 });
 
-                const responseText = await response.text(); // Read once
-
-                if (!response.ok) {
-                     let errorData = {};
-                     try { errorData = JSON.parse(responseText); } catch {}
-
-                     if (response.status >= 500) {
-                         throw new Error(`SERVER ERROR (Status ${response.status}). Check Render/MongoDB logs.`);
-                    }
-                     throw new Error(errorData.message || `API Error (${response.status}) on add word.`);
-                }
                 
                 wordSubmissionMessage.textContent = `Successfully added word: '${word}'! It is now available for classification.`;
                 wordSubmissionMessage.classList.remove('hidden');
@@ -617,7 +600,6 @@
                 // Close modal after a short delay
                 setTimeout(() => {
                     addWordModal.classList.add('hidden');
-                    // Fetch next word to show the newly added one if possible
                     fetchNextWord();
                     fetchTopWords();
                 }, 1500);
@@ -654,6 +636,7 @@
             // Input Listener for Submit Button state
             newWordInput.addEventListener('input', () => {
                 const word = newWordInput.value.trim();
+                // Enable button only if word is 2+ letters and contains only letters
                 submitNewWordBtn.disabled = !(word.length >= 2 && /^[a-z]+$/i.test(word));
                 wordSubmissionMessage.classList.add('hidden');
             });
@@ -672,7 +655,7 @@
 
         // --- App Start ---
         window.onload = () => {
-            console.log("Application starting - Render API Mode (v8.7.5 Body Consumption Fix)...");
+            console.log("Application starting - Render API Mode (v8.7.7 Cold Start Resilient)...");
             setupListeners();
             
             fetchTopWords();
