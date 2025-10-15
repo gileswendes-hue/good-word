@@ -1,6 +1,6 @@
-// Set up BASE URL for API calls. 
-// FIX: Using the absolute URL to ensure correct routing on Render, bypassing internal path issues.
-const BASE_URL = 'https://good-word.onrender.com/api'; 
+// Set up BASE URL for API calls. Using the relative path is generally best practice 
+// when the frontend and backend are hosted on the same domain (like Render).
+const BASE_URL = '/api'; 
 
 let currentWordData = null; // Stores the current word object
 
@@ -33,7 +33,8 @@ async function retryFetch(url, options = {}, maxRetries = 3) {
                 let errorText = await response.text();
                 // Check for known backend error messages (e.g., from your Express error handler)
                 if (errorText.includes('Database offline') || response.status === 503) {
-                     errorText = 'Service Unavailable: Database offline or unhealthy.';
+                     // Throw specific error for the known backend issue
+                     throw new Error('Backend DB Health Check Failed (503/Offline status)');
                 }
                 throw new Error(`HTTP error! Status: ${response.status} - ${errorText.substring(0, 100)}...`);
             }
@@ -85,17 +86,17 @@ async function fetchNextWord() {
             elements.voteBadButton.disabled = true;
         } else {
             // UNEXPECTED RESPONSE: The API responded, but the data structure was unexpected.
-             elements.currentWordSpan.textContent = "API Error: Invalid Response";
-             showEngagementMessage("API returned bad data structure. Check backend response.", "bad");
+             elements.currentWordSpan.textContent = "API Error: Malformed Response";
+             showEngagementMessage("API responded but data format was incorrect. Check backend schema.", "bad");
         }
 
     } catch (error) {
         // CATCH BLOCK: This runs if retryFetch fails all attempts (usually due to connection or DB error)
         console.error("Failed to fetch next word from API (Total Failure):", error);
         
-        const errorMessage = error.message.includes('Database offline') 
-            ? "API Error: Backend/Database Issue. Please check Render logs."
-            : "API Connection Error. Service might be down or routing is incorrect.";
+        const errorMessage = error.message.includes('Backend DB Health Check Failed') 
+            ? "API ERROR: Database Health Check Failure. Check Render logs."
+            : "API Connection Error: Service Unavailable.";
 
         elements.currentWordSpan.textContent = "API ERROR";
         showEngagementMessage(errorMessage, "bad");
@@ -173,8 +174,8 @@ async function handleVote(voteType) {
     } catch (e) {
         console.error("API Vote call failed: ", e);
         
-        const errorMessage = e.message.includes('Database offline') 
-            ? "Vote Failed: Backend/Database Issue."
+        const errorMessage = e.message.includes('Backend DB Health Check Failed') 
+            ? "Vote Failed: Database Health Check Failure."
             : "Vote Failed. Check API connection.";
 
         showEngagementMessage(errorMessage, "bad");
