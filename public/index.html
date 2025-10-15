@@ -47,16 +47,11 @@
     <!-- Main Content Area -->
     <main class="w-full max-w-2xl bg-white p-6 rounded-xl shadow-2xl border border-gray-200">
 
-        <!-- User/Auth Info (Now showing Local ID) -->
+        <!-- User/Auth Info -->
         <div id="auth-info" class="text-xs text-gray-500 mb-4 text-center">
             Loading local user ID...
         </div>
         
-        <!-- API Override Status -->
-        <div id="api-status-info" class="text-xs text-orange-500 mb-4 text-center p-2 bg-orange-50 border border-orange-200 rounded-md font-mono hidden">
-            **API OVERRIDES ACTIVE**
-        </div>
-
         <!-- Tab Content Containers -->
         <div id="content-vote" class="tab-content active">
             <!-- Word Voting UI -->
@@ -174,45 +169,13 @@
 
         // --- API COMMUNICATION ---
         
-        // API Configuration (DEFAULT/CURRENT ENDPOINTS)
+        // API Configuration (CORRECTED ENDPOINTS based on testing)
         const API_BASE = 'https://good-word.onrender.com';
         const API_ENDPOINTS = {
-            GET_RANDOM_WORD: `${API_BASE}/api/get-word`, // CONFIRMED
-            GET_WORDS: `${API_BASE}/api/top-words`,       // CONFIRMED
-            SUBMIT_WORD: `${API_BASE}/api/add-word`,      // GUESS
-            VOTE: `${API_BASE}/api/vote-word`,            // GUESS
-        };
-
-        // This function allows you to override the API paths from the console.
-        /**
-         * Overrides the SUBMIT_WORD and VOTE endpoints for live debugging.
-         * Call this from your browser console:
-         * setApiOverrides({ vote: '/api/vote', submit: '/api/submit' });
-         * * @param {object} paths - Object with new relative paths (e.g., { vote: '/new-vote-path', submit: '/new-submit-path' })
-         */
-        window.setApiOverrides = (paths = {}) => {
-            let changed = false;
-            const statusEl = document.getElementById('api-status-info');
-            
-            if (paths.vote) {
-                API_ENDPOINTS.VOTE = `${API_BASE}${paths.vote}`;
-                console.log(`[API OVERRIDE] Vote URL set to: ${API_ENDPOINTS.VOTE}`);
-                changed = true;
-            }
-            if (paths.submit) {
-                API_ENDPOINTS.SUBMIT_WORD = `${API_BASE}${paths.submit}`;
-                console.log(`[API OVERRIDE] Submit URL set to: ${API_ENDPOINTS.SUBMIT_WORD}`);
-                changed = true;
-            }
-            
-            if (changed) {
-                statusEl.innerHTML = `**API OVERRIDE ACTIVE**<br>Vote: ${API_ENDPOINTS.VOTE.replace(API_BASE, '')}<br>Submit: ${API_ENDPOINTS.SUBMIT_WORD.replace(API_BASE, '')}`;
-                statusEl.classList.remove('hidden');
-            } else {
-                statusEl.classList.add('hidden');
-                console.log("[API OVERRIDE] Overrides cleared.");
-            }
-            return API_ENDPOINTS;
+            GET_RANDOM_WORD: `${API_BASE}/api/get-word`, 
+            GET_WORDS: `${API_BASE}/api/top-words`,       
+            SUBMIT_WORD: `${API_BASE}/api/submit`,      // Corrected from /api/add-word
+            VOTE: `${API_BASE}/api/vote`,            // Corrected from /api/vote-word
         };
 
         /**
@@ -242,7 +205,7 @@
                     throw new Error(`HTTP Error ${response.status} for ${url.replace(API_BASE, '')}: ${errorText}`);
 
                 } catch (error) {
-                    console.warn(`Fetch attempt ${i + 1} failed for ${url}: ${error.message}. Retrying in ${delay / 1000}s...`);
+                    console.warn(`Fetch attempt ${i + 1} failed for ${url.replace(API_BASE, '')}: ${error.message}. Retrying in ${delay / 1000}s...`);
                     if (i === retries - 1) {
                         throw error; // Throw final error
                     }
