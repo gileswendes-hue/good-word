@@ -1,6 +1,6 @@
-// Set up BASE URL for API calls. Assumes the API is served from the same domain or path.
-// This will correctly target endpoints like /api/get-word on your Render service.
-const BASE_URL = '/api'; 
+// Set up BASE URL for API calls. 
+// FIX: Using the absolute URL to ensure correct routing on Render, bypassing internal path issues.
+const BASE_URL = 'https://good-word.onrender.com/api'; 
 
 let currentWordData = null; // Stores the current word object
 
@@ -32,8 +32,8 @@ async function retryFetch(url, options = {}, maxRetries = 3) {
                 // Throw an error if the HTTP status is not 2xx
                 let errorText = await response.text();
                 // Check for known backend error messages (e.g., from your Express error handler)
-                if (errorText.includes('Database offline')) {
-                     errorText = 'Service Unavailable: Database offline. Cannot complete request.';
+                if (errorText.includes('Database offline') || response.status === 503) {
+                     errorText = 'Service Unavailable: Database offline or unhealthy.';
                 }
                 throw new Error(`HTTP error! Status: ${response.status} - ${errorText.substring(0, 100)}...`);
             }
@@ -94,8 +94,8 @@ async function fetchNextWord() {
         console.error("Failed to fetch next word from API (Total Failure):", error);
         
         const errorMessage = error.message.includes('Database offline') 
-            ? "API Error: Database Offline. Please check your Render service."
-            : "API Connection Error. Service might be down.";
+            ? "API Error: Backend/Database Issue. Please check Render logs."
+            : "API Connection Error. Service might be down or routing is incorrect.";
 
         elements.currentWordSpan.textContent = "API ERROR";
         showEngagementMessage(errorMessage, "bad");
@@ -174,7 +174,7 @@ async function handleVote(voteType) {
         console.error("API Vote call failed: ", e);
         
         const errorMessage = e.message.includes('Database offline') 
-            ? "Vote Failed: Database Offline."
+            ? "Vote Failed: Backend/Database Issue."
             : "Vote Failed. Check API connection.";
 
         showEngagementMessage(errorMessage, "bad");
