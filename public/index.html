@@ -212,8 +212,7 @@
         // --- API Endpoints ---
         const API_BASE = 'https://good-word.onrender.com/api';
         const API_GET_RANDOM_WORD = `${API_BASE}/word/random`;
-        // FIX: Changed from /words/all to /words based on the 404 error
-        const API_GET_ALL_WORDS = `${API_BASE}/words`; 
+        const API_GET_ALL_WORDS = `${API_BASE}/words`; // Fixed in last step
         const API_VOTE = `${API_BASE}/vote`;
         const API_SUBMIT_WORD = `${API_BASE}/word/add`;
 
@@ -276,21 +275,33 @@
         async function fetchNextWord() {
             setLoadingState(true);
             currentWord = null;
+            let responseText = '';
 
             try {
                 const response = await fetch(API_GET_RANDOM_WORD, { method: 'GET' });
+                let data = null;
 
-                if (!response.ok) {
-                    const errorBody = await response.json().catch(() => ({}));
-                    throw new Error(`Server error (${response.status}): ${errorBody.message || 'Failed to fetch word.'}`);
+                try {
+                    // Attempt to parse response as JSON
+                    data = await response.json();
+                } catch (e) {
+                    // If parsing fails, read as plain text for a better error message
+                    responseText = await response.text();
                 }
 
-                const data = await response.json();
-                
-                if (data.success && data.word) {
+                if (!response.ok) {
+                    const errorMsg = data?.message || responseText || 'Failed to fetch word. Server returned an error status.';
+                    throw new Error(`Server error (${response.status}): ${errorMsg}`);
+                }
+
+                if (data && data.success && data.word) {
                     currentWord = data.word;
+                } else if (responseText) {
+                    // Successful status (200), but non-JSON or missing 'success' key
+                    const preview = responseText.substring(0, 100).replace(/(\r\n|\n|\r)/gm, " ");
+                    throw new Error(`Invalid response format. Server returned: "${preview}..."`);
                 } else {
-                    throw new Error(data.message || 'No new word was returned from the server.');
+                    throw new Error(data?.message || 'No new word was returned from the server.');
                 }
             } catch (error) {
                 console.error("Error fetching word:", error.message);
@@ -308,51 +319,47 @@
          * @param {string} classification - 'good' or 'bad'.
          */
         async function handleVote(classification) {
-            // CRITICAL GUARD 1: Prevent execution if classification is missing (for deployment tests)
-            if (!classification) {
-                console.warn("handleVote aborted: 'classification' is undefined. (Deployment/Validation Test?)");
-                return;
-            }
-            
-            // CRITICAL GUARD 2: Prevent execution if state is busy or word is not loaded
+            // CRITICAL GUARD: Prevent execution if state is busy or word is not loaded
             if (isProcessing) return;
-            if (!currentWord || !currentWord._id) {
-                console.error("handleVote aborted: Current word data is incomplete or missing ID. Please wait for a word to load.");
+            if (!currentWord || !currentWord._id || !classification) {
+                console.error("handleVote aborted: Invalid call or missing data.");
                 showMessage("Vote Blocked", "Please wait for a word to load before attempting to vote.");
                 return;
             }
             
-            // Enter processing state
             setLoadingState(true);
-            
-            // Add class for visual feedback
             wordCard.classList.add(classification);
 
             const votePayload = {
-                wordId: currentWord._id, // The required ID field
+                wordId: currentWord._id,
                 classification: classification
             };
+            
+            let responseText = '';
 
             try {
                 const response = await fetch(API_VOTE, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(votePayload),
                 });
                 
-                // Remove visual class
                 wordCard.classList.remove('good');
                 wordCard.classList.remove('bad');
-
-                if (!response.ok) {
-                    const errorBody = await response.json().catch(() => ({}));
-                    throw new Error(`Vote failed (${response.status}). Server message: ${errorBody.message || 'Unknown Error'}`);
+                
+                let data = null;
+                try {
+                    data = await response.json();
+                } catch (e) {
+                    responseText = await response.text();
                 }
 
-                const data = await response.json();
-                if (data.success) {
+                if (!response.ok) {
+                    const errorMsg = data?.message || responseText || 'Unknown Error';
+                    throw new Error(`Vote failed (${response.status}). Server message: ${errorMsg}`);
+                }
+
+                if (data && data.success) {
                     // Update current word's score based on successful response
                     if (classification === 'good') {
                         currentWord.goodVotes = data.newGoodVotes;
@@ -360,17 +367,14 @@
                         currentWord.badVotes = data.newBadVotes;
                     }
                 } else {
-                    throw new Error(data.message || 'Vote failed on the server.');
+                    throw new Error(data?.message || 'Vote failed on the server.');
                 }
                 
-                // Fetch the next word and update the global list
                 setTimeout(() => fetchNextWord(), 150); 
 
             } catch (error) {
                 console.error("Error during voting:", error.message);
                 showMessage("Vote Failed", `Your vote could not be recorded. Error: ${error.message}`);
-                
-                // Re-enable buttons if fetching the next word failed
                 setLoadingState(false);
             }
         }
@@ -388,31 +392,35 @@
             }
             
             submitNewWordBtn.disabled = true;
-
             const submitPayload = { word: wordText };
+            let responseText = '';
 
             try {
                  const response = await fetch(API_SUBMIT_WORD, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(submitPayload),
                 });
 
-                if (!response.ok) {
-                    const errorBody = await response.json().catch(() => ({}));
-                    throw new Error(errorBody.message || 'Failed to submit word.');
+                let data = null;
+                try {
+                    data = await response.json();
+                } catch (e) {
+                    responseText = await response.text();
                 }
 
-                const data = await response.json();
-                if (data.success) {
+                if (!response.ok) {
+                    const errorMsg = data?.message || responseText || 'Failed to submit word.';
+                    throw new Error(errorMsg);
+                }
+
+                if (data && data.success) {
                     submissionMessageEl.textContent = `'${wordText}' submitted successfully! It is now available for voting.`;
                     submissionMessageEl.className = 'text-sm mt-1 text-green-600';
                     newWordInput.value = '';
                     fetchGlobalWords(); // Update list immediately
                 } else {
-                    submissionMessageEl.textContent = data.message || 'Submission failed.';
+                    submissionMessageEl.textContent = data?.message || 'Submission failed.';
                     submissionMessageEl.className = 'text-sm mt-1 text-yellow-600';
                 }
 
@@ -431,24 +439,30 @@
          */
         async function fetchGlobalWords() {
             globalWordListEl.innerHTML = '<p class="text-gray-500 italic" id="loading-list-msg">Loading global rankings...</p>';
-            
+            let responseText = '';
+
             try {
                 const response = await fetch(API_GET_ALL_WORDS, { method: 'GET' });
+                let data = null;
 
-                if (!response.ok) {
-                    // Throw a specific error if the status is 404
-                    if (response.status === 404) {
-                        throw new Error(`Server error (404 Not Found). The API endpoint for fetching all words may be different than '/api/words'.`);
-                    }
-                    throw new Error(`Server error (${response.status}) while fetching list.`);
+                try {
+                    data = await response.json();
+                } catch (e) {
+                    responseText = await response.text();
                 }
 
-                const data = await response.json();
-                
-                if (data.success && data.words) {
+                if (!response.ok) {
+                    const errorMsg = data?.message || responseText || 'Failed to fetch list.';
+                    throw new Error(`Server error (${response.status}): ${errorMsg}`);
+                }
+
+                if (data && data.success && data.words) {
                     renderGlobalWordList(data.words);
+                } else if (responseText) {
+                    const preview = responseText.substring(0, 100).replace(/(\r\n|\n|\r)/gm, " ");
+                    throw new Error(`Invalid list format. Server returned: "${preview}..."`);
                 } else {
-                    throw new Error(data.message || 'Failed to retrieve word list.');
+                    throw new Error(data?.message || 'Failed to retrieve word list.');
                 }
             } catch (error) {
                 console.error("Error fetching global word list:", error.message);
