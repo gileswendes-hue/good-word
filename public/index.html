@@ -220,7 +220,7 @@
 
         <!-- Footer for App Version -->
         <footer class="mt-8 text-center text-xs text-gray-400">
-            App Version: v5.1 (API Backend - Vote Fix)
+            App Version: v5.2 (API Backend - State Management Fix)
         </footer>
     </div>
     
@@ -377,9 +377,18 @@
         async function fetchNextWord() {
             clearRetry();
 
+            // IMPORTANT: Reset the word state before trying to fetch
+            currentWordId = null;
+            currentWordText = null;
+
             toggleButtons(false);
             wordDisplay.textContent = "LOADING...";
             setWordBoxState('neutral', false);
+            
+            if (!userId) {
+                showMessage("User ID not initialized. Cannot fetch word.", 'error');
+                return;
+            }
 
             try {
                 // Pass the unique userId in the query string
@@ -391,12 +400,12 @@
 
                 const data = await response.json(); 
                 
-                if (data.word) {
+                if (data.word && data._id) {
                     currentWordId = data._id;
                     currentWordText = data.word;
                     wordDisplay.textContent = currentWordText.toUpperCase();
                     setWordBoxState('neutral', true);
-                    toggleButtons(true);
+                    toggleButtons(true); // Buttons enabled ONLY after word is loaded
                     showMessage("New word loaded!", 'success');
                 } else if (data.message && data.message.includes("No words left")) {
                     currentWordId = null;
@@ -405,7 +414,6 @@
                     toggleButtons(false);
                     showMessage("You have voted on all available words. Add a new one!", 'info');
                 } else {
-                    // Handle case where API returns OK but no word data (e.g., initial state)
                     currentWordId = null;
                     currentWordText = null;
                     wordDisplay.textContent = "NO WORDS FOUND";
@@ -429,8 +437,10 @@
          * @param {string} sentiment 'good' or 'bad'.
          */
         async function sendVote(sentiment) {
+            // CRITICAL CHECK: Ensure we have the word ID and user ID before proceeding
             if (!currentWordId || !userId) {
-                showMessage("Cannot vote: No word loaded or user ID missing.", 'error');
+                showMessage("Cannot vote: No word loaded or user ID missing. (Waiting for server response)", 'error');
+                // Do NOT return here, to allow the message to show, but still prevent the fetch
                 return;
             }
 
@@ -449,14 +459,14 @@
                 });
 
                 if (!response.ok) {
-                    // Try to extract a specific error message if the backend provides one
-                    const errorData = await response.json();
+                    const errorData = await response.json().catch(() => ({})); // Parse JSON or default
                     throw new Error(errorData.message || `API Error (${response.status}) on vote.`);
                 }
 
                 showMessage(`Voted ${sentiment.toUpperCase()}!`, sentiment);
                 
                 // Vote successful, fetch the next word and update leaderboards
+                // Use await to ensure sequence
                 await fetchNextWord();
                 await fetchTopWords();
 
@@ -566,7 +576,7 @@
                 });
 
                 if (!response.ok) {
-                     const errorData = await response.json();
+                     const errorData = await response.json().catch(() => ({}));
                      throw new Error(errorData.message || `API Error (${response.status}) on add word.`);
                 }
                 
@@ -588,7 +598,7 @@
                 console.error("Error submitting new word:", error);
                 wordSubmissionMessage.textContent = error.message.includes('exists') 
                     ? `The word '${word}' already exists!` 
-                    : "Failed to submit word. Please try again.";
+                    : `Failed to submit word: ${error.message}`;
                 wordSubmissionMessage.classList.remove('hidden');
                 wordSubmissionMessage.classList.add('text-red-600');
             } finally {
@@ -637,7 +647,8 @@
         window.onload = () => {
             initializeUserId();
             setupListeners();
-            // Initial data fetch
+            
+            // Initial data fetch - fetchNextWord() will only enable buttons on success
             fetchNextWord();
             fetchTopWords();
         };
