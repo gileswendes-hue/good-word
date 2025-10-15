@@ -273,29 +273,32 @@
         }
 
         /**
-         * Utility function to fetch with exponential backoff and retry, 
-         * with enhanced JSON error logging.
+         * Utility function to fetch with exponential backoff and retry.
+         * Explicitly sets mode: 'cors' for better compatibility.
          */
         async function fetchWithRetry(url, options = {}, retries = 5) {
+            // Ensure CORS mode is always set explicitly
+            const fetchOptions = { ...options, mode: 'cors' };
+
             for (let i = 0; i < retries; i++) {
                 try {
                     if (i > 0) {
                         wordLoadingEl.innerHTML = `<div class="spinner"></div><p class="text-gray-500 text-lg">Retrying... (Attempt ${i + 1}/${retries})</p>`;
                     }
                     
-                    const response = await fetch(url, options);
+                    const response = await fetch(url, fetchOptions);
                     
                     if (response.status === 502 || response.status === 503 || response.status === 504) {
                         throw new Error(`Server status: ${response.status}. Retrying...`);
                     }
 
-                    // --- CRITICAL DEBUGGING STEP: Read raw text first ---
+                    // Read raw text first for robust error debugging
                     const responseText = await response.text();
 
                     if (!response.ok) {
-                        // If status is 400, include the full body as it often contains the validation error message
+                        // Include the full body for 400 Bad Request errors
                         if (response.status === 400) {
-                            throw new Error(`HTTP 400 Bad Request! Body: ${responseText.substring(0, 150)}...`);
+                            throw new Error(`HTTP 400 Bad Request! The server rejected the request data. Body: ${responseText.substring(0, 150)}...`);
                         }
                         throw new Error(`HTTP error! Status: ${response.status}. Body: ${responseText.substring(0, 50)}...`);
                     }
@@ -312,6 +315,7 @@
                 } catch (error) {
                     console.warn(`Fetch attempt ${i + 1} failed:`, error.message);
                     if (i === retries - 1) {
+                        // If all retries failed, throw a concise error
                         throw new Error(`Failed to fetch ${url} after ${retries} attempts. Final error: ${error.message}`);
                     }
                     const delay = Math.pow(2, i) * 1000 + Math.random() * 500;
@@ -391,11 +395,10 @@
          * Sends a vote to the server via POST to /api/vote.
          */
         async function handleVote(isGoodVote) {
-            // CRITICAL CHECK: Use a local variable to hold the word data before we clear the global state
             const wordToVote = currentWordData ? currentWordData.word : null;
             
             if (!wordToVote) {
-                showStatusMessage("Cannot vote. No valid word loaded.", 'error');
+                showStatusMessage("Cannot vote. No valid word loaded. Re-fetching word.", 'warning');
                 fetchNextWord(); // Try to recover the state
                 return;
             }
@@ -410,16 +413,17 @@
             const url = `${API_BASE_URL}/vote`;
 
             try {
-                // The API expects the word string and the vote type.
-                // NOTE: Using 'word' key in the body to match common API patterns.
-                await fetchWithRetry(url, {
+                // Explicitly define options for POST request
+                const voteOptions = {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         word: wordToVote, 
                         vote: voteType,
                     })
-                });
+                };
+
+                await fetchWithRetry(url, voteOptions);
                 
                 // 2. Immediately fetch the next word and refresh the list
                 await fetchNextWord();
@@ -430,7 +434,7 @@
             } catch (error) {
                 console.error("Vote Error:", error);
                 
-                // If the vote failed (e.g., 400 error), display the error and re-enable the buttons/load new word
+                // If the vote failed, display the error and re-load
                 showStatusMessage(`Failed to record vote: ${error.message.substring(0, 80)}...`, 'error');
                 fetchNextWord(); // Re-fetch the word in case the vote failed, to reset the UI and get a new word
             } finally {
