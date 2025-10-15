@@ -34,24 +34,32 @@
             border: 5px solid var(--neutral-color);
             border-radius: var(--border-radius);
             padding: 40px 60px;
-            font-weight: 900;
-            text-transform: uppercase;
             text-align: center;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
-            cursor: grab;
             transition: transform 0.4s ease, border-color 0.4s ease, opacity 0.4s ease, box-shadow 0.4s ease;
             user-select: none;
             position: relative;
             z-index: 10;
             animation: floating 3s ease-in-out infinite alternate;
+            
+            /* Ensure the card allows its content (the word) to take up available space */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
         }
 
         .word-card .text-word {
-            /* UPDATED: Reduced from 7em to 5em */
-            font-size: 5em; 
-            display: block;
+            /* Font sizing is now handled dynamically by JavaScript */
+            font-weight: 900;
+            text-transform: uppercase;
             line-height: 1;
-            transition: font-size 0.3s ease; /* Ensure size transitions nicely */
+            /* Crucial styles for the dynamic fitting logic */
+            overflow: hidden; 
+            white-space: normal; 
+            display: block;
+            transition: font-size 0.2s ease; 
+            max-width: 100%;
         }
 
         .word-card.good-border { border-color: var(--good-color); }
@@ -66,14 +74,6 @@
         /* Animation classes for voting action */
         .word-card.slide-out-good { transform: translateX(-400px) scale(0.8); opacity: 0; }
         .word-card.slide-out-bad { transform: translateX(400px) scale(0.8); opacity: 0; }
-
-        /* Responsive adjustments (adjusted to maintain scaling relative to new 5em desktop size) */
-        @media (max-width: 768px) {
-            .word-card .text-word { font-size: 4em; } 
-        }
-        @media (max-width: 500px) {
-            .word-card .text-word { font-size: 3em; } 
-        }
 
         /* Modal specific styling */
         .modal {
@@ -98,6 +98,27 @@
             transform: translateY(-2px);
             box-shadow: 0 4px 10px rgba(76, 175, 80, 0.4);
         }
+        
+        /* Engagement Message CSS (Hidden by default in HTML) */
+        #engagementMessageBox {
+            position: absolute;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.5s ease, visibility 0.5s ease;
+            top: -50px; 
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 20;
+            pointer-events: none;
+            max-width: 90%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        #engagementMessageBox.visible {
+            opacity: 1;
+            visibility: visible;
+        }
     </style>
 </head>
 <body class="p-4 md:p-8 bg-gray-100">
@@ -120,9 +141,9 @@
             <div class="flex items-center space-x-2 w-full sm:w-auto">
                 <label for="list-filter" class="text-sm font-medium text-gray-600">List Source:</label>
                 <select id="list-filter" class="p-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-green-500 focus:border-green-500">
-                    <option value="both">All Words (Official + Custom)</option>
                     <option value="official" selected>Official List</option>
-                    <option value="custom">Only Custom Words</option>
+                    <option value="custom">Only Custom Words (Admin)</option>
+                    <option value="both">All Words (Official + Custom)</option>
                 </select>
             </div>
             
@@ -137,12 +158,17 @@
             <div class="word-card-wrapper">
                 <div id="wordCard" class="word-card neutral-border">
                     <p class="text-sm font-semibold text-gray-500 uppercase tracking-widest mb-2">Word to Classify</p>
-                    <span id="currentWord" class="text-word">
+                    <span id="currentWord" class="text-word flex-grow flex items-center justify-center">
                         LOADING...
                     </span>
                     <!-- Hidden input to store the current word's database ID and type -->
                     <input type="hidden" id="word-id">
                     <input type="hidden" id="word-type">
+                </div>
+                
+                <!-- Engagement Message Box -->
+                <div id="engagementMessageBox" class="bg-blue-100 text-blue-800 text-sm font-semibold rounded-lg shadow-xl border border-blue-200">
+                    <!-- Dynamic message appears here -->
                 </div>
             </div>
 
@@ -160,11 +186,6 @@
                             hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-4 focus:ring-red-300">
                     👎 Bad Word
                 </button>
-            </div>
-            
-            <!-- Engagement Message Box -->
-            <div id="engagementMessageBox" class="mt-4 p-3 text-center bg-blue-100 text-blue-800 text-sm font-semibold rounded-lg hidden">
-                <!-- Dynamic message appears here -->
             </div>
         </section>
         
@@ -207,7 +228,7 @@
         <!-- Footer / Version Display -->
         <footer class="text-center mt-8 text-xs text-gray-400">
             <span class="block text-gray-500 mb-2">User ID: <span id="user-id-display" class="font-mono text-gray-700">Loading...</span></span>
-            Made by Gilxs 2025 ver. 3.0 (Multi-list)
+            Made by Gilxs 2025 ver. 3.2 (Dynamic Fit)
         </footer>
     </div>
     
@@ -248,16 +269,23 @@
         let filterMode = 'official'; // 'official', 'custom', or 'both'
         let unapprovedWords = [];
 
+        // --- Word Card Resizing Logic Constants ---
+        const INITIAL_FONT_SIZE_PX = 150; 
+        const MIN_FONT_SIZE_PX = 16;
+        const DECREMENT_STEP_PX = 1;
+
         // --- DOM Elements ---
         const currentWordEl = document.getElementById('currentWord');
         const wordIdEl = document.getElementById('word-id');
         const wordTypeEl = document.getElementById('word-type');
+        const wordCard = document.getElementById('wordCard');
         const voteGoodBtn = document.getElementById('vote-good');
         const voteBadBtn = document.getElementById('vote-bad');
         const mostlyGoodList = document.getElementById('mostly-good-list');
         const mostlyBadList = document.getElementById('mostly-bad-list');
         const userIdDisplay = document.getElementById('user-id-display');
         const listFilterEl = document.getElementById('list-filter');
+        const engagementMessageBox = document.getElementById('engagementMessageBox');
         
         const addWordModal = document.getElementById('add-word-modal');
         const showAddWordModalBtn = document.getElementById('show-add-word-modal');
@@ -270,6 +298,7 @@
         const unapprovedWordsList = document.getElementById('unapproved-words-list');
         
         // --- Constants ---
+        // Public collections
         const OFFICIAL_COLLECTION = `artifacts/${appId}/public/data/official_words`;
         const CUSTOM_COLLECTION = `artifacts/${appId}/public/data/custom_words`;
 
@@ -287,23 +316,63 @@
         }
 
         function displayMessage(message, isError = false) {
-            const el = document.getElementById('engagementMessageBox');
-            el.textContent = message;
-            el.className = isError 
-                ? 'mt-4 p-3 text-center bg-red-100 text-red-800 text-sm font-semibold rounded-lg'
-                : 'mt-4 p-3 text-center bg-blue-100 text-blue-800 text-sm font-semibold rounded-lg';
-            el.classList.remove('hidden');
-            setTimeout(() => el.classList.add('hidden'), 3000);
+            engagementMessageBox.textContent = message;
+            
+            // Set styles based on error status
+            engagementMessageBox.className = 'visible ' + (isError 
+                ? 'bg-red-100 text-red-800 text-sm font-semibold rounded-lg shadow-xl border border-red-200 p-3'
+                : 'bg-blue-100 text-blue-800 text-sm font-semibold rounded-lg shadow-xl border border-blue-200 p-3');
+            
+            // Remove the message after 3 seconds
+            setTimeout(() => {
+                // Only hide if the content hasn't changed in the meantime
+                if (engagementMessageBox.textContent === message) {
+                    engagementMessageBox.classList.remove('visible');
+                }
+            }, 3000);
         }
+        
+        /**
+         * Dynamically adjusts the font size of the word to fit within the card.
+         */
+        function fitTextToCard() {
+            if (!currentWordEl || !wordCard || currentWordEl.textContent === 'LOADING...' || currentWordEl.textContent === 'DB ERROR') return;
+            
+            // 1. Reset the font size to the maximum starting size
+            currentWordEl.style.fontSize = `${INITIAL_FONT_SIZE_PX}px`;
+            
+            // Use requestAnimationFrame for reliable measurement after styles are applied
+            requestAnimationFrame(() => {
+                let currentFontSize = INITIAL_FONT_SIZE_PX;
+                
+                // The available height is the height of the wordCard minus the height of the header text (Word to Classify)
+                const cardInnerHeight = wordCard.clientHeight;
+                const header = wordCard.querySelector('.text-sm.font-semibold');
+                const headerHeight = header ? header.offsetHeight : 0;
+                const availableHeight = cardInnerHeight - headerHeight - 10; // 10px buffer
+                
+                // 2. Iteratively decrease the size until the text fits or the minimum is reached
+                while (currentWordEl.offsetHeight > availableHeight && currentFontSize > MIN_FONT_SIZE_PX) {
+                    currentFontSize -= DECREMENT_STEP_PX;
+                    currentWordEl.style.fontSize = `${currentFontSize}px`;
+                }
+            });
+        }
+
 
         function getRandomWord() {
             if (wordList.length === 0) {
                 currentWord = null;
-                currentWordEl.textContent = filterMode === 'custom' 
-                    ? "No custom words yet!" 
+                const message = filterMode === 'custom' 
+                    ? "No custom words yet! Suggest one." 
                     : "No words available in the current list.";
+                currentWordEl.textContent = message;
                 wordIdEl.value = '';
                 wordTypeEl.value = '';
+                wordCard.className = 'word-card neutral-border'; // Reset border and class
+                
+                // Reset font size for placeholder text
+                currentWordEl.style.fontSize = '1.5rem'; 
                 return;
             }
             
@@ -323,8 +392,10 @@
             wordIdEl.value = currentWord.id;
             wordTypeEl.value = currentWord.type;
 
-            const card = document.getElementById('wordCard');
-            card.className = 'word-card neutral-border'; // Reset border and class
+            wordCard.className = 'word-card neutral-border'; // Reset border and class
+            
+            // *** NEW: Fit text after setting content ***
+            fitTextToCard();
         }
         
         // --- Firestore Initialization and Setup ---
@@ -334,7 +405,9 @@
          */
         async function initializeFirebase() {
             if (!firebaseConfig || !firebaseConfig.projectId) {
-                console.error("Firebase configuration is missing or invalid.");
+                console.error("Firebase configuration is missing or invalid. Using mock data until connection is established.");
+                // Set initial state to loading
+                userIdDisplay.textContent = "Error: No Config";
                 return;
             }
 
@@ -359,9 +432,13 @@
                         listenForWordData();
                         listenForUnapprovedWords();
                     } else {
-                        currentUserId = crypto.randomUUID(); // Fallback ID for display
-                        userIdDisplay.textContent = currentUserId + " (Anon)";
-                        console.log("User signed in anonymously. Using fallback UID for public data.");
+                        // This case is unlikely due to signInWithCustomToken or signInAnonymously always providing a user
+                        currentUserId = crypto.randomUUID(); 
+                        userIdDisplay.textContent = currentUserId + " (Anon Fallback)";
+                        console.log("User signed in anonymously. Using UID for public data.");
+                        // Still call listeners to attempt loading, assuming public data access is available
+                        listenForWordData();
+                        listenForUnapprovedWords();
                     }
                 });
 
@@ -379,18 +456,24 @@
          * Populates the official_words collection if it is empty.
          */
         async function initializeOfficialWords() {
+            if (!db) return;
             const collectionRef = collection(db, OFFICIAL_COLLECTION);
-            const snapshot = await getDocs(collectionRef);
+            
+            try {
+                const snapshot = await getDocs(collectionRef);
 
-            if (snapshot.empty) {
-                console.log("Official word list is empty. Populating with defaults...");
-                const batch = writeBatch(db);
-                INITIAL_OFFICIAL_WORDS.forEach(wordData => {
-                    const newDocRef = doc(collectionRef);
-                    batch.set(newDocRef, wordData);
-                });
-                await batch.commit();
-                console.log("Default official words added.");
+                if (snapshot.empty) {
+                    console.log("Official word list is empty. Populating with defaults...");
+                    const batch = writeBatch(db);
+                    INITIAL_OFFICIAL_WORDS.forEach(wordData => {
+                        const newDocRef = doc(collectionRef);
+                        batch.set(newDocRef, wordData);
+                    });
+                    await batch.commit();
+                    console.log("Default official words added.");
+                }
+            } catch (error) {
+                console.error("Error initializing official words:", error);
             }
         }
 
@@ -398,6 +481,7 @@
          * Attaches listeners to the word collections based on the current filter mode.
          */
         function listenForWordData() {
+            if (!db) return;
             // Listeners for Voted Words (Community Ratings)
             onSnapshot(collection(db, OFFICIAL_COLLECTION), (snapshot) => updateCommunityRatings(snapshot.docs, 'official'));
             onSnapshot(collection(db, CUSTOM_COLLECTION), (snapshot) => updateCommunityRatings(snapshot.docs, 'custom'));
@@ -412,82 +496,80 @@
         let unsubscribeWordList = null;
 
         function updateWordListListener() {
+            if (!db) return;
             // Clear previous listener if it exists
             if (unsubscribeWordList) {
-                unsubscribeWordList();
                 unsubscribeWordList = null;
             }
 
             let officialQuery = query(collection(db, OFFICIAL_COLLECTION));
+            // Only approved custom words can be voted on
             let customQuery = query(collection(db, CUSTOM_COLLECTION), where("is_approved", "==", true));
             
-            let listenQueries = [];
-
-            if (filterMode === 'official' || filterMode === 'both') {
-                listenQueries.push(officialQuery);
-            }
-            if (filterMode === 'custom' || filterMode === 'both') {
-                listenQueries.push(customQuery);
-            }
-
-            if (listenQueries.length === 0) {
-                 wordList = [];
-                 getRandomWord(); // Update UI to show 'No words available'
-                 return;
-            }
             
-            // For simplicity in a single-file environment, we fetch all relevant words once 
-            // and merge them, instead of using multiple live listeners, which is complex 
-            // with onSnapshot and needs Firebase's multi-query feature.
-            
-            const fetchAndUpdateList = async () => {
-                let tempWordList = [];
-                
-                if (filterMode === 'official' || filterMode === 'both') {
-                    const officialSnapshot = await getDocs(officialQuery);
-                    officialSnapshot.forEach(doc => {
-                        tempWordList.push({ id: doc.id, ...doc.data(), type: 'official' });
-                    });
-                }
-                
-                if (filterMode === 'custom' || filterMode === 'both') {
-                    const customSnapshot = await getDocs(customQuery);
-                    customSnapshot.forEach(doc => {
-                        tempWordList.push({ id: doc.id, ...doc.data(), type: 'custom' });
-                    });
-                }
-                
-                wordList = tempWordList;
-                console.log(`Word list updated. Total words: ${wordList.length}. Filter: ${filterMode}`);
-                if (!currentWord || !wordList.find(w => w.id === currentWord.id)) {
-                    getRandomWord();
-                }
-            };
-            
-            // Use a single initial fetch, and then set up listeners to trigger a full re-fetch 
-            // when any data changes (a simple debounce logic to avoid thrashing)
             let fetchTimeout;
-            const debouncedFetch = (type) => {
+            const fetchAndUpdateList = async (sourceChanged = false) => {
                 if (fetchTimeout) clearTimeout(fetchTimeout);
-                fetchTimeout = setTimeout(() => {
-                    fetchAndUpdateList();
-                    // Display message about the change
-                    displayMessage(`List source changed to '${type}'. Finding new word...`);
-                }, 100);
+                
+                fetchTimeout = setTimeout(async () => {
+                    let tempWordList = [];
+                    
+                    try {
+                        if (filterMode === 'official' || filterMode === 'both') {
+                            const officialSnapshot = await getDocs(officialQuery);
+                            officialSnapshot.forEach(doc => {
+                                tempWordList.push({ id: doc.id, ...doc.data(), type: 'official' });
+                            });
+                        }
+                        
+                        if (filterMode === 'custom' || filterMode === 'both') {
+                            const customSnapshot = await getDocs(customQuery);
+                            customSnapshot.forEach(doc => {
+                                tempWordList.push({ id: doc.id, ...doc.data(), type: 'custom' });
+                            });
+                        }
+                        
+                        wordList = tempWordList;
+                        console.log(`Word list updated. Total words: ${wordList.length}. Filter: ${filterMode}`);
+                        
+                        if (sourceChanged || !currentWord || !wordList.find(w => w.id === currentWord.id)) {
+                            getRandomWord();
+                        } else {
+                            // If word didn't change, still run fitTextToCard in case of a resize event being handled here
+                            fitTextToCard();
+                        }
+                    } catch (error) {
+                        console.error("Error fetching word list:", error);
+                        displayMessage("Could not fetch word list. Database error.", true);
+                        currentWordEl.textContent = "DB ERROR";
+                        currentWordEl.style.fontSize = '1.5rem';
+                    }
+                }, 100); // Debounce to prevent multiple rapid fetches
             };
-
-            // Set up basic listeners to trigger the fetchAndUpdateList
-            if (filterMode === 'official' || filterMode === 'both') {
-                const unsubscribeOfficial = onSnapshot(officialQuery, () => debouncedFetch('official'));
-                unsubscribeWordList = (unsubscribeWordList || (() => {})) + unsubscribeOfficial;
-            }
-            if (filterMode === 'custom' || filterMode === 'both') {
-                const unsubscribeCustom = onSnapshot(customQuery, () => debouncedFetch('custom'));
-                unsubscribeWordList = (unsubscribeWordList || (() => {})) + unsubscribeCustom;
-            }
-
+            
             // Initial fetch
-            fetchAndUpdateList();
+            fetchAndUpdateList(true);
+
+            // Set up listeners to trigger the full re-fetch when data changes
+            if (filterMode === 'official' || filterMode === 'both') {
+                const officialUnsubscribe = onSnapshot(officialQuery, () => {
+                    console.log("Official collection changed, updating word list.");
+                    fetchAndUpdateList(); 
+                });
+                unsubscribeWordList = officialUnsubscribe;
+            }
+
+            if (filterMode === 'custom' || filterMode === 'both') {
+                const customUnsubscribe = onSnapshot(customQuery, () => {
+                    console.log("Custom collection changed, updating word list.");
+                    fetchAndUpdateList();
+                });
+                // In this case, one listener might overwrite the other unsubscribe. 
+                // Since this app relies on the immediate fetchAndUpdateList, this is acceptable 
+                // for the single-file environment, but indicates a need for refactoring 
+                // for true multi-listener cleanup if complexity increases.
+                unsubscribeWordList = customUnsubscribe; 
+            }
         }
 
 
@@ -495,6 +577,8 @@
          * Attaches a listener for unapproved words for the admin panel.
          */
         function listenForUnapprovedWords() {
+            if (!db) return;
+            // Unapproved words (is_approved == false)
             const q = query(collection(db, CUSTOM_COLLECTION), where("is_approved", "==", false));
             onSnapshot(q, (snapshot) => {
                 unapprovedWords = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -508,7 +592,13 @@
          * Renders the list of unapproved custom words for management.
          */
         function renderUnapprovedWords() {
-            manageWordsSection.classList.remove('hidden');
+            // Show the admin section only if there are pending words or the filter is set to custom
+            if (unapprovedWords.length > 0 || filterMode === 'custom' || filterMode === 'both') {
+                manageWordsSection.classList.remove('hidden');
+            } else {
+                manageWordsSection.classList.add('hidden');
+            }
+            
             unapprovedWordsList.innerHTML = '';
 
             if (unapprovedWords.length === 0) {
@@ -518,14 +608,14 @@
 
             unapprovedWords.forEach(wordDoc => {
                 const li = document.createElement('div');
-                li.className = 'flex justify-between items-center p-3 bg-yellow-50 rounded-lg border border-yellow-200';
+                li.className = 'flex flex-col sm:flex-row justify-between items-center p-3 bg-yellow-50 rounded-lg border border-yellow-200';
                 
                 const wordText = document.createElement('span');
-                wordText.className = 'font-semibold text-gray-800 uppercase';
+                wordText.className = 'font-semibold text-gray-800 uppercase mb-2 sm:mb-0';
                 wordText.textContent = wordDoc.word;
 
                 const actions = document.createElement('div');
-                actions.className = 'space-x-2';
+                actions.className = 'flex space-x-2';
 
                 const approveBtn = document.createElement('button');
                 approveBtn.className = 'px-3 py-1 bg-green-500 hover:bg-green-600 text-white text-sm rounded-lg transition';
@@ -549,38 +639,44 @@
         /**
          * Renders the top-voted words in the community ratings section.
          */
+        window.allRatedWords = window.allRatedWords || []; 
         function updateCommunityRatings(docs, type) {
-            let allWords = [];
+            let incomingWords = [];
             docs.forEach(doc => {
-                allWords.push({ id: doc.id, ...doc.data(), type: type });
+                // Ensure custom words only show up if approved for public display here
+                if (type === 'custom' && doc.data().is_approved === false) {
+                    return; 
+                }
+                incomingWords.push({ id: doc.id, ...doc.data(), type: type });
             });
             
-            // Merge or replace based on existing data. For simplicity, we'll re-calculate all ratings
-            // by merging results from both official and custom lists.
-            const allRatedWords = (window.allRatedWords || []).filter(w => w.type !== type).concat(allWords);
-            window.allRatedWords = allRatedWords;
+            // 1. Remove old entries of the specific type and add new ones
+            window.allRatedWords = window.allRatedWords.filter(w => w.type !== type).concat(incomingWords);
             
-            const ratedWords = allRatedWords.filter(w => w.good_votes + w.bad_votes > 0);
+            // 2. Filter, calculate percentages, and prepare for display
+            const ratedWords = window.allRatedWords.filter(w => w.good_votes + w.bad_votes > 0);
             
             ratedWords.forEach(w => {
                 w.total_votes = w.good_votes + w.bad_votes;
                 w.good_percent = Math.round((w.good_votes / w.total_votes) * 100);
             });
 
+            // 3. Sort and slice
             // Sort by 'Mostly Good' (highest good percentage)
             const sortedGood = [...ratedWords].sort((a, b) => b.good_percent - a.good_percent).slice(0, 5);
             // Sort by 'Mostly Bad' (lowest good percentage / highest bad percentage)
             const sortedBad = [...ratedWords].sort((a, b) => a.good_percent - b.good_percent).slice(0, 5);
 
+            // 4. Render
             const renderList = (listEl, words, isGood) => {
                 listEl.innerHTML = '';
                 if (words.length === 0) {
-                    listEl.innerHTML = `<li class="text-center italic text-sm">No community votes yet.</li>`;
+                    listEl.innerHTML = `<li class="text-center italic text-sm text-gray-500">No community votes yet.</li>`;
                     return;
                 }
                 words.forEach(word => {
                     const li = document.createElement('li');
-                    li.className = 'flex justify-between items-center p-2 rounded-md transition duration-150 hover:bg-opacity-80';
+                    li.className = 'flex justify-between items-center p-2 rounded-md transition duration-150';
                     const percent = isGood ? word.good_percent : (100 - word.good_percent);
                     const color = isGood ? 'text-green-700' : 'text-red-700';
 
@@ -602,24 +698,25 @@
          * Handles the vote action.
          */
         async function handleVote(isGood) {
-            if (!currentWord || !db) {
-                displayMessage("Word list is not loaded yet.", true);
+            if (!currentWord || !db || !wordIdEl.value || !wordTypeEl.value) {
+                displayMessage("Please wait for a word to load before voting.", true);
                 return;
             }
 
             const wordId = wordIdEl.value;
             const wordType = wordTypeEl.value;
             const collectionPath = getCollectionPath(wordType);
+            const card = document.getElementById('wordCard');
+
+            // Disable buttons immediately
+            voteGoodBtn.disabled = true;
+            voteBadBtn.disabled = true;
 
             try {
                 const wordRef = doc(db, collectionPath, wordId);
-                
                 const incrementField = isGood ? 'good_votes' : 'bad_votes';
                 
-                // Firestore doesn't support the 'increment' operation directly in a single function call
-                // with the current imports, so we'll fetch the current value and update it.
-                // NOTE: In a real app, you would use Transactions for atomic updates, but we'll 
-                // simplify here for the single-file mandate.
+                // Fetch, update, and save the document (simplified atomic update for canvas)
                 const docSnap = await getDoc(wordRef);
                 if (docSnap.exists()) {
                     const currentData = docSnap.data();
@@ -631,12 +728,14 @@
                     displayMessage(message);
                     
                     // Trigger animation
-                    const card = document.getElementById('wordCard');
-                    card.classList.add(isGood ? 'slide-out-good' : 'slide-out-bad');
+                    card.classList.add(isGood ? 'slide-out-good' : 'slide-out-bad', isGood ? 'good-border' : 'bad-border');
 
                     setTimeout(() => {
                         getRandomWord();
-                        card.classList.remove('slide-out-good', 'slide-out-bad');
+                        card.classList.remove('slide-out-good', 'slide-out-bad', 'good-border', 'bad-border');
+                        // Re-enable buttons after new word loads
+                        voteGoodBtn.disabled = false;
+                        voteBadBtn.disabled = false;
                     }, 400); // Wait for animation to finish
                 } else {
                     throw new Error("Word not found in database.");
@@ -645,6 +744,10 @@
             } catch (error) {
                 console.error("Error updating vote:", error);
                 displayMessage("Error submitting vote. Try again.", true);
+                // Re-enable buttons on failure
+                voteGoodBtn.disabled = false;
+                voteBadBtn.disabled = false;
+                card.classList.remove('slide-out-good', 'slide-out-bad', 'good-border', 'bad-border');
             }
         }
         
@@ -652,6 +755,8 @@
          * Handles the new word submission from the modal.
          */
         async function handleSubmitNewWord() {
+            if (!db) return displayMessage("Database not ready.", true);
+
             const word = newWordInput.value.trim().toUpperCase();
             wordSubmissionMessage.classList.add('hidden');
 
@@ -662,7 +767,7 @@
             }
             
             try {
-                // Check if word already exists (simplified)
+                // Check if word already exists 
                 const q = query(collection(db, CUSTOM_COLLECTION), where("word", "==", word));
                 const snapshot = await getDocs(q);
                 
@@ -695,17 +800,17 @@
          * Handles approval or deletion of a custom word.
          */
         async function handleApproval(wordId, shouldApprove) {
-            if (!currentUserId) return displayMessage("Please wait for user authentication.", true);
+            if (!db) return displayMessage("Database not ready.", true);
 
             const wordRef = doc(db, CUSTOM_COLLECTION, wordId);
 
             try {
                 if (shouldApprove) {
                     await updateDoc(wordRef, { is_approved: true });
-                    displayMessage(`Word ID ${wordId} approved and is now live!`);
+                    displayMessage(`Word approved and is now live!`);
                 } else {
                     await deleteDoc(wordRef);
-                    displayMessage(`Word ID ${wordId} deleted.`);
+                    displayMessage(`Word deleted.`);
                 }
             } catch (error) {
                 console.error("Error managing word:", error);
@@ -716,6 +821,14 @@
         // --- Event Listeners Setup ---
         
         function setupListeners() {
+            // Initial call to ensure management section visibility is correct
+            const initialFilterValue = listFilterEl.value;
+            if (initialFilterValue === 'custom' || initialFilterValue === 'both') {
+                manageWordsSection.classList.remove('hidden');
+            } else {
+                manageWordsSection.classList.add('hidden');
+            }
+            
             voteGoodBtn.addEventListener('click', () => handleVote(true));
             voteBadBtn.addEventListener('click', () => handleVote(false));
             
@@ -739,13 +852,17 @@
             listFilterEl.addEventListener('change', (e) => {
                 filterMode = e.target.value;
                 updateWordListListener();
-                // Ensure management section is hidden if not on 'custom' list
+                
+                // Control visibility of the management section based on filter mode
                 if (filterMode === 'custom' || filterMode === 'both') {
                     manageWordsSection.classList.remove('hidden');
                 } else {
                     manageWordsSection.classList.add('hidden');
                 }
             });
+            
+            // *** NEW: Add resize listener to refit text ***
+            window.addEventListener('resize', fitTextToCard);
         }
 
 
