@@ -220,7 +220,7 @@
 
         <!-- Footer for App Version -->
         <footer class="mt-8 text-center text-xs text-gray-400">
-            App Version: v5.4 (API Backend - Revert to Working Load + Safety Check)
+            App Version: v5.5 (Restored Stable State)
         </footer>
     </div>
     
@@ -380,6 +380,8 @@
             if (!userId) {
                 wordDisplay.textContent = "USER INIT FAILED";
                 showMessage("User ID not initialized. Cannot fetch word.", 'error');
+                // Allow the rest of the window.onload to finish before trying again
+                retryTimer = setTimeout(fetchNextWord, 2000); 
                 return;
             }
 
@@ -430,11 +432,10 @@
          * @param {string} sentiment 'good' or 'bad'.
          */
         async function sendVote(sentiment) {
-            // SAFER CHECK: Explicitly prevent voting if the word hasn't been loaded yet.
+            // CRITICAL CHECK: Ensure we have the word ID and user ID before proceeding
             if (!currentWordId || !userId) {
-                showMessage("Cannot vote: Waiting for word to load or user ID missing.", 'error');
-                // Importantly, we return here to halt the function without causing a network error.
-                return; 
+                showMessage("Cannot vote: No word loaded or user ID missing. Try refreshing.", 'error');
+                return;
             }
 
             toggleButtons(false);
@@ -460,7 +461,7 @@
                 
                 // Vote successful, fetch the next word and update leaderboards
                 await fetchNextWord();
-                await fetchTopWords(); 
+                await fetchTopWords(); // Update the leaderboard right after voting
 
             } catch (error) {
                 console.error("Vote Error:", error.message);
