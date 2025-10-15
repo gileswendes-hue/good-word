@@ -3,203 +3,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Good Word/Bad Word</title>
-    <!-- Load Tailwind CSS via CDN --><script src="https://cdn.tailwindcss.com"></script>
-    <!-- Link to the external CSS file --><link rel="stylesheet" href="styles.css"> 
+    <title>Good Word / Bad Word</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Base Styles (Combined from previous inline and style.css_addition for robustness) */
-        :root {
-            --good-color: #4CAF50; 
-            --bad-color: #F44336; 
-            --neutral-color: #FFC107; 
-            --card-bg: #fff;
-            --border-radius: 12px;
-        }
-
+        /* Custom styles for aesthetic polish */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
         body {
-            font-family: 'Inter', sans-serif; 
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            min-height: 100vh;
-            padding: 2rem 1rem;
-            background: linear-gradient(to bottom right, #e0ffe0 0%, #fff 50%, #ffe0e0 100%);
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* Light gray background */
         }
-
-        /* Word Card Styles (Copied from original inline for visual consistency) */
-        .word-card {
-            background-color: var(--card-bg);
-            border: 5px solid var(--neutral-color);
-            border-radius: var(--border-radius);
-            padding: 40px 60px;
-            text-align: center;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
-            transition: transform 0.4s ease, border-color 0.4s ease, opacity 0.4s ease, box-shadow 0.4s ease;
-            user-select: none;
-            position: relative;
-            z-index: 10;
-            animation: floating 3s ease-in-out infinite alternate;
-            
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            min-height: 200px; /* Ensure card has size for text fitting */
+        .card {
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
         }
-
-        /* The dynamic sizing for the word to classify */
-        .word-card .text-word {
-            font-weight: 900;
-            text-transform: uppercase;
-            line-height: 1;
-            overflow: hidden; 
-            white-space: normal; 
-            display: block;
-            transition: font-size 0.2s ease; 
-            max-width: 100%;
-            /* NEW: Dynamic font size to ensure the word always fits */
-            font-size: min(10vw, 3rem); 
+        
+        /* Custom Border Styles for Feedback */
+        .word-box {
+            border: 4px solid #e5e7eb; /* Default neutral border */
+            transition: border-color 0.4s ease-in-out;
         }
-
-        /* Custom border classes from styles.css */
-        .word-card.good-border { border-color: #34d399; }
-        .word-card.bad-border { border-color: #f87171; }
-        .word-card.neutral-border { border-color: #9ca3af; }
-
-
-        /* Animation Keyframes */
-        @keyframes floating {
-            0% { transform: translateY(0) scale(1); box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15); }
-            100% { transform: translateY(-5px) scale(1.01); box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3); }
-        }
-
-        /* Animation classes for voting action */
-        .word-card.slide-out-good { transform: translateX(-400px) scale(0.8); opacity: 0; }
-        .word-card.slide-out-bad { transform: translateX(400px) scale(0.8); opacity: 0; }
-
-        /* Engagement Message CSS (Must be in a visible position) */
-        #engagementMessageBox {
-            position: absolute;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.5s ease, visibility 0.5s ease;
-            top: -50px; 
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 20;
-            pointer-events: none;
-            max-width: 90%;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        #engagementMessageBox.visible {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        /* Logo specific styles */
-        .ascii-logo {
-            font-family: 'monospace', monospace; /* Ensure fixed-width font */
-            font-size: 2.2rem; /* INCREASED SIZE for bolder look */
-            font-weight: 900; /* ADDED BOLDNESS */
-            line-height: 0.9;
-            /* REVERTED CENTERING: Back to standard block display and centered text content */
-            display: block; 
-            text-align: center; /* This centers the inline spans */
-            margin-bottom: 0.5rem; /* Keeps spacing consistent */
-            /* Removed white-space: pre; to allow normal flow which centers better in a block element */
-            color: #4CAF50; /* Base color for 'Good' */
-            text-shadow: 2px 2px 0px rgba(0,0,0,0.1); /* Subtle shadow */
-            transition: all 0.3s ease;
-        }
-        .ascii-logo .bad-part {
-            color: #F44336; /* Color for 'Bad' part */
-        }
-        .ascii-logo .neutral-part {
-            color: #FFC107; /* Color for '/' part */
-        }
-
-        @media (max-width: 500px) {
-            .ascii-logo {
-                font-size: 1.6rem; /* Adjusted responsive size */
-            }
-        }
+        .good-border { border-color: #10b981; /* Green-500 */ }
+        .bad-border { border-color: #ef4444; /* Red-500 */ }
+        .neutral-border { border-color: #9ca3af; /* Gray-400 */ }
     </style>
 </head>
-<body class="p-4 md:p-8 bg-gray-100">
+<body class="min-h-screen flex items-center justify-center p-4">
 
-    <div id="app-container" class="w-full max-w-lg bg-white shadow-2xl rounded-xl p-6 md:p-10 border border-gray-100 transform transition duration-500 hover:shadow-3xl">
+    <div class="w-full max-w-lg">
+        <!-- Main Application Card -->
+        <div class="card bg-white p-8 rounded-2xl">
+            <!-- RESTORED MULTI-COLORED TITLE -->
+            <h1 class="text-3xl font-extrabold text-center mb-2 tracking-tight">
+                <span class="text-green-600">GOOD</span> 
+                <span class="text-gray-800">WORD /</span> 
+                <span class="text-red-600">BAD</span> 
+                <span class="text-gray-800">WORD</span>
+            </h1>
+            <p class="text-center text-gray-500 mb-6">Is the word mostly <span class="font-bold text-green-600">Good</span> or mostly <span class="font-bold text-red-600">Bad</span>?</p>
 
-        <!-- Header Section --><header class="text-center mb-10">
-            <!-- ASCII Art Logo --><div class="ascii-logo">
-                <span class="good-part">GOOD WORD</span><span class="neutral-part">/</span><span class="bad-part">BAD WORD</span>
+            <!-- Message Display Area (Moved above the word box for visual clarity) -->
+            <!-- The 'hidden' class is REMOVED so JavaScript can manage it by adding/removing it for visibility. -->
+            <p id="messageDisplay" class="text-center text-sm font-medium mt-[-10px] mb-4 h-6 transition-all duration-300"></p>
+
+            <!-- Word Classification Area -->
+            <!-- Added base neutral-border class to ensure a border is always present -->
+            <div class="word-box p-8 rounded-xl bg-gray-50 mb-6 text-center neutral-border">
+                <p class="text-sm font-semibold text-gray-400 mb-4">WORD TO CLASSIFY</p>
+                <div id="wordDisplay" class="text-5xl font-extrabold text-gray-800 tracking-wider transition-opacity duration-300">
+                    LOADING...
+                </div>
             </div>
+
+            <!-- Action Buttons -->
+            <div class="flex space-x-4 mb-10">
+                <button id="goodWordBtn" class="flex-1 py-3 px-4 bg-green-500 text-white font-bold rounded-xl shadow-lg hover:bg-green-600 focus:ring-4 focus:ring-green-300 transition duration-150 flex items-center justify-center disabled:opacity-50">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.529 0-1.009-.208-1.373-.559L9 16m0 0l-2.5-5.25v-2A2 2 0 018.5 6h.5a2 2 0 012 2v2"></path></svg>
+                    Good Word
+                </button>
+                <button id="badWordBtn" class="flex-1 py-3 px-4 bg-red-500 text-white font-bold rounded-xl shadow-lg hover:bg-red-600 focus:ring-4 focus:ring-red-300 transition duration-150 flex items-center justify-center disabled:opacity-50">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.017c.529 0 1.009.208 1.373.559L15 8m0 0l2.5 5.25v2A2 2 0 0115.5 18h-.5a2 2 0 01-2-2v-2"></path></svg>
+                    Bad Word
+                </button>
+            </div>
+
+            <!-- Community Ratings Leaderboard -->
+            <h2 class="text-xl font-bold text-center mb-4 border-t pt-6">Community Ratings</h2>
             
-            <p class="mt-2 text-lg text-gray-500 font-medium">
-                Is the word mostly <span class="text-green-600 font-bold">Good</span> or mostly <span class="text-red-600 font-bold">Bad</span>?
-            </p>
-        </header>
-
-        
-        <!-- Voting Section --><section id="voting-section" class="mb-10">
-            <div class="word-card-wrapper">
-                <div id="wordCard" class="word-card neutral-border">
-                    <p class="text-sm font-semibold text-gray-500 uppercase tracking-widest mb-2">Word to Classify</p>
-                    <span id="currentWord" class="text-word flex-grow flex items-center justify-center">
-                        LOADING...
-                    </span>
-                    <!-- Hidden input to store the current word's database ID --><input type="hidden" id="word-id">
-                </div>
-                
-                <!-- Engagement Message Box --><div id="engagementMessageBox" class="bg-blue-100 text-blue-800 text-sm font-semibold rounded-lg shadow-xl border border-blue-200">
-                    <!-- Dynamic message appears here --></div>
-            </div>
-
-            <!-- Vote Buttons --><div class="flex justify-between mt-6 space-x-4">
-                <button id="vote-good" 
-                    class="flex-1 px-4 py-4 text-white text-lg font-bold rounded-xl shadow-lg 
-                            bg-green-500 hover:bg-green-600 transition duration-200 
-                            hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-4 focus:ring-green-300">
-                    👍 Good Word
-                </button>
-                <button id="vote-bad"
-                    class="flex-1 px-4 py-4 text-white text-lg font-bold rounded-xl shadow-lg 
-                            bg-red-500 hover:bg-red-600 transition duration-200 
-                            hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-4 focus:ring-red-300">
-                    👎 Bad Word
-                </button>
-            </div>
-        </section>
-        
-        <!-- Community Ratings Section --><section id="community-ratings" class="mt-8 pt-6 border-t border-gray-200">
-            <h2 class="text-2xl font-bold text-gray-800 text-center mb-6">
-                Community Ratings
-            </h2>
-
-            <div class="top-words-lists grid grid-cols-1 sm:grid-cols-2 gap-4">
-                
-                <!-- Mostly Good List --><div class="bg-green-50/70 p-4 rounded-lg shadow-inner border border-green-100">
-                    <h3 class="text-xl font-semibold text-green-700 mb-3 text-center">Mostly Good</h3>
-                    <ul id="mostly-good-list" class="space-y-2 text-gray-700">
-                        <li class="text-center italic text-sm">Loading...</li>
+            <div class="flex space-x-4">
+                <!-- Mostly Good List -->
+                <div class="flex-1 p-4 rounded-xl bg-green-50 border border-green-200">
+                    <h3 class="text-lg font-semibold text-green-700 text-center mb-3">Mostly Good</h3>
+                    <ul id="mostlyGoodList" class="space-y-1">
+                        <li class="text-center text-gray-500 italic">Loading...</li>
                     </ul>
                 </div>
                 
-                <!-- Mostly Bad List --><div class="bg-red-50/70 p-4 rounded-lg shadow-inner border border-red-100">
-                    <h3 class="text-xl font-semibold text-red-700 mb-3 text-center">Mostly Bad</h3>
-                    <ul id="mostly-bad-list" class="space-y-2 text-gray-700">
-                        <li class="text-center italic text-sm">Loading...</li>
+                <!-- Mostly Bad List -->
+                <div class="flex-1 p-4 rounded-xl bg-red-50 border border-red-200">
+                    <h3 class="text-lg font-semibold text-red-700 text-center mb-3">Mostly Bad</h3>
+                    <ul id="mostlyBadList" class="space-y-1">
+                        <li class="text-center text-gray-500 italic">Loading...</li>
                     </ul>
                 </div>
             </div>
-        </section>
-        
-        <!-- Footer / Version Display --><footer class="text-center mt-8 text-xs text-gray-400">
-            Made by Gilxs 2025 ver. 3.8.1
-        </footer>
+
+            <p class="text-xs text-gray-400 text-center mt-6">App Version: v3.7.4 (Stable Logic)</p>
+        </div>
     </div>
 
-    <!-- Script tag for all client-side logic --><script src="script.js"></script>
+    <!-- Load the game logic script -->
+    <script src="public/script.js"></script>
 </body>
 </html>
