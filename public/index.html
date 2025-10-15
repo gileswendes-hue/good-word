@@ -220,7 +220,7 @@
 
         <!-- Footer for App Version -->
         <footer class="mt-8 text-center text-xs text-gray-400">
-            App Version: v5.2 (API Backend - State Management Fix)
+            App Version: v5.3 (API Backend - Reverted & Corrected Vote/Leaderboard)
         </footer>
     </div>
     
@@ -274,7 +274,7 @@
 
         /**
          * Initializes or retrieves a unique user ID from local storage.
-         * This ID is essential for the API to track which words this user has voted on.
+         * This ID is essential for the API to track votes.
          */
         function initializeUserId() {
             const storedId = localStorage.getItem('wordClassifierUserId');
@@ -292,8 +292,6 @@
 
         /**
          * Displays a temporary status message to the user.
-         * @param {string} message The text to display.
-         * @param {string} type 'success', 'error', or 'info' to determine styling.
          */
         function showMessage(message, type) {
             messageDisplay.textContent = message;
@@ -327,7 +325,6 @@
 
         /**
          * Sets the word box border color and applies a flip animation.
-         * @param {string} type 'neutral', 'good', or 'bad'.
          */
         function setWordBoxState(type, animate = true) {
             wordBox.classList.remove('neutral-border', 'good-border', 'bad-border');
@@ -350,7 +347,6 @@
 
         /**
          * Enables or disables the voting buttons.
-         * @param {boolean} enable True to enable, false to disable.
          */
         function toggleButtons(enable) {
             goodWordBtn.disabled = !enable;
@@ -376,17 +372,16 @@
          */
         async function fetchNextWord() {
             clearRetry();
-
-            // IMPORTANT: Reset the word state before trying to fetch
-            currentWordId = null;
-            currentWordText = null;
-
             toggleButtons(false);
             wordDisplay.textContent = "LOADING...";
             setWordBoxState('neutral', false);
             
+            // Ensure userId is available before fetching
             if (!userId) {
+                wordDisplay.textContent = "USER INIT FAILED";
                 showMessage("User ID not initialized. Cannot fetch word.", 'error');
+                // Set a timeout to re-check user ID initialization, not API.
+                retryTimer = setTimeout(fetchNextWord, 2000); 
                 return;
             }
 
@@ -401,11 +396,11 @@
                 const data = await response.json(); 
                 
                 if (data.word && data._id) {
-                    currentWordId = data._id;
+                    currentWordId = data._id; // IMPORTANT: Set current word ID
                     currentWordText = data.word;
                     wordDisplay.textContent = currentWordText.toUpperCase();
                     setWordBoxState('neutral', true);
-                    toggleButtons(true); // Buttons enabled ONLY after word is loaded
+                    toggleButtons(true);
                     showMessage("New word loaded!", 'success');
                 } else if (data.message && data.message.includes("No words left")) {
                     currentWordId = null;
@@ -427,7 +422,7 @@
                 wordDisplay.textContent = "API OFFLINE";
                 showMessage("Backend service is offline. Retrying in 5s...", 'error');
                 
-                // Retry logic
+                // Retry logic for API connection failure
                 retryTimer = setTimeout(fetchNextWord, 5000); 
             }
         }
@@ -439,8 +434,7 @@
         async function sendVote(sentiment) {
             // CRITICAL CHECK: Ensure we have the word ID and user ID before proceeding
             if (!currentWordId || !userId) {
-                showMessage("Cannot vote: No word loaded or user ID missing. (Waiting for server response)", 'error');
-                // Do NOT return here, to allow the message to show, but still prevent the fetch
+                showMessage("Cannot vote: No word loaded or user ID missing.", 'error');
                 return;
             }
 
@@ -453,22 +447,21 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         wordId: currentWordId, 
-                        sentiment: sentiment, // Ensure we pass the string 'good' or 'bad'
+                        sentiment: sentiment,
                         userId: userId 
                     })
                 });
 
                 if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({})); // Parse JSON or default
+                    const errorData = await response.json().catch(() => ({}));
                     throw new Error(errorData.message || `API Error (${response.status}) on vote.`);
                 }
 
                 showMessage(`Voted ${sentiment.toUpperCase()}!`, sentiment);
                 
                 // Vote successful, fetch the next word and update leaderboards
-                // Use await to ensure sequence
                 await fetchNextWord();
-                await fetchTopWords();
+                await fetchTopWords(); // <--- CRITICAL FIX: Update leaderboard on successful vote
 
             } catch (error) {
                 console.error("Vote Error:", error.message);
@@ -510,7 +503,6 @@
                     .sort((a, b) => b.goodPercent - a.goodPercent)
                     .slice(0, 5);
                 
-                // Adjusted filter: words with 50% or more Bad votes go here.
                 const badList = classifiedWords
                     .filter(item => item.badPercent >= 50)
                     .sort((a, b) => b.badPercent - a.badPercent)
@@ -650,7 +642,7 @@
             
             // Initial data fetch - fetchNextWord() will only enable buttons on success
             fetchNextWord();
-            fetchTopWords();
+            fetchTopWords(); // <--- CRITICAL FIX: Fetch leaderboard on load
         };
 
     </script>
