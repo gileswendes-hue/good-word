@@ -47,6 +47,7 @@
             min-height: 200px; /* Ensure card has size for text fitting */
         }
 
+        /* The dynamic sizing for the word to classify */
         .word-card .text-word {
             font-weight: 900;
             text-transform: uppercase;
@@ -56,6 +57,8 @@
             display: block;
             transition: font-size 0.2s ease; 
             max-width: 100%;
+            /* NEW: Dynamic font size to ensure the word always fits */
+            font-size: min(10vw, 3rem); 
         }
 
         /* Custom border classes from styles.css */
@@ -98,7 +101,8 @@
         /* Logo specific styles */
         .ascii-logo {
             font-family: 'monospace', monospace; /* Ensure fixed-width font */
-            font-size: 1.8rem; /* Adjust size as needed */
+            font-size: 2.2rem; /* INCREASED SIZE for bolder look */
+            font-weight: 900; /* ADDED BOLDNESS */
             line-height: 0.9;
             white-space: pre; /* Preserve whitespace for ASCII art */
             color: #4CAF50; /* Base color for 'Good' */
@@ -117,7 +121,7 @@
 
         @media (max-width: 500px) {
             .ascii-logo {
-                font-size: 1.3rem;
+                font-size: 1.6rem; /* Adjusted responsive size */
             }
         }
     </style>
