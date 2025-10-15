@@ -1,359 +1,295 @@
-/**
- * Good Word/Bad Word Game - Client-Side Logic
- * Version 3.8 - Implementing dynamic engagement messages and micro-interactions.
- * * This script handles fetching words, displaying them, capturing user votes,
- * triggering animations, and updating the community ratings list in real-time
- * via the Express/MongoDB API endpoints.
- */
+// Set up BASE URL for API calls. Assumes the API is served from the same domain or path.
+// This will correctly target endpoints like /api/get-word on your Render service.
+const BASE_URL = '/api'; 
 
-// --- Constants and DOM Elements ---
-const API_URL = '/api';
+let currentWordData = null; // Stores the current word object
 
-const wordCard = document.getElementById('wordCard');
-const currentWordSpan = document.getElementById('currentWord');
-const wordIdInput = document.getElementById('word-id');
-const voteGoodButton = document.getElementById('vote-good');
-const voteBadButton = document.getElementById('vote-bad');
-const mostlyGoodList = document.getElementById('mostly-good-list');
-const mostlyBadList = document.getElementById('mostly-bad-list');
-const engagementMessageBox = document.getElementById('engagementMessageBox');
-
-let currentWordData = null; // Stores data for the currently displayed word
+const elements = {
+    currentWordSpan: document.getElementById('currentWord'),
+    wordIdInput: document.getElementById('word-id'),
+    voteGoodButton: document.getElementById('vote-good'),
+    voteBadButton: document.getElementById('vote-bad'),
+    mostlyGoodList: document.getElementById('mostly-good-list'),
+    mostlyBadList: document.getElementById('mostly-bad-list'),
+    wordCard: document.getElementById('wordCard'),
+    engagementMessageBox: document.getElementById('engagementMessageBox')
+};
 
 // --- Utility Functions ---
 
 /**
- * Handles error messages gracefully without using alert().
- * @param {string} message - The error message to display.
+ * Utility function for retrying API fetch operations (using exponential backoff).
+ * This ensures the app is resilient against temporary connection drops to the Render API.
+ * @param {string} url - The API endpoint URL.
+ * @param {Object} options - Fetch options (method, headers, body, etc.).
+ * @param {number} maxRetries - Maximum number of retries.
  */
-function handleError(message) {
-    console.error('API Error:', message);
-    currentWordSpan.textContent = `Error: ${message}. Try refreshing.`;
-    wordCard.className = 'word-card bad-border';
-    voteGoodButton.disabled = true;
-    voteBadButton.disabled = true;
-}
-
-/**
- * Fetches data from a given API endpoint.
- * @param {string} endpoint - The API path (e.g., '/get-word').
- * @param {string} method - The HTTP method (e.g., 'GET', 'POST').
- * @param {object} [body=null] - The request body for POST/PUT requests.
- * @returns {Promise<object>} The JSON response data.
- */
-async function apiFetch(endpoint, method = 'GET', body = null) {
-    const options = {
-        method: method,
-        headers: {
-            'Content-Type': 'application/json',
-        },
-    };
-    if (body) {
-        options.body = JSON.stringify(body);
-    }
-    
-    try {
-        const response = await fetch(API_URL + endpoint, options);
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
+async function retryFetch(url, options = {}, maxRetries = 3) {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+            const response = await fetch(url, options);
+            if (!response.ok) {
+                // Throw an error if the HTTP status is not 2xx
+                const errorText = await response.text();
+                throw new Error(`HTTP error! Status: ${response.status} - ${errorText.substring(0, 100)}...`);
+            }
+            return response;
+        } catch (error) {
+            if (attempt === maxRetries - 1) {
+                console.error(`API call to ${url} failed after ${maxRetries} attempts.`, error);
+                throw error;
+            }
+            const delay = Math.pow(2, attempt) * 500 + Math.random() * 500;
+            // Removed console.warn to adhere to silent backoff rule
+            await new Promise(resolve => setTimeout(resolve, delay));
         }
-        return response.json();
-    } catch (error) {
-        handleError(error.message);
-        throw error; // Re-throw to stop further execution if API fails
     }
 }
 
-/**
- * Dynamically adjusts the font size of the word to fit the card.
- * NOTE: The primary dynamic sizing is handled by CSS (font-size: min(10vw, 3rem);)
- * This function handles initial text content sizing in case of unusual overflow.
- */
-function adjustWordFontSize() {
-    const containerWidth = wordCard.offsetWidth - 120; // Card width minus padding
-    let fontSize = parseFloat(window.getComputedStyle(currentWordSpan).fontSize);
-
-    // Iteratively reduce font size if the text overflows its container
-    while (currentWordSpan.scrollWidth > containerWidth && fontSize > 16) {
-        fontSize -= 1;
-        currentWordSpan.style.fontSize = `${fontSize}px`;
-    }
-}
-
-// --- Word Handling ---
+// --- Core Game Logic (API Calls) ---
 
 /**
- * Displays the new word on the card.
- * @param {object} word - The word object from the API.
+ * Fetches the next word that the current user has NOT yet voted on from the Express API.
  */
-function displayWord(word) {
-    currentWordData = word;
-    currentWordSpan.textContent = word.word.toUpperCase();
-    wordIdInput.value = word._id;
+async function fetchNextWord() {
+    elements.currentWordSpan.textContent = "LOADING...";
+    elements.wordCard.classList.remove('good-border', 'bad-border');
+    elements.wordCard.classList.add('neutral-border');
     
-    // Set neutral border initially
-    wordCard.className = 'word-card neutral-border'; 
-    
-    // Ensure font size is adjusted for the new word
-    // Remove inline size if it was previously set, relying on CSS min() for responsiveness
-    currentWordSpan.style.fontSize = ''; 
-    adjustWordFontSize(); 
-}
+    // Disable buttons while loading
+    elements.voteGoodButton.disabled = true;
+    elements.voteBadButton.disabled = true;
 
-/**
- * Fetches a new word from the server.
- */
-async function fetchNewWord() {
     try {
-        currentWordSpan.textContent = 'LOADING...';
-        voteGoodButton.disabled = true;
-        voteBadButton.disabled = true;
-        
-        const data = await apiFetch('/get-word');
-        displayWord(data.word);
-        
-        // Restore button state
-        voteGoodButton.disabled = false;
-        voteBadButton.disabled = false;
+        const response = await retryFetch(`${BASE_URL}/get-word`);
+        const data = await response.json();
+
+        if (data && data.word && data._id) {
+            currentWordData = data;
+            elements.currentWordSpan.textContent = currentWordData.word.toUpperCase();
+            elements.wordIdInput.value = currentWordData._id; // Use MongoDB's _id
+
+            // Re-enable buttons on success
+            elements.voteGoodButton.disabled = false;
+            elements.voteBadButton.disabled = false;
+
+        } else {
+            elements.currentWordSpan.textContent = "All words voted on!";
+            elements.voteGoodButton.disabled = true;
+            elements.voteBadButton.disabled = true;
+        }
 
     } catch (error) {
-        // Error handled in apiFetch
+        console.error("Failed to fetch next word from API:", error);
+        elements.currentWordSpan.textContent = "API ERROR";
+        showEngagementMessage("Connection lost. Cannot load next word.", "bad");
     }
 }
 
-// --- Engagement Messaging System ---
-
 /**
- * Determines the appropriate engagement message based on vote statistics.
- * @param {string} voteType - 'good' or 'bad'.
- * @param {number} totalVotesBefore - Total votes before the current one.
- * @param {number} goodVotesBefore - Good votes before the current one.
- * @param {number} badVotesBefore - Bad votes before the current one.
- * @returns {{message: string, isGood: boolean, isBad: boolean}} - The message and associated theme.
- */
-function getEngagementMessage(voteType, totalVotesBefore, goodVotesBefore, badVotesBefore) {
-    const isGoodVote = voteType === 'good';
-    const isBadVote = voteType === 'bad';
-    
-    // Calculate new vote counts
-    const goodVotesAfter = goodVotesBefore + (isGoodVote ? 1 : 0);
-    const badVotesAfter = badVotesBefore + (isBadVote ? 1 : 0);
-    const totalVotesAfter = totalVotesBefore + 1;
-    
-    const voteDifference = Math.abs(goodVotesAfter - badVotesAfter);
-    const isFirstVote = totalVotesBefore === 0;
-    
-    // --- Message Logic ---
-
-    // 1. First Vote / Fresh Word
-    if (isFirstVote) {
-        if (isGoodVote) return { message: "First to call it good! Setting the tone.", isGood: true, isBad: false };
-        if (isBadVote) return { message: "First vote is critical! Bold choice.", isGood: false, isBad: true };
-    }
-    
-    // 2. Unanimous Vote (Solo) / Only Vote
-    if (totalVotesBefore > 0) {
-        // If it was previously all Bad, and this is the first Good vote
-        if (isGoodVote && badVotesBefore > 0 && goodVotesBefore === 0) {
-            return { message: `First "Good" vote! Breaking the mold of ${badVotesBefore} Bads.`, isGood: true, isBad: false };
-        }
-        // If it was previously all Good, and this is the first Bad vote
-        if (isBadVote && goodVotesBefore > 0 && badVotesBefore === 0) {
-            return { message: `First "Bad" vote! Challenging ${goodVotesBefore} Goods.`, isGood: false, isBad: true };
-        }
-    }
-    
-    // 3. Close Call (Contested Word)
-    if (totalVotesAfter >= 5 && voteDifference <= 2) {
-        return { message: `It's a tight race! ${currentWordData.word} is highly contested.`, isGood: false, isBad: false };
-    }
-    
-    // 4. Milestone / Encouragement
-    if (totalVotesAfter % 10 === 0) {
-        return { message: `Great job! That's vote #${totalVotesAfter} for this word.`, isGood: false, isBad: false };
-    }
-    
-    if (isGoodVote) {
-        const encouragement = [
-            "Nice call! That's a good one.",
-            "A vote for the bright side!",
-            "You've chosen wisely.",
-            "Keeping the good vibes flowing!",
-        ];
-        return { message: encouragement[Math.floor(Math.random() * encouragement.length)], isGood: true, isBad: false };
-    } 
-    
-    if (isBadVote) {
-        const warnings = [
-            "Fair assessment. Every vote counts!",
-            "Oof. That's a tough word.",
-            "Taking a stand. We need that!",
-            "Acknowledging the dark side.",
-        ];
-        return { message: warnings[Math.floor(Math.random() * warnings.length)], isGood: false, isBad: true };
-    }
-
-    // Default Fallback
-    return { message: "Thanks for voting!", isGood: false, isBad: false };
-}
-
-/**
- * Displays the dynamic engagement message above the card.
- * @param {string} voteType - 'good' or 'bad'.
- */
-function showEngagementMessage(voteType) {
-    const { goodVotes, badVotes } = currentWordData;
-    
-    // Get the message details
-    const { message, isGood, isBad } = getEngagementMessage(
-        voteType, 
-        goodVotes + badVotes, 
-        goodVotes, 
-        badVotes
-    );
-
-    // Apply styles based on message theme
-    engagementMessageBox.textContent = message;
-    
-    // Reset classes first
-    engagementMessageBox.className = 'bg-blue-100 text-blue-800 text-sm font-semibold rounded-lg shadow-xl border border-blue-200';
-    
-    if (isGood) {
-        // Use Tailwind classes matching the good theme
-        engagementMessageBox.classList.add('bg-green-100', 'text-green-800', 'border-green-200');
-    } else if (isBad) {
-        // Use Tailwind classes matching the bad theme
-        engagementMessageBox.classList.add('bg-red-100', 'text-red-800', 'border-red-200');
-    } else {
-        // Neutral theme (e.g., encouragement, stats)
-        engagementMessageBox.classList.add('bg-gray-100', 'text-gray-800', 'border-gray-200');
-    }
-    
-    // Show the message
-    engagementMessageBox.classList.add('visible');
-
-    // Hide the message after a short delay
-    setTimeout(() => {
-        engagementMessageBox.classList.remove('visible');
-    }, 2500); 
-}
-
-// --- Voting Logic ---
-
-/**
- * Handles the voting process.
+ * Handles the voting action (Good or Bad) by calling the backend API.
  * @param {string} voteType - 'good' or 'bad'.
  */
 async function handleVote(voteType) {
-    const wordId = wordIdInput.value;
-    if (!wordId) return;
+    if (!currentWordData) return;
 
-    // 1. Show engagement message BEFORE the visual change/slide out.
-    showEngagementMessage(voteType);
+    const wordId = currentWordData._id; 
     
-    // 2. Animate the card slide out
-    const slideOutClass = voteType === 'good' ? 'slide-out-good' : 'slide-out-bad';
-    wordCard.classList.add(slideOutClass);
-    
-    // 3. Update the word card border color based on vote
-    wordCard.classList.add(voteType === 'good' ? 'good-border' : 'bad-border');
-    
-    // Temporarily disable buttons
-    voteGoodButton.disabled = true;
-    voteBadButton.disabled = true;
+    // Disable buttons immediately
+    elements.voteGoodButton.disabled = true;
+    elements.voteBadButton.disabled = true;
 
-    // 4. Send vote to the server
-    await apiFetch('/vote', 'POST', { id: wordId, type: voteType });
-    
-    // 5. Wait for animation to finish, then fetch a new word
-    setTimeout(async () => {
-        // Remove animation class for the next word
-        wordCard.classList.remove(slideOutClass, 'good-border', 'bad-border');
-        wordCard.classList.add('neutral-border'); // Reset to neutral
-        await fetchNewWord();
-        await fetchTopWords(); // Also refresh the lists
-    }, 400); // Matches the transition duration (0.4s)
+    try {
+        const response = await retryFetch(`${BASE_URL}/vote`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ wordId, voteType })
+        });
+
+        const result = await response.json();
+        
+        // --- Engagement Logic (Based on returned vote counts) ---
+        const totalVotes = result.goodVotes + result.badVotes;
+        const voteDifference = Math.abs(result.goodVotes - result.badVotes);
+
+        if (result.status === 'already_voted') {
+            showEngagementMessage("You already classified this word! Moving on...", "neutral");
+        } else if (result.status === 'success') {
+            
+            let message = `Voted ${voteType.toUpperCase()} on "${currentWordData.word}"!`;
+            let type = voteType; // Default type is the vote type
+            
+            if (totalVotes === 1) {
+                // First vote ever!
+                message = `🥳 Wow! You're the first to vote on "${currentWordData.word}"!`;
+                type = 'good'; // Always positive for a milestone
+            } else if (totalVotes < 5) {
+                // Early stages
+                message = `Every vote helps define "${currentWordData.word}"!`;
+            } else if (voteDifference <= 2 && totalVotes >= 5) {
+                // Close call, requires at least 5 votes to avoid false positives on 1/2 or 2/3
+                message = `👀 It's a close one! Votes are nearly split.`;
+                type = 'neutral';
+            } else if (result.goodVotes === 0 || result.badVotes === 0) {
+                // Unanimous/Only-type vote
+                const wordType = result.goodVotes > 0 ? 'Good' : 'Bad';
+                message = `🔥 Unanimous! Everyone agrees: it's a ${wordType} word!`;
+                type = result.goodVotes > 0 ? 'good' : 'bad';
+            } else {
+                // General encouraging message (The Easter Egg/Positive Message)
+                const encouragingMessages = [
+                    "Great classification! On to the next word.",
+                    "Your opinion matters! Keep the ratings coming.",
+                    "Another one classified! You're on a roll!",
+                    "Making the web a little more organized, one word at a time.",
+                ];
+                message = encouragingMessages[Math.floor(Math.random() * encouragingMessages.length)];
+            }
+            
+            showEngagementMessage(message, type);
+        }
+
+        // Trigger exit animation and load the next word
+        startExitAnimation(voteType);
+
+    } catch (e) {
+        console.error("API Vote call failed: ", e);
+        showEngagementMessage("Vote failed. Check API connection.", "bad");
+        // Re-enable buttons so the user can try again
+        elements.voteGoodButton.disabled = false;
+        elements.voteBadButton.disabled = false;
+    }
 }
 
-// --- Top Words List ---
+/**
+ * Starts the slide-out animation for the word card.
+ * @param {string} voteType - 'good' or 'bad'.
+ */
+function startExitAnimation(voteType) {
+    const slideClass = voteType === 'good' ? 'slide-out-good' : 'slide-out-bad';
+    elements.wordCard.classList.add(slideClass);
+
+    setTimeout(() => {
+        elements.wordCard.classList.remove(slideClass);
+        fetchNextWord(); // Fetch and load the next word after animation
+    }, 400); // Matches the CSS transition duration
+}
 
 /**
- * Renders a list of words into the given container.
- * @param {HTMLElement} container - The UL element to render into.
- * @param {Array<object>} words - The list of word objects.
- * @param {boolean} isGoodList - True if rendering the "Mostly Good" list.
+ * Displays a temporary message above the word card.
+ * @param {string} message - The text to display.
+ * @param {string} type - 'good', 'bad', or 'neutral' for styling.
  */
-function renderWordList(container, words, isGoodList) {
-    container.innerHTML = ''; // Clear existing list
+function showEngagementMessage(message, type) {
+    const box = elements.engagementMessageBox;
+    box.textContent = message;
     
-    if (words.length === 0) {
-        container.innerHTML = '<li class="text-center italic text-sm text-gray-400">No data yet.</li>';
-        return;
+    // Reset classes and apply styling
+    // Using default Tailwind classes from HTML/CSS structure
+    box.className = 'rounded-lg shadow-xl border p-2 px-4 text-sm font-semibold'; 
+
+    if (type === 'good') {
+        box.classList.add('bg-green-100', 'text-green-800', 'border-green-300');
+    } else if (type === 'bad') {
+        box.classList.add('bg-red-100', 'text-red-800', 'border-red-300');
+    } else { // neutral/default
+        box.classList.add('bg-blue-100', 'text-blue-800', 'border-blue-300');
     }
 
-    words.forEach(word => {
-        const li = document.createElement('li');
-        
-        const good = word.goodVotes;
-        const bad = word.badVotes;
-        const total = good + bad;
-        
-        // Calculate the score/percentage for display
-        const percentage = Math.round((isGoodList ? good : bad) / total * 100);
-        const scoreClass = isGoodList ? 'text-green-600' : 'text-red-600';
-        
-        li.className = 'flex justify-between items-center text-sm p-2 bg-white rounded-md shadow-sm border border-gray-100';
-        li.innerHTML = `
-            <span class="font-medium text-gray-800">${word.word.toUpperCase()}</span>
-            <span class="font-bold ${scoreClass}">${percentage}%</span>
-        `;
-        container.appendChild(li);
-    });
+    // Show the box (using the 'visible' class defined in the inline style)
+    box.classList.add('visible');
+
+    // Hide after 3 seconds
+    setTimeout(() => {
+        box.classList.remove('visible');
+    }, 3000);
 }
 
 /**
- * Fetches the top-rated words from the server and updates the lists.
+ * Fetches and updates the top rated words every 5 seconds using API calls.
  */
-async function fetchTopWords() {
+async function fetchAndRenderTopWords() {
     try {
-        mostlyGoodList.innerHTML = '<li class="text-center italic text-sm">Loading...</li>';
-        mostlyBadList.innerHTML = '<li class="text-center italic text-sm">Loading...</li>';
-        
-        const data = await apiFetch('/top-words');
-        
-        renderWordList(mostlyGoodList, data.mostlyGood, true);
-        renderWordList(mostlyBadList, data.mostlyBad, false);
+        const response = await retryFetch(`${BASE_URL}/top-words`);
+        const topWords = await response.json();
+
+        // Sort by total votes to find the most popular words
+        topWords.sort((a, b) => (b.goodVotes + b.badVotes) - (a.goodVotes + b.badVotes));
+
+        // Calculate percentages for rendering
+        const processedWords = topWords.map(word => {
+            const total = word.goodVotes + word.badVotes;
+            const goodPct = total > 0 ? (word.goodVotes / total) * 100 : 50;
+            return {
+                word: word.word,
+                goodVotes: word.goodVotes,
+                badVotes: word.badVotes,
+                goodPct: Math.round(goodPct),
+                isGood: goodPct >= 50,
+                isBad: goodPct < 50
+            };
+        });
+
+        renderTopWords(processedWords);
 
     } catch (error) {
-        // Error handled in apiFetch
+        console.error("Failed to fetch top words from API:", error);
+        // Clear lists and show error message
+        elements.mostlyGoodList.innerHTML = '<li class="text-center text-red-500 text-sm">API Error loading list.</li>';
+        elements.mostlyBadList.innerHTML = '<li class="text-center text-red-500 text-sm">API Error loading list.</li>';
     }
 }
 
-// --- Initialization and Event Listeners ---
+/**
+ * Renders the top words into the two lists.
+ * @param {Array} topWords - Array of top word objects.
+ */
+function renderTopWords(topWords) {
+    const goodList = topWords.filter(w => w.isGood).sort((a, b) => b.goodPct - a.goodPct).slice(0, 5); // Top 5
+    const badList = topWords.filter(w => w.isBad).sort((a, b) => a.goodPct - b.goodPct).slice(0, 5); // Top 5
 
-function init() {
-    // 1. Initial Data Load
-    fetchNewWord();
-    fetchTopWords();
+    // Render Good List
+    elements.mostlyGoodList.innerHTML = goodList.length > 0
+        ? goodList.map(w => `
+            <li class="flex justify-between items-center px-2 py-1 rounded-lg transition duration-150">
+                <span class="font-medium uppercase tracking-wider">${w.word}</span>
+                <span class="text-sm font-bold text-green-600">${w.goodPct}%</span>
+            </li>
+          `).join('')
+        : '<li class="text-center italic text-sm">No words currently trending good.</li>';
 
-    // 2. Attach Event Listeners
-    voteGoodButton.addEventListener('click', () => handleVote('good'));
-    voteBadButton.addEventListener('click', () => handleVote('bad'));
-
-    // Optional: Add keyboard controls for quick voting
-    document.addEventListener('keydown', (e) => {
-        if (!voteGoodButton.disabled) {
-            if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'g') {
-                e.preventDefault();
-                voteGoodButton.click();
-            } else if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'b') {
-                e.preventDefault();
-                voteBadButton.click();
-            }
-        }
-    });
+    // Render Bad List
+    elements.mostlyBadList.innerHTML = badList.length > 0
+        ? badList.map(w => `
+            <li class="flex justify-between items-center px-2 py-1 rounded-lg transition duration-150">
+                <span class="font-medium uppercase tracking-wider">${w.word}</span>
+                <span class="text-sm font-bold text-red-600">${100 - w.goodPct}%</span>
+            </li>
+          `).join('')
+        : '<li class="text-center italic text-sm">No words currently trending bad.</li>';
 }
 
-// Start the application when the DOM is fully loaded
-document.addEventListener('DOMContentLoaded', init);
+// --- Event Listeners and Startup ---
+
+function setupEventListeners() {
+    elements.voteGoodButton.addEventListener('click', () => handleVote('good'));
+    elements.voteBadButton.addEventListener('click', () => handleVote('bad'));
+}
+
+/**
+ * Starts the application: fetches first word and sets up recurring updates.
+ */
+function startApp() {
+    setupEventListeners();
+    fetchNextWord(); // Initial load of the first word
+    fetchAndRenderTopWords(); // Initial load of the top list
+    
+    // Set up recurring update for the top lists (using setInterval for API polls)
+    setInterval(fetchAndRenderTopWords, 5000); // Update every 5 seconds
+}
+
+
+// Start the entire process
+window.onload = startApp;
