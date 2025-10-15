@@ -108,9 +108,10 @@
             color: #4CAF50; /* Base color for 'Good' */
             text-shadow: 2px 2px 0px rgba(0,0,0,0.1); /* Subtle shadow */
             transition: all 0.3s ease;
-            display: block; /* Ensures it takes up full width */
-            text-align: center;
-            margin-bottom: 0.5rem; /* Space below the logo */
+            /* UPDATED CENTERING: Using table properties to center the content that uses white-space: pre; */
+            display: table; /* Make the container fit content width */
+            margin: 0 auto 0.5rem auto; /* Center the element itself */
+            /* Removed old display: block; and text-align: center; from here, keeping margin: auto and display: table */
         }
         .ascii-logo .bad-part {
             color: #F44336; /* Color for 'Bad' part */
