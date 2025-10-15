@@ -18,11 +18,13 @@ let retryTimer = null; // Timer for connection retries
  * @param {string} type 'success', 'error', or 'info' to determine styling.
  */
 function showMessage(message, type) {
+    // 1. Reset classes and text content
     messageDisplay.textContent = message;
-    messageDisplay.classList.remove('hidden', 'bg-good', 'bg-bad', 'bg-neutral', 'text-white', 'text-red-800', 'text-green-800');
+    messageDisplay.classList.remove('hidden', 'bg-good', 'bg-bad', 'bg-neutral', 'text-white', 'text-red-800', 'text-green-800', 'bg-red-200');
 
     let bgColorClass, textColorClass;
 
+    // 2. Determine colors based on type
     switch (type) {
         case 'success':
             // Using Tailwind classes for success based on the config
@@ -42,17 +44,16 @@ function showMessage(message, type) {
             break;
     }
 
-    // Set classes for background and text color
+    // 3. Apply classes and show message
     messageDisplay.classList.add(bgColorClass, textColorClass);
-    // Show the message
     messageDisplay.style.opacity = '1';
 
-    // Do not auto-hide critical errors like "DB OFFLINE"
+    // 4. Do not auto-hide critical errors like "DB OFFLINE"
     if (message.includes("DB OFFLINE")) {
         return;
     }
 
-    // Auto-hide the message after 3 seconds for transient messages
+    // 5. Auto-hide the message after 3 seconds for transient messages
     setTimeout(() => {
         messageDisplay.style.opacity = '0';
         // After transition, hide it completely
@@ -110,12 +111,12 @@ async function fetchNextWord() {
         const response = await fetch('/api/get-word');
 
         if (!response.ok) {
-            // Throw an error if the HTTP status is not 2xx
-            const errorText = await response.text();
-            throw new Error(`API Error (${response.status}): ${errorText || 'Failed to fetch word.'}`);
+            // If API returns non-200, throw an error with the status
+            throw new Error(`API Error: Status ${response.status}`);
         }
 
-        const data = await response.json();
+        // Must await the json() call
+        const data = await response.json(); 
         
         if (data.word) {
             currentWordId = data._id;
@@ -126,11 +127,14 @@ async function fetchNextWord() {
         } else if (data.message && data.message.includes("No words left")) {
             wordDisplay.textContent = "ALL WORDS CLASSIFIED!";
             showMessage("You have classified all available words.", 'info');
+            // Keep buttons disabled when all words are classified
         } else {
-            throw new Error("Invalid response structure from API.");
+            // This catches cases where the API returns 200 but the body is unexpected/empty
+            throw new Error("Invalid or empty response structure from API.");
         }
         
     } catch (error) {
+        // This catch handles network errors, JSON parsing errors, and non-200 status codes
         console.error("Fetch Word Error:", error.message);
         
         // Show persistent error message and set retry timer
@@ -200,7 +204,7 @@ async function fetchTopWords() {
         if (data.mostlyGood && data.mostlyGood.length > 0) {
             data.mostlyGood.forEach(item => {
                 const li = document.createElement('li');
-                // Note: The percentage style uses CSS variables defined in public/style.css
+                // Use inline styles based on CSS variables for consistent look
                 li.innerHTML = `
                     <span>${item.word.toUpperCase()}</span>
                     <span class="percentage" style="color: var(--good-color);">${item.goodPercent}%</span>
