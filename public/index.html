@@ -220,7 +220,7 @@
 
         <!-- Footer for App Version -->
         <footer class="mt-8 text-center text-xs text-gray-400">
-            App Version: v7.2 (API URL Finalized)
+            App Version: v7.3 (User ID and Error Reporting Fixes)
         </footer>
     </div>
     
@@ -285,8 +285,10 @@
             if (storedId) {
                 userId = storedId;
             } else {
-                // Generate a simple unique ID
-                userId = 'user-' + Date.now().toString(36) + Math.random().toString(36).substring(2, 5);
+                // Generate a simple unique ID (using crypto.randomUUID if available, otherwise a time-based fallback)
+                userId = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
+                         ? crypto.randomUUID()
+                         : 'user-' + Date.now().toString(36) + Math.random().toString(36).substring(2, 5);
                 localStorage.setItem('wordClassifierUserId', userId);
             }
             userIdDisplay.textContent = userId;
@@ -383,9 +385,9 @@
             setWordBoxState('neutral', false);
             
             if (!userId) {
-                console.error("CRITICAL: User ID not available.");
-                wordDisplay.textContent = "USER INIT FAILED";
-                showMessage("User ID not initialized. Cannot fetch word.", 'error');
+                // This indicates a deep failure in local storage or initialization.
+                wordDisplay.textContent = "INIT ERROR";
+                showMessage("User ID not available. Retrying initialization...", 'error');
                 retryTimer = setTimeout(fetchNextWord, 2000); 
                 return;
             }
@@ -412,7 +414,7 @@
                     if (response.status >= 500) {
                         throw new Error(`Server Crash (Status ${response.status}). Check your Render/MongoDB logs.`);
                     } else {
-                        throw new Error(`API Error: Status ${response.status}`);
+                        throw new Error(`API Error: Status ${response.status} - ${errorText.substring(0, 50)}...`);
                     }
                 }
 
@@ -448,6 +450,7 @@
                 console.error("Fetch Word Error (Network/Parsing):", error.message);
                 
                 wordDisplay.textContent = "API OFFLINE";
+                // Show the specific error message to help diagnose the 500
                 showMessage(`Connection Error: ${error.message}. Retrying in 5s...`, 'error');
                 
                 // Retry logic for API connection failure
@@ -518,6 +521,10 @@
             if (!API_BASE_URL) { return; }
 
             console.log("Attempting to fetch top words leaderboard...");
+            // Clear existing lists and show loading indicator
+            mostlyGoodList.innerHTML = '<li class="text-center italic text-sm text-gray-500">Loading leaderboard...</li>';
+            mostlyBadList.innerHTML = '<li class="text-center italic text-sm text-gray-500">Loading leaderboard...</li>';
+
             try {
                 const response = await fetch(`${API_BASE_URL}/api/top-words`);
                 console.log("Fetch Top Words Response Status:", response.status);
@@ -593,8 +600,9 @@
 
             } catch (error) {
                 console.error("Fetch Top Words Error (Network/Parsing):", error.message);
-                mostlyGoodList.innerHTML = '<li class="text-center italic text-sm text-red-500">Error loading list. (Check Backend Logs)</li>';
-                mostlyBadList.innerHTML = '<li class="text-center italic text-sm text-red-500">Error loading list. (Check Backend Logs)</li>';
+                // Display the actual error message clearly in the UI
+                mostlyGoodList.innerHTML = `<li class="text-center italic text-sm text-red-500">Error loading list: ${error.message}.</li>`;
+                mostlyBadList.innerHTML = `<li class="text-center italic text-sm text-red-500">Error loading list: ${error.message}.</li>`;
             }
         }
 
