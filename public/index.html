@@ -210,7 +210,7 @@
 
         <!-- Footer for App Version -->
         <footer class="mt-8 text-center text-xs text-gray-400">
-            App Version: v8.7 (Render API Client - Final DOMToken Fix)
+            App Version: v8.7.1 (Render API Client - Load Order Fix)
         </footer>
     </div>
     
@@ -237,6 +237,7 @@
 
     <script>
         // CRITICAL CONFIGURATION:
+        // This is the URL for the Render API hosting your MongoDB backend.
         const API_BASE_URL = 'https://good-word.onrender.com';
 
         // --- GLOBAL STATE ---
@@ -276,14 +277,13 @@
 
             let bgColorClass;
 
-            // --- THE FIX IS HERE: Handling 'good' and 'bad' types, and ensuring single token output ---
             switch (type) {
                 case 'success':
-                case 'good': // Explicitly handle 'good' from sendVote success
+                case 'good': 
                     bgColorClass = 'message-success';
                     break;
                 case 'error':
-                case 'bad': // Explicitly handle 'bad' from sendVote success
+                case 'bad': 
                     bgColorClass = 'message-error';
                     break;
                 case 'info':
@@ -383,6 +383,7 @@
                     showAddWordModalBtn.disabled = false;
                     showMessage("All words classified. Add a new one!", 'info');
                 } else {
+                    // This block is triggered when the database is empty or the response JSON structure is unexpected.
                     currentWordId = null;
                     currentWordText = null;
                     wordDisplay.textContent = "NO WORDS FOUND";
@@ -394,7 +395,6 @@
             } catch (error) {
                 console.error("Fetch Word Error:", error.message);
                 wordDisplay.textContent = "API ERROR";
-                // This call uses 'error', which is correctly handled in showMessage now.
                 showMessage(`Connection Error: ${error.message}`, 'error'); 
                 // Allow user to try again or add a word
                 showAddWordModalBtn.disabled = false;
@@ -432,7 +432,6 @@
                     throw new Error(errorData.message || `API Error (${response.status}) on vote.`);
                 }
                 
-                // This call now uses 'good' or 'bad', which is explicitly handled in showMessage.
                 showMessage(`Voted ${sentiment.toUpperCase()}!`, sentiment);
                 
                 // Immediately fetch next word and update leaderboard
@@ -626,9 +625,10 @@
             console.log("Application starting - Render API Mode (No User ID)...");
             setupListeners();
             
-            // Initial data fetch
+            // 1. Load Leaderboard/Existing data (votes) first
+            fetchTopWords();
+            // 2. Then, load the next word for classification
             fetchNextWord();
-            fetchTopWords(); 
         };
 
     </script>
