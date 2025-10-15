@@ -220,7 +220,7 @@
 
         <!-- Footer for App Version -->
         <footer class="mt-8 text-center text-xs text-gray-400">
-            App Version: v5.5 (Restored Stable State)
+            App Version: v5.6 (Final Stable Restore + Verbose Logging)
         </footer>
     </div>
     
@@ -286,6 +286,7 @@
                 localStorage.setItem('wordClassifierUserId', userId);
             }
             userIdDisplay.textContent = userId;
+            console.log("UserID Initialized:", userId);
         }
 
         // --- UTILITY FUNCTIONS ---
@@ -371,13 +372,14 @@
          * Fetches the next word to classify from the API.
          */
         async function fetchNextWord() {
+            console.log("Attempting to fetch next word...");
             clearRetry();
             toggleButtons(false);
             wordDisplay.textContent = "LOADING...";
             setWordBoxState('neutral', false);
             
-            // Basic check, though initializeUserId should run first
             if (!userId) {
+                console.error("CRITICAL: User ID not available for fetchNextWord.");
                 wordDisplay.textContent = "USER INIT FAILED";
                 showMessage("User ID not initialized. Cannot fetch word.", 'error');
                 // Allow the rest of the window.onload to finish before trying again
@@ -387,7 +389,10 @@
 
             try {
                 // Pass the unique userId in the query string
-                const response = await fetch(`/api/get-word?userId=${userId}`);
+                const fetchUrl = `/api/get-word?userId=${userId}`;
+                console.log("Fetching:", fetchUrl);
+                const response = await fetch(fetchUrl);
+                console.log("Fetch Next Word Response Status:", response.status);
 
                 if (!response.ok) {
                     throw new Error(`API Error: Status ${response.status}`);
@@ -402,22 +407,25 @@
                     setWordBoxState('neutral', true);
                     toggleButtons(true);
                     showMessage("New word loaded!", 'success');
+                    console.log("Word loaded successfully:", currentWordText);
                 } else if (data.message && data.message.includes("No words left")) {
                     currentWordId = null;
                     currentWordText = null;
                     wordDisplay.textContent = "ALL CAUGHT UP!";
                     toggleButtons(false);
                     showMessage("You have voted on all available words. Add a new one!", 'info');
+                    console.log("No new words to display.");
                 } else {
                     currentWordId = null;
                     currentWordText = null;
                     wordDisplay.textContent = "NO WORDS FOUND";
                     toggleButtons(false);
                     showMessage("No words available. Please suggest one.", 'info');
+                    console.log("API returned data, but no valid word/ID found in payload:", data);
                 }
                 
             } catch (error) {
-                console.error("Fetch Word Error:", error.message);
+                console.error("Fetch Word Error (Network/Parsing):", error.message);
                 
                 wordDisplay.textContent = "API OFFLINE";
                 showMessage("Backend service is offline. Retrying in 5s...", 'error');
@@ -435,8 +443,11 @@
             // CRITICAL CHECK: Ensure we have the word ID and user ID before proceeding
             if (!currentWordId || !userId) {
                 showMessage("Cannot vote: No word loaded or user ID missing. Try refreshing.", 'error');
+                console.error("Vote aborted: currentWordId or userId is missing.");
                 return;
             }
+            
+            console.log(`Attempting to send ${sentiment} vote for ID: ${currentWordId}`);
 
             toggleButtons(false);
             setWordBoxState(sentiment, true); // Apply vote color AND flip animation
@@ -451,6 +462,8 @@
                         userId: userId 
                     })
                 });
+
+                console.log("Send Vote Response Status:", response.status);
 
                 if (!response.ok) {
                     const errorData = await response.json().catch(() => ({}));
@@ -477,8 +490,11 @@
          * Fetches the top words list from the API.
          */
         async function fetchTopWords() {
+            console.log("Attempting to fetch top words leaderboard...");
             try {
                 const response = await fetch('/api/top-words');
+                console.log("Fetch Top Words Response Status:", response.status);
+
                 if (!response.ok) {
                     throw new Error(`API Error (${response.status}) on top words.`);
                 }
@@ -487,6 +503,8 @@
                 // Clear existing lists
                 mostlyGoodList.innerHTML = '';
                 mostlyBadList.innerHTML = '';
+                console.log("Top Words data received, processing:", data.words.length, "total words.");
+
 
                 // Ensure data.words is an array, default to empty array if not present
                 const classifiedWords = data.words || [];
@@ -507,6 +525,8 @@
                     .filter(item => item.badPercent >= 50)
                     .sort((a, b) => b.badPercent - a.badPercent)
                     .slice(0, 5);
+                    
+                console.log(`Filtered: ${goodList.length} good, ${badList.length} bad words.`);
 
                 // Populate Mostly Good List
                 if (goodList.length > 0) {
@@ -539,7 +559,7 @@
                 }
 
             } catch (error) {
-                console.error("Fetch Top Words Error:", error.message);
+                console.error("Fetch Top Words Error (Network/Parsing):", error.message);
                 mostlyGoodList.innerHTML = '<li class="text-center italic text-sm text-red-500">Error loading list. (API Check)</li>';
                 mostlyBadList.innerHTML = '<li class="text-center italic text-sm text-red-500">Error loading list. (API Check)</li>';
             }
@@ -559,6 +579,7 @@
             }
             
             submitNewWordBtn.disabled = true;
+            console.log("Attempting to submit new word:", word);
             
             try {
                 const response = await fetch('/api/add-word', {
@@ -566,6 +587,8 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ word: word })
                 });
+
+                console.log("Add Word Response Status:", response.status);
 
                 if (!response.ok) {
                      const errorData = await response.json().catch(() => ({}));
@@ -637,6 +660,7 @@
 
         // --- App Start ---
         window.onload = () => {
+            console.log("Application starting...");
             initializeUserId();
             setupListeners();
             
