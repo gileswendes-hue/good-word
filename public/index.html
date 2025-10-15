@@ -128,10 +128,10 @@
             border-bottom: none;
         }
         
-        /* Utility for messages - FIXED TO BE SINGLE TOKENS */
+        /* Utility for messages */
         .message-success { background-color: var(--good-color); color: white; }
         .message-error { background-color: var(--bad-color); color: white; }
-        .message-info { background-color: #4b5563; color: white; } /* Neutral/Default background */
+        .message-info { background-color: #4b5563; color: white; } 
 
         /* Modal backdrop for visual appeal */
         .modal-backdrop {
@@ -210,7 +210,7 @@
 
         <!-- Footer for App Version -->
         <footer class="mt-8 text-center text-xs text-gray-400">
-            App Version: v8.7.2 (Render API Client - Load Random Fix)
+            App Version: v8.7.3 (Render API Client - Enhanced Debugging)
         </footer>
     </div>
     
@@ -237,12 +237,11 @@
 
     <script>
         // CRITICAL CONFIGURATION:
-        // This is the URL for the Render API hosting your MongoDB backend.
         const API_BASE_URL = 'https://good-word.onrender.com';
         
         // Hypothetical API Endpoints (You must ensure your server implements these)
-        const GET_UNCLASSIFIED_WORD_ENDPOINT = '/api/get-word'; // Original logic: returns a word with zero votes
-        const GET_RANDOM_WORD_ENDPOINT = '/api/get-random-word'; // New logic: returns any word for continuous voting
+        const GET_UNCLASSIFIED_WORD_ENDPOINT = '/api/get-word'; 
+        const GET_RANDOM_WORD_ENDPOINT = '/api/get-random-word'; 
         
         // --- GLOBAL STATE ---
         let currentWordId = null;
@@ -273,7 +272,6 @@
         function showMessage(message, type) {
             messageDisplay.textContent = message;
             
-            // Base Tailwind classes
             const baseClasses = 'absolute -top-10 left-1/2 transform -translate-x-1/2 p-2 px-4 rounded-xl shadow-lg font-semibold text-sm z-10';
             messageDisplay.className = baseClasses;
             messageDisplay.classList.remove('hidden');
@@ -345,11 +343,9 @@
 
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error("Backend Error Detail:", errorText);
+                console.error(`Backend HTTP Error (${response.status}) from ${endpoint}:`, errorText.substring(0, 500));
                 
                 if (response.status === 404 && endpoint === GET_RANDOM_WORD_ENDPOINT) {
-                    // This is a common error if the /get-random-word endpoint isn't implemented yet.
-                    console.warn(`Endpoint ${GET_RANDOM_WORD_ENDPOINT} not found (404). Falling back to 'No Words Found'.`);
                     return { word: null, _id: null, message: "No API fallback endpoint available." };
                 }
                 
@@ -361,7 +357,20 @@
                 throw new Error(`API Error: Status ${response.status} - Response: ${errorSnippet}...`);
             }
             
-            const data = await response.json();
+            let data;
+            try {
+                // *** CRITICAL CHANGE: Robust JSON parsing check ***
+                data = await response.json();
+            } catch (jsonError) {
+                // If JSON parsing fails, read the raw text and log a detailed error.
+                const responseText = await response.text();
+                console.error("--- JSON PARSING FAILED ---");
+                console.error(`Attempted to parse JSON from ${endpoint} but failed. Raw Response:`, responseText.substring(0, 500));
+                console.error("This usually means the server returned an HTML error page or plain text instead of JSON.");
+                console.error("--- END OF RESPONSE DEBUG ---");
+                throw new Error("Invalid API response format. Check console for raw server output.");
+            }
+
             return data;
         }
 
@@ -382,21 +391,21 @@
             let wordData = { word: null, _id: null };
 
             try {
-                // 1. Try to get the next UNCLASSIFIED word (API endpoint /api/get-word)
-                console.log(`1. Trying to fetch UNCLASSIFIED word from ${API_BASE_URL}${GET_UNCLASSIFIED_WORD_ENDPOINT}...`);
+                // 1. Try to get the next UNCLASSIFIED word
+                console.log(`1. Trying to fetch UNCLASSIFIED word from ${GET_UNCLASSIFIED_WORD_ENDPOINT}...`);
                 wordData = await fetchWordFromApi(GET_UNCLASSIFIED_WORD_ENDPOINT);
                 
-                // If the response is empty (no word/id, but possibly a "No words left" message), try the fallback
+                // If the response is empty (no word/id), try the fallback
                 if (!wordData.word || !wordData._id) {
-                     console.log("-> Unclassified word pool is empty. Trying to fetch a RANDOM word...");
+                     console.log("-> Unclassified word pool is empty or API confirmed no words left. Trying to fetch a RANDOM word...");
 
-                     // 2. Try to get a RANDOM word (API endpoint /api/get-random-word)
+                     // 2. Try to get a RANDOM word
                      wordData = await fetchWordFromApi(GET_RANDOM_WORD_ENDPOINT);
                 }
                 
                 // 3. Process the final wordData
                 if (wordData.word && wordData._id) {
-                    currentWordId = wordData._id; // IMPORTANT: Set current word ID
+                    currentWordId = wordData._id; 
                     currentWordText = wordData.word;
                     wordDisplay.textContent = currentWordText.toUpperCase();
                     setWordBoxState('neutral', true);
@@ -414,15 +423,15 @@
             } catch (error) {
                 console.error("Fetch Word Error:", error.message);
                 wordDisplay.textContent = "API ERROR";
+                // Show the specific error message from the try-catch block
                 showMessage(`Connection Error: ${error.message}`, 'error'); 
-                // Allow user to try again or add a word
+                
                 showAddWordModalBtn.disabled = false;
             }
         }
 
         /**
          * Sends the classification vote to the API (Global vote, no userId sent).
-         * @param {string} sentiment 'good' or 'bad'.
          */
         async function sendVote(sentiment) {
             if (!currentWordId) {
@@ -453,7 +462,6 @@
                 
                 showMessage(`Voted ${sentiment.toUpperCase()}!`, sentiment);
                 
-                // Immediately fetch next word and update leaderboard
                 fetchNextWord();
                 fetchTopWords(); 
                 
@@ -461,7 +469,6 @@
                 console.error("Vote Error:", error.message);
                 showMessage(`Error submitting vote: ${error.message}`, 'error');
                 
-                // Re-enable buttons if vote failed
                 toggleButtons(true);
                 setWordBoxState('neutral', false);
             }
@@ -614,7 +621,7 @@
                 newWordInput.focus();
                 wordSubmissionMessage.classList.add('hidden');
                 wordSubmissionMessage.classList.remove('text-red-600', 'text-green-600');
-                submitNewWordBtn.disabled = true; // Disable until valid input is typed
+                submitNewWordBtn.disabled = true; 
             });
             cancelAddWordBtn.addEventListener('click', () => addWordModal.classList.add('hidden'));
             submitNewWordBtn.addEventListener('click', handleSubmitNewWord);
@@ -622,7 +629,6 @@
             // Input Listener for Submit Button state
             newWordInput.addEventListener('input', () => {
                 const word = newWordInput.value.trim();
-                // Enable button only if word is 2+ letters long and contains only letters
                 submitNewWordBtn.disabled = !(word.length >= 2 && /^[a-z]+$/i.test(word));
                 wordSubmissionMessage.classList.add('hidden');
             });
@@ -641,12 +647,10 @@
 
         // --- App Start ---
         window.onload = () => {
-            console.log("Application starting - Render API Mode (Load Random Fix)...");
+            console.log("Application starting - Render API Mode (v8.7.3 Enhanced Debugging)...");
             setupListeners();
             
-            // 1. Load Leaderboard/Existing data (votes) first
             fetchTopWords();
-            // 2. Then, load the next word for classification
             fetchNextWord();
         };
 
