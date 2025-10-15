@@ -229,7 +229,7 @@
 
             setTimeout(() => {
                 statusMessageEl.classList.add('hidden');
-            }, 5000); // Increased visibility time for errors
+            }, 5000); 
         }
 
         /**
@@ -293,6 +293,10 @@
                     const responseText = await response.text();
 
                     if (!response.ok) {
+                        // If status is 400, include the full body as it often contains the validation error message
+                        if (response.status === 400) {
+                            throw new Error(`HTTP 400 Bad Request! Body: ${responseText.substring(0, 150)}...`);
+                        }
                         throw new Error(`HTTP error! Status: ${response.status}. Body: ${responseText.substring(0, 50)}...`);
                     }
 
@@ -300,19 +304,16 @@
                         const data = JSON.parse(responseText);
                         return data;
                     } catch (e) {
-                        // This block executes if the text could not be parsed as JSON
-                        console.error("JSON PARSING ERROR: The API returned non-JSON data.", e);
+                        console.error("JSON PARSING ERROR:", e);
                         console.error("RAW SERVER RESPONSE TEXT (first 200 chars):", responseText.substring(0, 200)); 
-                        throw new Error("Invalid API response format. Server returned non-JSON data. Check console for raw text.");
+                        throw new Error("Invalid API response format. Check console for raw text.");
                     }
 
                 } catch (error) {
                     console.warn(`Fetch attempt ${i + 1} failed:`, error.message);
                     if (i === retries - 1) {
-                        // Throw final error after last retry fails
                         throw new Error(`Failed to fetch ${url} after ${retries} attempts. Final error: ${error.message}`);
                     }
-                    // Exponential backoff with jitter (max delay around 8 seconds)
                     const delay = Math.pow(2, i) * 1000 + Math.random() * 500;
                     await new Promise(resolve => setTimeout(resolve, delay));
                 }
@@ -345,6 +346,7 @@
             currentWordEl.classList.add('hidden');
             wordLoadingEl.innerHTML = `<div class="spinner"></div><p class="text-gray-500 text-lg">Loading word from Render API...</p>`;
             wordLoadingEl.classList.remove('hidden');
+            currentWordData = null; // Clear word data immediately
 
             const url = `${API_BASE_URL}/get-word`;
 
@@ -370,7 +372,6 @@
                 setButtonsDisabled(false);
 
             } catch (error) {
-                // --- EXPLICIT ERROR HANDLING TO PREVENT INDEFINITE STICKING ---
                 console.error("Fetch Word Error (Final Catch):", error);
                 const userMessage = error.message.includes("Failed to fetch") ? 
                     "Network error (CORS or server is down). Check console." : 
@@ -378,11 +379,10 @@
                     
                 currentWordEl.innerText = userMessage;
                 currentWordEl.classList.remove('hidden');
-                wordCardEl.classList.add('bad'); // Highlight the error visually
+                wordCardEl.classList.add('bad'); 
                 showStatusMessage(userMessage, 'error');
                 
             } finally {
-                // Always hide the loading message on completion or failure
                 wordLoadingEl.classList.add('hidden');
             }
         }
@@ -391,15 +391,18 @@
          * Sends a vote to the server via POST to /api/vote.
          */
         async function handleVote(isGoodVote) {
-            if (!currentWordData) {
-                showStatusMessage("Please wait for a word to load.", 'error');
+            // CRITICAL CHECK: Use a local variable to hold the word data before we clear the global state
+            const wordToVote = currentWordData ? currentWordData.word : null;
+            
+            if (!wordToVote) {
+                showStatusMessage("Cannot vote. No valid word loaded.", 'error');
+                fetchNextWord(); // Try to recover the state
                 return;
             }
             
             setButtonsDisabled(true);
 
             const voteType = isGoodVote ? 'good' : 'bad';
-            const wordToVote = currentWordData.word;
             
             // 1. Animate the card transition
             animateCardTransition(voteType);
@@ -408,11 +411,12 @@
 
             try {
                 // The API expects the word string and the vote type.
+                // NOTE: Using 'word' key in the body to match common API patterns.
                 await fetchWithRetry(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        word: wordToVote,
+                        word: wordToVote, 
                         vote: voteType,
                     })
                 });
@@ -425,14 +429,12 @@
                 
             } catch (error) {
                 console.error("Vote Error:", error);
+                
+                // If the vote failed (e.g., 400 error), display the error and re-enable the buttons/load new word
                 showStatusMessage(`Failed to record vote: ${error.message.substring(0, 80)}...`, 'error');
-                // Re-fetch the word in case the vote failed, to reset the UI
-                fetchNextWord(); 
+                fetchNextWord(); // Re-fetch the word in case the vote failed, to reset the UI and get a new word
             } finally {
-                // Buttons re-enabled by fetchNextWord if successful, otherwise explicitly here if next fetch fails
-                if (!currentWordData) { 
-                    setButtonsDisabled(false);
-                }
+                // The buttons will be re-enabled by fetchNextWord
             }
         }
         
