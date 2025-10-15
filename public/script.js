@@ -30,14 +30,18 @@ async function retryFetch(url, options = {}, maxRetries = 3) {
             const response = await fetch(url, options);
             if (!response.ok) {
                 // Throw an error if the HTTP status is not 2xx
-                const errorText = await response.text();
+                let errorText = await response.text();
+                // Check for known backend error messages (e.g., from your Express error handler)
+                if (errorText.includes('Database offline')) {
+                     errorText = 'Service Unavailable: Database offline. Cannot complete request.';
+                }
                 throw new Error(`HTTP error! Status: ${response.status} - ${errorText.substring(0, 100)}...`);
             }
             return response;
         } catch (error) {
             if (attempt === maxRetries - 1) {
                 console.error(`API call to ${url} failed after ${maxRetries} attempts.`, error);
-                throw error;
+                throw error; // Re-throw the error after final attempt
             }
             const delay = Math.pow(2, attempt) * 500 + Math.random() * 500;
             // Removed console.warn to adhere to silent backoff rule
@@ -65,6 +69,7 @@ async function fetchNextWord() {
         const data = await response.json();
 
         if (data && data.word && data._id) {
+            // SUCCESS: A word was returned
             currentWordData = data;
             elements.currentWordSpan.textContent = currentWordData.word.toUpperCase();
             elements.wordIdInput.value = currentWordData._id; // Use MongoDB's _id
@@ -73,16 +78,27 @@ async function fetchNextWord() {
             elements.voteGoodButton.disabled = false;
             elements.voteBadButton.disabled = false;
 
-        } else {
-            elements.currentWordSpan.textContent = "All words voted on!";
+        } else if (data && data.message === "No words available to classify.") {
+             // SUCCESS BUT EMPTY: The API successfully responded but returned a message that no words are left.
+            elements.currentWordSpan.textContent = "ALL WORDS VOTED ON!";
             elements.voteGoodButton.disabled = true;
             elements.voteBadButton.disabled = true;
+        } else {
+            // UNEXPECTED RESPONSE: The API responded, but the data structure was unexpected.
+             elements.currentWordSpan.textContent = "API Error: Invalid Response";
+             showEngagementMessage("API returned bad data structure. Check backend response.", "bad");
         }
 
     } catch (error) {
-        console.error("Failed to fetch next word from API:", error);
+        // CATCH BLOCK: This runs if retryFetch fails all attempts (usually due to connection or DB error)
+        console.error("Failed to fetch next word from API (Total Failure):", error);
+        
+        const errorMessage = error.message.includes('Database offline') 
+            ? "API Error: Database Offline. Please check your Render service."
+            : "API Connection Error. Service might be down.";
+
         elements.currentWordSpan.textContent = "API ERROR";
-        showEngagementMessage("Connection lost. Cannot load next word.", "bad");
+        showEngagementMessage(errorMessage, "bad");
     }
 }
 
@@ -156,7 +172,13 @@ async function handleVote(voteType) {
 
     } catch (e) {
         console.error("API Vote call failed: ", e);
-        showEngagementMessage("Vote failed. Check API connection.", "bad");
+        
+        const errorMessage = e.message.includes('Database offline') 
+            ? "Vote Failed: Database Offline."
+            : "Vote Failed. Check API connection.";
+
+        showEngagementMessage(errorMessage, "bad");
+        
         // Re-enable buttons so the user can try again
         elements.voteGoodButton.disabled = false;
         elements.voteBadButton.disabled = false;
