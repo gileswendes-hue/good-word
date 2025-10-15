@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Good Word/Bad Word Classifier (Simplified API)</title>
+    <title>Good Word/Bad Word Classifier (Render API)</title>
     <!-- Load Tailwind CSS via CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Load Font Awesome for icons -->
@@ -15,7 +15,6 @@
             --good-color: #4CAF50; /* Green */
             --bad-color: #F44336; /* Red */
             --neutral-color: #FFC107; /* Orange/Yellow */
-            --text-color: #333;
             --bg-color: #f0f2f5;
             --card-bg: #fff;
             --border-radius: 16px;
@@ -32,7 +31,6 @@
         }
 
         .game-container {
-            /* Styles to make the main container stand out */
             background-color: var(--card-bg);
             border-radius: var(--border-radius);
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
@@ -44,7 +42,7 @@
         /* Word Card Styles */
         .word-card-wrapper {
             position: relative;
-            perspective: 1000px; /* For 3D flip effect */
+            perspective: 1000px;
         }
         .word-card {
             background-color: var(--card-bg);
@@ -86,7 +84,7 @@
         .vote-btn {
             padding: 1rem 1.5rem;
             font-weight: bold;
-            border-radius: 9999px; /* Pill shape */
+            border-radius: 9999px;
             text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
             transition: transform 0.2s, box-shadow 0.2s;
             display: flex;
@@ -130,10 +128,6 @@
             border-bottom: none;
         }
         
-        .mostly-good, .mostly-bad {
-            border-radius: var(--border-radius);
-        }
-
         /* Utility for messages */
         .message-success { background-color: var(--good-color); color: white; }
         .message-error { background-color: var(--bad-color); color: white; }
@@ -147,15 +141,13 @@
 </head>
 <body class="bg-gray-100 min-h-screen flex flex-col items-center justify-start p-4 sm:p-8">
     
-    <!-- User ID Display (Removed) -->
-
     <!-- Main Game Container -->
     <div class="game-container w-full max-w-4xl">
         <header class="text-center mb-10">
             <h1 class="text-5xl font-extrabold tracking-tighter text-gray-800">
                 <span style="color: var(--good-color);">GOOD WORD</span> / <span style="color: var(--bad-color);">BAD WORD</span>
             </h1>
-            <p class="text-xl text-gray-500 mt-2">Classify words submitted by the community (MongoDB/Render API).</p>
+            <p class="text-xl text-gray-500 mt-2">Classify words submitted by the community (Render API client).</p>
         </header>
 
         <!-- Main Interaction Area -->
@@ -217,7 +209,7 @@
 
         <!-- Footer for App Version -->
         <footer class="mt-8 text-center text-xs text-gray-400">
-            App Version: v7.5 (User ID Removed - Client Code Correct)
+            App Version: v8.6 (Render API Client - Simplified Fetch)
         </footer>
     </div>
     
@@ -247,10 +239,9 @@
         // The URL of your Render API service.
         const API_BASE_URL = 'https://good-word.onrender.com';
 
-        // --- GLOBAL STATE & CONFIG ---
+        // --- GLOBAL STATE ---
         let currentWordId = null;
         let currentWordText = null;
-        let retryTimer = null; // For aggressive connection retries
 
         // --- DOM Elements ---
         const wordDisplay = document.getElementById('wordDisplay');
@@ -260,7 +251,6 @@
         const messageDisplay = document.getElementById('messageDisplay');
         const mostlyGoodList = document.getElementById('mostlyGoodList');
         const mostlyBadList = document.getElementById('mostlyBadList');
-        // userIdDisplay element removed
         
         // Modal elements
         const addWordModal = document.getElementById('addWordModal');
@@ -269,9 +259,6 @@
         const submitNewWordBtn = document.getElementById('submitNewWordBtn');
         const newWordInput = document.getElementById('newWordInput');
         const wordSubmissionMessage = document.getElementById('wordSubmissionMessage');
-
-        // --- USER ID SETUP (REMOVED) ---
-        // The initializeUserId function is now gone.
 
         // --- UTILITY FUNCTIONS ---
 
@@ -296,7 +283,7 @@
                     break;
                 case 'info':
                 default:
-                    bgColorClass = 'bg-yellow-500 text-white'; // Default info style
+                    bgColorClass = 'bg-gray-700 text-white'; // Default info style
                     break;
             }
 
@@ -339,26 +326,14 @@
             showAddWordModalBtn.disabled = !enable;
         }
 
-        /**
-         * Clears any active retry timers.
-         */
-        function clearRetry() {
-            if (retryTimer) {
-                clearTimeout(retryTimer);
-                retryTimer = null;
-            }
-        }
-
-
         // --- API INTERACTION ---
 
         /**
          * Fetches the next word to classify from the API.
-         * The simplified call requests any word, not a user-specific one.
          */
         async function fetchNextWord() {
-            console.log("Attempting to fetch next word...");
-            clearRetry();
+            console.log(`Attempting to fetch next word from ${API_BASE_URL}/api/get-word...`);
+            
             toggleButtons(false);
             wordDisplay.textContent = "LOADING...";
             setWordBoxState('neutral', false);
@@ -369,26 +344,20 @@
                  return;
             }
 
-
             try {
-                // Simplified URL: Removed userId query parameter
                 const fetchUrl = `${API_BASE_URL}/api/get-word`;
-                console.log("Fetching:", fetchUrl);
                 const response = await fetch(fetchUrl);
-                console.log("Fetch Next Word Response Status:", response.status);
 
                 if (!response.ok) {
                     const errorText = await response.text();
                     console.error("Backend Error Detail:", errorText);
                     
-                    // Server error (500) or other unhandled HTTP errors
                     if (response.status >= 500) {
-                        throw new Error(`SERVER CRASH (Status ${response.status}). Check Render/MongoDB logs.`);
-                    } else {
-                        // Throw specific error with status code and snippet of the response body
-                        const errorSnippet = errorText.substring(0, 50).replace(/(\r\n|\n|\r)/gm, " ");
-                        throw new Error(`API Error: Status ${response.status} - Response: ${errorSnippet}...`);
+                        throw new Error(`SERVER ERROR (${response.status}). Check Render/MongoDB logs.`);
                     }
+                    // Throw generic error with status code
+                    const errorSnippet = errorText.substring(0, 50).replace(/(\r\n|\n|\r)/gm, " ");
+                    throw new Error(`API Error: Status ${response.status} - Response: ${errorSnippet}...`);
                 }
 
                 const data = await response.json(); 
@@ -399,55 +368,44 @@
                     wordDisplay.textContent = currentWordText.toUpperCase();
                     setWordBoxState('neutral', true);
                     toggleButtons(true);
-                    showMessage("New word loaded!", 'success');
-                    console.log("Word loaded successfully:", currentWordText);
-                } else if (data.message && data.message.includes("No words left")) {
+                    console.log("Next word loaded:", currentWordText, "ID:", currentWordId);
+                } else if (data.message && data.message.includes("No words left") || !data.word) {
                     currentWordId = null;
                     currentWordText = null;
                     wordDisplay.textContent = "ALL CAUGHT UP!";
                     toggleButtons(false);
-                    showAddWordModalBtn.disabled = false; // Allow adding new words
+                    showAddWordModalBtn.disabled = false;
                     showMessage("All words classified. Add a new one!", 'info');
-                    console.log("No new words to display.");
                 } else {
                     currentWordId = null;
                     currentWordText = null;
                     wordDisplay.textContent = "NO WORDS FOUND";
                     toggleButtons(false);
-                    showAddWordModalBtn.disabled = false; // Allow adding new words
+                    showAddWordModalBtn.disabled = false;
                     showMessage("No words available. Please suggest one.", 'info');
-                    console.log("API returned data, but no valid word/ID found in payload:", data);
                 }
                 
             } catch (error) {
-                console.error("Fetch Word Error (Network/Parsing):", error.message);
-                
-                wordDisplay.textContent = "API OFFLINE";
-                showMessage(`Connection Error: ${error.message}. Retrying in 5s...`, 'error');
-                
-                // Retry logic for API connection failure
-                retryTimer = setTimeout(fetchNextWord, 5000); 
+                console.error("Fetch Word Error:", error.message);
+                wordDisplay.textContent = "API ERROR";
+                showMessage(`Connection Error: ${error.message}`, 'error');
+                // Allow user to try again or add a word
+                showAddWordModalBtn.disabled = false;
             }
         }
 
         /**
-         * Sends the classification vote to the API.
-         * The simplified payload only sends the word ID and sentiment.
+         * Sends the classification vote to the API (Global vote, no userId sent).
          * @param {string} sentiment 'good' or 'bad'.
          */
         async function sendVote(sentiment) {
-            // CRITICAL CHECK: Ensure we have the word ID before proceeding
             if (!currentWordId) {
-                showMessage("Cannot vote: No word loaded. Try refreshing.", 'error');
-                console.error("Vote aborted: currentWordId is missing.");
+                showMessage("Cannot vote: No word loaded.", 'error');
                 return;
             }
-            if (!API_BASE_URL) { showMessage("CRITICAL: API_BASE_URL is missing!", 'error'); return; }
-
-            console.log(`Attempting to send ${sentiment} vote for ID: ${currentWordId}`);
 
             toggleButtons(false);
-            setWordBoxState(sentiment, true); // Apply vote color AND flip animation
+            setWordBoxState(sentiment, true); 
 
             try {
                 const response = await fetch(`${API_BASE_URL}/api/vote`, {
@@ -456,114 +414,109 @@
                     body: JSON.stringify({ 
                         wordId: currentWordId, 
                         sentiment: sentiment,
-                        // userId removed
                     })
                 });
-
-                console.log("Send Vote Response Status:", response.status);
 
                 if (!response.ok) {
                     const errorData = await response.json().catch(() => ({}));
                     if (response.status >= 500) {
-                         throw new Error(`SERVER CRASH (Status ${response.status}). Check Render/MongoDB logs.`);
+                         throw new Error(`SERVER ERROR (Status ${response.status}). Check Render/MongoDB logs.`);
                     }
                     throw new Error(errorData.message || `API Error (${response.status}) on vote.`);
                 }
 
                 showMessage(`Voted ${sentiment.toUpperCase()}!`, sentiment);
                 
-                // Vote successful, fetch the next word
-                await fetchNextWord();
+                // Immediately fetch next word and update leaderboard
+                fetchNextWord();
+                fetchTopWords(); 
                 
             } catch (error) {
                 console.error("Vote Error:", error.message);
                 showMessage(`Error submitting vote: ${error.message}`, 'error');
                 
-                // Re-enable buttons if the vote failed and reset state
+                // Re-enable buttons if vote failed
                 toggleButtons(true);
                 setWordBoxState('neutral', false);
             }
         }
 
         /**
-         * Fetches the top words list from the API. (No changes needed here)
+         * Fetches the top words list from the API.
          */
         async function fetchTopWords() {
             if (!API_BASE_URL) { return; }
 
-            console.log("Attempting to fetch top words leaderboard...");
             mostlyGoodList.innerHTML = '<li class="text-center italic text-sm text-gray-500">Loading leaderboard...</li>';
             mostlyBadList.innerHTML = '<li class="text-center italic text-sm text-gray-500">Loading leaderboard...</li>';
 
             try {
                 const response = await fetch(`${API_BASE_URL}/api/top-words`);
-                console.log("Fetch Top Words Response Status:", response.status);
 
                 if (!response.ok) {
                     const errorText = await response.text();
-                    console.error("Backend Error Detail:", errorText);
+                    console.error("Backend Error Detail (Top Words):", errorText);
 
                     if (response.status >= 500) {
-                         throw new Error(`SERVER CRASH (Status ${response.status}). Check Render/MongoDB logs.`);
+                         throw new Error(`SERVER ERROR (Status ${response.status}). Check Render/MongoDB logs.`);
                     }
-                    const errorSnippet = errorText.substring(0, 50).replace(/(\r\n|\n|\r)/gm, " ");
-                    throw new Error(`API Error: Status ${response.status} - Response: ${errorSnippet}...`);
+                    throw new Error(`API Error: Status ${response.status}`);
                 }
                 const data = await response.json();
-
+                
+                // Clear and re-populate lists
                 mostlyGoodList.innerHTML = '';
                 mostlyBadList.innerHTML = '';
                 const classifiedWords = data.words || [];
 
                 if (classifiedWords.length === 0) {
-                    mostlyGoodList.innerHTML = '<li class="text-center italic text-sm text-gray-500">No votes recorded yet.</li>';
-                    mostlyBadList.innerHTML = '<li class="text-center italic text-sm text-gray-500">No votes recorded yet.</li>';
+                    const noVotesMessage = '<li class="text-center italic text-sm text-gray-500 p-2">No votes recorded yet.</li>';
+                    mostlyGoodList.innerHTML = noVotesMessage;
+                    mostlyBadList.innerHTML = noVotesMessage;
                     return;
                 }
 
                 const goodList = classifiedWords
-                    .filter(item => item.goodPercent > 50)
+                    .filter(item => item.goodPercent && item.goodPercent > 50)
                     .sort((a, b) => b.goodPercent - a.goodPercent)
                     .slice(0, 5);
                 
                 const badList = classifiedWords
-                    .filter(item => item.badPercent >= 50)
+                    .filter(item => item.badPercent && item.badPercent >= 50)
                     .sort((a, b) => b.badPercent - a.badPercent)
                     .slice(0, 5);
 
-                if (goodList.length > 0) {
-                    goodList.forEach(item => {
-                        const li = document.createElement('li');
-                        li.className = 'flex justify-between items-center text-gray-700 border-b border-gray-100 last:border-b-0';
-                        li.innerHTML = `
-                            <span class="font-semibold text-sm">${item.word.toUpperCase()}</span>
-                            <span class="font-bold text-lg" style="color: var(--good-color);">${item.goodPercent}%</span>
-                        `;
-                        mostlyGoodList.appendChild(li);
-                    });
-                } else {
-                    mostlyGoodList.innerHTML = '<li class="text-center italic text-sm text-gray-500 p-2">No words classified as mostly Good yet.</li>';
+                const noGoodMsg = '<li class="text-center italic text-sm text-gray-500 p-2">None classified as mostly Good yet.</li>';
+                const noBadMsg = '<li class="text-center italic text-sm text-gray-500 p-2">None classified as mostly Bad yet.</li>';
+
+
+                const renderList = (list, element, color, defaultMessage) => {
+                     if (list.length > 0) {
+                        list.forEach(item => {
+                            const li = document.createElement('li');
+                            const percentage = color === 'good' ? item.goodPercent : item.badPercent;
+                            li.className = 'flex justify-between items-center text-gray-700 border-b border-gray-100 last:border-b-0';
+                            li.innerHTML = `
+                                <span class="font-semibold text-sm">${item.word.toUpperCase()}</span>
+                                <span class="font-bold text-lg" style="color: var(--${color}-color);">${Math.round(percentage)}%</span>
+                            `;
+                            element.appendChild(li);
+                        });
+                    } else {
+                        element.innerHTML = defaultMessage;
+                    }
                 }
 
-                if (badList.length > 0) {
-                    badList.forEach(item => {
-                        const li = document.createElement('li');
-                        li.className = 'flex justify-between items-center text-gray-700 border-b border-gray-100 last:border-b-0';
-                        li.innerHTML = `
-                            <span class="font-semibold text-sm">${item.word.toUpperCase()}</span>
-                            <span class="font-bold text-lg" style="color: var(--bad-color);">${item.badPercent}%</span>
-                        `;
-                        mostlyBadList.appendChild(li);
-                    });
-                } else {
-                    mostlyBadList.innerHTML = '<li class="text-center italic text-sm text-gray-500 p-2">No words classified as mostly Bad yet.</li>';
-                }
+                renderList(goodList, mostlyGoodList, 'good', noGoodMsg);
+                renderList(badList, mostlyBadList, 'bad', noBadMsg);
+
 
             } catch (error) {
-                console.error("Fetch Top Words Error (Network/Parsing):", error.message);
+                console.error("Fetch Top Words Error:", error.message);
                 const errorMessage = error.message.includes('SyntaxError') ? 'API returned invalid JSON.' : error.message;
-                mostlyGoodList.innerHTML = `<li class="text-center italic text-sm text-red-500">Error loading list: ${errorMessage}.</li>`;
-                mostlyBadList.innerHTML = `<li class="text-center italic text-sm text-red-500">Error loading list: ${errorMessage}.</li>`;
+                const errorMsgLi = `<li class="text-center italic text-sm text-red-500">Error loading list: ${errorMessage}.</li>`;
+                mostlyGoodList.innerHTML = errorMsgLi;
+                mostlyBadList.innerHTML = errorMsgLi;
             }
         }
 
@@ -579,10 +532,8 @@
                 wordSubmissionMessage.classList.add('text-red-600');
                 return;
             }
-            if (!API_BASE_URL) { showMessage("CRITICAL: API_BASE_URL is missing!", 'error'); return; }
 
             submitNewWordBtn.disabled = true;
-            console.log("Attempting to submit new word:", word);
             
             try {
                 const response = await fetch(`${API_BASE_URL}/api/add-word`, {
@@ -591,12 +542,10 @@
                     body: JSON.stringify({ word: word })
                 });
 
-                console.log("Add Word Response Status:", response.status);
-
                 if (!response.ok) {
                      const errorData = await response.json().catch(() => ({}));
                      if (response.status >= 500) {
-                         throw new Error(`SERVER CRASH (Status ${response.status}). Check Render/MongoDB logs.`);
+                         throw new Error(`SERVER ERROR (Status ${response.status}). Check Render/MongoDB logs.`);
                     }
                      throw new Error(errorData.message || `API Error (${response.status}) on add word.`);
                 }
@@ -610,7 +559,9 @@
                 // Close modal after a short delay
                 setTimeout(() => {
                     addWordModal.classList.add('hidden');
+                    // Fetch next word to show the newly added one if possible
                     fetchNextWord();
+                    fetchTopWords();
                 }, 1500);
 
             } catch (error) {
@@ -637,7 +588,7 @@
                 newWordInput.focus();
                 wordSubmissionMessage.classList.add('hidden');
                 wordSubmissionMessage.classList.remove('text-red-600', 'text-green-600');
-                submitNewWordBtn.disabled = true;
+                submitNewWordBtn.disabled = true; // Disable until valid input is typed
             });
             cancelAddWordBtn.addEventListener('click', () => addWordModal.classList.add('hidden'));
             submitNewWordBtn.addEventListener('click', handleSubmitNewWord);
@@ -645,6 +596,7 @@
             // Input Listener for Submit Button state
             newWordInput.addEventListener('input', () => {
                 const word = newWordInput.value.trim();
+                // Enable button only if word is 2+ letters long and contains only letters
                 submitNewWordBtn.disabled = !(word.length >= 2 && /^[a-z]+$/i.test(word));
                 wordSubmissionMessage.classList.add('hidden');
             });
@@ -663,7 +615,7 @@
 
         // --- App Start ---
         window.onload = () => {
-            console.log("Application starting - Simplified API Mode (No User ID)...");
+            console.log("Application starting - Render API Mode (No User ID)...");
             setupListeners();
             
             // Initial data fetch
