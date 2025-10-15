@@ -220,7 +220,7 @@
 
         <!-- Footer for App Version -->
         <footer class="mt-8 text-center text-xs text-gray-400">
-            App Version: v7.0 (API Restore)
+            App Version: v7.2 (API URL Finalized)
         </footer>
     </div>
     
@@ -246,6 +246,10 @@
 
 
     <script>
+        // CRITICAL CONFIGURATION:
+        // The URL of your Render API service.
+        const API_BASE_URL = 'https://good-word.onrender.com';
+
         // --- GLOBAL STATE & CONFIG ---
         let currentWordId = null;
         let currentWordText = null;
@@ -386,9 +390,16 @@
                 return;
             }
 
+            if (!API_BASE_URL) {
+                 wordDisplay.textContent = "API URL MISSING";
+                 showMessage("CRITICAL: API_BASE_URL is missing!", 'error');
+                 return;
+            }
+
+
             try {
-                // Pass the unique userId in the query string
-                const fetchUrl = `/api/get-word?userId=${userId}`;
+                // Construct the full URL using the configured base
+                const fetchUrl = `${API_BASE_URL}/api/get-word?userId=${userId}`;
                 console.log("Fetching:", fetchUrl);
                 const response = await fetch(fetchUrl);
                 console.log("Fetch Next Word Response Status:", response.status);
@@ -455,14 +466,15 @@
                 console.error("Vote aborted: currentWordId or userId is missing.");
                 return;
             }
-            
+            if (!API_BASE_URL) { showMessage("CRITICAL: API_BASE_URL is missing!", 'error'); return; }
+
             console.log(`Attempting to send ${sentiment} vote for ID: ${currentWordId}`);
 
             toggleButtons(false);
             setWordBoxState(sentiment, true); // Apply vote color AND flip animation
 
             try {
-                const response = await fetch('/api/vote', {
+                const response = await fetch(`${API_BASE_URL}/api/vote`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
@@ -503,9 +515,11 @@
          * Fetches the top words list from the API.
          */
         async function fetchTopWords() {
+            if (!API_BASE_URL) { return; }
+
             console.log("Attempting to fetch top words leaderboard...");
             try {
-                const response = await fetch('/api/top-words');
+                const response = await fetch(`${API_BASE_URL}/api/top-words`);
                 console.log("Fetch Top Words Response Status:", response.status);
 
                 if (!response.ok) {
@@ -596,12 +610,13 @@
                 wordSubmissionMessage.classList.add('text-red-600');
                 return;
             }
-            
+            if (!API_BASE_URL) { showMessage("CRITICAL: API_BASE_URL is missing!", 'error'); return; }
+
             submitNewWordBtn.disabled = true;
             console.log("Attempting to submit new word:", word);
             
             try {
-                const response = await fetch('/api/add-word', {
+                const response = await fetch(`${API_BASE_URL}/api/add-word`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ word: word })
