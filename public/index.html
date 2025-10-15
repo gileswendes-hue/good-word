@@ -204,7 +204,7 @@
                 <div class="mostly-good bg-white p-6 rounded-xl shadow-md flex-1 min-w-[300px] lg:min-w-0 border-t-4" style="border-top-color: var(--good-color);">
                     <h3 class="text-lg font-bold mb-4 text-gray-700" style="color: var(--good-color);">Mostly Good</h3>
                     <ul id="mostlyGoodList" class="space-y-2">
-                        <li class="text-center italic text-sm text-gray-500">Waiting for data...</li>
+                        <li class="text-center italic text-sm text-gray-500">Loading leaderboard...</li>
                     </ul>
                 </div>
 
@@ -212,7 +212,7 @@
                 <div class="mostly-bad bg-white p-6 rounded-xl shadow-md flex-1 min-w-[300px] lg:min-w-0 border-t-4" style="border-top-color: var(--bad-color);">
                     <h3 class="text-lg font-bold mb-4 text-gray-700" style="color: var(--bad-color);">Mostly Bad</h3>
                     <ul id="mostlyBadList" class="space-y-2">
-                        <li class="text-center italic text-sm text-gray-500">Waiting for data...</li>
+                        <li class="text-center italic text-sm text-gray-500">Loading leaderboard...</li>
                     </ul>
                 </div>
             </div>
@@ -220,7 +220,7 @@
 
         <!-- Footer for App Version -->
         <footer class="mt-8 text-center text-xs text-gray-400">
-            App Version: v5.0 (API Backend)
+            App Version: v5.1 (API Backend - Vote Fix)
         </footer>
     </div>
     
@@ -281,7 +281,7 @@
             if (storedId) {
                 userId = storedId;
             } else {
-                // Generate a simple unique ID (crypto.randomUUID() is better but not always available)
+                // Generate a simple unique ID
                 userId = 'user-' + Date.now().toString(36) + Math.random().toString(36).substring(2, 5);
                 localStorage.setItem('wordClassifierUserId', userId);
             }
@@ -313,8 +313,7 @@
                     break;
                 case 'info':
                 default:
-                    bgColorClass = 'bg-neutral';
-                    messageDisplay.classList.add('text-white');
+                    bgColorClass = 'bg-yellow-500 text-white'; // Default info style
                     break;
             }
 
@@ -404,9 +403,14 @@
                     currentWordText = null;
                     wordDisplay.textContent = "ALL CAUGHT UP!";
                     toggleButtons(false);
-                    showMessage("You have voted on all available words.", 'info');
+                    showMessage("You have voted on all available words. Add a new one!", 'info');
                 } else {
-                    throw new Error("Invalid or empty response structure from API.");
+                    // Handle case where API returns OK but no word data (e.g., initial state)
+                    currentWordId = null;
+                    currentWordText = null;
+                    wordDisplay.textContent = "NO WORDS FOUND";
+                    toggleButtons(false);
+                    showMessage("No words available. Please suggest one.", 'info');
                 }
                 
             } catch (error) {
@@ -425,11 +429,13 @@
          * @param {string} sentiment 'good' or 'bad'.
          */
         async function sendVote(sentiment) {
-            if (!currentWordId || !userId) return;
+            if (!currentWordId || !userId) {
+                showMessage("Cannot vote: No word loaded or user ID missing.", 'error');
+                return;
+            }
 
             toggleButtons(false);
-            setWordBoxState(sentiment, false); // Set vote color immediately
-            showMessage(`Voted ${sentiment.toUpperCase()}!`, sentiment);
+            setWordBoxState(sentiment, true); // Apply vote color AND flip animation
 
             try {
                 const response = await fetch('/api/vote', {
@@ -437,24 +443,28 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         wordId: currentWordId, 
-                        sentiment,
+                        sentiment: sentiment, // Ensure we pass the string 'good' or 'bad'
                         userId: userId 
                     })
                 });
 
                 if (!response.ok) {
-                    throw new Error(`API Error (${response.status}) on vote.`);
+                    // Try to extract a specific error message if the backend provides one
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `API Error (${response.status}) on vote.`);
                 }
 
+                showMessage(`Voted ${sentiment.toUpperCase()}!`, sentiment);
+                
                 // Vote successful, fetch the next word and update leaderboards
-                fetchNextWord();
-                fetchTopWords();
+                await fetchNextWord();
+                await fetchTopWords();
 
             } catch (error) {
                 console.error("Vote Error:", error.message);
-                showMessage("Error submitting vote. Check API logs.", 'error');
+                showMessage(`Error submitting vote: ${error.message}`, 'error');
                 
-                // Re-enable buttons if the vote failed
+                // Re-enable buttons if the vote failed and reset state
                 toggleButtons(true);
                 setWordBoxState('neutral', false);
             }
@@ -475,7 +485,14 @@
                 mostlyGoodList.innerHTML = '';
                 mostlyBadList.innerHTML = '';
 
+                // Ensure data.words is an array, default to empty array if not present
                 const classifiedWords = data.words || [];
+
+                if (classifiedWords.length === 0) {
+                    mostlyGoodList.innerHTML = '<li class="text-center italic text-sm text-gray-500">No votes recorded yet.</li>';
+                    mostlyBadList.innerHTML = '<li class="text-center italic text-sm text-gray-500">No votes recorded yet.</li>';
+                    return;
+                }
 
                 // Filter and sort for the display lists
                 const goodList = classifiedWords
@@ -483,8 +500,9 @@
                     .sort((a, b) => b.goodPercent - a.goodPercent)
                     .slice(0, 5);
                 
+                // Adjusted filter: words with 50% or more Bad votes go here.
                 const badList = classifiedWords
-                    .filter(item => item.badPercent >= 50) // >= 50 ensures ties go to bad, or adjust as needed
+                    .filter(item => item.badPercent >= 50)
                     .sort((a, b) => b.badPercent - a.badPercent)
                     .slice(0, 5);
 
@@ -492,34 +510,36 @@
                 if (goodList.length > 0) {
                     goodList.forEach(item => {
                         const li = document.createElement('li');
+                        li.className = 'flex justify-between items-center text-gray-700 border-b border-gray-100 last:border-b-0';
                         li.innerHTML = `
-                            <span class="font-semibold">${item.word.toUpperCase()}</span>
-                            <span class="font-bold" style="color: var(--good-color);">${item.goodPercent}%</span>
+                            <span class="font-semibold text-sm">${item.word.toUpperCase()}</span>
+                            <span class="font-bold text-lg" style="color: var(--good-color);">${item.goodPercent}%</span>
                         `;
                         mostlyGoodList.appendChild(li);
                     });
                 } else {
-                    mostlyGoodList.innerHTML = '<li class="text-center italic text-sm text-gray-500">No words classified as mostly Good yet.</li>';
+                    mostlyGoodList.innerHTML = '<li class="text-center italic text-sm text-gray-500 p-2">No words classified as mostly Good yet.</li>';
                 }
 
                 // Populate Mostly Bad List
                 if (badList.length > 0) {
                     badList.forEach(item => {
                         const li = document.createElement('li');
+                        li.className = 'flex justify-between items-center text-gray-700 border-b border-gray-100 last:border-b-0';
                         li.innerHTML = `
-                            <span class="font-semibold">${item.word.toUpperCase()}</span>
-                            <span class="font-bold" style="color: var(--bad-color);">${item.badPercent}%</span>
+                            <span class="font-semibold text-sm">${item.word.toUpperCase()}</span>
+                            <span class="font-bold text-lg" style="color: var(--bad-color);">${item.badPercent}%</span>
                         `;
                         mostlyBadList.appendChild(li);
                     });
                 } else {
-                    mostlyBadList.innerHTML = '<li class="text-center italic text-sm text-gray-500">No words classified as mostly Bad yet.</li>';
+                    mostlyBadList.innerHTML = '<li class="text-center italic text-sm text-gray-500 p-2">No words classified as mostly Bad yet.</li>';
                 }
 
             } catch (error) {
                 console.error("Fetch Top Words Error:", error.message);
-                mostlyGoodList.innerHTML = '<li class="text-center italic text-sm text-red-500">API Error loading list.</li>';
-                mostlyBadList.innerHTML = '<li class="text-center italic text-sm text-red-500">API Error loading list.</li>';
+                mostlyGoodList.innerHTML = '<li class="text-center italic text-sm text-red-500">Error loading list. (API Check)</li>';
+                mostlyBadList.innerHTML = '<li class="text-center italic text-sm text-red-500">Error loading list. (API Check)</li>';
             }
         }
 
@@ -568,7 +588,7 @@
                 console.error("Error submitting new word:", error);
                 wordSubmissionMessage.textContent = error.message.includes('exists') 
                     ? `The word '${word}' already exists!` 
-                    : "Failed to submit word. Please check your backend service.";
+                    : "Failed to submit word. Please try again.";
                 wordSubmissionMessage.classList.remove('hidden');
                 wordSubmissionMessage.classList.add('text-red-600');
             } finally {
@@ -578,7 +598,7 @@
 
         // --- SETUP LISTENERS ---
         function setupListeners() {
-            // Vote Listeners
+            // Vote Listeners - Now directly calling the sendVote function
             goodWordBtn.addEventListener('click', () => sendVote('good'));
             badWordBtn.addEventListener('click', () => sendVote('bad'));
             
