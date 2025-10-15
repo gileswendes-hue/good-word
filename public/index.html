@@ -212,7 +212,8 @@
         // --- API Endpoints ---
         const API_BASE = 'https://good-word.onrender.com/api';
         const API_GET_RANDOM_WORD = `${API_BASE}/word/random`;
-        const API_GET_ALL_WORDS = `${API_BASE}/words/all`; // Assuming this endpoint is correct
+        // FIX: Changed from /words/all to /words based on the 404 error
+        const API_GET_ALL_WORDS = `${API_BASE}/words`; 
         const API_VOTE = `${API_BASE}/vote`;
         const API_SUBMIT_WORD = `${API_BASE}/word/add`;
 
@@ -435,6 +436,10 @@
                 const response = await fetch(API_GET_ALL_WORDS, { method: 'GET' });
 
                 if (!response.ok) {
+                    // Throw a specific error if the status is 404
+                    if (response.status === 404) {
+                        throw new Error(`Server error (404 Not Found). The API endpoint for fetching all words may be different than '/api/words'.`);
+                    }
                     throw new Error(`Server error (${response.status}) while fetching list.`);
                 }
 
