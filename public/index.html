@@ -194,6 +194,20 @@
             <h2 class="text-2xl font-bold text-gray-800 text-center mb-6">
                 Manage Custom Words (Admin)
             </h2>
+
+            <!-- Word Import Tool -->
+            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-6">
+                <h3 class="text-xl font-semibold text-gray-700 mb-3">Word Import Tool</h3>
+                <p class="text-sm text-gray-600 mb-3">Paste a list of words, separated by commas or new lines. Words will be added as unapproved Custom Words.</p>
+                <textarea id="import-word-list" rows="3" placeholder="Example: WORD1, WORD2, WORD3, anotherword..." 
+                          class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"></textarea>
+                <div id="import-message" class="text-red-500 text-sm mb-2 hidden"></div>
+                <button id="import-words-btn" class="w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition duration-200 mt-2">
+                    Import & Submit Words
+                </button>
+            </div>
+            
+            <h3 class="text-xl font-semibold text-gray-700 text-center mb-4">Pending Approvals</h3>
             <div id="unapproved-words-list" class="space-y-4">
                 <p class="text-center text-gray-500 italic">No pending words to approve.</p>
             </div>
@@ -228,7 +242,7 @@
         <!-- Footer / Version Display -->
         <footer class="text-center mt-8 text-xs text-gray-400">
             <span class="block text-gray-500 mb-2">User ID: <span id="user-id-display" class="font-mono text-gray-700">Loading...</span></span>
-            Made by Gilxs 2025 ver. 3.2 (Dynamic Fit)
+            Made by Gilxs 2025 ver. 3.3 (Word Import)
         </footer>
     </div>
     
@@ -296,6 +310,11 @@
 
         const manageWordsSection = document.getElementById('custom-word-management');
         const unapprovedWordsList = document.getElementById('unapproved-words-list');
+
+        // Import Tool Elements
+        const importWordListTextarea = document.getElementById('import-word-list');
+        const importWordsBtn = document.getElementById('import-words-btn');
+        const importMessageEl = document.getElementById('import-message');
         
         // --- Constants ---
         // Public collections
@@ -695,6 +714,92 @@
         // --- Event Handlers ---
 
         /**
+         * Handles the word import tool action.
+         */
+        async function handleImportWords() {
+            if (!db) return displayMessage("Database not ready.", true);
+
+            const inputText = importWordListTextarea.value.trim();
+            importMessageEl.classList.add('hidden');
+            
+            if (!inputText) {
+                importMessageEl.textContent = "Please paste words into the text area.";
+                importMessageEl.classList.remove('hidden');
+                return;
+            }
+
+            // Split by comma, newline, or space, filter out empties, and normalize to uppercase
+            const rawWords = inputText.split(/[,\n\s]+/)
+                                       .map(word => word.trim().toUpperCase())
+                                       .filter(word => word.length >= 3 && word.length <= 20 && /^[A-Z]+$/.test(word));
+
+            if (rawWords.length === 0) {
+                importMessageEl.textContent = "No valid words found. Ensure each word is 3-20 letters long (A-Z only).";
+                importMessageEl.classList.remove('hidden');
+                return;
+            }
+
+            // Simple uniqueness check within the batch
+            const uniqueWords = [...new Set(rawWords)];
+            
+            importWordsBtn.disabled = true;
+            importWordsBtn.textContent = `Submitting ${uniqueWords.length} words...`;
+
+            let submittedCount = 0;
+            const customCollectionRef = collection(db, CUSTOM_COLLECTION);
+            const batch = writeBatch(db);
+
+            for (const word of uniqueWords) {
+                try {
+                    // Check if the word already exists in the custom collection to avoid duplicates
+                    const q = query(customCollectionRef, where("word", "==", word));
+                    const snapshot = await getDocs(q);
+                    
+                    if (snapshot.empty) {
+                        const newDocRef = doc(customCollectionRef);
+                        batch.set(newDocRef, {
+                            word: word,
+                            good_votes: 0,
+                            bad_votes: 0,
+                            is_approved: false,
+                            submitter_uid: currentUserId,
+                            created_at: Date.now()
+                        });
+                        submittedCount++;
+                    }
+                } catch (error) {
+                    console.error(`Error checking word existence for ${word}:`, error);
+                    // Continue to the next word even on error
+                }
+            }
+
+            if (submittedCount > 0) {
+                try {
+                    await batch.commit();
+                    importWordListTextarea.value = ''; // Clear textarea on successful commit
+                    const message = `Successfully submitted ${submittedCount} unique words for approval!`;
+                    displayMessage(message);
+                    importMessageEl.textContent = `${message} (Awaiting approval)`;
+                    importMessageEl.classList.remove('hidden');
+                    importMessageEl.style.color = '#10B981'; // Green color for success
+                } catch (error) {
+                    console.error("Error committing word import batch:", error);
+                    importMessageEl.textContent = "Failed to commit word batch. Please try a smaller list.";
+                    importMessageEl.style.color = '#EF4444'; // Red color for error
+                    importMessageEl.classList.remove('hidden');
+                }
+            } else {
+                 importMessageEl.textContent = "All words found in your list were already submitted (or the list was empty/invalid).";
+                 importMessageEl.style.color = '#F59E0B'; // Amber color for warning
+                 importMessageEl.classList.remove('hidden');
+            }
+
+            importWordsBtn.disabled = false;
+            importWordsBtn.textContent = 'Import & Submit Words';
+        }
+
+
+        /**
          * Handles the vote action.
          */
         async function handleVote(isGood) {
@@ -861,7 +966,10 @@
                 }
             });
             
-            // *** NEW: Add resize listener to refit text ***
+            // Word Import Listener
+            importWordsBtn.addEventListener('click', handleImportWords);
+
+            // Add resize listener to refit text
             window.addEventListener('resize', fitTextToCard);
         }
 
