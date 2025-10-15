@@ -128,9 +128,10 @@
             border-bottom: none;
         }
         
-        /* Utility for messages */
+        /* Utility for messages - FIXED TO BE SINGLE TOKENS */
         .message-success { background-color: var(--good-color); color: white; }
         .message-error { background-color: var(--bad-color); color: white; }
+        .message-info { background-color: #4b5563; color: white; } /* Neutral/Default background */
 
         /* Modal backdrop for visual appeal */
         .modal-backdrop {
@@ -209,7 +210,7 @@
 
         <!-- Footer for App Version -->
         <footer class="mt-8 text-center text-xs text-gray-400">
-            App Version: v8.6 (Render API Client - Simplified Fetch)
+            App Version: v8.7 (Render API Client - Final DOMToken Fix)
         </footer>
     </div>
     
@@ -236,7 +237,6 @@
 
     <script>
         // CRITICAL CONFIGURATION:
-        // The URL of your Render API service.
         const API_BASE_URL = 'https://good-word.onrender.com';
 
         // --- GLOBAL STATE ---
@@ -264,29 +264,35 @@
 
         /**
          * Displays a temporary status message to the user.
+         * The 'type' must be a single token (e.g., 'success', 'error', 'info', 'good', 'bad').
          */
         function showMessage(message, type) {
             messageDisplay.textContent = message;
             
-            // Reset classes
-            messageDisplay.className = 'absolute -top-10 left-1/2 transform -translate-x-1/2 p-2 px-4 rounded-xl shadow-lg font-semibold text-sm z-10';
+            // Base Tailwind classes are applied first by setting the className directly.
+            const baseClasses = 'absolute -top-10 left-1/2 transform -translate-x-1/2 p-2 px-4 rounded-xl shadow-lg font-semibold text-sm z-10';
+            messageDisplay.className = baseClasses;
             messageDisplay.classList.remove('hidden');
 
             let bgColorClass;
 
+            // --- THE FIX IS HERE: Handling 'good' and 'bad' types, and ensuring single token output ---
             switch (type) {
                 case 'success':
+                case 'good': // Explicitly handle 'good' from sendVote success
                     bgColorClass = 'message-success';
                     break;
                 case 'error':
+                case 'bad': // Explicitly handle 'bad' from sendVote success
                     bgColorClass = 'message-error';
                     break;
                 case 'info':
                 default:
-                    bgColorClass = 'bg-gray-700 text-white'; // Default info style
+                    bgColorClass = 'message-info'; // Uses single token CSS class defined in <style>
                     break;
             }
 
+            // This now only adds a single, defined class token, resolving the whitespace error.
             messageDisplay.classList.add(bgColorClass);
 
             // Hide after 3 seconds
@@ -388,7 +394,8 @@
             } catch (error) {
                 console.error("Fetch Word Error:", error.message);
                 wordDisplay.textContent = "API ERROR";
-                showMessage(`Connection Error: ${error.message}`, 'error');
+                // This call uses 'error', which is correctly handled in showMessage now.
+                showMessage(`Connection Error: ${error.message}`, 'error'); 
                 // Allow user to try again or add a word
                 showAddWordModalBtn.disabled = false;
             }
@@ -424,7 +431,8 @@
                     }
                     throw new Error(errorData.message || `API Error (${response.status}) on vote.`);
                 }
-
+                
+                // This call now uses 'good' or 'bad', which is explicitly handled in showMessage.
                 showMessage(`Voted ${sentiment.toUpperCase()}!`, sentiment);
                 
                 // Immediately fetch next word and update leaderboard
