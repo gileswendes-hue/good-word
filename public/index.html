@@ -104,14 +104,14 @@
             font-size: 2.2rem; /* INCREASED SIZE for bolder look */
             font-weight: 900; /* ADDED BOLDNESS */
             line-height: 0.9;
-            white-space: pre; /* Preserve whitespace for ASCII art */
+            /* REVERTED CENTERING: Back to standard block display and centered text content */
+            display: block; 
+            text-align: center; /* This centers the inline spans */
+            margin-bottom: 0.5rem; /* Keeps spacing consistent */
+            /* Removed white-space: pre; to allow normal flow which centers better in a block element */
             color: #4CAF50; /* Base color for 'Good' */
             text-shadow: 2px 2px 0px rgba(0,0,0,0.1); /* Subtle shadow */
             transition: all 0.3s ease;
-            /* UPDATED CENTERING: Using table properties to center the content that uses white-space: pre; */
-            display: table; /* Make the container fit content width */
-            margin: 0 auto 0.5rem auto; /* Center the element itself */
-            /* Removed old display: block; and text-align: center; from here, keeping margin: auto and display: table */
         }
         .ascii-logo .bad-part {
             color: #F44336; /* Color for 'Bad' part */
@@ -196,7 +196,7 @@
         </section>
         
         <!-- Footer / Version Display --><footer class="text-center mt-8 text-xs text-gray-400">
-            Made by Gilxs 2025 ver. 3.7.1
+            Made by Gilxs 2025 ver. 3.7.2
         </footer>
     </div>
 
