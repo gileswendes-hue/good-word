@@ -8,7 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     
 <style>
-        /* Base Styles (Matching Previous Design) */
+        /* Base Styles */
         :root {
             --good-color: #4CAF50; /* Green */
             --bad-color: #F44336; /* Red */
@@ -41,6 +41,7 @@
             align-items: center;
             width: 100%;
             max-width: 450px;
+            position: relative;
         }
 
         .word-card.good {
@@ -58,7 +59,7 @@
             border-radius: 9999px; /* Pill shape */
             transition: transform 0.1s ease, box-shadow 0.1s ease;
             text-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
-            pointer-events: auto; /* Ensure buttons are clickable */
+            pointer-events: auto; 
         }
         
         /* Disable buttons during vote/fetch */
@@ -69,12 +70,12 @@
             box-shadow: none !important;
         }
 
-        .vote-button:hover {
+        .vote-button:hover:not([disabled]) {
             transform: translateY(-2px);
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
         }
         
-        .vote-button:active {
+        .vote-button:active:not([disabled]) {
             transform: translateY(0);
             box-shadow: 0 2px 3px rgba(0, 0, 0, 0.1);
         }
@@ -104,23 +105,6 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
-        
-        /* Animation for word card transition */
-        .word-card-exit {
-            position: absolute; 
-            top: 0;
-            left: 0;
-            width: 100%; 
-        }
-        
-        @keyframes slide-out-left {
-            from { opacity: 1; transform: translateX(0); }
-            to { opacity: 0; transform: translateX(-100%); }
-        }
-        @keyframes slide-out-right {
-            from { opacity: 1; transform: translateX(0); }
-            to { opacity: 0; transform: translateX(100%); }
-        }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
@@ -130,21 +114,21 @@
         <!-- Header -->
         <header class="text-center w-full">
             <h1 class="text-5xl font-extrabold text-gray-800 mb-2 mt-4">Good Word/Bad Word</h1>
-            <p class="text-lg text-gray-600">Vote on words to help rank them globally.</p>
+            <p class="text-lg text-gray-600">Vote on words submitted by the community (Shared Database).</p>
         </header>
 
         <!-- Main Card Section -->
         <div class="w-full max-w-md flex flex-col items-center space-y-4">
             
             <div id="word-card-container" class="relative w-full max-w-md">
-                <div id="word-card" class="word-card shadow-xl p-6 transition-all duration-500 ease-in-out">
+                <div id="word-card" class="word-card shadow-xl p-6">
                     <!-- Word Loading/Display Area -->
                     <div id="word-loading" class="flex flex-col items-center justify-center h-full space-y-3">
                         <div class="spinner"></div>
-                        <p class="text-gray-500 text-lg">Loading word from Render API...</p>
+                        <p class="text-gray-500 text-lg">Loading word from server...</p>
                     </div>
 
-                    <h2 id="current-word" class="text-6xl md:text-7xl font-bold text-gray-800 hidden text-center break-words max-w-full"></h2>
+                    <h2 id="current-word" class="text-6xl md:text-7xl font-bold text-gray-800 text-center break-words max-w-full hidden"></h2>
                     <p id="word-id-display" class="text-xs text-gray-400 mt-2 hidden"></p> 
                 </div>
             </div>
@@ -167,350 +151,289 @@
             
             <!-- Score Display -->
             <div id="score-display" class="flex flex-col items-center space-y-1 text-sm text-gray-700">
-                <p>Current Votes: <span id="good-score" class="font-semibold text-green-600">0</span> Good / <span id="bad-score" class="font-semibold text-red-600">0</span> Bad</p>
+                <p>Votes: <span id="good-score" class="font-semibold text-green-600">0</span> Good / <span id="bad-score" class="font-semibold text-red-600">0</span> Bad</p>
             </div>
         </div>
 
-        <!-- Word List Section (Using /api/top-words) -->
+        <!-- Word Submission Section -->
+        <div class="w-full max-w-md mt-8 p-6 bg-white rounded-xl shadow-lg">
+            <h3 class="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">Submit New Word</h3>
+
+            <div class="mb-4 flex space-x-2">
+                <input type="text" id="new-word-input" placeholder="Enter a word (e.g., 'Awesome')" class="p-2 border rounded-lg flex-grow focus:ring-green-500 focus:border-green-500">
+                <button id="submit-new-word-btn" class="px-4 py-2 bg-yellow-500 text-white font-bold rounded-lg hover:bg-yellow-600 transition duration-150">Submit</button>
+            </div>
+            <p id="submission-message" class="text-sm mt-1"></p>
+        </div>
+        
+        <!-- Global List Placeholder -->
         <div class="w-full max-w-4xl mt-8 p-6 bg-white rounded-xl shadow-lg">
-            <h3 class="text-2xl font-semibold text-gray-800 mb-4 border-b pb-2">Top Rated Words (Global)</h3>
-
-            <div id="global-word-list" class="space-y-2 mt-4">
-                <!-- Word list items will be generated here -->
-                <p id="loading-list-msg" class="text-gray-500 italic flex items-center space-x-2">
-                    <div class="spinner w-4 h-4"></div>
-                    <span>Loading word list...</span>
-                </p>
-                <p id="no-words-msg" class="text-gray-500 italic hidden"></p>
-            </div>
+             <h3 class="text-2xl font-semibold text-gray-800 mb-4 border-b pb-2">Global Word Rankings</h3>
+             <p class="text-gray-500 italic">Global list is currently unavailable from the external API, but your votes are being recorded.</p>
         </div>
-
-        <!-- Message/Status Area -->
-        <div id="status-message" class="mt-4 p-3 rounded-lg shadow-md text-center text-sm hidden" role="status"></div>
     </div>
-    
-    <script>
-        // --- Configuration ---
-        const API_BASE_URL = 'https://good-word.onrender.com/api';
-        let currentWordData = null; 
 
+    <!-- Custom Message Modal -->
+    <div id="message-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg p-6 shadow-xl max-w-sm w-full">
+            <h4 id="modal-title" class="text-xl font-semibold mb-3"></h4>
+            <p id="modal-body" class="mb-4 text-gray-700"></p>
+            <button id="modal-close-btn" class="w-full py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition duration-150">OK</button>
+        </div>
+    </div>
+
+
+    <script>
         // --- DOM Elements ---
-        const wordCardContainerEl = document.getElementById('word-card-container');
-        const wordCardEl = document.getElementById('word-card');
         const currentWordEl = document.getElementById('current-word');
-        const wordLoadingEl = document.getElementById('word-loading');
-        const goodVoteBtn = document.getElementById('good-vote-btn');
-        const badVoteBtn = document.getElementById('bad-vote-btn');
-        const statusMessageEl = document.getElementById('status-message');
         const goodScoreEl = document.getElementById('good-score');
         const badScoreEl = document.getElementById('bad-score');
-        const globalWordListEl = document.getElementById('global-word-list');
-        const loadingListMsgEl = document.getElementById('loading-list-msg');
-        const noWordsMsgEl = document.getElementById('no-words-msg');
+        const goodVoteBtn = document.getElementById('good-vote-btn');
+        const badVoteBtn = document.getElementById('bad-vote-btn');
+        const wordCard = document.getElementById('word-card');
+        const wordLoadingEl = document.getElementById('word-loading');
+        const submissionMessageEl = document.getElementById('submission-message');
+        const newWordInput = document.getElementById('new-word-input');
+        const submitNewWordBtn = document.getElementById('submit-new-word-btn');
+        
+        // Modal Elements
+        const messageModal = document.getElementById('message-modal');
+        const modalTitleEl = document.getElementById('modal-title');
+        const modalBodyEl = document.getElementById('modal-body');
+        const modalCloseBtn = document.getElementById('modal-close-btn');
+
+        // --- State Variables ---
+        let currentWord = null;
+        let isProcessing = false;
+
+        // --- API Endpoints ---
+        const API_BASE = 'https://good-word.onrender.com/api';
+        const API_GET_RANDOM_WORD = `${API_BASE}/word/random`;
+        const API_VOTE = `${API_BASE}/vote`;
+        const API_SUBMIT_WORD = `${API_BASE}/word/add`;
 
         // --- Utility Functions ---
 
-        function setButtonsDisabled(disabled) {
-            goodVoteBtn.disabled = disabled;
-            badVoteBtn.disabled = disabled;
+        /**
+         * Shows a custom modal message.
+         * @param {string} title - The title of the modal.
+         * @param {string} body - The body text of the modal.
+         */
+        function showMessage(title, body) {
+            modalTitleEl.textContent = title;
+            modalBodyEl.textContent = body;
+            messageModal.classList.remove('hidden');
+            messageModal.classList.add('flex');
         }
 
-        function showStatusMessage(message, type = 'success') {
-            statusMessageEl.innerText = message;
-            statusMessageEl.classList.remove('hidden', 'bg-red-100', 'text-red-700', 'bg-green-100', 'text-green-700', 'bg-yellow-100', 'text-yellow-700');
-            
-            if (type === 'error') {
-                statusMessageEl.classList.add('bg-red-100', 'text-red-700');
-            } else if (type === 'warning') {
-                statusMessageEl.classList.add('bg-yellow-100', 'text-yellow-700');
+        /**
+         * Toggles the loading state for UI elements.
+         * @param {boolean} loading - True to show loading, false otherwise.
+         */
+        function setLoadingState(loading) {
+            isProcessing = loading;
+            goodVoteBtn.disabled = loading || !currentWord;
+            badVoteBtn.disabled = loading || !currentWord;
+            submitNewWordBtn.disabled = loading;
+            newWordInput.disabled = loading;
+
+            if (loading) {
+                wordLoadingEl.classList.remove('hidden');
+                currentWordEl.classList.add('hidden');
             } else {
-                statusMessageEl.classList.add('bg-green-100', 'text-green-700');
-            }
-
-            setTimeout(() => {
-                statusMessageEl.classList.add('hidden');
-            }, 5000); 
-        }
-
-        /**
-         * Creates a visual transition for the word card.
-         */
-        function animateCardTransition(voteType) {
-            // 1. Clone the current card to animate it out
-            const exitingCard = wordCardEl.cloneNode(true);
-            exitingCard.id = 'exiting-word-card';
-            exitingCard.classList.remove('bad', 'good');
-            exitingCard.classList.add(voteType);
-            
-            exitingCard.classList.add('word-card-exit');
-            exitingCard.style.zIndex = 10;
-            
-            const direction = voteType === 'good' ? 'slide-out-right' : 'slide-out-left';
-            exitingCard.style.animation = `${direction} 0.3s forwards`;
-            
-            // Prepare new card entrance
-            wordCardEl.classList.remove('bad', 'good');
-            wordCardEl.style.opacity = '0';
-            wordCardEl.style.transform = voteType === 'good' ? 'translateX(-100%)' : 'translateX(100%)'; 
-            
-            wordCardContainerEl.appendChild(exitingCard);
-            
-            // Start new card transition shortly after
-            setTimeout(() => {
-                wordCardEl.style.transition = 'opacity 0.3s ease-in, transform 0.3s ease-in';
-                wordCardEl.style.opacity = '1';
-                wordCardEl.style.transform = 'translateX(0)';
-            }, 50);
-
-            // Cleanup
-            exitingCard.addEventListener('animationend', () => {
-                exitingCard.remove();
-            });
-
-            setTimeout(() => {
-                wordCardEl.style.transition = '';
-            }, 350);
-        }
-
-        /**
-         * Utility function to fetch with exponential backoff and retry.
-         * Explicitly sets mode: 'cors' for better compatibility.
-         */
-        async function fetchWithRetry(url, options = {}, retries = 5) {
-            // Ensure CORS mode is always set explicitly
-            const fetchOptions = { ...options, mode: 'cors' };
-
-            for (let i = 0; i < retries; i++) {
-                try {
-                    if (i > 0) {
-                        wordLoadingEl.innerHTML = `<div class="spinner"></div><p class="text-gray-500 text-lg">Retrying... (Attempt ${i + 1}/${retries})</p>`;
-                    }
-                    
-                    const response = await fetch(url, fetchOptions);
-                    
-                    if (response.status === 502 || response.status === 503 || response.status === 504) {
-                        throw new Error(`Server status: ${response.status}. Retrying...`);
-                    }
-
-                    // Read raw text first for robust error debugging
-                    const responseText = await response.text();
-
-                    if (!response.ok) {
-                        // Include the full body for 400 Bad Request errors
-                        if (response.status === 400) {
-                            throw new Error(`HTTP 400 Bad Request! The server rejected the request data. Body: ${responseText.substring(0, 150)}...`);
-                        }
-                        throw new Error(`HTTP error! Status: ${response.status}. Body: ${responseText.substring(0, 50)}...`);
-                    }
-
-                    try {
-                        const data = JSON.parse(responseText);
-                        return data;
-                    } catch (e) {
-                        console.error("JSON PARSING ERROR:", e);
-                        console.error("RAW SERVER RESPONSE TEXT (first 200 chars):", responseText.substring(0, 200)); 
-                        throw new Error("Invalid API response format. Check console for raw text.");
-                    }
-
-                } catch (error) {
-                    console.warn(`Fetch attempt ${i + 1} failed:`, error.message);
-                    if (i === retries - 1) {
-                        // If all retries failed, throw a concise error
-                        throw new Error(`Failed to fetch ${url} after ${retries} attempts. Final error: ${error.message}`);
-                    }
-                    const delay = Math.pow(2, i) * 1000 + Math.random() * 500;
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                }
-            }
-        }
-
-
-        // --- Core Application Logic ---
-
-        /**
-         * Updates the UI with the latest scores and determines the card color.
-         */
-        function updateScoreDisplay(goodVotes, badVotes) {
-            goodScoreEl.innerText = goodVotes;
-            badScoreEl.innerText = badVotes;
-            
-            wordCardEl.classList.remove('good', 'bad', 'neutral');
-            if (goodVotes > badVotes) {
-                wordCardEl.classList.add('good');
-            } else if (badVotes > goodVotes) {
-                wordCardEl.classList.add('bad');
-            }
-        }
-
-        /**
-         * Fetches the next word to be rated from /api/get-word.
-         */
-        async function fetchNextWord() {
-            setButtonsDisabled(true);
-            currentWordEl.classList.add('hidden');
-            wordLoadingEl.innerHTML = `<div class="spinner"></div><p class="text-gray-500 text-lg">Loading word from Render API...</p>`;
-            wordLoadingEl.classList.remove('hidden');
-            currentWordData = null; // Clear word data immediately
-
-            const url = `${API_BASE_URL}/get-word`;
-
-            try {
-                // Expected response: { id: "word_id", word: "example", good: 5, bad: 3 }
-                const data = await fetchWithRetry(url);
-                
-                if (!data || !data.word || !data.id) {
-                    currentWordEl.innerText = "Error: API returned empty or invalid data.";
-                    currentWordEl.classList.remove('hidden');
-                    showStatusMessage("API returned invalid data. Check server logs.", 'error');
-                    return;
-                }
-
-                currentWordData = data;
-                currentWordEl.innerText = currentWordData.word;
-                
-                currentWordEl.classList.remove('hidden');
-                
-                // Update scores based on the data received from the server
-                updateScoreDisplay(data.good || 0, data.bad || 0);
-                
-                setButtonsDisabled(false);
-
-            } catch (error) {
-                console.error("Fetch Word Error (Final Catch):", error);
-                const userMessage = error.message.includes("Failed to fetch") ? 
-                    "Network error (CORS or server is down). Check console." : 
-                    `Fetch Error: ${error.message.substring(0, 80)}...`;
-                    
-                currentWordEl.innerText = userMessage;
-                currentWordEl.classList.remove('hidden');
-                wordCardEl.classList.add('bad'); 
-                showStatusMessage(userMessage, 'error');
-                
-            } finally {
                 wordLoadingEl.classList.add('hidden');
-            }
-        }
-
-        /**
-         * Sends a vote to the server via POST to /api/vote.
-         */
-        async function handleVote(isGoodVote) {
-            const wordToVote = currentWordData ? currentWordData.word : null;
-            
-            if (!wordToVote) {
-                showStatusMessage("Cannot vote. No valid word loaded. Re-fetching word.", 'warning');
-                fetchNextWord(); // Try to recover the state
-                return;
-            }
-            
-            setButtonsDisabled(true);
-
-            const voteType = isGoodVote ? 'good' : 'bad';
-            
-            // 1. Animate the card transition
-            animateCardTransition(voteType);
-            
-            const url = `${API_BASE_URL}/vote`;
-
-            try {
-                // Explicitly define options for POST request
-                const voteOptions = {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        word: wordToVote, 
-                        vote: voteType,
-                    })
-                };
-
-                await fetchWithRetry(url, voteOptions);
-                
-                // 2. Immediately fetch the next word and refresh the list
-                await fetchNextWord();
-                await updateWordList();
-                
-                showStatusMessage(`Voted '${voteType}' for "${wordToVote}"!`);
-                
-            } catch (error) {
-                console.error("Vote Error:", error);
-                
-                // If the vote failed, display the error and re-load
-                showStatusMessage(`Failed to record vote: ${error.message.substring(0, 80)}...`, 'error');
-                fetchNextWord(); // Re-fetch the word in case the vote failed, to reset the UI and get a new word
-            } finally {
-                // The buttons will be re-enabled by fetchNextWord
+                currentWordEl.classList.remove('hidden');
             }
         }
         
         /**
-         * Fetches and renders the global word list from /api/top-words.
+         * Renders the current word and scores on the card.
          */
-        async function updateWordList() {
-            globalWordListEl.innerHTML = '';
-            loadingListMsgEl.classList.remove('hidden');
-            noWordsMsgEl.classList.add('hidden');
+        function renderCurrentWord() {
+            if (!currentWord) {
+                currentWordEl.textContent = "Server returned no words.";
+                goodScoreEl.textContent = '0';
+                badScoreEl.textContent = '0';
+                setLoadingState(false);
+                return;
+            }
             
-            const url = `${API_BASE_URL}/top-words`;
+            currentWordEl.textContent = currentWord.word;
+            goodScoreEl.textContent = (currentWord.goodVotes || 0).toLocaleString();
+            badScoreEl.textContent = (currentWord.badVotes || 0).toLocaleString();
+            
+            // Enable buttons after rendering
+            setLoadingState(false);
+        }
+
+        /**
+         * Fetches a new random word from the external API.
+         */
+        async function fetchNextWord() {
+            setLoadingState(true);
+            currentWord = null; // Clear current word while fetching
 
             try {
-                // Expected response: [{ id: "id1", word: "w1", good: 10, bad: 5 }, { ... }]
-                const words = await fetchWithRetry(url); 
-                
-                if (!Array.isArray(words) || words.length === 0) {
-                    noWordsMsgEl.innerText = "No words found or the list is empty.";
-                    noWordsMsgEl.classList.remove('hidden');
-                    return;
-                }
-                
-                noWordsMsgEl.classList.add('hidden');
-                
-                words.forEach(word => {
-                    const good = word.good || 0;
-                    const bad = word.bad || 0;
-                    const total = good + bad;
-                    const goodPercent = total > 0 ? ((good / total) * 100).toFixed(0) : 50;
-                    const badPercent = total > 0 ? ((bad / total) * 100).toFixed(0) : 50;
-                    const score = good - bad;
-                    
-                    let bgColor = 'bg-gray-50';
-                    if (score > 0) bgColor = 'bg-green-50';
-                    else if (score < 0) bgColor = 'bg-red-50';
-                    
-                    const item = document.createElement('div');
-                    item.className = `p-3 rounded-lg flex justify-between items-center shadow-sm border ${bgColor}`;
-                    item.innerHTML = `
-                        <span class="text-lg font-medium text-gray-800">${word.word}</span>
-                        <div class="text-right text-sm">
-                            <p class="font-semibold">Score: ${score}</p>
-                            <p class="text-green-700">Good: ${good} (${goodPercent}%)</p>
-                            <p class="text-red-700">Bad: ${bad} (${badPercent}%)</p>
-                        </div>
-                    `;
-                    globalWordListEl.appendChild(item);
+                const response = await fetch(API_GET_RANDOM_WORD, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
                 });
 
+                if (!response.ok) {
+                    const errorBody = await response.json().catch(() => ({}));
+                    throw new Error(`Server error (${response.status}): ${errorBody.message || 'Failed to fetch word.'}`);
+                }
+
+                const data = await response.json();
+                
+                if (data.success && data.word) {
+                    currentWord = data.word;
+                    console.log("Fetched new word:", currentWord);
+                } else {
+                    throw new Error(data.message || 'No new word was returned from the server.');
+                }
             } catch (error) {
-                console.error("Fetch Word List Error:", error);
-                noWordsMsgEl.innerText = `Error loading list: ${error.message}`;
-                noWordsMsgEl.classList.remove('hidden');
-                showStatusMessage("Failed to load top word list. Check console.", 'error');
+                console.error("Error fetching word:", error.message);
+                showMessage("Connection Error", `Could not load a new word. Please check the network connection. Error: ${error.message}`);
             } finally {
-                loadingListMsgEl.classList.add('hidden');
+                renderCurrentWord();
             }
         }
 
-        // --- App Start & Listeners ---
 
-        function setupListeners() {
-            goodVoteBtn.addEventListener('click', () => handleVote(true));
-            badVoteBtn.addEventListener('click', () => handleVote(false));
+        /**
+         * Handles the voting logic by sending a POST request to the API.
+         * @param {string} classification - 'good' or 'bad'.
+         */
+        async function handleVote(classification) {
+            if (isProcessing || !currentWord) return;
+
+            // 1. Disable buttons and enter processing state
+            setLoadingState(true);
+            
+            // 2. Add class for visual feedback
+            wordCard.classList.add(classification);
+
+            // 3. Construct the exact payload the server requested
+            const votePayload = {
+                wordId: currentWord._id, // This is the crucial ID field
+                classification: classification
+            };
+
+            try {
+                const response = await fetch(API_VOTE, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        // Note: CORS is usually handled by the server, but we ensure Content-Type is correct
+                    },
+                    body: JSON.stringify(votePayload),
+                });
+                
+                // Remove visual class immediately (for better UX, regardless of success)
+                wordCard.classList.remove('good');
+                wordCard.classList.remove('bad');
+
+                if (!response.ok) {
+                    const errorBody = await response.json().catch(() => ({}));
+                    console.error("Vote API Error:", errorBody);
+                    throw new Error(`Vote failed (${response.status}). Server message: ${errorBody.message || 'Unknown Error'}`);
+                }
+
+                const data = await response.json();
+                if (data.success) {
+                    // Update current word's score immediately based on successful response
+                    if (classification === 'good') {
+                        currentWord.goodVotes = data.newGoodVotes;
+                    } else {
+                        currentWord.badVotes = data.newBadVotes;
+                    }
+                } else {
+                    throw new Error(data.message || 'Vote failed on the server.');
+                }
+                
+                // Slight delay for visual card transition, then fetch the next word
+                setTimeout(() => fetchNextWord(), 150); 
+
+            } catch (error) {
+                console.error("Error during voting:", error.message);
+                showMessage("Vote Failed", `Your vote could not be recorded by the server. Please try again. Error: ${error.message}`);
+                
+                // Re-enable buttons if fetchNextWord didn't run
+                setLoadingState(false);
+            }
         }
 
+        /**
+         * Handles the submission of a new word.
+         */
+        async function handleSubmitNewWord() {
+            const wordText = newWordInput.value.trim();
+            if (wordText.length < 2) {
+                submissionMessageEl.textContent = "Word must be at least 2 characters long.";
+                submissionMessageEl.className = 'text-sm mt-1 text-red-500';
+                return;
+            }
+            
+            submitNewWordBtn.disabled = true;
+
+            const submitPayload = { word: wordText };
+
+            try {
+                 const response = await fetch(API_SUBMIT_WORD, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(submitPayload),
+                });
+
+                if (!response.ok) {
+                    const errorBody = await response.json().catch(() => ({}));
+                    throw new Error(errorBody.message || 'Failed to submit word.');
+                }
+
+                const data = await response.json();
+                if (data.success) {
+                    submissionMessageEl.textContent = `'${wordText}' submitted successfully!`;
+                    submissionMessageEl.className = 'text-sm mt-1 text-green-600';
+                    newWordInput.value = '';
+                } else {
+                    submissionMessageEl.textContent = data.message || 'Submission failed.';
+                    submissionMessageEl.className = 'text-sm mt-1 text-yellow-600';
+                }
+
+            } catch (error) {
+                console.error("Error submitting word:", error.message);
+                submissionMessageEl.textContent = `Submission failed. Error: ${error.message}`;
+                submissionMessageEl.className = 'text-sm mt-1 text-red-500';
+            } finally {
+                submitNewWordBtn.disabled = false;
+            }
+        }
+
+
+        // --- Initialization and Listeners ---
+
+        function setupListeners() {
+            goodVoteBtn.addEventListener('click', () => handleVote('good'));
+            badVoteBtn.addEventListener('click', () => handleVote('bad'));
+            submitNewWordBtn.addEventListener('click', handleSubmitNewWord);
+            
+            // Close modal listener
+            modalCloseBtn.addEventListener('click', () => {
+                messageModal.classList.add('hidden');
+                messageModal.classList.remove('flex');
+            });
+        }
+
+
+        // --- App Start ---
         window.onload = () => {
             setupListeners();
-            // Fetch initial data
-            fetchNextWord();
-            updateWordList();
+            fetchNextWord(); // Start the game by fetching the first word
         };
 
     </script>
