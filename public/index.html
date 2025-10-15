@@ -220,7 +220,7 @@
 
         <!-- Footer for App Version -->
         <footer class="mt-8 text-center text-xs text-gray-400">
-            App Version: v5.3 (API Backend - Reverted & Corrected Vote/Leaderboard)
+            App Version: v5.4 (API Backend - Revert to Working Load + Safety Check)
         </footer>
     </div>
     
@@ -376,12 +376,10 @@
             wordDisplay.textContent = "LOADING...";
             setWordBoxState('neutral', false);
             
-            // Ensure userId is available before fetching
+            // Basic check, though initializeUserId should run first
             if (!userId) {
                 wordDisplay.textContent = "USER INIT FAILED";
                 showMessage("User ID not initialized. Cannot fetch word.", 'error');
-                // Set a timeout to re-check user ID initialization, not API.
-                retryTimer = setTimeout(fetchNextWord, 2000); 
                 return;
             }
 
@@ -432,10 +430,11 @@
          * @param {string} sentiment 'good' or 'bad'.
          */
         async function sendVote(sentiment) {
-            // CRITICAL CHECK: Ensure we have the word ID and user ID before proceeding
+            // SAFER CHECK: Explicitly prevent voting if the word hasn't been loaded yet.
             if (!currentWordId || !userId) {
-                showMessage("Cannot vote: No word loaded or user ID missing.", 'error');
-                return;
+                showMessage("Cannot vote: Waiting for word to load or user ID missing.", 'error');
+                // Importantly, we return here to halt the function without causing a network error.
+                return; 
             }
 
             toggleButtons(false);
@@ -461,7 +460,7 @@
                 
                 // Vote successful, fetch the next word and update leaderboards
                 await fetchNextWord();
-                await fetchTopWords(); // <--- CRITICAL FIX: Update leaderboard on successful vote
+                await fetchTopWords(); 
 
             } catch (error) {
                 console.error("Vote Error:", error.message);
@@ -640,9 +639,9 @@
             initializeUserId();
             setupListeners();
             
-            // Initial data fetch - fetchNextWord() will only enable buttons on success
+            // Initial data fetch
             fetchNextWord();
-            fetchTopWords(); // <--- CRITICAL FIX: Fetch leaderboard on load
+            fetchTopWords(); 
         };
 
     </script>
