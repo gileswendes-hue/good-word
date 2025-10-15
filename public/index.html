@@ -217,7 +217,7 @@
 
         <!-- Footer for App Version -->
         <footer class="mt-8 text-center text-xs text-gray-400">
-            App Version: v8.7.7 (Render API Client - Cold Start Resilient)
+            App Version: v8.7.8 (Render API Client - Debugging JSON response)
         </footer>
     </div>
     
@@ -369,7 +369,6 @@
                     // Check for common cold-start or temporary errors (like 5xx, or 404 from proxy)
                     if (retries < MAX_RETRIES && (response.status === 404 || response.status >= 500)) {
                         // Log retry attempt but do not log this as an error
-                        // console.log(`[RETRY] Cold Start or temporary error (${response.status}) on ${endpoint}. Retrying in ${RETRY_DELAY_MS * (retries + 1)}ms...`);
                         showMessage(`Server initializing (Attempt ${retries + 1}/${MAX_RETRIES})...`, 'info');
                         await delay(RETRY_DELAY_MS * (retries + 1)); // Exponential backoff
                         return fetchWithRetry(endpoint, options, retries + 1);
@@ -390,8 +389,10 @@
                 try {
                     data = JSON.parse(responseText);
                 } catch (jsonError) {
+                    // --- CRITICAL DEBUGGING STEP ADDED HERE ---
                     console.error("--- JSON PARSING FAILED ---");
-                    console.error(`Failed to parse JSON from ${endpoint}. Raw Response:`, responseText.substring(0, 500));
+                    console.error(`Failed to parse JSON from ${endpoint}. Raw Server Response:`, responseText.substring(0, 500));
+                    console.error("---------------------------");
                     throw new Error("Invalid API response format. Server returned non-JSON data.");
                 }
 
@@ -400,7 +401,6 @@
             } catch (error) {
                 // Catch network errors (like CORS or actual DNS failure)
                 if (retries < MAX_RETRIES && (error.message.includes('Failed to fetch') || error instanceof TypeError)) {
-                     // console.log(`[RETRY] Network/CORS error on ${endpoint}. Retrying in ${RETRY_DELAY_MS * (retries + 1)}ms...`);
                      showMessage(`Network issue detected (Attempt ${retries + 1}/${MAX_RETRIES})...`, 'info');
                      await delay(RETRY_DELAY_MS * (retries + 1));
                      return fetchWithRetry(endpoint, options, retries + 1);
@@ -428,13 +428,10 @@
 
             try {
                 // 1. Try to get the next UNCLASSIFIED word
-                // console.log(`1. Trying to fetch UNCLASSIFIED word from ${GET_UNCLASSIFIED_WORD_ENDPOINT}...`);
                 wordData = await fetchWithRetry(GET_UNCLASSIFIED_WORD_ENDPOINT);
                 
                 // If the response is empty (no word/id), try the fallback
                 if (!wordData.word || !wordData._id) {
-                     // console.log("-> Unclassified word pool is empty or API confirmed no words left. Trying to fetch a RANDOM word...");
-
                      // 2. Try to get a RANDOM word
                      wordData = await fetchWithRetry(GET_RANDOM_WORD_ENDPOINT);
                 }
@@ -446,7 +443,6 @@
                     wordDisplay.textContent = currentWordText.toUpperCase();
                     setWordBoxState('neutral', true);
                     toggleButtons(true);
-                    // console.log("Word loaded:", currentWordText, "ID:", currentWordId);
                 } else {
                     currentWordId = null;
                     currentWordText = null;
@@ -655,7 +651,7 @@
 
         // --- App Start ---
         window.onload = () => {
-            console.log("Application starting - Render API Mode (v8.7.7 Cold Start Resilient)...");
+            console.log("Application starting - Render API Mode (v8.7.8 Debugging JSON)...");
             setupListeners();
             
             fetchTopWords();
