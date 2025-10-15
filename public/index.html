@@ -10,10 +10,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     
-    <!-- Load custom styles (This contains the aesthetic CSS) -->
+    <!-- Load custom styles -->
     <link rel="stylesheet" href="public/style.css">
 
-    <!-- Tailwind Config for custom colors and font -->
+    <!-- Tailwind Config for custom colors and font (kept for utility classes not in public/style.css) -->
     <script>
         tailwind.config = {
             theme: {
@@ -36,24 +36,26 @@
 </head>
 <body class="bg-gray-100 min-h-screen flex flex-col items-center justify-start p-4 sm:p-8">
 
+    <!-- The container class is critical for the gradient background and box shadow -->
     <div class="game-container w-full max-w-4xl">
         <header class="text-center mb-10">
-            <h1 class="text-5xl font-extrabold text-gray-800 tracking-tighter">Word Sentiment Classifier</h1>
-            <p class="text-xl text-gray-500 mt-2">Is the word **Good** or **Bad**? You decide!</p>
+            <!-- Header elements matching the v3.7.2 style -->
+            <h1 class="text-5xl font-extrabold tracking-tighter">
+                <span style="color: #4CAF50;">GOOD WORD</span> / <span style="color: #F44336;">BAD WORD</span>
+            </h1>
+            <p class="text-xl text-gray-500 mt-2">Is the word mostly <span class="font-bold" style="color: #4CAF50;">Good</span> or mostly <span class="font-bold" style="color: #F44336;">Bad</span>?</p>
         </header>
 
         <!-- Main Interaction Area -->
         <div class="word-card-area relative flex flex-col items-center justify-center p-6 mb-10">
 
-            <!-- Dynamic Message Display Area -->
+            <!-- Dynamic Message Display Area (used for 'DB OFFLINE' or 'Voted Good') -->
             <div id="messageDisplay" class="absolute -top-10 left-1/2 transform -translate-x-1/2 p-2 px-4 rounded-xl shadow-lg font-semibold text-sm hidden">
-                <!-- Messages like "DB OFFLINE", "Voted Good", "Connection Successful" appear here -->
             </div>
 
             <div class="word-card-wrapper relative min-h-[150px]">
-                <!-- The wordBox element, crucial for script.js to querySelector('.word-box') -->
-                <div class="word-card shadow-2xl neutral-border" id="wordBox">
-                    <!-- The span element, crucial for script.js to use getElementById('wordDisplay') -->
+                <div class="word-card shadow-lg neutral-border" id="wordBox">
+                    <p class="text-xs font-semibold tracking-widest text-gray-400 mb-2">WORD TO CLASSIFY</p>
                     <span id="wordDisplay" class="text-word text-gray-900">LOADING...</span>
                 </div>
             </div>
@@ -73,28 +75,31 @@
         
         <!-- Top Words Leaderboard -->
         <section class="top-words-section mt-12 pt-6 border-t border-gray-200">
-            <h2 class="text-3xl font-bold text-gray-700 mb-6 text-center">Community Ratings</h2>
+            <h2 class="text-2xl font-bold text-gray-700 mb-6 text-center">Community Ratings</h2>
             <div class="top-words-lists flex flex-wrap justify-center gap-6">
                 
-                <!-- Mostly Good List -->
+                <!-- Mostly Good List (Styled by public/style.css, but Tailwind classes ensure structure) -->
                 <div class="mostly-good bg-white p-6 rounded-xl shadow-md flex-1 min-w-[300px] lg:min-w-0">
-                    <h3 class="text-xl font-semibold mb-4 text-good">Mostly Good (Top 5)</h3>
+                    <h3 class="text-lg font-bold mb-4 text-good">Mostly Good</h3>
                     <ul id="mostlyGoodList" class="space-y-2">
-                        <!-- Content inserted by script.js -->
-                        <li class="text-center italic text-sm text-gray-500">Loading list...</li>
+                        <li class="text-center italic text-sm text-gray-500">Loading...</li>
                     </ul>
                 </div>
 
-                <!-- Mostly Bad List -->
+                <!-- Mostly Bad List (Styled by public/style.css, but Tailwind classes ensure structure) -->
                 <div class="mostly-bad bg-white p-6 rounded-xl shadow-md flex-1 min-w-[300px] lg:min-w-0">
-                    <h3 class="text-xl font-semibold mb-4 text-bad">Mostly Bad (Top 5)</h3>
+                    <h3 class="text-lg font-bold mb-4 text-bad">Mostly Bad</h3>
                     <ul id="mostlyBadList" class="space-y-2">
-                        <!-- Content inserted by script.js -->
-                        <li class="text-center italic text-sm text-gray-500">Loading list...</li>
+                        <li class="text-center italic text-sm text-gray-500">Loading...</li>
                     </ul>
                 </div>
             </div>
         </section>
+        
+        <!-- Footer for App Version -->
+        <footer class="mt-8 text-center text-xs text-gray-400">
+            App Version: v3.7.2 (Stable Logic)
+        </footer>
 
     </div>
 
