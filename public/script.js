@@ -1,15 +1,20 @@
 /**
  * Good Word / Bad Word Classification Game
  * Frontend JavaScript Logic (public/script.js)
- * Reverted to a stable, functional version (v3.7.4 equivalent logic)
+ *
+ * FIXES:
+ * 1. Corrected vote payload key from 'voteType' to 'classification' (to match server).
+ * 2. Ensured word ID is consistently checked as 'id' (from server's virtual property).
+ * 3. Updated fetchAndRenderTopWords to handle the new server response structure (object with two lists).
  */
 
 // Set up BASE URL for API calls. Use relative path /api
 const BASE_URL = '/api'; 
 
-let currentWordData = null; // Stores the current word object { word, _id }
+// Stores the current word object { id, word } (using 'id' to match the server's virtual property)
+let currentWordData = null; 
 
-// --- DOM Element References (Updated to match public/index.html IDs) ---
+// --- DOM Element References ---
 const elements = {
     currentWordSpan: document.getElementById('wordDisplay'), // Matches HTML ID
     voteGoodButton: document.getElementById('goodWordBtn'), // Matches HTML ID
@@ -17,7 +22,6 @@ const elements = {
     mostlyGoodList: document.getElementById('mostlyGoodList'),
     mostlyBadList: document.getElementById('mostlyBadList'),
     messageDisplay: document.getElementById('messageDisplay'),
-    // Note: We don't have a direct 'wordCard' ID in the current HTML, but we'll use the parent 'word-box' style for simple feedback
     wordBox: document.querySelector('.word-box'), 
 };
 
@@ -25,7 +29,6 @@ const elements = {
 
 /**
  * Utility function for retrying API fetch operations (using exponential backoff).
- * This ensures the app is resilient against temporary connection drops to the Render API.
  * @param {string} url - The API endpoint URL.
  * @param {Object} options - Fetch options (method, headers, body, etc.).
  * @param {number} maxRetries - Maximum number of retries.
@@ -35,10 +38,17 @@ async function retryFetch(url, options = {}, maxRetries = 3) {
         try {
             const response = await fetch(url, options);
             if (!response.ok) {
-                // Throw an error if the HTTP status is not 2xx
                 let errorText = await response.text();
+                // Check for server-side 503 error message
                 if (response.status === 503 || errorText.includes('Database offline')) {
                      throw new Error('Backend DB Health Check Failed (503/Offline status)');
+                }
+                // Check if the response is JSON for a more readable message
+                try {
+                    const errorJson = JSON.parse(errorText);
+                    errorText = errorJson.message || errorText;
+                } catch (e) {
+                    // Not JSON, use raw text
                 }
                 throw new Error(`HTTP error! Status: ${response.status} - ${errorText.substring(0, 100)}...`);
             }
@@ -79,7 +89,7 @@ function displayMessage(msg, isError = false) {
 // --- Core API Functions ---
 
 /**
- * Fetches the next word that the current user has NOT yet voted on from the Express API.
+ * Fetches the next word to classify.
  */
 async function fetchNextWord() {
     elements.currentWordSpan.textContent = "LOADING...";
@@ -94,29 +104,29 @@ async function fetchNextWord() {
         const response = await retryFetch(`${BASE_URL}/get-word`);
         const data = await response.json();
 
-        // Check if the word returned has the _id property (matching MongoDB backend)
-        if (data && data.word && data._id) {
+        // Server returns { id, word }
+        if (data && data.word && data.id) {
             currentWordData = data;
             elements.currentWordSpan.textContent = currentWordData.word.toUpperCase();
 
             elements.voteGoodButton.disabled = false;
             elements.voteBadButton.disabled = false;
 
-        } else if (data && data.message === "No words available to classify.") {
-            elements.currentWordSpan.textContent = "ALL WORDS VOTED ON!";
+        } else if (data && data.word === "EMPTY DB") {
+            elements.currentWordSpan.textContent = "DATABASE EMPTY";
             elements.voteGoodButton.disabled = true;
             elements.voteBadButton.disabled = true;
         } else {
-            // UNEXPECTED RESPONSE (likely the previous 'INVALID RESPONSE')
-             elements.currentWordSpan.textContent = "API Error: Invalid Word Data";
-             displayMessage("API responded but data format was incorrect. Check backend schema.", true);
+            // UNEXPECTED RESPONSE
+            elements.currentWordSpan.textContent = "API Error: Invalid Word Data";
+            displayMessage("API responded but data format was incorrect. Check backend schema.", true);
         }
 
     } catch (error) {
         console.error("Failed to fetch next word from API:", error);
         
         const errorMessage = error.message.includes('Backend DB Health Check Failed') 
-            ? "SERVER ERROR: Database Health Check Failed. See Render Logs."
+            ? "SERVER ERROR: Database Health Check Failed. See Server Logs."
             : "API Connection Error: Service Unavailable.";
 
         elements.currentWordSpan.textContent = "API ERROR";
@@ -129,8 +139,8 @@ async function fetchNextWord() {
  * @param {string} voteType - 'good' or 'bad'.
  */
 async function handleVote(voteType) {
-    // Check for word ID using MongoDB's standard _id
-    const wordId = currentWordData?._id;
+    // Check for word ID which is 'id' from the server response
+    const wordId = currentWordData?.id; 
     if (!wordId) {
         displayMessage("Error: No word loaded to vote on.", true);
         return;
@@ -146,19 +156,22 @@ async function handleVote(voteType) {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ wordId, voteType })
+            // CRITICAL FIX: The server expects 'classification', not 'voteType'
+            body: JSON.stringify({ wordId, classification: voteType }) 
         });
 
         // Simple success message
         displayMessage(`Voted ${voteType.toUpperCase()} on "${currentWordData.word}"!`, false);
         
-        // Trigger style change and load the next word
+        // Trigger style change
         elements.wordBox.classList.remove('neutral-border');
         elements.wordBox.classList.add(voteType === 'good' ? 'good-border' : 'bad-border');
         
-        // Fetch new data
-        fetchNextWord();
-        fetchAndRenderTopWords();
+        // Fetch new data after a slight delay for better user experience
+        setTimeout(() => {
+            fetchNextWord();
+            fetchAndRenderTopWords();
+        }, 300); // Small delay
 
     } catch (e) {
         console.error("API Vote call failed: ", e);
@@ -177,36 +190,20 @@ async function handleVote(voteType) {
 
 
 /**
- * Fetches and updates the top rated words every 5 seconds using API calls.
+ * Fetches and updates the top rated words.
  */
 async function fetchAndRenderTopWords() {
     try {
         const response = await retryFetch(`${BASE_URL}/top-words`);
-        const topWords = await response.json();
+        // FIX: The server now returns an object { mostlyGood: [], mostlyBad: [] }
+        const topWords = await response.json(); 
 
-        // Check for the expected array structure
-        if (Array.isArray(topWords)) {
-            // Sort by total votes to find the most popular words
-            topWords.sort((a, b) => (b.goodVotes + b.badVotes) - (a.goodVotes + b.badVotes));
-
-            // Calculate percentages for rendering
-            const processedWords = topWords.map(word => {
-                const total = word.goodVotes + word.badVotes;
-                const goodPct = total > 0 ? (word.goodVotes / total) * 100 : 50;
-                return {
-                    word: word.word,
-                    goodVotes: word.goodVotes,
-                    badVotes: word.badVotes,
-                    goodPct: Math.round(goodPct),
-                    isGood: goodPct >= 50,
-                    isBad: goodPct < 50
-                };
-            });
-
-            renderTopWords(processedWords);
+        if (topWords && Array.isArray(topWords.mostlyGood) && Array.isArray(topWords.mostlyBad)) {
+            // Combine and render the two lists separately
+            renderTopWords(topWords.mostlyGood, topWords.mostlyBad);
         } else {
              // If array not returned, fall to error list state
-             throw new Error("Top words API returned non-array data.");
+             throw new Error("Top words API returned unexpected data structure.");
         }
 
 
@@ -220,15 +217,14 @@ async function fetchAndRenderTopWords() {
 
 /**
  * Renders the top words into the two lists.
- * @param {Array} topWords - Array of top word objects.
+ * @param {Array} goodList - Array of mostly good word objects.
+ * @param {Array} badList - Array of mostly bad word objects.
  */
-function renderTopWords(topWords) {
-    const goodList = topWords.filter(w => w.isGood).sort((a, b) => b.goodPct - a.goodPct).slice(0, 5); // Top 5
-    const badList = topWords.filter(w => w.isBad).sort((a, b) => a.goodPct - b.goodPct).slice(0, 5); // Top 5
-
+function renderTopWords(goodList, badList) {
     // Helper function to create list items
     const createListItem = (w, isGoodList) => {
-        const percentage = isGoodList ? w.goodPct : 100 - w.goodPct;
+        // The server provides 'percentage' if the list is mostly good. We need to calculate the inverse for mostly bad.
+        const percentage = isGoodList ? w.percentage : (100 - w.percentage);
         const colorClass = isGoodList ? 'text-green-600' : 'text-red-600';
         return `
             <li class="flex justify-between items-center px-2 py-1 rounded-lg transition duration-150">
@@ -268,8 +264,8 @@ function startApp() {
     fetchNextWord(); // Initial load of the first word
     fetchAndRenderTopWords(); // Initial load of the top list
     
-    // Set up recurring update for the top lists (every 5 seconds)
-    setInterval(fetchAndRenderTopWords, 5000); 
+    // Set up recurring update for the top lists (every 30 seconds, less frequent than 5s is better for API load)
+    setInterval(fetchAndRenderTopWords, 30000); 
 }
 
 
