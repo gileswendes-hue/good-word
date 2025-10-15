@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Good Word App</title>
     <!-- Load Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com/"></script>
     <!-- Load Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
@@ -47,9 +47,14 @@
     <!-- Main Content Area -->
     <main class="w-full max-w-2xl bg-white p-6 rounded-xl shadow-2xl border border-gray-200">
 
-        <!-- User/Auth Info -->
+        <!-- User/Auth Info (Now showing Local ID) -->
         <div id="auth-info" class="text-xs text-gray-500 mb-4 text-center">
-            Loading user...
+            Loading local user ID...
+        </div>
+        
+        <!-- API Override Status -->
+        <div id="api-status-info" class="text-xs text-orange-500 mb-4 text-center p-2 bg-orange-50 border border-orange-200 rounded-md font-mono hidden">
+            **API OVERRIDES ACTIVE**
         </div>
 
         <!-- Tab Content Containers -->
@@ -120,95 +125,95 @@
         </div>
     </div>
 
-    <!-- Firebase SDKs -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, limit, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // Global variables provided by the environment
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
-        
-        // Setting Firebase log level for debugging
-        setLogLevel('debug');
-
-        window.db = db;
-        window.auth = auth;
-
+    <script>
         let userId = null;
-        let isAuthReady = false;
+        const LOCAL_USER_KEY = 'goodWordUserId';
+        const LOCAL_VOTES_KEY = 'goodWordVotedIds';
+        let votedWords = new Set(); // Global set for quick lookup
 
-        // 1. Authentication Setup
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                userId = user.uid;
-                document.getElementById('auth-info').textContent = `User ID: ${userId} | Status: Signed In`;
-                
-                // Get the user's private list of voted words to prevent re-voting
-                const userDocRef = doc(db, "artifacts", appId, "users", userId, "config", "votes");
-                const userDoc = await getDoc(userDocRef);
-                window.votedWords = userDoc.exists() ? new Set(userDoc.data().wordIds || []) : new Set();
-                
-            } else {
-                // Sign in anonymously if no custom token is available
-                if (initialAuthToken) {
-                    try {
-                        await signInWithCustomToken(auth, initialAuthToken);
-                    } catch (error) {
-                        console.error("Error signing in with custom token:", error);
-                        await signInAnonymously(auth);
-                    }
-                } else {
-                    await signInAnonymously(auth);
-                }
-            }
-            isAuthReady = true;
-            // The main app logic starts here (fetching the first word)
-            fetchNextWord();
-        });
+        // --- LOCAL STORAGE & USER MANAGEMENT ---
 
-        // 2. Data Storage Functions
         /**
-         * Updates the user's private list of words they have voted on.
+         * Gets or creates a persistent local User ID.
+         */
+        function getUserId() {
+            let id = localStorage.getItem(LOCAL_USER_KEY);
+            if (!id) {
+                // Use a secure random ID generator
+                id = crypto.randomUUID(); 
+                localStorage.setItem(LOCAL_USER_KEY, id);
+            }
+            return id;
+        }
+
+        /**
+         * Loads voted word IDs from local storage.
+         */
+        function loadVotedWords() {
+            try {
+                const storedIds = localStorage.getItem(LOCAL_VOTES_KEY);
+                const idArray = storedIds ? JSON.parse(storedIds) : [];
+                votedWords = new Set(idArray);
+            } catch (e) {
+                console.error("Error loading voted words from localStorage:", e);
+                votedWords = new Set();
+            }
+        }
+
+        /**
+         * Records a vote locally and updates localStorage.
          * @param {string} wordId - The ID of the word just voted on.
          */
-        window.recordUserVote = async (wordId) => {
-            if (!userId) return;
-
-            const userDocRef = doc(db, "artifacts", appId, "users", userId, "config", "votes");
-
-            try {
-                // Add the wordId to the set of voted words
-                window.votedWords.add(wordId);
-
-                // Use Firestore arrayUnion to atomically update the list
-                await setDoc(userDocRef, { 
-                    wordIds: arrayUnion(wordId) 
-                }, { merge: true });
-                
-            } catch (error) {
-                console.error("Error recording user vote in Firestore:", error);
+        function recordUserVoteLocal(wordId) {
+            if (!votedWords.has(wordId)) {
+                votedWords.add(wordId);
+                // Convert Set to Array for JSON serialization
+                localStorage.setItem(LOCAL_VOTES_KEY, JSON.stringify(Array.from(votedWords)));
             }
+        }
+
+        // --- API COMMUNICATION ---
+        
+        // API Configuration (DEFAULT/CURRENT ENDPOINTS)
+        const API_BASE = 'https://good-word.onrender.com';
+        const API_ENDPOINTS = {
+            GET_RANDOM_WORD: `${API_BASE}/api/get-word`, // CONFIRMED
+            GET_WORDS: `${API_BASE}/api/top-words`,       // CONFIRMED
+            SUBMIT_WORD: `${API_BASE}/api/add-word`,      // GUESS
+            VOTE: `${API_BASE}/api/vote-word`,            // GUESS
         };
 
-        // 3. API Communication (Corrected URLs and Backoff)
-
-        // API Configuration (FINAL CORRECTED ENDPOINTS)
-        const API_BASE = 'https://good-word.onrender.com';
-        // CONFIRMED ENDPOINTS
-        const API_GET_RANDOM_WORD = `${API_BASE}/api/get-word`;
-        const API_GET_WORDS = `${API_BASE}/api/top-words`;
-        // HIGHLY LIKELY ENDPOINTS based on the established pattern
-        const API_SUBMIT_WORD = `${API_BASE}/api/add-word`; 
-        const API_VOTE = `${API_BASE}/api/vote-word`; 
+        // This function allows you to override the API paths from the console.
+        /**
+         * Overrides the SUBMIT_WORD and VOTE endpoints for live debugging.
+         * Call this from your browser console:
+         * setApiOverrides({ vote: '/api/vote', submit: '/api/submit' });
+         * * @param {object} paths - Object with new relative paths (e.g., { vote: '/new-vote-path', submit: '/new-submit-path' })
+         */
+        window.setApiOverrides = (paths = {}) => {
+            let changed = false;
+            const statusEl = document.getElementById('api-status-info');
+            
+            if (paths.vote) {
+                API_ENDPOINTS.VOTE = `${API_BASE}${paths.vote}`;
+                console.log(`[API OVERRIDE] Vote URL set to: ${API_ENDPOINTS.VOTE}`);
+                changed = true;
+            }
+            if (paths.submit) {
+                API_ENDPOINTS.SUBMIT_WORD = `${API_BASE}${paths.submit}`;
+                console.log(`[API OVERRIDE] Submit URL set to: ${API_ENDPOINTS.SUBMIT_WORD}`);
+                changed = true;
+            }
+            
+            if (changed) {
+                statusEl.innerHTML = `**API OVERRIDE ACTIVE**<br>Vote: ${API_ENDPOINTS.VOTE.replace(API_BASE, '')}<br>Submit: ${API_ENDPOINTS.SUBMIT_WORD.replace(API_BASE, '')}`;
+                statusEl.classList.remove('hidden');
+            } else {
+                statusEl.classList.add('hidden');
+                console.log("[API OVERRIDE] Overrides cleared.");
+            }
+            return API_ENDPOINTS;
+        };
 
         /**
          * Generic fetch wrapper with exponential backoff retry.
@@ -223,18 +228,18 @@
                     const response = await fetch(url, options);
                     
                     if (response.ok) {
-                        // Check content-type to avoid JSON parsing errors on non-JSON responses
                         const contentType = response.headers.get("content-type");
                         if (contentType && contentType.includes("application/json")) {
                             return await response.json();
                         } else {
-                            // If response is OK but not JSON (e.g., a simple 'success' text), return the response object
-                            return response;
+                            // If response is OK but not JSON (e.g., a simple 'success' text), return the body text
+                            return await response.text(); 
                         }
                     }
 
-                    // Handle bad status codes (4xx, 5xx)
-                    throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
+                    // For HTTP errors, attempt to get meaningful message
+                    let errorText = await response.text().catch(() => response.statusText);
+                    throw new Error(`HTTP Error ${response.status} for ${url.replace(API_BASE, '')}: ${errorText}`);
 
                 } catch (error) {
                     console.warn(`Fetch attempt ${i + 1} failed for ${url}: ${error.message}. Retrying in ${delay / 1000}s...`);
@@ -263,16 +268,16 @@
             card.dataset.wordId = '';
 
             try {
-                const data = await fetchWithRetry(API_GET_RANDOM_WORD);
+                const data = await fetchWithRetry(API_ENDPOINTS.GET_RANDOM_WORD);
 
-                // Assuming the API returns a structure like { id: '...', word: '...', definition: '...' }
-                if (data && data.word) {
+                // API is assumed to return { id: '...', word: '...', definition: '...' }
+                if (typeof data === 'object' && data.word) {
                     const wordId = data.id;
 
-                    // If the user has already voted on this word, skip it.
-                    if (window.votedWords.has(wordId)) {
+                    // Skip words already voted on by this local user
+                    if (votedWords.has(wordId)) {
                         defText.textContent = "You've already voted on this word! Fetching another...";
-                        setTimeout(window.fetchNextWord, 1000); // Wait 1 second and try again
+                        setTimeout(window.fetchNextWord, 500); // Try again quickly
                         return;
                     }
 
@@ -288,19 +293,11 @@
                     wordText.classList.remove('animate-pulse');
                 }
             } catch (error) {
-                // If the error is a generic fetch error, we try to parse the body as text for better debugging
-                let serverResponse = error.message;
-                if (error.response && error.response.text) {
-                     serverResponse = await error.response.text();
-                } else if (error.response) {
-                    serverResponse = `HTTP ${error.response.status}`;
-                }
-
                 console.error("Error fetching word:", error);
-                defText.textContent = `Error fetching word: ${error.message} (Server response in console)`;
+                defText.textContent = `Error fetching word: ${error.message.split('\n')[0]}`;
                 wordText.textContent = "Error";
                 wordText.classList.remove('animate-pulse');
-                showModal('API Error', `Could not load a word. Check the console for details on the server's unexpected response.`, 'error');
+                showModal('API Error', `Could not load a word. Check the console for full error details.`, 'error');
             }
         };
 
@@ -312,7 +309,6 @@
         window.handleVote = async (voteType) => {
             const card = document.getElementById('word-card');
             const wordId = card.dataset.wordId;
-            const messageEl = document.getElementById('vote-message');
 
             if (!wordId) {
                 showModal('Voting Error', 'Cannot vote: no word ID found.', 'error');
@@ -320,7 +316,7 @@
             }
 
             // Prevent double voting and show feedback
-            if (window.votedWords.has(wordId)) {
+            if (votedWords.has(wordId)) {
                 showMessage('You already voted on this word!', 'text-red-600');
                 return;
             }
@@ -331,30 +327,35 @@
 
             try {
                 // 1. API Call to register the vote
-                const data = await fetchWithRetry(API_VOTE, {
+                const response = await fetchWithRetry(API_ENDPOINTS.VOTE, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         id: wordId,
                         vote: voteType,
-                        userId: userId, // Pass Firebase user ID to API for tracking
+                        userId: userId, // Pass the local ID to the external API
                     }),
                 });
 
-                if (data.success) {
+                // Check if the response is a JSON object with a success key, or simple text indicating success
+                const isSuccess = (typeof response === 'object' && response.success) || 
+                                  (typeof response === 'string' && response.toLowerCase().includes('success'));
+
+                if (isSuccess) {
                     showMessage('Vote recorded! Fetching next word...', 'text-green-600');
-                    // 2. Record vote in Firestore
-                    await recordUserVote(wordId);
+                    // 2. Record vote in local storage
+                    recordUserVoteLocal(wordId);
                     
                     // 3. Fetch the next word
                     setTimeout(window.fetchNextWord, 1000);
                 } else {
-                    throw new Error(data.message || "Unknown API error.");
+                    // Treat non-success responses as errors
+                    throw new Error(`Server Response: ${JSON.stringify(response)}`);
                 }
 
             } catch (error) {
                 console.error("Error voting:", error);
-                showMessage('Vote failed. Try again.', 'text-red-600');
+                showMessage('Vote failed. Check console.', 'text-red-600');
                 document.getElementById('vote-controls').classList.remove('hidden'); // Restore controls on failure
             }
         };
@@ -375,7 +376,7 @@
             statusEl.classList.add('hidden');
 
             try {
-                const words = await fetchWithRetry(API_GET_WORDS);
+                const words = await fetchWithRetry(API_ENDPOINTS.GET_WORDS);
                 
                 if (words && Array.isArray(words) && words.length > 0) {
                     listEl.innerHTML = words.map((word, index) => `
@@ -396,7 +397,7 @@
 
             } catch (error) {
                 console.error("Error fetching global word list:", error);
-                const errorMessage = `Could not load rankings. The server returned an unexpected response. Check the console for details.`;
+                const errorMessage = `Could not load rankings: ${error.message.split('\n')[0]}`;
                 listEl.innerHTML = `<p class="text-center p-4 text-red-500 font-semibold">${errorMessage}</p>`;
                 showModal('API Error', errorMessage, 'error');
             }
@@ -419,25 +420,29 @@
             statusEl.classList.add('hidden');
 
             try {
-                const data = await fetchWithRetry(API_SUBMIT_WORD, {
+                const response = await fetchWithRetry(API_ENDPOINTS.SUBMIT_WORD, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ word, definition, submitterId: userId }),
                 });
 
-                if (data.success) {
+                const isSuccess = (typeof response === 'object' && response.success) || 
+                                  (typeof response === 'string' && response.toLowerCase().includes('success'));
+
+
+                if (isSuccess) {
                     statusEl.textContent = 'Success! Your word has been added for voting.';
                     statusEl.classList.remove('hidden', 'bg-red-100', 'text-red-700');
                     statusEl.classList.add('bg-green-100', 'text-green-700');
                     wordInput.value = '';
                     defInput.value = '';
                 } else {
-                    throw new Error(data.message || "Unknown submission error.");
+                    throw new Error(`Server Response: ${JSON.stringify(response)}`);
                 }
 
             } catch (error) {
                 console.error("Error submitting word:", error);
-                statusEl.textContent = `Submission failed: ${error.message}`;
+                statusEl.textContent = `Submission failed: ${error.message.split('\n')[0]}`;
                 statusEl.classList.remove('hidden', 'bg-green-100', 'text-green-700');
                 statusEl.classList.add('bg-red-100', 'text-red-700');
             } finally {
@@ -486,22 +491,30 @@
             document.getElementById(`content-${tabName}`).classList.remove('hidden');
             
             // Execute specific tab actions
-            if (tabName === 'vote' && isAuthReady) {
+            if (tabName === 'vote') {
                 fetchNextWord();
             } else if (tabName === 'rankings') {
                 fetchGlobalWords();
             }
         };
 
-        // Initialize Lucide icons
+        // Initialize App
         window.onload = () => {
+            // 1. Setup Local User
+            userId = getUserId();
+            loadVotedWords();
+            document.getElementById('auth-info').textContent = `Local User ID: ${userId}`;
+
+            // 2. Setup UI
             lucide.createIcons();
-            // Apply initial tab styling
             document.getElementById('tab-vote').classList.add('active', 'bg-blue-600', 'text-white', 'shadow-md');
             document.getElementById('tab-vote').classList.remove('text-gray-600', 'hover:bg-blue-50');
+            
+            // 3. Start fetching the first word
+            fetchNextWord();
         };
 
-        // Global Modal Implementation
+        // Global Modal Implementation (replaces alert/confirm)
         const modalEl = document.getElementById('message-modal');
         const modalTitle = document.getElementById('modal-title');
         const modalBody = document.getElementById('modal-body');
@@ -511,7 +524,6 @@
             modalTitle.textContent = title;
             modalBody.textContent = message;
             
-            // Apply basic styling based on type (optional)
             if (type === 'error') {
                 modalTitle.classList.add('text-red-600');
             } else {
