@@ -216,11 +216,14 @@
         const POLLING_INTERVAL_MS = 15000; // Poll global rankings every 15 seconds
 
         // --- API Endpoints ---
-        const API_BASE = 'https://good-word.onrender.com/api';
-        const API_GET_RANDOM_WORD = `${API_BASE}/word/random`;
-        const API_GET_ALL_WORDS = `${API_BASE}/words`; 
-        const API_VOTE = `${API_BASE}/vote`;
-        const API_SUBMIT_WORD = `${API_BASE}/word/add`;
+        // FIX: Changed API_BASE to only the domain. The full routes now explicitly include '/api/'
+        const API_BASE = 'https://good-word.onrender.com';
+        
+        // Updated endpoints to ensure the full path includes /api/
+        const API_GET_RANDOM_WORD = `${API_BASE}/api/word/random`;
+        const API_GET_ALL_WORDS = `${API_BASE}/api/words`; 
+        const API_VOTE = `${API_BASE}/api/vote`;
+        const API_SUBMIT_WORD = `${API_BASE}/api/word/add`;
 
         // --- Utility Functions for Resilience ---
 
@@ -317,7 +320,7 @@
                 return;
             }
             
-            // Calculate and apply visual status (new UX improvement)
+            // Calculate and apply visual status
             const scoreDifference = (currentWord.goodVotes || 0) - (currentWord.badVotes || 0);
             if (scoreDifference > 0) {
                 wordCard.classList.add('good');
@@ -331,7 +334,6 @@
             goodScoreEl.textContent = (currentWord.goodVotes || 0).toLocaleString();
             badScoreEl.textContent = (currentWord.badVotes || 0).toLocaleString();
             
-            // Note: setLoadingState(false) is handled in fetchNextWord's finally block
             setLoadingState(false);
         }
 
@@ -348,13 +350,13 @@
             try {
                 response = await fetchWithRetry(API_GET_RANDOM_WORD, { method: 'GET' });
                 
-                // CRITICAL FIX: Clone the response before attempting to read the body
+                // Clone the response before attempting to read the body
                 const responseClone = response.clone(); 
 
                 try {
                     data = await response.json();
                 } catch (e) {
-                    // Fallback to reading text from the clone for detailed error diagnosis
+                    // Read text from the clone for detailed error diagnosis
                     diagnosticText = await responseClone.text();
                 }
 
@@ -365,6 +367,7 @@
 
                 // Handle valid response with bad JSON or non-JSON content
                 if (!data && response.ok) {
+                    // Truncated preview for cleaner error modals
                     const preview = diagnosticText.substring(0, 50).replace(/(\r\n|\n|\r)/gm, " ");
                     throw new Error(`Invalid response format (JSON Error). Server returned: "${preview}..."`);
                 }
@@ -379,7 +382,6 @@
                 showMessage("Connection Error", `Could not load a new word. Error: ${error.message}`);
             } finally {
                 renderCurrentWord();
-                // We let the polling interval handle global word updates, no need to call here
             }
         }
 
@@ -397,7 +399,6 @@
             }
             
             setLoadingState(true);
-            // Apply a temporary class for visual feedback on the vote click
             wordCard.classList.add(classification);
 
             const votePayload = {
@@ -416,11 +417,10 @@
                     body: JSON.stringify(votePayload),
                 });
                 
-                // Clear the temporary vote feedback class immediately
                 wordCard.classList.remove('good');
                 wordCard.classList.remove('bad');
 
-                // CRITICAL FIX: Clone the response before attempting to read the body
+                // Clone the response before attempting to read the body
                 const responseClone = response.clone();
 
                 try {
@@ -474,7 +474,6 @@
             if (wordText.length < 2) {
                 submissionMessageEl.textContent = "Word must be at least 2 characters long.";
                 submissionMessageEl.className = 'text-sm mt-1 text-red-500';
-                // Added visual cue for invalid input (UX improvement)
                 newWordInput.classList.add('border-red-500', 'ring-red-500'); 
                 return;
             }
@@ -492,7 +491,7 @@
                     body: JSON.stringify(submitPayload),
                 });
 
-                // CRITICAL FIX: Clone the response before attempting to read the body
+                // Clone the response before attempting to read the body
                 const responseClone = response.clone();
 
                 try {
@@ -549,7 +548,7 @@
             try {
                 response = await fetchWithRetry(API_GET_ALL_WORDS, { method: 'GET' });
 
-                // CRITICAL FIX: Clone the response before attempting to read the body
+                // Clone the response before attempting to read the body
                 const responseClone = response.clone();
 
                 try {
@@ -651,7 +650,7 @@
             setupListeners();
             fetchNextWord(); // Fetch the initial word and populate the global list (once)
 
-            // Start polling for real-time global ranking updates (UX improvement)
+            // Start polling for real-time global ranking updates
             setInterval(fetchGlobalWords, POLLING_INTERVAL_MS);
         };
 
