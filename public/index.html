@@ -3,95 +3,102 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Good Word / Bad Word</title>
+    <title>Word Classifier Game</title>
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        /* Custom styles for aesthetic polish */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f3f4f6; /* Light gray background */
+    <!-- Load the Poppins font and Font Awesome for icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <!-- Load custom styles (This contains the aesthetic CSS) -->
+    <link rel="stylesheet" href="public/style.css">
+
+    <!-- Tailwind Config for custom colors and font -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Poppins', 'Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        'good': '#4CAF50',
+                        'bad': '#F44336',
+                        'neutral': '#FFC107',
+                        'text-color': '#333',
+                        'bg-color': '#f0f2f5',
+                        'card-bg': '#fff',
+                    }
+                }
+            }
         }
-        .card {
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-        }
-        
-        /* Custom Border Styles for Feedback */
-        .word-box {
-            border: 4px solid #e5e7eb; /* Default neutral border */
-            transition: border-color 0.4s ease-in-out;
-        }
-        .good-border { border-color: #10b981; /* Green-500 */ }
-        .bad-border { border-color: #ef4444; /* Red-500 */ }
-        .neutral-border { border-color: #9ca3af; /* Gray-400 */ }
-    </style>
+    </script>
 </head>
-<body class="min-h-screen flex items-center justify-center p-4">
+<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-start p-4 sm:p-8">
 
-    <div class="w-full max-w-lg">
-        <!-- Main Application Card -->
-        <div class="card bg-white p-8 rounded-2xl">
-            <!-- RESTORED MULTI-COLORED TITLE -->
-            <h1 class="text-3xl font-extrabold text-center mb-2 tracking-tight">
-                <span class="text-green-600">GOOD</span> 
-                <span class="text-gray-800">WORD /</span> 
-                <span class="text-red-600">BAD</span> 
-                <span class="text-gray-800">WORD</span>
-            </h1>
-            <p class="text-center text-gray-500 mb-6">Is the word mostly <span class="font-bold text-green-600">Good</span> or mostly <span class="font-bold text-red-600">Bad</span>?</p>
+    <div class="game-container w-full max-w-4xl">
+        <header class="text-center mb-10">
+            <h1 class="text-5xl font-extrabold text-gray-800 tracking-tighter">Word Sentiment Classifier</h1>
+            <p class="text-xl text-gray-500 mt-2">Is the word **Good** or **Bad**? You decide!</p>
+        </header>
 
-            <!-- Message Display Area (Moved above the word box for visual clarity) -->
-            <!-- The 'hidden' class is REMOVED so JavaScript can manage it by adding/removing it for visibility. -->
-            <p id="messageDisplay" class="text-center text-sm font-medium mt-[-10px] mb-4 h-6 transition-all duration-300"></p>
+        <!-- Main Interaction Area -->
+        <div class="word-card-area relative flex flex-col items-center justify-center p-6 mb-10">
 
-            <!-- Word Classification Area -->
-            <!-- Added base neutral-border class to ensure a border is always present -->
-            <div class="word-box p-8 rounded-xl bg-gray-50 mb-6 text-center neutral-border">
-                <p class="text-sm font-semibold text-gray-400 mb-4">WORD TO CLASSIFY</p>
-                <div id="wordDisplay" class="text-5xl font-extrabold text-gray-800 tracking-wider transition-opacity duration-300">
-                    LOADING...
-                </div>
+            <!-- Dynamic Message Display Area -->
+            <div id="messageDisplay" class="absolute -top-10 left-1/2 transform -translate-x-1/2 p-2 px-4 rounded-xl shadow-lg font-semibold text-sm hidden">
+                <!-- Messages like "DB OFFLINE", "Voted Good", "Connection Successful" appear here -->
             </div>
 
-            <!-- Action Buttons -->
-            <div class="flex space-x-4 mb-10">
-                <button id="goodWordBtn" class="flex-1 py-3 px-4 bg-green-500 text-white font-bold rounded-xl shadow-lg hover:bg-green-600 focus:ring-4 focus:ring-green-300 transition duration-150 flex items-center justify-center disabled:opacity-50">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.529 0-1.009-.208-1.373-.559L9 16m0 0l-2.5-5.25v-2A2 2 0 018.5 6h.5a2 2 0 012 2v2"></path></svg>
+            <div class="word-card-wrapper relative min-h-[150px]">
+                <!-- The wordBox element, crucial for script.js to querySelector('.word-box') -->
+                <div class="word-card shadow-2xl neutral-border" id="wordBox">
+                    <!-- The span element, crucial for script.js to use getElementById('wordDisplay') -->
+                    <span id="wordDisplay" class="text-word text-gray-900">LOADING...</span>
+                </div>
+            </div>
+            
+            <!-- Vote Buttons -->
+            <div class="vote-buttons flex justify-center gap-6 mt-10 w-full max-w-lg">
+                <button id="goodWordBtn" class="vote-btn good-btn flex-1 transition-all duration-300 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                    <i class="fas fa-thumbs-up icon"></i>
                     Good Word
                 </button>
-                <button id="badWordBtn" class="flex-1 py-3 px-4 bg-red-500 text-white font-bold rounded-xl shadow-lg hover:bg-red-600 focus:ring-4 focus:ring-red-300 transition duration-150 flex items-center justify-center disabled:opacity-50">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.017c.529 0 1.009.208 1.373.559L15 8m0 0l2.5 5.25v2A2 2 0 0115.5 18h-.5a2 2 0 01-2-2v-2"></path></svg>
+                <button id="badWordBtn" class="vote-btn bad-btn flex-1 transition-all duration-300 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                    <i class="fas fa-thumbs-down icon"></i>
                     Bad Word
                 </button>
             </div>
-
-            <!-- Community Ratings Leaderboard -->
-            <h2 class="text-xl font-bold text-center mb-4 border-t pt-6">Community Ratings</h2>
-            
-            <div class="flex space-x-4">
+        </div>
+        
+        <!-- Top Words Leaderboard -->
+        <section class="top-words-section mt-12 pt-6 border-t border-gray-200">
+            <h2 class="text-3xl font-bold text-gray-700 mb-6 text-center">Community Ratings</h2>
+            <div class="top-words-lists flex flex-wrap justify-center gap-6">
+                
                 <!-- Mostly Good List -->
-                <div class="flex-1 p-4 rounded-xl bg-green-50 border border-green-200">
-                    <h3 class="text-lg font-semibold text-green-700 text-center mb-3">Mostly Good</h3>
-                    <ul id="mostlyGoodList" class="space-y-1">
-                        <li class="text-center text-gray-500 italic">Loading...</li>
+                <div class="mostly-good bg-white p-6 rounded-xl shadow-md flex-1 min-w-[300px] lg:min-w-0">
+                    <h3 class="text-xl font-semibold mb-4 text-good">Mostly Good (Top 5)</h3>
+                    <ul id="mostlyGoodList" class="space-y-2">
+                        <!-- Content inserted by script.js -->
+                        <li class="text-center italic text-sm text-gray-500">Loading list...</li>
                     </ul>
                 </div>
-                
+
                 <!-- Mostly Bad List -->
-                <div class="flex-1 p-4 rounded-xl bg-red-50 border border-red-200">
-                    <h3 class="text-lg font-semibold text-red-700 text-center mb-3">Mostly Bad</h3>
-                    <ul id="mostlyBadList" class="space-y-1">
-                        <li class="text-center text-gray-500 italic">Loading...</li>
+                <div class="mostly-bad bg-white p-6 rounded-xl shadow-md flex-1 min-w-[300px] lg:min-w-0">
+                    <h3 class="text-xl font-semibold mb-4 text-bad">Mostly Bad (Top 5)</h3>
+                    <ul id="mostlyBadList" class="space-y-2">
+                        <!-- Content inserted by script.js -->
+                        <li class="text-center italic text-sm text-gray-500">Loading list...</li>
                     </ul>
                 </div>
             </div>
+        </section>
 
-            <p class="text-xs text-gray-400 text-center mt-6">App Version: v3.7.5 (Stable Logic)</p>
-        </div>
     </div>
 
-    <!-- Load the game logic script -->
+    <!-- Link the main game logic script -->
     <script src="public/script.js"></script>
 </body>
 </html>
