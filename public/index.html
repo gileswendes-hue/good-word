@@ -210,7 +210,7 @@
 
         <!-- Footer for App Version -->
         <footer class="mt-8 text-center text-xs text-gray-400">
-            App Version: v8.7.3 (Render API Client - Enhanced Debugging)
+            App Version: v8.7.5 (Render API Client - Body Consumption Fix)
         </footer>
     </div>
     
@@ -336,14 +336,19 @@
 
         /**
          * Core fetch function to try both unclassified and random endpoints.
+         * Fetches the response text once and attempts to parse it as JSON.
          */
         async function fetchWordFromApi(endpoint) {
              const fetchUrl = `${API_BASE_URL}${endpoint}`;
-             const response = await fetch(fetchUrl);
+             
+             // Use CORS mode for cross-origin requests
+             const response = await fetch(fetchUrl, { mode: 'cors' });
+
+             // Read the response body as text immediately to avoid "Body consumed" errors.
+             const responseText = await response.text();
 
             if (!response.ok) {
-                const errorText = await response.text();
-                console.error(`Backend HTTP Error (${response.status}) from ${endpoint}:`, errorText.substring(0, 500));
+                console.error(`Backend HTTP Error (${response.status}) from ${endpoint}:`, responseText.substring(0, 500));
                 
                 if (response.status === 404 && endpoint === GET_RANDOM_WORD_ENDPOINT) {
                     return { word: null, _id: null, message: "No API fallback endpoint available." };
@@ -353,20 +358,19 @@
                     throw new Error(`SERVER ERROR (${response.status}). Check Render/MongoDB logs.`);
                 }
                 
-                const errorSnippet = errorText.substring(0, 50).replace(/(\r\n|\n|\r)/gm, " ");
+                const errorSnippet = responseText.substring(0, 50).replace(/(\r\n|\n|\r)/gm, " ");
                 throw new Error(`API Error: Status ${response.status} - Response: ${errorSnippet}...`);
             }
             
             let data;
             try {
-                // *** CRITICAL CHANGE: Robust JSON parsing check ***
-                data = await response.json();
+                // Try to parse the captured text as JSON
+                data = JSON.parse(responseText);
             } catch (jsonError) {
-                // If JSON parsing fails, read the raw text and log a detailed error.
-                const responseText = await response.text();
+                // If parsing fails, we already have the raw text for debugging
                 console.error("--- JSON PARSING FAILED ---");
                 console.error(`Attempted to parse JSON from ${endpoint} but failed. Raw Response:`, responseText.substring(0, 500));
-                console.error("This usually means the server returned an HTML error page or plain text instead of JSON.");
+                console.error("This means the server returned non-JSON data (likely an HTML error page or plain text) for a 200/OK status.");
                 console.error("--- END OF RESPONSE DEBUG ---");
                 throw new Error("Invalid API response format. Check console for raw server output.");
             }
@@ -421,10 +425,18 @@
                 }
                 
             } catch (error) {
-                console.error("Fetch Word Error:", error.message);
-                wordDisplay.textContent = "API ERROR";
-                // Show the specific error message from the try-catch block
-                showMessage(`Connection Error: ${error.message}`, 'error'); 
+                // Catch any generic network errors or the errors thrown from fetchWordFromApi
+                
+                // Use a general catch block to check for network/CORS issues if they manifest as TypeError
+                if (error instanceof TypeError && error.message.includes('fetch')) {
+                    console.error("CORS/Network Error Detected:", error);
+                    wordDisplay.textContent = "CORS ERROR";
+                    showMessage(`CORS Error: Please ensure your Render server includes 'app.use(cors())'.`, 'error');
+                } else {
+                    console.error("Fetch Word Error:", error.message);
+                    wordDisplay.textContent = "API ERROR";
+                    showMessage(`Connection Error: ${error.message}`, 'error'); 
+                }
                 
                 showAddWordModalBtn.disabled = false;
             }
@@ -449,11 +461,17 @@
                     body: JSON.stringify({ 
                         wordId: currentWordId, 
                         sentiment: sentiment,
-                    })
+                    }),
+                    mode: 'cors'
                 });
 
+                // Read the response text once for uniform handling
+                const responseText = await response.text();
+
                 if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({}));
+                    let errorData = {};
+                    try { errorData = JSON.parse(responseText); } catch {}
+                    
                     if (response.status >= 500) {
                          throw new Error(`SERVER ERROR (Status ${response.status}). Check Render/MongoDB logs.`);
                     }
@@ -484,18 +502,20 @@
             mostlyBadList.innerHTML = '<li class="text-center italic text-sm text-gray-500">Loading leaderboard...</li>';
 
             try {
-                const response = await fetch(`${API_BASE_URL}/api/top-words`);
+                const response = await fetch(`${API_BASE_URL}/api/top-words`, { mode: 'cors' });
+
+                const responseText = await response.text(); // Read once
 
                 if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error("Backend Error Detail (Top Words):", errorText);
+                    console.error("Backend Error Detail (Top Words):", responseText);
 
                     if (response.status >= 500) {
                          throw new Error(`SERVER ERROR (Status ${response.status}). Check Render/MongoDB logs.`);
                     }
                     throw new Error(`API Error: Status ${response.status}`);
                 }
-                const data = await response.json();
+                
+                const data = JSON.parse(responseText);
                 
                 // Clear and re-populate lists
                 mostlyGoodList.innerHTML = '';
@@ -572,11 +592,16 @@
                 const response = await fetch(`${API_BASE_URL}/api/add-word`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ word: word })
+                    body: JSON.stringify({ word: word }),
+                    mode: 'cors'
                 });
 
+                const responseText = await response.text(); // Read once
+
                 if (!response.ok) {
-                     const errorData = await response.json().catch(() => ({}));
+                     let errorData = {};
+                     try { errorData = JSON.parse(responseText); } catch {}
+
                      if (response.status >= 500) {
                          throw new Error(`SERVER ERROR (Status ${response.status}). Check Render/MongoDB logs.`);
                     }
@@ -647,7 +672,7 @@
 
         // --- App Start ---
         window.onload = () => {
-            console.log("Application starting - Render API Mode (v8.7.3 Enhanced Debugging)...");
+            console.log("Application starting - Render API Mode (v8.7.5 Body Consumption Fix)...");
             setupListeners();
             
             fetchTopWords();
