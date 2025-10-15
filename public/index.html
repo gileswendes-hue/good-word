@@ -145,20 +145,19 @@
                     </div>
 
                     <h2 id="current-word" class="text-6xl md:text-7xl font-bold text-gray-800 hidden text-center break-words max-w-full"></h2>
-                    <!-- Word ID is hidden as it's for debug/internal use -->
                     <p id="word-id-display" class="text-xs text-gray-400 mt-2 hidden"></p> 
                 </div>
             </div>
             
             <!-- Voting Buttons -->
             <div id="vote-buttons" class="flex justify-center space-x-4 w-full p-4">
-                <button id="bad-vote-btn" class="vote-button bad-button flex items-center space-x-2">
+                <button id="bad-vote-btn" class="vote-button bad-button flex items-center space-x-2" disabled>
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <span>Bad Word</span>
                 </button>
-                <button id="good-vote-btn" class="vote-button good-button flex items-center space-x-2">
+                <button id="good-vote-btn" class="vote-button good-button flex items-center space-x-2" disabled>
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
@@ -182,7 +181,7 @@
                     <div class="spinner w-4 h-4"></div>
                     <span>Loading word list...</span>
                 </p>
-                <p id="no-words-msg" class="text-gray-500 italic hidden">No words found.</p>
+                <p id="no-words-msg" class="text-gray-500 italic hidden"></p>
             </div>
         </div>
 
@@ -200,7 +199,6 @@
         const wordCardEl = document.getElementById('word-card');
         const currentWordEl = document.getElementById('current-word');
         const wordLoadingEl = document.getElementById('word-loading');
-        const wordIdDisplayEl = document.getElementById('word-id-display');
         const goodVoteBtn = document.getElementById('good-vote-btn');
         const badVoteBtn = document.getElementById('bad-vote-btn');
         const statusMessageEl = document.getElementById('status-message');
@@ -219,17 +217,19 @@
 
         function showStatusMessage(message, type = 'success') {
             statusMessageEl.innerText = message;
-            statusMessageEl.classList.remove('hidden', 'bg-red-100', 'text-red-700', 'bg-green-100', 'text-green-700');
+            statusMessageEl.classList.remove('hidden', 'bg-red-100', 'text-red-700', 'bg-green-100', 'text-green-700', 'bg-yellow-100', 'text-yellow-700');
             
             if (type === 'error') {
                 statusMessageEl.classList.add('bg-red-100', 'text-red-700');
+            } else if (type === 'warning') {
+                statusMessageEl.classList.add('bg-yellow-100', 'text-yellow-700');
             } else {
                 statusMessageEl.classList.add('bg-green-100', 'text-green-700');
             }
 
             setTimeout(() => {
                 statusMessageEl.classList.add('hidden');
-            }, 3000);
+            }, 5000); // Increased visibility time for errors
         }
 
         /**
@@ -274,7 +274,7 @@
 
         /**
          * Utility function to fetch with exponential backoff and retry, 
-         * with enhanced JSON error logging (CRITICAL DEBUGGING).
+         * with enhanced JSON error logging.
          */
         async function fetchWithRetry(url, options = {}, retries = 5) {
             for (let i = 0; i < retries; i++) {
@@ -309,8 +309,10 @@
                 } catch (error) {
                     console.warn(`Fetch attempt ${i + 1} failed:`, error.message);
                     if (i === retries - 1) {
+                        // Throw final error after last retry fails
                         throw new Error(`Failed to fetch ${url} after ${retries} attempts. Final error: ${error.message}`);
                     }
+                    // Exponential backoff with jitter (max delay around 8 seconds)
                     const delay = Math.pow(2, i) * 1000 + Math.random() * 500;
                     await new Promise(resolve => setTimeout(resolve, delay));
                 }
@@ -351,14 +353,14 @@
                 const data = await fetchWithRetry(url);
                 
                 if (!data || !data.word || !data.id) {
-                    currentWordEl.innerText = "No words available. Check server logs.";
+                    currentWordEl.innerText = "Error: API returned empty or invalid data.";
                     currentWordEl.classList.remove('hidden');
+                    showStatusMessage("API returned invalid data. Check server logs.", 'error');
                     return;
                 }
 
                 currentWordData = data;
                 currentWordEl.innerText = currentWordData.word;
-                wordIdDisplayEl.innerText = `ID: ${currentWordData.id}`;
                 
                 currentWordEl.classList.remove('hidden');
                 
@@ -368,11 +370,19 @@
                 setButtonsDisabled(false);
 
             } catch (error) {
+                // --- EXPLICIT ERROR HANDLING TO PREVENT INDEFINITE STICKING ---
                 console.error("Fetch Word Error (Final Catch):", error);
-                currentWordEl.innerText = `Fetch Error: ${error.message.substring(0, 80)}...`;
+                const userMessage = error.message.includes("Failed to fetch") ? 
+                    "Network error (CORS or server is down). Check console." : 
+                    `Fetch Error: ${error.message.substring(0, 80)}...`;
+                    
+                currentWordEl.innerText = userMessage;
                 currentWordEl.classList.remove('hidden');
-                showStatusMessage("Failed to fetch word. Check console for raw server response.", 'error');
+                wordCardEl.classList.add('bad'); // Highlight the error visually
+                showStatusMessage(userMessage, 'error');
+                
             } finally {
+                // Always hide the loading message on completion or failure
                 wordLoadingEl.classList.add('hidden');
             }
         }
@@ -397,13 +407,12 @@
             const url = `${API_BASE_URL}/vote`;
 
             try {
-                // The server should handle incrementing the score based on word and vote type
                 // The API expects the word string and the vote type.
                 await fetchWithRetry(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        word: word: wordToVote,
+                        word: wordToVote,
                         vote: voteType,
                     })
                 });
@@ -420,7 +429,10 @@
                 // Re-fetch the word in case the vote failed, to reset the UI
                 fetchNextWord(); 
             } finally {
-                setButtonsDisabled(false);
+                // Buttons re-enabled by fetchNextWord if successful, otherwise explicitly here if next fetch fails
+                if (!currentWordData) { 
+                    setButtonsDisabled(false);
+                }
             }
         }
         
@@ -439,6 +451,7 @@
                 const words = await fetchWithRetry(url); 
                 
                 if (!Array.isArray(words) || words.length === 0) {
+                    noWordsMsgEl.innerText = "No words found or the list is empty.";
                     noWordsMsgEl.classList.remove('hidden');
                     return;
                 }
@@ -472,9 +485,9 @@
 
             } catch (error) {
                 console.error("Fetch Word List Error:", error);
-                showStatusMessage("Failed to load top word list.", 'error');
                 noWordsMsgEl.innerText = `Error loading list: ${error.message}`;
                 noWordsMsgEl.classList.remove('hidden');
+                showStatusMessage("Failed to load top word list. Check console.", 'error');
             } finally {
                 loadingListMsgEl.classList.add('hidden');
             }
