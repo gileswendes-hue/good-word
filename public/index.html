@@ -210,7 +210,7 @@
 
         <!-- Footer for App Version -->
         <footer class="mt-8 text-center text-xs text-gray-400">
-            App Version: v8.7.1 (Render API Client - Load Order Fix)
+            App Version: v8.7.2 (Render API Client - Load Random Fix)
         </footer>
     </div>
     
@@ -239,7 +239,11 @@
         // CRITICAL CONFIGURATION:
         // This is the URL for the Render API hosting your MongoDB backend.
         const API_BASE_URL = 'https://good-word.onrender.com';
-
+        
+        // Hypothetical API Endpoints (You must ensure your server implements these)
+        const GET_UNCLASSIFIED_WORD_ENDPOINT = '/api/get-word'; // Original logic: returns a word with zero votes
+        const GET_RANDOM_WORD_ENDPOINT = '/api/get-random-word'; // New logic: returns any word for continuous voting
+        
         // --- GLOBAL STATE ---
         let currentWordId = null;
         let currentWordText = null;
@@ -265,12 +269,11 @@
 
         /**
          * Displays a temporary status message to the user.
-         * The 'type' must be a single token (e.g., 'success', 'error', 'info', 'good', 'bad').
          */
         function showMessage(message, type) {
             messageDisplay.textContent = message;
             
-            // Base Tailwind classes are applied first by setting the className directly.
+            // Base Tailwind classes
             const baseClasses = 'absolute -top-10 left-1/2 transform -translate-x-1/2 p-2 px-4 rounded-xl shadow-lg font-semibold text-sm z-10';
             messageDisplay.className = baseClasses;
             messageDisplay.classList.remove('hidden');
@@ -288,11 +291,10 @@
                     break;
                 case 'info':
                 default:
-                    bgColorClass = 'message-info'; // Uses single token CSS class defined in <style>
+                    bgColorClass = 'message-info';
                     break;
             }
 
-            // This now only adds a single, defined class token, resolving the whitespace error.
             messageDisplay.classList.add(bgColorClass);
 
             // Hide after 3 seconds
@@ -335,11 +337,38 @@
         // --- API INTERACTION ---
 
         /**
-         * Fetches the next word to classify from the API.
+         * Core fetch function to try both unclassified and random endpoints.
+         */
+        async function fetchWordFromApi(endpoint) {
+             const fetchUrl = `${API_BASE_URL}${endpoint}`;
+             const response = await fetch(fetchUrl);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error("Backend Error Detail:", errorText);
+                
+                if (response.status === 404 && endpoint === GET_RANDOM_WORD_ENDPOINT) {
+                    // This is a common error if the /get-random-word endpoint isn't implemented yet.
+                    console.warn(`Endpoint ${GET_RANDOM_WORD_ENDPOINT} not found (404). Falling back to 'No Words Found'.`);
+                    return { word: null, _id: null, message: "No API fallback endpoint available." };
+                }
+                
+                if (response.status >= 500) {
+                    throw new Error(`SERVER ERROR (${response.status}). Check Render/MongoDB logs.`);
+                }
+                
+                const errorSnippet = errorText.substring(0, 50).replace(/(\r\n|\n|\r)/gm, " ");
+                throw new Error(`API Error: Status ${response.status} - Response: ${errorSnippet}...`);
+            }
+            
+            const data = await response.json();
+            return data;
+        }
+
+        /**
+         * Fetches the next word to classify, falling back to a random word if the pool is empty.
          */
         async function fetchNextWord() {
-            console.log(`Attempting to fetch next word from ${API_BASE_URL}/api/get-word...`);
-            
             toggleButtons(false);
             wordDisplay.textContent = "LOADING...";
             setWordBoxState('neutral', false);
@@ -349,47 +378,37 @@
                  showMessage("CRITICAL: API_BASE_URL is missing!", 'error');
                  return;
             }
+            
+            let wordData = { word: null, _id: null };
 
             try {
-                const fetchUrl = `${API_BASE_URL}/api/get-word`;
-                const response = await fetch(fetchUrl);
-
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error("Backend Error Detail:", errorText);
-                    
-                    if (response.status >= 500) {
-                        throw new Error(`SERVER ERROR (${response.status}). Check Render/MongoDB logs.`);
-                    }
-                    // Throw generic error with status code
-                    const errorSnippet = errorText.substring(0, 50).replace(/(\r\n|\n|\r)/gm, " ");
-                    throw new Error(`API Error: Status ${response.status} - Response: ${errorSnippet}...`);
-                }
-
-                const data = await response.json(); 
+                // 1. Try to get the next UNCLASSIFIED word (API endpoint /api/get-word)
+                console.log(`1. Trying to fetch UNCLASSIFIED word from ${API_BASE_URL}${GET_UNCLASSIFIED_WORD_ENDPOINT}...`);
+                wordData = await fetchWordFromApi(GET_UNCLASSIFIED_WORD_ENDPOINT);
                 
-                if (data.word && data._id) {
-                    currentWordId = data._id; // IMPORTANT: Set current word ID
-                    currentWordText = data.word;
+                // If the response is empty (no word/id, but possibly a "No words left" message), try the fallback
+                if (!wordData.word || !wordData._id) {
+                     console.log("-> Unclassified word pool is empty. Trying to fetch a RANDOM word...");
+
+                     // 2. Try to get a RANDOM word (API endpoint /api/get-random-word)
+                     wordData = await fetchWordFromApi(GET_RANDOM_WORD_ENDPOINT);
+                }
+                
+                // 3. Process the final wordData
+                if (wordData.word && wordData._id) {
+                    currentWordId = wordData._id; // IMPORTANT: Set current word ID
+                    currentWordText = wordData.word;
                     wordDisplay.textContent = currentWordText.toUpperCase();
                     setWordBoxState('neutral', true);
                     toggleButtons(true);
-                    console.log("Next word loaded:", currentWordText, "ID:", currentWordId);
-                } else if (data.message && data.message.includes("No words left") || !data.word) {
-                    currentWordId = null;
-                    currentWordText = null;
-                    wordDisplay.textContent = "ALL CAUGHT UP!";
-                    toggleButtons(false);
-                    showAddWordModalBtn.disabled = false;
-                    showMessage("All words classified. Add a new one!", 'info');
+                    console.log("Word loaded:", currentWordText, "ID:", currentWordId);
                 } else {
-                    // This block is triggered when the database is empty or the response JSON structure is unexpected.
                     currentWordId = null;
                     currentWordText = null;
-                    wordDisplay.textContent = "NO WORDS FOUND";
+                    wordDisplay.textContent = "NO WORDS AVAILABLE";
                     toggleButtons(false);
                     showAddWordModalBtn.disabled = false;
-                    showMessage("No words available. Please suggest one.", 'info');
+                    showMessage("Database words exhausted or API issue. Please suggest one.", 'info');
                 }
                 
             } catch (error) {
@@ -622,7 +641,7 @@
 
         // --- App Start ---
         window.onload = () => {
-            console.log("Application starting - Render API Mode (No User ID)...");
+            console.log("Application starting - Render API Mode (Load Random Fix)...");
             setupListeners();
             
             // 1. Load Leaderboard/Existing data (votes) first
