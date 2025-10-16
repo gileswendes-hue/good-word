@@ -7,33 +7,26 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
-        /* UPDATED: Body now uses a subtle, logo-matching gradient */
         body { 
             font-family: 'Inter', sans-serif; 
-            background: linear-gradient(135deg, #f0fff0 0%, #e0f7fa 100%); /* Light yellow-green to light blue-green */
+            background: linear-gradient(135deg, #f0fff0 0%, #e0f7fa 100%);
         }
-        /* --- UPDATED CARD STYLES --- */
         .card { 
-            /* Kept backdrop-filter and transparency for a floating effect over the new gradient */
             backdrop-filter: blur(10px); 
-            background-color: rgba(255, 255, 255, 0.95); /* Increased opacity */
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15); /* Stronger initial shadow */
-            border: 1px solid rgba(0, 0, 0, 0.05); /* Subtle border for definition */
-            transition: transform 0.2s ease-out, box-shadow 0.2s ease-out; /* Add transition for smoothness */
+            background-color: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
         }
-        /* Style for the main voting card to make it "pop" on interaction */
         #gameCard:hover {
             transform: translateY(-4px);
             box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
         }
-        /* --- END UPDATED CARD STYLES --- */
         .good-button { background: linear-gradient(145deg, #10b981, #059669); }
         .bad-button { background: linear-gradient(145deg, #ef4444, #dc2626); }
-        /* NEW: Style for Not a word! button */
         .not-word-button { background: linear-gradient(145deg, #64748b, #475569); }
         button { transition: transform 0.1s ease, box-shadow 0.1s ease; }
         button:active { transform: scale(0.98); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); }
-        /* Style for the version indicator */
         .version-indicator { 
             position: fixed; 
             bottom: 5px; 
@@ -42,7 +35,6 @@
             color: #9ca3af; 
             z-index: 50; 
         }
-        /* Mobile adjustments for ranking text */
         @media (max-width: 640px) {
             .rank-item { font-size: 0.8rem; }
             .vote-counts { font-size: 0.875rem; }
@@ -53,8 +45,6 @@
 
     <!-- Title and Stats Card -->
     <header class="text-center mb-8 w-full max-w-lg">
-        <!-- Replaced Logo Placeholder with actual image -->
-        <!-- EDITED: Increased height from h-24 to h-32 (128px) -->
         <div id="logoArea" class="h-32 w-full flex items-center justify-center mb-4">
             <img 
                 src="logo.png" 
@@ -81,11 +71,9 @@
                 Bad Word
             </button>
         </div>
-        <!-- NEW: Not a word! button -->
         <button id="notWordButton" class="not-word-button w-full py-3 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-slate-500/50" disabled>
             Not a word!
         </button>
-        <!-- Custom Word Button is now below the new Not a Word button -->
         <button id="customWordButton" class="mt-4 text-sm text-gray-600 hover:text-gray-900 transition duration-150">
             Submit Custom Word
         </button>
@@ -93,14 +81,12 @@
 
     <!-- Rankings Section -->
     <section class="mt-8 w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8">
-        <!-- Good Rankings -->
         <div class="card p-6 rounded-xl">
             <h2 class="text-xl font-bold text-green-700 mb-4 border-b pb-2">Top Good Words (Good > Bad)</h2>
             <div id="goodRankings" class="space-y-2">
                 <p class="text-gray-500">No data yet.</p>
             </div>
         </div>
-        <!-- Bad Rankings -->
         <div class="card p-6 rounded-xl">
             <h2 class="text-xl font-bold text-red-700 mb-4 border-b pb-2">Top Bad Words (Bad > Good)</h2>
             <div id="badRankings" class="space-y-2">
@@ -128,32 +114,27 @@
 
     <!-- Version Indicator -->
     <div class="version-indicator">
-        v3.0.16
+        v3.0.16 | Made by Gilxs in 12,025
     </div>
 
     <script>
-        // --- IMPORTANT: RENDER API URL CONFIGURATION ---
-        // Uses a relative path, which is correct when the frontend and backend are hosted on the same domain.
         const API_BASE_URL = '/api/words';
         const APP_VERSION = '3.0.16';
 
-        // --- Global State ---
         let allWords = [];
         let currentWordIndex = 0;
         let userId = localStorage.getItem('userId');
         
-        // NEW RATE LIMITING STATE
         let voteStreak = 0;
-        const MASH_LIMIT = 10; // Max votes allowed in a row
+        const MASH_LIMIT = 10;
         const COOLDOWN_SECONDS = 10;
         let cooldownTimer = null;
         let isCoolingDown = false;
 
-        // --- DOM Elements ---
         const wordDisplay = document.getElementById('wordDisplay');
         const goodButton = document.getElementById('goodButton');
         const badButton = document.getElementById('badButton');
-        const notWordButton = document.getElementById('notWordButton'); // NEW ELEMENT
+        const notWordButton = document.getElementById('notWordButton');
         const goodTotal = document.getElementById('goodTotal');
         const badTotal = document.getElementById('badTotal');
         const goodRankingsDiv = document.getElementById('goodRankings');
@@ -166,39 +147,31 @@
         const customWordButton = document.getElementById('customWordButton');
         const versionIndicator = document.querySelector('.version-indicator');
         
-        // --- Initialization ---
         function init() {
             if (!userId) {
-                // Generate a simple UUID if user doesn't have one (for unique vote tracking)
                 userId = crypto.randomUUID();
                 localStorage.setItem('userId', userId);
             }
-            // EDITED: Appended the custom developer message to the version indicator text
             versionIndicator.textContent = `v${APP_VERSION} | Made by Gilxs in 12,025`;
             
-            // Set up event listeners
             goodButton.addEventListener('click', () => submitVote('good'));
             badButton.addEventListener('click', () => submitVote('bad'));
-            notWordButton.addEventListener('click', () => submitVote('notWord')); // NEW LISTENER
+            notWordButton.addEventListener('click', () => submitVote('notWord'));
             customWordButton.addEventListener('click', () => showModal());
             cancelSubmitButton.addEventListener('click', () => hideModal());
             submitWordButton.addEventListener('click', submitCustomWord);
 
-            // Fetch initial data
             fetchWords();
         }
-
-        // --- Utility Functions ---
 
         function showMessage(text, isError = false) {
             wordDisplay.textContent = text;
             wordDisplay.className = `text-4xl font-bold text-center mb-8 min-h-[72px] ${isError ? 'text-red-500' : 'text-gray-500'}`;
             goodButton.disabled = true;
             badButton.disabled = true;
-            notWordButton.disabled = true; // NEW
+            notWordButton.disabled = true;
         }
         
-        // Function to handle the cooldown countdown message
         function showCooldownMessage(remainingSeconds) {
             wordDisplay.textContent = `Button mashing will not be tolerated. Wait ${remainingSeconds}s...`;
             wordDisplay.className = 'text-4xl font-bold text-red-600 mb-8 text-center min-h-[72px]';
@@ -213,21 +186,18 @@
                 return;
             }
             
-            // Display the word at the current index
             const currentWord = allWords[currentWordIndex];
             wordDisplay.textContent = currentWord.text.toUpperCase();
             wordDisplay.className = 'text-6xl font-extrabold text-gray-900 mb-8 text-center min-h-[72px]';
             goodButton.disabled = false;
             badButton.disabled = false;
-            notWordButton.disabled = false; // NEW
+            notWordButton.disabled = false;
         }
 
         function nextWord() {
             if (allWords.length === 0) return;
             
             let nextIndex;
-            // Generate a random index, ensuring it's not the same as the current index 
-            // if there's more than one word available.
             do {
                 nextIndex = Math.floor(Math.random() * allWords.length);
             } while (nextIndex === currentWordIndex && allWords.length > 1);
@@ -236,9 +206,6 @@
             displayCurrentWord();
         }
 
-        // --- Fetch & Data Functions ---
-
-        // Added updateDisplay parameter to control if the displayed word should be updated
         async function fetchWords(updateDisplay = true) {
             try {
                 if(updateDisplay) {
@@ -250,17 +217,13 @@
                 }
                 let fetchedWords = await response.json();
                 
-                // --- NEW: Filter out words marked as 'Not a word!' 3 or more times ---
-                // We assume the API returns 'notWordVotes' property. If it doesn't exist, we treat it as 0.
                 const availableWords = fetchedWords.filter(w => (w.notWordVotes || 0) < 3);
                 allWords = availableWords;
-                // ------------------------------------------------------------------
                 
                 if (allWords.length > 0) {
-                    updateStatsAndRankings(); // Always update rankings
+                    updateStatsAndRankings();
                     
                     if (updateDisplay) {
-                        // Only choose a new random word and display it on initial load
                         currentWordIndex = Math.floor(Math.random() * allWords.length);
                         displayCurrentWord();
                     } 
@@ -277,18 +240,15 @@
         }
 
         async function submitVote(voteType) {
-            // Check if the user is currently in a cooldown period
             if (isCoolingDown) {
-                // If yes, recalculate remaining time and display the countdown message
                 const remaining = Math.ceil((cooldownEndTime - Date.now()) / 1000);
                 showCooldownMessage(remaining > 0 ? remaining : 0);
                 return;
             }
 
-            // --- Button Mashing Check (before API call) ---
             if (voteStreak >= MASH_LIMIT) {
                 isCoolingDown = true;
-                voteStreak = 0; // Reset streak for next time
+                voteStreak = 0;
                 
                 let remaining = COOLDOWN_SECONDS;
                 const cooldownEndTime = Date.now() + COOLDOWN_SECONDS * 1000;
@@ -300,12 +260,10 @@
                     if (remaining > 0) {
                         showCooldownMessage(remaining);
                     } else {
-                        // Cooldown is finished
                         clearInterval(cooldownTimer);
                         cooldownTimer = null;
                         isCoolingDown = false;
                         
-                        // Restore the game state
                         if (allWords.length > 0) {
                             displayCurrentWord();
                         } else {
@@ -314,23 +272,19 @@
                     }
                 }, 1000);
 
-                return; // Halt execution and enforce cooldown
+                return;
             }
-            // ------------------------------------------------
 
             const currentWord = allWords[currentWordIndex];
             if (!currentWord) return;
 
-            // Disable all vote buttons immediately
             goodButton.disabled = true;
             badButton.disabled = true;
-            notWordButton.disabled = true; 
+            notWordButton.disabled = true;
             
             const wordId = currentWord._id;
             
             try {
-                // Simplified fetch path: since API_BASE_URL is now '/api/words', 
-                // we construct the vote URL directly using a relative path.
                 const response = await fetch(`/api/words/${wordId}/vote`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
@@ -344,40 +298,34 @@
                     goodButton.disabled = false;
                     badButton.disabled = false;
                     notWordButton.disabled = false;
-                    voteStreak = 0; // Reset streak on a failed/blocked vote
+                    voteStreak = 0;
                 } else if (!response.ok) {
                     throw new Error(result.message || "Failed to register vote.");
                 } else {
-                    // Vote successful: INCREMENT STREAK
-                    voteStreak++; 
+                    voteStreak++;
                     
-                    // 1. Immediately switch to the next random word (instant visual feedback & re-enables buttons)
                     nextWord(); 
                     
-                    // 2. Fetch fresh data for rankings in the background (updateDisplay=false)
                     fetchWords(false); 
                 }
             } catch (error) {
                 console.error('Error submitting vote:', error);
                 showMessage("Vote failed. Try again.", true);
-                // Re-enable buttons if there was an error
                 goodButton.disabled = false;
                 badButton.disabled = false;
-                notWordButton.disabled = false; 
-                voteStreak = 0; // Reset streak on network/server error
+                notWordButton.disabled = false;
+                voteStreak = 0;
             }
         }
 
         function updateStatsAndRankings() {
             if (allWords.length === 0) return;
 
-            // Calculate Totals
             const totalGood = allWords.reduce((sum, w) => sum + w.goodVotes, 0);
             const totalBad = allWords.reduce((sum, w) => sum + w.badVotes, 0);
             goodTotal.textContent = `GOOD: ${totalGood}`;
             badTotal.textContent = `BAD: ${totalBad}`;
 
-            // Calculate Rankings (Simple Scoring: Difference between good and bad votes)
             const rankedWords = allWords.map(w => ({
                 text: w.text,
                 good: w.goodVotes,
@@ -385,23 +333,21 @@
                 score: w.goodVotes - w.badVotes
             }));
 
-            // Top Good Words (High positive score, sorted by score then total votes)
             const topGood = [...rankedWords]
                 .filter(w => w.score > 0)
                 .sort((a, b) => {
                     if (b.score !== a.score) return b.score - a.score;
-                    return (b.good + b.bad) - (a.good + a.bad); // Secondary sort by total votes
+                    return (b.good + b.bad) - (a.good + a.bad);
                 })
-                .slice(0, 5); // Show top 5
+                .slice(0, 5);
 
-            // Top Bad Words (High negative score, sorted by score (ascending for badness) then total votes)
             const topBad = [...rankedWords]
                 .filter(w => w.score < 0)
                 .sort((a, b) => {
-                    if (a.score !== b.score) return a.score - b.score; // Sort negative scores ascending
-                    return (b.good + b.bad) - (a.good + a.bad); // Secondary sort by total votes
+                    if (a.score !== b.score) return a.score - b.score;
+                    return (b.good + b.bad) - (a.good + a.bad);
                 })
-                .slice(0, 5); // Show top 5
+                .slice(0, 5);
 
             renderRankings(goodRankingsDiv, topGood, 'good');
             renderRankings(badRankingsDiv, topBad, 'bad');
@@ -436,8 +382,6 @@
             });
         }
 
-        // --- Modal Functions ---
-
         function showModal() {
             submissionModal.classList.remove('hidden');
             submissionModal.classList.add('flex');
@@ -461,7 +405,6 @@
             modalMessage.textContent = "Submitting...";
 
             try {
-                // POST to the API_BASE_URL (which is '/api/words')
                 const response = await fetch(API_BASE_URL, { 
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -472,7 +415,6 @@
                 
                 if (response.status === 201) {
                     modalMessage.textContent = "Success! Word added to the pool.";
-                    // Wait a moment before closing and refreshing
                     setTimeout(() => {
                         hideModal();
                         fetchWords();
@@ -489,7 +431,6 @@
             }
         }
 
-        // Start the application
         window.onload = init;
 
     </script>
