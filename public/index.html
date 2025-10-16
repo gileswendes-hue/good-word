@@ -4,447 +4,368 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GOOD WORD / BAD WORD</title>
-    <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
-        /* Custom Font */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
-        
-        /* Basic styling for the body */
-        body {
-            font-family: 'Inter', sans-serif;
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        .card { backdrop-filter: blur(10px); background-color: rgba(255, 255, 255, 0.9); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); }
+        .good-button { background: linear-gradient(145deg, #10b981, #059669); }
+        .bad-button { background: linear-gradient(145deg, #ef4444, #dc2626); }
+        button { transition: transform 0.1s ease, box-shadow 0.1s ease; }
+        button:active { transform: scale(0.98); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); }
+        /* Style for the version indicator */
+        .version-indicator { 
+            position: fixed; 
+            bottom: 5px; 
+            right: 5px; 
+            font-size: 0.75rem; 
+            color: #9ca3af; 
+            z-index: 50; 
         }
-        
-        /* Custom scrollbar for message box */
-        #messageBox::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        #messageBox::-webkit-scrollbar-thumb {
-            background: #d1d5db;
-            border-radius: 3px;
-        }
-
-        /* Keyframes for a subtle card entrance animation */
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px) scale(0.95);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0) scale(1);
-            }
-        }
-
-        .word-card {
-            animation: slideIn 0.3s ease-out;
+        /* Mobile adjustments for ranking text */
+        @media (max-width: 640px) {
+            .rank-item { font-size: 0.8rem; }
+            .vote-counts { font-size: 0.875rem; }
         }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-4 font-inter">
+<body class="flex flex-col items-center justify-center min-h-screen p-4">
 
-    <!-- Main Game Container -->
-    <div class="w-full max-w-lg mx-auto">
-        <h1 class="text-4xl font-bold text-center text-gray-800 mb-6 tracking-tight">
-            GOOD WORD / BAD WORD
-        </h1>
-        
-        <!-- Stats and Rankings Card -->
-        <div class="bg-white p-6 rounded-xl shadow-lg mb-8 transition-all duration-300">
-            <div class="flex justify-between items-center mb-4">
-                <span class="text-sm font-medium text-green-600 flex items-center">
-                    Total Good Votes: <span id="totalGoodVotes" class="ml-1 font-bold text-lg">0</span>
-                </span>
-                <span class="text-sm font-medium text-red-600 flex items-center">
-                    Total Bad Votes: <span id="totalBadVotes" class="ml-1 font-bold text-lg">0</span>
-                </span>
-            </div>
-
-            <div id="rankingContainer" class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                <!-- Rankings will be injected here -->
-            </div>
+    <!-- Title and Stats Card -->
+    <header class="text-center mb-8 w-full max-w-lg">
+        <h1 class="text-5xl font-black text-gray-800 tracking-tight">GOOD WORD / BAD WORD</h1>
+        <div class="mt-4 flex justify-around p-3 rounded-xl bg-white shadow-md vote-counts">
+            <div id="goodTotal" class="text-xl font-bold text-green-600">GOOD: 0</div>
+            <div id="badTotal" class="text-xl font-bold text-red-600">BAD: 0</div>
         </div>
+    </header>
 
-        <!-- Word Card Area -->
-        <div id="wordCardArea" class="word-card bg-white p-8 rounded-2xl shadow-2xl transition-all duration-300 transform min-h-[250px] flex flex-col justify-center items-center">
-            <div id="wordDisplay" class="text-5xl font-extrabold text-gray-900 mb-8 text-center min-h-[60px] flex items-center justify-center">
-                <!-- Word will be injected here -->
-            </div>
-            
-            <div class="flex space-x-4 w-full justify-center">
-                <button id="goodButton" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-xl shadow-md transition-all duration-200 transform hover:scale-105 active:scale-95 text-lg disabled:opacity-50" disabled>
-                    GOOD WORD
-                </button>
-                <button id="badButton" class="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-xl shadow-md transition-all duration-200 transform hover:scale-105 active:scale-95 text-lg disabled:opacity-50" disabled>
-                    BAD WORD
-                </button>
-            </div>
-            <p id="voteMessage" class="mt-4 text-sm text-gray-600 italic h-4"></p>
+    <!-- Main Voting Card -->
+    <main id="gameCard" class="card p-8 w-full max-w-sm flex flex-col items-center rounded-2xl">
+        <div id="wordDisplay" class="text-6xl font-extrabold text-gray-900 mb-8 text-center min-h-[72px]">
+            Loading...
         </div>
-        
-        <!-- Custom Word Submission Button -->
-        <button id="submitWordBtn" class="w-full mt-6 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-xl shadow-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]">
-            Submit Custom Word
-        </button>
-    </div>
-
-    <!-- Message/Error Modal -->
-    <div id="messageModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-        <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full">
-            <h3 id="messageTitle" class="text-xl font-bold mb-3 text-gray-800"></h3>
-            <p id="messageContent" class="text-gray-600 mb-6"></p>
-            <button id="messageCloseBtn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 rounded-lg transition-all duration-200">
-                Close
+        <div class="flex space-x-4 w-full">
+            <button id="goodButton" class="good-button flex-1 py-4 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-green-500/50" disabled>
+                Good Word
+            </button>
+            <button id="badButton" class="bad-button flex-1 py-4 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-red-500/50" disabled>
+                Bad Word
             </button>
         </div>
-    </div>
+        <button id="customWordButton" class="mt-4 text-sm text-gray-600 hover:text-gray-900 transition duration-150">
+            Submit Custom Word
+        </button>
+    </main>
 
-    <!-- Custom Word Submission Modal -->
-    <div id="submissionModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-        <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full">
-            <h3 class="text-xl font-bold mb-4 text-gray-800">Suggest a Word</h3>
-            <input type="text" id="newWordInput" class="w-full p-3 border border-gray-300 rounded-lg mb-4 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter your word here">
-            <div class="flex space-x-3">
-                <button id="submitNewWordBtn" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-2 rounded-lg transition-all duration-200">
-                    Submit
-                </button>
-                <button id="closeSubmissionModalBtn" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 rounded-lg transition-all duration-200">
+    <!-- Rankings Section -->
+    <section class="mt-8 w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8">
+        <!-- Good Rankings -->
+        <div class="card p-6 rounded-xl">
+            <h2 class="text-xl font-bold text-green-700 mb-4 border-b pb-2">Top Good Words (Good > Bad)</h2>
+            <div id="goodRankings" class="space-y-2">
+                <p class="text-gray-500">No data yet.</p>
+            </div>
+        </div>
+        <!-- Bad Rankings -->
+        <div class="card p-6 rounded-xl">
+            <h2 class="text-xl font-bold text-red-700 mb-4 border-b pb-2">Top Bad Words (Bad > Good)</h2>
+            <div id="badRankings" class="space-y-2">
+                <p class="text-gray-500">No data yet.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Custom Word Submission Modal (Hidden by default) -->
+    <div id="submissionModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white p-6 rounded-xl w-full max-w-md shadow-2xl">
+            <h2 class="text-2xl font-bold mb-4">Submit a New Word</h2>
+            <input type="text" id="newWordInput" placeholder="Enter your word here..." class="w-full p-3 border border-gray-300 rounded-lg mb-4 focus:ring-2 focus:ring-indigo-500">
+            <div id="modalMessage" class="text-sm text-red-500 mb-4"></div>
+            <div class="flex justify-end space-x-3">
+                <button id="cancelSubmitButton" class="px-4 py-2 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 transition">
                     Cancel
+                </button>
+                <button id="submitWordButton" class="px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition">
+                    Submit Word
                 </button>
             </div>
         </div>
     </div>
-    
-    <!-- Version Control Element (hidden at the bottom right) -->
-    <div id="version-info" class="fixed bottom-0 right-0 p-1 text-xs text-gray-400 opacity-50 z-50 pointer-events-none"></div>
+
+    <!-- Version Indicator -->
+    <div class="version-indicator">
+        v1.0.5
+    </div>
 
     <script>
-        // --- Configuration ---
-        // REPLACE THIS with your deployed Render API URL, e.g., 'https://your-game-api.onrender.com/api/words'
-        const API_BASE_URL = 'http://localhost:3000/api/words';
-        
-        // UNIQUE ID: This prevents one user from voting multiple times on the same word.
-        // It should persist for a single user session/browser.
-        let userId = localStorage.getItem('goodBadWordUserId');
-        if (!userId) {
-            userId = crypto.randomUUID();
-            localStorage.setItem('goodBadWordUserId', userId);
-        }
-        
-        // TESTING VERSION: Used for testing deployments.
-        const APP_VERSION = '1.0.3'; 
+        // --- IMPORTANT: RENDER API URL CONFIGURATION ---
+        // REPLACE THE PLACEHOLDER BELOW WITH YOUR LIVE RENDER SERVICE URL
+        const API_BASE_URL = 'https://good-word.onrender.com/api/words';
+        const APP_VERSION = '1.0.5';
 
-        // --- State Variables ---
-        let currentWords = [];
-        let currentIndex = -1;
-        let isFetching = false;
-        
+        // --- Global State ---
+        let allWords = [];
+        let currentWordIndex = 0;
+        let userId = localStorage.getItem('userId');
+
         // --- DOM Elements ---
         const wordDisplay = document.getElementById('wordDisplay');
         const goodButton = document.getElementById('goodButton');
         const badButton = document.getElementById('badButton');
-        const totalGoodVotesEl = document.getElementById('totalGoodVotes');
-        const totalBadVotesEl = document.getElementById('totalBadVotes');
-        const rankingContainer = document.getElementById('rankingContainer');
-        const voteMessageEl = document.getElementById('voteMessage');
-
-        // Modals and Submission
-        const messageModal = document.getElementById('messageModal');
-        const messageTitle = document.getElementById('messageTitle');
-        const messageContent = document.getElementById('messageContent');
-        const messageCloseBtn = document.getElementById('messageCloseBtn');
+        const goodTotal = document.getElementById('goodTotal');
+        const badTotal = document.getElementById('badTotal');
+        const goodRankingsDiv = document.getElementById('goodRankings');
+        const badRankingsDiv = document.getElementById('badRankings');
         const submissionModal = document.getElementById('submissionModal');
-        const submitWordBtn = document.getElementById('submitWordBtn');
         const newWordInput = document.getElementById('newWordInput');
-        const submitNewWordBtn = document.getElementById('submitNewWordBtn');
-        const closeSubmissionModalBtn = document.getElementById('closeSubmissionModalBtn');
+        const modalMessage = document.getElementById('modalMessage');
+        const submitWordButton = document.getElementById('submitWordButton');
+        const cancelSubmitButton = document.getElementById('cancelSubmitButton');
+        const customWordButton = document.getElementById('customWordButton');
+        const versionIndicator = document.querySelector('.version-indicator');
         
+        // --- Initialization ---
+        function init() {
+            if (!userId) {
+                // Generate a simple UUID if user doesn't have one (for unique vote tracking)
+                userId = crypto.randomUUID();
+                localStorage.setItem('userId', userId);
+            }
+            versionIndicator.textContent = `v${APP_VERSION}`;
+            
+            // Set up event listeners
+            goodButton.addEventListener('click', () => submitVote('good'));
+            badButton.addEventListener('click', () => submitVote('bad'));
+            customWordButton.addEventListener('click', () => showModal());
+            cancelSubmitButton.addEventListener('click', () => hideModal());
+            submitWordButton.addEventListener('click', submitCustomWord);
+
+            // Fetch initial data
+            fetchWords();
+        }
+
         // --- Utility Functions ---
 
-        /**
-         * Custom alert replacement using the modal for visibility in an iframe.
-         */
-        function showMessage(title, message) {
-            messageTitle.textContent = title;
-            messageContent.textContent = message;
-            messageModal.classList.remove('hidden');
-            messageModal.classList.add('flex');
+        function showMessage(text, isError = false) {
+            wordDisplay.textContent = text;
+            wordDisplay.className = `text-4xl font-bold text-center mb-8 min-h-[72px] ${isError ? 'text-red-500' : 'text-gray-500'}`;
+            goodButton.disabled = true;
+            badButton.disabled = true;
         }
 
-        function closeMessage() {
-            messageModal.classList.add('hidden');
-            messageModal.classList.remove('flex');
-        }
-
-        function showSubmissionModal() {
-            submissionModal.classList.remove('hidden');
-            submissionModal.classList.add('flex');
-            newWordInput.value = '';
-        }
-
-        function closeSubmissionModal() {
-            submissionModal.classList.add('hidden');
-            submissionModal.classList.remove('flex');
-        }
-
-        /**
-         * Fetch wrapper with exponential backoff for API robustness.
-         */
-        async function fetchWithRetry(url, options = {}, maxRetries = 3) {
-            for (let i = 0; i < maxRetries; i++) {
-                try {
-                    const response = await fetch(url, options);
-                    if (!response.ok) {
-                        const errorData = await response.json().catch(() => ({ message: `HTTP error! Status: ${response.status}` }));
-                        throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
-                    }
-                    return response;
-                } catch (error) {
-                    if (i === maxRetries - 1) {
-                        throw error;
-                    }
-                    const delay = Math.pow(2, i) * 1000;
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                }
-            }
-        }
-
-        // --- Game Logic ---
-
-        /**
-         * Fetches words from the backend, updates UI state, and calculates rankings.
-         */
-        async function fetchWords() {
-            if (isFetching) return;
-            isFetching = true;
-            try {
-                const response = await fetchWithRetry(API_BASE_URL);
-                const words = await response.json();
-                
-                // Filter for active words and ensure we have some to display
-                currentWords = words.filter(word => word.isActive);
-                
-                if (currentWords.length === 0) {
-                    wordDisplay.textContent = 'No active words found!';
-                    disableVoting(true);
-                    return;
-                }
-
-                updateStatsAndRankings(currentWords);
-                nextWord(); // Move to the next word after fetching
-
-            } catch (error) {
-                console.error('Failed to fetch game state:', error);
-                showMessage('Connection Error', `Could not connect to the backend API: ${error.message}. Please check your Render deployment.`);
-            } finally {
-                isFetching = false;
-            }
-        }
-
-        /**
-         * Cycles to the next word in the list and updates the display.
-         */
-        function nextWord() {
-            if (currentWords.length === 0) {
+        function displayCurrentWord() {
+            if (allWords.length === 0) {
+                showMessage("No words available! Try submitting one.", false);
                 return;
             }
             
-            currentIndex = (currentIndex + 1) % currentWords.length;
-            const word = currentWords[currentIndex];
-            wordDisplay.textContent = word.text.toUpperCase();
-            
-            // Re-enable voting buttons (they are disabled immediately after a vote)
-            disableVoting(false);
-            voteMessageEl.textContent = 'Vote!';
+            // Cycle through words using the index
+            const currentWord = allWords[currentWordIndex];
+            wordDisplay.textContent = currentWord.text.toUpperCase();
+            wordDisplay.className = 'text-6xl font-extrabold text-gray-900 mb-8 text-center min-h-[72px]';
+            goodButton.disabled = false;
+            badButton.disabled = false;
         }
 
-        /**
-         * Sends the vote to the backend API.
-         * @param {string} voteType 'good' or 'bad'.
-         */
-        async function sendVote(voteType) {
-            if (currentIndex === -1 || isFetching) return;
+        function nextWord() {
+            currentWordIndex = (currentWordIndex + 1) % allWords.length;
+            displayCurrentWord();
+        }
 
-            const word = currentWords[currentIndex];
-            const url = `${API_BASE_URL}/${word._id}/vote`;
-            
-            disableVoting(true);
-            voteMessageEl.textContent = 'Recording vote...';
+        // --- Fetch & Data Functions ---
 
+        async function fetchWords() {
             try {
-                const response = await fetchWithRetry(url, {
+                showMessage("Loading words...", false);
+                const response = await fetch(API_BASE_URL);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                allWords = await response.json();
+                
+                if (allWords.length > 0) {
+                    updateStatsAndRankings();
+                    displayCurrentWord();
+                } else {
+                    showMessage("No words available! Try submitting one.", false);
+                }
+
+            } catch (error) {
+                console.error('Error fetching words:', error);
+                showMessage("Connection Error. Check your API URL.", true);
+            }
+        }
+
+        async function submitVote(voteType) {
+            const currentWord = allWords[currentWordIndex];
+            if (!currentWord) return;
+
+            goodButton.disabled = true;
+            badButton.disabled = true;
+            
+            // We use a simplified check here, but the backend performs the definitive check
+            const wordId = currentWord._id;
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/${wordId}/vote`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ voteType, userId })
                 });
 
-                // Update the current word object locally with the response data (optional but good practice)
-                const result = await response.json(); 
-                
-                // Success feedback
-                const message = voteType === 'good' ? 'Nice! Vote recorded.' : 'Ouch! Vote recorded.';
-                voteMessageEl.textContent = message;
+                const result = await response.json();
 
-                // After a short delay, move to the next word
-                setTimeout(() => {
-                    fetchWords(); // Refresh all data to get latest stats
-                }, 800);
-
-            } catch (error) {
-                // Check for 403 Forbidden error (user already voted)
-                if (error.message && error.message.includes('403')) {
-                    showMessage('Already Voted', `You've already cast your vote on "${word.text.toUpperCase()}".`);
+                if (response.status === 403) {
+                    showMessage("You've already voted on this word!", true);
+                } else if (!response.ok) {
+                    throw new Error(result.message || "Failed to register vote.");
                 } else {
-                    showMessage('Vote Error', `Failed to register vote: ${error.message}`);
-                }
-                
-                // In case of error, re-enable buttons and move on
-                setTimeout(() => {
-                    disableVoting(false);
+                    // Vote successful, update local word list optimistically before refetching
+                    if (voteType === 'good') {
+                        currentWord.goodVotes++;
+                    } else {
+                        currentWord.badVotes++;
+                    }
+                    // Since the backend doesn't support real-time updates (like Firestore),
+                    // we re-fetch all data to update rankings accurately for all users.
+                    setTimeout(fetchWords, 500); // Small delay for server processing
+
+                    // Move to the next word immediately
                     nextWord();
-                }, 2000); 
+                }
+            } catch (error) {
+                console.error('Error submitting vote:', error);
+                showMessage("Vote failed. Try again.", true);
+                // Re-enable buttons if there was an error
+                goodButton.disabled = false;
+                badButton.disabled = false;
             }
         }
-        
-        /**
-         * Disables or enables the main voting buttons.
-         * @param {boolean} disabled
-         */
-        function disableVoting(disabled) {
-            goodButton.disabled = disabled;
-            badButton.disabled = disabled;
+
+        function updateStatsAndRankings() {
+            if (allWords.length === 0) return;
+
+            // Calculate Totals
+            const totalGood = allWords.reduce((sum, w) => sum + w.goodVotes, 0);
+            const totalBad = allWords.reduce((sum, w) => sum + w.badVotes, 0);
+            goodTotal.textContent = `GOOD: ${totalGood}`;
+            badTotal.textContent = `BAD: ${totalBad}`;
+
+            // Calculate Rankings (Simple Scoring: Difference between good and bad votes)
+            const rankedWords = allWords.map(w => ({
+                text: w.text,
+                good: w.goodVotes,
+                bad: w.badVotes,
+                score: w.goodVotes - w.badVotes
+            }));
+
+            // Top Good Words (High positive score, sorted by score then total votes)
+            const topGood = [...rankedWords]
+                .filter(w => w.score > 0)
+                .sort((a, b) => {
+                    if (b.score !== a.score) return b.score - a.score;
+                    return (b.good + b.bad) - (a.good + a.bad); // Secondary sort by total votes
+                })
+                .slice(0, 5); // Show top 5
+
+            // Top Bad Words (High negative score, sorted by score (ascending for badness) then total votes)
+            const topBad = [...rankedWords]
+                .filter(w => w.score < 0)
+                .sort((a, b) => {
+                    if (a.score !== b.score) return a.score - b.score; // Sort negative scores ascending
+                    return (b.good + b.bad) - (a.good + a.bad); // Secondary sort by total votes
+                })
+                .slice(0, 5); // Show top 5
+
+            renderRankings(goodRankingsDiv, topGood, 'good');
+            renderRankings(badRankingsDiv, topBad, 'bad');
         }
 
-        /**
-         * Renders the total votes and the top-ranked words.
-         * @param {Array} words The full list of words from the backend.
-         */
-        function updateStatsAndRankings(words) {
-            let totalGood = 0;
-            let totalBad = 0;
-            
-            words.forEach(word => {
-                totalGood += word.goodVotes;
-                totalBad += word.badVotes;
+        function renderRankings(container, list, type) {
+            container.innerHTML = '';
+            if (list.length === 0) {
+                container.innerHTML = `<p class="text-gray-500">${type === 'good' ? 'No clear winners yet.' : 'No clear losers yet.'}</p>`;
+                return;
+            }
+
+            list.forEach((word, index) => {
+                const item = document.createElement('div');
+                item.className = 'flex justify-between items-center py-1 rank-item';
+                
+                const scoreIndicator = type === 'good' 
+                    ? `<span class="text-xs text-white bg-green-500 px-2 rounded-full font-bold">${word.score}</span>`
+                    : `<span class="text-xs text-white bg-red-500 px-2 rounded-full font-bold">${Math.abs(word.score)}</span>`;
+                
+                item.innerHTML = `
+                    <div class="flex items-center space-x-2">
+                        <span class="font-bold text-lg w-5 text-center text-gray-500">${index + 1}.</span>
+                        <span class="font-medium text-gray-800">${word.text.toUpperCase()}</span>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        ${scoreIndicator}
+                        <span class="text-sm text-gray-600">(${word.good} / ${word.bad})</span>
+                    </div>
+                `;
+                container.appendChild(item);
             });
-            
-            totalGoodVotesEl.textContent = totalGood.toLocaleString();
-            totalBadVotesEl.textContent = totalBad.toLocaleString();
-
-            // Calculate Rankings (Simple ranking based on margin/bias)
-            const rankedWords = words.map(word => ({
-                text: word.text,
-                good: word.goodVotes,
-                bad: word.badVotes,
-                netScore: word.goodVotes - word.badVotes,
-                total: word.goodVotes + word.badVotes
-            })).filter(word => word.total > 0); // Only show ranked words with votes
-
-            // Top Good Words (High positive net score)
-            const topGood = rankedWords
-                .filter(w => w.netScore > 0)
-                .sort((a, b) => b.netScore - a.netScore)
-                .slice(0, 5);
-
-            // Top Bad Words (High negative net score)
-            const topBad = rankedWords
-                .filter(w => w.netScore < 0)
-                .sort((a, b) => a.netScore - b.netScore)
-                .slice(0, 5);
-
-
-            rankingContainer.innerHTML = `
-                <div>
-                    <h4 class="font-bold text-green-700 mb-2 border-b border-green-200 pb-1">🏆 Top Good Words</h4>
-                    <ul class="space-y-1">
-                        ${topGood.length > 0 ? topGood.map((w, i) => 
-                            `<li class="flex justify-between items-center">${i + 1}. ${w.text} <span class="font-medium text-green-600">(${w.good})</span></li>`
-                        ).join('') : '<li class="text-gray-500">No data yet.</li>'}
-                    </ul>
-                </div>
-                <div>
-                    <h4 class="font-bold text-red-700 mb-2 border-b border-red-200 pb-1">💀 Top Bad Words</h4>
-                    <ul class="space-y-1">
-                        ${topBad.length > 0 ? topBad.map((w, i) => 
-                            `<li class="flex justify-between items-center">${i + 1}. ${w.text} <span class="font-medium text-red-600">(${w.bad})</span></li>`
-                        ).join('') : '<li class="text-gray-500">No data yet.</li>'}
-                    </ul>
-                </div>
-            `;
         }
 
-        // --- Submission Logic ---
+        // --- Modal Functions ---
 
-        /**
-         * Sends a new word suggestion to the backend.
-         */
-        async function submitNewWord() {
-            const wordText = newWordInput.value.trim();
+        function showModal() {
+            submissionModal.classList.remove('hidden');
+            submissionModal.classList.add('flex');
+            newWordInput.value = '';
+            modalMessage.textContent = '';
+        }
 
-            if (!wordText) {
-                return showMessage('Missing Word', 'Please enter a word to submit.');
+        function hideModal() {
+            submissionModal.classList.remove('flex');
+            submissionModal.classList.add('hidden');
+        }
+
+        async function submitCustomWord() {
+            const text = newWordInput.value.trim();
+            if (!text) {
+                modalMessage.textContent = "Please enter a word.";
+                return;
             }
-            if (wordText.includes(' ') || wordText.length > 20) {
-                 return showMessage('Invalid Word', 'Word must be single-word and less than 20 characters.');
-            }
-            
-            closeSubmissionModal();
-            showMessage('Submitting...', `Attempting to add "${wordText}"...`);
+
+            submitWordButton.disabled = true;
+            modalMessage.textContent = "Submitting...";
 
             try {
-                await fetchWithRetry(API_BASE_URL, {
+                const response = await fetch(API_BASE_URL.replace('/api/words', '/api/words'), { // POST to /api/words
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text: wordText })
+                    body: JSON.stringify({ text })
                 });
 
-                showMessage('Success!', `"${wordText}" has been submitted for approval and will appear soon.`);
-                fetchWords(); // Refresh the list to potentially include the new word immediately
+                const result = await response.json();
+                
+                if (response.status === 201) {
+                    modalMessage.textContent = "Success! Word added to the pool.";
+                    // Wait a moment before closing and refreshing
+                    setTimeout(() => {
+                        hideModal();
+                        fetchWords();
+                    }, 1000);
+                } else {
+                    modalMessage.textContent = result.message || "Failed to submit word due to an unknown error.";
+                }
 
             } catch (error) {
-                if (error.message && error.message.includes('409')) {
-                     showMessage('Duplicate Word', `The word "${wordText}" is already in the system.`);
-                } else {
-                    showMessage('Submission Error', `Failed to submit word: ${error.message}`);
-                }
-            }
-        }
-        
-        /**
-         * Displays the current version number in the footer.
-         */
-        function displayVersion() {
-            const versionEl = document.getElementById('version-info');
-            if (versionEl) {
-                versionEl.textContent = `v${APP_VERSION}`;
+                console.error('Error submitting custom word:', error);
+                modalMessage.textContent = "A network error occurred.";
+            } finally {
+                submitWordButton.disabled = false;
             }
         }
 
-
-        // --- Event Listeners and Initialization ---
-
-        function init() {
-            // Setup buttons
-            goodButton.addEventListener('click', () => sendVote('good'));
-            badButton.addEventListener('click', () => sendVote('bad'));
-            
-            // Setup modals
-            messageCloseBtn.addEventListener('click', closeMessage);
-            submitWordBtn.addEventListener('click', showSubmissionModal);
-            closeSubmissionModalBtn.addEventListener('click', closeSubmissionModal);
-            submitNewWordBtn.addEventListener('click', submitNewWord);
-            
-            // Initial data load and periodic refresh
-            fetchWords(); // <--- FIX: Added parenthesis and semicolon
-            // Refresh game state every 10 seconds to keep stats and rankings current
-            setInterval(fetchWords, 10000); 
-            
-            // Display testing version
-            displayVersion();
-        }
-
+        // Start the application
         window.onload = init;
+
     </script>
 </body>
 </html>
