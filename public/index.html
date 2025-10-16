@@ -27,10 +27,13 @@
         .not-word-button { background: linear-gradient(145deg, #64748b, #475569); }
         button { transition: transform 0.1s ease, box-shadow 0.1s ease; }
         button:active { transform: scale(0.98); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); }
+        
+        /* Centered Version Indicator */
         .version-indicator { 
             position: fixed; 
             bottom: 5px; 
-            right: 5px; 
+            left: 50%; /* Start at the center */
+            transform: translateX(-50%); /* Shift back half its width to truly center */
             font-size: 0.75rem; 
             color: #9ca3af; 
             z-index: 50; 
@@ -51,8 +54,8 @@
                 alt="Good Word / Bad Word Logo with Rainbow and Devil" 
                 class="h-full w-auto max-w-full"
             >
-            <!-- New Award Badge Positioning -->
-            <div id="awardBadge" class="absolute top-0 right-0 p-2 transform -translate-y-1/2 translate-x-1/2 cursor-help text-3xl">
+            <!-- Award Badge (Positioning adjusted: top-2 right-2 instead of top-0 right-0 and half-translate) -->
+            <div id="awardBadge" class="absolute top-2 right-2 p-2 cursor-help text-3xl">
                 <!-- Content injected by JS -->
             </div>
         </div>
@@ -118,12 +121,12 @@
 
     <!-- Version Indicator -->
     <div class="version-indicator">
-        v3.0.17 | Made by Gilxs in 12,025
+        v3.0.18 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.0.18'; // Incrementing version
+        const APP_VERSION = '3.0.19'; // Incrementing version
 
         let allWords = [];
         let currentWordIndex = 0;
