@@ -1,15 +1,25 @@
 {
-  "name": "good-word-game-backend",
-  "version": "1.0.0",
-  "description": "Backend for GOOD WORD / BAD WORD game using Node.js, Express, and MongoDB.",
-  "main": "server.js",
+  "name": "good-word-bad-word-api",
+  "version": "1.0.3",
+  "description": "Backend API for the Good Word / Bad Word Game.",
+  
+  "main": "index.js",
+  
   "scripts": {
-    "start": "node server.js",  // <-- RENDER NEEDS THIS LINE
+    "start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "keywords": [
+    "node",
+    "express",
+    "api"
+  ],
+  "author": "",
+  "license": "ISC",
   "dependencies": {
-    "cors": "^2.8.5",
-    "express": "^4.18.2",
-    "mongoose": "^8.0.3"
+    "express": "^4.19.2",
+    "mongodb": "^6.8.0",
+    "cors": "^2.8.5"
+    // Add your other dependencies here (e.g., mongoose, dotenv)
   }
 }
