@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const path = require('path'); // ADDED: Required for serving static files
 require('dotenv').config(); // Use environment variables for sensitive info
 
 // --- 1. CONFIGURATION ---
@@ -12,6 +13,9 @@ const MONGO_URI = process.env.MONGO_URI; // Make sure to set this in your Render
 // Middleware
 app.use(cors()); // Allows the frontend (your HTML file) to make requests
 app.use(express.json()); // Parses incoming JSON payloads
+// NEW: Serve static files (like index.html) from the 'public' directory
+// NOTE: You must ensure your index.html is in a folder named 'public'
+app.use(express.static(path.join(__dirname, 'public'))); 
 
 // --- 2. DATABASE CONNECTION ---
 
@@ -119,8 +123,6 @@ router.put('/:id/vote', async (req, res) => {
 
         // Check if the word is now invalid (>= 3 'notWord' votes)
         if (updatedWord.notWordVotes >= 3) {
-            // Optional: You could add logic here to archive or delete the word, 
-            // but the frontend handles filtering it out for now.
             console.log(`Word "${updatedWord.text}" has been flagged as "Not a word!" and will be filtered by the frontend.`);
         }
 
@@ -135,9 +137,9 @@ router.put('/:id/vote', async (req, res) => {
 // Attach the router to the main app
 app.use('/api/words', router);
 
-// Basic root path for health check
+// The root path (/) now serves the frontend application
 app.get('/', (req, res) => {
-    res.send('GOOD WORD / BAD WORD API is running.');
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // --- 5. START SERVER ---
