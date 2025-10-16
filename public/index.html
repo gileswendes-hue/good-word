@@ -141,6 +141,13 @@
         let allWords = [];
         let currentWordIndex = 0;
         let userId = localStorage.getItem('userId');
+        
+        // NEW RATE LIMITING STATE
+        let voteStreak = 0;
+        const MASH_LIMIT = 10; // Max votes allowed in a row
+        const COOLDOWN_SECONDS = 10;
+        let cooldownTimer = null;
+        let isCoolingDown = false;
 
         // --- DOM Elements ---
         const wordDisplay = document.getElementById('wordDisplay');
@@ -166,7 +173,8 @@
                 userId = crypto.randomUUID();
                 localStorage.setItem('userId', userId);
             }
-            versionIndicator.textContent = `v${APP_VERSION}`;
+            // EDITED: Appended the custom developer message to the version indicator text
+            versionIndicator.textContent = `v${APP_VERSION} | Made by Gilxs in 12,025`;
             
             // Set up event listeners
             goodButton.addEventListener('click', () => submitVote('good'));
@@ -188,6 +196,15 @@
             goodButton.disabled = true;
             badButton.disabled = true;
             notWordButton.disabled = true; // NEW
+        }
+        
+        // Function to handle the cooldown countdown message
+        function showCooldownMessage(remainingSeconds) {
+            wordDisplay.textContent = `Button mashing will not be tolerated. Wait ${remainingSeconds}s...`;
+            wordDisplay.className = 'text-4xl font-bold text-red-600 mb-8 text-center min-h-[72px]';
+            goodButton.disabled = true;
+            badButton.disabled = true;
+            notWordButton.disabled = true;
         }
 
         function displayCurrentWord() {
@@ -260,13 +277,54 @@
         }
 
         async function submitVote(voteType) {
+            // Check if the user is currently in a cooldown period
+            if (isCoolingDown) {
+                // If yes, recalculate remaining time and display the countdown message
+                const remaining = Math.ceil((cooldownEndTime - Date.now()) / 1000);
+                showCooldownMessage(remaining > 0 ? remaining : 0);
+                return;
+            }
+
+            // --- Button Mashing Check (before API call) ---
+            if (voteStreak >= MASH_LIMIT) {
+                isCoolingDown = true;
+                voteStreak = 0; // Reset streak for next time
+                
+                let remaining = COOLDOWN_SECONDS;
+                const cooldownEndTime = Date.now() + COOLDOWN_SECONDS * 1000;
+
+                showCooldownMessage(remaining);
+
+                cooldownTimer = setInterval(() => {
+                    remaining--;
+                    if (remaining > 0) {
+                        showCooldownMessage(remaining);
+                    } else {
+                        // Cooldown is finished
+                        clearInterval(cooldownTimer);
+                        cooldownTimer = null;
+                        isCoolingDown = false;
+                        
+                        // Restore the game state
+                        if (allWords.length > 0) {
+                            displayCurrentWord();
+                        } else {
+                            fetchWords(); 
+                        }
+                    }
+                }, 1000);
+
+                return; // Halt execution and enforce cooldown
+            }
+            // ------------------------------------------------
+
             const currentWord = allWords[currentWordIndex];
             if (!currentWord) return;
 
             // Disable all vote buttons immediately
             goodButton.disabled = true;
             badButton.disabled = true;
-            notWordButton.disabled = true; // NEW
+            notWordButton.disabled = true; 
             
             const wordId = currentWord._id;
             
@@ -283,10 +341,15 @@
 
                 if (response.status === 403) {
                     showMessage("You've already voted on this word!", true);
+                    goodButton.disabled = false;
+                    badButton.disabled = false;
+                    notWordButton.disabled = false;
+                    voteStreak = 0; // Reset streak on a failed/blocked vote
                 } else if (!response.ok) {
                     throw new Error(result.message || "Failed to register vote.");
                 } else {
-                    // Vote successful:
+                    // Vote successful: INCREMENT STREAK
+                    voteStreak++; 
                     
                     // 1. Immediately switch to the next random word (instant visual feedback & re-enables buttons)
                     nextWord(); 
@@ -300,7 +363,8 @@
                 // Re-enable buttons if there was an error
                 goodButton.disabled = false;
                 badButton.disabled = false;
-                notWordButton.disabled = false; // NEW
+                notWordButton.disabled = false; 
+                voteStreak = 0; // Reset streak on network/server error
             }
         }
 
