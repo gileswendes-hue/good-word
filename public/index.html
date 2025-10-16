@@ -8,9 +8,24 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
-        .card { backdrop-filter: blur(10px); background-color: rgba(255, 255, 255, 0.9); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); }
+        /* --- UPDATED CARD STYLES --- */
+        .card { 
+            backdrop-filter: blur(10px); 
+            background-color: rgba(255, 255, 255, 0.95); /* Increased opacity */
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15); /* Stronger initial shadow */
+            border: 1px solid rgba(0, 0, 0, 0.05); /* Subtle border for definition */
+            transition: transform 0.2s ease-out, box-shadow 0.2s ease-out; /* Add transition for smoothness */
+        }
+        /* Style for the main voting card to make it "pop" on interaction */
+        #gameCard:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
+        }
+        /* --- END UPDATED CARD STYLES --- */
         .good-button { background: linear-gradient(145deg, #10b981, #059669); }
         .bad-button { background: linear-gradient(145deg, #ef4444, #dc2626); }
+        /* NEW: Style for Not a word! button */
+        .not-word-button { background: linear-gradient(145deg, #64748b, #475569); }
         button { transition: transform 0.1s ease, box-shadow 0.1s ease; }
         button:active { transform: scale(0.98); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); }
         /* Style for the version indicator */
@@ -45,7 +60,7 @@
         <div id="wordDisplay" class="text-6xl font-extrabold text-gray-900 mb-8 text-center min-h-[72px]">
             Loading...
         </div>
-        <div class="flex space-x-4 w-full">
+        <div class="flex space-x-4 w-full mb-3">
             <button id="goodButton" class="good-button flex-1 py-4 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-green-500/50" disabled>
                 Good Word
             </button>
@@ -53,6 +68,11 @@
                 Bad Word
             </button>
         </div>
+        <!-- NEW: Not a word! button -->
+        <button id="notWordButton" class="not-word-button w-full py-3 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-slate-500/50" disabled>
+            Not a word!
+        </button>
+        <!-- Custom Word Button is now below the new Not a Word button -->
         <button id="customWordButton" class="mt-4 text-sm text-gray-600 hover:text-gray-900 transition duration-150">
             Submit Custom Word
         </button>
@@ -95,13 +115,13 @@
 
     <!-- Version Indicator -->
     <div class="version-indicator">
-        v3.0.9
+        v3.0.11
     </div>
 
     <script>
         // --- IMPORTANT: RENDER API URL CONFIGURATION ---
         const API_BASE_URL = 'https://good-word.onrender.com/api/words';
-        const APP_VERSION = '3.0.9';
+        const APP_VERSION = '3.0.11';
 
         // --- Global State ---
         let allWords = [];
@@ -112,6 +132,7 @@
         const wordDisplay = document.getElementById('wordDisplay');
         const goodButton = document.getElementById('goodButton');
         const badButton = document.getElementById('badButton');
+        const notWordButton = document.getElementById('notWordButton'); // NEW ELEMENT
         const goodTotal = document.getElementById('goodTotal');
         const badTotal = document.getElementById('badTotal');
         const goodRankingsDiv = document.getElementById('goodRankings');
@@ -136,6 +157,7 @@
             // Set up event listeners
             goodButton.addEventListener('click', () => submitVote('good'));
             badButton.addEventListener('click', () => submitVote('bad'));
+            notWordButton.addEventListener('click', () => submitVote('notWord')); // NEW LISTENER
             customWordButton.addEventListener('click', () => showModal());
             cancelSubmitButton.addEventListener('click', () => hideModal());
             submitWordButton.addEventListener('click', submitCustomWord);
@@ -151,6 +173,7 @@
             wordDisplay.className = `text-4xl font-bold text-center mb-8 min-h-[72px] ${isError ? 'text-red-500' : 'text-gray-500'}`;
             goodButton.disabled = true;
             badButton.disabled = true;
+            notWordButton.disabled = true; // NEW
         }
 
         function displayCurrentWord() {
@@ -165,6 +188,7 @@
             wordDisplay.className = 'text-6xl font-extrabold text-gray-900 mb-8 text-center min-h-[72px]';
             goodButton.disabled = false;
             badButton.disabled = false;
+            notWordButton.disabled = false; // NEW
         }
 
         function nextWord() {
@@ -195,6 +219,12 @@
                 }
                 allWords = await response.json();
                 
+                // --- NEW: Filter out words marked as 'Not a word!' 3 or more times ---
+                // We assume the API returns 'notWordVotes' property. If it doesn't exist, we treat it as 0.
+                const availableWords = allWords.filter(w => (w.notWordVotes || 0) < 3);
+                allWords = availableWords;
+                // ------------------------------------------------------------------
+                
                 if (allWords.length > 0) {
                     updateStatsAndRankings(); // Always update rankings
                     
@@ -219,9 +249,10 @@
             const currentWord = allWords[currentWordIndex];
             if (!currentWord) return;
 
-            // Disable buttons immediately
+            // Disable all vote buttons immediately
             goodButton.disabled = true;
             badButton.disabled = true;
+            notWordButton.disabled = true; // NEW
             
             const wordId = currentWord._id;
             
@@ -253,6 +284,7 @@
                 // Re-enable buttons if there was an error
                 goodButton.disabled = false;
                 badButton.disabled = false;
+                notWordButton.disabled = false; // NEW
             }
         }
 
