@@ -1,164 +1,187 @@
+// --- Dependencies ---
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const fs = require('fs'); // Required to read the initial_words.txt file
+const fs = require('fs');
+const path = require('path');
+require('dotenv').config(); // If using a local .env file
 
-// --- Configuration & Initialization ---
+// --- Configuration ---
 const app = express();
 const PORT = process.env.PORT || 3000;
-
-// IMPORTANT: The MongoDB URI must be set as an environment variable in your Render service settings.
-const MONGODB_URI = process.env.MONGODB_URI; 
+const MONGODB_URI = process.env.MONGODB_URI;
 
 // Middleware
-// Enables CORS so your index.html hosted on one domain can talk to the Render API
-app.use(cors()); 
+// Enable CORS for all origins, allowing the front-end to communicate from any domain
+app.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
+// Serve static files (including index.html) from the 'public' directory
+app.use(express.static(path.join(__dirname, 'public')));
 
-// --- MongoDB Connection and Schema ---
 
-// 1. Define the Mongoose Schema for a Word
+// --- Database Connection ---
+mongoose.connect(MONGODB_URI)
+    .then(() => {
+        console.log('MongoDB connected successfully.');
+        seedInitialWords(); // Seed words after successful connection
+    })
+    .catch(err => {
+        console.error('MongoDB connection error:', err.message);
+        // Exit process if DB connection fails as the app is unusable without it
+        process.exit(1); 
+    });
+
+
+// --- Mongoose Schema & Model ---
 const wordSchema = new mongoose.Schema({
-    text: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    text: { type: String, required: true, unique: true },
     goodVotes: { type: Number, default: 0 },
     badVotes: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
-    // Store user IDs who have voted to prevent repeat voting
-    voters: { type: [String], default: [] }, 
+    voters: { type: [String], default: [] }, // Stores unique user IDs who have voted
     timestamp: { type: Date, default: Date.now }
 });
 
 const Word = mongoose.model('Word', wordSchema);
 
-// 2. Connect to MongoDB and Seed Initial Data
-if (!MONGODB_URI) {
-    console.error('FATAL ERROR: MONGODB_URI environment variable is not set.');
-}
 
-mongoose.connect(MONGODB_URI)
-    .then(() => {
-        console.log('MongoDB connected successfully.');
-        seedInitialWords();
-        // Start the server only after a successful database connection
-        app.listen(PORT, () => {
-            console.log(`Server is running on port ${PORT}`);
-        });
-    })
-    .catch(err => {
-        console.error('MongoDB connection error. Please check the MONGODB_URI and IP access list:', err);
-    });
-
-/**
- * Seeds the database with a list of words from initial_words.txt if the collection is empty.
- */
+// --- Initial Data Seeding ---
 async function seedInitialWords() {
     try {
         const count = await Word.countDocuments();
-        
         if (count === 0) {
-            console.log('Word collection is empty. Reading initial words from file...');
+            console.log('Database is empty. Seeding initial words...');
 
-            const filePath = './initial_words.txt';
+            const filePath = path.join(__dirname, 'initial_words.txt');
+            const fileContent = fs.readFileSync(filePath, 'utf8');
             
-            // Read the words from the separate text file synchronously during startup
-            const wordFileContent = fs.readFileSync(filePath, 'utf8');
-
-            // Split by newline, filter out empty/whitespace lines, and map to Mongoose objects
-            const initialWords = wordFileContent
-                .split('\n')
-                .map(word => word.trim())
-                .filter(word => word.length > 0)
-                .map(text => ({
-                    text: text.toLowerCase(),
-                    goodVotes: 0, 
-                    badVotes: 0
-                }));
+            // Split by newline, filter out empty lines, and map to Word objects
+            const initialWords = fileContent.split('\n')
+                .map(line => line.trim())
+                .filter(text => text.length > 0)
+                .map(text => ({ text: text, goodVotes: 0, badVotes: 0, isActive: true }));
 
             if (initialWords.length > 0) {
-                await Word.insertMany(initialWords);
+                await Word.insertMany(initialWords, { ordered: false });
                 console.log(`Successfully seeded ${initialWords.length} initial words.`);
             } else {
-                console.log('initial_words.txt was empty. Database remains empty.');
+                 console.log('initial_words.txt is empty or contains no valid words. Skipping seeding.');
             }
         } else {
-            console.log(`Word collection already contains ${count} words. Skipping seeding.`);
+            console.log(`Database already contains ${count} words. Skipping seeding.`);
         }
     } catch (error) {
-        // Catches file-reading errors (e.g., file not found) or database errors
-        console.error("Error during initial seeding (ensure initial_words.txt is in the root directory):", error.message);
+        if (error.code === 'ENOENT') {
+            console.error('Error: initial_words.txt not found. Cannot seed data.');
+        } else {
+            console.error('Error during initial data seeding:', error.message);
+        }
     }
 }
 
-// --- API ROUTES ---
 
-// 1. GET /api/words - Fetch all words for game state and rankings
+// --- API Routes ---
+
+/**
+ * GET /api/words
+ * Returns all active words with their vote counts and stats.
+ */
 app.get('/api/words', async (req, res) => {
     try {
-        // Fetch only active words and sort by timestamp (order of insertion)
-        const words = await Word.find({ isActive: true }).sort({ timestamp: 1 });
-        res.json(words); 
+        const words = await Word.find({ isActive: true }).select('text goodVotes badVotes _id');
+        res.json(words);
     } catch (err) {
-        console.error("Error fetching words:", err);
-        res.status(500).json({ message: 'Failed to fetch words' });
+        console.error("GET /api/words error:", err);
+        res.status(500).json({ message: "Failed to fetch words." });
     }
 });
 
-// 2. POST /api/words - Submit a new custom word
-app.post('/api/words', async (req, res) => {
-    const { text } = req.body;
-
-    if (!text || text.length < 2 || text.includes(' ')) {
-        return res.status(400).json({ message: 'Word must be 2+ characters and contain no spaces.' });
-    }
-
-    try {
-        const newWord = new Word({ text: text.toLowerCase() });
-        await newWord.save();
-        res.status(201).json(newWord);
-    } catch (err) {
-        // Handle duplicate key error (word already exists)
-        if (err.code === 11000) {
-            return res.status(409).json({ message: `The word "${text}" is already submitted.` });
-        }
-        console.error("Error submitting word:", err);
-        res.status(500).json({ message: 'Failed to submit word.' });
-    }
-});
-
-// 3. PUT /api/words/:wordId/vote - Register a vote
+/**
+ * PUT /api/words/:wordId/vote
+ * Registers a vote (good or bad) for a specific word, ensuring the user has not voted yet.
+ * Body: { voteType: 'good' | 'bad', userId: 'UUID' }
+ */
 app.put('/api/words/:wordId/vote', async (req, res) => {
     const { wordId } = req.params;
-    // Get vote type and the unique user ID generated by the front-end
-    const { voteType, userId } = req.body; 
+    const { voteType, userId } = req.body;
 
     if (!['good', 'bad'].includes(voteType) || !userId) {
-        return res.status(400).json({ message: 'Invalid vote data.' });
+        return res.status(400).json({ message: "Invalid voteType or missing userId." });
     }
 
     try {
         const word = await Word.findById(wordId);
-
         if (!word) {
-            return res.status(404).json({ message: 'Word not found.' });
+            return res.status(404).json({ message: "Word not found." });
         }
 
-        // Check if the user ID is already in the voters array to enforce one vote per user per word
+        // Check if the user has already voted
         if (word.voters.includes(userId)) {
-            return res.status(403).json({ message: 'User already voted on this word.' });
+            return res.status(403).json({ message: "User has already voted on this word." });
         }
 
+        // Update vote count and add user ID to voters array
         const updateField = voteType === 'good' ? 'goodVotes' : 'badVotes';
         
-        // Atomically increment the vote count and add the userId to prevent race conditions
-        const result = await Word.findByIdAndUpdate(wordId, {
-            $inc: { [updateField]: 1 },
-            $push: { voters: userId }
-        }, { new: true }); 
+        await Word.updateOne(
+            { _id: wordId },
+            { 
+                $inc: { [updateField]: 1 },
+                $push: { voters: userId }
+            }
+        );
 
-        res.json({ message: 'Vote registered successfully', word: result });
+        res.json({ message: `Vote counted for ${voteType}.` });
 
     } catch (err) {
-        console.error("Error processing vote:", err);
-        res.status(500).json({ message: 'Failed to register vote.' });
+        console.error(`PUT /api/words/${wordId}/vote error:`, err);
+        // Use 400 for bad request if it's a validation error, 500 for server error
+        res.status(500).json({ message: "Failed to register vote." });
     }
+});
+
+/**
+ * POST /api/words
+ * Allows users to submit a new custom word.
+ * Body: { text: 'new_word' }
+ */
+app.post('/api/words', async (req, res) => {
+    const { text } = req.body;
+    if (!text || text.trim().length === 0) {
+        return res.status(400).json({ message: "Word text cannot be empty." });
+    }
+
+    const newWordText = text.trim().toLowerCase();
+    
+    try {
+        const newWord = new Word({ 
+            text: newWordText,
+            goodVotes: 0,
+            badVotes: 0,
+            isActive: true
+        });
+
+        await newWord.save();
+        res.status(201).json({ 
+            message: "Word submitted successfully and added to the pool!",
+            word: newWord
+        });
+    } catch (err) {
+        // 11000 is the MongoDB error code for duplicate key (unique index)
+        if (err.code === 11000) {
+            return res.status(409).json({ message: `The word "${newWordText}" already exists.` });
+        }
+        console.error("POST /api/words error:", err);
+        res.status(500).json({ message: "Failed to submit word." });
+    }
+});
+
+
+// --- Server Start ---
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
 });
