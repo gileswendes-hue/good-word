@@ -45,12 +45,16 @@
 
     <!-- Title and Stats Card -->
     <header class="text-center mb-8 w-full max-w-lg">
-        <div id="logoArea" class="h-32 w-full flex items-center justify-center mb-4">
+        <div id="logoArea" class="h-32 w-full flex items-center justify-center mb-4 relative">
             <img 
                 src="logo.png" 
                 alt="Good Word / Bad Word Logo with Rainbow and Devil" 
                 class="h-full w-auto max-w-full"
             >
+            <!-- New Award Badge Positioning -->
+            <div id="awardBadge" class="absolute top-0 right-0 p-2 transform -translate-y-1/2 translate-x-1/2 cursor-help text-3xl">
+                <!-- Content injected by JS -->
+            </div>
         </div>
         <div class="mt-4 flex justify-around p-3 rounded-xl bg-white shadow-md vote-counts">
             <div id="goodTotal" class="text-xl font-bold text-green-600">GOOD: 0</div>
@@ -114,16 +118,17 @@
 
     <!-- Version Indicator -->
     <div class="version-indicator">
-        v3.0.16 | Made by Gilxs in 12,025
+        v3.0.17 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.0.16';
+        const APP_VERSION = '3.0.18'; // Incrementing version
 
         let allWords = [];
         let currentWordIndex = 0;
         let userId = localStorage.getItem('userId');
+        let voteCount = 0; 
         
         let voteStreak = 0;
         const MASH_LIMIT = 10;
@@ -146,12 +151,19 @@
         const cancelSubmitButton = document.getElementById('cancelSubmitButton');
         const customWordButton = document.getElementById('customWordButton');
         const versionIndicator = document.querySelector('.version-indicator');
+        const awardBadge = document.getElementById('awardBadge');
         
         function init() {
             if (!userId) {
                 userId = crypto.randomUUID();
                 localStorage.setItem('userId', userId);
             }
+            
+            const storedVoteCount = localStorage.getItem('voteCount');
+            if (storedVoteCount) {
+                voteCount = parseInt(storedVoteCount, 10);
+            }
+
             versionIndicator.textContent = `v${APP_VERSION} | Made by Gilxs in 12,025`;
             
             goodButton.addEventListener('click', () => submitVote('good'));
@@ -162,6 +174,51 @@
             submitWordButton.addEventListener('click', submitCustomWord);
 
             fetchWords();
+            updateAwardBadge();
+        }
+
+        function updateAwardBadge() {
+            let star = '';
+            let title = '';
+            
+            if (voteCount >= 50) {
+                star = '🌟'; // Gold
+                title = `Gold Star Award! (${voteCount} Votes)`;
+            } else if (voteCount >= 25) {
+                star = '🥈'; // Silver
+                title = `Silver Star Award! (${voteCount} Votes)`;
+            } else if (voteCount >= 5) {
+                star = '🥉'; // Bronze
+                title = `Bronze Star Award! (${voteCount} Votes)`;
+            } else {
+                star = '✨'; // Placeholder for progress
+                title = `Votes: ${voteCount}. Next Award: Bronze (5 Votes)`;
+            }
+
+            awardBadge.textContent = star;
+            awardBadge.title = title;
+        }
+        
+        /**
+         * Temporarily shows a congratulatory message when a new award is achieved,
+         * then resumes the normal voting flow.
+         */
+        function showAwardMessageAndContinue(awardName, emoji) {
+            // Temporarily replace the word display with the congratulatory message
+            wordDisplay.textContent = `${emoji} ${awardName} Unlocked! ${emoji}`;
+            wordDisplay.className = 'text-4xl font-extrabold text-green-700 mb-8 text-center min-h-[72px] animate-pulse';
+            
+            // Disable buttons while celebrating
+            goodButton.disabled = true;
+            badButton.disabled = true;
+            notWordButton.disabled = true;
+
+            // Wait 2.5 seconds, then resume normal flow
+            setTimeout(() => {
+                wordDisplay.classList.remove('animate-pulse');
+                nextWord(); 
+                fetchWords(false); // Update rankings in background
+            }, 2500);
         }
 
         function showMessage(text, isError = false) {
@@ -304,9 +361,38 @@
                 } else {
                     voteStreak++;
                     
-                    nextWord(); 
+                    // --- Award Logic Start ---
+                    const previousVoteCount = voteCount; // Capture previous count
+                    voteCount++;
+                    localStorage.setItem('voteCount', voteCount);
+                    updateAwardBadge();
                     
-                    fetchWords(false); 
+                    let awardAchieved = false;
+                    let awardName = '';
+                    let emoji = '';
+
+                    if (previousVoteCount < 5 && voteCount >= 5) {
+                        awardName = 'Bronze Star';
+                        emoji = '🥉';
+                        awardAchieved = true;
+                    } else if (previousVoteCount < 25 && voteCount >= 25) {
+                        awardName = 'Silver Star';
+                        emoji = '🥈';
+                        awardAchieved = true;
+                    } else if (previousVoteCount < 50 && voteCount >= 50) {
+                        awardName = 'Gold Star';
+                        emoji = '🌟';
+                        awardAchieved = true;
+                    }
+
+                    if (awardAchieved) {
+                        showAwardMessageAndContinue(awardName, emoji);
+                    } else {
+                        // Continue normal flow
+                        nextWord(); 
+                        fetchWords(false); 
+                    }
+                    // --- Award Logic End ---
                 }
             } catch (error) {
                 console.error('Error submitting vote:', error);
