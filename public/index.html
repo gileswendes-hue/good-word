@@ -101,7 +101,7 @@
     <script>
         // --- IMPORTANT: RENDER API URL CONFIGURATION ---
         // REPLACE THE PLACEHOLDER BELOW WITH YOUR LIVE RENDER SERVICE URL
-        const API_BASE_URL = 'https://good-word.onrender.com/api/words';
+        const API_BASE_URL = 'YOUR-RENDER-SERVICE-URL-HERE/api/words';
         const APP_VERSION = '1.0.5';
 
         // --- Global State ---
@@ -160,7 +160,7 @@
                 return;
             }
             
-            // Cycle through words using the index
+            // Display the word at the current index
             const currentWord = allWords[currentWordIndex];
             wordDisplay.textContent = currentWord.text.toUpperCase();
             wordDisplay.className = 'text-6xl font-extrabold text-gray-900 mb-8 text-center min-h-[72px]';
@@ -169,7 +169,16 @@
         }
 
         function nextWord() {
-            currentWordIndex = (currentWordIndex + 1) % allWords.length;
+            if (allWords.length === 0) return;
+            
+            let nextIndex;
+            // Generate a random index, ensuring it's not the same as the current index 
+            // if there's more than one word available.
+            do {
+                nextIndex = Math.floor(Math.random() * allWords.length);
+            } while (nextIndex === currentWordIndex && allWords.length > 1);
+            
+            currentWordIndex = nextIndex;
             displayCurrentWord();
         }
 
@@ -185,6 +194,8 @@
                 allWords = await response.json();
                 
                 if (allWords.length > 0) {
+                    // Set the starting word to a random word
+                    currentWordIndex = Math.floor(Math.random() * allWords.length);
                     updateStatsAndRankings();
                     displayCurrentWord();
                 } else {
@@ -231,7 +242,7 @@
                     // we re-fetch all data to update rankings accurately for all users.
                     setTimeout(fetchWords, 500); // Small delay for server processing
 
-                    // Move to the next word immediately
+                    // Move to the next word immediately (which is now random)
                     nextWord();
                 }
             } catch (error) {
