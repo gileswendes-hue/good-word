@@ -1,27 +1,33 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const path = require('path'); // ADDED: Required for serving static files
-require('dotenv').config(); // Use environment variables for sensitive info
+const path = require('path'); 
+require('dotenv').config(); // Load environment variables from .env file (if running locally)
 
 // --- 1. CONFIGURATION ---
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const MONGO_URI = process.env.MONGO_URI; // Make sure to set this in your Render environment variables!
+// MANDATORY: Ensure MONGO_URI is set as an environment variable in your hosting service (e.g., Render)
+const MONGO_URI = process.env.MONGO_URI; 
 
 // Middleware
-app.use(cors()); // Allows the frontend (your HTML file) to make requests
-app.use(express.json()); // Parses incoming JSON payloads
-// NEW: Serve static files (like index.html) from the 'public' directory
-// NOTE: You must ensure your index.html is in a folder named 'public'
+app.use(cors()); 
+app.use(express.json()); 
+
+// IMPORTANT: Serve static files (like index.html) from the 'public' directory
+// Since index.js is in the root, path.join(__dirname, 'public') correctly points to the public folder.
 app.use(express.static(path.join(__dirname, 'public'))); 
 
 // --- 2. DATABASE CONNECTION ---
 
 mongoose.connect(MONGO_URI)
     .then(() => console.log('MongoDB connected successfully.'))
-    .catch(err => console.error('MongoDB connection error:', err));
+    .catch(err => {
+        console.error('FATAL MongoDB connection error:', err);
+        // If MongoDB connection fails, the server will not start correctly.
+        // It's essential to check if MONGO_URI is correctly set in the deployment service.
+    });
 
 // --- 3. MONGOOSE SCHEMA AND MODEL ---
 
@@ -30,8 +36,7 @@ const wordSchema = new mongoose.Schema({
     text: { type: String, required: true, unique: true, trim: true, lowercase: true },
     goodVotes: { type: Number, default: 0 },
     badVotes: { type: Number, default: 0 },
-    notWordVotes: { type: Number, default: 0 }, // NEW: Field to track 'Not a word!' votes
-    // Tracks users who have voted on this word to prevent immediate duplicate votes
+    notWordVotes: { type: Number, default: 0 }, 
     voters: [{ type: String }] 
 }, { timestamps: true });
 
@@ -103,7 +108,6 @@ router.put('/:id/vote', async (req, res) => {
 
         // Check for double voting
         if (word.voters.includes(userId)) {
-            // Frontend will handle this 403 status and show a message
             return res.status(403).json({ message: "You've already voted on this word." }); 
         }
 
@@ -116,7 +120,7 @@ router.put('/:id/vote', async (req, res) => {
         } else if (voteType === 'bad') {
             update.$inc = { badVotes: 1 };
         } else if (voteType === 'notWord') {
-            update.$inc = { notWordVotes: 1 }; // NEW LOGIC
+            update.$inc = { notWordVotes: 1 }; 
         }
 
         const updatedWord = await Word.findByIdAndUpdate(id, update, { new: true });
@@ -137,7 +141,7 @@ router.put('/:id/vote', async (req, res) => {
 // Attach the router to the main app
 app.use('/api/words', router);
 
-// The root path (/) now serves the frontend application
+// The root path (/) now serves the frontend application from the 'public' directory
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
