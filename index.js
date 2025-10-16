@@ -8,8 +8,9 @@ require('dotenv').config(); // Load environment variables from .env file (if run
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-// MANDATORY: Ensure MONGO_URI is set as an environment variable in your hosting service (e.g., Render)
-const MONGO_URI = process.env.MONGO_URI; 
+// CRITICAL FIX: Changed from MONGO_URI to MONGODB_URI to match common environment variable naming conventions
+// MANDATORY: Ensure MONGODB_URI is set as an environment variable in your hosting service (e.g., Render)
+const MONGO_URI = process.env.MONGODB_URI; 
 
 // Middleware
 app.use(cors()); 
@@ -21,13 +22,20 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // --- 2. DATABASE CONNECTION ---
 
-mongoose.connect(MONGO_URI)
-    .then(() => console.log('MongoDB connected successfully.'))
-    .catch(err => {
-        console.error('FATAL MongoDB connection error:', err);
-        // If MongoDB connection fails, the server will not start correctly.
-        // It's essential to check if MONGO_URI is correctly set in the deployment service.
-    });
+// CRITICAL CHECK: Ensure MONGO_URI is defined before attempting connection
+if (!MONGO_URI) {
+    console.error('FATAL ERROR: MONGODB_URI environment variable is not defined.');
+    console.error('Please ensure the MONGODB_URI is set in your hosting service or .env file.');
+    // We will not start the server if the database is required but unavailable
+} else {
+    mongoose.connect(MONGO_URI)
+        .then(() => console.log('MongoDB connected successfully.'))
+        .catch(err => {
+            console.error('FATAL MongoDB connection error:', err);
+            // If MongoDB connection fails, the server will not start correctly.
+            // It's essential to check if MONGODB_URI is correctly set and accessible.
+        });
+}
 
 // --- 3. MONGOOSE SCHEMA AND MODEL ---
 
@@ -51,6 +59,11 @@ const router = express.Router();
  * Fetches all words from the database.
  */
 router.get('/', async (req, res) => {
+    // Only attempt database interaction if the connection was successful
+    if (!MONGO_URI || mongoose.connection.readyState !== 1) {
+        return res.status(503).json({ message: 'Database connection currently unavailable.' });
+    }
+    
     try {
         const words = await Word.find({});
         res.status(200).json(words);
@@ -65,6 +78,10 @@ router.get('/', async (req, res) => {
  * Adds a new word to the database.
  */
 router.post('/', async (req, res) => {
+    if (!MONGO_URI || mongoose.connection.readyState !== 1) {
+        return res.status(503).json({ message: 'Database connection currently unavailable.' });
+    }
+
     const { text } = req.body;
 
     if (!text || text.length < 2) {
@@ -89,6 +106,10 @@ router.post('/', async (req, res) => {
  * Registers a vote (good, bad, or notWord) for a specific word.
  */
 router.put('/:id/vote', async (req, res) => {
+    if (!MONGO_URI || mongoose.connection.readyState !== 1) {
+        return res.status(503).json({ message: 'Database connection currently unavailable.' });
+    }
+
     const { id } = req.params;
     const { voteType, userId } = req.body;
 
