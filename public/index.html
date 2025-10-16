@@ -100,7 +100,6 @@
 
     <script>
         // --- IMPORTANT: RENDER API URL CONFIGURATION ---
-        // *** YOU MUST REPLACE THE ENTIRE STRING BELOW WITH YOUR LIVE RENDER SERVICE URL ***
         const API_BASE_URL = 'https://good-word.onrender.com/api/words';
         const APP_VERSION = '1.0.7';
 
@@ -184,9 +183,12 @@
 
         // --- Fetch & Data Functions ---
 
-        async function fetchWords() {
+        // Added updateDisplay parameter to control if the displayed word should be updated
+        async function fetchWords(updateDisplay = true) {
             try {
-                showMessage("Loading words...", false);
+                if(updateDisplay) {
+                    showMessage("Loading words...", false);
+                }
                 const response = await fetch(API_BASE_URL);
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
@@ -194,17 +196,22 @@
                 allWords = await response.json();
                 
                 if (allWords.length > 0) {
-                    // Set the starting word to a random word
-                    currentWordIndex = Math.floor(Math.random() * allWords.length);
-                    updateStatsAndRankings();
-                    displayCurrentWord();
+                    updateStatsAndRankings(); // Always update rankings
+                    
+                    if (updateDisplay) {
+                        // Only choose a new random word and display it on initial load
+                        currentWordIndex = Math.floor(Math.random() * allWords.length);
+                        displayCurrentWord();
+                    } 
                 } else {
                     showMessage("No words available! Try submitting one.", false);
                 }
 
             } catch (error) {
                 console.error('Error fetching words:', error);
-                showMessage("Connection Error. Check your API URL.", true);
+                if(updateDisplay) {
+                    showMessage("Connection Error. Check your API URL.", true);
+                }
             }
         }
 
@@ -212,10 +219,10 @@
             const currentWord = allWords[currentWordIndex];
             if (!currentWord) return;
 
+            // Disable buttons immediately
             goodButton.disabled = true;
             badButton.disabled = true;
             
-            // We use a simplified check here, but the backend performs the definitive check
             const wordId = currentWord._id;
             
             try {
@@ -232,18 +239,13 @@
                 } else if (!response.ok) {
                     throw new Error(result.message || "Failed to register vote.");
                 } else {
-                    // Vote successful, update local word list optimistically before refetching
-                    if (voteType === 'good') {
-                        currentWord.goodVotes++;
-                    } else {
-                        currentWord.badVotes++;
-                    }
-                    // Since the backend doesn't support real-time updates (like Firestore),
-                    // we re-fetch all data to update rankings accurately for all users.
-                    setTimeout(fetchWords, 500); // Small delay for server processing
-
-                    // Move to the next word immediately (which is now random)
-                    nextWord();
+                    // Vote successful:
+                    
+                    // 1. Immediately switch to the next random word (instant visual feedback & re-enables buttons)
+                    nextWord(); 
+                    
+                    // 2. Fetch fresh data for rankings in the background (updateDisplay=false)
+                    fetchWords(false); 
                 }
             } catch (error) {
                 console.error('Error submitting vote:', error);
