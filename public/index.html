@@ -217,11 +217,11 @@
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
-                allWords = await response.json();
+                let fetchedWords = await response.json();
                 
                 // --- NEW: Filter out words marked as 'Not a word!' 3 or more times ---
                 // We assume the API returns 'notWordVotes' property. If it doesn't exist, we treat it as 0.
-                const availableWords = allWords.filter(w => (w.notWordVotes || 0) < 3);
+                const availableWords = fetchedWords.filter(w => (w.notWordVotes || 0) < 3);
                 allWords = availableWords;
                 // ------------------------------------------------------------------
                 
@@ -257,7 +257,7 @@
             const wordId = currentWord._id;
             
             try {
-                const response = await fetch(`${API_BASE_URL}/${wordId}/vote`, {
+                const response = await fetch(`${API_BASE_URL.replace('/api/words', '')}/api/words/${wordId}/vote`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ voteType, userId })
