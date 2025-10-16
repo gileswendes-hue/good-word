@@ -138,12 +138,12 @@
 
     <!-- Version Indicator -->
     <div class="version-indicator">
-        v3.0.20 | Made by Gilxs in 12,025
+        v3.0.21 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.0.21'; // Incrementing version
+        const APP_VERSION = '3.0.22'; // Updated version
 
         let allWords = [];
         let currentWordIndex = 0;
@@ -153,10 +153,10 @@
         let voteStreak = 0;
         const MASH_LIMIT = 10;
         const COOLDOWN_SECONDS = 10;
-        const STREAK_WINDOW_MS = 1500; // New: 1.5 seconds maximum between votes to count as a streak
+        const STREAK_WINDOW_MS = 1500; 
         let cooldownTimer = null;
         let isCoolingDown = false;
-        let lastVoteTime = 0; // New: Timestamp of the last successful vote
+        let lastVoteTime = 0; 
 
         const wordDisplay = document.getElementById('wordDisplay');
         const cakeMessage = document.getElementById('cakeMessage');
@@ -419,9 +419,14 @@
                 if (response.status === 403) {
                     // Vote rejected because they already voted on this word. Break the streak.
                     showMessage("You've already voted on this word!", true);
-                    goodButton.disabled = false;
-                    badButton.disabled = false;
-                    notWordButton.disabled = false;
+                    
+                    // FIX: Automatically move to the next word after a short delay so the game doesn't freeze.
+                    // The buttons remain disabled via showMessage() until nextWord() is called, which displays the new word and re-enables them.
+                    setTimeout(() => {
+                        nextWord();
+                        fetchWords(false); // Update rankings in background
+                    }, 1500); 
+
                     voteStreak = 0; // Reset streak on failed vote attempt
                 } else if (!response.ok) {
                     throw new Error(result.message || "Failed to register vote.");
