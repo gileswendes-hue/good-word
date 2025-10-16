@@ -7,9 +7,14 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        /* UPDATED: Body now uses a subtle, logo-matching gradient */
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background: linear-gradient(135deg, #f0fff0 0%, #e0f7fa 100%); /* Light yellow-green to light blue-green */
+        }
         /* --- UPDATED CARD STYLES --- */
         .card { 
+            /* Kept backdrop-filter and transparency for a floating effect over the new gradient */
             backdrop-filter: blur(10px); 
             background-color: rgba(255, 255, 255, 0.95); /* Increased opacity */
             box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15); /* Stronger initial shadow */
@@ -48,7 +53,14 @@
 
     <!-- Title and Stats Card -->
     <header class="text-center mb-8 w-full max-w-lg">
-        <h1 class="text-5xl font-black text-gray-800 tracking-tight">GOOD WORD / BAD WORD</h1>
+        <!-- Replaced Logo Placeholder with actual image -->
+        <div id="logoArea" class="h-16 w-full flex items-center justify-center mb-4">
+            <img 
+                src="logo.jpg" 
+                alt="Good Word / Bad Word Logo with Rainbow and Devil" 
+                class="h-full w-auto max-w-full"
+            >
+        </div>
         <div class="mt-4 flex justify-around p-3 rounded-xl bg-white shadow-md vote-counts">
             <div id="goodTotal" class="text-xl font-bold text-green-600">GOOD: 0</div>
             <div id="badTotal" class="text-xl font-bold text-red-600">BAD: 0</div>
@@ -115,13 +127,14 @@
 
     <!-- Version Indicator -->
     <div class="version-indicator">
-        v3.0.11
+        v3.0.16
     </div>
 
     <script>
         // --- IMPORTANT: RENDER API URL CONFIGURATION ---
-        const API_BASE_URL = 'https://good-word.onrender.com/api/words';
-        const APP_VERSION = '3.0.11';
+        // Uses a relative path, which is correct when the frontend and backend are hosted on the same domain.
+        const API_BASE_URL = '/api/words';
+        const APP_VERSION = '3.0.16';
 
         // --- Global State ---
         let allWords = [];
@@ -257,7 +270,9 @@
             const wordId = currentWord._id;
             
             try {
-                const response = await fetch(`${API_BASE_URL.replace('/api/words', '')}/api/words/${wordId}/vote`, {
+                // Simplified fetch path: since API_BASE_URL is now '/api/words', 
+                // we construct the vote URL directly using a relative path.
+                const response = await fetch(`/api/words/${wordId}/vote`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ voteType, userId })
@@ -381,7 +396,8 @@
             modalMessage.textContent = "Submitting...";
 
             try {
-                const response = await fetch(API_BASE_URL.replace('/api/words', '/api/words'), { // POST to /api/words
+                // POST to the API_BASE_URL (which is '/api/words')
+                const response = await fetch(API_BASE_URL, { 
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ text })
