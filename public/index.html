@@ -122,9 +122,14 @@
             <div id="awardBadge" class="absolute top-2 right-2 p-2 cursor-help text-3xl">
                 </div>
         </div>
-        <div class="mt-4 flex justify-around p-3 rounded-xl bg-white shadow-md vote-counts">
+        <div class="mt-4 flex justify-around p-3 rounded-t-xl bg-white shadow-md vote-counts">
             <div id="goodTotal" class="text-xl font-bold text-green-600">GOOD: 0</div>
             <div id="badTotal" class="text-xl font-bold text-red-600">BAD: 0</div>
+        </div>
+        <div class="flex justify-center p-2 rounded-b-xl bg-gray-50 shadow-md">
+            <div id="wordCount" class="text-sm font-semibold text-gray-500">
+                Words in Database: 0
+            </div>
         </div>
     </header>
 
@@ -213,13 +218,13 @@
 
 
     <div class="version-indicator">
-        v3.3.1 | Made by Gilxs in 12,025
+        v3.3.2 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
         // --- UPDATED VERSION ---
-        const APP_VERSION = '3.3.1'; 
+        const APP_VERSION = '3.3.2'; 
 
         let allWords = [];
         let currentWordIndex = 0;
@@ -241,6 +246,7 @@
         const notWordButton = document.getElementById('notWordButton');
         const goodTotal = document.getElementById('goodTotal');
         const badTotal = document.getElementById('badTotal');
+        const wordCount = document.getElementById('wordCount'); // New element
         const goodRankingsDiv = document.getElementById('goodRankings');
         const badRankingsDiv = document.getElementById('badRankings');
         const submissionModal = document.getElementById('submissionModal');
@@ -443,6 +449,9 @@
                 const availableWords = fetchedWords.filter(w => (w.notWordVotes || 0) < 3);
                 allWords = availableWords;
                 
+                // Update word count regardless of whether the display is updated
+                wordCount.textContent = `Words in Database: ${fetchedWords.length}`;
+                
                 if (allWords.length > 0) {
                     updateStatsAndRankings();
                     
@@ -593,7 +602,16 @@
         }
 
         function getRankedWords(limit) {
-            const rankedWords = allWords.map(w => ({
+            // Include all words fetched, not just 'availableWords'
+            const allWordsFetched = JSON.parse(JSON.stringify(allWords)); // Deep copy to modify scores
+            
+            // Add back words that were filtered out, but only if we use the original fetched data
+            // For simplicity and assuming the API returns everything needed:
+            // The problem statement implies allWords contains only the 'available' words.
+            // If the goal is ALL words, we'd need to change fetchWords to keep all raw data.
+            // Sticking to allWords, which is the "available" list filtered by (notWordVotes < 3)
+
+            const rankedWords = allWordsFetched.map(w => ({
                 text: w.text,
                 good: w.goodVotes || 0,
                 bad: w.badVotes || 0,
@@ -601,7 +619,7 @@
             }));
 
             const topGood = [...rankedWords]
-                .filter(w => w.score > -3) // Only show words that aren't removed as "not words"
+                // .filter(w => w.score > -3) // This filter is now redundant as allWords already filters not-words
                 .sort((a, b) => {
                     if (b.score !== a.score) return b.score - a.score;
                     return (b.good + b.bad) - (a.good + a.bad);
@@ -609,7 +627,7 @@
                 .slice(0, limit);
 
             const topBad = [...rankedWords]
-                .filter(w => w.score < 3)
+                // .filter(w => w.score < 3) // This filter is now redundant as allWords already filters not-words
                 .sort((a, b) => {
                     if (a.score !== b.score) return a.score - b.score;
                     return (b.good + b.bad) - (a.good + a.bad);
@@ -627,6 +645,8 @@
             const totalBad = allWords.reduce((sum, w) => sum + (w.badVotes || 0), 0);
             goodTotal.textContent = `GOOD: ${totalGood}`;
             badTotal.textContent = `BAD: ${totalBad}`;
+            // The word count is updated in fetchWords based on the raw response length.
+            
 
             // Display Top 5 in the main card section
             const { topGood, topBad } = getRankedWords(5);
@@ -666,7 +686,7 @@
         // --- Full Rankings Modal Functions ---
         
         function showFullRankingsModal() {
-            // First, calculate the full rankings (up to 100)
+            // Recalculate rankings based on the currently loaded words (allWords)
             const { topGood, topBad } = getRankedWords(100);
             
             // Render into the modal's div elements
