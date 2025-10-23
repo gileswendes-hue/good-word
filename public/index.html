@@ -1,3 +1,8 @@
+That's great\! I've incorporated your latest changes: making the word dynamic enough to always fit the card, and updating the version number.
+
+Here is the revised HTML code. I've primarily modified the CSS and the `displayCurrentWord` function to handle the font size adjustments.
+
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -55,7 +60,7 @@
             .vote-counts { font-size: 0.875rem; }
         }
 
-        /* --- ANIMATION STYLES --- */
+        /* --- ANIMATION STYLES (Kept from previous revision) --- */
         .word-transition-good {
             animation: slide-out-left-good 0.4s ease-out forwards;
         }
@@ -92,21 +97,19 @@
 
         /* --- FONT RESIZING FIX --- */
         #wordDisplay {
+            /* Remove fixed font-size, rely on JS for sizing */
             font-size: 6rem; /* Default size, will be overwritten */
-            white-space: nowrap; 
-            overflow: hidden;
-            max-width: 100%; 
-            padding: 0 1rem; 
+            white-space: nowrap; /* Prevent wrap when checking width */
+            overflow: hidden; /* Hide overflow initially */
+            max-width: 100%; /* Limit width to parent container */
+            padding: 0 1rem; /* Add some padding for visual space */
             box-sizing: border-box;
-        }
-        /* Full rankings modal specific styles */
-        #fullRankingsModal {
-            max-width: 800px;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-        .full-ranking-item {
-            border-bottom: 1px solid #e5e7eb;
+            /* Keep other properties */
+            font-extrabold; 
+            text-gray-900; 
+            margin-bottom: 8; 
+            text-center; 
+            min-height: 72px;
         }
     </style>
 </head>
@@ -165,12 +168,6 @@
             </div>
         </div>
     </section>
-    
-    <div class="mt-6 w-full max-w-4xl text-center">
-        <button id="showTop100Button" class="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 transition duration-150">
-            Show Top 100 Rankings
-        </button>
-    </div>
 
     <div id="submissionModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
         <div class="bg-white p-6 rounded-xl w-full max-w-md shadow-2xl">
@@ -187,39 +184,15 @@
             </div>
         </div>
     </div>
-    
-    <div id="fullRankingsModalContainer" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
-        <div id="fullRankingsModal" class="bg-white p-6 rounded-xl w-full shadow-2xl">
-            <div class="flex justify-between items-center mb-4 border-b pb-2">
-                <h2 class="text-2xl font-bold">Top 100 Word Rankings</h2>
-                <button id="closeFullRankingsModal" class="text-gray-500 hover:text-gray-800 text-2xl font-bold leading-none">
-                    &times;
-                </button>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <h3 class="text-lg font-semibold text-green-700 mb-2">Top Good Words</h3>
-                    <div id="fullGoodRankings" class="space-y-1">
-                        </div>
-                </div>
-                <div>
-                    <h3 class="text-lg font-semibold text-red-700 mb-2">Top Bad Words</h3>
-                    <div id="fullBadRankings" class="space-y-1">
-                        </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
 
     <div class="version-indicator">
-        v3.3.1 | Made by Gilxs in 12,025
+        v3.0.21 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
         // --- UPDATED VERSION ---
-        const APP_VERSION = '3.3.1'; 
+        const APP_VERSION = '3.1.2'; 
 
         let allWords = [];
         let currentWordIndex = 0;
@@ -251,12 +224,7 @@
         const customWordButton = document.getElementById('customWordButton');
         const versionIndicator = document.querySelector('.version-indicator');
         const awardBadge = document.getElementById('awardBadge');
-        const showTop100Button = document.getElementById('showTop100Button');
-        const fullRankingsModalContainer = document.getElementById('fullRankingsModalContainer');
-        const closeFullRankingsModal = document.getElementById('closeFullRankingsModal');
-        const fullGoodRankingsDiv = document.getElementById('fullGoodRankings');
-        const fullBadRankingsDiv = document.getElementById('fullBadRankings');
-
+        
         function init() {
             if (!userId) {
                 userId = crypto.randomUUID();
@@ -276,19 +244,11 @@
             customWordButton.addEventListener('click', () => showModal());
             cancelSubmitButton.addEventListener('click', () => hideModal());
             submitWordButton.addEventListener('click', submitCustomWord);
-            
-            // New Full Rankings button listeners
-            showTop100Button.addEventListener('click', showFullRankingsModal);
-            closeFullRankingsModal.addEventListener('click', hideFullRankingsModal);
-            fullRankingsModalContainer.addEventListener('click', (e) => {
-                if (e.target === fullRankingsModalContainer) {
-                    hideFullRankingsModal();
-                }
-            });
 
             fetchWords();
             updateAwardBadge();
             
+            // Re-check word size on window resize (less crucial for fixed card, but good practice)
             window.addEventListener('resize', () => {
                 if (allWords.length > 0) {
                     displayCurrentWord(); 
@@ -318,35 +278,47 @@
             awardBadge.title = title;
         }
         
+        /**
+         * Temporarily shows a congratulatory message when a new award is achieved,
+         * then resumes the normal voting flow.
+         */
         function showAwardMessageAndContinue(awardName, emoji) {
+            // Temporarily replace the word display with the congratulatory message
             wordDisplay.textContent = `${emoji} ${awardName} Unlocked! ${emoji}`;
             wordDisplay.className = 'text-4xl font-extrabold text-green-700 mb-8 text-center min-h-[72px] animate-pulse';
-            wordDisplay.style.fontSize = '2.25rem'; 
+            
+            // Set font size explicitly for messages
+            wordDisplay.style.fontSize = '2.25rem'; // text-4xl size
 
+            // Hide the cake message during the award display
             cakeMessage.classList.remove('opacity-100');
             cakeMessage.classList.add('opacity-0');
             cakeMessage.textContent = ''; 
 
+            // Disable buttons while celebrating
             goodButton.disabled = true;
             badButton.disabled = true;
             notWordButton.disabled = true;
 
+            // Wait 2.5 seconds, then resume normal flow
             setTimeout(() => {
                 wordDisplay.classList.remove('animate-pulse');
                 nextWord(); 
-                fetchWords(false);
+                fetchWords(false); // Update rankings in background
             }, 2500);
         }
 
         function showMessage(text, isError = false) {
             wordDisplay.textContent = text;
             wordDisplay.className = `text-4xl font-bold text-center mb-8 min-h-[72px] ${isError ? 'text-red-500' : 'text-gray-500'}`;
-            wordDisplay.style.fontSize = '1.5rem'; 
+            // Set font size explicitly for messages
+            wordDisplay.style.fontSize = '1.5rem'; // Default size for messages
 
             goodButton.disabled = true;
             badButton.disabled = true;
             notWordButton.disabled = true;
 
+            // Always hide cake message when showing a general message
             cakeMessage.classList.remove('opacity-100');
             cakeMessage.classList.add('opacity-0');
             cakeMessage.textContent = '';
@@ -355,12 +327,14 @@
         function showCooldownMessage(remainingSeconds) {
             wordDisplay.textContent = `Button mashing will not be tolerated. Wait ${remainingSeconds}s...`;
             wordDisplay.className = 'text-4xl font-bold text-red-600 mb-8 text-center min-h-[72px]';
-            wordDisplay.style.fontSize = '1.5rem'; 
+            // Set font size explicitly for messages
+            wordDisplay.style.fontSize = '1.5rem'; // Default size for messages
             
             goodButton.disabled = true;
             badButton.disabled = true;
             notWordButton.disabled = true;
 
+            // Always hide cake message when showing cooldown
             cakeMessage.classList.remove('opacity-100');
             cakeMessage.classList.add('opacity-0');
             cakeMessage.textContent = '';
@@ -383,23 +357,28 @@
             wordDisplay.className = 'font-extrabold text-gray-900 mb-8 text-center min-h-[72px]';
             
             // 3. Dynamic Font Sizing Logic
-            const cardWidth = document.getElementById('gameCard').clientWidth - 64; 
-            const maxFontSize = 96; 
+            const cardWidth = document.getElementById('gameCard').clientWidth - 64; // Card width minus horizontal padding (p-8 = 2rem * 2 = 32px * 2 = 64px)
+            const maxFontSize = 96; // 6rem at 16px/rem base
             
+            // Temporarily set a large font size to measure the required width
             wordDisplay.style.fontSize = `${maxFontSize}px`;
             wordDisplay.style.whiteSpace = 'nowrap';
 
             let currentWidth = wordDisplay.scrollWidth;
             let finalFontSize = maxFontSize;
 
+            // If the word is too wide, reduce font size until it fits
             if (currentWidth > cardWidth) {
+                // Calculate the required scale factor
                 const scaleFactor = cardWidth / currentWidth;
                 finalFontSize = Math.floor(maxFontSize * scaleFactor);
+                // Ensure a minimum legible size
                 if (finalFontSize < 24) finalFontSize = 24; 
             }
             
+            // Apply the final font size and reset white-space
             wordDisplay.style.fontSize = `${finalFontSize}px`;
-            wordDisplay.style.whiteSpace = 'normal'; 
+            wordDisplay.style.whiteSpace = 'normal'; // Allow wrapping if it was set
             
             // 4. Check for the "cake" Easter Egg
             if (wordText === 'CAKE') {
@@ -409,7 +388,7 @@
             } else {
                 cakeMessage.classList.remove('opacity-100');
                 cakeMessage.classList.add('opacity-0');
-                cakeMessage.textContent = ''; 
+                cakeMessage.textContent = ''; // Clear text content
             }
             
             goodButton.disabled = false;
@@ -463,23 +442,26 @@
         }
 
         async function submitVote(voteType) {
+            // 1. Cooldown Check (if already cooling down, refresh message and return)
             if (isCoolingDown) {
                 const remaining = Math.ceil((cooldownEndTime - Date.now()) / 1000);
                 showCooldownMessage(remaining > 0 ? remaining : 0);
                 return;
             }
 
+            // 2. Streak Management (check time and update streak)
             const now = Date.now();
             if (lastVoteTime > 0 && (now - lastVoteTime) > STREAK_WINDOW_MS) {
-                voteStreak = 1; 
+                voteStreak = 1; // Start a new streak (this vote is #1)
             } else {
-                voteStreak++; 
+                voteStreak++; // Continue the existing streak
             }
-            lastVoteTime = now; 
+            lastVoteTime = now; // Record this vote's time
 
+            // 3. Mash Limit Check (trigger cooldown if limit exceeded)
             if (voteStreak > MASH_LIMIT) {
                 isCoolingDown = true;
-                voteStreak = 0; 
+                voteStreak = 0; // Reset streak
                 
                 let remaining = COOLDOWN_SECONDS;
                 const cooldownEndTime = Date.now() + COOLDOWN_SECONDS * 1000;
@@ -495,6 +477,7 @@
                         cooldownTimer = null;
                         isCoolingDown = false;
                         
+                        // Restart game flow after cooldown
                         if (allWords.length > 0) {
                             displayCurrentWord();
                         } else {
@@ -506,6 +489,8 @@
                 return;
             }
 
+
+            // 4. Submit Vote (normal flow)
             const currentWord = allWords[currentWordIndex];
             if (!currentWord) return;
 
@@ -514,8 +499,9 @@
             notWordButton.disabled = true;
             
             const wordId = currentWord._id;
-            const transitionDuration = 400; 
+            const transitionDuration = 400; // 0.4s CSS animation duration
             
+            // Apply transition class for animation, but only if it's a 'good' or 'bad' vote.
             if (voteType === 'good' || voteType === 'bad') {
                 wordDisplay.classList.add(voteType === 'good' ? 'word-transition-good' : 'word-transition-bad');
             }
@@ -530,20 +516,26 @@
                 const result = await response.json();
 
                 if (response.status === 403) {
-                    voteStreak = 0; 
+                    // Vote rejected (already voted). Silently move to next word.
+                    voteStreak = 0; // Reset streak on failed vote attempt
                     
+                    // Allow time for animation if one was started, otherwise move immediately
                     if (voteType === 'good' || voteType === 'bad') {
                         setTimeout(() => {
                             nextWord();
-                            fetchWords(false); 
+                            fetchWords(false); // Update rankings in background
                         }, transitionDuration); 
                     } else {
                          nextWord();
                          fetchWords(false);
                     }
                 } else if (!response.ok) {
+                    // Handle non-403 errors
                     throw new Error(result.message || "Failed to register vote.");
                 } else {
+                    // Successful vote: Update awards and move to next word
+                    
+                    // --- Award Logic Start ---
                     const previousVoteCount = voteCount; 
                     voteCount++;
                     localStorage.setItem('voteCount', voteCount);
@@ -568,73 +560,71 @@
                     }
 
                     if (awardAchieved) {
+                        // The award function handles the delay and calls nextWord/fetchWords
                         showAwardMessageAndContinue(awardName, emoji);
                     } else {
+                        // Continue normal flow (Wait for animation if 'good'/'bad', otherwise move immediately)
                         if (voteType === 'good' || voteType === 'bad') {
                             setTimeout(() => {
                                 nextWord(); 
                                 fetchWords(false); 
                             }, transitionDuration);
                         } else {
+                            // 'notWord' vote type, no animation required
                             nextWord();
                             fetchWords(false);
                         }
                     }
+                    // --- Award Logic End ---
                 }
             } catch (error) {
                 console.error('Error submitting vote:', error);
                 showMessage("Vote failed. Try again.", true);
+                // Clear any transition classes on error
                 wordDisplay.classList.remove('word-transition-good', 'word-transition-bad'); 
                 goodButton.disabled = false;
                 badButton.disabled = false;
                 notWordButton.disabled = false;
-                voteStreak = 0; 
+                voteStreak = 0; // Reset streak on network error
             }
         }
-
-        function getRankedWords(limit) {
-            const rankedWords = allWords.map(w => ({
-                text: w.text,
-                good: w.goodVotes || 0,
-                bad: w.badVotes || 0,
-                score: (w.goodVotes || 0) - (w.badVotes || 0)
-            }));
-
-            const topGood = [...rankedWords]
-                .filter(w => w.score > -3) // Only show words that aren't removed as "not words"
-                .sort((a, b) => {
-                    if (b.score !== a.score) return b.score - a.score;
-                    return (b.good + b.bad) - (a.good + a.bad);
-                })
-                .slice(0, limit);
-
-            const topBad = [...rankedWords]
-                .filter(w => w.score < 3)
-                .sort((a, b) => {
-                    if (a.score !== b.score) return a.score - b.score;
-                    return (b.good + b.bad) - (a.good + a.bad);
-                })
-                .slice(0, limit);
-                
-            return { topGood, topBad };
-        }
-
 
         function updateStatsAndRankings() {
             if (allWords.length === 0) return;
 
-            const totalGood = allWords.reduce((sum, w) => sum + (w.goodVotes || 0), 0);
-            const totalBad = allWords.reduce((sum, w) => sum + (w.badVotes || 0), 0);
+            const totalGood = allWords.reduce((sum, w) => sum + w.goodVotes, 0);
+            const totalBad = allWords.reduce((sum, w) => sum + w.badVotes, 0);
             goodTotal.textContent = `GOOD: ${totalGood}`;
             badTotal.textContent = `BAD: ${totalBad}`;
 
-            // Display Top 5 in the main card section
-            const { topGood, topBad } = getRankedWords(5);
+            const rankedWords = allWords.map(w => ({
+                text: w.text,
+                good: w.goodVotes,
+                bad: w.badVotes,
+                score: w.goodVotes - w.badVotes
+            }));
+
+            const topGood = [...rankedWords]
+                .filter(w => w.score > 0)
+                .sort((a, b) => {
+                    if (b.score !== a.score) return b.score - a.score;
+                    return (b.good + b.bad) - (a.good + a.bad);
+                })
+                .slice(0, 5);
+
+            const topBad = [...rankedWords]
+                .filter(w => w.score < 0)
+                .sort((a, b) => {
+                    if (a.score !== b.score) return a.score - b.score;
+                    return (b.good + b.bad) - (a.good + a.bad);
+                })
+                .slice(0, 5);
+
             renderRankings(goodRankingsDiv, topGood, 'good');
             renderRankings(badRankingsDiv, topBad, 'bad');
         }
 
-        function renderRankings(container, list, type, isFullList = false) {
+        function renderRankings(container, list, type) {
             container.innerHTML = '';
             if (list.length === 0) {
                 container.innerHTML = `<p class="text-gray-500">${type === 'good' ? 'No clear winners yet.' : 'No clear losers yet.'}</p>`;
@@ -643,7 +633,7 @@
 
             list.forEach((word, index) => {
                 const item = document.createElement('div');
-                item.className = `flex justify-between items-center py-1 ${isFullList ? 'full-ranking-item text-sm' : 'rank-item'}`;
+                item.className = 'flex justify-between items-center py-1 rank-item';
                 
                 const scoreIndicator = type === 'good' 
                     ? `<span class="text-xs text-white bg-green-500 px-2 rounded-full font-bold">${word.score}</span>`
@@ -651,7 +641,7 @@
                 
                 item.innerHTML = `
                     <div class="flex items-center space-x-2">
-                        <span class="font-bold ${isFullList ? 'text-base w-4' : 'text-lg w-5'} text-center text-gray-500">${index + 1}.</span>
+                        <span class="font-bold text-lg w-5 text-center text-gray-500">${index + 1}.</span>
                         <span class="font-medium text-gray-800">${word.text.toUpperCase()}</span>
                     </div>
                     <div class="flex items-center space-x-3">
@@ -662,28 +652,6 @@
                 container.appendChild(item);
             });
         }
-        
-        // --- Full Rankings Modal Functions ---
-        
-        function showFullRankingsModal() {
-            // First, calculate the full rankings (up to 100)
-            const { topGood, topBad } = getRankedWords(100);
-            
-            // Render into the modal's div elements
-            renderRankings(fullGoodRankingsDiv, topGood, 'good', true);
-            renderRankings(fullBadRankingsDiv, topBad, 'bad', true);
-            
-            // Display the modal
-            fullRankingsModalContainer.classList.remove('hidden');
-            fullRankingsModalContainer.classList.add('flex');
-        }
-
-        function hideFullRankingsModal() {
-            fullRankingsModalContainer.classList.remove('flex');
-            fullRankingsModalContainer.classList.add('hidden');
-        }
-        // -------------------------------------
-
 
         function showModal() {
             submissionModal.classList.remove('hidden');
@@ -739,3 +707,4 @@
     </script>
 </body>
 </html>
+```
