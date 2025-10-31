@@ -217,7 +217,7 @@
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.3.4'; 
+        const APP_VERSION = '3.4.0'; 
 
         let allWords = [];
         let currentWordIndex = 0;
@@ -411,27 +411,62 @@
             notWordButton.disabled = false;
         }
 
-        function nextWord() {
-            if (allWords.length === 0) return;
-            
-            const wordsWithVoteCounts = allWords
+        /**
+         * Selects a random word index using a weighted algorithm.
+         * Words with fewer votes have a higher chance of being selected.
+         * @param {number} excludeIndex - An index to exclude from selection (usually the current word).
+         */
+        function getWeightedRandomWordIndex(excludeIndex = -1) {
+            if (allWords.length === 0) return -1;
+            if (allWords.length === 1) return 0;
+
+            // 1. Create a list of available words.
+            const availableWords = allWords
                 .map((w, index) => ({
                     index,
                     totalVotes: (w.goodVotes || 0) + (w.badVotes || 0) + (w.notWordVotes || 0)
                 }))
-                .filter(w => w.index !== currentWordIndex);
+                .filter(w => w.index !== excludeIndex); // Filter out the excluded index
 
-            if (wordsWithVoteCounts.length === 0) {
-                displayCurrentWord();
-                return;
+            // Use the filtered list, or the full list if filtering left nothing
+            // (e.g., only 1 word in allWords, which got filtered)
+            const wordPool = availableWords.length > 0 
+                ? availableWords 
+                : allWords.map((w, index) => ({ 
+                    index, 
+                    totalVotes: (w.goodVotes || 0) + (w.badVotes || 0) + (w.notWordVotes || 0) 
+                }));
+
+            // 2. Calculate weights and total weight
+            let totalWeight = 0;
+            const weightedWords = wordPool.map(w => {
+                // Add 1 to avoid division by zero. This gives 0-vote words a weight of 1.
+                // A word with 9 votes gets a weight of 0.1.
+                // A word with 99 votes gets a weight of 0.01.
+                const weight = 1.0 / (w.totalVotes + 1);
+                totalWeight += weight;
+                return { index: w.index, weight: weight };
+            });
+
+            // 3. Perform weighted random selection
+            let randomNum = Math.random() * totalWeight;
+            
+            for (const word of weightedWords) {
+                randomNum -= word.weight;
+                if (randomNum <= 0) {
+                    return word.index; // This is our chosen word
+                }
             }
+            
+            // Fallback in case of floating point issues (should rarely be hit)
+            return wordPool[wordPool.length - 1].index;
+        }
 
-            const minVotes = wordsWithVoteCounts.reduce((min, w) => Math.min(min, w.totalVotes), Infinity);
+        function nextWord() {
+            if (allWords.length === 0) return;
             
-            const lowestVotedWords = wordsWithVoteCounts.filter(w => w.totalVotes === minVotes);
-            
-            const selectedWord = lowestVotedWords[Math.floor(Math.random() * lowestVotedWords.length)];
-            currentWordIndex = selectedWord.index;
+            // Select the next word, excluding the current one
+            currentWordIndex = getWeightedRandomWordIndex(currentWordIndex);
             
             displayCurrentWord();
         }
@@ -456,18 +491,8 @@
                     updateStatsAndRankings();
                     
                     if (updateDisplay) {
-                        const wordsWithVoteCounts = allWords.map((w, index) => ({
-                            index,
-                            totalVotes: (w.goodVotes || 0) + (w.badVotes || 0) + (w.notWordVotes || 0)
-                        }));
-
-                        const minVotes = wordsWithVoteCounts.reduce((min, w) => Math.min(min, w.totalVotes), Infinity);
-                        
-                        const lowestVotedWords = wordsWithVoteCounts.filter(w => w.totalVotes === minVotes);
-                        
-                        const selectedWord = lowestVotedWords[Math.floor(Math.random() * lowestVotedWords.length)];
-                        currentWordIndex = selectedWord.index;
-                        
+                        // Select the initial word, excluding none (-1)
+                        currentWordIndex = getWeightedRandomWordIndex(-1);
                         displayCurrentWord();
                     } 
                 } else {
@@ -751,7 +776,3 @@
     </script>
 </body>
 </html>
-
-
-
-
