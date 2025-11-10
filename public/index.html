@@ -310,12 +310,12 @@
 
 
     <div class="version-indicator">
-        v3.6.1 | Made by Gilxs in 12,025
+        v3.6.0 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.6.1'; 
+        const APP_VERSION = '3.6.0'; 
 
         let allWords = [];
         let currentWordIndex = 0;
@@ -330,20 +330,13 @@
         let isCoolingDown = false;
         let lastVoteTime = 0; 
 
-        // --- THEME VARIABLES: OBFUSCATED USING BASE64 ENCODING ---
+        // --- THEME VARIABLES: UPDATED DARK WORDS ---
         let currentTheme = localStorage.getItem('currentTheme') || 'default';
         let unlockedThemes = JSON.parse(localStorage.getItem('unlockedThemes')) || [];
-        
-        // Encoded Base64 Strings of the Word Arrays:
-        const encodedRainbow = 'WydSQUlOQk9XJywgJ0dBWScsICdTUEFSS0xFJywgJ0NPTE9VUicsICdQUklERScsICdVTklDT1JOJywgJ1BST1VEJywgJ1FVRVVSJywgJ0dMSVRURVInLCAnTEVTQklBTidd';
-        const encodedDark = 'WydTVEVBTFRIJywgJ05JR0hUJywnREFSSycsICdOSU5KQScsICdTSEFET1cnLCAnR09USCcsICdTSEFERScsICdCTEFDSycsICdNSUROSUdIVCdd';
-        const encodedBanana = 'WydCQU5BTkEnLCAnQkFOQU5BUycsICdQTEFOVGFJTCcsICdZRUxMT1cnXQ==';
-
-        // Decoding THEME_WORDS at runtime using atob() and JSON.parse()
         const THEME_WORDS = {
-            'rainbow': JSON.parse(atob(encodedRainbow)),
-            'dark': JSON.parse(atob(encodedDark)),
-            'banana': JSON.parse(atob(encodedBanana))
+            'rainbow': ['RAINBOW', 'GAY', 'SPARKLE', 'COLOUR', 'PRIDE', 'UNICORN', 'PROUD', 'QUEER', 'GLITTER', 'LESBIAN'],
+            'dark': ['STEALTH', 'NIGHT', 'DARK', 'NINJA', 'SHADOW', 'GOTH', 'SHADE', 'BLACK', 'MIDNIGHT'],
+            'banana': ['BANANA', 'BANANAS', 'PLANTAIN', 'YELLOW']
         };
         // --- END THEME VARIABLES ---
 
