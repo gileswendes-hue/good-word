@@ -9,24 +9,26 @@
     <style>
         body { 
             font-family: 'Inter', sans-serif; 
-            transition: background 0.5s ease; 
+            transition: background 0.5s ease, filter 0.5s ease; 
         }
+        /* --- Persistent Themes --- */
         .default-bg {
             background: linear-gradient(135deg, #fef2be 0%, #b5def0 100%);
         }
         .rainbow-mode {
             background: linear-gradient(135deg, #ff7e5f, #feb47b, #86a8e7, #75e7a9, #f76b1c);
             background-size: 400% 400%;
-            /* Faster animation: 5s */
             animation: gradient-shift 5s ease infinite; 
         }
+        .ninja-mode body { filter: grayscale(80%); }
+
         @keyframes gradient-shift {
             0% { background-position: 0% 50%; }
             50% { background-position: 100% 50%; }
             100% { background-position: 0% 50%; }
         }
 
-        /* Class for rainbow text */
+        /* --- Components --- */
         .rainbow-text {
             background: linear-gradient(90deg, #e3342f, #f6993f, #ffed4a, #38c172, #4c51bf, #9b59b6);
             -webkit-background-clip: text;
@@ -49,6 +51,22 @@
             border: 1px solid rgba(0, 0, 0, 0.05);
             transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
         }
+        /* --- Ninja Theme Card Overrides --- */
+        .ninja-mode .card { 
+            background-color: rgba(30, 41, 59, 0.95) !important; 
+            color: white;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
+        }
+        .ninja-mode .card h2 { color: #94a3b8; } 
+        .ninja-mode .card .border-b { border-color: #334155; }
+        .ninja-mode .card .text-gray-800 { color: white; }
+        .ninja-mode .card .text-gray-500,
+        .ninja-mode .card .text-gray-600,
+        .ninja-mode .card .text-lg.w-5 { color: #94a3b8 !important; }
+        .ninja-mode .vote-counts { background-color: rgba(45, 53, 67, 0.95); }
+        .ninja-mode #wordDisplay { font-family: 'Courier New', monospace; color: white !important; }
+
+        /* --- Default Component Styles --- */
         #gameCard:hover {
             transform: translateY(-4px);
             box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
@@ -85,18 +103,18 @@
             .vote-counts { font-size: 0.875rem; }
         }
 
-        /* Increased transition duration from 0.4s to 0.8s */
+        /* --- Word Transitions and Easter Eggs --- */
         .word-transition-good { animation: slide-out-left-good 0.8s ease-out forwards; }
         .word-transition-bad { animation: slide-out-right-bad 0.8s ease-out forwards; }
 
         @keyframes slide-out-left-good {
-            0% { transform: translateX(0); opacity: 1; color: #111827; }
-            100% { transform: translateX(-150%); opacity: 0; color: #10b981; }
+            0% { transform: translateX(0); opacity: 1; }
+            100% { transform: translateX(-150%); opacity: 0; }
         }
         
         @keyframes slide-out-right-bad {
-            0% { transform: translateX(0); opacity: 1; color: #111827; }
-            100% { transform: translateX(150%); opacity: 0; color: #ef4444; }
+            0% { transform: translateX(0); opacity: 1; }
+            100% { transform: translateX(150%); opacity: 0; }
         }
 
         #wordDisplay {
@@ -108,29 +126,6 @@
             box-sizing: border-box;
             transition: color 0.3s ease, transform 0.3s ease;
         }
-        #fullRankingsModal {
-            max-width: 800px;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-        .full-ranking-item { border-bottom: 1px solid #e5e7eb; }
-
-        /* --- Custom Easter Egg Styles --- */
-        .ninja-mode #wordDisplay { font-family: 'Courier New', monospace; }
-        .ninja-mode .card { 
-            background-color: rgba(30, 41, 59, 0.95) !important; 
-            color: white;
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
-        }
-        .ninja-mode .card h2 { color: #94a3b8; } 
-        .ninja-mode .card .border-b { border-color: #334155; }
-        .ninja-mode .card .text-gray-800 { color: white; }
-        .ninja-mode .card .text-gray-500,
-        .ninja-mode .card .text-gray-600,
-        .ninja-mode .card .text-lg.w-5 { color: #94a3b8 !important; }
-        .ninja-mode .vote-counts { background-color: rgba(45, 53, 67, 0.95); }
-        .ninja-mode body { filter: grayscale(80%); }
-
         .banana-mode #wordDisplay, .banana-mode #gameCard { animation: shake 0.5s ease-in-out infinite; }
         @keyframes shake {
             0%, 100% { transform: translateX(0); }
@@ -139,29 +134,33 @@
         }
         .banana-card { border: 4px solid #fcd34d !important; }
         .banana-text { color: #d97706 !important; } 
+
     </style>
 </head>
 <body id="gameBody" class="min-h-screen flex flex-col items-center justify-center p-4 default-bg">
 
-    <header class="mb-4 w-full max-w-sm">
-        <!-- Increased logo area height (h-16 -> h-20) for better spacing -->
-        <div id="logoArea" class="h-20 w-full flex items-center justify-center mb-4 relative">
-            <!-- Increased logo image height (h-12 -> h-16) and updated placeholder size -->
-            <img src="logo.jpg" 
+    <header class="mb-4 w-full max-w-xl"> <!-- Header now allows more width -->
+        <div id="logoArea" class="h-36 w-full flex items-center justify-center mb-4 relative"> <!-- Increased logo container height -->
+            <!-- UPDATED: Using the uploaded image file ID -->
+            <img src="uploaded:image_42f6e4.png-63b4d223-b355-4261-ab92-db9c41a4d997" 
                  alt="GOOD WORD / BAD WORD Logo" 
-                 class="h-16 w-auto rounded-xl"
-                 onerror="this.onerror=null; this.src='https://placehold.co/120x64/d97706/ffffff?text=LOGO';">
+                 class="h-28 w-auto rounded-xl"
+                 onerror="this.onerror=null; this.src='https://placehold.co/240x112/d97706/ffffff?text=GOOD+WORD / BAD+WORD';">
             <div id="awardBadge" class="absolute top-2 right-2 p-2 cursor-help text-3xl">
                 ✨
             </div>
         </div>
-        <div class="mt-4 flex justify-around p-3 rounded-t-xl bg-white shadow-md vote-counts">
-            <div id="goodTotal" class="text-xl font-bold text-green-600">GOOD: 0</div>
-            <div id="badTotal" class="text-xl font-bold text-red-600">BAD: 0</div>
-        </div>
-        <div class="flex justify-center p-2 rounded-b-xl bg-gray-50 shadow-md">
-            <div id="wordCount" class="text-sm font-semibold text-gray-500">
-                Words in Database: 0
+        
+        <!-- STATS BLOCK WRAPPER: Ensures this block aligns with the main max-w-sm card -->
+        <div class="max-w-sm mx-auto w-full">
+            <div class="mt-4 flex justify-around p-3 rounded-t-xl bg-white shadow-md vote-counts">
+                <div id="goodTotal" class="text-xl font-bold text-green-600">GOOD: 0</div>
+                <div id="badTotal" class="text-xl font-bold text-red-600">BAD: 0</div>
+            </div>
+            <div class="flex justify-center p-2 rounded-b-xl bg-gray-50 shadow-md">
+                <div id="wordCount" class="text-sm font-semibold text-gray-500">
+                    Words in Database: 0
+                </div>
             </div>
         </div>
     </header>
@@ -185,9 +184,14 @@
         <button id="notWordButton" class="not-word-button w-full py-3 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-slate-500/50" disabled>
             Not a word!
         </button>
-        <button id="customWordButton" class="mt-4 text-sm text-gray-600 hover:text-gray-900 transition duration-150">
-            Submit Custom Word
-        </button>
+        <div class="flex justify-between w-full mt-4 space-x-4">
+            <button id="customWordButton" class="text-sm text-gray-600 hover:text-gray-900 transition duration-150">
+                Submit Custom Word
+            </button>
+            <button id="themesButton" class="text-sm text-gray-600 hover:text-gray-900 transition duration-150">
+                Themes 🎨
+            </button>
+        </div>
     </main>
 
     <section class="mt-8 w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -211,7 +215,8 @@
         </button>
     </div>
 
-    <!-- Modals (Submission and Rankings) -->
+    <!-- Modals -->
+    <!-- 1. Submission Modal -->
     <div id="submissionModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
         <div class="bg-white p-6 rounded-xl w-full max-w-md shadow-2xl">
             <h2 class="text-2xl font-bold mb-4">Submit a New Word</h2>
@@ -228,8 +233,9 @@
         </div>
     </div>
     
+    <!-- 2. Full Rankings Modal -->
     <div id="fullRankingsModalContainer" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
-        <div id="fullRankingsModal" class="bg-white p-6 rounded-xl w-full shadow-2xl">
+        <div id="fullRankingsModal" class="bg-white p-6 rounded-xl w-full shadow-2xl max-w-4xl max-h-90vh overflow-y-auto">
             <div class="flex justify-between items-center mb-4 border-b pb-2">
                 <h2 class="text-2xl font-bold">Top 100 Word Rankings</h2>
                 <button id="closeFullRankingsModal" class="text-gray-500 hover:text-gray-800 text-2xl font-bold leading-none">
@@ -250,21 +256,41 @@
             </div>
         </div>
     </div>
+    
+    <!-- 3. Theme Selector Modal -->
+    <div id="themeModalContainer" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white p-6 rounded-xl w-full max-w-md shadow-2xl">
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <h2 class="text-2xl font-bold">Choose Theme</h2>
+                <button id="closeThemeModal" class="text-gray-500 hover:text-gray-800 text-2xl font-bold leading-none">
+                    &times;
+                </button>
+            </div>
+            <div id="themeOptions" class="space-y-3">
+                <!-- Theme buttons will be rendered here -->
+            </div>
+            <p id="themeUnlockMessage" class="text-sm mt-4 text-gray-600"></p>
+        </div>
+    </div>
 
 
     <div class="version-indicator">
-        v3.5.7-EE-FIXES | Made by Gilxs in 12,025
+        v3.5.8-THEMES-FIX | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.5.7-EE-FIXES'; 
+        const APP_VERSION = '3.5.8-THEMES-FIX'; 
 
+        // --- Persistent State Variables ---
         let allWords = [];
         let currentWordIndex = 0;
         let userId = localStorage.getItem('userId');
         let voteCount = 0; 
+        let unlockedThemes = new Set(['DEFAULT']); // Start with default unlocked
+        let activeTheme = 'DEFAULT'; // DEFAULT, NINJA, RAINBOW
         
+        // --- Rate Limiting/Mashing State ---
         let voteStreak = 0;
         const MASH_LIMIT = 10;
         const COOLDOWN_SECONDS = 10;
@@ -275,14 +301,15 @@
         
         // --- Easter Egg and Debug State ---
         let DEBUG_WORD = null;
-        let isVisualizerMode = false; // Controls persistent RAINBOW mode
         const DEBUG_MAP = {
             '1': 'CAKE',
             '2': 'NINJA',
             '3': 'BANANA',
             '4': 'RAINBOW'
         };
+        const EASTER_EGG_WORDS = new Set(['CAKE', 'NINJA', 'BANANA', 'RAINBOW']);
 
+        // --- DOM Elements ---
         const wordDisplay = document.getElementById('wordDisplay');
         const cakeMessage = document.getElementById('cakeMessage');
         const goodButton = document.getElementById('goodButton');
@@ -308,40 +335,66 @@
         const fullBadRankingsDiv = document.getElementById('fullBadRankings');
         const gameCard = document.getElementById('gameCard');
         const gameBody = document.getElementById('gameBody');
+        const themesButton = document.getElementById('themesButton');
+        const themeModalContainer = document.getElementById('themeModalContainer');
+        const closeThemeModal = document.getElementById('closeThemeModal');
+        const themeOptionsDiv = document.getElementById('themeOptions');
+        const themeUnlockMessage = document.getElementById('themeUnlockMessage');
 
-        // Developer mode indicator
+
         let debugIndicator = null; 
 
         function init() {
+            // 1. Initialize User and Votes
             if (!userId) {
                 userId = crypto.randomUUID();
                 localStorage.setItem('userId', userId);
             }
-            
             const storedVoteCount = localStorage.getItem('voteCount');
             if (storedVoteCount) {
                 voteCount = parseInt(storedVoteCount, 10);
             }
+            
+            // 2. Load Persistent Theme State
+            const storedThemes = localStorage.getItem('unlockedThemes');
+            if (storedThemes) {
+                unlockedThemes = new Set(JSON.parse(storedThemes));
+            }
+            const storedActiveTheme = localStorage.getItem('activeTheme');
+            if (storedActiveTheme && unlockedThemes.has(storedActiveTheme)) {
+                activeTheme = storedActiveTheme;
+            } else {
+                activeTheme = 'DEFAULT';
+            }
 
+            // 3. Setup UI and Listeners
             versionIndicator.textContent = `v${APP_VERSION} | Made by Gilxs in 12,025`;
             
             goodButton.addEventListener('click', () => submitVote('good'));
             badButton.addEventListener('click', () => submitVote('bad'));
             notWordButton.addEventListener('click', () => submitVote('notWord'));
-            customWordButton.addEventListener('click', () => showModal());
-            cancelSubmitButton.addEventListener('click', () => hideModal());
+            customWordButton.addEventListener('click', () => showModal('submission'));
+            cancelSubmitButton.addEventListener('click', () => hideModal('submission'));
             submitWordButton.addEventListener('click', submitCustomWord);
             
-            showTop100Button.addEventListener('click', showFullRankingsModal);
-            closeFullRankingsModal.addEventListener('click', hideFullRankingsModal);
+            showTop100Button.addEventListener('click', () => showModal('rankings'));
+            closeFullRankingsModal.addEventListener('click', () => hideModal('rankings'));
             fullRankingsModalContainer.addEventListener('click', (e) => {
                 if (e.target === fullRankingsModalContainer) {
-                    hideFullRankingsModal();
+                    hideModal('rankings');
+                }
+            });
+            
+            themesButton.addEventListener('click', () => showModal('themes'));
+            closeThemeModal.addEventListener('click', () => hideModal('themes'));
+            themeModalContainer.addEventListener('click', (e) => {
+                if (e.target === themeModalContainer) {
+                    hideModal('themes');
                 }
             });
 
             setupDebugControls(); 
-            
+            applyActiveTheme(); // Apply saved theme on load
             fetchWords();
             updateAwardBadge();
             
@@ -352,6 +405,176 @@
             });
         }
         
+        function showModal(type) {
+            if (type === 'submission') {
+                submissionModal.classList.remove('hidden');
+                submissionModal.classList.add('flex');
+                newWordInput.value = '';
+                modalMessage.textContent = '';
+            } else if (type === 'rankings') {
+                const { topGood, topBad } = getRankedWords(100);
+                renderRankings(fullGoodRankingsDiv, topGood, 'good', true);
+                renderRankings(fullBadRankingsDiv, topBad, 'bad', true);
+                fullRankingsModalContainer.classList.remove('hidden');
+                fullRankingsModalContainer.classList.add('flex');
+            } else if (type === 'themes') {
+                renderThemeOptions();
+                themeModalContainer.classList.remove('hidden');
+                themeModalContainer.classList.add('flex');
+            }
+        }
+
+        function hideModal(type) {
+            if (type === 'submission') {
+                submissionModal.classList.remove('flex');
+                submissionModal.classList.add('hidden');
+            } else if (type === 'rankings') {
+                fullRankingsModalContainer.classList.remove('flex');
+                fullRankingsModalContainer.classList.add('hidden');
+            } else if (type === 'themes') {
+                themeModalContainer.classList.remove('flex');
+                themeModalContainer.classList.add('hidden');
+            }
+        }
+        
+        /**
+         * Clears all persistent and temporary visual effects.
+         */
+        function clearVisualEffects() {
+            // Remove all body theme classes
+            gameBody.classList.remove('default-bg', 'rainbow-mode', 'ninja-mode');
+            gameBody.style.filter = '';
+
+            // Remove all card theme classes
+            gameCard.classList.remove('ninja-mode', 'banana-card'); 
+            gameCard.style.backgroundColor = '';
+            gameCard.style.color = '';
+            
+            // Reset word display styling
+            wordDisplay.style.fontFamily = '';
+            wordDisplay.classList.remove('banana-mode');
+
+            // Reset cake message (used for unlock/temp messages)
+            cakeMessage.classList.remove('rainbow-text', 'opacity-100');
+            cakeMessage.classList.add('opacity-0');
+            cakeMessage.textContent = ''; 
+        }
+
+        /**
+         * Applies the currently active persistent theme.
+         */
+        function applyActiveTheme() {
+            clearVisualEffects(); // Clear everything first
+
+            // 1. Apply the background/global theme
+            if (activeTheme === 'RAINBOW') {
+                gameBody.classList.add('rainbow-mode');
+            } else if (activeTheme === 'NINJA') {
+                gameBody.classList.add('ninja-mode');
+                gameCard.classList.add('ninja-mode');
+            } else {
+                gameBody.classList.add('default-bg');
+            }
+            
+            // 2. Ensure word display color matches active theme on load
+            if (activeTheme === 'NINJA') {
+                wordDisplay.style.color = 'white'; 
+            } else {
+                wordDisplay.style.color = '#111827';
+            }
+            
+            // 3. If there is a debug word, reset its style
+            if (DEBUG_WORD) {
+                 wordDisplay.style.fontSize = '6rem';
+            }
+        }
+        
+        /**
+         * Switches the active theme.
+         * @param {string} themeName 'DEFAULT', 'NINJA', or 'RAINBOW'.
+         */
+        function switchTheme(themeName) {
+            if (!unlockedThemes.has(themeName)) {
+                // Should not happen if rendering is correct, but good safeguard
+                return;
+            }
+            activeTheme = themeName;
+            localStorage.setItem('activeTheme', themeName);
+            applyActiveTheme();
+            renderThemeOptions(); // Update active button state
+        }
+        
+        function renderThemeOptions() {
+            themeOptionsDiv.innerHTML = '';
+            
+            const availableThemes = [
+                { name: 'DEFAULT', display: 'Default (Blue/Yellow)', unlocked: true, icon: '🏠' },
+                { name: 'NINJA', display: 'Ninja Mode (Stealth)', unlocked: unlockedThemes.has('NINJA'), icon: '🥷' },
+                { name: 'RAINBOW', display: 'Rainbow Visualizer', unlocked: unlockedThemes.has('RAINBOW'), icon: '🌈' }
+            ];
+            
+            themeUnlockMessage.textContent = `Unlocked: ${unlockedThemes.size - 1}/2 Easter Egg Themes.`;
+
+            availableThemes.forEach(theme => {
+                const button = document.createElement('button');
+                
+                let themeClasses = 'w-full py-3 text-lg font-bold rounded-xl shadow-md transition duration-150 ';
+                
+                if (theme.unlocked) {
+                    if (theme.name === activeTheme) {
+                        // Active style
+                        themeClasses += 'bg-green-500 text-white shadow-xl ring-4 ring-green-300';
+                        button.textContent = `${theme.icon} ${theme.display} (Active)`;
+                    } else {
+                        // Unlocked but inactive
+                        themeClasses += 'bg-gray-200 text-gray-700 hover:bg-gray-300';
+                        button.textContent = `${theme.icon} ${theme.display}`;
+                        button.addEventListener('click', () => switchTheme(theme.name));
+                    }
+                } else {
+                    // Locked style
+                    themeClasses += 'bg-gray-100 text-gray-400 cursor-not-allowed';
+                    button.textContent = `${theme.icon} ${theme.display} (Locked)`;
+                    button.disabled = true;
+                }
+                
+                button.className = themeClasses;
+                themeOptionsDiv.appendChild(button);
+            });
+        }
+
+
+        function checkWordEasterEggs(wordText) {
+            // Check for temporary/one-off effects that override the persistent theme
+            // These should run AFTER applyActiveTheme() so they override correctly.
+            
+            // Apply the persistent theme first to reset/set base style
+            applyActiveTheme(); 
+
+            // CAKE - Only sets the word color on display (temporary)
+            if (wordText === 'CAKE') {
+                wordDisplay.style.color = '#78350f'; 
+
+            // BANANA - Fun, silly one (Temporary shake effect)
+            } else if (wordText === 'BANANA') {
+                wordDisplay.classList.add('banana-mode');
+                wordDisplay.style.color = '#d97706'; 
+                gameCard.classList.add('banana-card');
+
+            // NINJA/RAINBOW - Unlock logic (handled in submitVote, but apply effects for first discovery)
+            } else if (EASTER_EGG_WORDS.has(wordText) && !unlockedThemes.has(wordText)) {
+                // Show message if it's a new unlock (logic handled in submitVote)
+                if (wordText === 'NINJA') {
+                    cakeMessage.textContent = 'Theme Unlocked: Ninja Mode! 🥷';
+                } else if (wordText === 'RAINBOW') {
+                    cakeMessage.textContent = 'Theme Unlocked: Rainbow Visualizer! 🌈';
+                    cakeMessage.classList.add('rainbow-text');
+                }
+                cakeMessage.classList.remove('opacity-0');
+                cakeMessage.classList.add('opacity-100');
+            } 
+        }
+
         function setupDebugControls() {
              // Create debug indicator element
             debugIndicator = document.createElement('div');
@@ -449,82 +672,6 @@
             cakeMessage.textContent = '';
         }
 
-        /**
-         * Clears all non-visualizer easter egg visual effects and resets CSS classes.
-         */
-        function resetVisualEffects() {
-            // Reset word display styling
-            wordDisplay.style.color = ''; 
-            wordDisplay.style.fontFamily = '';
-            wordDisplay.classList.remove('banana-mode', 'ninja-mode', 'animate-spin-slow');
-
-            // Reset card styling
-            gameCard.style.boxShadow = '';
-            gameCard.style.backgroundColor = '';
-            gameCard.style.color = '';
-            gameCard.classList.remove('banana-card', 'ninja-mode', 'banana-mode'); 
-            
-            // Reset body styling for non-persistent effects
-            gameBody.classList.remove('ninja-mode');
-            gameBody.style.filter = '';
-
-            // Reset cake message styling (MUST be before checkWordEasterEggs applies new styles)
-            cakeMessage.classList.remove('rainbow-text', 'opacity-100');
-            cakeMessage.classList.add('opacity-0');
-            cakeMessage.textContent = ''; 
-            
-            // Manage visualizer mode (persistent effect)
-            if (isVisualizerMode) {
-                gameBody.classList.remove('default-bg');
-                gameBody.classList.add('rainbow-mode');
-            } else {
-                gameBody.classList.remove('rainbow-mode');
-                gameBody.classList.add('default-bg'); 
-            }
-        }
-
-        /**
-         * Checks the word against known easter egg words and applies effects.
-         * Note: CAKE/BANANA messages are handled in submitVote for timing.
-         * @param {string} wordText The current word in uppercase.
-         */
-        function checkWordEasterEggs(wordText) {
-            resetVisualEffects();
-            
-            // CAKE - Only sets the word color on display
-            if (wordText === 'CAKE') {
-                wordDisplay.style.color = '#78350f'; 
-
-            // NINJA - Stealth mode (Immediate message on display)
-            } else if (wordText === 'NINJA') {
-                cakeMessage.textContent = 'Shhh... stealth mode initiated. 🥷';
-                cakeMessage.classList.remove('opacity-0');
-                cakeMessage.classList.add('opacity-100');
-                gameCard.classList.add('ninja-mode');
-                gameBody.classList.add('ninja-mode');
-                wordDisplay.style.color = 'white'; 
-                
-            // BANANA - Fun, silly one (Only visual effects on display)
-            } else if (wordText === 'BANANA') {
-                wordDisplay.classList.add('banana-mode');
-                wordDisplay.style.color = '#d97706'; 
-                gameCard.classList.add('banana-card');
-
-            // RAINBOW - Persistent mode (Immediate message on display)
-            } else if (wordText === 'RAINBOW') {
-                if (isVisualizerMode) {
-                    cakeMessage.textContent = 'A dazzling surprise! ✨';
-                    cakeMessage.classList.add('rainbow-text');
-                } else {
-                    cakeMessage.textContent = 'Back to the usual look.';
-                }
-                
-                cakeMessage.classList.remove('opacity-0');
-                cakeMessage.classList.add('opacity-100');
-            }
-        }
-
-
         function displayCurrentWord() {
             let currentWord = allWords[currentWordIndex];
             let wordText;
@@ -540,8 +687,9 @@
             
             wordDisplay.classList.remove('word-transition-good', 'word-transition-bad');
             
+            // The word display style is handled by applyActiveTheme first
             wordDisplay.textContent = wordText;
-            wordDisplay.className = 'font-extrabold text-gray-900 mb-8 text-center min-h-[72px]';
+            wordDisplay.className = 'font-extrabold mb-8 text-center min-h-[72px]';
             
             const cardWidth = document.getElementById('gameCard').clientWidth - 64; 
             const maxFontSize = 96; 
@@ -561,7 +709,7 @@
             wordDisplay.style.fontSize = `${finalFontSize}px`;
             wordDisplay.style.whiteSpace = 'normal'; 
             
-            // Check and apply easter egg effects
+            // Check and apply *temporary* easter egg effects
             checkWordEasterEggs(wordText);
             
             goodButton.disabled = false;
@@ -569,9 +717,6 @@
             notWordButton.disabled = false;
         }
 
-        /**
-         * Selects a random word index using a weighted algorithm.
-         */
         function getWeightedRandomWordIndex(excludeIndex = -1) {
             if (allWords.length === 0) return -1;
             if (allWords.length === 1) return 0;
@@ -614,7 +759,6 @@
             DEBUG_WORD = null;
             if (debugIndicator) debugIndicator.classList.add('hidden');
             
-            // Select the next word, excluding the current one
             currentWordIndex = getWeightedRandomWordIndex(currentWordIndex);
             
             displayCurrentWord();
@@ -699,93 +843,83 @@
                 return;
             }
             
-            // Get the *actual* current word, even if DEBUG_WORD was set
             const currentWord = allWords[currentWordIndex];
             if (!currentWord) return;
 
-
-            // --- Get the currently displayed word text for easter egg check ---
             const displayedWordText = wordDisplay.textContent.toUpperCase();
             const isCake = displayedWordText === 'CAKE';
             const isBanana = displayedWordText === 'BANANA';
+            const isNinjaOrRainbow = displayedWordText === 'NINJA' || displayedWordText === 'RAINBOW';
+            
+            // --- Theme Unlock Logic ---
+            if (isNinjaOrRainbow) {
+                const themeName = displayedWordText;
+                let delayMs = 1500; // Default unlock message time
 
-            // Easter Egg Logic for RAINBOW (toggles a persistent mode)
-            if (displayedWordText === 'RAINBOW') {
-                isVisualizerMode = !isVisualizerMode;
-                
-                // Immediately update the body classes to reflect the toggle state
-                if (isVisualizerMode) {
-                    gameBody.classList.remove('default-bg'); 
-                    gameBody.classList.add('rainbow-mode'); 
+                if (!unlockedThemes.has(themeName)) {
+                    // Unlock the theme
+                    unlockedThemes.add(themeName);
+                    localStorage.setItem('unlockedThemes', JSON.stringify(Array.from(unlockedThemes)));
+                    
+                    // Show message (already set by checkWordEasterEggs)
+                    goodButton.disabled = true;
+                    badButton.disabled = true;
+                    notWordButton.disabled = true;
                 } else {
-                    gameBody.classList.remove('rainbow-mode'); 
-                    gameBody.classList.add('default-bg'); 
+                    // Already unlocked, just proceed quickly
+                    delayMs = 200;
                 }
                 
-                // Show the message and update the card shake
-                checkWordEasterEggs('RAINBOW'); // Use 'RAINBOW' to update message
                 setTimeout(() => {
                     nextWord(); 
                     fetchWords(false);
-                }, 1000); // Give time for the message to display
-                return; 
+                }, delayMs); 
+                return; // Prevent vote submission for unlock words
             }
             
-            // Handle CAKE or BANANA message display (new combined logic)
+            // --- CAKE/BANANA Message Delay Logic ---
             if (isCake || isBanana) {
-                // Keep the word on screen, show the message, and disable buttons
                 goodButton.disabled = true;
                 badButton.disabled = true;
                 notWordButton.disabled = true;
 
                 wordDisplay.classList.remove('word-transition-good', 'word-transition-bad');
-                wordDisplay.style.transform = 'none'; // Ensure it doesn't move yet
+                wordDisplay.style.transform = 'none'; 
                 
-                // Determine message, duration, and transition duration
                 let message, delayMs;
-                const transitionDelayMs = 800; // 0.8s transition
+                const transitionDelayMs = 800;
                 
                 if (isCake) {
                     message = 'The cake is a lie! 🎂';
-                    delayMs = 5000; // 5 seconds for cake
-                } else { // isBanana
+                    delayMs = 5000; 
+                } else { 
                     message = 'Going bananas! 🍌';
-                    delayMs = 2000; // 2 seconds for banana
+                    delayMs = 2000; 
                 }
 
-                // Display the message
                 cakeMessage.textContent = message;
                 cakeMessage.classList.remove('opacity-0');
                 cakeMessage.classList.add('opacity-100');
 
-                // After the delay, proceed with the vote and the next word
                 setTimeout(async () => {
-                    // Hide the message
                     cakeMessage.classList.remove('opacity-100');
                     cakeMessage.classList.add('opacity-0');
                     
-                    // Re-enable buttons briefly for visual effect before vote transition starts
-                    goodButton.disabled = false;
-                    badButton.disabled = false;
-                    notWordButton.disabled = false;
-                    
-                    // Add the transition class to start the word movement 
                     if (voteType === 'good' || voteType === 'bad') {
                         wordDisplay.classList.add(voteType === 'good' ? 'word-transition-good' : 'word-transition-bad');
                     }
                     
-                    // Proceed with vote submission after message display
                     await processVoteSubmission(currentWord, voteType, transitionDelayMs);
                 }, delayMs); 
                 
-                return; // Exit submitVote early as the rest is handled in the timeout
+                return;
             }
             
-            // Normal word flow
-            const transitionDuration = 800; // Updated to 0.8s
+            // --- Normal Word Flow ---
+            const transitionDuration = 800;
             
             goodButton.disabled = true;
-            badButton.disabled = true;
+            badButton.disabled = false;
             notWordButton.disabled = true;
             
             if (voteType === 'good' || voteType === 'bad') {
@@ -809,16 +943,10 @@
 
                 if (response.status === 403) {
                     voteStreak = 0; 
-                    
-                    if (voteType === 'good' || voteType === 'bad') {
-                        setTimeout(() => {
-                            nextWord();
-                            fetchWords(false); 
-                        }, transitionDuration); 
-                    } else {
-                         nextWord();
-                         fetchWords(false);
-                    }
+                    setTimeout(() => {
+                        nextWord();
+                        fetchWords(false); 
+                    }, transitionDuration);
                 } else if (!response.ok) {
                     throw new Error(result.message || "Failed to register vote.");
                 } else {
@@ -831,7 +959,7 @@
                     let awardName = '';
                     let emoji = '';
 
-                    // Vote count easter egg - Milestone award logic
+                    // Vote count milestone award logic
                     if (previousVoteCount < 5 && voteCount >= 5) {
                         awardName = 'Bronze Star';
                         emoji = '🥉';
@@ -844,7 +972,7 @@
                         awardName = 'Gold Star';
                         emoji = '🌟';
                         awardAchieved = true;
-                    } else if (voteCount === 100) { // New Milestone EE
+                    } else if (voteCount === 100) { 
                         awardName = 'Centurion Voter';
                         emoji = '💯';
                         awardAchieved = true;
@@ -945,34 +1073,7 @@
             });
         }
         
-        function showFullRankingsModal() {
-            const { topGood, topBad } = getRankedWords(100);
-            
-            renderRankings(fullGoodRankingsDiv, topGood, 'good', true);
-            renderRankings(fullBadRankingsDiv, topBad, 'bad', true);
-            
-            fullRankingsModalContainer.classList.remove('hidden');
-            fullRankingsModalContainer.classList.add('flex');
-        }
-
-        function hideFullRankingsModal() {
-            fullRankingsModalContainer.classList.remove('flex');
-            fullRankingsModalContainer.classList.add('hidden');
-        }
-
-        function showModal() {
-            submissionModal.classList.remove('hidden');
-            submissionModal.classList.add('flex');
-            newWordInput.value = '';
-            modalMessage.textContent = '';
-        }
-
-        function hideModal() {
-            submissionModal.classList.remove('flex');
-            submissionModal.classList.add('hidden');
-        }
-
-        async function submitCustomWord() {
+        function submitCustomWord() {
             const text = newWordInput.value.trim();
             if (!text) {
                 modalMessage.textContent = "Please enter a word.";
@@ -994,7 +1095,7 @@
                 if (response.status === 201) {
                     modalMessage.textContent = "Success! Word added to the pool.";
                     setTimeout(() => {
-                        hideModal();
+                        hideModal('submission');
                         fetchWords();
                     }, 1000);
                 } else {
@@ -1008,6 +1109,7 @@
                 submitWordButton.disabled = false;
             }
         }
+
 
         window.onload = init;
 
