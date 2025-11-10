@@ -9,6 +9,10 @@
     <style>
         body { 
             font-family: 'Inter', sans-serif; 
+            /* The static background is now applied via .default-bg class */
+            transition: background-color 0.5s ease;
+        }
+        .default-bg {
             background: linear-gradient(135deg, #fef2be 0%, #b5def0 100%);
         }
         .card { 
@@ -16,7 +20,7 @@
             background-color: rgba(255, 255, 255, 0.95);
             box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
             border: 1px solid rgba(0, 0, 0, 0.05);
-            transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+            transition: transform 0.2s ease-out, box-shadow 0.2s ease-out, border 0.3s ease;
         }
         #gameCard:hover {
             transform: translateY(-4px);
@@ -45,6 +49,7 @@
             margin-bottom: 1rem;
             opacity: 0;
             transition: opacity 0.3s ease-in-out;
+            min-height: 1.5rem; /* Ensure space is reserved */
         }
         .opacity-100 { opacity: 1; }
 
@@ -53,37 +58,17 @@
             .vote-counts { font-size: 0.875rem; }
         }
 
-        .word-transition-good {
-            animation: slide-out-left-good 0.4s ease-out forwards;
-        }
-        .word-transition-bad {
-            animation: slide-out-right-bad 0.4s ease-out forwards;
-        }
+        .word-transition-good { animation: slide-out-left-good 0.4s ease-out forwards; }
+        .word-transition-bad { animation: slide-out-right-bad 0.4s ease-out forwards; }
 
         @keyframes slide-out-left-good {
-            0% { 
-                transform: translateX(0); 
-                opacity: 1; 
-                color: #111827;
-            }
-            100% { 
-                transform: translateX(-150%); 
-                opacity: 0; 
-                color: #10b981;
-            }
+            0% { transform: translateX(0); opacity: 1; color: #111827; }
+            100% { transform: translateX(-150%); opacity: 0; color: #10b981; }
         }
         
         @keyframes slide-out-right-bad {
-            0% { 
-                transform: translateX(0); 
-                opacity: 1; 
-                color: #111827;
-            }
-            100% { 
-                transform: translateX(150%); 
-                opacity: 0; 
-                color: #ef4444;
-            }
+            0% { transform: translateX(0); opacity: 1; color: #111827; }
+            100% { transform: translateX(150%); opacity: 0; color: #ef4444; }
         }
 
         #wordDisplay {
@@ -93,26 +78,51 @@
             max-width: 100%; 
             padding: 0 1rem; 
             box-sizing: border-box;
+            transition: color 0.3s ease, transform 0.3s ease;
         }
         #fullRankingsModal {
             max-width: 800px;
             max-height: 90vh;
             overflow-y: auto;
         }
-        .full-ranking-item {
-            border-bottom: 1px solid #e5e7eb;
+        .full-ranking-item { border-bottom: 1px solid #e5e7eb; }
+
+        /* --- Custom Easter Egg Styles --- */
+        .ninja-mode #wordDisplay { font-family: 'Courier New', monospace; }
+        .ninja-mode .card { 
+            background-color: rgba(30, 41, 59, 0.95); /* Dark slate */
+            color: white;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
+        }
+        .ninja-mode body { filter: grayscale(80%); }
+
+        .banana-mode #wordDisplay { animation: shake 0.5s ease-in-out infinite; }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-5px); }
+            40%, 80% { transform: translateX(5px); }
+        }
+        .banana-card { border: 4px solid #fcd34d !important; }
+        .banana-text { color: #d97706 !important; } /* Darker yellow/orange */
+
+        .rainbow-mode { 
+            animation: rainbowBG 10s infinite alternate;
+        }
+        @keyframes rainbowBG {
+            0% { background: linear-gradient(135deg, #fef2be 0%, #b5def0 100%); }
+            25% { background: linear-gradient(135deg, #fecaca 0%, #fde68a 100%); }
+            50% { background: linear-gradient(135deg, #a7f3d0 0%, #6ee7b7 100%); }
+            75% { background: linear-gradient(135deg, #bfdbfe 0%, #a5b4fc 100%); }
+            100% { background: linear-gradient(135deg, #e9d5ff 0%, #c4b5fd 100%); }
         }
     </style>
 </head>
-<body class="flex flex-col items-center justify-center min-h-screen p-4">
+<body id="gameBody" class="flex flex-col items-center justify-center min-h-screen p-4 default-bg">
 
     <header class="text-center mb-8 w-full max-w-lg">
         <div id="logoArea" class="h-32 w-full flex items-center justify-center mb-4 relative">
-            <img 
-                src="logo.png" 
-                alt="Good Word / Bad Word Logo with Rainbow and Devil" 
-                class="h-full w-auto max-w-full"
-            >
+            <!-- Simplified logo area for clean presentation -->
+            <h1 class="text-5xl font-extrabold text-gray-900 leading-tight">GOOD WORD / BAD WORD</h1>
             <div id="awardBadge" class="absolute top-2 right-2 p-2 cursor-help text-3xl">
                 </div>
         </div>
@@ -131,7 +141,8 @@
         <div id="wordDisplay" class="font-extrabold text-gray-900 mb-8 text-center min-h-[72px]">
             Loading...
         </div>
-        <div id="cakeMessage" class="text-center">
+        <div id="cakeMessage" class="text-center min-h-[1.5rem]">
+            <!-- Message area for easter eggs -->
             </div>
         
         <div class="flex space-x-4 w-full mb-3">
@@ -171,6 +182,7 @@
         </button>
     </div>
 
+    <!-- Modals (Submission and Rankings) - Kept as is -->
     <div id="submissionModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
         <div class="bg-white p-6 rounded-xl w-full max-w-md shadow-2xl">
             <h2 class="text-2xl font-bold mb-4">Submit a New Word</h2>
@@ -212,12 +224,12 @@
 
 
     <div class="version-indicator">
-        v3.3.4 | Made by Gilxs in 12,025
+        v3.5.5 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.4.0'; 
+        const APP_VERSION = '3.5.5'; 
 
         let allWords = [];
         let currentWordIndex = 0;
@@ -231,6 +243,16 @@
         let cooldownTimer = null;
         let isCoolingDown = false;
         let lastVoteTime = 0; 
+        
+        // --- Easter Egg and Debug State ---
+        let DEBUG_WORD = null;
+        let isVisualizerMode = false; // Controls persistent RAINBOW mode
+        const DEBUG_MAP = {
+            '1': 'CAKE',
+            '2': 'NINJA',
+            '3': 'BANANA',
+            '4': 'RAINBOW'
+        };
 
         const wordDisplay = document.getElementById('wordDisplay');
         const cakeMessage = document.getElementById('cakeMessage');
@@ -255,6 +277,11 @@
         const closeFullRankingsModal = document.getElementById('closeFullRankingsModal');
         const fullGoodRankingsDiv = document.getElementById('fullGoodRankings');
         const fullBadRankingsDiv = document.getElementById('fullBadRankings');
+        const gameCard = document.getElementById('gameCard');
+        const gameBody = document.getElementById('gameBody');
+
+        // Developer mode indicator
+        let debugIndicator = null; 
 
         function init() {
             if (!userId) {
@@ -284,12 +311,46 @@
                 }
             });
 
+            setupDebugControls(); // Setup keyboard shortcuts
+            
             fetchWords();
             updateAwardBadge();
             
             window.addEventListener('resize', () => {
                 if (allWords.length > 0) {
                     displayCurrentWord(); 
+                }
+            });
+        }
+        
+        /**
+         * Sets up the keyboard listeners for the developer debug controls.
+         * Ctrl + 1: CAKE | Ctrl + 2: NINJA | Ctrl + 3: BANANA | Ctrl + 4: RAINBOW
+         * Escape: Clear debug mode
+         */
+        function setupDebugControls() {
+             // Create debug indicator element
+            debugIndicator = document.createElement('div');
+            debugIndicator.id = 'debugIndicator';
+            debugIndicator.className = 'fixed top-4 right-4 text-xs font-bold text-white bg-red-600 p-2 rounded-lg shadow-xl hidden z-[100]';
+            debugIndicator.textContent = 'DEBUG MODE (ESC to exit)';
+            document.body.appendChild(debugIndicator);
+
+            document.addEventListener('keydown', (e) => {
+                const key = e.key;
+
+                if (e.ctrlKey && key in DEBUG_MAP) {
+                    e.preventDefault(); 
+                    DEBUG_WORD = DEBUG_MAP[key];
+                    displayCurrentWord();
+                    debugIndicator.classList.remove('hidden');
+                } else if (key === 'Escape') {
+                    if (DEBUG_WORD) {
+                        DEBUG_WORD = null;
+                        debugIndicator.classList.add('hidden');
+                        displayCurrentWord();
+                        fetchWords(false); // Reselect a new word
+                    }
                 }
             });
         }
@@ -364,14 +425,98 @@
             cakeMessage.textContent = '';
         }
 
+        /**
+         * Clears all non-visualizer easter egg visual effects and resets CSS classes.
+         */
+        function resetVisualEffects() {
+            // Reset word display styling
+            wordDisplay.style.color = ''; 
+            wordDisplay.style.fontFamily = '';
+            wordDisplay.classList.remove('banana-mode', 'ninja-mode', 'animate-spin-slow');
+
+            // Reset card styling
+            gameCard.style.boxShadow = '';
+            gameCard.style.backgroundColor = '';
+            gameCard.style.color = '';
+            gameCard.classList.remove('banana-card', 'ninja-mode');
+            
+            // Reset body styling for non-persistent effects
+            gameBody.classList.remove('ninja-mode');
+            gameBody.style.filter = '';
+            
+            // Manage visualizer mode (persistent effect)
+            if (isVisualizerMode) {
+                gameBody.classList.add('rainbow-mode');
+                gameBody.classList.remove('default-bg'); // Ensure static background is OFF
+            } else {
+                gameBody.classList.remove('rainbow-mode');
+                gameBody.classList.add('default-bg'); // Ensure static background is ON
+            }
+
+            // Clear easter egg message
+            cakeMessage.classList.remove('opacity-100');
+            cakeMessage.classList.add('opacity-0');
+            cakeMessage.textContent = ''; 
+        }
+
+        /**
+         * Checks the word against known easter egg words and applies effects.
+         * @param {string} wordText The current word in uppercase.
+         */
+        function checkWordEasterEggs(wordText) {
+            resetVisualEffects();
+            
+            // CAKE - The classic one
+            if (wordText === 'CAKE') {
+                cakeMessage.textContent = 'The cake is a lie! 🎂';
+                cakeMessage.classList.add('opacity-100');
+                wordDisplay.style.color = '#78350f'; // Darker brown
+                // NOTE: Using a custom animation class would be better than built-in tailwind ones for rotation
+                // wordDisplay.classList.add('animate-spin-slow'); 
+
+            // NINJA - Stealth mode
+            } else if (wordText === 'NINJA') {
+                cakeMessage.textContent = 'Shhh... stealth mode initiated. 🥷';
+                cakeMessage.classList.add('opacity-100');
+                gameCard.classList.add('ninja-mode');
+                gameBody.classList.add('ninja-mode');
+                wordDisplay.style.color = 'white'; 
+                gameCard.style.backgroundColor = 'rgba(30, 41, 59, 0.95)';
+
+            // BANANA - Fun, silly one
+            } else if (wordText === 'BANANA') {
+                cakeMessage.textContent = 'Going bananas! 🍌';
+                cakeMessage.classList.add('opacity-100');
+                wordDisplay.classList.add('banana-mode');
+                wordDisplay.style.color = '#d97706'; 
+                gameCard.classList.add('banana-card');
+
+            // RAINBOW - Visualizer Mode Indicator
+            } else if (wordText === 'RAINBOW') {
+                if (isVisualizerMode) {
+                    cakeMessage.textContent = 'Visualizer Mode ON! ✨';
+                } else {
+                    cakeMessage.textContent = 'Visualizer Mode OFF.';
+                }
+                cakeMessage.classList.add('opacity-100');
+            }
+        }
+
+
         function displayCurrentWord() {
-            if (allWords.length === 0) {
+            let currentWord = allWords[currentWordIndex];
+            let wordText;
+
+            if (DEBUG_WORD) {
+                // Developer testing mode is active
+                wordText = DEBUG_WORD.toUpperCase();
+            } else if (allWords.length > 0) {
+                // Normal game flow
+                wordText = currentWord.text.toUpperCase();
+            } else {
                 showMessage("No words available! Try submitting one.", false);
                 return;
             }
-            
-            const currentWord = allWords[currentWordIndex];
-            const wordText = currentWord.text.toUpperCase();
             
             wordDisplay.classList.remove('word-transition-good', 'word-transition-bad');
             
@@ -396,15 +541,8 @@
             wordDisplay.style.fontSize = `${finalFontSize}px`;
             wordDisplay.style.whiteSpace = 'normal'; 
             
-            if (wordText === 'CAKE') {
-                cakeMessage.textContent = 'The cake is a lie!';
-                cakeMessage.classList.remove('opacity-0');
-                cakeMessage.classList.add('opacity-100');
-            } else {
-                cakeMessage.classList.remove('opacity-100');
-                cakeMessage.classList.add('opacity-0');
-                cakeMessage.textContent = ''; 
-            }
+            // Check and apply easter egg effects
+            checkWordEasterEggs(wordText);
             
             goodButton.disabled = false;
             badButton.disabled = false;
@@ -413,57 +551,48 @@
 
         /**
          * Selects a random word index using a weighted algorithm.
-         * Words with fewer votes have a higher chance of being selected.
-         * @param {number} excludeIndex - An index to exclude from selection (usually the current word).
          */
         function getWeightedRandomWordIndex(excludeIndex = -1) {
             if (allWords.length === 0) return -1;
             if (allWords.length === 1) return 0;
 
-            // 1. Create a list of available words.
             const availableWords = allWords
                 .map((w, index) => ({
                     index,
                     totalVotes: (w.goodVotes || 0) + (w.badVotes || 0) + (w.notWordVotes || 0)
                 }))
-                .filter(w => w.index !== excludeIndex); // Filter out the excluded index
+                .filter(w => w.index !== excludeIndex); 
 
-            // Use the filtered list, or the full list if filtering left nothing
-            // (e.g., only 1 word in allWords, which got filtered)
-            const wordPool = availableWords.length > 0 
-                ? availableWords 
-                : allWords.map((w, index) => ({ 
+            const wordPool = availableWords.length > 0 ? availableWords : allWords.map((w, index) => ({ 
                     index, 
                     totalVotes: (w.goodVotes || 0) + (w.badVotes || 0) + (w.notWordVotes || 0) 
                 }));
 
-            // 2. Calculate weights and total weight
             let totalWeight = 0;
             const weightedWords = wordPool.map(w => {
-                // Add 1 to avoid division by zero. This gives 0-vote words a weight of 1.
-                // A word with 9 votes gets a weight of 0.1.
-                // A word with 99 votes gets a weight of 0.01.
                 const weight = 1.0 / (w.totalVotes + 1);
                 totalWeight += weight;
                 return { index: w.index, weight: weight };
             });
 
-            // 3. Perform weighted random selection
             let randomNum = Math.random() * totalWeight;
             
             for (const word of weightedWords) {
                 randomNum -= word.weight;
                 if (randomNum <= 0) {
-                    return word.index; // This is our chosen word
+                    return word.index; 
                 }
             }
             
-            // Fallback in case of floating point issues (should rarely be hit)
             return wordPool[wordPool.length - 1].index;
         }
 
         function nextWord() {
             if (allWords.length === 0) return;
+            
+            // Clear debug word if set after interaction
+            DEBUG_WORD = null;
+            if (debugIndicator) debugIndicator.classList.add('hidden');
             
             // Select the next word, excluding the current one
             currentWordIndex = getWeightedRandomWordIndex(currentWordIndex);
@@ -491,7 +620,6 @@
                     updateStatsAndRankings();
                     
                     if (updateDisplay) {
-                        // Select the initial word, excluding none (-1)
                         currentWordIndex = getWeightedRandomWordIndex(-1);
                         displayCurrentWord();
                     } 
@@ -551,8 +679,31 @@
                 return;
             }
 
+            // Get the *actual* current word, even if DEBUG_WORD was set
             const currentWord = allWords[currentWordIndex];
             if (!currentWord) return;
+
+            // Easter Egg Logic for RAINBOW (toggles a persistent mode)
+            if (currentWord.text.toUpperCase() === 'RAINBOW') {
+                isVisualizerMode = !isVisualizerMode;
+                
+                // Immediately update the display to reflect the toggle state
+                if (isVisualizerMode) {
+                    gameBody.classList.remove('default-bg'); // REMOVE static background
+                    gameBody.classList.add('rainbow-mode'); // ADD animated background
+                } else {
+                    gameBody.classList.remove('rainbow-mode'); // REMOVE animated background
+                    gameBody.classList.add('default-bg'); // RESTORE static background
+                }
+                
+                // Show the message, then move to the next word
+                checkWordEasterEggs(currentWord.text.toUpperCase());
+                setTimeout(() => {
+                    nextWord(); 
+                    fetchWords(false);
+                }, 1000); // Give time for the message to display
+                return; 
+            }
 
             goodButton.disabled = true;
             badButton.disabled = true;
@@ -598,6 +749,7 @@
                     let awardName = '';
                     let emoji = '';
 
+                    // Vote count easter egg - Milestone award logic
                     if (previousVoteCount < 5 && voteCount >= 5) {
                         awardName = 'Bronze Star';
                         emoji = '🥉';
@@ -609,6 +761,10 @@
                     } else if (previousVoteCount < 50 && voteCount >= 50) {
                         awardName = 'Gold Star';
                         emoji = '🌟';
+                        awardAchieved = true;
+                    } else if (voteCount === 100) { // New Milestone EE
+                        awardName = 'Centurion Voter';
+                        emoji = '💯';
                         awardAchieved = true;
                     }
 
