@@ -9,7 +9,6 @@
     <style>
         body { 
             font-family: 'Inter', sans-serif; 
-            /* background: linear-gradient(135deg, #fef2be 0%, #b5def0 100%); */ /* Removed to use class */
             transition: background 0.5s ease; 
         }
         .default-bg {
@@ -18,13 +17,30 @@
         .rainbow-mode {
             background: linear-gradient(135deg, #ff7e5f, #feb47b, #86a8e7, #75e7a9, #f76b1c);
             background-size: 400% 400%;
-            animation: gradient-shift 15s ease infinite;
+            /* Faster animation: 5s */
+            animation: gradient-shift 5s ease infinite; 
         }
         @keyframes gradient-shift {
             0% { background-position: 0% 50%; }
             50% { background-position: 100% 50%; }
             100% { background-position: 0% 50%; }
         }
+
+        /* Class for rainbow text */
+        .rainbow-text {
+            background: linear-gradient(90deg, #e3342f, #f6993f, #ffed4a, #38c172, #4c51bf, #9b59b6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-fill-color: transparent;
+            background-size: 400% 100%;
+            animation: gradient-text-shift 2s linear infinite; 
+        }
+        @keyframes gradient-text-shift {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 100% 50%; }
+        }
+
 
         .card { 
             backdrop-filter: blur(10px); 
@@ -61,7 +77,6 @@
             transition: opacity 0.3s ease-in-out;
             min-height: 1.5rem; 
         }
-        /* FIX: Added new classes for opacity toggling (removed strong ID opacity) */
         .opacity-100 { opacity: 1; }
         .opacity-0 { opacity: 0; }
 
@@ -70,8 +85,9 @@
             .vote-counts { font-size: 0.875rem; }
         }
 
-        .word-transition-good { animation: slide-out-left-good 0.4s ease-out forwards; }
-        .word-transition-bad { animation: slide-out-right-bad 0.4s ease-out forwards; }
+        /* Increased transition duration from 0.4s to 0.8s */
+        .word-transition-good { animation: slide-out-left-good 0.8s ease-out forwards; }
+        .word-transition-bad { animation: slide-out-right-bad 0.8s ease-out forwards; }
 
         @keyframes slide-out-left-good {
             0% { transform: translateX(0); opacity: 1; color: #111827; }
@@ -128,11 +144,13 @@
 <body id="gameBody" class="min-h-screen flex flex-col items-center justify-center p-4 default-bg">
 
     <header class="mb-4 w-full max-w-sm">
-        <div id="logoArea" class="h-16 w-full flex items-center justify-center mb-4 relative">
+        <!-- Increased logo area height (h-16 -> h-20) for better spacing -->
+        <div id="logoArea" class="h-20 w-full flex items-center justify-center mb-4 relative">
+            <!-- Increased logo image height (h-12 -> h-16) and updated placeholder size -->
             <img src="logo.jpg" 
                  alt="GOOD WORD / BAD WORD Logo" 
-                 class="h-12 w-auto rounded-xl"
-                 onerror="this.onerror=null; this.src='https://placehold.co/100x48/d97706/ffffff?text=LOGO';">
+                 class="h-16 w-auto rounded-xl"
+                 onerror="this.onerror=null; this.src='https://placehold.co/120x64/d97706/ffffff?text=LOGO';">
             <div id="awardBadge" class="absolute top-2 right-2 p-2 cursor-help text-3xl">
                 ✨
             </div>
@@ -235,12 +253,12 @@
 
 
     <div class="version-indicator">
-        v3.5.6 | Made by Gilxs in 12,025
+        v3.5.7-EE-FIXES | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.5.6'; 
+        const APP_VERSION = '3.5.7-EE-FIXES'; 
 
         let allWords = [];
         let currentWordIndex = 0;
@@ -444,11 +462,16 @@
             gameCard.style.boxShadow = '';
             gameCard.style.backgroundColor = '';
             gameCard.style.color = '';
-            gameCard.classList.remove('banana-card', 'ninja-mode', 'banana-mode'); // Added banana-mode removal for RAINBOW shake fix
+            gameCard.classList.remove('banana-card', 'ninja-mode', 'banana-mode'); 
             
             // Reset body styling for non-persistent effects
             gameBody.classList.remove('ninja-mode');
             gameBody.style.filter = '';
+
+            // Reset cake message styling (MUST be before checkWordEasterEggs applies new styles)
+            cakeMessage.classList.remove('rainbow-text', 'opacity-100');
+            cakeMessage.classList.add('opacity-0');
+            cakeMessage.textContent = ''; 
             
             // Manage visualizer mode (persistent effect)
             if (isVisualizerMode) {
@@ -458,28 +481,21 @@
                 gameBody.classList.remove('rainbow-mode');
                 gameBody.classList.add('default-bg'); 
             }
-
-            // Clear easter egg message
-            cakeMessage.classList.remove('opacity-100');
-            cakeMessage.classList.add('opacity-0');
-            cakeMessage.textContent = ''; 
         }
 
         /**
          * Checks the word against known easter egg words and applies effects.
+         * Note: CAKE/BANANA messages are handled in submitVote for timing.
          * @param {string} wordText The current word in uppercase.
          */
         function checkWordEasterEggs(wordText) {
             resetVisualEffects();
             
-            // CAKE - The classic one
+            // CAKE - Only sets the word color on display
             if (wordText === 'CAKE') {
-                cakeMessage.textContent = 'The cake is a lie! 🎂';
-                cakeMessage.classList.remove('opacity-0');
-                cakeMessage.classList.add('opacity-100');
                 wordDisplay.style.color = '#78350f'; 
 
-            // NINJA - Stealth mode
+            // NINJA - Stealth mode (Immediate message on display)
             } else if (wordText === 'NINJA') {
                 cakeMessage.textContent = 'Shhh... stealth mode initiated. 🥷';
                 cakeMessage.classList.remove('opacity-0');
@@ -488,25 +504,21 @@
                 gameBody.classList.add('ninja-mode');
                 wordDisplay.style.color = 'white'; 
                 
-            // BANANA - Fun, silly one
+            // BANANA - Fun, silly one (Only visual effects on display)
             } else if (wordText === 'BANANA') {
-                cakeMessage.textContent = 'Going bananas! 🍌';
-                cakeMessage.classList.remove('opacity-0');
-                cakeMessage.classList.add('opacity-100');
                 wordDisplay.classList.add('banana-mode');
                 wordDisplay.style.color = '#d97706'; 
                 gameCard.classList.add('banana-card');
 
-            // RAINBOW - Persistent mode
+            // RAINBOW - Persistent mode (Immediate message on display)
             } else if (wordText === 'RAINBOW') {
-                // FIX: Changed message to a simple, non-spoiler reaction
                 if (isVisualizerMode) {
                     cakeMessage.textContent = 'A dazzling surprise! ✨';
+                    cakeMessage.classList.add('rainbow-text');
                 } else {
                     cakeMessage.textContent = 'Back to the usual look.';
                 }
                 
-                // FIX: Remove opacity-0 before adding opacity-100
                 cakeMessage.classList.remove('opacity-0');
                 cakeMessage.classList.add('opacity-100');
             }
@@ -686,9 +698,16 @@
 
                 return;
             }
+            
+            // Get the *actual* current word, even if DEBUG_WORD was set
+            const currentWord = allWords[currentWordIndex];
+            if (!currentWord) return;
+
 
             // --- Get the currently displayed word text for easter egg check ---
             const displayedWordText = wordDisplay.textContent.toUpperCase();
+            const isCake = displayedWordText === 'CAKE';
+            const isBanana = displayedWordText === 'BANANA';
 
             // Easter Egg Logic for RAINBOW (toggles a persistent mode)
             if (displayedWordText === 'RAINBOW') {
@@ -711,23 +730,74 @@
                 }, 1000); // Give time for the message to display
                 return; 
             }
+            
+            // Handle CAKE or BANANA message display (new combined logic)
+            if (isCake || isBanana) {
+                // Keep the word on screen, show the message, and disable buttons
+                goodButton.disabled = true;
+                badButton.disabled = true;
+                notWordButton.disabled = true;
 
-            // Get the *actual* current word, even if DEBUG_WORD was set
-            const currentWord = allWords[currentWordIndex];
-            if (!currentWord) return;
+                wordDisplay.classList.remove('word-transition-good', 'word-transition-bad');
+                wordDisplay.style.transform = 'none'; // Ensure it doesn't move yet
+                
+                // Determine message, duration, and transition duration
+                let message, delayMs;
+                const transitionDelayMs = 800; // 0.8s transition
+                
+                if (isCake) {
+                    message = 'The cake is a lie! 🎂';
+                    delayMs = 5000; // 5 seconds for cake
+                } else { // isBanana
+                    message = 'Going bananas! 🍌';
+                    delayMs = 2000; // 2 seconds for banana
+                }
 
+                // Display the message
+                cakeMessage.textContent = message;
+                cakeMessage.classList.remove('opacity-0');
+                cakeMessage.classList.add('opacity-100');
 
+                // After the delay, proceed with the vote and the next word
+                setTimeout(async () => {
+                    // Hide the message
+                    cakeMessage.classList.remove('opacity-100');
+                    cakeMessage.classList.add('opacity-0');
+                    
+                    // Re-enable buttons briefly for visual effect before vote transition starts
+                    goodButton.disabled = false;
+                    badButton.disabled = false;
+                    notWordButton.disabled = false;
+                    
+                    // Add the transition class to start the word movement 
+                    if (voteType === 'good' || voteType === 'bad') {
+                        wordDisplay.classList.add(voteType === 'good' ? 'word-transition-good' : 'word-transition-bad');
+                    }
+                    
+                    // Proceed with vote submission after message display
+                    await processVoteSubmission(currentWord, voteType, transitionDelayMs);
+                }, delayMs); 
+                
+                return; // Exit submitVote early as the rest is handled in the timeout
+            }
+            
+            // Normal word flow
+            const transitionDuration = 800; // Updated to 0.8s
+            
             goodButton.disabled = true;
             badButton.disabled = true;
             notWordButton.disabled = true;
             
-            const wordId = currentWord._id;
-            const transitionDuration = 400; 
-            
             if (voteType === 'good' || voteType === 'bad') {
                 wordDisplay.classList.add(voteType === 'good' ? 'word-transition-good' : 'word-transition-bad');
             }
+            
+            await processVoteSubmission(currentWord, voteType, transitionDuration);
+        }
 
+        async function processVoteSubmission(currentWord, voteType, transitionDuration) {
+            const wordId = currentWord._id;
+            
             try {
                 const response = await fetch(`/api/words/${wordId}/vote`, {
                     method: 'PUT',
