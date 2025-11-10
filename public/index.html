@@ -10,7 +10,8 @@
         body { 
             font-family: 'Inter', sans-serif; 
             /* background: linear-gradient(135deg, #fef2be 0%, #b5def0 100%); */ /* Removed to use class */
-            transition: background-color 0.5s ease;
+            /* FIX: Transition 'background' not just 'background-color' for rainbow to work */
+            transition: background 0.5s ease; 
         }
         /* Added class for toggling background */
         .default-bg {
@@ -49,12 +50,14 @@
             color: #4b5563;
             margin-top: -1.5rem;
             margin-bottom: 1rem;
-            opacity: 0;
+            /* opacity: 0; */ /* <-- FIX: Removed opacity from ID selector, it's too strong */
             transition: opacity 0.3s ease-in-out;
             /* Added min-height to prevent layout shift */
             min-height: 1.5rem;
         }
+        /* FIX: Added new classes for opacity toggling */
         .opacity-100 { opacity: 1; }
+        .opacity-0 { opacity: 0; }
 
         @media (max-width: 640px) {
             .rank-item { font-size: 0.8rem; }
@@ -180,7 +183,8 @@
         <div id="wordDisplay" class="font-extrabold text-gray-900 mb-8 text-center min-h-[72px]">
             Loading...
         </div>
-        <div id="cakeMessage" class="text-center">
+        <!-- FIX: Added opacity-0 class by default -->
+        <div id="cakeMessage" class="text-center opacity-0">
             <!-- This div is intentionally left as it was in your original file -->
         </div>
         
@@ -416,7 +420,8 @@
 
             // Clear easter egg message
             cakeMessage.classList.remove('opacity-100');
-            cakeMessage.classList.add('opacity-0');
+            // FIX: Ensure opacity-0 is added
+            cakeMessage.classList.add('opacity-0'); 
             cakeMessage.textContent = ''; 
         }
 
@@ -427,12 +432,16 @@
             // CAKE - The classic one
             if (wordText === 'CAKE') {
                 cakeMessage.textContent = 'The cake is a lie! 🎂';
+                // FIX: Remove opacity-0 before adding opacity-100
+                cakeMessage.classList.remove('opacity-0');
                 cakeMessage.classList.add('opacity-100');
                 wordDisplay.style.color = '#78350f'; // Brown color
 
             // NINJA - Stealth mode
             } else if (wordText === 'NINJA') {
                 cakeMessage.textContent = 'Shhh... stealth mode initiated. 🥷';
+                // FIX: Remove opacity-0 before adding opacity-100
+                cakeMessage.classList.remove('opacity-0');
                 cakeMessage.classList.add('opacity-100');
                 gameCard.classList.add('ninja-mode');
                 gameBody.classList.add('ninja-mode');
@@ -441,6 +450,8 @@
             // BANANA - Fun, silly one
             } else if (wordText === 'BANANA') {
                 cakeMessage.textContent = 'Going bananas! 🍌';
+                // FIX: Remove opacity-0 before adding opacity-100
+                cakeMessage.classList.remove('opacity-0');
                 cakeMessage.classList.add('opacity-100');
                 wordDisplay.classList.add('banana-mode');
                 gameCard.classList.add('banana-card');
@@ -452,6 +463,8 @@
                 } else {
                     cakeMessage.textContent = 'Visualizer Mode OFF. (Vote to turn on)';
                 }
+                // FIX: Remove opacity-0 before adding opacity-100
+                cakeMessage.classList.remove('opacity-0');
                 cakeMessage.classList.add('opacity-100');
             }
         }
