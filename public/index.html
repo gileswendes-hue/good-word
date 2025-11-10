@@ -241,15 +241,12 @@
         </button>
     </main>
 
-    <div class="mt-8 p-4 bg-gray-100 rounded-xl w-full max-w-sm flex flex-col items-center">
-        <h3 class="text-lg font-bold text-gray-700 mb-2">Theme Test Mode 🧪</h3>
-        <div class="w-full flex space-x-2">
-            <input type="text" id="testWordInput" placeholder="Enter word to test theme/message" class="flex-1 p-2 border border-gray-300 rounded-lg text-center font-semibold uppercase focus:ring-purple-500 focus:border-purple-500">
-            <button id="testWordButton" class="px-4 py-2 bg-purple-600 text-white font-bold rounded-lg shadow-md hover:bg-purple-700 transition duration-150">
-                Apply
-            </button>
-        </div>
-        <p class="text-xs text-gray-500 mt-2">Try 'RAINBOW', 'DARK', 'BANANA', 'CAKE', or 'RESET'.</p>
+    <div class="mt-8 p-4 bg-white/70 rounded-xl w-full max-w-sm flex flex-col items-center shadow-lg border border-gray-100">
+        <h3 class="text-lg font-bold text-gray-700 mb-2">Unlocked Themes 🎨</h3>
+        <select id="themeChooser" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 font-semibold">
+            <option value="default">Default</option>
+            </select>
+        <p id="themeUnlockHint" class="text-xs text-gray-500 mt-2">Vote on special words to unlock new themes!</p>
     </div>
     <section class="mt-8 w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8">
         <div class="card p-6 rounded-xl">
@@ -333,8 +330,9 @@
         let isCoolingDown = false;
         let lastVoteTime = 0; 
 
-        // --- NEW THEME VARIABLES ---
+        // --- THEME VARIABLES ---
         let currentTheme = localStorage.getItem('currentTheme') || 'default';
+        let unlockedThemes = JSON.parse(localStorage.getItem('unlockedThemes')) || [];
         const THEME_WORDS = {
             'rainbow': ['RAINBOW', 'GAY', 'SPARKLE', 'COLOUR', 'PRIDE', 'UNICORN'],
             'dark': ['STEALTH', 'NIGHT', 'DARK', 'NINJA', 'SHADOW', 'GOTH'],
@@ -365,10 +363,10 @@
         const fullGoodRankingsDiv = document.getElementById('fullGoodRankings');
         const fullBadRankingsDiv = document.getElementById('fullBadRankings');
         
-        // --- NEW THEME TEST ELEMENTS ---
-        const testWordButton = document.getElementById('testWordButton');
-        const testWordInput = document.getElementById('testWordInput');
-        // --- END NEW THEME TEST ELEMENTS ---
+        // --- NEW THEME CHOOSER ELEMENTS ---
+        const themeChooser = document.getElementById('themeChooser');
+        const themeUnlockHint = document.getElementById('themeUnlockHint');
+        // --- END NEW THEME CHOOSER ELEMENTS ---
 
 
         function init() {
@@ -399,18 +397,20 @@
                 }
             });
             
-            // --- NEW THEME TEST LISTENERS ---
-            testWordButton.addEventListener('click', testWord);
-            testWordInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    testWord();
+            // --- NEW THEME CHOOSER LISTENER ---
+            themeChooser.addEventListener('change', (e) => {
+                applyTheme(e.target.value);
+                // Re-display current word to apply new theme's text styles
+                if (allWords.length > 0) {
+                    displayCurrentWord(allWords[currentWordIndex]);
                 }
             });
-            // --- END NEW THEME TEST LISTENERS ---
+            // --- END NEW THEME CHOOSER LISTENER ---
 
 
             fetchWords();
             updateAwardBadge();
+            populateThemeChooser(); // Populate the dropdown on init
             applyTheme(currentTheme); // Apply theme on init
             
             window.addEventListener('resize', () => {
@@ -421,55 +421,35 @@
             });
         }
         
-        // --- THEME TEST MODE FUNCTION ---
-        function testWord() {
-            const text = document.getElementById('testWordInput').value.trim();
-            if (!text) return;
+        // --- THEME CHOOSER FUNCTIONS ---
+        function populateThemeChooser() {
+            // Start with the default option already in the HTML
+            themeChooser.innerHTML = '<option value="default">Default</option>'; 
 
-            const upperWord = text.toUpperCase();
-            
-            // 1. Apply Theme Logic
-            checkAndApplyTheme(text);
-            
-            // 2. Manually set and style the word display (simulating a full word display)
-            wordDisplay.textContent = upperWord;
-            
-            // Re-apply base class
-            wordDisplay.className = 'font-extrabold text-gray-900 mb-8 text-center min-h-[72px]';
-            
-            // Re-run the core display/sizing logic on the test word by passing a mock object
-            // This is a simplified way to re-run the sizing and theme-specific word styling
-            displayCurrentWord({text: text});
+            // Get a list of unique theme keys, excluding 'default'
+            const availableThemes = [...new Set(unlockedThemes)].sort();
 
-            // 3. CAKE Message Logic (with fade out)
-            if (upperWord === 'CAKE') {
-                cakeMessage.textContent = 'The cake is a lie!';
-                cakeMessage.classList.remove('opacity-0');
-                cakeMessage.classList.add('opacity-100');
-                
-                // Add the requested fade out logic for the test mode
-                setTimeout(() => {
-                    cakeMessage.classList.remove('opacity-100');
-                    cakeMessage.classList.add('opacity-0');
-                }, 3000); 
+            availableThemes.forEach(themeKey => {
+                const themeName = themeKey.charAt(0).toUpperCase() + themeKey.slice(1);
+                const option = document.createElement('option');
+                option.value = themeKey;
+                option.textContent = themeName;
+                themeChooser.appendChild(option);
+            });
+            
+            // Set the current theme as selected in the dropdown
+            themeChooser.value = currentTheme;
+            
+            // Update the hint text
+            if (availableThemes.length > 0) {
+                themeUnlockHint.textContent = `You have ${availableThemes.length} themes unlocked!`;
             } else {
-                cakeMessage.classList.remove('opacity-100');
-                cakeMessage.classList.add('opacity-0');
-                cakeMessage.textContent = '';
+                themeUnlockHint.textContent = `Vote on special words to unlock new themes!`;
             }
-            
-            // Disable buttons to simulate a non-game state
-            goodButton.disabled = true;
-            badButton.disabled = true;
-            notWordButton.disabled = true;
-            
-            // Clear any transition classes from previous votes
-            wordDisplay.classList.remove('word-transition-good', 'word-transition-bad');
         }
-        // --- END THEME TEST MODE FUNCTION ---
+        // --- END THEME CHOOSER FUNCTIONS ---
 
-
-        // --- NEW THEME FUNCTIONALITY ---
+        // --- THEME FUNCTIONALITY ---
         function applyTheme(theme) {
             document.body.className = document.body.className.split(' ').filter(c => !c.startsWith('theme-')).join(' ');
             if (theme !== 'default') {
@@ -481,35 +461,45 @@
 
         function checkAndApplyTheme(wordText) {
             const upperWord = wordText.toUpperCase();
-            let newTheme = currentTheme;
-            let themeChanged = false;
+            let newThemeToUnlock = null;
+            let themeWasNewlyUnlocked = false;
 
-            if (THEME_WORDS['rainbow'].includes(upperWord)) {
-                if (currentTheme !== 'rainbow') {
-                    newTheme = 'rainbow';
-                    themeChanged = true;
+            // Check against all theme trigger words
+            for (const [themeKey, triggerWords] of Object.entries(THEME_WORDS)) {
+                if (triggerWords.includes(upperWord)) {
+                    newThemeToUnlock = themeKey;
+                    break;
                 }
-            } else if (THEME_WORDS['dark'].includes(upperWord)) {
-                if (currentTheme !== 'dark') {
-                    newTheme = 'dark';
-                    themeChanged = true;
-                }
-            } else if (THEME_WORDS['banana'].includes(upperWord)) {
-                if (currentTheme !== 'banana') {
-                    newTheme = 'banana';
-                    themeChanged = true;
-                }
-            } else if (currentTheme !== 'default' && (upperWord === 'RESET' || upperWord === 'DEFAULT')) {
-                // Allow a word like 'RESET' to return to default
-                newTheme = 'default';
-                themeChanged = true;
             }
-
-            if (themeChanged) {
-                applyTheme(newTheme);
+            
+            if (newThemeToUnlock) {
+                if (!unlockedThemes.includes(newThemeToUnlock)) {
+                    // Unlock the theme
+                    unlockedThemes.push(newThemeToUnlock);
+                    localStorage.setItem('unlockedThemes', JSON.stringify(unlockedThemes));
+                    themeWasNewlyUnlocked = true;
+                    
+                    // Immediately switch to the newly unlocked theme
+                    applyTheme(newThemeToUnlock);
+                    populateThemeChooser();
+                    
+                    // Return true to trigger the "unlocked" message
+                    return true;
+                } else if (currentTheme !== newThemeToUnlock) {
+                    // If already unlocked, just switch to it (optional, but a nice touch)
+                    applyTheme(newThemeToUnlock);
+                    populateThemeChooser();
+                }
             }
+            
+            // Special case for 'CAKE' message (no theme change, but a message)
+            if (upperWord === 'CAKE') {
+                // Do nothing here, the message logic is handled in displayCurrentWord
+            }
+            
+            return themeWasNewlyUnlocked;
         }
-        // --- END NEW THEME FUNCTIONALITY ---
+        // --- END THEME FUNCTIONALITY ---
 
 
         function updateAwardBadge() {
@@ -584,9 +574,9 @@
 
         /**
          * Displays the current word, handling sizing and theme-specific styles.
-         * @param {object} [currentWord] - The word object to display. If null, it uses allWords[currentWordIndex].
+         * @param {object} currentWord - The word object to display. 
          */
-        function displayCurrentWord(currentWord = allWords[currentWordIndex]) {
+        function displayCurrentWord(currentWord) {
             if (!currentWord) {
                 showMessage("No words available! Try submitting one.", false);
                 return;
@@ -602,15 +592,18 @@
             // Re-apply base class
             wordDisplay.className = 'font-extrabold text-gray-900 mb-8 text-center min-h-[72px]';
             
-            // Remove theme-specific word styling before sizing to get true scrollWidth
+            // Reset theme-specific word styling before sizing 
             wordDisplay.style.background = '';
             wordDisplay.style.webkitBackgroundClip = '';
             wordDisplay.style.webkitTextFillColor = '';
-            wordDisplay.style.color = 'transparent'; // Reset for transparent text
+            wordDisplay.style.color = '#111827'; 
             wordDisplay.style.animation = '';
-            wordDisplay.style.color = currentTheme === 'dark' ? '#f3f4f6' : '#111827'; // Restore non-transparent color
             wordDisplay.style.transform = '';
-            wordDisplay.style.animation = '';
+            
+            // Adjust base color for dark theme
+            if (currentTheme === 'dark') {
+                wordDisplay.style.color = '#f3f4f6';
+            }
             
             const cardWidth = document.getElementById('gameCard').clientWidth - 64; 
             const maxFontSize = 96; 
@@ -648,6 +641,13 @@
                 cakeMessage.textContent = 'The cake is a lie!';
                 cakeMessage.classList.remove('opacity-0');
                 cakeMessage.classList.add('opacity-100');
+                
+                // Add the requested fade out logic
+                setTimeout(() => {
+                    cakeMessage.classList.remove('opacity-100');
+                    cakeMessage.classList.add('opacity-0');
+                }, 3000); 
+
             } else {
                 cakeMessage.classList.remove('opacity-100');
                 cakeMessage.classList.add('opacity-0');
@@ -665,23 +665,18 @@
 
         /**
          * Selects a random word index using a weighted algorithm.
-         * Words with fewer votes have a higher chance of being selected.
-         * @param {number} excludeIndex - An index to exclude from selection (usually the current word).
          */
         function getWeightedRandomWordIndex(excludeIndex = -1) {
             if (allWords.length === 0) return -1;
             if (allWords.length === 1) return 0;
 
-            // 1. Create a list of available words.
             const availableWords = allWords
                 .map((w, index) => ({
                     index,
                     totalVotes: (w.goodVotes || 0) + (w.badVotes || 0) + (w.notWordVotes || 0)
                 }))
-                .filter(w => w.index !== excludeIndex); // Filter out the excluded index
+                .filter(w => w.index !== excludeIndex); 
 
-            // Use the filtered list, or the full list if filtering left nothing
-            // (e.g., only 1 word in allWords, which got filtered)
             const wordPool = availableWords.length > 0 
                 ? availableWords 
                 : allWords.map((w, index) => ({ 
@@ -689,35 +684,28 @@
                     totalVotes: (w.goodVotes || 0) + (w.badVotes || 0) + (w.notWordVotes || 0) 
                 }));
 
-            // 2. Calculate weights and total weight
             let totalWeight = 0;
             const weightedWords = wordPool.map(w => {
-                // Add 1 to avoid division by zero. This gives 0-vote words a weight of 1.
-                // A word with 9 votes gets a weight of 0.1.
-                // A word with 99 votes gets a weight of 0.01.
                 const weight = 1.0 / (w.totalVotes + 1);
                 totalWeight += weight;
                 return { index: w.index, weight: weight };
             });
 
-            // 3. Perform weighted random selection
             let randomNum = Math.random() * totalWeight;
             
             for (const word of weightedWords) {
                 randomNum -= word.weight;
                 if (randomNum <= 0) {
-                    return word.index; // This is our chosen word
+                    return word.index; 
                 }
             }
             
-            // Fallback in case of floating point issues (should rarely be hit)
             return wordPool[wordPool.length - 1].index;
         }
 
         function nextWord() {
             if (allWords.length === 0) return;
             
-            // Select the next word, excluding the current one
             currentWordIndex = getWeightedRandomWordIndex(currentWordIndex);
             
             displayCurrentWord(allWords[currentWordIndex]);
@@ -743,7 +731,6 @@
                     updateStatsAndRankings();
                     
                     if (updateDisplay) {
-                        // Select the initial word, excluding none (-1)
                         currentWordIndex = getWeightedRandomWordIndex(-1);
                         displayCurrentWord(allWords[currentWordIndex]);
                     } 
@@ -817,9 +804,9 @@
                 wordDisplay.classList.add(voteType === 'good' ? 'word-transition-good' : 'word-transition-bad');
             }
 
-            // --- NEW THEME CHECK BEFORE VOTE ---
-            checkAndApplyTheme(currentWord.text);
-            // --- END NEW THEME CHECK ---
+            // --- THEME CHECK & UNLOCK BEFORE VOTE ---
+            const themeWasNewlyUnlocked = checkAndApplyTheme(currentWord.text);
+            // --- END THEME CHECK & UNLOCK ---
 
             try {
                 const response = await fetch(`/api/words/${wordId}/vote`, {
@@ -854,6 +841,7 @@
                     let awardName = '';
                     let emoji = '';
 
+                    // Check for general awards
                     if (previousVoteCount < 5 && voteCount >= 5) {
                         awardName = 'Bronze Star';
                         emoji = '🥉';
@@ -868,7 +856,11 @@
                         awardAchieved = true;
                     }
 
-                    if (awardAchieved) {
+                    if (themeWasNewlyUnlocked) {
+                        // If a theme was unlocked, override the display to show the theme name
+                        const themeName = currentTheme.charAt(0).toUpperCase() + currentTheme.slice(1);
+                        showAwardMessageAndContinue(`'${themeName}' Theme`, '🎁');
+                    } else if (awardAchieved) {
                         showAwardMessageAndContinue(awardName, emoji);
                     } else {
                         if (voteType === 'good' || voteType === 'bad') {
