@@ -330,13 +330,21 @@
         let isCoolingDown = false;
         let lastVoteTime = 0; 
 
-        // --- THEME VARIABLES: UPDATED DARK WORDS ---
+        // --- THEME VARIABLES: OBFUSCATED USING STRING MANIPULATION ---
         let currentTheme = localStorage.getItem('currentTheme') || 'default';
         let unlockedThemes = JSON.parse(localStorage.getItem('unlockedThemes')) || [];
+        
+        // Obfuscated strings, decoded and reconstructed at runtime
+        const RAINBOW_STR = 'RAINBOW|GAY|SPARKLE|COLOUR|PRIDE|UNICORN|PROUD|QUEER|GLITTER|LESBIAN';
+        const DARK_REVERSED_STR = 'THGINDIM!KCALB!EDAHS!HTOG!WODAHS!AJNIN!KRAD!THGIN!HTLAETS'; 
+        const BANANA_STR = 'BANANA,BANANAS,PLANTAIN,YELLOW';
+
         const THEME_WORDS = {
-            'rainbow': ['RAINBOW', 'GAY', 'SPARKLE', 'COLOUR', 'PRIDE', 'UNICORN', 'PROUD', 'QUEER', 'GLITTER', 'LESBIAN'],
-            'dark': ['STEALTH', 'NIGHT', 'DARK', 'NINJA', 'SHADOW', 'GOTH', 'SHADE', 'BLACK', 'MIDNIGHT'],
-            'banana': ['BANANA', 'BANANAS', 'PLANTAIN', 'YELLOW']
+            'rainbow': RAINBOW_STR.split('|'),
+            'dark': DARK_REVERSED_STR
+                        .split('!')
+                        .map(w => w.split('').reverse().join('')), // Reverses each word
+            'banana': BANANA_STR.split(',')
         };
         // --- END THEME VARIABLES ---
 
