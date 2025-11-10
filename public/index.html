@@ -241,13 +241,6 @@
         </button>
     </main>
 
-    <div class="mt-8 p-4 bg-white/70 rounded-xl w-full max-w-sm flex flex-col items-center shadow-lg border border-gray-100">
-        <h3 class="text-lg font-bold text-gray-700 mb-2">Unlocked Themes 🎨</h3>
-        <select id="themeChooser" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 font-semibold">
-            <option value="default">Default</option>
-            </select>
-        <p id="themeUnlockHint" class="text-xs text-gray-500 mt-2">Vote on special words to unlock new themes!</p>
-    </div>
     <section class="mt-8 w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8">
         <div class="card p-6 rounded-xl">
             <h2 class="text-xl font-bold text-green-700 mb-4 border-b pb-2">Top Good Words</h2>
@@ -269,6 +262,13 @@
         </button>
     </div>
 
+    <div class="mt-6 p-4 bg-white/70 rounded-xl w-full max-w-sm flex flex-col items-center shadow-lg border border-gray-100">
+        <h3 class="text-lg font-bold text-gray-700 mb-2">Unlocked Themes 🎨</h3>
+        <select id="themeChooser" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 font-semibold">
+            <option value="default">Default</option>
+            </select>
+        <p id="themeUnlockHint" class="text-xs text-gray-500 mt-2">Vote on special words to unlock new themes!</p>
+    </div>
     <div id="submissionModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
         <div class="bg-white p-6 rounded-xl w-full max-w-md shadow-2xl">
             <h2 class="text-2xl font-bold mb-4">Submit a New Word</h2>
@@ -310,12 +310,12 @@
 
 
     <div class="version-indicator">
-        v3.3.4 | Made by Gilxs in 12,025
+        v3.6.0 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.4.0'; 
+        const APP_VERSION = '3.6.0'; 
 
         let allWords = [];
         let currentWordIndex = 0;
@@ -330,14 +330,15 @@
         let isCoolingDown = false;
         let lastVoteTime = 0; 
 
-        // --- THEME VARIABLES ---
+        // --- THEME VARIABLES: UPDATED DARK WORDS ---
         let currentTheme = localStorage.getItem('currentTheme') || 'default';
         let unlockedThemes = JSON.parse(localStorage.getItem('unlockedThemes')) || [];
         const THEME_WORDS = {
-            'rainbow': ['RAINBOW', 'GAY', 'SPARKLE', 'COLOUR', 'PRIDE', 'UNICORN'],
-            'dark': ['STEALTH', 'NIGHT', 'DARK', 'NINJA', 'SHADOW', 'GOTH'],
+            'rainbow': ['RAINBOW', 'GAY', 'SPARKLE', 'COLOUR', 'PRIDE', 'UNICORN', 'PROUD', 'QUEER', 'GLITTER', 'LESBIAN'],
+            'dark': ['STEALTH', 'NIGHT', 'DARK', 'NINJA', 'SHADOW', 'GOTH', 'SHADE', 'BLACK', 'MIDNIGHT'],
             'banana': ['BANANA', 'BANANAS', 'PLANTAIN', 'YELLOW']
         };
+        // --- END THEME VARIABLES ---
 
         const wordDisplay = document.getElementById('wordDisplay');
         const cakeMessage = document.getElementById('cakeMessage');
