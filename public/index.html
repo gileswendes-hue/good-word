@@ -9,9 +9,10 @@
     <style>
         body { 
             font-family: 'Inter', sans-serif; 
-            /* Use a class for the background so it can be toggled */
+            /* background: linear-gradient(135deg, #fef2be 0%, #b5def0 100%); */ /* Removed to use class */
             transition: background-color 0.5s ease;
         }
+        /* Added class for toggling background */
         .default-bg {
             background: linear-gradient(135deg, #fef2be 0%, #b5def0 100%);
         }
@@ -51,7 +52,7 @@
             opacity: 0;
             transition: opacity 0.3s ease-in-out;
             /* Added min-height to prevent layout shift */
-            min-height: 1.5rem; 
+            min-height: 1.5rem;
         }
         .opacity-100 { opacity: 1; }
 
@@ -156,10 +157,9 @@
     <header class="text-center mb-8 w-full max-w-lg">
         <div id="logoArea" class="h-32 w-full flex items-center justify-center mb-4 relative">
             <img 
-                src="https://placehold.co/400x80/22c55e/ffffff?text=GOOD%20%26%20BAD%20WORD%20APP" 
-                alt="Good Word / Bad Word App Logo" 
-                class="h-20 w-auto rounded-lg shadow-md"
-                <!-- Added fallback placeholder -->
+                src="logo.jpg" 
+                alt="Good Word / Bad Word Logo with Rainbow and Devil" 
+                class="h-full w-auto max-w-full"
                 onerror="this.onerror=null; this.src='https://placehold.co/400x80/f87171/ffffff?text=LOGO+ERROR';"
             >
             <div id="awardBadge" class="absolute top-2 right-2 p-2 cursor-help text-3xl">
@@ -180,9 +180,9 @@
         <div id="wordDisplay" class="font-extrabold text-gray-900 mb-8 text-center min-h-[72px]">
             Loading...
         </div>
-        <div id="cakeMessage" class="text-center min-h-[1.5rem]">
-            <!-- Message area for easter eggs -->
-            </div>
+        <div id="cakeMessage" class="text-center">
+            <!-- This div is intentionally left as it was in your original file -->
+        </div>
         
         <div class="flex space-x-4 w-full mb-3">
             <button id="goodButton" class="good-button flex-1 py-4 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-green-500/50" disabled>
@@ -200,6 +200,7 @@
         </button>
     </main>
 
+    <!-- ... rest of the HTML is unchanged ... -->
     <section class="mt-8 w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8">
         <div class="card p-6 rounded-xl">
             <h2 class="text-xl font-bold text-green-700 mb-4 border-b pb-2">Top Good Words</h2>
@@ -221,7 +222,6 @@
         </button>
     </div>
 
-    <!-- Modals (Submission and Rankings) - Unchanged -->
     <div id="submissionModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
         <div class="bg-white p-6 rounded-xl w-full max-w-md shadow-2xl">
             <h2 class="text-2xl font-bold mb-4">Submit a New Word</h2>
@@ -263,12 +263,12 @@
 
 
     <div class="version-indicator">
-        v3.5.1 | Made by Gilxs in 12,025
+        v3.3.4 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.5.1'; // Version bumped for new features
+        const APP_VERSION = '3.4.1-ee-fix'; // Version bumped for fixes
 
         let allWords = [];
         let currentWordIndex = 0;
@@ -316,6 +316,7 @@
         const closeFullRankingsModal = document.getElementById('closeFullRankingsModal');
         const fullGoodRankingsDiv = document.getElementById('fullGoodRankings');
         const fullBadRankingsDiv = document.getElementById('fullBadRankings');
+        
         // --- NEW: DOM Elements for Easter Eggs ---
         const gameCard = document.getElementById('gameCard');
         const gameBody = document.getElementById('gameBody');
@@ -457,8 +458,8 @@
 
         // --- End Easter Egg Functions ---
 
-
         function updateAwardBadge() {
+            // ... (Unchanged from original)
             let star = '';
             let title = '';
             
@@ -467,7 +468,7 @@
                 title = `Gold Star Award! (${voteCount} Votes)`;
             } else if (voteCount >= 25) {
                 star = '🥈';
-                title = `Silver Star Award! (${voteCount} Votes)`; // Typo in original, fixed
+                title = `Silver Star Award! (${voteCount} Votes)`;
             } else if (voteCount >= 5) {
                 star = '🥉';
                 title = `Bronze Star Award! (${voteCount} Votes)`;
@@ -481,6 +482,7 @@
         }
         
         function showAwardMessageAndContinue(awardName, emoji) {
+            // ... (Unchanged from original)
             wordDisplay.textContent = `${emoji} ${awardName} Unlocked! ${emoji}`;
             wordDisplay.className = 'text-4xl font-extrabold text-green-700 mb-8 text-center min-h-[72px] animate-pulse';
             wordDisplay.style.fontSize = '2.25rem'; 
@@ -501,6 +503,7 @@
         }
 
         function showMessage(text, isError = false) {
+            // ... (Unchanged from original)
             wordDisplay.textContent = text;
             wordDisplay.className = `text-4xl font-bold text-center mb-8 min-h-[72px] ${isError ? 'text-red-500' : 'text-gray-500'}`;
             wordDisplay.style.fontSize = '1.5rem'; 
@@ -515,6 +518,7 @@
         }
         
         function showCooldownMessage(remainingSeconds) {
+            // ... (Unchanged from original)
             wordDisplay.textContent = `Button mashing will not be tolerated. Wait ${remainingSeconds}s...`;
             wordDisplay.className = 'text-4xl font-bold text-red-600 mb-8 text-center min-h-[72px]';
             wordDisplay.style.fontSize = '1.5rem'; 
@@ -547,6 +551,11 @@
             wordDisplay.textContent = wordText;
             wordDisplay.className = 'font-extrabold text-gray-900 mb-8 text-center min-h-[72px]';
             
+            // --- FIX: Call Easter Eggs *before* font sizing ---
+            // This applies special fonts (like for NINJA) which affects the width calculation
+            checkWordEasterEggs(wordText);
+
+            // --- FIX: Font-sizing logic from original file is preserved ---
             const cardWidth = document.getElementById('gameCard').clientWidth - 64; 
             const maxFontSize = 96; 
             
@@ -565,8 +574,8 @@
             wordDisplay.style.fontSize = `${finalFontSize}px`;
             wordDisplay.style.whiteSpace = 'normal'; 
             
-            // Replaced old CAKE logic with new function call
-            checkWordEasterEggs(wordText);
+            // --- Original CAKE logic is now inside checkWordEasterEggs ---
+            // if (wordText === 'CAKE') { ... }
             
             goodButton.disabled = false;
             badButton.disabled = false;
@@ -575,7 +584,7 @@
 
         /**
          * Selects a random word index using a weighted algorithm.
-         * (Original function unchanged)
+         * (Unchanged from original)
          */
         function getWeightedRandomWordIndex(excludeIndex = -1) {
             if (allWords.length === 0) return -1;
@@ -617,7 +626,7 @@
         function nextWord() {
             if (allWords.length === 0) return;
             
-            // Clear debug word if set after interaction
+            // --- NEW: Clear debug word if set after interaction ---
             DEBUG_WORD = null;
             if (debugIndicator) debugIndicator.classList.add('hidden');
             
@@ -628,6 +637,7 @@
         }
 
         async function fetchWords(updateDisplay = true) {
+            // ... (Unchanged from original)
             try {
                 if(updateDisplay) {
                     showMessage("Loading words...", false);
@@ -663,6 +673,7 @@
         }
 
         async function submitVote(voteType) {
+            // ... (Cooldown logic unchanged)
             if (isCoolingDown) {
                 const remaining = Math.ceil((cooldownEndTime - Date.now()) / 1000);
                 showCooldownMessage(remaining > 0 ? remaining : 0);
@@ -706,7 +717,6 @@
                 return;
             }
 
-            // Get the *actual* current word, even if DEBUG_WORD was set
             const currentWord = allWords[currentWordIndex];
             if (!currentWord) return;
 
@@ -714,13 +724,21 @@
             if (currentWord.text.toUpperCase() === 'RAINBOW') {
                 isVisualizerMode = !isVisualizerMode;
                 
-                // Show the message and update the card shake
+                // --- FIX: Immediately update the body classes to reflect the toggle state ---
+                if (isVisualizerMode) {
+                    gameBody.classList.remove('default-bg'); 
+                    gameBody.classList.add('rainbow-mode'); 
+                } else {
+                    gameBody.classList.remove('rainbow-mode'); 
+                    gameBody.classList.add('default-bg'); 
+                }
+                
+                // Show the message
                 checkWordEasterEggs(currentWord.text.toUpperCase());
                 
                 // Bypass voting, just go to next word
                 setTimeout(() => {
                     nextWord(); 
-                    // We don't need to fetchWords(false) here, just get a new word
                 }, 1000); // Give time for the message to display
                 return; // Stop execution of submitVote
             }
@@ -738,6 +756,7 @@
             }
 
             try {
+                // ... (Fetch logic unchanged)
                 const response = await fetch(`/api/words/${wordId}/vote`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
@@ -747,6 +766,7 @@
                 const result = await response.json();
 
                 if (response.status === 403) {
+                    // ... (Unchanged)
                     voteStreak = 0; 
                     
                     if (voteType === 'good' || voteType === 'bad') {
