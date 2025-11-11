@@ -136,12 +136,12 @@
         }
 
         .theme-rainbow .card {
-            background-color: #fff; 
+            background-color: #fff; /* This now acts as the 'white hole' */
             backdrop-filter: none; 
             box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15); 
             border: 1px solid rgba(0, 0, 0, 0.05);
             position: relative; 
-            z-index: 10; 
+            z-index: 10; /* Ensures the card's white background and content are on top of ::before */
             filter: none;
             animation: none;
         }
@@ -171,22 +171,14 @@
             /* Animation: Slower duration for smoother movement */
             animation: rotate-border 20s linear infinite; 
             
-            z-index: -1; 
-            opacity: 1; /* Fully opaque for a strong border */
-            filter: none; /* REMOVED BLUR: Ensures the border is sharp, not a fill/glow */
+            z-index: -1; /* Place below the card's content and background */
+            opacity: 1; 
+            filter: none; 
         }
-
-        /* NEW: PSEUDO-ELEMENT FOR WHITE FILL (THE HOLE) */
-        .theme-rainbow .card::after {
-            content: '';
-            position: absolute;
-            inset: 0px; /* Inner edge of the 5px border (sits right on the card edge) */
-            border-radius: 1rem; /* Match rounded-2xl */
-            
-            background-color: #fff; /* Solid white color to cover the center of the rainbow */
-            
-            z-index: 0; /* Placed between the rainbow (-1) and the content (10) */
-        }
+        
+        /* REMOVED: .theme-rainbow .card::after (The white hole) 
+           The card's background-color: #fff now performs this function.
+        */
 
 
         .theme-rainbow #wordDisplay {
@@ -476,12 +468,12 @@
 
 
     <div class="version-indicator">
-        v3.7.0 | Made by Gilxs in 12,025
+        v3.9.2 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.7.0'; 
+        const APP_VERSION = '3.9.2'; 
         
         // --- NEW BOOST CONSTANTS ---
         const BOOSTED_WORD = 'CAKE';
@@ -1004,7 +996,7 @@
             } catch (error) {
                 console.error('Error fetching words:', error);
                 if(updateDisplay) {
-                    showMessage("Connection Error. Check your API URL.", true);
+                    showMessage("Connection Error. Check your API URL in the script.", true);
                 }
             }
         }
