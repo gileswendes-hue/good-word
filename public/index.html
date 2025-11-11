@@ -115,7 +115,6 @@
         /* Keyframe FIX: Moves the background by 100% to match its size (400% 400%) for a seamless loop */
         @keyframes rotate-border {
             0% { background-position: 0% 0%; }
-            /* FIXED: 100% 100% ensures the animation seamlessly loops for a background-size of 400% */
             100% { background-position: 100% 100%; }
         }
 
@@ -147,11 +146,11 @@
             animation: none;
         }
 
-        /* PSEUDO-ELEMENT FOR RELIABLE RAINBOW BORDER GLOW */
+        /* PSEUDO-ELEMENT FOR RAINBOW BORDER (THE BACKGROUND LAYER) */
         .theme-rainbow .card::before {
             content: '';
             position: absolute;
-            inset: -5px; 
+            inset: -5px; /* Outer edge of the 5px border */
             border-radius: 1rem; /* Match rounded-2xl */
             
             /* The core rainbow gradient */
@@ -169,12 +168,24 @@
             
             background-size: 400% 400%; 
             
-            /* Animation FIX: Slower duration for smoother movement */
+            /* Animation: Slower duration for smoother movement */
             animation: rotate-border 20s linear infinite; 
             
             z-index: -1; 
-            opacity: 0.9; 
-            filter: blur(5px); 
+            opacity: 1; /* Fully opaque for a strong border */
+            filter: none; /* REMOVED BLUR: Ensures the border is sharp, not a fill/glow */
+        }
+
+        /* NEW: PSEUDO-ELEMENT FOR WHITE FILL (THE HOLE) */
+        .theme-rainbow .card::after {
+            content: '';
+            position: absolute;
+            inset: 0px; /* Inner edge of the 5px border (sits right on the card edge) */
+            border-radius: 1rem; /* Match rounded-2xl */
+            
+            background-color: #fff; /* Solid white color to cover the center of the rainbow */
+            
+            z-index: 0; /* Placed between the rainbow (-1) and the content (10) */
         }
 
 
