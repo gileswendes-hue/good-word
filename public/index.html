@@ -305,12 +305,12 @@
 
 
     <div class="version-indicator">
-        v3.6.7 | Made by Gilxs in 12,025
+        v3.6.8 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.6.7'; 
+        const APP_VERSION = '3.6.8'; 
 
         let allWords = [];
         let currentWordIndex = 0;
@@ -320,7 +320,7 @@
         // Anti-mashing logic variables
         let voteStreak = 0;
         const MASH_LIMIT = 3; // Max number of rapid votes allowed (3 in a short window)
-        const COOLDOWN_SECONDS = 5; // Cooldown duration
+        const COOLDOWN_SECONDS = 30; // Cooldown duration (UPDATED)
         const STREAK_WINDOW_MS = 1000; // Time window for rapid clicks to count as a streak
         let cooldownTimer = null;
         let isCoolingDown = false;
@@ -790,8 +790,7 @@
 
                 if (!response.ok) {
                     if (response.status === 403) {
-                       // FIX: Silently treat a 403 (Already Voted) as a successful action that cycles the word.
-                       // This handles race conditions where the user clicks before the word cycles.
+                       // Silently handle a 403 (Already Voted)
                        console.warn("Server reported already voted (403). Forcing word change.");
                        
                        // 1. Manually remove the word from the client state.
@@ -814,11 +813,11 @@
                            fetchWords(false);
                        }
                        
-                       return; // Exit the function gracefully to prevent error message
+                       return; 
                     }
                     throw new Error(result.message || "Failed to register vote.");
                 } else {
-                    // SUCCESS PATH (Existing logic)
+                    // SUCCESS PATH 
                     
                     // 1. Remove the word from the active pool and track it
                     votedWordIds.push(wordId);
