@@ -305,22 +305,23 @@
 
 
     <div class="version-indicator">
-        v3.6.3 | Made by Gilxs in 12,025
+        v3.6.6 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.6.3'; 
+        const APP_VERSION = '3.6.6'; 
 
         let allWords = [];
         let currentWordIndex = 0;
         let userId = localStorage.getItem('userId');
         let voteCount = 0; 
         
+        // Anti-mashing logic variables
         let voteStreak = 0;
-        const MASH_LIMIT = 10;
-        const COOLDOWN_SECONDS = 10;
-        const STREAK_WINDOW_MS = 1500; 
+        const MASH_LIMIT = 3; // Max number of rapid votes allowed (3 in a short window)
+        const COOLDOWN_SECONDS = 5; // Cooldown duration
+        const STREAK_WINDOW_MS = 1000; // Time window for rapid clicks to count as a streak
         let cooldownTimer = null;
         let isCoolingDown = false;
         let lastVoteTime = 0; 
@@ -328,6 +329,8 @@
         
         let currentTheme = localStorage.getItem('currentTheme') || 'default';
         let unlockedThemes = JSON.parse(localStorage.getItem('unlockedThemes')) || [];
+        // Track words the user has already voted on in this session
+        let votedWordIds = JSON.parse(localStorage.getItem('votedWordIds')) || [];
         
         const RAINBOW_STR = 'RAINBOW|GAY|SPARKLE|COLOUR|PRIDE|UNICORN|PROUD|QUEER|GLITTER|LESBIAN';
         const DARK_REVERSED_STR = 'THGINDIM!KCALB!EDAHS!HTOG!WODAHS!AJNIN!KRAD!THGIN!HTLAETS'; 
@@ -670,7 +673,8 @@
         function nextWord() {
             if (allWords.length === 0) return;
             
-            currentWordIndex = getWeightedRandomWordIndex(currentWordIndex);
+            // The voted word has been spliced out, so we pick a new weighted random from the remaining pool.
+            currentWordIndex = getWeightedRandomWordIndex(-1);
             
             displayCurrentWord(allWords[currentWordIndex]);
         }
@@ -686,7 +690,10 @@
                 }
                 let fetchedWords = await response.json();
                 
-                const availableWords = fetchedWords.filter(w => (w.notWordVotes || 0) < 3);
+                // Filter out words that are marked "not a word" (3 votes) or have been voted on by this user in this session
+                const availableWords = fetchedWords.filter(w => 
+                    (w.notWordVotes || 0) < 3 && !votedWordIds.includes(w._id)
+                );
                 allWords = availableWords;
                 
                 wordCount.textContent = `Words in Database: ${fetchedWords.length}`;
@@ -699,7 +706,7 @@
                         displayCurrentWord(allWords[currentWordIndex]);
                     } 
                 } else {
-                    showMessage("No words available! Try submitting one.", false);
+                    showMessage("No new words available! Try submitting one.", false);
                 }
 
             } catch (error) {
@@ -711,17 +718,11 @@
         }
 
         async function submitVote(voteType) {
+            // Anti-mashing logic
             if (isCoolingDown) {
                 const remaining = Math.ceil((cooldownEndTime - Date.now()) / 1000);
                 showCooldownMessage(remaining > 0 ? remaining : 0);
                 return;
-            }
-            
-            if (goodButton.disabled && badButton.disabled) {
-                const now = Date.now();
-                if (lastVoteTime > 0 && (now - lastVoteTime) < STREAK_WINDOW_MS) {
-                    voteStreak++;
-                }
             }
 
             const now = Date.now();
@@ -787,22 +788,18 @@
 
                 const result = await response.json();
 
-                if (response.status === 403) {
-                    // FIX: Removed voteStreak = 0; here. If the user has already voted, 
-                    // their rapid clicks still count as mashing to trigger cooldown.
-                    
-                    if (voteType === 'good' || voteType === 'bad') {
-                        setTimeout(() => {
-                            nextWord();
-                            fetchWords(false); 
-                        }, transitionDuration); 
-                    } else {
-                         nextWord();
-                         fetchWords(false);
-                    }
-                } else if (!response.ok) {
+                if (!response.ok) {
+                    // This error path should only be for true network/server issues now
                     throw new Error(result.message || "Failed to register vote.");
                 } else {
+                    // SUCCESS PATH
+                    
+                    // 1. Remove the word from the active pool and track it
+                    votedWordIds.push(wordId);
+                    localStorage.setItem('votedWordIds', JSON.stringify(votedWordIds));
+                    allWords.splice(currentWordIndex, 1);
+                    
+                    // 2. Update vote count and awards
                     const previousVoteCount = voteCount; 
                     voteCount++;
                     localStorage.setItem('voteCount', voteCount);
@@ -826,6 +823,7 @@
                         awardAchieved = true;
                     }
 
+                    // 3. Cycle to next word/show awards
                     if (themeWasNewlyUnlocked) {
                         const themeName = currentTheme.charAt(0).toUpperCase() + currentTheme.slice(1);
                         showAwardMessageAndContinue(`'${themeName}' Theme`, '🎁');
@@ -845,12 +843,12 @@
                 }
             } catch (error) {
                 console.error('Error submitting vote:', error);
-                showMessage("Vote failed. Try again.", true);
+                showMessage("Vote failed: " + error.message, true);
                 wordDisplay.classList.remove('word-transition-good', 'word-transition-bad'); 
                 goodButton.disabled = false;
                 badButton.disabled = false;
                 notWordButton.disabled = false;
-                voteStreak = 0; 
+                voteStreak = 0; // Ensure streak is reset if API call fails
             }
         }
 
