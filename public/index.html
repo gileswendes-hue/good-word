@@ -9,8 +9,7 @@
     <style>
         body { 
             font-family: 'Inter', sans-serif; 
-            /* Default theme background */
-            background: linear-gradient(135deg, #fef2be 0%, #b5def0 100%);
+            /* Default theme background: MOVED TO body.theme-default */
         }
         .card { 
             backdrop-filter: blur(10px); 
@@ -108,9 +107,9 @@
         
         /* --- THEME STYLES --- */
         
-        /* 0. DEFAULT THEME: Now only for redundancy, background is in generic body */
+        /* 0. DEFAULT THEME: Now explicitly defines the background with !important */
         body.theme-default { 
-            /* No background property here to avoid conflict, relying on generic body style */
+            background: linear-gradient(135deg, #fef2be 0%, #b5def0 100%) !important; /* FIXED: Added background and !important */
         }
         
         /* Keyframes for ANIMATED RAINBOW BACKGROUND - UPDATED FOR FASTER, DIAGONAL MOVEMENT */
