@@ -112,10 +112,11 @@
             background: linear-gradient(135deg, #fef2be 0%, #b5def0 100%) !important; 
         }
         
-        /* Keyframe FIX: Moves the background by 400% to match its size (400% 400%) for a seamless loop */
+        /* Keyframe FIX: Moves the background by 100% to match its size (400% 400%) for a seamless loop */
         @keyframes rotate-border {
             0% { background-position: 0% 0%; }
-            100% { background-position: 400% 400%; }
+            /* FIXED: 100% 100% ensures the animation seamlessly loops for a background-size of 400% */
+            100% { background-position: 100% 100%; }
         }
 
         /* Keyframes for hue rotation (Used for Word Text) */
