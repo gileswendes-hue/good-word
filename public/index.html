@@ -180,10 +180,10 @@
 
         /* 3. BANANA THEME */
         .theme-banana body {
-            background: linear-gradient(135deg, #fceb9c 0%, #ffe900 100%); /* Banana yellow */
+            background: linear-gradient(135deg, #fff297 0%, #ffe900 100%); /* Updated Banana yellow gradient start */
         }
         .theme-banana #wordDisplay {
-            color: #ffd200; /* Slate text */
+            color: #ffd200; /* Updated Word color */
             animation: bounce-word 0.5s ease-out infinite alternate;
         }
         @keyframes bounce-word {
@@ -191,7 +191,7 @@
             to { transform: translateY(-15px); }
         }
         .theme-banana .card {
-            background-color: rgba(255, 255, 153, 0.95); /* Light yellow card */
+            background-color: rgba(255, 242, 151, 0.95); /* Updated Light yellow card (FFF297 with 0.95 opacity) */
             border: 2px solid #f4ef81;
         }
 
@@ -661,7 +661,7 @@
             if (currentTheme === 'banana') {
                 wordDisplay.style.transform = 'translateY(0)';
                 wordDisplay.style.animation = 'bounce-word 0.5s ease-out infinite alternate';
-                wordDisplay.style.color = '#64748b';
+                wordDisplay.style.color = '#ffd200'; // Apply the requested word color
             } else if (currentTheme === 'rainbow') {
                 wordDisplay.style.background = 'linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #9400d3)';
                 wordDisplay.style.webkitBackgroundClip = 'text';
@@ -939,7 +939,7 @@
             const topBad = [...rankedWords]
                 .sort((a, b) => {
                     if (a.score !== b.score) return a.score - b.score;
-                    return (b.good + b.bad) - (a.good + a.ad);
+                    return (b.good + b.bad) - (a.good + a.bad);
                 })
                 .slice(0, limit);
                 
