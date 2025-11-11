@@ -248,7 +248,6 @@
         .theme-winter #wordDisplay.snow-fade-active {
             --snow-level: 20%; /* Animate to 20% visibility (most of word is 'buried') */
         }
-
     </style>
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen p-4">
@@ -366,12 +365,12 @@
 
 
     <div class="version-indicator">
-        v3.7.1 | Made by Gilxs in 12,025
+        v3.8.0 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.7.1'; 
+        const APP_VERSION = '3.8.0'; 
 
         let allWords = []; // Words available to be voted on
         let allDatabaseWords = []; // All words fetched from the database (for totals/rankings)
@@ -381,9 +380,9 @@
         
         // Anti-mashing logic variables
         let voteStreak = 0;
-        const MASH_LIMIT = 3; // Max number of rapid votes allowed (3 in a short window)
-        const COOLDOWN_SECONDS = 30; // Cooldown duration
-        const STREAK_WINDOW_MS = 1000; // Time window for rapid clicks to count as a streak
+        const MASH_LIMIT = 3; // Reduced from 10 to make it more sensitive
+        const COOLDOWN_SECONDS = 30; // Increased from 10s for stronger deterrent
+        const STREAK_WINDOW_MS = 1000; 
         let cooldownTimer = null;
         let isCoolingDown = false;
         let lastVoteTime = 0; 
@@ -401,7 +400,7 @@
         const RAINBOW_STR = 'RAINBOW|GAY|SPARKLE|COLOUR|PRIDE|UNICORN|PROUD|QUEER|GLITTER|LESBIAN';
         const DARK_REVERSED_STR = 'THGINDIM!KCALB!EDAHS!HTOG!WODAHS!AJNIN!KRAD!THGIN!HTLAETS'; 
         const BANANA_STR = 'BANANA,BANANAS,PLANTAIN,YELLOW';
-        const WINTER_STR = 'WINTER|XMAS|SNOW|SNOWMAN|CHRISTMAS'; 
+        const WINTER_STR = 'WINTER|XMAS|SNOW|SNOWMAN|CHRISTMAS'; // New theme
 
         const THEME_WORDS = {
             'rainbow': RAINBOW_STR.split('|'),
@@ -546,9 +545,6 @@
                 }
             }
             
-            if (upperWord === 'CAKE') {
-            }
-            
             return themeWasNewlyUnlocked;
         }
 
@@ -631,20 +627,18 @@
             
             const wordText = currentWord.text.toUpperCase();
             
-            wordDisplay.classList.remove('word-transition-good', 'word-transition-bad');
+            wordDisplay.classList.remove('word-transition-good', 'word-transition-bad', 'snow-fade-active');
             
-            wordDisplay.textContent = wordText;
-            
-            wordDisplay.className = 'font-extrabold text-gray-900 mb-8 text-center min-h-[72px]';
-            
-            // --- Reset styles for theme effects and word timer ---
+            // Clear any lingering theme timer/styles from winter theme
             if (wordTimer) {
                 clearTimeout(wordTimer);
                 wordTimer = null;
             }
-            wordDisplay.classList.remove('snow-fade-active');
             wordDisplay.style.transition = ''; 
             wordDisplay.style.setProperty('--snow-level', '100%'); 
+
+            wordDisplay.textContent = wordText;
+            wordDisplay.className = 'font-extrabold text-gray-900 mb-8 text-center min-h-[72px]';
             
             wordDisplay.style.background = '';
             wordDisplay.style.webkitBackgroundClip = '';
@@ -652,7 +646,6 @@
             wordDisplay.style.color = '#111827'; 
             wordDisplay.style.animation = '';
             wordDisplay.style.transform = '';
-            // --- End Reset ---
             
             if (currentTheme === 'dark') {
                 wordDisplay.style.color = '#f3f4f6';
@@ -689,9 +682,8 @@
             } else if (currentTheme === 'winter') {
                  // Start the word vanish timer for the winter theme
                  wordTimer = setTimeout(() => {
-                    // Start the 20-second fade transition by adding the class
                     wordDisplay.classList.add('snow-fade-active');
-                 }, 5000); // Wait 5 seconds before the fade starts
+                 }, 5000); 
             }
 
             if (wordText === 'CAKE') {
@@ -755,16 +747,17 @@
         }
 
         function nextWord() {
-            // Clear the word timer immediately on word change
             if (wordTimer) {
                 clearTimeout(wordTimer);
                 wordTimer = null;
             }
             wordDisplay.classList.remove('snow-fade-active');
 
-            if (allWords.length === 0) return;
+            if (allWords.length === 0) {
+                showMessage("No words available! Try submitting one.", false);
+                return;
+            }
             
-            // The voted word has been spliced out, so we pick a new weighted random from the remaining pool.
             currentWordIndex = getWeightedRandomWordIndex(-1);
             
             displayCurrentWord(allWords[currentWordIndex]);
@@ -792,8 +785,9 @@
                 
                 wordCount.textContent = `Words in Database: ${fetchedWords.length}`;
                 
+                updateStatsAndRankings(); // Update totals/rankings immediately using allDatabaseWords
+                
                 if (allWords.length > 0) {
-                    updateStatsAndRankings();
                     
                     if (updateDisplay) {
                         currentWordIndex = getWeightedRandomWordIndex(-1);
@@ -801,7 +795,6 @@
                     } 
                 } else {
                     showMessage("No new words available! Try submitting one.", false);
-                    updateStatsAndRankings(); // Update totals even if no new words available
                 }
 
             } catch (error) {
@@ -859,13 +852,18 @@
             }
 
             const currentWord = allWords[currentWordIndex];
-            if (!currentWord) return;
+            // CRITICAL FIX: Ensure currentWord exists before continuing
+            if (!currentWord) {
+                console.error("Attempted vote on undefined word. Fetching new words.");
+                fetchWords(true); 
+                return;
+            }
+
 
             goodButton.disabled = true;
             badButton.disabled = true;
             notWordButton.disabled = true;
             
-            // Clear the word timer immediately on vote
             if (wordTimer) {
                 clearTimeout(wordTimer);
                 wordTimer = null;
@@ -892,19 +890,16 @@
 
                 if (!response.ok) {
                     if (response.status === 403) {
-                       // Silently handle a 403 (Already Voted)
-                       console.warn("Server reported already voted (403). Forcing word change.");
+                       // Handle 403 (Already Voted)
+                       console.warn("Server reported already voted (403). Removing word from pool.");
                        
                        // 1. Manually remove the word from the client state.
+                       votedWordIds.push(wordId);
+                       localStorage.setItem('votedWordIds', JSON.stringify(votedWordIds));
                        allWords.splice(currentWordIndex, 1);
                        
-                       // 2. Re-enable buttons and reset streak.
-                       goodButton.disabled = false;
-                       badButton.disabled = false;
-                       notWordButton.disabled = false;
-                       voteStreak = 0; 
-                       
-                       // 3. Cycle word, using transition if appropriate.
+                       // 2. Cycle word, using transition if appropriate.
+                       updateStatsAndRankings(); 
                        if (voteType === 'good' || voteType === 'bad') {
                            setTimeout(() => {
                                nextWord(); 
@@ -921,19 +916,18 @@
                 } else {
                     // SUCCESS PATH 
                     
-                    // The server response (result) contains the *updated* word object.
-                    // We must find and update this word in allDatabaseWords so that the next updateStatsAndRankings call is correct.
+                    // 1. Update allDatabaseWords with the server's updated word object
                     const wordToUpdateIndex = allDatabaseWords.findIndex(w => w._id === wordId);
                     if (wordToUpdateIndex !== -1) {
                         allDatabaseWords[wordToUpdateIndex] = result.updatedWord;
                     }
                     
-                    // 1. Remove the word from the active pool and track it
+                    // 2. Remove the word from the active pool and track it
                     votedWordIds.push(wordId);
                     localStorage.setItem('votedWordIds', JSON.stringify(votedWordIds));
                     allWords.splice(currentWordIndex, 1);
                     
-                    // 2. Update vote count and awards
+                    // 3. Update vote count and awards
                     const previousVoteCount = voteCount; 
                     voteCount++;
                     localStorage.setItem('voteCount', voteCount);
@@ -957,7 +951,7 @@
                         awardAchieved = true;
                     }
 
-                    // 3. Cycle to next word/show awards
+                    // 4. Cycle to next word/show awards
                     if (themeWasNewlyUnlocked) {
                         const themeName = currentTheme.charAt(0).toUpperCase() + currentTheme.slice(1);
                         showAwardMessageAndContinue(`'${themeName}' Theme`, '🎁');
@@ -970,7 +964,6 @@
                         if (voteType === 'good' || voteType === 'bad') {
                             setTimeout(() => {
                                 nextWord(); 
-                                // Call fetchWords(false) to refresh allDatabaseWords for full accuracy
                                 fetchWords(false); 
                             }, transitionDuration);
                         } else {
@@ -986,7 +979,7 @@
                 goodButton.disabled = false;
                 badButton.disabled = false;
                 notWordButton.disabled = false;
-                voteStreak = 0; // Ensure streak is reset if API call fails
+                voteStreak = 0; 
             }
         }
 
@@ -994,6 +987,9 @@
             // FIX 2: Use the global array containing ALL words for ranking calculation
             const allWordsFetched = JSON.parse(JSON.stringify(allDatabaseWords));
             
+            // CRITICAL FIX: Return empty arrays if no words exist
+            if (allWordsFetched.length === 0) return { topGood: [], topBad: [] };
+
             const rankedWords = allWordsFetched.map(w => ({
                 text: w.text,
                 good: w.goodVotes || 0,
@@ -1021,7 +1017,13 @@
 
         function updateStatsAndRankings() {
             // FIX 3: Use the full list of words from the database for total counts
-            if (allDatabaseWords.length === 0) return; 
+            if (allDatabaseWords.length === 0) {
+                goodTotal.textContent = `GOOD: 0`;
+                badTotal.textContent = `BAD: 0`;
+                renderRankings(goodRankingsDiv, [], 'good');
+                renderRankings(badRankingsDiv, [], 'bad');
+                return;
+            }
 
             const totalGood = allDatabaseWords.reduce((sum, w) => sum + (w.goodVotes || 0), 0);
             const totalBad = allDatabaseWords.reduce((sum, w) => sum + (w.badVotes || 0), 0);
