@@ -112,26 +112,21 @@
             background: linear-gradient(135deg, #fef2be 0%, #b5def0 100%);
         }
 
-        /* 1. RAINBOW THEME (FIX: Keyframes adjusted for diagonal scrolling in both X and Y) */
+        /* 1. RAINBOW THEME (FIX: Changed to static, reliable background) */
         body.theme-rainbow {
-            /* Animated rainbow background */
-            background: repeating-linear-gradient(45deg, 
-                #f06, 0%, 
-                #f60, 16.66%, 
-                #ff0, 33.33%, 
-                #0f0, 50%, 
-                #0ff, 66.66%, 
-                #90f, 83.33%, 
-                #f06, 100%
+            /* Static rainbow background for guaranteed rendering */
+            background: linear-gradient(135deg, 
+                #ff0000 0%,   /* Red */
+                #ff7f00 15%,  /* Orange */
+                #ffff00 30%,  /* Yellow */
+                #00ff00 45%,  /* Green */
+                #00ffff 60%,  /* Cyan */
+                #0000ff 75%,  /* Blue */
+                #9400d3 90%   /* Violet */
             );
-            background-size: 400% 400%;
-            animation: rainbow-body 20s linear infinite; /* Increased time to 20s for better visibility */
         }
-        @keyframes rainbow-body {
-            /* Animate diagonally across the viewport, using background-position */
-            from { background-position: 0% 0%; }
-            to { background-position: 100% 100%; }
-        }
+        /* Removed @keyframes rainbow-body */
+
         .theme-rainbow #wordDisplay {
             background: linear-gradient(
                 45deg, 
