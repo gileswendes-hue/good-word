@@ -109,10 +109,16 @@
         
         /* 0. DEFAULT THEME: Now explicitly defines the background with !important */
         body.theme-default { 
-            background: linear-gradient(135deg, #fef2be 0%, #b5def0 100%) !important; /* FIXED: Added background and !important */
+            background: linear-gradient(135deg, #fef2be 0%, #b5def0 100%) !important; 
         }
         
-        /* NEW Keyframes for hue rotation (Used for Card and Word Text) */
+        /* New Keyframe for the background movement (THE FIX) */
+        @keyframes rotate-border {
+            0% { background-position: 0% 0%; }
+            100% { background-position: 100% 100%; }
+        }
+
+        /* Keyframes for hue rotation (Used for Word Text) */
         @keyframes rainbow-hue-animation {
             0% { 
                 -webkit-filter: hue-rotate(0deg); 
@@ -124,24 +130,56 @@
             }
         }
 
-        /* 1. RAINBOW THEME (FIX: Simplified to low-intensity background and rainbow border effect on cards) */
+        /* 1. RAINBOW THEME (FIX: Using a pseudo-element for reliable rainbow border) */
         body.theme-rainbow {
             background: #f7f7f7 !important; /* Low intensity background */
         }
 
         .theme-rainbow .card {
-            background-color: #fff; /* Solid white card for better contrast */
-            backdrop-filter: none; /* Remove backdrop filter to prevent filter conflicts */
-            /* Add a soft glow that rotates hue, creating a "rainbow border" effect */
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15), 
-                        0 0 20px 5px rgba(255, 0, 0, 0.7); 
+            background-color: #fff; 
+            backdrop-filter: none; 
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15); /* Keep standard shadow, remove red glow */
             border: 1px solid rgba(0, 0, 0, 0.05);
+            position: relative; /* REQUIRED for pseudo-element */
+            z-index: 10; /* Ensure card content is on top */
+            /* Remove all previous filter/animation from the card itself */
+            filter: none;
+            animation: none;
+        }
 
-            /* Apply hue rotation to cycle the box-shadow and other colors */
-            /* REMOVED !IMPORTANT FLAGS TO ALLOW ANIMATION TO RUN */
-            filter: hue-rotate(0deg); 
-            animation: rainbow-hue-animation 10s linear infinite; 
-            -webkit-animation: rainbow-hue-animation 10s linear infinite; 
+        /* NEW PSEUDO-ELEMENT FOR RELIABLE RAINBOW BORDER GLOW */
+        .theme-rainbow .card::before {
+            content: '';
+            position: absolute;
+            /* Inset sets top, right, bottom, left. -5px makes it 10px larger than the card */
+            inset: -5px; 
+            border-radius: 1rem; /* Match rounded-2xl */
+            
+            /* The core rainbow gradient */
+            background: linear-gradient(
+                45deg, 
+                #ff0000, 
+                #ff7f00, 
+                #ffff00, 
+                #00ff00, 
+                #00ffff, 
+                #0000ff, 
+                #9400d3, 
+                #ff0000 
+            );
+            
+            /* Make the background huge for the animation */
+            background-size: 400% 400%; 
+            
+            /* Animation to shift the gradient position, creating the cycle effect */
+            animation: rotate-border 5s linear infinite; 
+            
+            /* This creates the glow/border effect behind the white card */
+            z-index: -1; 
+            opacity: 0.9; 
+            
+            /* Apply blur to create the glow effect from the background */
+            filter: blur(5px); 
         }
 
 
@@ -175,25 +213,25 @@
 
         /* 2. DARK THEME */
         body.theme-dark {
-            background: #121212 !important; /* Very Dark Gray/Near Black - Added !important for safety */
+            background: #121212 !important; 
         }
         .theme-dark #gameCard, .theme-dark .card {
-            background-color: rgba(18, 18, 18, 0.95); /* Darker card to match */
+            background-color: rgba(18, 18, 18, 0.95); 
             box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
             border: 1px solid rgba(255, 255, 255, 0.05);
         }
         .theme-dark header .bg-white {
-            background-color: #374151 !important; /* Header dark bg */
+            background-color: #374151 !important; 
             color: #d1d5db;
         }
         .theme-dark header .bg-gray-50 {
-            background-color: #121212 !important; /* Header dark bg */
+            background-color: #121212 !important; 
         }
         .theme-dark #wordDisplay, .theme-dark .text-gray-900 {
-            color: #f3f4f6 !important; /* Light text for word */
+            color: #f3f4f6 !important; 
         }
         .theme-dark .text-gray-500, .theme-dark .text-gray-600, .theme-dark .text-gray-800 {
-            color: #9ca3af !important; /* Lighter gray text */
+            color: #9ca3af !important; 
         }
         .theme-dark .border-b {
             border-color: #4b5563 !important;
@@ -202,10 +240,10 @@
 
         /* 3. BANANA THEME */
         body.theme-banana {
-            background: #f8f4b2 !important; /* Correct color - Added !important for safety */
+            background: #f8f4b2 !important; 
         }
         .theme-banana #wordDisplay {
-            color: #ffd200; /* Updated Word color */
+            color: #ffd200; 
             animation: bounce-word 0.5s ease-out infinite alternate;
         }
         @keyframes bounce-word {
@@ -213,21 +251,21 @@
             to { transform: translateY(-15px); }
         }
         .theme-banana .card {
-            background-color: rgba(248, 244, 178, 0.95); /* Updated card background to match new body color */
+            background-color: rgba(248, 244, 178, 0.95); 
             border: 2px solid #f4ef81;
         }
         
         /* 4. WINTER THEME */
         body.theme-winter {
-            background: linear-gradient(135deg, #e0f7fa 0%, #b3e5fc 100%) !important; /* Added !important for safety */
+            background: linear-gradient(135deg, #e0f7fa 0%, #b3e5fc 100%) !important; 
         }
         .theme-winter #wordDisplay {
-            color: #01579b; /* Deep Icy Blue */
+            color: #01579b; 
             text-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
         }
         .theme-winter .card {
             background-color: rgba(255, 255, 255, 0.9);
-            border: 2px solid #81d4fa; /* Light Blue Border */
+            border: 2px solid #81d4fa; 
             box-shadow: 0 15px 40px rgba(179, 229, 252, 0.5);
         }
         
