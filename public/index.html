@@ -112,7 +112,7 @@
             background: linear-gradient(135deg, #fef2be 0%, #b5def0 100%);
         }
 
-        /* 1. RAINBOW THEME (FIX: Animation timing changed to linear) */
+        /* 1. RAINBOW THEME (FIX: Keyframes adjusted for diagonal scrolling in both X and Y) */
         body.theme-rainbow {
             /* Animated rainbow background */
             background: repeating-linear-gradient(45deg, 
@@ -125,12 +125,12 @@
                 #f06, 100%
             );
             background-size: 400% 400%;
-            animation: rainbow-body 15s linear infinite;
+            animation: rainbow-body 20s linear infinite; /* Increased time to 20s for better visibility */
         }
         @keyframes rainbow-body {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
+            /* Animate diagonally across the viewport, using background-position */
+            from { background-position: 0% 0%; }
+            to { background-position: 100% 100%; }
         }
         .theme-rainbow #wordDisplay {
             background: linear-gradient(
@@ -184,9 +184,9 @@
         }
 
 
-        /* 3. BANANA THEME (UPDATED: New background color #f8f4b2) */
+        /* 3. BANANA THEME */
         body.theme-banana {
-            background: #f8f4b2; /* Updated to requested solid color */
+            background: #f8f4b2; /* Correct color */
         }
         .theme-banana #wordDisplay {
             color: #ffd200; /* Updated Word color */
@@ -197,7 +197,7 @@
             to { transform: translateY(-15px); }
         }
         .theme-banana .card {
-            background-color: rgba(248, 244, 178, 0.95); /* Updated card background to match new body color (#f8f4b2 is 248, 244, 178) */
+            background-color: rgba(248, 244, 178, 0.95); /* Updated card background to match new body color */
             border: 2px solid #f4ef81;
         }
         
