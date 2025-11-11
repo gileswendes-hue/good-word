@@ -112,10 +112,10 @@
             background: linear-gradient(135deg, #fef2be 0%, #b5def0 100%) !important; 
         }
         
-        /* New Keyframe for the background movement (THE FIX) */
+        /* Keyframe FIX: Moves the background by 400% to match its size (400% 400%) for a seamless loop */
         @keyframes rotate-border {
             0% { background-position: 0% 0%; }
-            100% { background-position: 100% 100%; }
+            100% { background-position: 400% 400%; }
         }
 
         /* Keyframes for hue rotation (Used for Word Text) */
@@ -130,7 +130,7 @@
             }
         }
 
-        /* 1. RAINBOW THEME (FIX: Using a pseudo-element for reliable rainbow border) */
+        /* 1. RAINBOW THEME */
         body.theme-rainbow {
             background: #f7f7f7 !important; /* Low intensity background */
         }
@@ -138,20 +138,18 @@
         .theme-rainbow .card {
             background-color: #fff; 
             backdrop-filter: none; 
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15); /* Keep standard shadow, remove red glow */
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15); 
             border: 1px solid rgba(0, 0, 0, 0.05);
-            position: relative; /* REQUIRED for pseudo-element */
-            z-index: 10; /* Ensure card content is on top */
-            /* Remove all previous filter/animation from the card itself */
+            position: relative; 
+            z-index: 10; 
             filter: none;
             animation: none;
         }
 
-        /* NEW PSEUDO-ELEMENT FOR RELIABLE RAINBOW BORDER GLOW */
+        /* PSEUDO-ELEMENT FOR RELIABLE RAINBOW BORDER GLOW */
         .theme-rainbow .card::before {
             content: '';
             position: absolute;
-            /* Inset sets top, right, bottom, left. -5px makes it 10px larger than the card */
             inset: -5px; 
             border-radius: 1rem; /* Match rounded-2xl */
             
@@ -168,17 +166,13 @@
                 #ff0000 
             );
             
-            /* Make the background huge for the animation */
             background-size: 400% 400%; 
             
-            /* Animation to shift the gradient position, creating the cycle effect */
-            animation: rotate-border 5s linear infinite; 
+            /* Animation FIX: Slower duration for smoother movement */
+            animation: rotate-border 20s linear infinite; 
             
-            /* This creates the glow/border effect behind the white card */
             z-index: -1; 
             opacity: 0.9; 
-            
-            /* Apply blur to create the glow effect from the background */
             filter: blur(5px); 
         }
 
@@ -470,12 +464,12 @@
 
 
     <div class="version-indicator">
-        v3.9.1 | Made by Gilxs in 12,025
+        v3.7.0 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.9.1'; 
+        const APP_VERSION = '3.7.0'; 
         
         // --- NEW BOOST CONSTANTS ---
         const BOOSTED_WORD = 'CAKE';
@@ -1281,4 +1275,3 @@
     </script>
 </body>
 </html>
-
