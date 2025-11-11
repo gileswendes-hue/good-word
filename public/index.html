@@ -9,7 +9,8 @@
     <style>
         body { 
             font-family: 'Inter', sans-serif; 
-            /* Background is now defined explicitly in theme-X body styles for correct application */
+            /* Default theme background */
+            background: linear-gradient(135deg, #fef2be 0%, #b5def0 100%);
         }
         .card { 
             backdrop-filter: blur(10px); 
@@ -107,25 +108,32 @@
         
         /* --- THEME STYLES --- */
         
-        /* 0. DEFAULT THEME */
+        /* 0. DEFAULT THEME: Now only for redundancy, background is in generic body */
         body.theme-default { 
-            background: linear-gradient(135deg, #fef2be 0%, #b5def0 100%);
+            /* No background property here to avoid conflict, relying on generic body style */
+        }
+        
+        /* Keyframes for ANIMATED RAINBOW BACKGROUND */
+        @keyframes rainbow-body-animation {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
         }
 
-        /* 1. RAINBOW THEME (FIX: Changed to static, reliable background) */
+        /* 1. RAINBOW THEME (FIX: Now uses ANIMATED background) */
         body.theme-rainbow {
-            /* Static rainbow background for guaranteed rendering */
-            background: linear-gradient(135deg, 
-                #ff0000 0%,   /* Red */
-                #ff7f00 15%,  /* Orange */
-                #ffff00 30%,  /* Yellow */
-                #00ff00 45%,  /* Green */
-                #00ffff 60%,  /* Cyan */
-                #0000ff 75%,  /* Blue */
-                #9400d3 90%   /* Violet */
-            );
+            background: linear-gradient(-45deg, 
+                #ff0000,   /* Red */
+                #ff7f00,  /* Orange */
+                #ffff00,  /* Yellow */
+                #00ff00,  /* Green */
+                #00ffff,  /* Cyan */
+                #0000ff,  /* Blue */
+                #9400d3   /* Violet */
+            ) !important; 
+            background-size: 400% 400% !important; 
+            animation: rainbow-body-animation 10s ease infinite !important; /* ANIMATION APPLIED HERE */
         }
-        /* Removed @keyframes rainbow-body */
 
         .theme-rainbow #wordDisplay {
             background: linear-gradient(
@@ -154,7 +162,7 @@
 
         /* 2. DARK THEME */
         body.theme-dark {
-            background: #121212; /* Very Dark Gray/Near Black */
+            background: #121212 !important; /* Very Dark Gray/Near Black - Added !important for safety */
         }
         .theme-dark #gameCard, .theme-dark .card {
             background-color: rgba(18, 18, 18, 0.95); /* Darker card to match */
@@ -181,7 +189,7 @@
 
         /* 3. BANANA THEME */
         body.theme-banana {
-            background: #f8f4b2; /* Correct color */
+            background: #f8f4b2 !important; /* Correct color - Added !important for safety */
         }
         .theme-banana #wordDisplay {
             color: #ffd200; /* Updated Word color */
@@ -198,7 +206,7 @@
         
         /* 4. WINTER THEME */
         body.theme-winter {
-            background: linear-gradient(135deg, #e0f7fa 0%, #b3e5fc 100%);
+            background: linear-gradient(135deg, #e0f7fa 0%, #b3e5fc 100%) !important; /* Added !important for safety */
         }
         .theme-winter #wordDisplay {
             color: #01579b; /* Deep Icy Blue */
