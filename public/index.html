@@ -91,7 +91,7 @@
             white-space: nowrap; 
             overflow: hidden;
             max-width: 100%; 
-            padding: 0 1rem; 
+            /* Padding handled by JS for sizing. */
             box-sizing: border-box;
             position: relative;
             z-index: 10;
@@ -107,7 +107,7 @@
         
         /* --- THEME STYLES --- */
         
-        /* 0. DEFAULT THEME: Now explicitly defines the background with !important */
+        /* 0. DEFAULT THEME */
         body.theme-default { 
             background: linear-gradient(135deg, #fef2be 0%, #b5def0 100%) !important; 
         }
@@ -117,9 +117,9 @@
             0% { background-position: 0% 0%; }
             100% { background-position: 100% 100%; }
         }
-
-        /* Keyframes for hue rotation (Used for Word Text) */
-        @keyframes rainbow-hue-animation {
+        
+        /* Keyframes for rainbow text */
+        @keyframes rainbow-text {
             0% { 
                 -webkit-filter: hue-rotate(0deg); 
                 filter: hue-rotate(0deg); 
@@ -135,54 +135,75 @@
             background: #f7f7f7 !important; /* Low intensity background */
         }
 
-        .theme-rainbow .card {
-            background-color: #fff; /* This now acts as the 'white hole' */
+        /* Shared Card Styles for Rainbow Theme (Main Card and Ranking Cards) */
+        .theme-rainbow .card, .theme-rainbow .ranking-card {
+            background-color: #fff; /* White base card */
             backdrop-filter: none; 
             box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15); 
             border: 1px solid rgba(0, 0, 0, 0.05);
             position: relative; 
-            z-index: 10; /* Ensures the card's white background and content are on top of ::before */
+            z-index: 10; 
             filter: none;
             animation: none;
         }
-
-        /* PSEUDO-ELEMENT FOR RAINBOW BORDER (THE BACKGROUND LAYER) */
-        .theme-rainbow .card::before {
+        
+        /* PSEUDO-ELEMENT FOR RAINBOW BORDER (Main Card and Ranking Cards) */
+        .theme-rainbow .card::before, .theme-rainbow .ranking-card::before {
             content: '';
             position: absolute;
-            inset: -5px; /* Outer edge of the 5px border */
-            border-radius: 1rem; /* Match rounded-2xl */
-            
-            /* The core rainbow gradient */
+            inset: -5px; 
+            border-radius: 1rem; 
             background: linear-gradient(
                 45deg, 
-                #ff0000, 
-                #ff7f00, 
-                #ffff00, 
-                #00ff00, 
-                #00ffff, 
-                #0000ff, 
-                #9400d3, 
-                #ff0000 
+                #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #9400d3, #ff0000 
             );
-            
             background-size: 400% 400%; 
-            
-            /* Animation: Slower duration for smoother movement */
             animation: rotate-border 20s linear infinite; 
-            
-            z-index: -1; /* Place below the card's content and background */
+            z-index: -3; /* Placed behind the card content and background */
             opacity: 1; 
             filter: none; 
         }
         
-        /* REMOVED: .theme-rainbow .card::after (The white hole) 
-           The card's background-color: #fff now performs this function.
-        */
+        /* NEW/MODIFIED: Word Frame Container for Rainbow Theme */
+        .theme-rainbow #wordFrame {
+            position: relative;
+            z-index: 10;
+            padding: 0.5rem; /* Space between the card border and the word frame border */
+            border-radius: 1rem;
+            /* Make sure the word frame wrapper is transparent so the card's background shows */
+            background-color: transparent; 
+            margin-bottom: 2rem; 
+        }
 
+        /* NEW/MODIFIED: The Inner Rainbow Frame around the Word */
+        .theme-rainbow #wordFrame::before {
+            content: '';
+            position: absolute;
+            inset: -4px; /* Thickness of the new frame */
+            border-radius: 1.25rem; 
+            /* Same rainbow gradient for the inner frame */
+            background: linear-gradient(
+                45deg, 
+                #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #9400d3, #ff0000 
+            );
+            background-size: 400% 400%; 
+            animation: rotate-border 20s linear infinite; 
+            z-index: -2; 
+        }
+        
+        /* NEW/MODIFIED: Inner White Area for the Word Frame (CRITICAL FOR READABILITY) */
+        .theme-rainbow #wordFrame::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 1rem; 
+            background-color: #ffffff; /* Solid white background for high contrast */
+            z-index: -1; 
+        }
 
+        /* MODIFIED: Word Display Styles (RE-ENABLE RAINBOW TEXT) */
         .theme-rainbow #wordDisplay {
-            /* Keep the rainbow text animation */
+            /* Restore the rainbow text animation */
             background: linear-gradient(
                 45deg, 
                 #ff0000, 
@@ -197,26 +218,29 @@
             -webkit-text-fill-color: transparent;
             color: transparent; /* Fallback */
             animation: rainbow-text 5s ease infinite;
+            
+            /* Override tailwind/default colors */
+            color: transparent !important; 
+            animation: rainbow-text 5s ease infinite;
+            
+            /* Adjust padding for the frame, not the default */
+            margin-bottom: 0 !important;
+            padding: 0 0.5rem; /* Small internal padding for the word */
         }
-        @keyframes rainbow-text {
-            0% { 
-                -webkit-filter: hue-rotate(0deg); 
-                filter: hue-rotate(0deg); 
-            }
-            100% { 
-                -webkit-filter: hue-rotate(360deg); 
-                filter: hue-rotate(360deg); 
-            }
-        }
-
+        
         /* 2. DARK THEME */
         body.theme-dark {
             background: #121212 !important; 
         }
-        .theme-dark #gameCard, .theme-dark .card {
+        /* Ensure ranking cards also use dark theme styles when applicable */
+        .theme-dark #gameCard, .theme-dark .card, .theme-dark .ranking-card {
             background-color: rgba(18, 18, 18, 0.95); 
             box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
             border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        /* Handle the word frame inner color for Dark Theme */
+        .theme-dark #wordFrame::after { 
+            background-color: #212121 !important;
         }
         .theme-dark header .bg-white {
             background-color: #374151 !important; 
@@ -248,7 +272,8 @@
             from { transform: translateY(0); }
             to { transform: translateY(-15px); }
         }
-        .theme-banana .card {
+        /* Ensure ranking cards also use banana theme styles when applicable */
+        .theme-banana .card, .theme-banana .ranking-card {
             background-color: rgba(248, 244, 178, 0.95); 
             border: 2px solid #f4ef81;
         }
@@ -261,36 +286,33 @@
             color: #01579b; 
             text-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
         }
-        .theme-winter .card {
+        /* Ensure ranking cards also use winter theme styles when applicable */
+        .theme-winter .card, .theme-winter .ranking-card {
             background-color: rgba(255, 255, 255, 0.9);
             border: 2px solid #81d4fa; 
             box-shadow: 0 15px 40px rgba(179, 229, 252, 0.5);
         }
         
-        /* SNOW EFFECT STYLES */
+        /* SNOW EFFECT STYLES (Kept for completeness) */
         
-        /* Snowfall 1: Faster, fine snow, slight drift right */
         @keyframes snowfall-1 {
             0% { transform: translate3d(0vw, -100vh, 0); }
             100% { transform: translate3d(10vw, 100vh, 0); } 
         }
 
-        /* Snowfall 2: Slower, larger snow, medium drift left */
         @keyframes snowfall-2 {
             0% { transform: translate3d(0vw, -100vh, 0); }
             100% { transform: translate3d(-15vw, 100vh, 0); }
         }
 
-        /* Note: z-index is only applied here when theme-winter is active */
         .theme-winter #snow-effect {
-            /* The container covers the whole screen, high z-index, pointer-events-none */
             position: fixed;
             top: 0;
             left: 0;
             width: 100vw;
             height: 100vh;
             overflow: hidden;
-            z-index: 40; /* Set high z-index here */
+            z-index: 40; 
             pointer-events: none;
         }
 
@@ -298,16 +320,14 @@
         .theme-winter #snow-effect::after {
             content: '';
             position: absolute;
-            top: -100vh; /* Start off screen above */
+            top: -100vh; 
             left: 0;
             width: 100%;
-            height: 200%; /* Needs to be double height to cover screen while falling */
+            height: 200%; 
             background-repeat: repeat;
         }
 
-        /* Layer 1: Fine, faster, random snow - Multi-gradient for randomness and sparse effect (Bolder) */
         .theme-winter #snow-effect::before {
-            /* Increased radii for bolder look: 3px->4px, 4px->5px, 5px->6px */
             background-image: 
                 radial-gradient(4px 4px at 5% 10%, #fff, transparent),
                 radial-gradient(5px 5px at 95% 40%, #fff, transparent),
@@ -318,17 +338,14 @@
                 radial-gradient(4px 4px at 45% 5%, #fff, transparent),
                 radial-gradient(6px 6px at 85% 85%, #fff, transparent);
                 
-            /* Large, shared background size for the 8 dots to break the grid */
             background-size: 300px 350px, 300px 350px, 300px 350px, 300px 350px, 300px 350px, 300px 350px, 300px 350px, 300px 350px;
             
-            opacity: 0.6; /* Slightly increased opacity */
-            animation: snowfall-1 50s linear infinite; /* Slower */
-            animation-delay: -5s; /* Random start */
+            opacity: 0.6; 
+            animation: snowfall-1 50s linear infinite; 
+            animation-delay: -5s; 
         }
 
-        /* Layer 2: Larger, slower, random snow - Multi-gradient for randomness and sparse effect (Bolder) */
         .theme-winter #snow-effect::after {
-            /* Increased radii for bolder look: 6px->7px, 7px->8px, 8px->9px */
             background-image: 
                 radial-gradient(7px 7px at 20% 5%, #fff, transparent),
                 radial-gradient(8px 8px at 70% 35%, #fff, transparent),
@@ -339,12 +356,11 @@
                 radial-gradient(7px 7px at 25% 45%, #fff, transparent),
                 radial-gradient(9px 9px at 80% 15%, #fff, transparent);
             
-            /* Even larger, shared background size for the 8 dots */
             background-size: 500px 600px, 500px 600px, 500px 600px, 500px 600px, 500px 600px, 500px 600px, 500px 600px, 500px 600px;
             
-            opacity: 0.9; /* Slightly increased opacity */
-            animation: snowfall-2 75s linear infinite; /* Even slower */
-            animation-delay: -30s; /* More random start */
+            opacity: 0.9; 
+            animation: snowfall-2 75s linear infinite; 
+            animation-delay: -30s; 
         }
     </style>
 </head>
@@ -377,8 +393,11 @@
     </header>
 
     <main id="gameCard" class="card p-8 w-full max-w-sm flex flex-col items-center rounded-2xl">
-        <div id="wordDisplay" class="font-extrabold text-gray-900 mb-8 text-center min-h-[72px]">
-            Loading...
+        
+        <div id="wordFrame" class="w-full text-center rounded-xl mb-8">
+            <div id="wordDisplay" class="font-extrabold text-gray-900 text-center min-h-[72px]">
+                Loading...
+            </div>
         </div>
         <div id="cakeMessage" class="text-center">
             </div>
@@ -400,13 +419,13 @@
     </main>
 
     <section class="mt-8 w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div class="card p-6 rounded-xl">
+        <div class="ranking-card card p-6 rounded-xl">
             <h2 class="text-xl font-bold text-green-700 mb-4 border-b pb-2">Top Good Words</h2>
             <div id="goodRankings" class="space-y-2">
                 <p class="text-gray-500">No data yet.</p>
             </div>
         </div>
-        <div class="card p-6 rounded-xl">
+        <div class="ranking-card card p-6 rounded-xl">
             <h2 class="text-xl font-bold text-red-700 mb-4 border-b pb-2">Top Bad Words</h2>
             <div id="badRankings" class="space-y-2">
                 <p class="text-gray-500">No data yet.</p>
@@ -514,6 +533,7 @@
         };
         // --- END THEME VARIABLES ---
 
+        const wordFrame = document.getElementById('wordFrame'); // NEW: Word Frame
         const wordDisplay = document.getElementById('wordDisplay');
         const cakeMessage = document.getElementById('cakeMessage');
         const goodButton = document.getElementById('goodButton');
@@ -731,8 +751,16 @@
         
         function showAwardMessageAndContinue(awardName, emoji) {
             wordDisplay.textContent = `${emoji} ${awardName} Unlocked! ${emoji}`;
-            wordDisplay.className = 'text-4xl font-extrabold text-green-700 mb-8 text-center min-h-[72px] animate-pulse';
+            
+            // Clear all theme styles
             wordDisplay.style.fontSize = '2.25rem'; 
+            wordDisplay.style.color = '#10b981';
+            
+            wordDisplay.className = 'text-4xl font-extrabold text-green-700 text-center min-h-[72px] animate-pulse';
+            
+            // Clear word frame styling for special message
+            wordFrame.style.padding = '0';
+            wordFrame.style.backgroundColor = 'transparent';
 
             cakeMessage.classList.remove('opacity-100');
             cakeMessage.classList.add('opacity-0');
@@ -754,8 +782,12 @@
 
         function showMessage(text, isError = false) {
             wordDisplay.textContent = text;
-            wordDisplay.className = `text-4xl font-bold text-center mb-8 min-h-[72px] ${isError ? 'text-red-500' : 'text-gray-500'}`;
+            wordDisplay.className = `text-4xl font-bold text-center min-h-[72px] ${isError ? 'text-red-500' : 'text-gray-500'}`;
             wordDisplay.style.fontSize = '1.5rem'; 
+            
+            // Clear frame for simple messages
+            wordFrame.style.padding = '0';
+            wordFrame.style.backgroundColor = 'transparent';
 
             goodButton.disabled = true;
             badButton.disabled = true;
@@ -771,9 +803,13 @@
         
         function showCooldownMessage(remainingSeconds) {
             wordDisplay.textContent = `Button mashing will not be tolerated. Wait ${remainingSeconds}s...`;
-            wordDisplay.className = 'text-4xl font-bold text-red-600 mb-8 text-center min-h-[72px]';
+            wordDisplay.className = 'text-4xl font-bold text-red-600 text-center min-h-[72px]';
             wordDisplay.style.fontSize = '1.5rem'; 
             
+            // Clear frame for cooldown message
+            wordFrame.style.padding = '0';
+            wordFrame.style.backgroundColor = 'transparent';
+
             goodButton.disabled = true;
             badButton.disabled = true;
             notWordButton.disabled = true;
@@ -804,9 +840,9 @@
             wordDisplay.textContent = wordText;
             
             // Re-apply base class
-            wordDisplay.className = 'font-extrabold text-gray-900 mb-8 text-center min-h-[72px]';
+            wordDisplay.className = 'font-extrabold text-gray-900 text-center min-h-[72px]';
             
-            // Reset theme-specific word styling before sizing 
+            // 1. Reset all theme-specific word styling and frame styling
             wordDisplay.style.background = '';
             wordDisplay.style.webkitBackgroundClip = '';
             wordDisplay.style.webkitTextFillColor = '';
@@ -815,81 +851,97 @@
             wordDisplay.style.transform = '';
             wordDisplay.style.textShadow = '';
             
-            // Adjust base color for dark theme
+            // Reset frame styles (important for themes that don't use the frame)
+            wordFrame.style.padding = '0';
+            wordFrame.style.backgroundColor = 'transparent';
+            
+            // 2. Apply theme-specific styles
+            
             if (currentTheme === 'dark') {
                 wordDisplay.style.color = '#f3f4f6';
+            } else if (currentTheme === 'banana') {
+                wordDisplay.style.transform = 'translateY(0)';
+                wordDisplay.style.animation = 'bounce-word 0.5s ease-out infinite alternate';
+                wordDisplay.style.color = '#ffd200';
+            } else if (currentTheme === 'winter') {
+                wordDisplay.style.color = '#01579b'; 
+                wordDisplay.style.textShadow = '0 0 8px rgba(255, 255, 255, 0.8)';
+            } else if (currentTheme === 'rainbow') {
+                // RAINBOW THEME: Apply padding to the frame, keep text color dark
+                wordFrame.style.padding = '0.5rem';
+                
+                // RE-APPLY RAINBOW TEXT
+                wordDisplay.style.background = 'linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #9400d3)';
+                wordDisplay.style.webkitBackgroundClip = 'text';
+                wordDisplay.style.webkitTextFillColor = 'transparent';
+                wordDisplay.style.color = 'transparent';
+                wordDisplay.style.animation = 'rainbow-text 5s ease infinite';
             }
-            
-            // --- Word Sizing Logic (ROBUST FIX) ---
+
+
+            // 3. Word Sizing Logic (ROBUST FIX) 
             const maxFontSize = 96; 
             
             const cardElement = document.getElementById('gameCard');
-            
-            // 1. Get Game Card inner content width (removing its p-8 padding using computed style)
             const cardComputedStyle = window.getComputedStyle(cardElement);
             const cardPaddingHorizontal = parseFloat(cardComputedStyle.paddingLeft) + parseFloat(cardComputedStyle.paddingRight);
             const cardContentWidth = cardElement.clientWidth - cardPaddingHorizontal; 
             
-            // 2. Get Word Display's fixed padding (set by its CSS class '0 1rem')
-            // This is the padding that must remain in the final display.
-            const wordDisplayComputedStyle = window.getComputedStyle(wordDisplay);
-            // NOTE: We need to read the padding based on the existing class before we temporarily set it to 0
-            const wordDisplayPaddingHorizontal = parseFloat(wordDisplayComputedStyle.paddingLeft) + parseFloat(wordDisplayComputedStyle.paddingRight);
-            
-            // 3. Calculate the maximum available space for the text content itself (i.e., the space *inside* the wordDisplay padding)
-            // This is the card's inner content space minus the wordDisplay's own padding.
-            const maxAvailableWidthForTextContent = cardContentWidth - wordDisplayPaddingHorizontal;
-            
-            // 4. Temporarily set max font size and remove padding for measurement
+            // Calculate max available width based on whether the word is framed
+            let wordDisplayPaddingHorizontal = 0;
+            let maxAvailableWidthForTextContent = cardContentWidth;
+
+            if (currentTheme === 'rainbow') {
+                // If rainbow frame is present, account for its padding (0.5rem on wordFrame + 0.5rem on wordDisplay)
+                const framePadding = parseFloat(window.getComputedStyle(wordFrame).paddingLeft) * 2;
+                // Temporarily remove padding from wordDisplay to measure scrollWidth accurately
+                wordDisplay.style.padding = '0'; 
+                wordDisplayPaddingHorizontal = parseFloat(window.getComputedStyle(wordDisplay).paddingLeft) * 2;
+                maxAvailableWidthForTextContent = cardContentWidth - framePadding;
+            } else {
+                // Default padding (1rem on wordDisplay)
+                wordDisplay.style.padding = '0 1rem'; 
+                wordDisplayPaddingHorizontal = parseFloat(window.getComputedStyle(wordDisplay).paddingLeft) * 2;
+                maxAvailableWidthForTextContent = cardContentWidth - wordDisplayPaddingHorizontal;
+            }
+
+            // Temporarily set max font size and enable nowrap for scrollWidth measurement
             wordDisplay.style.fontSize = `${maxFontSize}px`;
             wordDisplay.style.whiteSpace = 'nowrap'; 
-            wordDisplay.style.padding = '0'; // Temporarily remove padding for scrollWidth measurement
-
+            
             let currentTextWidth = wordDisplay.scrollWidth;
             let finalFontSize = maxFontSize;
 
-            // 5. Calculate new font size based on scale factor
+            // Calculate new font size based on scale factor
             if (currentTextWidth > maxAvailableWidthForTextContent) { 
                 const scaleFactor = maxAvailableWidthForTextContent / currentTextWidth;
                 finalFontSize = Math.floor(maxFontSize * scaleFactor);
                 if (finalFontSize < 24) finalFontSize = 24; 
             }
             
-            // 6. Apply final size and restore styles
+            // Apply final size and restore styles
             wordDisplay.style.fontSize = `${finalFontSize}px`;
             wordDisplay.style.whiteSpace = 'normal'; 
-            wordDisplay.style.padding = '0 1rem'; // Restore original padding
-            // --- End ROBUST FIX ---
             
-            // Re-apply theme-specific word styling after sizing
-            if (currentTheme === 'banana') {
-                wordDisplay.style.transform = 'translateY(0)';
-                wordDisplay.style.animation = 'bounce-word 0.5s ease-out infinite alternate';
-                wordDisplay.style.color = '#ffd200';
-            } else if (currentTheme === 'rainbow') {
-                wordDisplay.style.background = 'linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #9400d3)';
-                wordDisplay.style.webkitBackgroundClip = 'text';
-                wordDisplay.style.webkitTextFillColor = 'transparent';
-                wordDisplay.style.color = 'transparent';
-                wordDisplay.style.animation = 'rainbow-text 5s ease infinite';
-            } else if (currentTheme === 'winter') { // Winter Theme styles
-                wordDisplay.style.color = '#01579b'; 
-                wordDisplay.style.textShadow = '0 0 8px rgba(255, 255, 255, 0.8)';
+            // Restore correct padding after sizing
+            if (currentTheme === 'rainbow') {
+                wordDisplay.style.padding = '0 0.5rem';
+            } else {
+                wordDisplay.style.padding = '0 1rem';
             }
 
-            // --- CAKE MESSAGE LOGIC (EXISTING & NEW BADGE) ---
+
+            // 4. CAKE MESSAGE LOGIC
             if (wordText === 'CAKE') {
                 cakeMessage.textContent = 'The cake is a lie!';
                 cakeMessage.classList.remove('opacity-0');
                 cakeMessage.classList.add('opacity-100');
                 
-                // Add the requested fade out logic
                 setTimeout(() => {
                     cakeMessage.classList.remove('opacity-100');
                     cakeMessage.classList.add('opacity-0');
                 }, 3000); 
                 
-                // NEW: Show cake badge
                 cakeBadge.classList.remove('hidden');
 
             } else {
@@ -897,12 +949,10 @@
                 cakeMessage.classList.add('opacity-0');
                 cakeMessage.textContent = ''; 
                 
-                // NEW: Hide cake badge
                 cakeBadge.classList.add('hidden');
             }
-            // --- END CAKE MESSAGE LOGIC ---
             
-            // Only enable buttons if not in a special message state (like cooldown or award)
+            // 5. Only enable buttons if not in a special message state (like cooldown or award)
             if (!isCoolingDown && !currentWord.isSpecialMessage) {
                 goodButton.disabled = false;
                 badButton.disabled = false;
