@@ -194,10 +194,70 @@
             background-color: rgba(255, 242, 151, 0.95); /* Updated Light yellow card (FFF297 with 0.95 opacity) */
             border: 2px solid #f4ef81;
         }
+        
+        /* 4. WINTER THEME */
+        .theme-winter body {
+            background: linear-gradient(135deg, #e0f7fa 0%, #b3e5fc 100%);
+        }
+        .theme-winter #wordDisplay {
+            color: #01579b; /* Deep Icy Blue */
+            text-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+        }
+        .theme-winter .card {
+            background-color: rgba(255, 255, 255, 0.9);
+            border: 2px solid #81d4fa; /* Light Blue Border */
+            box-shadow: 0 15px 40px rgba(179, 229, 252, 0.5);
+        }
+        
+        /* SNOW EFFECT STYLES */
+        @keyframes snowfall {
+            0% { transform: translateY(-100vh); }
+            100% { transform: translateY(100vh); }
+        }
+
+        .theme-winter #snow-effect {
+            /* The container covers the whole screen, high z-index, pointer-events-none */
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .theme-winter #snow-effect::before,
+        .theme-winter #snow-effect::after {
+            content: '';
+            position: absolute;
+            top: -100vh; /* Start off screen above */
+            left: 0;
+            width: 100%;
+            height: 200%; /* Needs to be double height to cover screen while falling */
+            background-repeat: repeat;
+        }
+
+        /* Layer 1: Fine, faster snow */
+        .theme-winter #snow-effect::before {
+            background-image: radial-gradient(white 10%, transparent 90%);
+            background-size: 15px 15px;
+            opacity: 0.6;
+            animation: snowfall 20s linear infinite;
+        }
+
+        /* Layer 2: Larger, slower snow */
+        .theme-winter #snow-effect::after {
+            background-image: radial-gradient(white 20%, transparent 80%);
+            background-size: 25px 25px;
+            opacity: 0.8;
+            animation: snowfall 30s linear infinite;
+            animation-delay: -10s; /* Stagger the animation start */
+        }
 
     </style>
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen p-4">
+
+    <div id="snow-effect" class="fixed inset-0 pointer-events-none z-40"></div> 
 
     <header class="text-center mb-8 w-full max-w-lg">
         <div id="logoArea" class="h-32 w-full flex items-center justify-center mb-4 relative">
@@ -340,13 +400,15 @@
         const RAINBOW_STR = 'RAINBOW|GAY|SPARKLE|COLOUR|PRIDE|UNICORN|PROUD|QUEER|GLITTER|LESBIAN';
         const DARK_REVERSED_STR = 'THGINDIM!KCALB!EDAHS!HTOG!WODAHS!AJNIN!KRAD!THGIN!HTLAETS'; 
         const BANANA_STR = 'BANANA,BANANAS,PLANTAIN,YELLOW';
+        const WINTER_STR = 'SNOWMAN|SNOW|ICE|WINTER|FROZEN|CHILL|COLD|FLAKE|BLIZZARD|ICICLE|SLEIGH|SNOWBALL'; // Updated trigger words
 
         const THEME_WORDS = {
             'rainbow': RAINBOW_STR.split('|'),
             'dark': DARK_REVERSED_STR
                         .split('!')
                         .map(w => w.split('').reverse().join('')), // Reverses each word
-            'banana': BANANA_STR.split(',')
+            'banana': BANANA_STR.split(','),
+            'winter': WINTER_STR.split('|') // New theme mapping
         };
         // --- END THEME VARIABLES ---
 
@@ -610,6 +672,7 @@
             wordDisplay.style.color = '#111827'; 
             wordDisplay.style.animation = '';
             wordDisplay.style.transform = '';
+            wordDisplay.style.textShadow = '';
             
             // Adjust base color for dark theme
             if (currentTheme === 'dark') {
@@ -661,13 +724,16 @@
             if (currentTheme === 'banana') {
                 wordDisplay.style.transform = 'translateY(0)';
                 wordDisplay.style.animation = 'bounce-word 0.5s ease-out infinite alternate';
-                wordDisplay.style.color = '#ffd200'; // Apply the requested word color
+                wordDisplay.style.color = '#ffd200';
             } else if (currentTheme === 'rainbow') {
                 wordDisplay.style.background = 'linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #9400d3)';
                 wordDisplay.style.webkitBackgroundClip = 'text';
                 wordDisplay.style.webkitTextFillColor = 'transparent';
                 wordDisplay.style.color = 'transparent';
                 wordDisplay.style.animation = 'rainbow-text 5s ease infinite';
+            } else if (currentTheme === 'winter') { // New Winter Theme styles
+                wordDisplay.style.color = '#01579b'; 
+                wordDisplay.style.textShadow = '0 0 8px rgba(255, 255, 255, 0.8)';
             }
 
             // --- CAKE MESSAGE LOGIC (EXISTING) ---
