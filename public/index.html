@@ -98,6 +98,7 @@
             /* Ensure text mask works */
             -webkit-mask-image: none;
             mask-image: none;
+            transition: all 0.4s ease-out; /* Enable smooth transition for shadows/transforms */
         }
         #fullRankingsModal {
             max-width: 800px;
@@ -198,13 +199,14 @@
             border: 2px solid #f4ef81;
         }
         
-        /* 4. WINTER THEME - ENHANCED */
+        /* 4. WINTER THEME - Drastically Enhanced */
         .theme-winter body {
-            background: linear-gradient(180deg, #b3cde0 0%, #ffffff 100%); 
+            background: linear-gradient(180deg, #b3cde0 0%, #e0f0ff 100%); 
             overflow: hidden;
+            position: relative;
         }
-        
-        /* ENHANCED Snow Falling Effect */
+
+        /* ENHANCED Snow Falling Effect (More layers, sizes, and movement) */
         .theme-winter body::before {
             content: '';
             position: fixed;
@@ -212,22 +214,27 @@
             left: 0;
             width: 100%;
             height: 100%;
-            /* Higher density and larger flakes for visibility */
+            pointer-events: none; 
             background-image: 
-                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10"><circle cx="5" cy="5" r="1.5" fill="rgba(255,255,255,0.95)"/></svg>'),
-                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" viewBox="0 0 25 25"><circle cx="12.5" cy="12.5" r="2.5" fill="rgba(255,255,255,0.85)"/></svg>'),
-                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 50 50"><circle cx="25" cy="25" r="3" fill="rgba(255,255,255,0.7)"/></svg>');
-            background-size: 10px 10px, 25px 25px, 50px 50px;
-            animation: snowing 10s linear infinite; /* Faster animation */
+                /* Fast, small, less opaque flakes (far away) */
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 8 8"><circle cx="4" cy="4" r="1" fill="rgba(255,255,255,0.7)"/></svg>'),
+                /* Medium speed, medium size, medium opacity flakes */
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 15 15"><circle cx="7.5" cy="7.5" r="1.5" fill="rgba(255,255,255,0.9)"/></svg>'),
+                /* Slow, large, most opaque flakes (close up) */
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="15" r="2.5" fill="rgba(255,255,255,1)"/></svg>');
+            background-size: 8px 8px, 15px 15px, 30px 30px;
+            background-repeat: repeat; 
+            animation: snowing 12s linear infinite; 
             z-index: -1;
         }
+
         @keyframes snowing {
             0% { 
                 background-position: 0% 0%, 0% 0%, 0% 0%; 
             }
             100% { 
-                /* More pronounced horizontal drift */
-                background-position: 10% 100%, 15% 100%, 20% 100%; 
+                /* Layers move at different speeds and drifts */
+                background-position: 10% 100%, 5% 100%, 0% 100%; 
             }
         }
         
@@ -237,46 +244,44 @@
         }
         .theme-winter #wordDisplay {
             color: #1e40af; /* Deep blue text */
-            text-shadow: 0 0 10px rgba(255, 255, 255, 0.9);
-            /* Reset mask properties for default state */
+            /* Subtle blue shadow for frosty look */
+            text-shadow: 0 0 8px rgba(30, 64, 175, 0.5); 
             -webkit-mask-image: none;
             mask-image: none;
-            transition: color 0.4s ease-out; /* Keep the color transition */
+            transition: all 0.4s ease-out; 
+            /* Ensure the text can be moved/transformed */
+            transform: translateY(0); 
         }
         
-        /* Snow Piling Up Effect - DRAMATICALLY ENHANCED */
+        /* Snow Piling Up Effect - Text Shadow Simulation */
         .word-snowed {
-            /* Animation to move the mask */
-            animation: snow-bury 2.5s ease-out forwards; /* Faster animation */
+            /* Text Color change to simulate being covered/faded into the white snow */
+            color: #f0f8ff !important; 
+            opacity: 0.1; /* Fade the original text dramatically */
             
-            /* Apply the mask to make the text appear to vanish from the bottom up */
-            /* The gradient mask defines the visible (black) and hidden (transparent) parts */
-            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, transparent 50%, black 50%, black 100%);
-            mask-image: linear-gradient(to bottom, transparent 0%, transparent 50%, black 50%, black 100%);
+            /* Apply the animation which moves the 'snow pile' upwards */
+            animation: snow-bury-visual 2.5s ease-out forwards; 
             
-            /* The mask size is 200% so we can move it from showing the bottom half to the top half */
-            -webkit-mask-size: 100% 200%;
-            mask-size: 100% 200%;
-            -webkit-mask-position: 0% 0%; 
-            mask-position: 0% 0%;
-            
-            /* Change color to look buried */
-            color: #f0f8ff; 
-            text-shadow: none;
+            /* Add a dynamic, soft, white shadow to simulate the pile */
+            text-shadow: 
+                0 0 20px #ffffff,
+                0 0 30px #ffffff,
+                0 10px 5px #f0f8ff,
+                0 20px 8px #f0f8ff,
+                0 30px 10px #f0f8ff; /* This large shadow area is the visible snow pile */
         }
 
-        @keyframes snow-bury {
+        /* Animation keyframes to move the shadow up */
+        @keyframes snow-bury-visual {
             0% { 
-                /* Start: Mask is fully at the bottom, text is fully visible (0% position) */
-                -webkit-mask-position: 0% 0%; 
-                mask-position: 0% 0%;
+                /* Start: Word is fully visible */
+                transform: translateY(0px); 
                 opacity: 1;
             }
             100% { 
-                /* End: Mask has moved up 100% of its size, showing the transparent top half. */
-                -webkit-mask-position: 0% 100%;
-                mask-position: 0% 100%;
-                opacity: 0.2; /* Fade to nearly invisible for a buried look */
+                /* End: Snow pile (text-shadow) has moved up, visually covering the word */
+                transform: translateY(-50px); /* Move the text/shadow up over the text area */
+                opacity: 0.2; /* Final state of original text is very transparent */
             }
         }
 
@@ -734,7 +739,7 @@
             // Reset mask properties
             wordDisplay.style.webkitMaskImage = 'none';
             wordDisplay.style.maskImage = 'none';
-            wordDisplay.style.transition = ''; /* Reset transition for non-winter themes */
+            wordDisplay.style.transition = 'all 0.4s ease-out'; /* Keep transition */
             
             // Adjust base color for dark theme
             if (currentTheme === 'dark') {
@@ -773,9 +778,8 @@
                 wordDisplay.style.color = 'transparent';
                 wordDisplay.style.animation = 'rainbow-text 5s ease infinite';
             } else if (currentTheme === 'winter') {
-                wordDisplay.style.textShadow = '0 0 15px rgba(255, 255, 255, 0.9)';
-                wordDisplay.style.transition = 'color 0.4s ease-out'; /* Add transition back for winter theme */
-
+                wordDisplay.style.textShadow = '0 0 8px rgba(30, 64, 175, 0.5)';
+                
                 // Set the snow bury effect timeout
                 snowBuryTimer = setTimeout(() => {
                     wordDisplay.classList.add('word-snowed');
