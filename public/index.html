@@ -107,12 +107,12 @@
         
         /* --- THEME STYLES --- */
         
-        /* 0. DEFAULT THEME (FIXED: Added 'body' tag to selector) */
+        /* 0. DEFAULT THEME */
         body.theme-default { 
             background: linear-gradient(135deg, #fef2be 0%, #b5def0 100%);
         }
 
-        /* 1. RAINBOW THEME (FIXED: Added 'body' tag to selector) */
+        /* 1. RAINBOW THEME (FIX: Animation timing changed to linear) */
         body.theme-rainbow {
             /* Animated rainbow background */
             background: repeating-linear-gradient(45deg, 
@@ -125,7 +125,7 @@
                 #f06, 100%
             );
             background-size: 400% 400%;
-            animation: rainbow-body 15s ease infinite;
+            animation: rainbow-body 15s linear infinite;
         }
         @keyframes rainbow-body {
             0% { background-position: 0% 50%; }
@@ -157,7 +157,7 @@
         }
 
 
-        /* 2. DARK THEME (FIXED: Added 'body' tag to selector) */
+        /* 2. DARK THEME */
         body.theme-dark {
             background: #121212; /* Very Dark Gray/Near Black */
         }
@@ -184,9 +184,9 @@
         }
 
 
-        /* 3. BANANA THEME (FIXED: Added 'body' tag to selector) */
+        /* 3. BANANA THEME (UPDATED: New background color #f8f4b2) */
         body.theme-banana {
-            background: #f9f180; /* Updated to requested solid color */
+            background: #f8f4b2; /* Updated to requested solid color */
         }
         .theme-banana #wordDisplay {
             color: #ffd200; /* Updated Word color */
@@ -197,11 +197,11 @@
             to { transform: translateY(-15px); }
         }
         .theme-banana .card {
-            background-color: rgba(249, 241, 128, 0.95); /* Updated card background to match new body color */
+            background-color: rgba(248, 244, 178, 0.95); /* Updated card background to match new body color (#f8f4b2 is 248, 244, 178) */
             border: 2px solid #f4ef81;
         }
         
-        /* 4. WINTER THEME (FIXED: Added 'body' tag to selector) */
+        /* 4. WINTER THEME */
         body.theme-winter {
             background: linear-gradient(135deg, #e0f7fa 0%, #b3e5fc 100%);
         }
