@@ -9,7 +9,7 @@
     <style>
         body { 
             font-family: 'Inter', sans-serif; 
-            /* Background is now defined explicitly in .theme-default body for consistency */
+            /* Background is now defined explicitly in theme-X body styles for correct application */
         }
         .card { 
             backdrop-filter: blur(10px); 
@@ -107,13 +107,13 @@
         
         /* --- THEME STYLES --- */
         
-        /* 0. DEFAULT THEME */
-        .theme-default body { 
+        /* 0. DEFAULT THEME (FIXED: Added 'body' tag to selector) */
+        body.theme-default { 
             background: linear-gradient(135deg, #fef2be 0%, #b5def0 100%);
         }
 
-        /* 1. RAINBOW THEME */
-        .theme-rainbow body {
+        /* 1. RAINBOW THEME (FIXED: Added 'body' tag to selector) */
+        body.theme-rainbow {
             /* Animated rainbow background */
             background: repeating-linear-gradient(45deg, 
                 #f06, 0%, 
@@ -157,8 +157,8 @@
         }
 
 
-        /* 2. DARK THEME */
-        .theme-dark body {
+        /* 2. DARK THEME (FIXED: Added 'body' tag to selector) */
+        body.theme-dark {
             background: #121212; /* Very Dark Gray/Near Black */
         }
         .theme-dark #gameCard, .theme-dark .card {
@@ -184,8 +184,8 @@
         }
 
 
-        /* 3. BANANA THEME */
-        .theme-banana body {
+        /* 3. BANANA THEME (FIXED: Added 'body' tag to selector) */
+        body.theme-banana {
             background: #f9f180; /* Updated to requested solid color */
         }
         .theme-banana #wordDisplay {
@@ -201,8 +201,8 @@
             border: 2px solid #f4ef81;
         }
         
-        /* 4. WINTER THEME */
-        .theme-winter body {
+        /* 4. WINTER THEME (FIXED: Added 'body' tag to selector) */
+        body.theme-winter {
             background: linear-gradient(135deg, #e0f7fa 0%, #b3e5fc 100%);
         }
         .theme-winter #wordDisplay {
