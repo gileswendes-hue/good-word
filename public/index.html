@@ -137,7 +137,7 @@
             );
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            color: transparent; /* Fallback */
+            color: transparent; 
             animation: rainbow-text 5s ease infinite;
         }
         @keyframes rainbow-text {
@@ -145,31 +145,31 @@
             100% { filter: hue-rotate(360deg); }
         }
         .theme-rainbow .card {
-            background-color: rgba(255, 255, 255, 0.7); /* Slightly more transparent */
+            background-color: rgba(255, 255, 255, 0.7); 
         }
 
 
         /* 2. DARK THEME */
         .theme-dark body {
-            background: #1f2937; /* Gray 800 */
+            background: #1f2937; 
         }
         .theme-dark #gameCard, .theme-dark .card {
-            background-color: rgba(31, 41, 55, 0.95); /* Dark card */
+            background-color: rgba(31, 41, 55, 0.95); 
             box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
             border: 1px solid rgba(255, 255, 255, 0.05);
         }
         .theme-dark header .bg-white {
-            background-color: #374151 !important; /* Header dark bg */
+            background-color: #374151 !important; 
             color: #d1d5db;
         }
         .theme-dark header .bg-gray-50 {
-            background-color: #1f2937 !important; /* Header dark bg */
+            background-color: #1f2937 !important; 
         }
         .theme-dark #wordDisplay, .theme-dark .text-gray-900 {
-            color: #f3f4f6 !important; /* Light text for word */
+            color: #f3f4f6 !important; 
         }
         .theme-dark .text-gray-500, .theme-dark .text-gray-600, .theme-dark .text-gray-800 {
-            color: #9ca3af !important; /* Lighter gray text */
+            color: #9ca3af !important; 
         }
         .theme-dark .border-b {
             border-color: #4b5563 !important;
@@ -178,10 +178,10 @@
 
         /* 3. BANANA THEME */
         .theme-banana body {
-            background: linear-gradient(135deg, #fceb9c 0%, #ffe900 100%); /* Banana yellow */
+            background: linear-gradient(135deg, #fceb9c 0%, #ffe900 100%); 
         }
         .theme-banana #wordDisplay {
-            color: #ffd200; /* Slate text */
+            color: #ffd200; 
             animation: bounce-word 0.5s ease-out infinite alternate;
         }
         @keyframes bounce-word {
@@ -189,7 +189,7 @@
             to { transform: translateY(-15px); }
         }
         .theme-banana .card {
-            background-color: rgba(255, 255, 153, 0.95); /* Light yellow card */
+            background-color: rgba(255, 255, 153, 0.95); 
             border: 2px solid #f4ef81;
         }
 
@@ -310,12 +310,12 @@
 
 
     <div class="version-indicator">
-        v3.6.1 | Made by Gilxs in 12,025
+        v3.6.2 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.6.1'; 
+        const APP_VERSION = '3.6.2'; 
 
         let allWords = [];
         let currentWordIndex = 0;
@@ -330,11 +330,9 @@
         let isCoolingDown = false;
         let lastVoteTime = 0; 
 
-        // --- THEME VARIABLES: OBFUSCATED USING STRING MANIPULATION ---
         let currentTheme = localStorage.getItem('currentTheme') || 'default';
         let unlockedThemes = JSON.parse(localStorage.getItem('unlockedThemes')) || [];
         
-        // Obfuscated strings, decoded and reconstructed at runtime
         const RAINBOW_STR = 'RAINBOW|GAY|SPARKLE|COLOUR|PRIDE|UNICORN|PROUD|QUEER|GLITTER|LESBIAN';
         const DARK_REVERSED_STR = 'THGINDIM!KCALB!EDAHS!HTOG!WODAHS!AJNIN!KRAD!THGIN!HTLAETS'; 
         const BANANA_STR = 'BANANA,BANANAS,PLANTAIN,YELLOW';
@@ -343,10 +341,9 @@
             'rainbow': RAINBOW_STR.split('|'),
             'dark': DARK_REVERSED_STR
                         .split('!')
-                        .map(w => w.split('').reverse().join('')), // Reverses each word
+                        .map(w => w.split('').reverse().join('')), 
             'banana': BANANA_STR.split(',')
         };
-        // --- END THEME VARIABLES ---
 
         const wordDisplay = document.getElementById('wordDisplay');
         const cakeMessage = document.getElementById('cakeMessage');
@@ -372,10 +369,8 @@
         const fullGoodRankingsDiv = document.getElementById('fullGoodRankings');
         const fullBadRankingsDiv = document.getElementById('fullBadRankings');
         
-        // --- NEW THEME CHOOSER ELEMENTS ---
         const themeChooser = document.getElementById('themeChooser');
         const themeUnlockHint = document.getElementById('themeUnlockHint');
-        // --- END NEW THEME CHOOSER ELEMENTS ---
 
 
         function init() {
@@ -406,36 +401,28 @@
                 }
             });
             
-            // --- NEW THEME CHOOSER LISTENER ---
             themeChooser.addEventListener('change', (e) => {
                 applyTheme(e.target.value);
-                // Re-display current word to apply new theme's text styles
                 if (allWords.length > 0) {
                     displayCurrentWord(allWords[currentWordIndex]);
                 }
             });
-            // --- END NEW THEME CHOOSER LISTENER ---
-
 
             fetchWords();
             updateAwardBadge();
-            populateThemeChooser(); // Populate the dropdown on init
-            applyTheme(currentTheme); // Apply theme on init
+            populateThemeChooser(); 
+            applyTheme(currentTheme); 
             
             window.addEventListener('resize', () => {
                 if (allWords.length > 0) {
-                    // Re-display the current word to resize it
                     displayCurrentWord(allWords[currentWordIndex]); 
                 }
             });
         }
         
-        // --- THEME CHOOSER FUNCTIONS ---
         function populateThemeChooser() {
-            // Start with the default option already in the HTML
             themeChooser.innerHTML = '<option value="default">Default</option>'; 
 
-            // Get a list of unique theme keys, excluding 'default'
             const availableThemes = [...new Set(unlockedThemes)].sort();
 
             availableThemes.forEach(themeKey => {
@@ -446,19 +433,15 @@
                 themeChooser.appendChild(option);
             });
             
-            // Set the current theme as selected in the dropdown
             themeChooser.value = currentTheme;
             
-            // Update the hint text
             if (availableThemes.length > 0) {
                 themeUnlockHint.textContent = `You have ${availableThemes.length} themes unlocked!`;
             } else {
                 themeUnlockHint.textContent = `Vote on special words to unlock new themes!`;
             }
         }
-        // --- END THEME CHOOSER FUNCTIONS ---
 
-        // --- THEME FUNCTIONALITY ---
         function applyTheme(theme) {
             document.body.className = document.body.className.split(' ').filter(c => !c.startsWith('theme-')).join(' ');
             if (theme !== 'default') {
@@ -473,7 +456,6 @@
             let newThemeToUnlock = null;
             let themeWasNewlyUnlocked = false;
 
-            // Check against all theme trigger words
             for (const [themeKey, triggerWords] of Object.entries(THEME_WORDS)) {
                 if (triggerWords.includes(upperWord)) {
                     newThemeToUnlock = themeKey;
@@ -483,32 +465,25 @@
             
             if (newThemeToUnlock) {
                 if (!unlockedThemes.includes(newThemeToUnlock)) {
-                    // Unlock the theme
                     unlockedThemes.push(newThemeToUnlock);
                     localStorage.setItem('unlockedThemes', JSON.stringify(unlockedThemes));
                     themeWasNewlyUnlocked = true;
                     
-                    // Immediately switch to the newly unlocked theme
                     applyTheme(newThemeToUnlock);
                     populateThemeChooser();
                     
-                    // Return true to trigger the "unlocked" message
                     return true;
                 } else if (currentTheme !== newThemeToUnlock) {
-                    // If already unlocked, just switch to it (optional, but a nice touch)
                     applyTheme(newThemeToUnlock);
                     populateThemeChooser();
                 }
             }
             
-            // Special case for 'CAKE' message (no theme change, but a message)
             if (upperWord === 'CAKE') {
-                // Do nothing here, the message logic is handled in displayCurrentWord
             }
             
             return themeWasNewlyUnlocked;
         }
-        // --- END THEME FUNCTIONALITY ---
 
 
         function updateAwardBadge() {
@@ -581,10 +556,6 @@
             cakeMessage.textContent = '';
         }
 
-        /**
-         * Displays the current word, handling sizing and theme-specific styles.
-         * @param {object} currentWord - The word object to display. 
-         */
         function displayCurrentWord(currentWord) {
             if (!currentWord) {
                 showMessage("No words available! Try submitting one.", false);
@@ -593,15 +564,12 @@
             
             const wordText = currentWord.text.toUpperCase();
             
-            // Remove previous word-transition classes
             wordDisplay.classList.remove('word-transition-good', 'word-transition-bad');
             
             wordDisplay.textContent = wordText;
             
-            // Re-apply base class
             wordDisplay.className = 'font-extrabold text-gray-900 mb-8 text-center min-h-[72px]';
             
-            // Reset theme-specific word styling before sizing 
             wordDisplay.style.background = '';
             wordDisplay.style.webkitBackgroundClip = '';
             wordDisplay.style.webkitTextFillColor = '';
@@ -609,7 +577,6 @@
             wordDisplay.style.animation = '';
             wordDisplay.style.transform = '';
             
-            // Adjust base color for dark theme
             if (currentTheme === 'dark') {
                 wordDisplay.style.color = '#f3f4f6';
             }
@@ -632,7 +599,6 @@
             wordDisplay.style.fontSize = `${finalFontSize}px`;
             wordDisplay.style.whiteSpace = 'normal'; 
             
-            // Re-apply theme-specific word styling after sizing
             if (currentTheme === 'banana') {
                 wordDisplay.style.transform = 'translateY(0)';
                 wordDisplay.style.animation = 'bounce-word 0.5s ease-out infinite alternate';
@@ -645,13 +611,11 @@
                 wordDisplay.style.animation = 'rainbow-text 5s ease infinite';
             }
 
-            // --- CAKE MESSAGE LOGIC (EXISTING) ---
             if (wordText === 'CAKE') {
                 cakeMessage.textContent = 'The cake is a lie!';
                 cakeMessage.classList.remove('opacity-0');
                 cakeMessage.classList.add('opacity-100');
                 
-                // Add the requested fade out logic
                 setTimeout(() => {
                     cakeMessage.classList.remove('opacity-100');
                     cakeMessage.classList.add('opacity-0');
@@ -662,9 +626,7 @@
                 cakeMessage.classList.add('opacity-0');
                 cakeMessage.textContent = ''; 
             }
-            // --- END CAKE MESSAGE LOGIC ---
             
-            // Only enable buttons if not in a special message state (like cooldown or award)
             if (!isCoolingDown && !currentWord.isSpecialMessage) {
                 goodButton.disabled = false;
                 badButton.disabled = false;
@@ -672,9 +634,6 @@
             }
         }
 
-        /**
-         * Selects a random word index using a weighted algorithm.
-         */
         function getWeightedRandomWordIndex(excludeIndex = -1) {
             if (allWords.length === 0) return -1;
             if (allWords.length === 1) return 0;
@@ -774,15 +733,16 @@
                 isCoolingDown = true;
                 voteStreak = 0; 
                 
-                let remaining = COOLDOWN_SECONDS;
                 const cooldownEndTime = Date.now() + COOLDOWN_SECONDS * 1000;
 
+                let remaining = COOLDOWN_SECONDS;
                 showCooldownMessage(remaining);
 
                 cooldownTimer = setInterval(() => {
-                    remaining--;
-                    if (remaining > 0) {
-                        showCooldownMessage(remaining);
+                    let newRemaining = Math.ceil((cooldownEndTime - Date.now()) / 1000);
+                    
+                    if (newRemaining > 0) {
+                        showCooldownMessage(newRemaining);
                     } else {
                         clearInterval(cooldownTimer);
                         cooldownTimer = null;
@@ -813,9 +773,7 @@
                 wordDisplay.classList.add(voteType === 'good' ? 'word-transition-good' : 'word-transition-bad');
             }
 
-            // --- THEME CHECK & UNLOCK BEFORE VOTE ---
             const themeWasNewlyUnlocked = checkAndApplyTheme(currentWord.text);
-            // --- END THEME CHECK & UNLOCK ---
 
             try {
                 const response = await fetch(`/api/words/${wordId}/vote`, {
@@ -850,7 +808,6 @@
                     let awardName = '';
                     let emoji = '';
 
-                    // Check for general awards
                     if (previousVoteCount < 5 && voteCount >= 5) {
                         awardName = 'Bronze Star';
                         emoji = '🥉';
@@ -866,7 +823,6 @@
                     }
 
                     if (themeWasNewlyUnlocked) {
-                        // If a theme was unlocked, override the display to show the theme name
                         const themeName = currentTheme.charAt(0).toUpperCase() + currentTheme.slice(1);
                         showAwardMessageAndContinue(`'${themeName}' Theme`, '🎁');
                     } else if (awardAchieved) {
@@ -1033,5 +989,3 @@
     </script>
 </body>
 </html>
-
-
