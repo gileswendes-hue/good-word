@@ -305,12 +305,12 @@
 
 
     <div class="version-indicator">
-        v3.6.2 | Made by Gilxs in 12,025
+        v3.6.3 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.6.2'; 
+        const APP_VERSION = '3.6.3'; 
 
         let allWords = [];
         let currentWordIndex = 0;
@@ -716,6 +716,13 @@
                 showCooldownMessage(remaining > 0 ? remaining : 0);
                 return;
             }
+            
+            if (goodButton.disabled && badButton.disabled) {
+                const now = Date.now();
+                if (lastVoteTime > 0 && (now - lastVoteTime) < STREAK_WINDOW_MS) {
+                    voteStreak++;
+                }
+            }
 
             const now = Date.now();
             if (lastVoteTime > 0 && (now - lastVoteTime) > STREAK_WINDOW_MS) {
@@ -781,7 +788,8 @@
                 const result = await response.json();
 
                 if (response.status === 403) {
-                    voteStreak = 0; 
+                    // FIX: Removed voteStreak = 0; here. If the user has already voted, 
+                    // their rapid clicks still count as mashing to trigger cooldown.
                     
                     if (voteType === 'good' || voteType === 'bad') {
                         setTimeout(() => {
