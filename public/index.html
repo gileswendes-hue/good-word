@@ -210,9 +210,17 @@
         }
         
         /* SNOW EFFECT STYLES */
-        @keyframes snowfall {
-            0% { transform: translateY(-100vh); }
-            100% { transform: translateY(100vh); }
+        
+        /* Snowfall 1: Faster, fine snow, slight drift right */
+        @keyframes snowfall-1 {
+            0% { transform: translate3d(0vw, -100vh, 0); }
+            100% { transform: translate3d(10vw, 100vh, 0); } 
+        }
+
+        /* Snowfall 2: Slower, larger snow, medium drift left */
+        @keyframes snowfall-2 {
+            0% { transform: translate3d(0vw, -100vh, 0); }
+            100% { transform: translate3d(-15vw, 100vh, 0); }
         }
 
         .theme-winter #snow-effect {
@@ -223,6 +231,8 @@
             width: 100vw;
             height: 100vh;
             overflow: hidden;
+            z-index: 40; /* Ensure it's above game content */
+            pointer-events: none;
         }
 
         .theme-winter #snow-effect::before,
@@ -236,21 +246,22 @@
             background-repeat: repeat;
         }
 
-        /* Layer 1: Fine, faster snow */
+        /* Layer 1: Fine, faster, sparser snow */
         .theme-winter #snow-effect::before {
             background-image: radial-gradient(white 10%, transparent 90%);
-            background-size: 15px 15px;
-            opacity: 0.6;
-            animation: snowfall 20s linear infinite;
+            background-size: 50px 50px; /* Reduced density */
+            opacity: 0.4; /* Reduced opacity */
+            animation: snowfall-1 50s linear infinite; /* Much slower */
+            animation-delay: -5s; /* Random start */
         }
 
-        /* Layer 2: Larger, slower snow */
+        /* Layer 2: Larger, slower, sparser snow */
         .theme-winter #snow-effect::after {
             background-image: radial-gradient(white 20%, transparent 80%);
-            background-size: 25px 25px;
-            opacity: 0.8;
-            animation: snowfall 30s linear infinite;
-            animation-delay: -10s; /* Stagger the animation start */
+            background-size: 80px 80px; /* Reduced density */
+            opacity: 0.7;
+            animation: snowfall-2 75s linear infinite; /* Even slower */
+            animation-delay: -30s; /* More random start */
         }
 
     </style>
@@ -400,7 +411,7 @@
         const RAINBOW_STR = 'RAINBOW|GAY|SPARKLE|COLOUR|PRIDE|UNICORN|PROUD|QUEER|GLITTER|LESBIAN';
         const DARK_REVERSED_STR = 'THGINDIM!KCALB!EDAHS!HTOG!WODAHS!AJNIN!KRAD!THGIN!HTLAETS'; 
         const BANANA_STR = 'BANANA,BANANAS,PLANTAIN,YELLOW';
-        const WINTER_STR = 'SNOWMAN|SNOW|ICE|WINTER|FROZEN|CHILL|COLD|FLAKE|BLIZZARD|ICICLE|SLEIGH|SNOWBALL'; // Updated trigger words
+        const WINTER_STR = 'SNOWMAN|SNOW|ICE|WINTER|FROZEN|CHILL|COLD|FLAKE|BLIZZARD|ICICLE|SLEIGH|SNOWBALL'; 
 
         const THEME_WORDS = {
             'rainbow': RAINBOW_STR.split('|'),
@@ -731,7 +742,7 @@
                 wordDisplay.style.webkitTextFillColor = 'transparent';
                 wordDisplay.style.color = 'transparent';
                 wordDisplay.style.animation = 'rainbow-text 5s ease infinite';
-            } else if (currentTheme === 'winter') { // New Winter Theme styles
+            } else if (currentTheme === 'winter') { // Winter Theme styles
                 wordDisplay.style.color = '#01579b'; 
                 wordDisplay.style.textShadow = '0 0 8px rgba(255, 255, 255, 0.8)';
             }
