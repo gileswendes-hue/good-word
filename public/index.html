@@ -431,12 +431,12 @@
 
 
     <div class="version-indicator">
-        v3.6.2 | Made by Gilxs in 12,025
+        v3.6.3 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.6.2'; 
+        const APP_VERSION = '3.6.3'; 
 
         let allWords = [];
         let currentWordIndex = 0;
@@ -778,20 +778,27 @@
                  wordDisplay.style.color = '#1e40af';
             }
             
-            // --- Word Sizing Logic (FIXED) ---
+            // --- Word Sizing Logic (ROBUST FIX) ---
             const maxFontSize = 96; 
             
             const cardElement = document.getElementById('gameCard');
-            // p-8 padding on gameCard is 2rem (32px) on both sides = 64px total
-            const cardInnerContentWidth = cardElement.clientWidth - 64; 
-
-            // Get the actual computed padding of wordDisplay for accurate calculation
-            const computedStyle = window.getComputedStyle(wordDisplay);
-            const wordDisplayPaddingHorizontal = parseFloat(computedStyle.paddingLeft) + parseFloat(computedStyle.paddingRight);
             
-            const maxAvailableWidthForTextContent = cardInnerContentWidth - wordDisplayPaddingHorizontal;
-
-            // Set a large font size and nowrap to measure the width of the text at max size
+            // 1. Get Game Card inner content width (removing its p-8 padding using computed style)
+            const cardComputedStyle = window.getComputedStyle(cardElement);
+            const cardPaddingHorizontal = parseFloat(cardComputedStyle.paddingLeft) + parseFloat(cardComputedStyle.paddingRight);
+            const cardContentWidth = cardElement.clientWidth - cardPaddingHorizontal; 
+            
+            // 2. Get Word Display's fixed padding (set by its CSS class '0 1rem')
+            // This is the padding that must remain in the final display.
+            const wordDisplayComputedStyle = window.getComputedStyle(wordDisplay);
+            // NOTE: We need to read the padding based on the existing class before we temporarily set it to 0
+            const wordDisplayPaddingHorizontal = parseFloat(wordDisplayComputedStyle.paddingLeft) + parseFloat(wordDisplayComputedStyle.paddingRight);
+            
+            // 3. Calculate the maximum available space for the text content itself (i.e., the space *inside* the wordDisplay padding)
+            // This is the card's inner content space minus the wordDisplay's own padding.
+            const maxAvailableWidthForTextContent = cardContentWidth - wordDisplayPaddingHorizontal;
+            
+            // 4. Temporarily set max font size and remove padding for measurement
             wordDisplay.style.fontSize = `${maxFontSize}px`;
             wordDisplay.style.whiteSpace = 'nowrap'; 
             wordDisplay.style.padding = '0'; // Temporarily remove padding for scrollWidth measurement
@@ -799,17 +806,18 @@
             let currentTextWidth = wordDisplay.scrollWidth;
             let finalFontSize = maxFontSize;
 
+            // 5. Calculate new font size based on scale factor
             if (currentTextWidth > maxAvailableWidthForTextContent) { 
                 const scaleFactor = maxAvailableWidthForTextContent / currentTextWidth;
                 finalFontSize = Math.floor(maxFontSize * scaleFactor);
                 if (finalFontSize < 24) finalFontSize = 24; 
             }
             
-            // Apply final size and restore styles
+            // 6. Apply final size and restore styles
             wordDisplay.style.fontSize = `${finalFontSize}px`;
             wordDisplay.style.whiteSpace = 'normal'; 
             wordDisplay.style.padding = '0 1rem'; // Restore original padding
-            // --- End FIX ---
+            // --- End ROBUST FIX ---
             
             // Re-apply theme-specific word styling after sizing
             if (currentTheme === 'banana') {
