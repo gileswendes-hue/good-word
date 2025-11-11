@@ -366,14 +366,15 @@
 
 
     <div class="version-indicator">
-        v3.7.0 | Made by Gilxs in 12,025
+        v3.7.1 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.7.0'; 
+        const APP_VERSION = '3.7.1'; 
 
-        let allWords = [];
+        let allWords = []; // Words available to be voted on
+        let allDatabaseWords = []; // All words fetched from the database (for totals/rankings)
         let currentWordIndex = 0;
         let userId = localStorage.getItem('userId');
         let voteCount = 0; 
@@ -780,6 +781,9 @@
                 }
                 let fetchedWords = await response.json();
                 
+                // FIX 1: Store all words for total vote counting and full rankings
+                allDatabaseWords = fetchedWords; 
+                
                 // Filter out words that are marked "not a word" (3 votes) or have been voted on by this user in this session
                 const availableWords = fetchedWords.filter(w => 
                     (w.notWordVotes || 0) < 3 && !votedWordIds.includes(w._id)
@@ -797,6 +801,7 @@
                     } 
                 } else {
                     showMessage("No new words available! Try submitting one.", false);
+                    updateStatsAndRankings(); // Update totals even if no new words available
                 }
 
             } catch (error) {
@@ -916,6 +921,13 @@
                 } else {
                     // SUCCESS PATH 
                     
+                    // The server response (result) contains the *updated* word object.
+                    // We must find and update this word in allDatabaseWords so that the next updateStatsAndRankings call is correct.
+                    const wordToUpdateIndex = allDatabaseWords.findIndex(w => w._id === wordId);
+                    if (wordToUpdateIndex !== -1) {
+                        allDatabaseWords[wordToUpdateIndex] = result.updatedWord;
+                    }
+                    
                     // 1. Remove the word from the active pool and track it
                     votedWordIds.push(wordId);
                     localStorage.setItem('votedWordIds', JSON.stringify(votedWordIds));
@@ -952,9 +964,13 @@
                     } else if (awardAchieved) {
                         showAwardMessageAndContinue(awardName, emoji);
                     } else {
+                        // Immediately update stats before moving to the next word
+                        updateStatsAndRankings(); 
+                        
                         if (voteType === 'good' || voteType === 'bad') {
                             setTimeout(() => {
                                 nextWord(); 
+                                // Call fetchWords(false) to refresh allDatabaseWords for full accuracy
                                 fetchWords(false); 
                             }, transitionDuration);
                         } else {
@@ -975,7 +991,8 @@
         }
 
         function getRankedWords(limit) {
-            const allWordsFetched = JSON.parse(JSON.stringify(allWords));
+            // FIX 2: Use the global array containing ALL words for ranking calculation
+            const allWordsFetched = JSON.parse(JSON.stringify(allDatabaseWords));
             
             const rankedWords = allWordsFetched.map(w => ({
                 text: w.text,
@@ -1003,10 +1020,11 @@
 
 
         function updateStatsAndRankings() {
-            if (allWords.length === 0) return;
+            // FIX 3: Use the full list of words from the database for total counts
+            if (allDatabaseWords.length === 0) return; 
 
-            const totalGood = allWords.reduce((sum, w) => sum + (w.goodVotes || 0), 0);
-            const totalBad = allWords.reduce((sum, w) => sum + (w.badVotes || 0), 0);
+            const totalGood = allDatabaseWords.reduce((sum, w) => sum + (w.goodVotes || 0), 0);
+            const totalBad = allDatabaseWords.reduce((sum, w) => sum + (w.badVotes || 0), 0);
             goodTotal.textContent = `GOOD: ${totalGood}`;
             badTotal.textContent = `BAD: ${totalBad}`;
             
