@@ -199,15 +199,15 @@
             border: 2px solid #f4ef81;
         }
         
-        /* 4. WINTER THEME - Drastically Enhanced */
+        /* 4. WINTER THEME - Drastically Enhanced Snowfall */
         .theme-winter body {
             background: linear-gradient(180deg, #b3cde0 0%, #e0f0ff 100%); 
             overflow: hidden;
-            position: relative;
+            position: relative; /* Added for z-index context */
         }
 
         /* * ENHANCED Snow Falling Effect - LAYER 1 (::before)
-         * Simulates small, fast, far-away snow. (7 layers)
+         * Simulates small, fast, far-away snow. (4 layers - made denser and brighter)
          */
         .theme-winter body::before {
             content: '';
@@ -217,23 +217,20 @@
             width: 100%;
             height: 100%;
             pointer-events: none; 
-            /* SEVEN LAYERS: Small, Fast, Dense */
+            /* FOUR LAYERS: Small, Fast, Dense */
             background-image: 
-                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4" viewBox="0 0 4 4"><circle cx="2" cy="2" r="0.5" fill="rgba(255,255,255,0.3)"/></svg>'),
-                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="7" height="7" viewBox="0 0 7 7"><circle cx="3.5" cy="3.5" r="0.8" fill="rgba(255,255,255,0.5)"/></svg>'),
-                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10"><circle cx="5" cy="5" r="1.0" fill="rgba(255,255,255,0.6)"/></svg>'),
-                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 13 13"><circle cx="6.5" cy="6.5" r="1.3" fill="rgba(255,255,255,0.7)"/></svg>'),
-                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="1.5" fill="rgba(255,255,255,0.8)"/></svg>'),
-                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 19 19"><circle cx="9.5" cy="9.5" r="1.8" fill="rgba(255,255,255,0.9)"/></svg>'),
-                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22"><circle cx="11" cy="11" r="2.0" fill="rgba(255,255,255,1)"/></svg>');
-            background-size: 4px 4px, 7px 7px, 10px 10px, 13px 13px, 16px 16px, 19px 19px, 22px 22px;
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4" viewBox="0 0 4 4"><circle cx="2" cy="2" r="0.8" fill="rgba(255,255,255,0.6)"/></svg>'),
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 8 8"><circle cx="4" cy="4" r="1.2" fill="rgba(255,255,255,0.75)"/></svg>'),
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="1.6" fill="rgba(255,255,255,0.85)"/></svg>'),
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.0" fill="rgba(255,255,255,0.95)"/></svg>');
+            background-size: 4px 4px, 8px 8px, 12px 12px, 16px 16px;
             background-repeat: repeat; 
-            animation: snowing 10s linear infinite; /* Increased Speed */
+            animation: snowing 8s linear infinite; /* Faster and denser */
             z-index: -1;
         }
 
         /* * ENHANCED Snow Falling Effect - LAYER 2 (::after)
-         * Simulates larger, slower, closer snow for strong parallax. (4 layers)
+         * Simulates larger, slower, closer snow for strong parallax. (3 layers - made larger and faster)
          */
         .theme-winter body::after {
             content: '';
@@ -243,37 +240,36 @@
             width: 100%;
             height: 100%;
             pointer-events: none; 
-            /* FOUR LAYERS: Large, Slow, Close, Denser */
+            /* THREE LAYERS: Large, Slow, Close, Denser */
             background-image:
-                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="2.5" fill="rgba(255,255,255,0.9)"/></svg>'),
-                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="15" r="3.0" fill="rgba(255,255,255,0.95)"/></svg>'),
-                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="4.0" fill="rgba(255,255,255,1)"/></svg>'),
-                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 50 50"><circle cx="25" cy="25" r="5.0" fill="rgba(255,255,255,1)"/></svg>');
-            background-size: 20px 20px, 30px 30px, 40px 40px, 50px 50px;
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.0" fill="rgba(255,255,255,1)"/></svg>'),
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36"><circle cx="18" cy="18" r="4.5" fill="rgba(255,255,255,1)"/></svg>'),
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="54" height="54" viewBox="0 0 54 54"><circle cx="27" cy="27" r="6.0" fill="rgba(255,255,255,1)"/></svg>');
+            background-size: 24px 24px, 36px 36px, 54px 54px;
             background-repeat: repeat;
-            animation: snowing-slow 15s linear infinite; /* Increased Speed */
+            animation: snowing-slow 12s linear infinite; /* Faster and larger */
             z-index: -1;
         }
 
         @keyframes snowing {
             0% { 
-                /* Match the number of background layers in ::before (7) */
-                background-position: 0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%; 
+                /* Match the number of background layers in ::before (4) */
+                background-position: 0% 0%, 0% 0%, 0% 0%, 0% 0%; 
             }
             100% { 
                 /* Clear vertical drop (100%) with slight horizontal drift */
-                background-position: 5% 100%, 8% 100%, 3% 100%, 10% 100%, 7% 100%, 4% 100%, 9% 100%; 
+                background-position: 5% 100%, 8% 100%, 3% 100%, 10% 100%; 
             }
         }
 
         @keyframes snowing-slow {
             0% { 
-                /* Match the number of background layers in ::after (4) */
-                background-position: 0% 0%, 0% 0%, 0% 0%, 0% 0%; 
+                /* Match the number of background layers in ::after (3) */
+                background-position: 0% 0%, 0% 0%, 0% 0%; 
             }
             100% { 
                 /* Clear vertical drop (100%) with heavier horizontal drift */
-                background-position: 15% 100%, 12% 100%, 18% 100%, 10% 100%; 
+                background-position: 15% 100%, 12% 100%, 18% 100%; 
             }
         }
         
@@ -786,10 +782,16 @@
                  wordDisplay.style.color = '#1e40af';
             }
             
-            // --- Word Sizing Logic (Fixed) ---
+            // --- Word Sizing Logic (FIXED) ---
             const maxFontSize = 96; 
-            // Calculate inner width of gameCard (total width - p-8 * 2 = 64px)
-            const cardInnerWidth = document.getElementById('gameCard').clientWidth - 64; 
+            
+            const cardElement = document.getElementById('gameCard');
+            // p-8 padding on gameCard is 2rem (32px) on both sides = 64px total
+            const cardInnerContentWidth = cardElement.clientWidth - 64; 
+
+            // #wordDisplay has 'padding: 0 1rem' (16px) on both sides = 32px total.
+            // The text content must fit inside the card's inner width minus the word's own padding.
+            const maxAvailableWidthForTextContent = cardInnerContentWidth - 32;
 
             // 1. Temporarily remove wordDisplay's own padding for accurate scrollWidth measurement
             wordDisplay.style.padding = '0';
@@ -797,11 +799,11 @@
             wordDisplay.style.fontSize = `${maxFontSize}px`;
             wordDisplay.style.whiteSpace = 'nowrap'; 
 
-            let currentWidth = wordDisplay.scrollWidth;
+            let currentTextWidth = wordDisplay.scrollWidth;
             let finalFontSize = maxFontSize;
 
-            if (currentWidth > cardInnerWidth) {
-                const scaleFactor = cardInnerWidth / currentWidth;
+            if (currentTextWidth > maxAvailableWidthForTextContent) { 
+                const scaleFactor = maxAvailableWidthForTextContent / currentTextWidth;
                 finalFontSize = Math.floor(maxFontSize * scaleFactor);
                 if (finalFontSize < 24) finalFontSize = 24; 
             }
@@ -811,7 +813,7 @@
             
             // 2. Restore padding after measurement and sizing
             wordDisplay.style.padding = '0 1rem'; 
-            // --- End Fix ---
+            // --- End FIX ---
             
             // Re-apply theme-specific word styling after sizing
             if (currentTheme === 'banana') {
