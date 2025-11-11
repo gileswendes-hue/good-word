@@ -112,14 +112,9 @@
             background: linear-gradient(135deg, #fef2be 0%, #b5def0 100%) !important; /* FIXED: Added background and !important */
         }
         
-        /* Keyframes for ANIMATED RAINBOW BACKGROUND - UPDATED FOR FASTER, DIAGONAL MOVEMENT */
-        @keyframes rainbow-body-animation {
-            0% { background-position: 0% 0%; }
-            50% { background-position: 100% 100%; }
-            100% { background-position: 0% 0%; }
-        }
+        /* REMOVED: @keyframes rainbow-body-animation - No longer used. */
 
-        /* NEW Keyframes for hue rotation */
+        /* NEW Keyframes for hue rotation (Used for Card and Word Text) */
         @keyframes rainbow-hue-animation {
             0% { 
                 -webkit-filter: hue-rotate(0deg); /* ADDED VENDOR PREFIX */
@@ -131,33 +126,28 @@
             }
         }
 
-        /* 1. RAINBOW THEME */
+        /* 1. RAINBOW THEME (FIX: Simplified to low-intensity background and rainbow border effect on cards) */
         body.theme-rainbow {
-            background-image: linear-gradient(-45deg, 
-                #ff0000,   /* Red */
-                #ff7f00,  /* Orange */
-                #ffff00,  /* Yellow */
-                #00ff00,  /* Green */
-                #00ffff,  /* Cyan */
-                #0000ff,  /* Blue */
-                #9400d3   /* Violet */
-            ) !important; 
-            background-size: 1000% 1000% !important; 
-            background-position: 0% 0% !important; 
-            
-            -webkit-filter: hue-rotate(0deg) !important; 
-            filter: hue-rotate(0deg) !important; 
-
-            /* Combines background position movement and filter hue rotation */
-            animation: 
-                rainbow-body-animation 5s linear infinite !important, 
-                rainbow-hue-animation 10s linear infinite !important; 
-            -webkit-animation: 
-                rainbow-body-animation 5s linear infinite !important, 
-                rainbow-hue-animation 10s linear infinite !important; 
+            background: #f7f7f7 !important; /* Low intensity background */
         }
 
+        .theme-rainbow .card {
+            background-color: #fff; /* Solid white card for better contrast */
+            backdrop-filter: none; /* Remove backdrop filter */
+            /* Add a soft glow that rotates hue, creating a "rainbow border" effect */
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15), 
+                        0 0 20px 5px rgba(255, 0, 0, 0.7); 
+            border: 1px solid rgba(0, 0, 0, 0.05);
+
+            /* Apply hue rotation to cycle the box-shadow and other colors */
+            filter: hue-rotate(0deg) !important; 
+            animation: rainbow-hue-animation 10s linear infinite !important; 
+            -webkit-animation: rainbow-hue-animation 10s linear infinite !important; 
+        }
+
+
         .theme-rainbow #wordDisplay {
+            /* Keep the rainbow text animation */
             background: linear-gradient(
                 45deg, 
                 #ff0000, 
@@ -183,10 +173,6 @@
                 filter: hue-rotate(360deg); 
             }
         }
-        .theme-rainbow .card {
-            background-color: rgba(255, 255, 255, 0.7); /* Slightly more transparent */
-        }
-
 
         /* 2. DARK THEME */
         body.theme-dark {
