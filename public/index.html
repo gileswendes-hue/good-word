@@ -246,24 +246,47 @@
             background-repeat: repeat;
         }
 
-        /* Layer 1: Fine, faster, sparser snow */
+        /* Layer 1: Fine, faster, random snow - Multi-gradient for randomness and sparse effect */
         .theme-winter #snow-effect::before {
-            background-image: radial-gradient(white 10%, transparent 90%);
-            background-size: 50px 50px; /* Reduced density */
-            opacity: 0.4; /* Reduced opacity */
-            animation: snowfall-1 50s linear infinite; /* Much slower */
+            /* Multiple randomly positioned small, white dots within a large tile */
+            background-image: 
+                radial-gradient(3px 3px at 5% 10%, #fff, transparent),
+                radial-gradient(4px 4px at 95% 40%, #fff, transparent),
+                radial-gradient(3px 3px at 30% 70%, #fff, transparent),
+                radial-gradient(5px 5px at 60% 95%, #fff, transparent),
+                radial-gradient(3px 3px at 15% 55%, #fff, transparent),
+                radial-gradient(4px 4px at 75% 20%, #fff, transparent),
+                radial-gradient(3px 3px at 45% 5%, #fff, transparent),
+                radial-gradient(5px 5px at 85% 85%, #fff, transparent);
+                
+            /* Large, shared background size for the 8 dots to break the grid */
+            background-size: 300px 350px, 300px 350px, 300px 350px, 300px 350px, 300px 350px, 300px 350px, 300px 350px, 300px 350px;
+            
+            opacity: 0.5; /* Slightly less opaque to be further away */
+            animation: snowfall-1 50s linear infinite; /* Slower */
             animation-delay: -5s; /* Random start */
         }
 
-        /* Layer 2: Larger, slower, sparser snow */
+        /* Layer 2: Larger, slower, random snow - Multi-gradient for randomness and sparse effect */
         .theme-winter #snow-effect::after {
-            background-image: radial-gradient(white 20%, transparent 80%);
-            background-size: 80px 80px; /* Reduced density */
-            opacity: 0.7;
+            /* Multiple randomly positioned larger, white dots within an even larger tile */
+            background-image: 
+                radial-gradient(6px 6px at 20% 5%, #fff, transparent),
+                radial-gradient(7px 7px at 70% 35%, #fff, transparent),
+                radial-gradient(6px 6px at 40% 80%, #fff, transparent),
+                radial-gradient(8px 8px at 90% 60%, #fff, transparent),
+                radial-gradient(6px 6px at 10% 95%, #fff, transparent),
+                radial-gradient(7px 7px at 55% 25%, #fff, transparent),
+                radial-gradient(6px 6px at 25% 45%, #fff, transparent),
+                radial-gradient(8px 8px at 80% 15%, #fff, transparent);
+            
+            /* Even larger, shared background size for the 8 dots */
+            background-size: 500px 600px, 500px 600px, 500px 600px, 500px 600px, 500px 600px, 500px 600px, 500px 600px, 500px 600px;
+            
+            opacity: 0.8;
             animation: snowfall-2 75s linear infinite; /* Even slower */
             animation-delay: -30s; /* More random start */
         }
-
     </style>
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen p-4">
