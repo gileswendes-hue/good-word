@@ -113,11 +113,11 @@
             /* No background property here to avoid conflict, relying on generic body style */
         }
         
-        /* Keyframes for ANIMATED RAINBOW BACKGROUND */
+        /* Keyframes for ANIMATED RAINBOW BACKGROUND - UPDATED FOR FASTER, DIAGONAL MOVEMENT */
         @keyframes rainbow-body-animation {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
+            0% { background-position: 0% 0%; }
+            50% { background-position: 100% 100%; }
+            100% { background-position: 0% 0%; }
         }
 
         /* 1. RAINBOW THEME (FIX: Now uses ANIMATED background) */
@@ -131,8 +131,8 @@
                 #0000ff,  /* Blue */
                 #9400d3   /* Violet */
             ) !important; 
-            background-size: 400% 400% !important; 
-            animation: rainbow-body-animation 10s ease infinite !important; /* ANIMATION APPLIED HERE */
+            background-size: 600% 600% !important; /* INCREASED SIZE FOR SMOOTHER COLOR FLOW */
+            animation: rainbow-body-animation 5s linear infinite !important; /* FASTER ANIMATION */
         }
 
         .theme-rainbow #wordDisplay {
@@ -311,7 +311,10 @@
             >
             <div id="awardBadge" class="absolute top-2 right-2 p-2 cursor-help text-3xl">
                 </div>
-        </div>
+            <div id="cakeBadge" class="absolute top-2 right-16 p-2 cursor-pointer text-3xl hidden" title="Click to find the cake!">
+                🎂
+            </div>
+            </div>
         <div class="mt-4 flex justify-around p-3 rounded-t-xl bg-white shadow-md vote-counts">
             <div id="goodTotal" class="text-xl font-bold text-green-600">GOOD: 0</div>
             <div id="badTotal" class="text-xl font-bold text-red-600">BAD: 0</div>
@@ -474,6 +477,8 @@
         const customWordButton = document.getElementById('customWordButton');
         const versionIndicator = document.querySelector('.version-indicator');
         const awardBadge = document.getElementById('awardBadge');
+        // NEW CAKE BADGE ELEMENT
+        const cakeBadge = document.getElementById('cakeBadge'); 
         const showTop100Button = document.getElementById('showTop100Button');
         const fullRankingsModalContainer = document.getElementById('fullRankingsModalContainer');
         const closeFullRankingsModal = document.getElementById('closeFullRankingsModal');
@@ -514,6 +519,9 @@
                 }
             });
             
+            // NEW CAKE BADGE LISTENER
+            cakeBadge.addEventListener('click', loadCakeWord);
+
             // --- NEW THEME CHOOSER LISTENER ---
             themeChooser.addEventListener('change', (e) => {
                 applyTheme(e.target.value);
@@ -538,6 +546,20 @@
             });
         }
         
+        // NEW FUNCTION TO LOAD CAKE WORD
+        function loadCakeWord() {
+            const cakeWord = allWords.find(w => w.text.toUpperCase() === 'CAKE');
+            if (cakeWord) {
+                // Find its index to set it as the current word
+                const newIndex = allWords.findIndex(w => w.text.toUpperCase() === 'CAKE');
+                if (newIndex !== -1) {
+                    currentWordIndex = newIndex;
+                }
+                // Display it and force button re-enable
+                displayCurrentWord(cakeWord);
+            }
+        }
+
         // --- THEME CHOOSER FUNCTIONS ---
         function populateThemeChooser() {
             // Start with the default option already in the HTML
@@ -652,6 +674,9 @@
             cakeMessage.classList.remove('opacity-100');
             cakeMessage.classList.add('opacity-0');
             cakeMessage.textContent = ''; 
+            
+            // Hide cake badge on special messages
+            cakeBadge.classList.add('hidden');
 
             goodButton.disabled = true;
             badButton.disabled = true;
@@ -676,6 +701,9 @@
             cakeMessage.classList.remove('opacity-100');
             cakeMessage.classList.add('opacity-0');
             cakeMessage.textContent = '';
+            
+            // Hide cake badge
+            cakeBadge.classList.add('hidden');
         }
         
         function showCooldownMessage(remainingSeconds) {
@@ -690,6 +718,9 @@
             cakeMessage.classList.remove('opacity-100');
             cakeMessage.classList.add('opacity-0');
             cakeMessage.textContent = '';
+            
+            // Hide cake badge
+            cakeBadge.classList.add('hidden');
         }
 
         /**
@@ -783,7 +814,7 @@
                 wordDisplay.style.textShadow = '0 0 8px rgba(255, 255, 255, 0.8)';
             }
 
-            // --- CAKE MESSAGE LOGIC (EXISTING) ---
+            // --- CAKE MESSAGE LOGIC (EXISTING & NEW BADGE) ---
             if (wordText === 'CAKE') {
                 cakeMessage.textContent = 'The cake is a lie!';
                 cakeMessage.classList.remove('opacity-0');
@@ -794,11 +825,17 @@
                     cakeMessage.classList.remove('opacity-100');
                     cakeMessage.classList.add('opacity-0');
                 }, 3000); 
+                
+                // NEW: Show cake badge
+                cakeBadge.classList.remove('hidden');
 
             } else {
                 cakeMessage.classList.remove('opacity-100');
                 cakeMessage.classList.add('opacity-0');
                 cakeMessage.textContent = ''; 
+                
+                // NEW: Hide cake badge
+                cakeBadge.classList.add('hidden');
             }
             // --- END CAKE MESSAGE LOGIC ---
             
