@@ -103,6 +103,7 @@
             border-bottom: 1px solid #e5e7eb;
         }
         
+        /* RAINBOW Theme */
         .theme-rainbow body {
             background: repeating-linear-gradient(45deg, 
                 #f06, 0%, 
@@ -145,7 +146,7 @@
             background-color: rgba(255, 255, 255, 0.7); 
         }
 
-
+        /* DARK Theme */
         .theme-dark body {
             background: #1f2937; 
         }
@@ -171,7 +172,7 @@
             border-color: #4b5563 !important;
         }
 
-
+        /* BANANA Theme */
         .theme-banana body {
             background: linear-gradient(135deg, #fceb9c 0%, #ffe900 100%); 
         }
@@ -186,6 +187,66 @@
         .theme-banana .card {
             background-color: rgba(255, 255, 153, 0.95); 
             border: 2px solid #f4ef81;
+        }
+
+        /* WINTER Theme (Snowing Effect) */
+        .theme-winter body {
+            background: linear-gradient(135deg, #a0d2eb 0%, #d4e0ff 100%); /* Icy Blue/White Gradient */
+            overflow: hidden; 
+        }
+        .theme-winter .card {
+            background-color: rgba(255, 255, 255, 0.85); /* Slightly more opaque card */
+        }
+        
+        .theme-winter body::before,
+        .theme-winter body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100; /* Above background, below content */
+            background-repeat: repeat;
+            animation-timing-function: linear;
+        }
+        
+        /* Near Snowflakes (Faster, larger) */
+        .theme-winter body::before {
+            background-image: radial-gradient(white 1.5px, transparent 0);
+            background-size: 50px 50px;
+            animation: snowing-near 15s infinite;
+        }
+        
+        /* Far Snowflakes (Slower, smaller) */
+        .theme-winter body::after {
+            background-image: radial-gradient(rgba(255, 255, 255, 0.8) 0.5px, transparent 0);
+            background-size: 100px 100px;
+            animation: snowing-far 25s infinite reverse;
+        }
+        
+        @keyframes snowing-near {
+            0% { background-position: 0 0; }
+            100% { background-position: 500px 1000px; } 
+        }
+        @keyframes snowing-far {
+            0% { background-position: 0 0; }
+            100% { background-position: -200px 1000px; } 
+        }
+        
+        /* WINTER Theme Word Vanish Effect */
+        .theme-winter #wordDisplay {
+            --snow-level: 100%; /* Start fully visible (100% opacity from bottom) */
+            /* Use mask-image to clip the word based on --snow-level */
+            mask-image: linear-gradient(to top, white var(--snow-level), transparent 100%);
+            -webkit-mask-image: linear-gradient(to top, white var(--snow-level), transparent 100%);
+            /* Set transition for the smooth fade (20s duration) */
+            transition: --snow-level 20s linear; 
+        }
+
+        .theme-winter #wordDisplay.snow-fade-active {
+            --snow-level: 20%; /* Animate to 20% visibility (most of word is 'buried') */
         }
 
     </style>
@@ -305,12 +366,12 @@
 
 
     <div class="version-indicator">
-        v3.6.8 | Made by Gilxs in 12,025
+        v3.7.0 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.6.8'; 
+        const APP_VERSION = '3.7.0'; 
 
         let allWords = [];
         let currentWordIndex = 0;
@@ -320,28 +381,34 @@
         // Anti-mashing logic variables
         let voteStreak = 0;
         const MASH_LIMIT = 3; // Max number of rapid votes allowed (3 in a short window)
-        const COOLDOWN_SECONDS = 30; // Cooldown duration (UPDATED)
+        const COOLDOWN_SECONDS = 30; // Cooldown duration
         const STREAK_WINDOW_MS = 1000; // Time window for rapid clicks to count as a streak
         let cooldownTimer = null;
         let isCoolingDown = false;
         let lastVoteTime = 0; 
         let cooldownEndTime = 0;
         
+        // Word vanish timer for winter theme
+        let wordTimer = null; 
+        
         let currentTheme = localStorage.getItem('currentTheme') || 'default';
         let unlockedThemes = JSON.parse(localStorage.getItem('unlockedThemes')) || [];
         // Track words the user has already voted on in this session
         let votedWordIds = JSON.parse(localStorage.getItem('votedWordIds')) || [];
         
+        // Theme word constants
         const RAINBOW_STR = 'RAINBOW|GAY|SPARKLE|COLOUR|PRIDE|UNICORN|PROUD|QUEER|GLITTER|LESBIAN';
         const DARK_REVERSED_STR = 'THGINDIM!KCALB!EDAHS!HTOG!WODAHS!AJNIN!KRAD!THGIN!HTLAETS'; 
         const BANANA_STR = 'BANANA,BANANAS,PLANTAIN,YELLOW';
+        const WINTER_STR = 'WINTER|XMAS|SNOW|SNOWMAN|CHRISTMAS'; 
 
         const THEME_WORDS = {
             'rainbow': RAINBOW_STR.split('|'),
             'dark': DARK_REVERSED_STR
                         .split('!')
                         .map(w => w.split('').reverse().join('')), 
-            'banana': BANANA_STR.split(',')
+            'banana': BANANA_STR.split(','),
+            'winter': WINTER_STR.split('|') 
         };
 
         const wordDisplay = document.getElementById('wordDisplay');
@@ -569,12 +636,22 @@
             
             wordDisplay.className = 'font-extrabold text-gray-900 mb-8 text-center min-h-[72px]';
             
+            // --- Reset styles for theme effects and word timer ---
+            if (wordTimer) {
+                clearTimeout(wordTimer);
+                wordTimer = null;
+            }
+            wordDisplay.classList.remove('snow-fade-active');
+            wordDisplay.style.transition = ''; 
+            wordDisplay.style.setProperty('--snow-level', '100%'); 
+            
             wordDisplay.style.background = '';
             wordDisplay.style.webkitBackgroundClip = '';
             wordDisplay.style.webkitTextFillColor = '';
             wordDisplay.style.color = '#111827'; 
             wordDisplay.style.animation = '';
             wordDisplay.style.transform = '';
+            // --- End Reset ---
             
             if (currentTheme === 'dark') {
                 wordDisplay.style.color = '#f3f4f6';
@@ -608,6 +685,12 @@
                 wordDisplay.style.webkitTextFillColor = 'transparent';
                 wordDisplay.style.color = 'transparent';
                 wordDisplay.style.animation = 'rainbow-text 5s ease infinite';
+            } else if (currentTheme === 'winter') {
+                 // Start the word vanish timer for the winter theme
+                 wordTimer = setTimeout(() => {
+                    // Start the 20-second fade transition by adding the class
+                    wordDisplay.classList.add('snow-fade-active');
+                 }, 5000); // Wait 5 seconds before the fade starts
             }
 
             if (wordText === 'CAKE') {
@@ -671,6 +754,13 @@
         }
 
         function nextWord() {
+            // Clear the word timer immediately on word change
+            if (wordTimer) {
+                clearTimeout(wordTimer);
+                wordTimer = null;
+            }
+            wordDisplay.classList.remove('snow-fade-active');
+
             if (allWords.length === 0) return;
             
             // The voted word has been spliced out, so we pick a new weighted random from the remaining pool.
@@ -770,6 +860,13 @@
             badButton.disabled = true;
             notWordButton.disabled = true;
             
+            // Clear the word timer immediately on vote
+            if (wordTimer) {
+                clearTimeout(wordTimer);
+                wordTimer = null;
+            }
+            wordDisplay.classList.remove('snow-fade-active');
+
             const wordId = currentWord._id;
             const transitionDuration = 400; 
             
