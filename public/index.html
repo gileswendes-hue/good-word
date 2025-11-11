@@ -112,16 +112,14 @@
             background: linear-gradient(135deg, #fef2be 0%, #b5def0 100%) !important; /* FIXED: Added background and !important */
         }
         
-        /* REMOVED: @keyframes rainbow-body-animation - No longer used. */
-
         /* NEW Keyframes for hue rotation (Used for Card and Word Text) */
         @keyframes rainbow-hue-animation {
             0% { 
-                -webkit-filter: hue-rotate(0deg); /* ADDED VENDOR PREFIX */
+                -webkit-filter: hue-rotate(0deg); 
                 filter: hue-rotate(0deg); 
             }
             100% { 
-                -webkit-filter: hue-rotate(360deg); /* ADDED VENDOR PREFIX */
+                -webkit-filter: hue-rotate(360deg); 
                 filter: hue-rotate(360deg); 
             }
         }
@@ -133,16 +131,17 @@
 
         .theme-rainbow .card {
             background-color: #fff; /* Solid white card for better contrast */
-            backdrop-filter: none; /* Remove backdrop filter */
+            backdrop-filter: none; /* Remove backdrop filter to prevent filter conflicts */
             /* Add a soft glow that rotates hue, creating a "rainbow border" effect */
             box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15), 
                         0 0 20px 5px rgba(255, 0, 0, 0.7); 
             border: 1px solid rgba(0, 0, 0, 0.05);
 
             /* Apply hue rotation to cycle the box-shadow and other colors */
-            filter: hue-rotate(0deg) !important; 
-            animation: rainbow-hue-animation 10s linear infinite !important; 
-            -webkit-animation: rainbow-hue-animation 10s linear infinite !important; 
+            /* REMOVED !IMPORTANT FLAGS TO ALLOW ANIMATION TO RUN */
+            filter: hue-rotate(0deg); 
+            animation: rainbow-hue-animation 10s linear infinite; 
+            -webkit-animation: rainbow-hue-animation 10s linear infinite; 
         }
 
 
@@ -165,11 +164,11 @@
         }
         @keyframes rainbow-text {
             0% { 
-                -webkit-filter: hue-rotate(0deg); /* ADDED VENDOR PREFIX */
+                -webkit-filter: hue-rotate(0deg); 
                 filter: hue-rotate(0deg); 
             }
             100% { 
-                -webkit-filter: hue-rotate(360deg); /* ADDED VENDOR PREFIX */
+                -webkit-filter: hue-rotate(360deg); 
                 filter: hue-rotate(360deg); 
             }
         }
