@@ -199,16 +199,14 @@
             border: 2px solid #f4ef81;
         }
         
-        /* 4. WINTER THEME - Drastically Enhanced Snowfall */
+        /* 4. WINTER THEME - Snowfall Fix: High Contrast & Faster Drop */
         .theme-winter body {
             background: linear-gradient(180deg, #b3cde0 0%, #e0f0ff 100%); 
             overflow: hidden;
-            position: relative; /* Added for z-index context */
+            position: relative;
         }
 
-        /* * ENHANCED Snow Falling Effect - LAYER 1 (::before)
-         * Simulates small, fast, far-away snow. (4 layers - made denser and brighter)
-         */
+        /* * Snow Layer 1 (Far, Small, Fast, DENSE) */
         .theme-winter body::before {
             content: '';
             position: fixed;
@@ -217,21 +215,18 @@
             width: 100%;
             height: 100%;
             pointer-events: none; 
-            /* FOUR LAYERS: Small, Fast, Dense */
+            /* THREE LAYERS: Small, Fast, Denser. All white (no transparency) for visibility. */
             background-image: 
-                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4" viewBox="0 0 4 4"><circle cx="2" cy="2" r="0.8" fill="rgba(255,255,255,0.6)"/></svg>'),
-                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 8 8"><circle cx="4" cy="4" r="1.2" fill="rgba(255,255,255,0.75)"/></svg>'),
-                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="1.6" fill="rgba(255,255,255,0.85)"/></svg>'),
-                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.0" fill="rgba(255,255,255,0.95)"/></svg>');
-            background-size: 4px 4px, 8px 8px, 12px 12px, 16px 16px;
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="3" height="3" viewBox="0 0 3 3"><circle cx="1.5" cy="1.5" r="0.7" fill="#ffffff"/></svg>'),
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="6" height="6" viewBox="0 0 6 6"><circle cx="3" cy="3" r="1.0" fill="#ffffff"/></svg>'),
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10"><circle cx="5" cy="5" r="1.5" fill="#ffffff"/></svg>');
+            background-size: 3px 3px, 6px 6px, 10px 10px; /* High density */
             background-repeat: repeat; 
-            animation: snowing 8s linear infinite; /* Faster and denser */
+            animation: snowing 6s linear infinite; /* Much Faster */
             z-index: -1;
         }
 
-        /* * ENHANCED Snow Falling Effect - LAYER 2 (::after)
-         * Simulates larger, slower, closer snow for strong parallax. (3 layers - made larger and faster)
-         */
+        /* * Snow Layer 2 (Near, Large, Slower, DENSE) */
         .theme-winter body::after {
             content: '';
             position: fixed;
@@ -240,25 +235,25 @@
             width: 100%;
             height: 100%;
             pointer-events: none; 
-            /* THREE LAYERS: Large, Slow, Close, Denser */
+            /* THREE LAYERS: Large, Slower, Close. All white. */
             background-image:
-                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.0" fill="rgba(255,255,255,1)"/></svg>'),
-                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36"><circle cx="18" cy="18" r="4.5" fill="rgba(255,255,255,1)"/></svg>'),
-                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="54" height="54" viewBox="0 0 54 54"><circle cx="27" cy="27" r="6.0" fill="rgba(255,255,255,1)"/></svg>');
-            background-size: 24px 24px, 36px 36px, 54px 54px;
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 15 15"><circle cx="7.5" cy="7.5" r="2.5" fill="#ffffff"/></svg>'),
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" viewBox="0 0 25 25"><circle cx="12.5" cy="12.5" r="4.0" fill="#ffffff"/></svg>'),
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="5.5" fill="#ffffff"/></svg>');
+            background-size: 15px 15px, 25px 25px, 40px 40px; /* Increased size and density */
             background-repeat: repeat;
-            animation: snowing-slow 12s linear infinite; /* Faster and larger */
+            animation: snowing-slow 10s linear infinite; /* Faster */
             z-index: -1;
         }
 
         @keyframes snowing {
             0% { 
-                /* Match the number of background layers in ::before (4) */
-                background-position: 0% 0%, 0% 0%, 0% 0%, 0% 0%; 
+                /* Match the number of background layers in ::before (3) */
+                background-position: 0% 0%, 0% 0%, 0% 0%; 
             }
             100% { 
                 /* Clear vertical drop (100%) with slight horizontal drift */
-                background-position: 5% 100%, 8% 100%, 3% 100%, 10% 100%; 
+                background-position: 5% 100%, 8% 100%, 3% 100%; 
             }
         }
 
@@ -556,6 +551,7 @@
             populateThemeChooser(); // Populate the dropdown on init
             applyTheme(currentTheme); // Apply theme on init
             
+            // Re-bind the resize event handler
             window.addEventListener('resize', () => {
                 if (allWords.length > 0) {
                     // Re-display the current word to resize it
@@ -789,15 +785,16 @@
             // p-8 padding on gameCard is 2rem (32px) on both sides = 64px total
             const cardInnerContentWidth = cardElement.clientWidth - 64; 
 
-            // #wordDisplay has 'padding: 0 1rem' (16px) on both sides = 32px total.
-            // The text content must fit inside the card's inner width minus the word's own padding.
-            const maxAvailableWidthForTextContent = cardInnerContentWidth - 32;
-
-            // 1. Temporarily remove wordDisplay's own padding for accurate scrollWidth measurement
-            wordDisplay.style.padding = '0';
+            // Get the actual computed padding of wordDisplay for accurate calculation
+            const computedStyle = window.getComputedStyle(wordDisplay);
+            const wordDisplayPaddingHorizontal = parseFloat(computedStyle.paddingLeft) + parseFloat(computedStyle.paddingRight);
             
+            const maxAvailableWidthForTextContent = cardInnerContentWidth - wordDisplayPaddingHorizontal;
+
+            // Set a large font size and nowrap to measure the width of the text at max size
             wordDisplay.style.fontSize = `${maxFontSize}px`;
             wordDisplay.style.whiteSpace = 'nowrap'; 
+            wordDisplay.style.padding = '0'; // Temporarily remove padding for scrollWidth measurement
 
             let currentTextWidth = wordDisplay.scrollWidth;
             let finalFontSize = maxFontSize;
@@ -808,11 +805,10 @@
                 if (finalFontSize < 24) finalFontSize = 24; 
             }
             
+            // Apply final size and restore styles
             wordDisplay.style.fontSize = `${finalFontSize}px`;
             wordDisplay.style.whiteSpace = 'normal'; 
-            
-            // 2. Restore padding after measurement and sizing
-            wordDisplay.style.padding = '0 1rem'; 
+            wordDisplay.style.padding = '0 1rem'; // Restore original padding
             // --- End FIX ---
             
             // Re-apply theme-specific word styling after sizing
@@ -1118,7 +1114,7 @@
             const topBad = [...rankedWords]
                 .sort((a, b) => {
                     if (a.score !== b.score) return a.score - b.score;
-                    return (b.good + b.bad) - (a.good + a.bad);
+                    return (b.good + b.bad) - (a.good + a.ad);
                 })
                 .slice(0, limit);
                 
