@@ -187,31 +187,36 @@
             margin-bottom: 0.5rem;
         }
 
-        /* 2. DARK THEME - RE-FIXED AESTHETICS */
+        /* 2. DARK THEME - FIXES */
         body.theme-dark {
             background: #121212 !important; 
         }
-        /* RE-APPLY CARD STYLING TO #gameCard in dark mode, overriding transparent styles */
+        
+        /* Main Card: Remove all borders/lines */
         .theme-dark #gameCard {
-            background-color: rgba(18, 18, 18, 0.95) !important; /* Force dark background */
+            background-color: rgba(18, 18, 18, 0.95) !important; 
             box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5) !important;
-            border: 1px solid rgba(255, 255, 255, 0.05) !important;
-            padding: 2rem !important; /* Restore default padding */
+            border: none !important; /* HIDE BORDER */
+            padding: 2rem !important; 
         }
         .theme-dark .card, .theme-dark .ranking-card {
-            background-color: rgba(18, 18, 18, 0.95); /* Dark background for ranking containers */
+            background-color: rgba(18, 18, 18, 0.95); 
             box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            border: none; /* HIDE BORDER */
         }
-        /* Dark Theme on the thin frame elements when applicable (Rankings) */
+        
+        /* Ranking Frame: Remove all inner frame effects */
         .theme-dark .thin-rainbow-frame {
-            background-color: #212121; /* Dark inner background */
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.1); /* Add a subtle border */
+            background-color: transparent !important; 
+            box-shadow: none !important; 
+            border: none !important;
+            padding: 0.75rem; /* Keep padding for layout */
         }
-        .theme-dark .thin-rainbow-frame::after { 
-            background-color: #212121 !important;
+        .theme-dark .thin-rainbow-frame::after,
+        .theme-dark .thin-rainbow-frame::before { 
+            content: none !important; /* HIDE RAINBOW/WHITE LAYERS */
         }
+        
         .theme-dark header .bg-white {
             background-color: #374151 !important; 
             color: #d1d5db;
@@ -243,13 +248,13 @@
             to { transform: translateY(-15px); }
         }
         .theme-banana #gameCard {
-            background-color: rgba(248, 244, 178, 0.95) !important; /* Force background */
+            background-color: rgba(248, 244, 178, 0.95) !important; 
             border: 2px solid #f4ef81 !important;
             box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15) !important;
-            padding: 2rem !important; /* Restore default padding */
+            padding: 2rem !important; 
         }
         
-        /* 4. WINTER THEME - FIXED SNOW */
+        /* 4. WINTER THEME */
         body.theme-winter {
             background: linear-gradient(135deg, #e0f7fa 0%, #b3e5fc 100%) !important; 
         }
@@ -258,10 +263,10 @@
             text-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
         }
         .theme-winter #gameCard {
-            background-color: rgba(255, 255, 255, 0.9) !important; /* Force background */
+            background-color: rgba(255, 255, 255, 0.9) !important; 
             border: 2px solid #81d4fa !important; 
             box-shadow: 0 15px 40px rgba(179, 229, 252, 0.5) !important;
-            padding: 2rem !important; /* Restore default padding */
+            padding: 2rem !important; 
         }
         
         /* SNOW EFFECT STYLES */
@@ -276,7 +281,6 @@
             100% { transform: translate3d(-15vw, 100vh, 0); }
         }
 
-        /* Snow container is now always present but JS controls the `hidden` class */
         .theme-winter #snow-effect {
             position: fixed;
             top: 0;
@@ -634,7 +638,7 @@
             currentTheme = theme;
             localStorage.setItem('currentTheme', theme);
             
-            // 3. Manage snow effect visibility (FIXED: The element is now controlled by JS)
+            // 3. Manage snow effect visibility
             if (theme === 'winter') {
                 if (snowEffect) snowEffect.classList.remove('hidden');
             } else {
