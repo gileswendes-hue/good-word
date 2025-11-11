@@ -365,12 +365,12 @@
 
 
     <div class="version-indicator">
-        v3.9.0 | Made by Gilxs in 12,025
+        v4.0.0 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.9.0'; 
+        const APP_VERSION = '4.0.0'; 
 
         let allWords = []; // Words available to be voted on
         let allDatabaseWords = []; // All words fetched from the database (for totals/rankings)
@@ -410,6 +410,16 @@
             'banana': BANANA_STR.split(','),
             'winter': WINTER_STR.split('|') 
         };
+
+        // Fallback data for API connection issues (New in v4.0.0)
+        const FALLBACK_WORDS = [
+            {_id: "fb1", text: "SAMPLE", goodVotes: 5, badVotes: 1},
+            {_id: "fb2", text: "APRICOT", goodVotes: 10, badVotes: 2},
+            {_id: "fb3", text: "DEBUG", goodVotes: 2, badVotes: 8},
+            {_id: "fb4", text: "ERROR", goodVotes: 1, badVotes: 15},
+            {_id: "fb5", text: "CAKE", goodVotes: 3, badVotes: 3}, // To test 'CAKE' message
+        ];
+
 
         const wordDisplay = document.getElementById('wordDisplay');
         const cakeMessage = document.getElementById('cakeMessage');
@@ -713,10 +723,9 @@
             if (allWords.length === 0) return -1;
             if (allWords.length === 1) return 0;
 
-            // FIX 1: Add a filter to remove any potential 'undefined' entries before mapping.
+            // Filter out any potential 'undefined' entries before mapping.
             const availableWords = allWords
                 .map((w, index) => {
-                    // CRITICAL FIX: Explicitly check for an undefined word object
                     if (!w) return null; 
                     return {
                         index,
@@ -725,7 +734,6 @@
                 })
                 .filter(w => w && w.index !== excludeIndex); 
 
-            // If, after filtering, we have no words, return -1.
             if (availableWords.length === 0) return -1;
 
             const wordPool = availableWords;
@@ -773,15 +781,26 @@
         }
 
         async function fetchWords(updateDisplay = true) {
+            let fetchedWords = [];
+
             try {
                 if(updateDisplay) {
                     showMessage("Loading words...", false);
                 }
                 const response = await fetch(API_BASE_URL);
+                
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    // NEW IN V4.0.0: More explicit error reporting
+                    console.error(`API Fetch Error: Status ${response.status} for URL ${API_BASE_URL}. Falling back to sample data.`);
+                    
+                    showMessage(`Connection Error (Status ${response.status}). Displaying sample words.`, true);
+                    
+                    // Fallback to local data
+                    fetchedWords = FALLBACK_WORDS;
+                } else {
+                    fetchedWords = await response.json();
                 }
-                let fetchedWords = await response.json();
+
                 
                 // Store all words for total vote counting and full rankings
                 allDatabaseWords = fetchedWords; 
@@ -790,4 +809,241 @@
                 const availableWords = fetchedWords.filter(w => 
                     (w.notWordVotes || 0) < 3 && !votedWordIds.includes(w._id)
                 );
-                allWords =
+                allWords = availableWords;
+                
+                wordCount.textContent = `Words in Database: ${fetchedWords.length}`;
+                
+                updateStatsAndRankings(); // Update totals/rankings immediately using allDatabaseWords
+                
+                if (allWords.length > 0) {
+                    
+                    if (updateDisplay) {
+                        currentWordIndex = getWeightedRandomWordIndex(-1);
+                        displayCurrentWord(allWords[currentWordIndex]);
+                    } 
+                } else {
+                    showMessage("No new words available! Try submitting one.", false);
+                }
+
+            } catch (error) {
+                console.error('Error fetching words (Network/Parse):', error);
+                
+                // Fallback to local data if network/parse fails
+                if (fetchedWords.length === 0) {
+                    showMessage("Network/API Error. Displaying sample words.", true);
+                    fetchedWords = FALLBACK_WORDS;
+                    allDatabaseWords = fetchedWords;
+                    allWords = fetchedWords;
+                    wordCount.textContent = `Words in Database: ${fetchedWords.length} (Sample)`;
+                    updateStatsAndRankings();
+                    currentWordIndex = getWeightedRandomWordIndex(-1);
+                    displayCurrentWord(allWords[currentWordIndex]);
+                } else {
+                    // If fetchedWords has content, it means the API call worked, but something failed later (unlikely with this structure).
+                    showMessage("Connection Error. Check your API URL.", true);
+                }
+            }
+        }
+
+        async function submitVote(voteType) {
+            // Anti-mashing logic
+            if (isCoolingDown) {
+                const remaining = Math.ceil((cooldownEndTime - Date.now()) / 1000);
+                showCooldownMessage(remaining > 0 ? remaining : 0);
+                return;
+            }
+
+            const now = Date.now();
+            if (lastVoteTime > 0 && (now - lastVoteTime) > STREAK_WINDOW_MS) {
+                voteStreak = 1; 
+            } else {
+                voteStreak++; 
+            }
+            lastVoteTime = now; 
+
+            if (voteStreak > MASH_LIMIT) {
+                isCoolingDown = true;
+                voteStreak = 0; 
+                
+                cooldownEndTime = Date.now() + COOLDOWN_SECONDS * 1000;
+
+                let remaining = COOLDOWN_SECONDS;
+                showCooldownMessage(remaining);
+
+                cooldownTimer = setInterval(() => {
+                    let newRemaining = Math.ceil((cooldownEndTime - Date.now()) / 1000);
+                    
+                    if (newRemaining > 0) {
+                        showCooldownMessage(newRemaining);
+                    } else {
+                        clearInterval(cooldownTimer);
+                        cooldownTimer = null;
+                        isCoolingDown = false;
+                        
+                        if (allWords.length > 0) {
+                            displayCurrentWord(allWords[currentWordIndex]);
+                        } else {
+                            fetchWords(); 
+                        }
+                    }
+                }, 1000);
+
+                return;
+            }
+
+            const currentWord = allWords[currentWordIndex];
+            // CRITICAL FIX: Ensure currentWord exists before continuing
+            if (!currentWord) {
+                console.error("Attempted vote on undefined word. Fetching new words.");
+                fetchWords(true); 
+                return;
+            }
+            
+            // Check if using sample data. If so, don't attempt API vote.
+            if (currentWord._id.startsWith("fb")) {
+                console.warn("Attempted vote on sample word. Skipping API call.");
+                // Simulate vote update on client side for display
+                if (voteType === 'good') currentWord.goodVotes = (currentWord.goodVotes || 0) + 1;
+                if (voteType === 'bad') currentWord.badVotes = (currentWord.badVotes || 0) + 1;
+                
+                // Simulate success path
+                votedWordIds.push(currentWord._id);
+                localStorage.setItem('votedWordIds', JSON.stringify(votedWordIds));
+                allWords.splice(currentWordIndex, 1);
+                updateStatsAndRankings(); 
+                
+                if (allWords.length > 0) {
+                    if (voteType === 'good' || voteType === 'bad') {
+                        wordDisplay.classList.add(voteType === 'good' ? 'word-transition-good' : 'word-transition-bad');
+                        setTimeout(() => {
+                            nextWord();
+                        }, 400);
+                    } else {
+                        nextWord();
+                    }
+                } else {
+                    fetchWords(true);
+                }
+                return;
+            }
+
+
+            goodButton.disabled = true;
+            badButton.disabled = true;
+            notWordButton.disabled = true;
+            
+            if (wordTimer) {
+                clearTimeout(wordTimer);
+                wordTimer = null;
+            }
+            wordDisplay.classList.remove('snow-fade-active');
+
+            const wordId = currentWord._id;
+            const transitionDuration = 400; 
+            
+            if (voteType === 'good' || voteType === 'bad') {
+                wordDisplay.classList.add(voteType === 'good' ? 'word-transition-good' : 'word-transition-bad');
+            }
+
+            const themeWasNewlyUnlocked = checkAndApplyTheme(currentWord.text);
+
+            try {
+                const response = await fetch(`/api/words/${wordId}/vote`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ voteType, userId })
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    if (response.status === 403) {
+                       // Handle 403 (Already Voted)
+                       console.warn("Server reported already voted (403). Removing word from pool.");
+                       
+                       // 1. Manually remove the word from the client state.
+                       votedWordIds.push(wordId);
+                       localStorage.setItem('votedWordIds', JSON.stringify(votedWordIds));
+                       allWords.splice(currentWordIndex, 1);
+                       
+                       // 2. Cycle word, using transition if appropriate.
+                       updateStatsAndRankings(); 
+                       
+                       if (allWords.length > 0) {
+                            if (voteType === 'good' || voteType === 'bad') {
+                                setTimeout(() => {
+                                    nextWord(); 
+                                    fetchWords(false); 
+                                }, transitionDuration);
+                            } else {
+                                nextWord();
+                                fetchWords(false);
+                            }
+                       } else {
+                            fetchWords(true); // Force fetch new words if array is empty
+                       }
+                       
+                       return; 
+                    }
+                    throw new Error(result.message || "Failed to register vote.");
+                } else {
+                    // SUCCESS PATH 
+                    
+                    // 1. Update allDatabaseWords with the server's updated word object
+                    const wordToUpdateIndex = allDatabaseWords.findIndex(w => w._id === wordId);
+                    if (wordToUpdateIndex !== -1) {
+                        allDatabaseWords[wordToUpdateIndex] = result.updatedWord;
+                    }
+                    
+                    // 2. Remove the word from the active pool and track it
+                    votedWordIds.push(wordId);
+                    localStorage.setItem('votedWordIds', JSON.stringify(votedWordIds));
+                    allWords.splice(currentWordIndex, 1);
+                    
+                    // 3. Update vote count and awards
+                    const previousVoteCount = voteCount; 
+                    voteCount++;
+                    localStorage.setItem('voteCount', voteCount);
+                    updateAwardBadge();
+                    
+                    let awardAchieved = false;
+                    let awardName = '';
+                    let emoji = '';
+
+                    if (previousVoteCount < 5 && voteCount >= 5) {
+                        awardName = 'Bronze Star';
+                        emoji = '🥉';
+                        awardAchieved = true;
+                    } else if (previousVoteCount < 25 && voteCount >= 25) {
+                        awardName = 'Silver Star';
+                        emoji = '🥈';
+                        awardAchieved = true;
+                    } else if (previousVoteCount < 50 && voteCount >= 50) {
+                        awardName = 'Gold Star';
+                        emoji = '🌟';
+                        awardAchieved = true;
+                    }
+
+                    // 4. Cycle to next word/show awards
+                    if (themeWasNewlyUnlocked) {
+                        const themeName = currentTheme.charAt(0).toUpperCase() + currentTheme.slice(1);
+                        showAwardMessageAndContinue(`'${themeName}' Theme`, '🎁');
+                    } else if (awardAchieved) {
+                        showAwardMessageAndContinue(awardName, emoji);
+                    } else {
+                        // Immediately update stats before moving to the next word
+                        updateStatsAndRankings(); 
+                        
+                         // Only call nextWord if there are words left
+                        if (allWords.length > 0) {
+                            if (voteType === 'good' || voteType === 'bad') {
+                                setTimeout(() => {
+                                    nextWord(); 
+                                    fetchWords(false); 
+                                }, transitionDuration);
+                            } else {
+                                nextWord();
+                                fetchWords(false);
+                            }
+                        } else {
+                             fetchWords(true); // Force fetch new words if array
