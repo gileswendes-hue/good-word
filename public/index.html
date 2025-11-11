@@ -17,6 +17,8 @@
             box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
             border: 1px solid rgba(0, 0, 0, 0.05);
             transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+            position: relative; /* Ensure ::before works for outer rainbow */
+            z-index: 10;
         }
         #gameCard:hover {
             transform: translateY(-4px);
@@ -91,7 +93,6 @@
             white-space: nowrap; 
             overflow: hidden;
             max-width: 100%; 
-            /* Padding handled by JS for sizing. */
             box-sizing: border-box;
             position: relative;
             z-index: 10;
@@ -132,22 +133,20 @@
 
         /* 1. RAINBOW THEME */
         body.theme-rainbow {
-            background: #f7f7f7 !important; /* Low intensity background */
+            background: #f7f7f7 !important; 
         }
 
-        /* Shared Card Styles for Rainbow Theme (Main Card and Ranking Cards) */
+        /* Outer Card Styles (for main card and ranking cards) */
         .theme-rainbow .card, .theme-rainbow .ranking-card {
-            background-color: #fff; /* White base card */
+            background-color: #fff; 
             backdrop-filter: none; 
             box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15); 
             border: 1px solid rgba(0, 0, 0, 0.05);
             position: relative; 
             z-index: 10; 
-            filter: none;
-            animation: none;
         }
         
-        /* PSEUDO-ELEMENT FOR RAINBOW BORDER (Main Card and Ranking Cards) */
+        /* Outer Rainbow Border (Main Card and Ranking Cards) */
         .theme-rainbow .card::before, .theme-rainbow .ranking-card::before {
             content: '';
             position: absolute;
@@ -159,29 +158,29 @@
             );
             background-size: 400% 400%; 
             animation: rotate-border 20s linear infinite; 
-            z-index: -3; /* Placed behind the card content and background */
-            opacity: 1; 
-            filter: none; 
+            z-index: -3; 
         }
         
-        /* NEW/MODIFIED: Word Frame Container for Rainbow Theme */
-        .theme-rainbow #wordFrame {
+        /* --- INNER RAINBOW FRAME STYLES (Shared by Word and Rankings) --- */
+        
+        /* Wrapper Container for Word and Rankings */
+        .theme-rainbow #wordFrame, .theme-rainbow .ranking-frame {
             position: relative;
             z-index: 10;
-            padding: 0.5rem; /* Space between the card border and the word frame border */
+            padding: 0.75rem; /* Increased padding here */
             border-radius: 1rem;
-            /* Make sure the word frame wrapper is transparent so the card's background shows */
             background-color: transparent; 
-            margin-bottom: 2rem; 
+        }
+        .theme-rainbow #wordFrame {
+            margin-bottom: 2rem; /* Keep gap for main word */
         }
 
-        /* NEW/MODIFIED: The Inner Rainbow Frame around the Word */
-        .theme-rainbow #wordFrame::before {
+        /* Inner Rainbow Border (::before) */
+        .theme-rainbow #wordFrame::before, .theme-rainbow .ranking-frame::before {
             content: '';
             position: absolute;
             inset: -4px; /* Thickness of the new frame */
             border-radius: 1.25rem; 
-            /* Same rainbow gradient for the inner frame */
             background: linear-gradient(
                 45deg, 
                 #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #9400d3, #ff0000 
@@ -191,55 +190,59 @@
             z-index: -2; 
         }
         
-        /* NEW/MODIFIED: Inner White Area for the Word Frame (CRITICAL FOR READABILITY) */
-        .theme-rainbow #wordFrame::after {
+        /* Inner White Background (::after) - CRITICAL FOR READABILITY */
+        .theme-rainbow #wordFrame::after, .theme-rainbow .ranking-frame::after {
             content: '';
             position: absolute;
-            inset: 0;
+            /* Adjusted inset to match the new padding on the parent and cover the border */
+            inset: 0; 
             border-radius: 1rem; 
-            background-color: #ffffff; /* Solid white background for high contrast */
+            background-color: #ffffff; 
             z-index: -1; 
         }
+        
+        /* Ranking specific style fixes for frame */
+        .theme-rainbow .ranking-frame {
+            /* Override the margin-top/bottom/padding-bottom applied by the parent ranking-card */
+            padding-top: 0.75rem !important; 
+            padding-bottom: 0.75rem !important;
+            margin-top: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
 
-        /* MODIFIED: Word Display Styles (RE-ENABLE RAINBOW TEXT) */
+        /* Word Display Styles (RETAIN RAINBOW TEXT) */
         .theme-rainbow #wordDisplay {
-            /* Restore the rainbow text animation */
-            background: linear-gradient(
-                45deg, 
-                #ff0000, 
-                #ff7f00, 
-                #ffff00, 
-                #00ff00, 
-                #00ffff, 
-                #0000ff, 
-                #9400d3
-            );
+            background: linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #9400d3);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            color: transparent; /* Fallback */
-            animation: rainbow-text 5s ease infinite;
-            
-            /* Override tailwind/default colors */
             color: transparent !important; 
             animation: rainbow-text 5s ease infinite;
-            
-            /* Adjust padding for the frame, not the default */
             margin-bottom: 0 !important;
-            padding: 0 0.5rem; /* Small internal padding for the word */
+            padding: 0 0.5rem; 
         }
+        
+        /* Ensure ranking items are visible inside the white frame */
+        .theme-rainbow .rank-item {
+             position: relative;
+             z-index: 10;
+        }
+        .theme-rainbow .rank-item .text-gray-800 {
+            color: #1f2937 !important; /* Force dark text color for contrast */
+        }
+        /* End Rainbow Theme */
+        
         
         /* 2. DARK THEME */
         body.theme-dark {
             background: #121212 !important; 
         }
-        /* Ensure ranking cards also use dark theme styles when applicable */
         .theme-dark #gameCard, .theme-dark .card, .theme-dark .ranking-card {
             background-color: rgba(18, 18, 18, 0.95); 
             box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
             border: 1px solid rgba(255, 255, 255, 0.05);
         }
-        /* Handle the word frame inner color for Dark Theme */
-        .theme-dark #wordFrame::after { 
+        /* Handle the word frame inner color for Dark Theme (Applies to all frames) */
+        .theme-dark #wordFrame::after, .theme-dark .ranking-frame::after { 
             background-color: #212121 !important;
         }
         .theme-dark header .bg-white {
@@ -249,7 +252,7 @@
         .theme-dark header .bg-gray-50 {
             background-color: #121212 !important; 
         }
-        .theme-dark #wordDisplay, .theme-dark .text-gray-900 {
+        .theme-dark #wordDisplay, .theme-dark .text-gray-900, .theme-dark .rank-item .text-gray-800 {
             color: #f3f4f6 !important; 
         }
         .theme-dark .text-gray-500, .theme-dark .text-gray-600, .theme-dark .text-gray-800 {
@@ -421,16 +424,20 @@
     <section class="mt-8 w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8">
         <div class="ranking-card card p-6 rounded-xl">
             <h2 class="text-xl font-bold text-green-700 mb-4 border-b pb-2">Top Good Words</h2>
-            <div id="goodRankings" class="space-y-2">
-                <p class="text-gray-500">No data yet.</p>
+            <div class="ranking-frame rounded-xl">
+                <div id="goodRankings" class="space-y-2">
+                    <p class="text-gray-500">No data yet.</p>
+                </div>
             </div>
-        </div>
+            </div>
         <div class="ranking-card card p-6 rounded-xl">
             <h2 class="text-xl font-bold text-red-700 mb-4 border-b pb-2">Top Bad Words</h2>
-            <div id="badRankings" class="space-y-2">
-                <p class="text-gray-500">No data yet.</p>
+            <div class="ranking-frame rounded-xl">
+                <div id="badRankings" class="space-y-2">
+                    <p class="text-gray-500">No data yet.</p>
+                </div>
             </div>
-        </div>
+            </div>
     </section>
     
     <div class="mt-6 w-full max-w-4xl text-center">
@@ -868,7 +875,7 @@
                 wordDisplay.style.textShadow = '0 0 8px rgba(255, 255, 255, 0.8)';
             } else if (currentTheme === 'rainbow') {
                 // RAINBOW THEME: Apply padding to the frame, keep text color dark
-                wordFrame.style.padding = '0.5rem';
+                wordFrame.style.padding = '0.75rem'; // Keep consistent with new padding
                 
                 // RE-APPLY RAINBOW TEXT
                 wordDisplay.style.background = 'linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #9400d3)';
@@ -892,7 +899,7 @@
             let maxAvailableWidthForTextContent = cardContentWidth;
 
             if (currentTheme === 'rainbow') {
-                // If rainbow frame is present, account for its padding (0.5rem on wordFrame + 0.5rem on wordDisplay)
+                // If rainbow frame is present, account for its padding (0.75rem on wordFrame + 0.5rem on wordDisplay)
                 const framePadding = parseFloat(window.getComputedStyle(wordFrame).paddingLeft) * 2;
                 // Temporarily remove padding from wordDisplay to measure scrollWidth accurately
                 wordDisplay.style.padding = '0'; 
