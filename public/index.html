@@ -365,12 +365,12 @@
 
 
     <div class="version-indicator">
-        v3.8.0 | Made by Gilxs in 12,025
+        v3.9.0 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.8.0'; 
+        const APP_VERSION = '3.9.0'; 
 
         let allWords = []; // Words available to be voted on
         let allDatabaseWords = []; // All words fetched from the database (for totals/rankings)
@@ -713,19 +713,22 @@
             if (allWords.length === 0) return -1;
             if (allWords.length === 1) return 0;
 
+            // FIX 1: Add a filter to remove any potential 'undefined' entries before mapping.
             const availableWords = allWords
-                .map((w, index) => ({
-                    index,
-                    totalVotes: (w.goodVotes || 0) + (w.badVotes || 0) + (w.notWordVotes || 0)
-                }))
-                .filter(w => w.index !== excludeIndex); 
+                .map((w, index) => {
+                    // CRITICAL FIX: Explicitly check for an undefined word object
+                    if (!w) return null; 
+                    return {
+                        index,
+                        totalVotes: (w.goodVotes || 0) + (w.badVotes || 0) + (w.notWordVotes || 0)
+                    };
+                })
+                .filter(w => w && w.index !== excludeIndex); 
 
-            const wordPool = availableWords.length > 0 
-                ? availableWords 
-                : allWords.map((w, index) => ({ 
-                    index, 
-                    totalVotes: (w.goodVotes || 0) + (w.badVotes || 0) + (w.notWordVotes || 0) 
-                }));
+            // If, after filtering, we have no words, return -1.
+            if (availableWords.length === 0) return -1;
+
+            const wordPool = availableWords;
 
             let totalWeight = 0;
             const weightedWords = wordPool.map(w => {
@@ -760,6 +763,12 @@
             
             currentWordIndex = getWeightedRandomWordIndex(-1);
             
+            // Final check on the index before display
+            if (currentWordIndex === -1 || !allWords[currentWordIndex]) {
+                 showMessage("No words available! Try submitting one.", false);
+                 return;
+            }
+
             displayCurrentWord(allWords[currentWordIndex]);
         }
 
@@ -774,362 +783,11 @@
                 }
                 let fetchedWords = await response.json();
                 
-                // FIX 1: Store all words for total vote counting and full rankings
+                // Store all words for total vote counting and full rankings
                 allDatabaseWords = fetchedWords; 
                 
                 // Filter out words that are marked "not a word" (3 votes) or have been voted on by this user in this session
                 const availableWords = fetchedWords.filter(w => 
                     (w.notWordVotes || 0) < 3 && !votedWordIds.includes(w._id)
                 );
-                allWords = availableWords;
-                
-                wordCount.textContent = `Words in Database: ${fetchedWords.length}`;
-                
-                updateStatsAndRankings(); // Update totals/rankings immediately using allDatabaseWords
-                
-                if (allWords.length > 0) {
-                    
-                    if (updateDisplay) {
-                        currentWordIndex = getWeightedRandomWordIndex(-1);
-                        displayCurrentWord(allWords[currentWordIndex]);
-                    } 
-                } else {
-                    showMessage("No new words available! Try submitting one.", false);
-                }
-
-            } catch (error) {
-                console.error('Error fetching words:', error);
-                if(updateDisplay) {
-                    showMessage("Connection Error. Check your API URL.", true);
-                }
-            }
-        }
-
-        async function submitVote(voteType) {
-            // Anti-mashing logic
-            if (isCoolingDown) {
-                const remaining = Math.ceil((cooldownEndTime - Date.now()) / 1000);
-                showCooldownMessage(remaining > 0 ? remaining : 0);
-                return;
-            }
-
-            const now = Date.now();
-            if (lastVoteTime > 0 && (now - lastVoteTime) > STREAK_WINDOW_MS) {
-                voteStreak = 1; 
-            } else {
-                voteStreak++; 
-            }
-            lastVoteTime = now; 
-
-            if (voteStreak > MASH_LIMIT) {
-                isCoolingDown = true;
-                voteStreak = 0; 
-                
-                cooldownEndTime = Date.now() + COOLDOWN_SECONDS * 1000;
-
-                let remaining = COOLDOWN_SECONDS;
-                showCooldownMessage(remaining);
-
-                cooldownTimer = setInterval(() => {
-                    let newRemaining = Math.ceil((cooldownEndTime - Date.now()) / 1000);
-                    
-                    if (newRemaining > 0) {
-                        showCooldownMessage(newRemaining);
-                    } else {
-                        clearInterval(cooldownTimer);
-                        cooldownTimer = null;
-                        isCoolingDown = false;
-                        
-                        if (allWords.length > 0) {
-                            displayCurrentWord(allWords[currentWordIndex]);
-                        } else {
-                            fetchWords(); 
-                        }
-                    }
-                }, 1000);
-
-                return;
-            }
-
-            const currentWord = allWords[currentWordIndex];
-            // CRITICAL FIX: Ensure currentWord exists before continuing to prevent the "_id" or "goodVotes" undefined errors
-            if (!currentWord) {
-                console.error("Attempted vote on undefined word. Fetching new words.");
-                fetchWords(true); 
-                return;
-            }
-
-
-            goodButton.disabled = true;
-            badButton.disabled = true;
-            notWordButton.disabled = true;
-            
-            if (wordTimer) {
-                clearTimeout(wordTimer);
-                wordTimer = null;
-            }
-            wordDisplay.classList.remove('snow-fade-active');
-
-            const wordId = currentWord._id;
-            const transitionDuration = 400; 
-            
-            if (voteType === 'good' || voteType === 'bad') {
-                wordDisplay.classList.add(voteType === 'good' ? 'word-transition-good' : 'word-transition-bad');
-            }
-
-            const themeWasNewlyUnlocked = checkAndApplyTheme(currentWord.text);
-
-            try {
-                const response = await fetch(`/api/words/${wordId}/vote`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ voteType, userId })
-                });
-
-                const result = await response.json();
-
-                if (!response.ok) {
-                    if (response.status === 403) {
-                       // Handle 403 (Already Voted)
-                       console.warn("Server reported already voted (403). Removing word from pool.");
-                       
-                       // 1. Manually remove the word from the client state.
-                       votedWordIds.push(wordId);
-                       localStorage.setItem('votedWordIds', JSON.stringify(votedWordIds));
-                       allWords.splice(currentWordIndex, 1);
-                       
-                       // 2. Cycle word, using transition if appropriate.
-                       updateStatsAndRankings(); 
-                       if (voteType === 'good' || voteType === 'bad') {
-                           setTimeout(() => {
-                               nextWord(); 
-                               fetchWords(false); 
-                           }, transitionDuration);
-                       } else {
-                           nextWord();
-                           fetchWords(false);
-                       }
-                       
-                       return; 
-                    }
-                    throw new Error(result.message || "Failed to register vote.");
-                } else {
-                    // SUCCESS PATH 
-                    
-                    // 1. Update allDatabaseWords with the server's updated word object
-                    const wordToUpdateIndex = allDatabaseWords.findIndex(w => w._id === wordId);
-                    if (wordToUpdateIndex !== -1) {
-                        allDatabaseWords[wordToUpdateIndex] = result.updatedWord;
-                    }
-                    
-                    // 2. Remove the word from the active pool and track it
-                    votedWordIds.push(wordId);
-                    localStorage.setItem('votedWordIds', JSON.stringify(votedWordIds));
-                    allWords.splice(currentWordIndex, 1);
-                    
-                    // 3. Update vote count and awards
-                    const previousVoteCount = voteCount; 
-                    voteCount++;
-                    localStorage.setItem('voteCount', voteCount);
-                    updateAwardBadge();
-                    
-                    let awardAchieved = false;
-                    let awardName = '';
-                    let emoji = '';
-
-                    if (previousVoteCount < 5 && voteCount >= 5) {
-                        awardName = 'Bronze Star';
-                        emoji = '🥉';
-                        awardAchieved = true;
-                    } else if (previousVoteCount < 25 && voteCount >= 25) {
-                        awardName = 'Silver Star';
-                        emoji = '🥈';
-                        awardAchieved = true;
-                    } else if (previousVoteCount < 50 && voteCount >= 50) {
-                        awardName = 'Gold Star';
-                        emoji = '🌟';
-                        awardAchieved = true;
-                    }
-
-                    // 4. Cycle to next word/show awards
-                    if (themeWasNewlyUnlocked) {
-                        const themeName = currentTheme.charAt(0).toUpperCase() + currentTheme.slice(1);
-                        showAwardMessageAndContinue(`'${themeName}' Theme`, '🎁');
-                    } else if (awardAchieved) {
-                        showAwardMessageAndContinue(awardName, emoji);
-                    } else {
-                        // Immediately update stats before moving to the next word
-                        updateStatsAndRankings(); 
-                        
-                        if (voteType === 'good' || voteType === 'bad') {
-                            setTimeout(() => {
-                                nextWord(); 
-                                fetchWords(false); 
-                            }, transitionDuration);
-                        } else {
-                            nextWord();
-                            fetchWords(false);
-                        }
-                    }
-                }
-            } catch (error) {
-                console.error('Error submitting vote:', error);
-                showMessage("Vote failed: " + error.message, true);
-                wordDisplay.classList.remove('word-transition-good', 'word-transition-bad'); 
-                goodButton.disabled = false;
-                badButton.disabled = false;
-                notWordButton.disabled = false;
-                voteStreak = 0; 
-            }
-        }
-
-        function getRankedWords(limit) {
-            // FIX 2: Use the global array containing ALL words for ranking calculation
-            const allWordsFetched = JSON.parse(JSON.stringify(allDatabaseWords));
-            
-            // CRITICAL FIX: Return empty arrays if no words exist
-            if (allWordsFetched.length === 0) return { topGood: [], topBad: [] };
-
-            const rankedWords = allWordsFetched.map(w => ({
-                text: w.text,
-                good: w.goodVotes || 0,
-                bad: w.badVotes || 0,
-                score: (w.goodVotes || 0) - (w.badVotes || 0)
-            }));
-
-            const topGood = [...rankedWords]
-                .sort((a, b) => {
-                    if (b.score !== a.score) return b.score - a.score;
-                    return (b.good + b.bad) - (a.good + a.bad);
-                })
-                .slice(0, limit);
-
-            const topBad = [...rankedWords]
-                .sort((a, b) => {
-                    if (a.score !== b.score) return a.score - b.score;
-                    return (b.good + b.bad) - (a.good + a.bad);
-                })
-                .slice(0, limit);
-                
-            return { topGood, topBad };
-        }
-
-
-        function updateStatsAndRankings() {
-            // FIX 3: Use the full list of words from the database for total counts
-            if (allDatabaseWords.length === 0) {
-                goodTotal.textContent = `GOOD: 0`;
-                badTotal.textContent = `BAD: 0`;
-                renderRankings(goodRankingsDiv, [], 'good');
-                renderRankings(badRankingsDiv, [], 'bad');
-                return;
-            }
-
-            const totalGood = allDatabaseWords.reduce((sum, w) => sum + (w.goodVotes || 0), 0);
-            const totalBad = allDatabaseWords.reduce((sum, w) => sum + (w.badVotes || 0), 0);
-            goodTotal.textContent = `GOOD: ${totalGood}`;
-            badTotal.textContent = `BAD: ${totalBad}`;
-            
-            const { topGood, topBad } = getRankedWords(5);
-            renderRankings(goodRankingsDiv, topGood, 'good');
-            renderRankings(badRankingsDiv, topBad, 'bad');
-        }
-
-        function renderRankings(container, list, type, isFullList = false) {
-            container.innerHTML = '';
-            if (list.length === 0) {
-                container.innerHTML = `<p class="text-gray-500">${type === 'good' ? 'No clear winners yet.' : 'No clear losers yet.'}</p>`;
-                return;
-            }
-
-            list.forEach((word, index) => {
-                const item = document.createElement('div');
-                item.className = `flex justify-between items-center py-1 ${isFullList ? 'full-ranking-item text-sm' : 'rank-item'}`;
-                
-                const scoreIndicator = type === 'good' 
-                    ? `<span class="text-xs text-white bg-green-500 px-2 rounded-full font-bold">${word.score}</span>`
-                    : `<span class="text-xs text-white bg-red-500 px-2 rounded-full font-bold">${Math.abs(word.score)}</span>`;
-                
-                item.innerHTML = `
-                    <div class="flex items-center space-x-2">
-                        <span class="font-bold ${isFullList ? 'text-base w-4' : 'text-lg w-5'} text-center text-gray-500">${index + 1}.</span>
-                        <span class="font-medium text-gray-800">${word.text.toUpperCase()}</span>
-                    </div>
-                    <div class="flex items-center space-x-3">
-                        ${scoreIndicator}
-                        <span class="text-sm text-gray-600">(${word.good} / ${word.bad})</span>
-                    </div>
-                `;
-                container.appendChild(item);
-            });
-        }
-        
-        function showFullRankingsModal() {
-            const { topGood, topBad } = getRankedWords(100);
-            
-            renderRankings(fullGoodRankingsDiv, topGood, 'good', true);
-            renderRankings(fullBadRankingsDiv, topBad, 'bad', true);
-            
-            fullRankingsModalContainer.classList.remove('hidden');
-            fullRankingsModalContainer.classList.add('flex');
-        }
-
-        function hideFullRankingsModal() {
-            fullRankingsModalContainer.classList.remove('flex');
-            fullRankingsModalContainer.classList.add('hidden');
-        }
-
-        function showModal() {
-            submissionModal.classList.remove('hidden');
-            submissionModal.classList.add('flex');
-            newWordInput.value = '';
-            modalMessage.textContent = '';
-        }
-
-        function hideModal() {
-            submissionModal.classList.remove('flex');
-            submissionModal.classList.add('hidden');
-        }
-
-        async function submitCustomWord() {
-            const text = newWordInput.value.trim();
-            if (!text) {
-                modalMessage.textContent = "Please enter a word.";
-                return;
-            }
-
-            submitWordButton.disabled = true;
-            modalMessage.textContent = "Submitting...";
-
-            try {
-                const response = await fetch(API_BASE_URL, { 
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text })
-                });
-
-                const result = await response.json();
-                
-                if (response.status === 201) {
-                    modalMessage.textContent = "Success! Word added to the pool.";
-                    setTimeout(() => {
-                        hideModal();
-                        fetchWords();
-                    }, 1000);
-                } else {
-                    modalMessage.textContent = result.message || "Failed to submit word due to an unknown error.";
-                }
-
-            } catch (error) {
-                console.error('Error submitting custom word:', error);
-                modalMessage.textContent = "A network error occurred.";
-            } finally {
-                submitWordButton.disabled = false;
-            }
-        }
-
-        window.onload = init;
-
-    </script>
-</body>
-</html>
+                allWords =
