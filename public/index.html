@@ -131,9 +131,8 @@
             }
         }
 
-        /* 1. RAINBOW THEME (FIX: Now uses ANIMATED position AND HUE ROTATION with vendor prefixes) */
+        /* 1. RAINBOW THEME */
         body.theme-rainbow {
-            /* FIX: Split background shorthand into background-image to prevent conflict with animation and size */
             background-image: linear-gradient(-45deg, 
                 #ff0000,   /* Red */
                 #ff7f00,  /* Orange */
@@ -144,12 +143,16 @@
                 #9400d3   /* Violet */
             ) !important; 
             background-size: 1000% 1000% !important; 
+            background-position: 0% 0% !important; 
             
+            -webkit-filter: hue-rotate(0deg) !important; 
+            filter: hue-rotate(0deg) !important; 
+
             /* Combines background position movement and filter hue rotation */
             animation: 
                 rainbow-body-animation 5s linear infinite !important, 
                 rainbow-hue-animation 10s linear infinite !important; 
-            -webkit-animation: /* ADDED VENDOR PREFIX */
+            -webkit-animation: 
                 rainbow-body-animation 5s linear infinite !important, 
                 rainbow-hue-animation 10s linear infinite !important; 
         }
@@ -257,6 +260,7 @@
             100% { transform: translate3d(-15vw, 100vh, 0); }
         }
 
+        /* Note: z-index is only applied here when theme-winter is active */
         .theme-winter #snow-effect {
             /* The container covers the whole screen, high z-index, pointer-events-none */
             position: fixed;
@@ -265,7 +269,7 @@
             width: 100vw;
             height: 100vh;
             overflow: hidden;
-            z-index: 40; /* Ensure it's above game content */
+            z-index: 40; /* Set high z-index here */
             pointer-events: none;
         }
 
@@ -325,7 +329,7 @@
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen p-4">
 
-    <div id="snow-effect" class="fixed inset-0 pointer-events-none z-40"></div> 
+    <div id="snow-effect" class="fixed inset-0 pointer-events-none hidden"></div> 
 
     <header class="text-center mb-8 w-full max-w-lg">
         <div id="logoArea" class="h-32 w-full flex items-center justify-center mb-4 relative">
@@ -518,6 +522,7 @@
         // --- NEW THEME CHOOSER ELEMENTS ---
         const themeChooser = document.getElementById('themeChooser');
         const themeUnlockHint = document.getElementById('themeUnlockHint');
+        const snowEffect = document.getElementById('snow-effect'); // ADDED ELEMENT FOR SNOW EFFECT
         // --- END NEW THEME CHOOSER ELEMENTS ---
 
 
@@ -629,6 +634,13 @@
 
             currentTheme = theme;
             localStorage.setItem('currentTheme', theme);
+            
+            // 3. Manage snow effect visibility (THE CRITICAL FIX FOR RAINBOW)
+            if (theme === 'winter') {
+                if (snowEffect) snowEffect.classList.remove('hidden');
+            } else {
+                if (snowEffect) snowEffect.classList.add('hidden');
+            }
         }
 
         function checkAndApplyTheme(wordText) {
