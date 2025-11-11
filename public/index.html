@@ -114,6 +114,7 @@
 
         /* 1. RAINBOW THEME */
         .theme-rainbow body {
+            /* Animated rainbow background */
             background: repeating-linear-gradient(45deg, 
                 #f06, 0%, 
                 #f60, 16.66%, 
@@ -158,10 +159,10 @@
 
         /* 2. DARK THEME */
         .theme-dark body {
-            background: #1f2937; /* Gray 800 */
+            background: #121212; /* Very Dark Gray/Near Black */
         }
         .theme-dark #gameCard, .theme-dark .card {
-            background-color: rgba(31, 41, 55, 0.95); /* Dark card */
+            background-color: rgba(18, 18, 18, 0.95); /* Darker card to match */
             box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
             border: 1px solid rgba(255, 255, 255, 0.05);
         }
@@ -170,7 +171,7 @@
             color: #d1d5db;
         }
         .theme-dark header .bg-gray-50 {
-            background-color: #1f2937 !important; /* Header dark bg */
+            background-color: #121212 !important; /* Header dark bg */
         }
         .theme-dark #wordDisplay, .theme-dark .text-gray-900 {
             color: #f3f4f6 !important; /* Light text for word */
@@ -185,7 +186,7 @@
 
         /* 3. BANANA THEME */
         .theme-banana body {
-            background: linear-gradient(135deg, #fff297 0%, #ffe900 100%); /* Updated Banana yellow gradient start */
+            background: #f9f180; /* Updated to requested solid color */
         }
         .theme-banana #wordDisplay {
             color: #ffd200; /* Updated Word color */
@@ -196,7 +197,7 @@
             to { transform: translateY(-15px); }
         }
         .theme-banana .card {
-            background-color: rgba(255, 242, 151, 0.95); /* Updated Light yellow card (FFF297 with 0.95 opacity) */
+            background-color: rgba(249, 241, 128, 0.95); /* Updated card background to match new body color */
             border: 2px solid #f4ef81;
         }
         
