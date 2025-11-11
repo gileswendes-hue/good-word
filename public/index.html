@@ -207,7 +207,7 @@
         }
 
         /* * ENHANCED Snow Falling Effect - LAYER 1 (::before)
-         * Simulates small, fast, far-away snow. High density.
+         * Simulates small, fast, far-away snow. (7 layers)
          */
         .theme-winter body::before {
             content: '';
@@ -217,21 +217,23 @@
             width: 100%;
             height: 100%;
             pointer-events: none; 
-            /* FIVE LAYERS: Small, Fast, Dense */
+            /* SEVEN LAYERS: Small, Fast, Dense */
             background-image: 
-                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="6" height="6" viewBox="0 0 6 6"><circle cx="3" cy="3" r="0.8" fill="rgba(255,255,255,0.5)"/></svg>'),
-                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10"><circle cx="5" cy="5" r="1.2" fill="rgba(255,255,255,0.7)"/></svg>'),
-                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="1.5" fill="rgba(255,255,255,0.8)"/></svg>'),
-                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="1.8" fill="rgba(255,255,255,0.9)"/></svg>'),
-                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22"><circle cx="11" cy="11" r="2.2" fill="rgba(255,255,255,1)"/></svg>');
-            background-size: 6px 6px, 10px 10px, 14px 14px, 18px 18px, 22px 22px;
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4" viewBox="0 0 4 4"><circle cx="2" cy="2" r="0.5" fill="rgba(255,255,255,0.3)"/></svg>'),
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="7" height="7" viewBox="0 0 7 7"><circle cx="3.5" cy="3.5" r="0.8" fill="rgba(255,255,255,0.5)"/></svg>'),
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10"><circle cx="5" cy="5" r="1.0" fill="rgba(255,255,255,0.6)"/></svg>'),
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 13 13"><circle cx="6.5" cy="6.5" r="1.3" fill="rgba(255,255,255,0.7)"/></svg>'),
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="1.5" fill="rgba(255,255,255,0.8)"/></svg>'),
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 19 19"><circle cx="9.5" cy="9.5" r="1.8" fill="rgba(255,255,255,0.9)"/></svg>'),
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22"><circle cx="11" cy="11" r="2.0" fill="rgba(255,255,255,1)"/></svg>');
+            background-size: 4px 4px, 7px 7px, 10px 10px, 13px 13px, 16px 16px, 19px 19px, 22px 22px;
             background-repeat: repeat; 
-            animation: snowing 12s linear infinite; /* All layers use one animation */
+            animation: snowing 10s linear infinite; /* Increased Speed */
             z-index: -1;
         }
 
         /* * ENHANCED Snow Falling Effect - LAYER 2 (::after)
-         * Simulates larger, slower, closer snow for strong parallax.
+         * Simulates larger, slower, closer snow for strong parallax. (4 layers)
          */
         .theme-winter body::after {
             content: '';
@@ -241,36 +243,37 @@
             width: 100%;
             height: 100%;
             pointer-events: none; 
-            /* THREE LAYERS: Large, Slow, Close */
+            /* FOUR LAYERS: Large, Slow, Close, Denser */
             background-image:
-                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="15" r="2.5" fill="rgba(255,255,255,1)"/></svg>'),
-                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="3.5" fill="rgba(255,255,255,0.95)"/></svg>'),
-                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 50 50"><circle cx="25" cy="25" r="4.5" fill="rgba(255,255,255,0.9)"/></svg>');
-            background-size: 30px 30px, 40px 40px, 50px 50px;
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="2.5" fill="rgba(255,255,255,0.9)"/></svg>'),
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="15" r="3.0" fill="rgba(255,255,255,0.95)"/></svg>'),
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="4.0" fill="rgba(255,255,255,1)"/></svg>'),
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 50 50"><circle cx="25" cy="25" r="5.0" fill="rgba(255,255,255,1)"/></svg>');
+            background-size: 20px 20px, 30px 30px, 40px 40px, 50px 50px;
             background-repeat: repeat;
-            animation: snowing-slow 20s linear infinite; /* Slower animation for parallax */
+            animation: snowing-slow 15s linear infinite; /* Increased Speed */
             z-index: -1;
         }
 
         @keyframes snowing {
             0% { 
-                /* Match the number of background layers in ::before */
-                background-position: 0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%; 
+                /* Match the number of background layers in ::before (7) */
+                background-position: 0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%; 
             }
             100% { 
                 /* Clear vertical drop (100%) with slight horizontal drift */
-                background-position: 5% 100%, 8% 100%, 3% 100%, 10% 100%, 7% 100%; 
+                background-position: 5% 100%, 8% 100%, 3% 100%, 10% 100%, 7% 100%, 4% 100%, 9% 100%; 
             }
         }
 
         @keyframes snowing-slow {
             0% { 
-                /* Match the number of background layers in ::after */
-                background-position: 0% 0%, 0% 0%, 0% 0%; 
+                /* Match the number of background layers in ::after (4) */
+                background-position: 0% 0%, 0% 0%, 0% 0%, 0% 0%; 
             }
             100% { 
                 /* Clear vertical drop (100%) with heavier horizontal drift */
-                background-position: 15% 100%, 12% 100%, 18% 100%; 
+                background-position: 15% 100%, 12% 100%, 18% 100%, 10% 100%; 
             }
         }
         
@@ -293,21 +296,20 @@
         .word-snowed {
             /* Text Color change to simulate being covered/faded into the white snow */
             color: #f0f8ff !important; 
-            opacity: 0.1; /* Fade the original text dramatically */
             
-            /* Apply the animation which moves the 'snow pile' upwards */
+            /* Apply the animation which only fades the opacity now */
             animation: snow-bury-visual 2.5s ease-out forwards; 
             
-            /* Add a dynamic, soft, white shadow to simulate the pile */
+            /* Add a dynamic, soft, white shadow to simulate the static pile */
             text-shadow: 
                 0 0 20px #ffffff,
                 0 0 30px #ffffff,
                 0 10px 5px #f0f8ff,
                 0 20px 8px #f0f8ff,
-                0 30px 10px #f0f8ff; /* This large shadow area is the visible snow pile */
+                0 30px 10px #f0f8ff; 
         }
 
-        /* Animation keyframes to move the shadow up */
+        /* Animation keyframes to keep the word static (fix for rising word) */
         @keyframes snow-bury-visual {
             0% { 
                 /* Start: Word is fully visible */
@@ -315,8 +317,8 @@
                 opacity: 1;
             }
             100% { 
-                /* End: Snow pile (text-shadow) has moved up, visually covering the word */
-                transform: translateY(-50px); /* Move the text/shadow up over the text area */
+                /* End: The word remains static, only the visual shadow/color changes */
+                transform: translateY(0px); 
                 opacity: 0.2; /* Final state of original text is very transparent */
             }
         }
@@ -784,23 +786,32 @@
                  wordDisplay.style.color = '#1e40af';
             }
             
-            const cardWidth = document.getElementById('gameCard').clientWidth - 64; 
+            // --- Word Sizing Logic (Fixed) ---
             const maxFontSize = 96; 
+            // Calculate inner width of gameCard (total width - p-8 * 2 = 64px)
+            const cardInnerWidth = document.getElementById('gameCard').clientWidth - 64; 
+
+            // 1. Temporarily remove wordDisplay's own padding for accurate scrollWidth measurement
+            wordDisplay.style.padding = '0';
             
             wordDisplay.style.fontSize = `${maxFontSize}px`;
-            wordDisplay.style.whiteSpace = 'nowrap';
+            wordDisplay.style.whiteSpace = 'nowrap'; 
 
             let currentWidth = wordDisplay.scrollWidth;
             let finalFontSize = maxFontSize;
 
-            if (currentWidth > cardWidth) {
-                const scaleFactor = cardWidth / currentWidth;
+            if (currentWidth > cardInnerWidth) {
+                const scaleFactor = cardInnerWidth / currentWidth;
                 finalFontSize = Math.floor(maxFontSize * scaleFactor);
                 if (finalFontSize < 24) finalFontSize = 24; 
             }
             
             wordDisplay.style.fontSize = `${finalFontSize}px`;
             wordDisplay.style.whiteSpace = 'normal'; 
+            
+            // 2. Restore padding after measurement and sizing
+            wordDisplay.style.padding = '0 1rem'; 
+            // --- End Fix ---
             
             // Re-apply theme-specific word styling after sizing
             if (currentTheme === 'banana') {
