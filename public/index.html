@@ -131,8 +131,8 @@
                 #0000ff,  /* Blue */
                 #9400d3   /* Violet */
             ) !important; 
-            background-size: 600% 600% !important; /* INCREASED SIZE FOR SMOOTHER COLOR FLOW */
-            animation: rainbow-body-animation 5s linear infinite !important; /* FASTER ANIMATION */
+            background-size: 1000% 1000% !important; /* Made even larger for smoother transition */
+            animation: rainbow-body-animation 3s linear infinite !important; /* Made faster */
         }
 
         .theme-rainbow #wordDisplay {
@@ -424,6 +424,11 @@
     <script>
         const API_BASE_URL = '/api/words';
         const APP_VERSION = '3.7.0'; 
+        
+        // --- NEW BOOST CONSTANTS ---
+        const BOOSTED_WORD = 'CAKE';
+        const BOOST_FACTOR = 2.0; // The word 'CAKE' will have twice the chance of loading as its votes currently indicate.
+        // ---------------------------
 
         let allWords = [];
         let currentWordIndex = 0;
@@ -870,7 +875,15 @@
 
             let totalWeight = 0;
             const weightedWords = wordPool.map(w => {
-                const weight = 1.0 / (w.totalVotes + 1);
+                // Base weight calculation: 1 / (totalVotes + 1)
+                let weight = 1.0 / (w.totalVotes + 1);
+                
+                // --- NEW: Apply boost for the specified word ---
+                if (allWords[w.index].text.toUpperCase() === BOOSTED_WORD) {
+                    weight *= BOOST_FACTOR;
+                }
+                // ---------------------------------------------
+
                 totalWeight += weight;
                 return { index: w.index, weight: weight };
             });
