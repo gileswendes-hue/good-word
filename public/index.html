@@ -206,7 +206,9 @@
             position: relative;
         }
 
-        /* ENHANCED Snow Falling Effect (More layers, sizes, and movement) */
+        /* * ENHANCED Snow Falling Effect - LAYER 1 (::before)
+         * Simulates small, fast, far-away snow. High density.
+         */
         .theme-winter body::before {
             content: '';
             position: fixed;
@@ -215,26 +217,60 @@
             width: 100%;
             height: 100%;
             pointer-events: none; 
+            /* FIVE LAYERS: Small, Fast, Dense */
             background-image: 
-                /* Fast, small, less opaque flakes (far away) */
-                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 8 8"><circle cx="4" cy="4" r="1" fill="rgba(255,255,255,0.7)"/></svg>'),
-                /* Medium speed, medium size, medium opacity flakes */
-                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 15 15"><circle cx="7.5" cy="7.5" r="1.5" fill="rgba(255,255,255,0.9)"/></svg>'),
-                /* Slow, large, most opaque flakes (close up) */
-                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="15" r="2.5" fill="rgba(255,255,255,1)"/></svg>');
-            background-size: 8px 8px, 15px 15px, 30px 30px;
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="6" height="6" viewBox="0 0 6 6"><circle cx="3" cy="3" r="0.8" fill="rgba(255,255,255,0.5)"/></svg>'),
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10"><circle cx="5" cy="5" r="1.2" fill="rgba(255,255,255,0.7)"/></svg>'),
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="1.5" fill="rgba(255,255,255,0.8)"/></svg>'),
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="1.8" fill="rgba(255,255,255,0.9)"/></svg>'),
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22"><circle cx="11" cy="11" r="2.2" fill="rgba(255,255,255,1)"/></svg>');
+            background-size: 6px 6px, 10px 10px, 14px 14px, 18px 18px, 22px 22px;
             background-repeat: repeat; 
-            animation: snowing 12s linear infinite; 
+            animation: snowing 12s linear infinite; /* All layers use one animation */
+            z-index: -1;
+        }
+
+        /* * ENHANCED Snow Falling Effect - LAYER 2 (::after)
+         * Simulates larger, slower, closer snow for strong parallax.
+         */
+        .theme-winter body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; 
+            /* THREE LAYERS: Large, Slow, Close */
+            background-image:
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="15" r="2.5" fill="rgba(255,255,255,1)"/></svg>'),
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="3.5" fill="rgba(255,255,255,0.95)"/></svg>'),
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 50 50"><circle cx="25" cy="25" r="4.5" fill="rgba(255,255,255,0.9)"/></svg>');
+            background-size: 30px 30px, 40px 40px, 50px 50px;
+            background-repeat: repeat;
+            animation: snowing-slow 20s linear infinite; /* Slower animation for parallax */
             z-index: -1;
         }
 
         @keyframes snowing {
             0% { 
+                /* Match the number of background layers in ::before */
+                background-position: 0% 0%, 0% 0%, 0% 0%, 0% 0%, 0% 0%; 
+            }
+            100% { 
+                /* Clear vertical drop (100%) with slight horizontal drift */
+                background-position: 5% 100%, 8% 100%, 3% 100%, 10% 100%, 7% 100%; 
+            }
+        }
+
+        @keyframes snowing-slow {
+            0% { 
+                /* Match the number of background layers in ::after */
                 background-position: 0% 0%, 0% 0%, 0% 0%; 
             }
             100% { 
-                /* Layers move at different speeds and drifts */
-                background-position: 10% 100%, 5% 100%, 0% 100%; 
+                /* Clear vertical drop (100%) with heavier horizontal drift */
+                background-position: 15% 100%, 12% 100%, 18% 100%; 
             }
         }
         
