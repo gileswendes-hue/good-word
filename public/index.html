@@ -305,12 +305,12 @@
 
 
     <div class="version-indicator">
-        v3.6.6 | Made by Gilxs in 12,025
+        v3.6.7 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.6.6'; 
+        const APP_VERSION = '3.6.7'; 
 
         let allWords = [];
         let currentWordIndex = 0;
@@ -789,10 +789,36 @@
                 const result = await response.json();
 
                 if (!response.ok) {
-                    // This error path should only be for true network/server issues now
+                    if (response.status === 403) {
+                       // FIX: Silently treat a 403 (Already Voted) as a successful action that cycles the word.
+                       // This handles race conditions where the user clicks before the word cycles.
+                       console.warn("Server reported already voted (403). Forcing word change.");
+                       
+                       // 1. Manually remove the word from the client state.
+                       allWords.splice(currentWordIndex, 1);
+                       
+                       // 2. Re-enable buttons and reset streak.
+                       goodButton.disabled = false;
+                       badButton.disabled = false;
+                       notWordButton.disabled = false;
+                       voteStreak = 0; 
+                       
+                       // 3. Cycle word, using transition if appropriate.
+                       if (voteType === 'good' || voteType === 'bad') {
+                           setTimeout(() => {
+                               nextWord(); 
+                               fetchWords(false); 
+                           }, transitionDuration);
+                       } else {
+                           nextWord();
+                           fetchWords(false);
+                       }
+                       
+                       return; // Exit the function gracefully to prevent error message
+                    }
                     throw new Error(result.message || "Failed to register vote.");
                 } else {
-                    // SUCCESS PATH
+                    // SUCCESS PATH (Existing logic)
                     
                     // 1. Remove the word from the active pool and track it
                     votedWordIds.push(wordId);
