@@ -121,11 +121,17 @@
 
         /* NEW Keyframes for hue rotation */
         @keyframes rainbow-hue-animation {
-            0% { filter: hue-rotate(0deg); }
-            100% { filter: hue-rotate(360deg); }
+            0% { 
+                -webkit-filter: hue-rotate(0deg); /* ADDED VENDOR PREFIX */
+                filter: hue-rotate(0deg); 
+            }
+            100% { 
+                -webkit-filter: hue-rotate(360deg); /* ADDED VENDOR PREFIX */
+                filter: hue-rotate(360deg); 
+            }
         }
 
-        /* 1. RAINBOW THEME (FIX: Now uses ANIMATED position AND HUE ROTATION) */
+        /* 1. RAINBOW THEME (FIX: Now uses ANIMATED position AND HUE ROTATION with vendor prefixes) */
         body.theme-rainbow {
             background: linear-gradient(-45deg, 
                 #ff0000,   /* Red */
@@ -139,6 +145,9 @@
             background-size: 1000% 1000% !important; 
             /* Combines background position movement and filter hue rotation */
             animation: 
+                rainbow-body-animation 5s linear infinite !important, 
+                rainbow-hue-animation 10s linear infinite !important; 
+            -webkit-animation: /* ADDED VENDOR PREFIX */
                 rainbow-body-animation 5s linear infinite !important, 
                 rainbow-hue-animation 10s linear infinite !important; 
         }
@@ -160,8 +169,14 @@
             animation: rainbow-text 5s ease infinite;
         }
         @keyframes rainbow-text {
-            0% { filter: hue-rotate(0deg); }
-            100% { filter: hue-rotate(360deg); }
+            0% { 
+                -webkit-filter: hue-rotate(0deg); /* ADDED VENDOR PREFIX */
+                filter: hue-rotate(0deg); 
+            }
+            100% { 
+                -webkit-filter: hue-rotate(360deg); /* ADDED VENDOR PREFIX */
+                filter: hue-rotate(360deg); 
+            }
         }
         .theme-rainbow .card {
             background-color: rgba(255, 255, 255, 0.7); /* Slightly more transparent */
