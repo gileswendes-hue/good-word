@@ -380,8 +380,8 @@
         
         // Anti-mashing logic variables
         let voteStreak = 0;
-        const MASH_LIMIT = 3; // Reduced from 10 to make it more sensitive
-        const COOLDOWN_SECONDS = 30; // Increased from 10s for stronger deterrent
+        const MASH_LIMIT = 3; 
+        const COOLDOWN_SECONDS = 30; 
         const STREAK_WINDOW_MS = 1000; 
         let cooldownTimer = null;
         let isCoolingDown = false;
@@ -400,7 +400,7 @@
         const RAINBOW_STR = 'RAINBOW|GAY|SPARKLE|COLOUR|PRIDE|UNICORN|PROUD|QUEER|GLITTER|LESBIAN';
         const DARK_REVERSED_STR = 'THGINDIM!KCALB!EDAHS!HTOG!WODAHS!AJNIN!KRAD!THGIN!HTLAETS'; 
         const BANANA_STR = 'BANANA,BANANAS,PLANTAIN,YELLOW';
-        const WINTER_STR = 'WINTER|XMAS|SNOW|SNOWMAN|CHRISTMAS'; // New theme
+        const WINTER_STR = 'WINTER|XMAS|SNOW|SNOWMAN|CHRISTMAS'; 
 
         const THEME_WORDS = {
             'rainbow': RAINBOW_STR.split('|'),
@@ -852,7 +852,7 @@
             }
 
             const currentWord = allWords[currentWordIndex];
-            // CRITICAL FIX: Ensure currentWord exists before continuing
+            // CRITICAL FIX: Ensure currentWord exists before continuing to prevent the "_id" or "goodVotes" undefined errors
             if (!currentWord) {
                 console.error("Attempted vote on undefined word. Fetching new words.");
                 fetchWords(true); 
