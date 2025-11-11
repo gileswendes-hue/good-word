@@ -246,44 +246,44 @@
             background-repeat: repeat;
         }
 
-        /* Layer 1: Fine, faster, random snow - Multi-gradient for randomness and sparse effect */
+        /* Layer 1: Fine, faster, random snow - Multi-gradient for randomness and sparse effect (Bolder) */
         .theme-winter #snow-effect::before {
-            /* Multiple randomly positioned small, white dots within a large tile */
+            /* Increased radii for bolder look: 3px->4px, 4px->5px, 5px->6px */
             background-image: 
-                radial-gradient(3px 3px at 5% 10%, #fff, transparent),
-                radial-gradient(4px 4px at 95% 40%, #fff, transparent),
-                radial-gradient(3px 3px at 30% 70%, #fff, transparent),
-                radial-gradient(5px 5px at 60% 95%, #fff, transparent),
-                radial-gradient(3px 3px at 15% 55%, #fff, transparent),
-                radial-gradient(4px 4px at 75% 20%, #fff, transparent),
-                radial-gradient(3px 3px at 45% 5%, #fff, transparent),
-                radial-gradient(5px 5px at 85% 85%, #fff, transparent);
+                radial-gradient(4px 4px at 5% 10%, #fff, transparent),
+                radial-gradient(5px 5px at 95% 40%, #fff, transparent),
+                radial-gradient(4px 4px at 30% 70%, #fff, transparent),
+                radial-gradient(6px 6px at 60% 95%, #fff, transparent),
+                radial-gradient(4px 4px at 15% 55%, #fff, transparent),
+                radial-gradient(5px 5px at 75% 20%, #fff, transparent),
+                radial-gradient(4px 4px at 45% 5%, #fff, transparent),
+                radial-gradient(6px 6px at 85% 85%, #fff, transparent);
                 
             /* Large, shared background size for the 8 dots to break the grid */
             background-size: 300px 350px, 300px 350px, 300px 350px, 300px 350px, 300px 350px, 300px 350px, 300px 350px, 300px 350px;
             
-            opacity: 0.5; /* Slightly less opaque to be further away */
+            opacity: 0.6; /* Slightly increased opacity */
             animation: snowfall-1 50s linear infinite; /* Slower */
             animation-delay: -5s; /* Random start */
         }
 
-        /* Layer 2: Larger, slower, random snow - Multi-gradient for randomness and sparse effect */
+        /* Layer 2: Larger, slower, random snow - Multi-gradient for randomness and sparse effect (Bolder) */
         .theme-winter #snow-effect::after {
-            /* Multiple randomly positioned larger, white dots within an even larger tile */
+            /* Increased radii for bolder look: 6px->7px, 7px->8px, 8px->9px */
             background-image: 
-                radial-gradient(6px 6px at 20% 5%, #fff, transparent),
-                radial-gradient(7px 7px at 70% 35%, #fff, transparent),
-                radial-gradient(6px 6px at 40% 80%, #fff, transparent),
-                radial-gradient(8px 8px at 90% 60%, #fff, transparent),
-                radial-gradient(6px 6px at 10% 95%, #fff, transparent),
-                radial-gradient(7px 7px at 55% 25%, #fff, transparent),
-                radial-gradient(6px 6px at 25% 45%, #fff, transparent),
-                radial-gradient(8px 8px at 80% 15%, #fff, transparent);
+                radial-gradient(7px 7px at 20% 5%, #fff, transparent),
+                radial-gradient(8px 8px at 70% 35%, #fff, transparent),
+                radial-gradient(7px 7px at 40% 80%, #fff, transparent),
+                radial-gradient(9px 9px at 90% 60%, #fff, transparent),
+                radial-gradient(7px 7px at 10% 95%, #fff, transparent),
+                radial-gradient(8px 8px at 55% 25%, #fff, transparent),
+                radial-gradient(7px 7px at 25% 45%, #fff, transparent),
+                radial-gradient(9px 9px at 80% 15%, #fff, transparent);
             
             /* Even larger, shared background size for the 8 dots */
             background-size: 500px 600px, 500px 600px, 500px 600px, 500px 600px, 500px 600px, 500px 600px, 500px 600px, 500px 600px;
             
-            opacity: 0.8;
+            opacity: 0.9; /* Slightly increased opacity */
             animation: snowfall-2 75s linear infinite; /* Even slower */
             animation-delay: -30s; /* More random start */
         }
@@ -434,7 +434,8 @@
         const RAINBOW_STR = 'RAINBOW|GAY|SPARKLE|COLOUR|PRIDE|UNICORN|PROUD|QUEER|GLITTER|LESBIAN';
         const DARK_REVERSED_STR = 'THGINDIM!KCALB!EDAHS!HTOG!WODAHS!AJNIN!KRAD!THGIN!HTLAETS'; 
         const BANANA_STR = 'BANANA,BANANAS,PLANTAIN,YELLOW';
-        const WINTER_STR = 'SNOWMAN|SNOW|ICE|WINTER|FROZEN|CHILL|COLD|FLAKE|BLIZZARD|ICICLE|SLEIGH|SNOWBALL'; 
+        // UPDATED WINTER_STR with new words: SCARF, JACKET, SLEDGE, NOVEMBER, DECEMBER, JANUARY, JINGLE
+        const WINTER_STR = 'SNOWMAN|SNOW|ICE|WINTER|FROZEN|CHILL|COLD|FLAKE|BLIZZARD|ICICLE|SLEIGH|SNOWBALL|SCARF|JACKET|SLEDGE|NOVEMBER|DECEMBER|JANUARY|JINGLE'; 
 
         const THEME_WORDS = {
             'rainbow': RAINBOW_STR.split('|'),
@@ -442,7 +443,7 @@
                         .split('!')
                         .map(w => w.split('').reverse().join('')), // Reverses each word
             'banana': BANANA_STR.split(','),
-            'winter': WINTER_STR.split('|') // New theme mapping
+            'winter': WINTER_STR.split('|') 
         };
         // --- END THEME VARIABLES ---
 
