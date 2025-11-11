@@ -93,8 +93,8 @@
             max-width: 100%; 
             padding: 0 1rem; 
             box-sizing: border-box;
-            position: relative; /* Essential for winter theme z-index */
-            z-index: 10;      /* Essential for winter theme z-index */
+            position: relative;
+            z-index: 10;
         }
         #fullRankingsModal {
             max-width: 800px;
@@ -106,8 +106,8 @@
         }
         
         /* --- THEME STYLES --- */
-
-        /* 1. RAINBOW THEME */
+        
+        /* 1. RAINBOW THEME (No change) */
         .theme-rainbow body {
             background: repeating-linear-gradient(45deg, 
                 #f06, 0%, 
@@ -147,43 +147,43 @@
             100% { filter: hue-rotate(360deg); }
         }
         .theme-rainbow .card {
-            background-color: rgba(255, 255, 255, 0.7); /* Slightly more transparent */
+            background-color: rgba(255, 255, 255, 0.7);
         }
 
 
-        /* 2. DARK THEME - MODIFIED TO BE DARKER */
+        /* 2. DARK THEME (No change) */
         .theme-dark body {
-            background: #0d1117; /* Very dark slate */
+            background: #0d1117;
         }
         .theme-dark #gameCard, .theme-dark .card {
-            background-color: rgba(13, 17, 23, 0.95); /* Dark card - matches body */
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.8); /* Stronger shadow */
+            background-color: rgba(13, 17, 23, 0.95);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.8);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
         .theme-dark header .bg-white {
-            background-color: #1f2937 !important; /* Header dark bg */
+            background-color: #1f2937 !important;
             color: #d1d5db;
         }
         .theme-dark header .bg-gray-50 {
-            background-color: #0d1117 !important; /* Header dark bg */
+            background-color: #0d1117 !important;
         }
         .theme-dark #wordDisplay, .theme-dark .text-gray-900 {
-            color: #f3f4f6 !important; /* Light text for word */
+            color: #f3f4f6 !important;
         }
         .theme-dark .text-gray-500, .theme-dark .text-gray-600, .theme-dark .text-gray-800 {
-            color: #9ca3af !important; /* Lighter gray text */
+            color: #9ca3af !important;
         }
         .theme-dark .border-b {
             border-color: #4b5563 !important;
         }
 
 
-        /* 3. BANANA THEME */
+        /* 3. BANANA THEME (No change) */
         .theme-banana body {
-            background: linear-gradient(135deg, #fceb9c 0%, #ffe900 100%); /* Banana yellow */
+            background: linear-gradient(135deg, #fceb9c 0%, #ffe900 100%);
         }
         .theme-banana #wordDisplay {
-            color: #ffd200; /* Slate text */
+            color: #ffd200;
             animation: bounce-word 0.5s ease-out infinite alternate;
         }
         @keyframes bounce-word {
@@ -191,15 +191,17 @@
             to { transform: translateY(-15px); }
         }
         .theme-banana .card {
-            background-color: rgba(255, 255, 153, 0.95); /* Light yellow card */
+            background-color: rgba(255, 255, 153, 0.95);
             border: 2px solid #f4ef81;
         }
         
-        /* 4. WINTER THEME - NEW */
+        /* 4. WINTER THEME - MODIFIED */
         .theme-winter body {
             background: linear-gradient(180deg, #c3dafe 0%, #ffffff 100%); 
-            overflow: hidden; /* Prevent scrollbar from snow */
+            overflow: hidden;
         }
+        
+        /* Snow Falling Effect (Updated) */
         .theme-winter body::before {
             content: '';
             position: fixed;
@@ -207,37 +209,65 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><circle cx="50" cy="50" r="1.5" fill="rgba(255,255,255,0.7)"/></svg>');
-            background-size: 15px 15px;
-            animation: snowing 20s linear infinite;
+            /* Multiple background images for layered falling snow */
+            background-image: 
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10"><circle cx="5" cy="5" r="1" fill="rgba(255,255,255,0.9)"/></svg>'),
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="1.5" fill="rgba(255,255,255,0.7)"/></svg>'),
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="2" fill="rgba(255,255,255,0.5)"/></svg>');
+            background-size: 10px 10px, 20px 20px, 40px 40px;
+            animation: snowing 15s linear infinite;
             z-index: -1;
         }
         @keyframes snowing {
-            0% { background-position: 0% 0%; }
-            100% { background-position: 50% 100%; }
+            0% { 
+                background-position: 0% 0%, 0% 0%, 0% 0%; 
+            }
+            100% { 
+                /* Each layer moves down and slightly right at different speeds */
+                background-position: 5% 100%, 10% 100%, 15% 100%; 
+            }
         }
+        
         .theme-winter .card {
-            background-color: rgba(240, 248, 255, 0.98); /* AliceBlue card */
+            background-color: rgba(240, 248, 255, 0.98);
             border: 1px solid #e0f2fe;
         }
         .theme-winter #wordDisplay {
-            color: #1e40af; /* Dark blue text */
-            text-shadow: 0 0 15px rgba(255, 255, 255, 0.9);
+            color: #1e40af;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.9);
+            /* Reset mask properties for default state */
+            -webkit-mask-image: none;
+            mask-image: none;
         }
         
-        /* Snow Bury Effect */
+        /* Snow Piling Up Effect (New Implementation) */
         .word-snowed {
+            /* Animation to make the gradient mask move */
             animation: snow-bury 4s ease-out forwards;
+            /* Apply the mask to make the text appear to vanish from the bottom up */
+            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, transparent 50%, black 50%, black 100%);
+            mask-image: linear-gradient(to bottom, transparent 0%, transparent 50%, black 50%, black 100%);
+            /* Set initial position to the bottom of the mask */
+            -webkit-mask-size: 100% 200%;
+            mask-size: 100% 200%;
+            -webkit-mask-position: 0% 0%; /* Black (visible) area is at 0% position */
+            mask-position: 0% 0%;
+            transition: color 0.4s ease-out;
+            color: #818cf8; /* Optional: Change color to appear slightly covered */
         }
+
         @keyframes snow-bury {
             0% { 
-                transform: translateY(0); 
-                filter: blur(0px) brightness(1);
+                /* Start: Mask is fully at the bottom, text is fully visible */
+                -webkit-mask-position: 0% 0%; 
+                mask-position: 0% 0%;
             }
             100% { 
-                transform: translateY(50px); /* Move word down */
-                filter: blur(2px) brightness(0.6); /* Blur and darken */
-                opacity: 0.2; /* Fade */
+                /* End: Mask has moved up, revealing 50% of the top transparent section */
+                -webkit-mask-position: 0% 100%;
+                mask-position: 0% 100%;
+                opacity: 0.7; /* Gentle fade for overall "buried" look */
+                text-shadow: 0 0 5px rgba(255, 255, 255, 0.5); /* Subtle change */
             }
         }
 
@@ -378,7 +408,7 @@
         let isCoolingDown = false;
         let lastVoteTime = 0; 
         
-        // Timer to bury the word in snow (NEW)
+        // Timer to bury the word in snow 
         let snowBuryTimer = null; 
 
         // --- THEME VARIABLES: OBFUSCATED USING STRING MANIPULATION ---
@@ -598,12 +628,12 @@
             cakeMessage.classList.add('opacity-0');
             cakeMessage.textContent = ''; 
             
-            // Clear snow bury timer (NEW)
+            // Clear snow bury timer
             if (snowBuryTimer) {
                 clearTimeout(snowBuryTimer);
                 snowBuryTimer = null;
             }
-            wordDisplay.classList.remove('word-snowed'); // (NEW)
+            wordDisplay.classList.remove('word-snowed');
 
             goodButton.disabled = true;
             badButton.disabled = true;
@@ -629,12 +659,12 @@
             cakeMessage.classList.add('opacity-0');
             cakeMessage.textContent = '';
             
-            // Clear snow bury timer (NEW)
+            // Clear snow bury timer
             if (snowBuryTimer) {
                 clearTimeout(snowBuryTimer);
                 snowBuryTimer = null;
             }
-            wordDisplay.classList.remove('word-snowed'); // (NEW)
+            wordDisplay.classList.remove('word-snowed');
         }
         
         function showCooldownMessage(remainingSeconds) {
@@ -650,12 +680,12 @@
             cakeMessage.classList.add('opacity-0');
             cakeMessage.textContent = '';
             
-            // Clear snow bury timer (NEW)
+            // Clear snow bury timer
             if (snowBuryTimer) {
                 clearTimeout(snowBuryTimer);
                 snowBuryTimer = null;
             }
-            wordDisplay.classList.remove('word-snowed'); // (NEW)
+            wordDisplay.classList.remove('word-snowed');
         }
 
         /**
@@ -670,7 +700,7 @@
             
             const wordText = currentWord.text.toUpperCase();
             
-            // Clear any lingering word-transition or snow-bury classes/timers (UPDATED)
+            // Clear any lingering word-transition or snow-bury classes/timers
             wordDisplay.classList.remove('word-transition-good', 'word-transition-bad', 'word-snowed');
             if (snowBuryTimer) {
                 clearTimeout(snowBuryTimer);
@@ -682,18 +712,21 @@
             // Re-apply base class
             wordDisplay.className = 'font-extrabold text-gray-900 mb-8 text-center min-h-[72px]';
             
-            // Reset theme-specific word styling before sizing (UPDATED)
+            // Reset theme-specific word styling before sizing 
             wordDisplay.style.background = '';
             wordDisplay.style.webkitBackgroundClip = '';
             wordDisplay.style.webkitTextFillColor = '';
             wordDisplay.style.color = '#111827'; 
             wordDisplay.style.animation = '';
             wordDisplay.style.transform = '';
-            wordDisplay.style.textShadow = ''; // NEW
-            wordDisplay.style.filter = ''; // NEW
-            wordDisplay.style.opacity = '1'; // NEW
+            wordDisplay.style.textShadow = '';
+            wordDisplay.style.filter = '';
+            wordDisplay.style.opacity = '1';
+            // Reset mask properties
+            wordDisplay.style.webkitMaskImage = 'none';
+            wordDisplay.style.maskImage = 'none';
             
-            // Adjust base color for dark theme (UPDATED)
+            // Adjust base color for dark theme
             if (currentTheme === 'dark') {
                 wordDisplay.style.color = '#f3f4f6';
             } else if (currentTheme === 'winter') {
@@ -718,7 +751,7 @@
             wordDisplay.style.fontSize = `${finalFontSize}px`;
             wordDisplay.style.whiteSpace = 'normal'; 
             
-            // Re-apply theme-specific word styling after sizing (UPDATED)
+            // Re-apply theme-specific word styling after sizing
             if (currentTheme === 'banana') {
                 wordDisplay.style.transform = 'translateY(0)';
                 wordDisplay.style.animation = 'bounce-word 0.5s ease-out infinite alternate';
@@ -729,7 +762,7 @@
                 wordDisplay.style.webkitTextFillColor = 'transparent';
                 wordDisplay.style.color = 'transparent';
                 wordDisplay.style.animation = 'rainbow-text 5s ease infinite';
-            } else if (currentTheme === 'winter') { // NEW WINTER THEME LOGIC
+            } else if (currentTheme === 'winter') {
                 wordDisplay.style.textShadow = '0 0 15px rgba(255, 255, 255, 0.9)';
                 // Set the snow bury effect timeout
                 snowBuryTimer = setTimeout(() => {
@@ -807,7 +840,7 @@
         function nextWord() {
             if (allWords.length === 0) return;
             
-            // Clear snow bury timer on word change (NEW)
+            // Clear snow bury timer on word change
             if (snowBuryTimer) {
                 clearTimeout(snowBuryTimer);
                 snowBuryTimer = null;
@@ -905,7 +938,7 @@
             badButton.disabled = true;
             notWordButton.disabled = true;
             
-            // Clear snow bury timer on vote (NEW)
+            // Clear snow bury timer on vote
             if (snowBuryTimer) {
                 clearTimeout(snowBuryTimer);
                 snowBuryTimer = null;
@@ -1020,7 +1053,7 @@
             const topBad = [...rankedWords]
                 .sort((a, b) => {
                     if (a.score !== b.score) return a.score - b.score;
-                    return (b.good + b.bad) - (a.good + a.bad);
+                    return (b.good + b.bad) - (a.good + a.ad);
                 })
                 .slice(0, limit);
                 
