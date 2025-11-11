@@ -133,7 +133,8 @@
 
         /* 1. RAINBOW THEME (FIX: Now uses ANIMATED position AND HUE ROTATION with vendor prefixes) */
         body.theme-rainbow {
-            background: linear-gradient(-45deg, 
+            /* FIX: Split background shorthand into background-image to prevent conflict with animation and size */
+            background-image: linear-gradient(-45deg, 
                 #ff0000,   /* Red */
                 #ff7f00,  /* Orange */
                 #ffff00,  /* Yellow */
@@ -143,6 +144,7 @@
                 #9400d3   /* Violet */
             ) !important; 
             background-size: 1000% 1000% !important; 
+            
             /* Combines background position movement and filter hue rotation */
             animation: 
                 rainbow-body-animation 5s linear infinite !important, 
