@@ -9,7 +9,6 @@
     <style>
         body { 
             font-family: 'Inter', sans-serif; 
-            /* Default theme background: MOVED TO body.theme-default */
         }
         /* Base styling for all cards (now excludes #gameCard's default look) */
         .card { 
@@ -21,11 +20,6 @@
             position: relative; 
             z-index: 10;
         }
-        /* Removed hover from #gameCard to avoid conflict with rainbow frame */
-        /* #gameCard:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
-        } */
         
         /* Base button styles */
         .good-button { background: linear-gradient(145deg, #10b981, #059669); }
@@ -117,7 +111,7 @@
 
         /* Base Card and Ranking Card (Only the outer frame is applied here now) */
         .theme-rainbow .card, .theme-rainbow .ranking-card {
-            background-color: transparent; /* Card itself is transparent */
+            background-color: transparent; 
             backdrop-filter: none; 
             box-shadow: none; 
             border: none;
@@ -125,10 +119,9 @@
             z-index: 10; 
         }
         
-        /* New: Thin Frame Class applied to #gameCard and .ranking-frame */
+        /* Thin Frame Class applied to #gameCard and .ranking-frame */
         .theme-rainbow .thin-rainbow-frame {
             position: relative;
-            /* Thin outer border effect */
             background-color: #fff; 
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
         }
@@ -137,7 +130,7 @@
         .theme-rainbow .thin-rainbow-frame::before {
             content: '';
             position: absolute;
-            inset: -3px; /* Smaller inset for thinner border */
+            inset: -3px; 
             border-radius: 1.25rem; 
             background: linear-gradient(
                 45deg, 
@@ -152,7 +145,6 @@
         .theme-rainbow .thin-rainbow-frame::after {
             content: '';
             position: absolute;
-            /* Smaller inset to create a thinner white area/border */
             inset: -1px; 
             border-radius: 1.1rem; 
             background-color: #ffffff; 
@@ -161,15 +153,13 @@
         
         /* Main Game Card Layout Adjustments */
         .theme-rainbow #gameCard {
-            /* Apply the thin frame class */
-            padding: 1.5rem; /* Padding for the inner content to push away from the frame */
+            padding: 1.5rem; 
         }
 
-        /* --- WORD DISPLAY --- */
         .theme-rainbow #wordFrame {
-            padding: 0; /* Clear internal padding */
+            padding: 0; 
             background-color: transparent; 
-            margin-bottom: 1.5rem; /* Reduced margin */
+            margin-bottom: 1.5rem; 
         }
         
         .theme-rainbow #wordDisplay {
@@ -180,50 +170,65 @@
             animation: rainbow-text 5s ease infinite;
             margin-bottom: 0 !important;
             padding: 0 0.5rem; 
-            line-height: 1; /* Helps with vertical centering */
+            line-height: 1; 
         }
 
-        /* --- BUTTON STYLES INSIDE RAINBOW FRAME --- */
-        /* Make buttons look better against the white inner background */
         .theme-rainbow #goodButton, 
         .theme-rainbow #badButton, 
         .theme-rainbow #notWordButton {
             z-index: 10; 
-            /* Remove shadows that clash with the frame */
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); 
         }
 
         /* --- RANKING FRAME STYLES --- */
         .theme-rainbow .ranking-frame {
-            /* Apply the thin frame class */
             padding: 0.75rem; 
             margin-top: 0.5rem;
             margin-bottom: 0.5rem;
         }
 
-        /* 2. DARK THEME */
+        /* 2. DARK THEME - RE-FIXED AESTHETICS */
         body.theme-dark {
             background: #121212 !important; 
         }
-        /* Ensure #gameCard looks like a card in dark theme when the frame is removed */
+        /* RE-APPLY CARD STYLING TO #gameCard in dark mode, overriding transparent styles */
         .theme-dark #gameCard {
-            background-color: rgba(18, 18, 18, 0.95); 
+            background-color: rgba(18, 18, 18, 0.95) !important; /* Force dark background */
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5) !important;
+            border: 1px solid rgba(255, 255, 255, 0.05) !important;
+            padding: 2rem !important; /* Restore default padding */
+        }
+        .theme-dark .card, .theme-dark .ranking-card {
+            background-color: rgba(18, 18, 18, 0.95); /* Dark background for ranking containers */
             box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
             border: 1px solid rgba(255, 255, 255, 0.05);
-            padding: 2rem; /* Restore default padding */
         }
         /* Dark Theme on the thin frame elements when applicable (Rankings) */
         .theme-dark .thin-rainbow-frame {
             background-color: #212121; /* Dark inner background */
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1); /* Add a subtle border */
         }
         .theme-dark .thin-rainbow-frame::after { 
             background-color: #212121 !important;
         }
-        .theme-dark #wordDisplay {
+        .theme-dark header .bg-white {
+            background-color: #374151 !important; 
+            color: #d1d5db;
+        }
+        .theme-dark header .bg-gray-50 {
+            background-color: #121212 !important; 
+        }
+        .theme-dark #wordDisplay, .theme-dark .text-gray-900, .theme-dark .rank-item .text-gray-800 {
             color: #f3f4f6 !important; 
         }
-        /* ... (rest of dark theme styles) ... */
+        .theme-dark .text-gray-500, .theme-dark .text-gray-600, .theme-dark .text-gray-800 {
+            color: #9ca3af !important; 
+        }
+        .theme-dark .border-b {
+            border-color: #4b5563 !important;
+        }
+
 
         /* 3. BANANA THEME */
         body.theme-banana {
@@ -238,12 +243,13 @@
             to { transform: translateY(-15px); }
         }
         .theme-banana #gameCard {
-            background-color: rgba(248, 244, 178, 0.95); 
-            border: 2px solid #f4ef81;
-            padding: 2rem; /* Restore default padding */
+            background-color: rgba(248, 244, 178, 0.95) !important; /* Force background */
+            border: 2px solid #f4ef81 !important;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15) !important;
+            padding: 2rem !important; /* Restore default padding */
         }
         
-        /* 4. WINTER THEME */
+        /* 4. WINTER THEME - FIXED SNOW */
         body.theme-winter {
             background: linear-gradient(135deg, #e0f7fa 0%, #b3e5fc 100%) !important; 
         }
@@ -252,25 +258,83 @@
             text-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
         }
         .theme-winter #gameCard {
-            background-color: rgba(255, 255, 255, 0.9);
-            border: 2px solid #81d4fa; 
-            box-shadow: 0 15px 40px rgba(179, 229, 252, 0.5);
-            padding: 2rem; /* Restore default padding */
+            background-color: rgba(255, 255, 255, 0.9) !important; /* Force background */
+            border: 2px solid #81d4fa !important; 
+            box-shadow: 0 15px 40px rgba(179, 229, 252, 0.5) !important;
+            padding: 2rem !important; /* Restore default padding */
         }
         
-        /* SNOW EFFECT STYLES (Kept for completeness) */
-        /* ... (snow effect keyframes and styles) ... */
+        /* SNOW EFFECT STYLES */
+        
+        @keyframes snowfall-1 {
+            0% { transform: translate3d(0vw, -100vh, 0); }
+            100% { transform: translate3d(10vw, 100vh, 0); } 
+        }
+
+        @keyframes snowfall-2 {
+            0% { transform: translate3d(0vw, -100vh, 0); }
+            100% { transform: translate3d(-15vw, 100vh, 0); }
+        }
+
+        /* Snow container is now always present but JS controls the `hidden` class */
+        .theme-winter #snow-effect {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            z-index: 40; 
+            pointer-events: none;
+        }
+
+        .theme-winter #snow-effect::before,
+        .theme-winter #snow-effect::after {
+            content: '';
+            position: absolute;
+            top: -100vh; 
+            left: 0;
+            width: 100%;
+            height: 200%; 
+            background-repeat: repeat;
+        }
+
+        .theme-winter #snow-effect::before {
+            background-image: 
+                radial-gradient(4px 4px at 5% 10%, #fff, transparent),
+                radial-gradient(5px 5px at 95% 40%, #fff, transparent),
+                radial-gradient(4px 4px at 30% 70%, #fff, transparent),
+                radial-gradient(6px 6px at 60% 95%, #fff, transparent),
+                radial-gradient(4px 4px at 15% 55%, #fff, transparent),
+                radial-gradient(5px 5px at 75% 20%, #fff, transparent),
+                radial-gradient(4px 4px at 45% 5%, #fff, transparent),
+                radial-gradient(6px 6px at 85% 85%, #fff, transparent);
+                
+            background-size: 300px 350px, 300px 350px, 300px 350px, 300px 350px, 300px 350px, 300px 350px, 300px 350px, 300px 350px;
+            
+            opacity: 0.6; 
+            animation: snowfall-1 50s linear infinite; 
+            animation-delay: -5s; 
+        }
+
+        .theme-winter #snow-effect::after {
+            background-image: 
+                radial-gradient(7px 7px at 20% 5%, #fff, transparent),
+                radial-gradient(8px 8px at 70% 35%, #fff, transparent),
+                radial-gradient(7px 7px at 40% 80%, #fff, transparent),
+                radial-gradient(9px 9px at 90% 60%, #fff, transparent),
+                radial-gradient(7px 7px at 10% 95%, #fff, transparent),
+                radial-gradient(8px 8px at 55% 25%, #fff, transparent),
+                radial-gradient(7px 7px at 25% 45%, #fff, transparent),
+                radial-gradient(9px 9px at 80% 15%, #fff, transparent);
+            
+            background-size: 500px 600px, 500px 600px, 500px 600px, 500px 600px, 500px 600px, 500px 600px, 500px 600px, 500px 600px;
+            
+            opacity: 0.9; 
+            animation: snowfall-2 75s linear infinite; 
+            animation-delay: -30s; 
+        }
     </style>
-    <script>
-        // NOTE: The inline script remains exactly the same as the previous step,
-        // but the `displayCurrentWord` function needed a minor tweak to the
-        // `rainbow` theme logic to account for the new structure.
-
-        // Since the main card framing is now done in CSS using .thin-rainbow-frame, 
-        // the JS only needs to adjust for the padding and button states.
-
-        // ... (rest of the script) ...
-    </script>
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen p-4 theme-default">
 
@@ -300,7 +364,7 @@
         </div>
     </header>
 
-    <main id="gameCard" class="thin-rainbow-frame p-8 w-full max-w-sm flex flex-col items-center rounded-2xl">
+    <main id="gameCard" class="card p-8 w-full max-w-sm flex flex-col items-center rounded-2xl">
         
         <div id="wordFrame" class="w-full text-center rounded-xl mb-8">
             <div id="wordDisplay" class="font-extrabold text-gray-900 text-center min-h-[72px]">
@@ -408,8 +472,7 @@
         
         // --- NEW BOOST CONSTANTS ---
         const BOOSTED_WORD = 'CAKE';
-        const BOOST_FACTOR = 2.0; // The word 'CAKE' will have twice the chance of loading as its votes currently indicate.
-        // ---------------------------
+        const BOOST_FACTOR = 2.0; 
 
         let allWords = [];
         let currentWordIndex = 0;
@@ -428,30 +491,28 @@
         let currentTheme = localStorage.getItem('currentTheme') || 'default';
         let unlockedThemes = JSON.parse(localStorage.getItem('unlockedThemes')) || [];
         
-        // Obfuscated strings, decoded and reconstructed at runtime
-        const RAINBOW_STR = 'RAINBOW|GAY|SPARKLE|COLOUR|PRIDE|UNICORN|PROUD|QUEER|GLITTER|LESBIAN|TINSEL'; // Added TINSEL
+        const RAINBOW_STR = 'RAINBOW|GAY|SPARKLE|COLOUR|PRIDE|UNICORN|PROUD|QUEER|GLITTER|LESBIAN|TINSEL';
         const DARK_REVERSED_STR = 'THGINDIM!KCALB!EDAHS!HTOG!WODAHS!AJNIN!KRAD!THGIN!HTLAETS'; 
-        const BANANA_STR = 'BANANA,BANANAS,PLANTAIN,YELLOW,SPLIT,MONKEY'; // Added SPLIT, MONKEY
-        // UPDATED WINTER_STR with new words: SCARF, JACKET, SLEDGE, NOVEMBER, DECEMBER, JANUARY, JINGLE
+        const BANANA_STR = 'BANANA,BANANAS,PLANTAIN,YELLOW,SPLIT,MONKEY';
         const WINTER_STR = 'SNOWMAN|SNOW|ICE|WINTER|FROZEN|CHILL|COLD|FLAKE|BLIZZARD|ICICLE|SLEIGH|SNOWBALL|SCARF|JACKET|SLEDGE|NOVEMBER|DECEMBER|JANUARY|JINGLE'; 
 
         const THEME_WORDS = {
             'rainbow': RAINBOW_STR.split('|'),
             'dark': DARK_REVERSED_STR
                         .split('!')
-                        .map(w => w.split('').reverse().join('')), // Reverses each word
+                        .map(w => w.split('').reverse().join('')), 
             'banana': BANANA_STR.split(','),
             'winter': WINTER_STR.split('|') 
         };
         // --- END THEME VARIABLES ---
 
-        const wordFrame = document.getElementById('wordFrame'); // NEW: Word Frame
+        const wordFrame = document.getElementById('wordFrame'); 
         const wordDisplay = document.getElementById('wordDisplay');
         const cakeMessage = document.getElementById('cakeMessage');
         const goodButton = document.getElementById('goodButton');
         const badButton = document.getElementById('badButton');
         const notWordButton = document.getElementById('notWordButton');
-        const gameCard = document.getElementById('gameCard'); // New reference to main card
+        const gameCard = document.getElementById('gameCard'); 
         const goodTotal = document.getElementById('goodTotal');
         const badTotal = document.getElementById('badTotal');
         const wordCount = document.getElementById('wordCount');
@@ -465,7 +526,6 @@
         const customWordButton = document.getElementById('customWordButton');
         const versionIndicator = document.querySelector('.version-indicator');
         const awardBadge = document.getElementById('awardBadge');
-        // NEW CAKE BADGE ELEMENT
         const cakeBadge = document.getElementById('cakeBadge'); 
         const showTop100Button = document.getElementById('showTop100Button');
         const fullRankingsModalContainer = document.getElementById('fullRankingsModalContainer');
@@ -473,11 +533,9 @@
         const fullGoodRankingsDiv = document.getElementById('fullGoodRankings');
         const fullBadRankingsDiv = document.getElementById('fullBadRankings');
         
-        // --- NEW THEME CHOOSER ELEMENTS ---
         const themeChooser = document.getElementById('themeChooser');
         const themeUnlockHint = document.getElementById('themeUnlockHint');
-        const snowEffect = document.getElementById('snow-effect'); // ADDED ELEMENT FOR SNOW EFFECT
-        // --- END NEW THEME CHOOSER ELEMENTS ---
+        const snowEffect = document.getElementById('snow-effect'); 
 
 
         function init() {
@@ -508,53 +566,41 @@
                 }
             });
             
-            // NEW CAKE BADGE LISTENER
             cakeBadge.addEventListener('click', loadCakeWord);
 
-            // --- NEW THEME CHOOSER LISTENER ---
             themeChooser.addEventListener('change', (e) => {
                 applyTheme(e.target.value);
-                // Re-display current word to apply new theme's text styles
                 if (allWords.length > 0) {
                     displayCurrentWord(allWords[currentWordIndex]);
                 }
             });
-            // --- END NEW THEME CHOOSER LISTENER ---
-
 
             fetchWords();
             updateAwardBadge();
-            populateThemeChooser(); // Populate the dropdown on init
-            applyTheme(currentTheme); // Apply theme on init
+            populateThemeChooser(); 
+            applyTheme(currentTheme); 
             
             window.addEventListener('resize', () => {
                 if (allWords.length > 0) {
-                    // Re-display the current word to resize it
                     displayCurrentWord(allWords[currentWordIndex]); 
                 }
             });
         }
         
-        // NEW FUNCTION TO LOAD CAKE WORD
         function loadCakeWord() {
             const cakeWord = allWords.find(w => w.text.toUpperCase() === 'CAKE');
             if (cakeWord) {
-                // Find its index to set it as the current word
                 const newIndex = allWords.findIndex(w => w.text.toUpperCase() === 'CAKE');
                 if (newIndex !== -1) {
                     currentWordIndex = newIndex;
                 }
-                // Display it and force button re-enable
                 displayCurrentWord(cakeWord);
             }
         }
 
-        // --- THEME CHOOSER FUNCTIONS ---
         function populateThemeChooser() {
-            // Start with the default option already in the HTML
             themeChooser.innerHTML = '<option value="default">Default</option>'; 
 
-            // Get a list of unique theme keys, excluding 'default'
             const availableThemes = [...new Set(unlockedThemes)].sort();
 
             availableThemes.forEach(themeKey => {
@@ -565,31 +611,30 @@
                 themeChooser.appendChild(option);
             });
             
-            // Set the current theme as selected in the dropdown
             themeChooser.value = currentTheme;
             
-            // Update the hint text
             if (availableThemes.length > 0) {
                 themeUnlockHint.textContent = `You have ${availableThemes.length} themes unlocked!`;
             } else {
                 themeUnlockHint.textContent = `Vote on special words to unlock new themes!`;
             }
         }
-        // --- END THEME CHOOSER FUNCTIONS ---
 
-        // --- THEME FUNCTIONALITY ---
+        /**
+         * Applies the selected theme and manages structural classes on gameCard.
+         */
         function applyTheme(theme) {
-            // 1. Remove ALL existing theme classes (e.g., theme-rainbow, theme-dark, theme-default)
+            // 1. Remove ALL existing theme classes
             document.body.className = document.body.className.split(' ').filter(c => !c.startsWith('theme-')).join(' ');
 
-            // 2. Add the correct theme class, explicitly including 'default'
+            // 2. Add the correct theme class
             const themeToApply = theme === 'default' ? 'default' : theme;
             document.body.classList.add(`theme-${themeToApply}`);
 
             currentTheme = theme;
             localStorage.setItem('currentTheme', theme);
             
-            // 3. Manage snow effect visibility
+            // 3. Manage snow effect visibility (FIXED: The element is now controlled by JS)
             if (theme === 'winter') {
                 if (snowEffect) snowEffect.classList.remove('hidden');
             } else {
@@ -599,12 +644,12 @@
             // 4. Handle the structural changes for the main card based on theme
             if (theme === 'rainbow') {
                 gameCard.classList.add('thin-rainbow-frame');
-                // Remove the default card styling classes if present (though they shouldn't be now)
+                // Remove base card styling
                 gameCard.classList.remove('card', 'p-8');
-                gameCard.classList.add('p-6'); // Use smaller padding defined in CSS
+                gameCard.classList.add('p-6'); 
             } else {
                 gameCard.classList.remove('thin-rainbow-frame');
-                // Restore default card styling classes 
+                // Restore base card styling (the theme CSS handles specific overrides for dark/winter/banana)
                 gameCard.classList.add('card', 'p-8');
                 gameCard.classList.remove('p-6');
             }
@@ -615,7 +660,6 @@
             let newThemeToUnlock = null;
             let themeWasNewlyUnlocked = false;
 
-            // Check against all theme trigger words
             for (const [themeKey, triggerWords] of Object.entries(THEME_WORDS)) {
                 if (triggerWords.includes(upperWord)) {
                     newThemeToUnlock = themeKey;
@@ -625,33 +669,22 @@
             
             if (newThemeToUnlock) {
                 if (!unlockedThemes.includes(newThemeToUnlock)) {
-                    // Unlock the theme
                     unlockedThemes.push(newThemeToUnlock);
                     localStorage.setItem('unlockedThemes', JSON.stringify(unlockedThemes));
                     themeWasNewlyUnlocked = true;
                     
-                    // Immediately switch to the newly unlocked theme
                     applyTheme(newThemeToUnlock);
                     populateThemeChooser();
                     
-                    // Return true to trigger the "unlocked" message
                     return true;
                 } else if (currentTheme !== newThemeToUnlock) {
-                    // If already unlocked, just switch to it (optional, but a nice touch)
                     applyTheme(newThemeToUnlock);
                     populateThemeChooser();
                 }
             }
             
-            // Special case for 'CAKE' message (no theme change, but a message)
-            if (upperWord === 'CAKE') {
-                // Do nothing here, the message logic is handled in displayCurrentWord
-            }
-            
             return themeWasNewlyUnlocked;
         }
-        // --- END THEME FUNCTIONALITY ---
-
 
         function updateAwardBadge() {
             let star = '';
@@ -678,13 +711,11 @@
         function showAwardMessageAndContinue(awardName, emoji) {
             wordDisplay.textContent = `${emoji} ${awardName} Unlocked! ${emoji}`;
             
-            // Clear all theme styles
             wordDisplay.style.fontSize = '2.25rem'; 
             wordDisplay.style.color = '#10b981';
             
             wordDisplay.className = 'text-4xl font-extrabold text-green-700 text-center min-h-[72px] animate-pulse';
             
-            // Clear word frame styling for special message
             wordFrame.style.padding = '0';
             wordFrame.style.backgroundColor = 'transparent';
 
@@ -692,7 +723,6 @@
             cakeMessage.classList.add('opacity-0');
             cakeMessage.textContent = ''; 
             
-            // Hide cake badge on special messages
             cakeBadge.classList.add('hidden');
 
             goodButton.disabled = true;
@@ -711,7 +741,6 @@
             wordDisplay.className = `text-4xl font-bold text-center min-h-[72px] ${isError ? 'text-red-500' : 'text-gray-500'}`;
             wordDisplay.style.fontSize = '1.5rem'; 
             
-            // Clear frame for simple messages
             wordFrame.style.padding = '0';
             wordFrame.style.backgroundColor = 'transparent';
 
@@ -723,7 +752,6 @@
             cakeMessage.classList.add('opacity-0');
             cakeMessage.textContent = '';
             
-            // Hide cake badge
             cakeBadge.classList.add('hidden');
         }
         
@@ -732,7 +760,6 @@
             wordDisplay.className = 'text-4xl font-bold text-red-600 text-center min-h-[72px]';
             wordDisplay.style.fontSize = '1.5rem'; 
             
-            // Clear frame for cooldown message
             wordFrame.style.padding = '0';
             wordFrame.style.backgroundColor = 'transparent';
 
@@ -744,13 +771,11 @@
             cakeMessage.classList.add('opacity-0');
             cakeMessage.textContent = '';
             
-            // Hide cake badge
             cakeBadge.classList.add('hidden');
         }
 
         /**
          * Displays the current word, handling sizing and theme-specific styles.
-         * @param {object} currentWord - The word object to display. 
          */
         function displayCurrentWord(currentWord) {
             if (!currentWord) {
@@ -760,12 +785,8 @@
             
             const wordText = currentWord.text.toUpperCase();
             
-            // Clear any lingering word-transition classes
             wordDisplay.classList.remove('word-transition-good', 'word-transition-bad');
-            
             wordDisplay.textContent = wordText;
-            
-            // Re-apply base class
             wordDisplay.className = 'font-extrabold text-gray-900 text-center min-h-[72px]';
             
             // 1. Reset all theme-specific word styling and frame styling
@@ -776,8 +797,6 @@
             wordDisplay.style.animation = '';
             wordDisplay.style.transform = '';
             wordDisplay.style.textShadow = '';
-            
-            // Reset frame styles (important for themes that don't use the frame)
             wordFrame.style.padding = '0';
             wordFrame.style.backgroundColor = 'transparent';
             
@@ -793,9 +812,7 @@
                 wordDisplay.style.color = '#01579b'; 
                 wordDisplay.style.textShadow = '0 0 8px rgba(255, 255, 255, 0.8)';
             } else if (currentTheme === 'rainbow') {
-                // RAINBOW THEME: The framing is now on #gameCard. wordFrame only manages margin/padding.
-                
-                // RE-APPLY RAINBOW TEXT
+                // RAINBOW THEME TEXT STYLES
                 wordDisplay.style.background = 'linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #9400d3)';
                 wordDisplay.style.webkitBackgroundClip = 'text';
                 wordDisplay.style.webkitTextFillColor = 'transparent';
@@ -804,7 +821,7 @@
             }
 
 
-            // 3. Word Sizing Logic (ROBUST FIX) 
+            // 3. Word Sizing Logic 
             const maxFontSize = 96; 
             
             const cardElement = document.getElementById('gameCard');
@@ -812,43 +829,34 @@
             const cardPaddingHorizontal = parseFloat(cardComputedStyle.paddingLeft) + parseFloat(cardComputedStyle.paddingRight);
             const cardContentWidth = cardElement.clientWidth - cardPaddingHorizontal; 
             
-            // Calculate max available width based on whether the word is framed
             let wordDisplayPaddingHorizontal = 0;
             let maxAvailableWidthForTextContent = cardContentWidth;
 
             if (currentTheme === 'rainbow') {
-                // If rainbow frame is present (on #gameCard), its padding is 1.5rem (24px)
-                // wordDisplay itself has 0.5rem (8px) internal padding from CSS
-                // Card content width is the area *inside* the main card padding
                 wordDisplay.style.padding = '0 0.5rem';
                 wordDisplayPaddingHorizontal = parseFloat(window.getComputedStyle(wordDisplay).paddingLeft) * 2;
                 maxAvailableWidthForTextContent = cardContentWidth - wordDisplayPaddingHorizontal;
             } else {
-                // Default padding (1rem on wordDisplay)
                 wordDisplay.style.padding = '0 1rem'; 
                 wordDisplayPaddingHorizontal = parseFloat(window.getComputedStyle(wordDisplay).paddingLeft) * 2;
                 maxAvailableWidthForTextContent = cardContentWidth - wordDisplayPaddingHorizontal;
             }
 
-            // Temporarily set max font size and enable nowrap for scrollWidth measurement
             wordDisplay.style.fontSize = `${maxFontSize}px`;
             wordDisplay.style.whiteSpace = 'nowrap'; 
             
             let currentTextWidth = wordDisplay.scrollWidth;
             let finalFontSize = maxFontSize;
 
-            // Calculate new font size based on scale factor
             if (currentTextWidth > maxAvailableWidthForTextContent) { 
                 const scaleFactor = maxAvailableWidthForTextContent / currentTextWidth;
                 finalFontSize = Math.floor(maxFontSize * scaleFactor);
                 if (finalFontSize < 24) finalFontSize = 24; 
             }
             
-            // Apply final size and restore styles
             wordDisplay.style.fontSize = `${finalFontSize}px`;
             wordDisplay.style.whiteSpace = 'normal'; 
             
-            // Restore correct padding after sizing
             if (currentTheme === 'rainbow') {
                 wordDisplay.style.padding = '0 0.5rem';
             } else {
@@ -885,9 +893,6 @@
             }
         }
 
-        /**
-         * Selects a random word index using a weighted algorithm.
-         */
         function getWeightedRandomWordIndex(excludeIndex = -1) {
             if (allWords.length === 0) return -1;
             if (allWords.length === 1) return 0;
@@ -908,14 +913,11 @@
 
             let totalWeight = 0;
             const weightedWords = wordPool.map(w => {
-                // Base weight calculation: 1 / (totalVotes + 1)
                 let weight = 1.0 / (w.totalVotes + 1);
                 
-                // --- NEW: Apply boost for the specified word ---
                 if (allWords[w.index].text.toUpperCase() === BOOSTED_WORD) {
                     weight *= BOOST_FACTOR;
                 }
-                // ---------------------------------------------
 
                 totalWeight += weight;
                 return { index: w.index, weight: weight };
@@ -1034,9 +1036,7 @@
                 wordDisplay.classList.add(voteType === 'good' ? 'word-transition-good' : 'word-transition-bad');
             }
 
-            // --- THEME CHECK & UNLOCK BEFORE VOTE ---
             const themeWasNewlyUnlocked = checkAndApplyTheme(currentWord.text);
-            // --- END THEME CHECK & UNLOCK ---
 
             try {
                 const response = await fetch(`/api/words/${wordId}/vote`, {
@@ -1071,7 +1071,6 @@
                     let awardName = '';
                     let emoji = '';
 
-                    // Check for general awards
                     if (previousVoteCount < 5 && voteCount >= 5) {
                         awardName = 'Bronze Star';
                         emoji = '🥉';
@@ -1087,7 +1086,6 @@
                     }
 
                     if (themeWasNewlyUnlocked) {
-                        // If a theme was unlocked, override the display to show the theme name
                         const themeName = currentTheme.charAt(0).toUpperCase() + currentTheme.slice(1);
                         showAwardMessageAndContinue(`'${themeName}' Theme`, '🎁');
                     } else if (awardAchieved) {
