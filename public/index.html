@@ -37,7 +37,7 @@
             color: #9ca3af; 
             z-index: 50; 
         }
-        /* CAKE MESSAGE FIX: Removed layout/margin properties, added z-index, relied on absolute positioning */
+        /* CAKE MESSAGE FIX: Relies on default opacity: 0 and uses transition for visibility */
         #cakeMessage {
             font-size: 1.125rem;
             font-weight: 700;
@@ -558,12 +558,12 @@
 
 
     <div class="version-indicator">
-        v3.9.10 | Made by Gilxs in 12,025
+        v3.9.11 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.9.10'; // Bumped version for fix
+        const APP_VERSION = '3.9.11'; // Bumped version for fix
         
         // --- BOOST & SPECIAL WORD CONSTANTS ---
         const BOOSTED_WORD = 'CAKE';
@@ -913,7 +913,6 @@
             wordFrame.style.backgroundColor = 'transparent';
 
             cakeMessage.classList.remove('opacity-100');
-            cakeMessage.classList.add('opacity-0');
             cakeMessage.textContent = ''; 
             
             goodButton.disabled = true;
@@ -940,7 +939,6 @@
             notWordButton.disabled = true;
 
             cakeMessage.classList.remove('opacity-100');
-            cakeMessage.classList.add('opacity-0');
             cakeMessage.textContent = '';
         }
         
@@ -957,7 +955,6 @@
             notWordButton.disabled = true;
 
             cakeMessage.classList.remove('opacity-100');
-            cakeMessage.classList.add('opacity-0');
             cakeMessage.textContent = '';
         }
 
@@ -1060,9 +1057,8 @@
             }
 
 
-            // 4. Reset CAKE message state
+            // 4. Reset CAKE message state (FIX: Only remove opacity-100)
             cakeMessage.classList.remove('opacity-100');
-            cakeMessage.classList.add('opacity-0');
             cakeMessage.textContent = ''; 
             
             // 5. Only enable buttons if not in a special message state (like cooldown or award)
@@ -1236,13 +1232,13 @@
                 // Delay message appearance until word is faded (word fade is 0.3s)
                 setTimeout(() => {
                     cakeMessage.textContent = 'The cake is a lie!'; // MESSAGE UNDERNEATH
-                    cakeMessage.classList.remove('opacity-0');
+                    // FIX: Only add opacity-100, relying on base CSS for opacity: 0
                     cakeMessage.classList.add('opacity-100');
                     
                     // Fade out the message after 3 seconds (starting from when it appears)
                     setTimeout(() => {
+                        // FIX: Only remove opacity-100, relying on base CSS for opacity: 0
                         cakeMessage.classList.remove('opacity-100');
-                        cakeMessage.classList.add('opacity-0');
                     }, 3000); 
                 }, 300); // Wait 300ms (CAKE fade duration)
             }
