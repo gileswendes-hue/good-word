@@ -59,6 +59,13 @@
         .word-transition-bad {
             animation: slide-out-right-bad 0.4s ease-out forwards;
         }
+        
+        /* NEW: LLAMA Slow Fade-Out */
+        .word-fade-llama {
+            transition: opacity 8s ease-out, transform 0.5s ease;
+            opacity: 0 !important; 
+            transform: scale(0.9) !important;
+        }
 
         @keyframes slide-out-left-good {
             0% { transform: translateX(0); opacity: 1; color: #111827;}
@@ -334,13 +341,13 @@
             animation-delay: -30s; 
         }
 
-        /* 5. SUMMER THEME */
+        /* 5. SUMMER THEME (Enhanced Sun Glow) */
         body.theme-summer {
-            background: linear-gradient(135deg, #FFC107 0%, #FF9800 100%) !important; /* Amber to Orange */
+            background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%) !important; /* Gold to Orange */
         }
         .theme-summer #wordDisplay {
-            color: #E65100; /* Deep Orange */
-            text-shadow: 2px 2px 0 #FFF9C4;
+            color: #F44336; /* Deep Red/Orange */
+            text-shadow: 0 0 20px #FFF8E1, 0 0 10px #FFEB3B; /* Sun glow effect */
         }
         .theme-summer #gameCard {
             background-color: rgba(255, 255, 255, 0.9) !important; 
@@ -349,18 +356,18 @@
             padding: 2rem !important; 
         }
 
-        /* 6. HALLOWEEN THEME (NEW) */
+        /* 6. HALLOWEEN THEME (More Spooky) */
         body.theme-halloween {
-            background: linear-gradient(135deg, #1C1C1C 0%, #3A015E 100%) !important; /* Dark Grey/Black to Deep Purple */
+            background: linear-gradient(135deg, #000000 0%, #3a0000 100%) !important; /* Black to Deep Maroon */
         }
         .theme-halloween #wordDisplay {
             color: #FF8C00; /* Dark Orange */
-            text-shadow: 0 0 10px rgba(255, 140, 0, 0.7);
+            text-shadow: 0 0 20px rgba(255, 140, 0, 1), 0 0 5px rgba(255, 140, 0, 0.5); /* Enhanced Glow */
         }
         .theme-halloween #gameCard {
-            background-color: rgba(30, 30, 30, 0.95) !important; 
+            background-color: rgba(10, 0, 0, 0.9) !important; /* Almost black card */
             border: 2px solid #FF8C00 !important; /* Dark Orange border */
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.7) !important;
+            box-shadow: 0 0 30px rgba(255, 140, 0, 0.5), 0 15px 40px rgba(0, 0, 0, 0.7) !important; /* Orange glow on card */
             padding: 2rem !important; 
         }
         /* Dark mode overrides for text/containers */
@@ -400,8 +407,15 @@
                 <div 
                     id="cakeBadge" 
                     class="p-2 cursor-pointer text-3xl hidden transition duration-300 hover:scale-110" 
-                    title="Click to find the cake!">
+                    title="The cake is a lie! Click to go back to the word.">
                     🎂
+                </div>
+
+                <div 
+                    id="llamaBadge" 
+                    class="p-2 cursor-help text-3xl hidden transition duration-300 hover:scale-110" 
+                    title="The Llama has vanished!">
+                    🦙
                 </div>
 
                 <div 
@@ -528,15 +542,21 @@
         const API_BASE_URL = '/api/words';
         const APP_VERSION = '3.9.4'; 
         
-        // --- NEW BOOST CONSTANTS ---
+        // --- BOOST & SPECIAL WORD CONSTANTS ---
         const BOOSTED_WORD = 'CAKE';
         const BOOST_FACTOR = 2.0; 
+        const LLAMA_WORD = 'LLAMA'; 
 
         let allWords = [];
         let currentWordIndex = 0;
         let userId = localStorage.getItem('userId');
         let voteCount = 0; 
         
+        // NEW STATE VARIABLES
+        let cakeBadgeUnlocked = localStorage.getItem('cakeBadgeUnlocked') === 'true';
+        let llamaBadgeUnlocked = localStorage.getItem('llamaBadgeUnlocked') === 'true';
+        // END NEW STATE VARIABLES
+
         let voteStreak = 0;
         const MASH_LIMIT = 10;
         const COOLDOWN_SECONDS = 10;
@@ -554,7 +574,7 @@
         const BANANA_STR = 'BANANA,BANANAS,PLANTAIN,YELLOW,SPLIT,MONKEY';
         const WINTER_STR = 'SNOWMAN|SNOW|ICE|WINTER|FROZEN|CHILL|COLD|FLAKE|BLIZZARD|ICICLE|SLEIGH|SNOWBALL|SCARF|JACKET|SLEDGE|NOVEMBER|DECEMBER|JANUARY|JINGLE'; 
         const SUMMER_STR = 'SUMMER|HOT|BEACH|HOLIDAY|SUN|VACATION|SWIM|SAND|POOL|JULY|AUGUST|JUNE'; 
-        const HALLOWEEN_STR = 'HALLOWEEN|GHOST|PUMPKIN|SPIDER|CANDY|COSTUME|SPOOKY|OCTOBER|WITCH|VAMPIRE|ZOMBIE|BAT'; // NEW HALLOWEEN
+        const HALLOWEEN_STR = 'HALLOWEEN|GHOST|PUMPKIN|SPIDER|CANDY|COSTUME|SPOOKY|OCTOBER|WITCH|VAMPIRE|ZOMBIE|BAT'; 
 
         const THEME_WORDS = {
             'rainbow': RAINBOW_STR.split('|'),
@@ -563,8 +583,8 @@
                         .map(w => w.split('').reverse().join('')), 
             'banana': BANANA_STR.split(','),
             'winter': WINTER_STR.split('|'),
-            'summer': SUMMER_STR.split('|'), 
-            'halloween': HALLOWEEN_STR.split('|') // ADDED HALLOWEEN
+            'summer': SUMMER_STR.split('|'),
+            'halloween': HALLOWEEN_STR.split('|') 
         };
         // --- END THEME VARIABLES ---
 
@@ -589,6 +609,7 @@
         const versionIndicator = document.querySelector('.version-indicator');
         const awardBadge = document.getElementById('awardBadge');
         const cakeBadge = document.getElementById('cakeBadge'); 
+        const llamaBadge = document.getElementById('llamaBadge'); // NEW
         const showTop100Button = document.getElementById('showTop100Button');
         const fullRankingsModalContainer = document.getElementById('fullRankingsModalContainer');
         const closeFullRankingsModal = document.getElementById('closeFullRankingsModal');
@@ -642,6 +663,9 @@
             populateThemeChooser(); 
             applyTheme(currentTheme); 
             
+            // NEW: Initial badge display
+            updateSpecialBadges(null, true);
+            
             window.addEventListener('resize', () => {
                 if (allWords.length > 0) {
                     displayCurrentWord(allWords[currentWordIndex]); 
@@ -650,13 +674,49 @@
         }
         
         function loadCakeWord() {
-            const cakeWord = allWords.find(w => w.text.toUpperCase() === 'CAKE');
+            const cakeWord = allWords.find(w => w.text.toUpperCase() === BOOSTED_WORD);
             if (cakeWord) {
-                const newIndex = allWords.findIndex(w => w.text.toUpperCase() === 'CAKE');
+                const newIndex = allWords.findIndex(w => w.text.toUpperCase() === BOOSTED_WORD);
                 if (newIndex !== -1) {
                     currentWordIndex = newIndex;
                 }
                 displayCurrentWord(cakeWord);
+            }
+        }
+
+        /**
+         * Checks if special badges should be unlocked and updates their visibility.
+         */
+        function updateSpecialBadges(votedWordText = null, init = false) {
+            
+            if (votedWordText) {
+                const upperWord = votedWordText.toUpperCase();
+                
+                // Unlock Cake Badge permanently
+                if (upperWord === BOOSTED_WORD) {
+                    cakeBadgeUnlocked = true;
+                    localStorage.setItem('cakeBadgeUnlocked', 'true');
+                }
+                
+                // Unlock Llama Badge permanently
+                if (upperWord === LLAMA_WORD) {
+                    llamaBadgeUnlocked = true;
+                    localStorage.setItem('llamaBadgeUnlocked', 'true');
+                }
+            }
+            
+            // Show/Hide Cake Badge
+            if (cakeBadgeUnlocked) {
+                cakeBadge.classList.remove('hidden');
+            } else if (init) {
+                cakeBadge.classList.add('hidden'); // Ensure it starts hidden if not unlocked
+            }
+            
+            // Show/Hide Llama Badge
+            if (llamaBadgeUnlocked) {
+                llamaBadge.classList.remove('hidden');
+            } else if (init) {
+                llamaBadge.classList.add('hidden'); // Ensure it starts hidden if not unlocked
             }
         }
 
@@ -795,8 +855,6 @@
             cakeMessage.classList.add('opacity-0');
             cakeMessage.textContent = ''; 
             
-            cakeBadge.classList.add('hidden');
-
             goodButton.disabled = true;
             badButton.disabled = true;
             notWordButton.disabled = true;
@@ -823,8 +881,6 @@
             cakeMessage.classList.remove('opacity-100');
             cakeMessage.classList.add('opacity-0');
             cakeMessage.textContent = '';
-            
-            cakeBadge.classList.add('hidden');
         }
         
         function showCooldownMessage(remainingSeconds) {
@@ -842,8 +898,6 @@
             cakeMessage.classList.remove('opacity-100');
             cakeMessage.classList.add('opacity-0');
             cakeMessage.textContent = '';
-            
-            cakeBadge.classList.add('hidden');
         }
 
         /**
@@ -857,7 +911,7 @@
             
             const wordText = currentWord.text.toUpperCase();
             
-            wordDisplay.classList.remove('word-transition-good', 'word-transition-bad');
+            wordDisplay.classList.remove('word-transition-good', 'word-transition-bad', 'word-fade-llama'); // NEW: Remove llama fade class
             wordDisplay.textContent = wordText;
             wordDisplay.className = 'font-extrabold text-gray-900 text-center min-h-[72px]';
             
@@ -878,7 +932,7 @@
                 wordDisplay.style.color = '#f3f4f6';
                 if (currentTheme === 'halloween') {
                     wordDisplay.style.color = '#FF8C00'; 
-                    wordDisplay.style.textShadow = '0 0 10px rgba(255, 140, 0, 0.7)';
+                    wordDisplay.style.textShadow = '0 0 20px rgba(255, 140, 0, 1), 0 0 5px rgba(255, 140, 0, 0.5)';
                 }
             } else if (currentTheme === 'banana') {
                 wordDisplay.style.transform = 'translateY(0)';
@@ -888,8 +942,8 @@
                 wordDisplay.style.color = '#01579b'; 
                 wordDisplay.style.textShadow = '0 0 8px rgba(255, 255, 255, 0.8)';
             } else if (currentTheme === 'summer') {
-                wordDisplay.style.color = '#E65100'; 
-                wordDisplay.style.textShadow = '2px 2px 0 #FFF9C4';
+                wordDisplay.style.color = '#F44336'; 
+                wordDisplay.style.textShadow = '0 0 20px #FFF8E1, 0 0 10px #FFEB3B'; // NEW: Sun glow
             } else if (currentTheme === 'rainbow') {
                 // RAINBOW THEME TEXT STYLES
                 wordDisplay.style.background = 'linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #9400d3)';
@@ -943,26 +997,10 @@
             }
 
 
-            // 4. CAKE MESSAGE LOGIC
-            if (wordText === 'CAKE') {
-                cakeMessage.textContent = 'The cake is a lie!';
-                cakeMessage.classList.remove('opacity-0');
-                cakeMessage.classList.add('opacity-100');
-                
-                setTimeout(() => {
-                    cakeMessage.classList.remove('opacity-100');
-                    cakeMessage.classList.add('opacity-0');
-                }, 3000); 
-                
-                cakeBadge.classList.remove('hidden');
-
-            } else {
-                cakeMessage.classList.remove('opacity-100');
-                cakeMessage.classList.add('opacity-0');
-                cakeMessage.textContent = ''; 
-                
-                cakeBadge.classList.add('hidden');
-            }
+            // 4. CAKE MESSAGE LOGIC - Removed: Message now only shows on vote. Badge is managed by updateSpecialBadges.
+            cakeMessage.classList.remove('opacity-100');
+            cakeMessage.classList.add('opacity-0');
+            cakeMessage.textContent = ''; 
             
             // 5. Only enable buttons if not in a special message state (like cooldown or award)
             if (!isCoolingDown && !currentWord.isSpecialMessage) {
@@ -1103,11 +1141,49 @@
 
             const currentWord = allWords[currentWordIndex];
             if (!currentWord) return;
-
+            
+            // Disable buttons immediately for smooth transition
             goodButton.disabled = true;
             badButton.disabled = true;
             notWordButton.disabled = true;
+
+            // --- SPECIAL WORD LOGIC ---
             
+            // CAKE Logic (Show/Fade message, unlock badge)
+            if (currentWord.text.toUpperCase() === BOOSTED_WORD) {
+                cakeMessage.textContent = 'The cake is a lie!';
+                cakeMessage.classList.remove('opacity-0');
+                cakeMessage.classList.add('opacity-100');
+                
+                // Fade out the message after 3 seconds
+                setTimeout(() => {
+                    cakeMessage.classList.remove('opacity-100');
+                    cakeMessage.classList.add('opacity-0');
+                }, 3000); 
+                
+                updateSpecialBadges(currentWord.text);
+            }
+
+            // LLAMA Logic (Slow Fade-Out, unlock badge)
+            if (currentWord.text.toUpperCase() === LLAMA_WORD) {
+                
+                updateSpecialBadges(currentWord.text);
+                
+                showMessage("🦙 The Llama Vanishes... 💨", false);
+                
+                // Apply slow fade transition
+                wordDisplay.classList.add('word-fade-llama');
+                
+                // Wait 8 seconds for the fade-out before moving to the next word
+                setTimeout(() => {
+                    nextWord(); 
+                    fetchWords(false);
+                }, 8000);
+                
+                return; // EXIT FUNCTION
+            }
+            // -----------------------------
+
             const wordId = currentWord._id;
             const transitionDuration = 400; 
             
@@ -1116,6 +1192,7 @@
             }
 
             const themeWasNewlyUnlocked = checkAndApplyTheme(currentWord.text);
+            updateSpecialBadges(currentWord.text); // Permanent badge unlock (for non-cake/llama words too, it does nothing)
 
             try {
                 const response = await fetch(`/api/words/${wordId}/vote`, {
