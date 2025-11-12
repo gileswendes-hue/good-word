@@ -570,6 +570,37 @@
         let cooldownTimer = null;
         let isCoolingDown = false;
         let lastVoteTime = 0; 
+
+        /**
+ * Secret function to test the 'LLAMA' feature by forcing the word to load.
+ * Type loadLlamaWord() in the console.
+ */
+window.loadLlamaWord = function() {
+    // 1. Ensure words are loaded (optional, but good practice)
+    if (allWords.length === 0) {
+        console.warn("Words not yet loaded. Trying to fetch them first.");
+        fetchWords(); // This might delay the result
+    }
+
+    // 2. Find the word 'LLAMA' and display it
+    const llamaWord = allWords.find(w => w.text.toUpperCase() === 'LLAMA');
+    if (llamaWord) {
+        const newIndex = allWords.findIndex(w => w.text.toUpperCase() === 'LLAMA');
+        if (newIndex !== -1) {
+            currentWordIndex = newIndex;
+        }
+        displayCurrentWord(allWords[currentWordIndex]);
+        
+        console.log("LLAMA loaded successfully. Click any vote button to test the 5s fade-away.");
+        
+        // Ensure buttons are enabled for testing
+        goodButton.disabled = false;
+        badButton.disabled = false;
+        notWordButton.disabled = false;
+    } else {
+        console.error("The word 'LLAMA' was not found in the current word list. Please ensure it has been submitted or loaded.");
+    }
+}
         
         // --- CAKE FEATURE STATE ---
         let cakeFound = localStorage.getItem('cakeFound') === 'true'; 
@@ -1399,3 +1430,4 @@
     </script>
 </body>
 </html>
+
