@@ -301,10 +301,9 @@
             border-color: #5d1703 !important;
         }
 
-        /* 6. SUMMER THEME (UPDATED WITH SHIMMER) */
+        /* 6. SUMMER THEME (UPDATED WITH SUN PULSE) */
         body.theme-summer {
             background: linear-gradient(135deg, #81d4fa 0%, #ffeb3b 100%) !important; 
-            /* NEW: Setup for the shimmer/water effect */
             background-size: 400% 400%;
             animation: summer-shimmer 15s ease infinite;
         }
@@ -315,10 +314,28 @@
         }
 
         .theme-summer #wordDisplay {
-            color: #e53935; /* Watermelon red */
-            /* NEW: Sun glow effect on the word */
-            text-shadow: 0 0 15px rgba(255, 255, 0, 0.8), 0 2px 4px rgba(0, 0, 0, 0.1);
+            color: #ff9800; /* Warm Orange */ 
+            
+            /* UPDATED: Sun glow and pulse effect */
+            text-shadow: 
+                0 0 10px rgba(255, 255, 100, 0.5), 
+                0 0 20px rgba(255, 152, 0, 0.7);   
+            animation: sun-pulse 2.5s ease-in-out infinite alternate;
         }
+        
+        @keyframes sun-pulse {
+            0% {
+                text-shadow: 
+                    0 0 10px rgba(255, 255, 150, 0.4),
+                    0 0 20px rgba(255, 152, 0, 0.6);
+            }
+            100% {
+                text-shadow: 
+                    0 0 15px rgba(255, 255, 200, 0.8),
+                    0 0 30px rgba(255, 160, 0, 1.0);
+            }
+        }
+        
         .theme-summer #gameCard {
             background-color: rgba(255, 255, 255, 0.9) !important; 
             border: 2px solid #4fc3f7 !important; 
@@ -657,6 +674,7 @@
                 }
             });
             
+            // CAKE BADGE LISTENER
             cakeBadge.addEventListener('click', loadCakeWord);
 
             themeChooser.addEventListener('change', (e) => {
@@ -678,6 +696,9 @@
             });
         }
         
+        /**
+         * Finds the word 'CAKE' and forces it to be the current word displayed.
+         */
         function loadCakeWord() {
             const cakeWord = allWords.find(w => w.text.toUpperCase() === 'CAKE');
             if (cakeWord) {
@@ -913,8 +934,9 @@
                 wordDisplay.style.color = '#ff9900';
                 wordDisplay.style.textShadow = '0 0 10px rgba(0, 0, 0, 0.8)';
             } else if (currentTheme === 'summer') {
-                wordDisplay.style.color = '#e53935';
-                wordDisplay.style.textShadow = '0 0 15px rgba(255, 255, 0, 0.8), 0 2px 4px rgba(0, 0, 0, 0.1)';
+                wordDisplay.style.color = '#ff9800';
+                wordDisplay.style.textShadow = '0 0 10px rgba(255, 255, 100, 0.5), 0 0 20px rgba(255, 152, 0, 0.7)';
+                wordDisplay.style.animation = 'sun-pulse 2.5s ease-in-out infinite alternate';
             }
 
 
