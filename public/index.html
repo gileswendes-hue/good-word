@@ -37,7 +37,17 @@
             color: #9ca3af; 
             z-index: 50; 
         }
-        
+        /* CAKE MESSAGE FIX: Relies on default opacity: 0 and uses transition for visibility */
+        #cakeMessage {
+            font-size: 1.125rem;
+            font-weight: 700;
+            color: #4b5563;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            z-index: 20; 
+        }
+        .opacity-100 { opacity: 1; }
+
         @media (max-width: 640px) {
             .rank-item { font-size: 0.8rem; }
             .vote-counts { font-size: 0.875rem; }
@@ -403,43 +413,41 @@
     <div id="snow-effect" class="fixed inset-0 pointer-events-none hidden"></div> 
 
     <header class="text-center mb-8 w-full max-w-lg">
-        
         <div id="logoArea" class="h-32 w-full flex items-center justify-center mb-4 relative">
-            
-            <div id="leftBadgeContainer" class="absolute left-0 top-1/2 transform -translate-y-1/2 flex flex-col items-start space-y-1 pl-4">
+            <img 
+                src="logo.png" 
+                alt="Good Word / Bad Word Logo with Rainbow and Devil" 
+                class="h-full w-auto max-w-full"
+            >
+            <div class="absolute right-0 top-1/2 transform -translate-y-1/2 flex flex-col items-end space-y-1 pr-4">
+                
                 <div 
                     id="cakeBadge" 
                     class="p-2 cursor-pointer text-3xl hidden transition duration-300 hover:scale-110" 
                     title="The cake is a lie! Click to go back to the word.">
                     🎂
                 </div>
+
                 <div 
                     id="llamaBadge" 
                     class="p-2 text-3xl hidden transition duration-300 hover:scale-110" 
                     title="The Llama has vanished! Click to find the Llama word." >
                     🦙
                 </div>
-            </div>
-
-            <img 
-                src="logo.png" 
-                alt="Good Word / Bad Word Logo with Rainbow and Devil" 
-                class="h-full w-auto max-w-full"
-            >
-
-            <div id="rightBadgeContainer" class="absolute right-0 top-1/2 transform -translate-y-1/2 flex flex-col items-end space-y-1 pr-4">
+                
                 <div 
                     id="contributorBadge" 
                     class="p-2 cursor-help text-3xl hidden transition duration-300 hover:scale-110"
                     title="Contributor Badge (0 Submissions)">
                 </div>
+
                 <div 
                     id="awardBadge" 
                     class="p-2 cursor-help text-3xl transition duration-300 hover:scale-110">
                 </div>
+                
             </div>
-
-        </div>
+            </div>
         <div class="mt-4 flex justify-around p-3 rounded-t-xl bg-white shadow-md vote-counts">
             <div id="goodTotal" class="text-xl font-bold text-green-600">GOOD: 0</div>
             <div id="badTotal" class="text-xl font-bold text-red-600">BAD: 0</div>
@@ -456,6 +464,8 @@
         <div id="wordFrame" class="w-full text-center rounded-xl mb-8 relative">
             <div id="wordDisplay" class="font-extrabold text-gray-900 text-center min-h-[72px]">
                 Loading...
+            </div>
+            <div id="cakeMessage" class="text-center absolute inset-0 flex items-center justify-center">
             </div>
         </div>
         
@@ -524,14 +534,14 @@
     </div>
     
     <div id="fullRankingsModalContainer" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
-        <div id="fullRankingsModal" class="bg-white p-6 rounded-xl w-full shadow-2xl">
+        <div id="fullRankingsModal" class="bg-white p-6 rounded-xl w-full max-w-4xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col">
             <div class="flex justify-between items-center mb-4 border-b pb-2">
                 <h2 class="text-2xl font-bold">Top 100 Word Rankings</h2>
                 <button id="closeFullRankingsModal" class="text-gray-500 hover:text-gray-800 text-2xl font-bold leading-none">
                     &times;
                 </button>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 overflow-y-auto flex-grow">
                 <div>
                     <h3 class="text-lg font-semibold text-green-700 mb-2">Top Good Words</h3>
                     <div id="fullGoodRankings" class="space-y-1">
@@ -561,9 +571,11 @@
         const LLAMA_WORD = 'LLAMA'; 
         const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
         
-        // --- SIMPLIFIED CAKE TIMING CONSTANTS (FIX v3.9.13) ---
+        // NEW CAKE TIMING CONSTANTS (For Fix v3.9.12)
         const CAKE_WORD_FADE_DURATION = 300; // 0.3s
-        const CAKE_MESSAGE_DURATION = 3000; // 3.0s
+        const CAKE_MESSAGE_DISPLAY_DURATION = 3000; // 3.0s
+        const CAKE_MESSAGE_FADE_DURATION = 300; // 0.3s
+        const CAKE_TOTAL_DELAY = CAKE_WORD_FADE_DURATION + CAKE_MESSAGE_DISPLAY_DURATION + CAKE_MESSAGE_FADE_DURATION; // 3600ms
 
         let allWords = [];
         let currentWordIndex = 0;
@@ -609,6 +621,7 @@
 
         const wordFrame = document.getElementById('wordFrame'); 
         const wordDisplay = document.getElementById('wordDisplay');
+        const cakeMessage = document.getElementById('cakeMessage');
         const goodButton = document.getElementById('goodButton');
         const badButton = document.getElementById('badButton');
         const notWordButton = document.getElementById('notWordButton');
@@ -904,6 +917,9 @@
             
             wordFrame.style.padding = '0';
             wordFrame.style.backgroundColor = 'transparent';
+
+            cakeMessage.classList.remove('opacity-100');
+            cakeMessage.textContent = ''; 
             
             goodButton.disabled = true;
             badButton.disabled = true;
@@ -927,6 +943,9 @@
             goodButton.disabled = true;
             badButton.disabled = true;
             notWordButton.disabled = true;
+
+            cakeMessage.classList.remove('opacity-100');
+            cakeMessage.textContent = '';
         }
         
         function showCooldownMessage(remainingSeconds) {
@@ -940,6 +959,9 @@
             goodButton.disabled = true;
             badButton.disabled = true;
             notWordButton.disabled = true;
+
+            cakeMessage.classList.remove('opacity-100');
+            cakeMessage.textContent = '';
         }
 
         /**
@@ -953,6 +975,7 @@
             
             const wordText = currentWord.text.toUpperCase();
             
+            // REMOVED CAKE FADE FROM RESET LIST
             wordDisplay.classList.remove('word-transition-good', 'word-transition-bad', 'word-fade-llama', 'word-fade-cake'); 
             wordDisplay.textContent = wordText;
             wordDisplay.className = 'font-extrabold text-gray-900 text-center min-h-[72px]';
@@ -1038,6 +1061,11 @@
             } else {
                 wordDisplay.style.padding = '0 1rem';
             }
+
+
+            // 4. Reset CAKE message state (FIX: Only remove opacity-100)
+            cakeMessage.classList.remove('opacity-100');
+            cakeMessage.textContent = ''; 
             
             // 5. Only enable buttons if not in a special message state (like cooldown or award)
             if (!isCoolingDown && !currentWord.isSpecialMessage) {
@@ -1203,26 +1231,22 @@
             
             // --- SPECIAL WORD LOGIC ---
             
+            // CAKE Logic (Show/Fade message, unlock badge)
             if (isCake) {
                 updateSpecialBadges(currentWord.text);
                 
-                // Wait for the word to fade out (0.3s)
+                // Delay message appearance until word is faded (word fade is 0.3s)
                 setTimeout(() => {
-                    wordDisplay.classList.remove('word-fade-cake'); // Reset
-                    wordDisplay.style.opacity = '1'; // Reset
+                    cakeMessage.textContent = 'The cake is a lie!'; // MESSAGE UNDERNEATH
+                    // FIX: Only add opacity-100, relying on base CSS for opacity: 0
+                    cakeMessage.classList.add('opacity-100');
                     
-                    // Display the new message using showMessage()
-                    showMessage("The cake is a lie!", false); 
-                    wordDisplay.style.fontSize = '2rem'; // Make it message-sized
-                    
-                    // Wait for the message to be read, then move to the next word
+                    // Fade out the message after 3 seconds (starting from when it appears)
                     setTimeout(() => {
-                        nextWord(); 
-                        fetchWords(false);
-                    }, CAKE_MESSAGE_DURATION); // 3000ms
+                        // FIX: Only remove opacity-100, relying on base CSS for opacity: 0
+                        cakeMessage.classList.remove('opacity-100');
+                    }, CAKE_MESSAGE_DISPLAY_DURATION); // 3000ms 
                 }, CAKE_WORD_FADE_DURATION); // 300ms
-                
-                return; // EXIT FUNCTION to prevent normal transition/fetch
             }
 
             // LLAMA Logic (Slow Fade-Out, unlock badge)
@@ -1265,7 +1289,8 @@
                 if (response.status === 403) {
                     voteStreak = 0; 
                     
-                    const totalDelay = ((voteType === 'good' || voteType === 'bad') ? transitionDuration : 0);
+                    // Already transitioned, just move on
+                    const totalDelay = isCake ? CAKE_TOTAL_DELAY : ((voteType === 'good' || voteType === 'bad') ? transitionDuration : 0);
                     
                     setTimeout(() => {
                         nextWord();
@@ -1306,7 +1331,8 @@
                         // NORMAL FLOW
                         const transitionDelay = (voteType === 'good' || voteType === 'bad') ? transitionDuration : 0;
                         
-                        const totalDelay = transitionDelay; 
+                        // FIX: Use CAKE_TOTAL_DELAY for the cake word
+                        const totalDelay = isCake ? CAKE_TOTAL_DELAY : transitionDelay; 
                         
                         setTimeout(() => {
                             nextWord(); 
