@@ -562,12 +562,12 @@
 
 
     <div class="version-indicator">
-        v3.9.10 | Made by Gilxs in 12,025
+        v3.9.11 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.9.10'; 
+        const APP_VERSION = '3.9.11'; // Updated to 3.9.11 to reflect the fix
         
         // --- NEW BOOST CONSTANTS ---
         const BOOSTED_WORD = 'CAKE';
@@ -590,32 +590,33 @@
         // --- CAKE FEATURE STATE ---
         let cakeFound = localStorage.getItem('cakeFound') === 'true'; 
 
-        // --- THEME VARIABLES: OBFUSCATED USING STRING MANIPULATION ---
+        // --- THEME VARIABLES: OBFUSCATED USING STRING MANIPULATION (FIXED v3.9.11) ---
         let currentTheme = localStorage.getItem('currentTheme') || 'default';
         let unlockedThemes = JSON.parse(localStorage.getItem('unlockedThemes')) || [];
         
         // OBFUSCATED STRINGS
+        // All use '|' delimiter, except DARK which retains '!'
         const RAINBOW_REVERSED_STR = 'ELKRAPS|EDIRP|RUOLOC|ELKRAPS|YAG|WOBNIAR|LESNIT|NAIBSEL|RETTILG|REEUQ|DUORP|NROCINU'; 
         const DARK_REVERSED_STR = 'THGINDIM!KCALB!EDAHS!HTOG!WODAHS!AJNIN!KRAD!THGIN!HTLAETS'; 
-        const BANANA_REVERSED_STR = 'YEKNO|TILPS|WOLLEY|NIATNALP|SANANAB|ANANAB';
-        const WINTER_REVERSED_STR = 'ELGNIB!YRTSE!TEKCAJ!FRACS|EGDELSL!LLABWONS|ECICIL!DRAZZILB|EKALF|DLOC|LLHIC|NEZORF|RETNIW|ECI|SOWNS|NAMWONS|YRAUNAJ!REBMECE|REBMEVON'; 
+        const BANANA_REVERSED_STR = 'YEKNOM|TILPS|WOLLEY|NIATNALP|SANANAB|ANANAB';
+        const WINTER_REVERSED_STR = 'ELGNIB|YRTSE|TEKCAJ|FRACS|EGDELSL|LLABWONS|ECICIL|DRAZZILB|EKALF|DLOC|LLHIC|NEZORF|RETNIW|ECI|WONS|NAMWONS|YRAUNAJ|REBMECE|REBMEVON'; 
         const HALLOWEEN_REVERSED_STR = 'RETSNOM|YRACS|REBOTCO|TAERT|KCIRT|TAB|EIBMOZ|NIKPMUP|YDNAC|NEEWOLAH|ERIPMAV|YKOOPS|HCTIW|REDIPS|TSOHG'; 
         const SUMMER_REVERSED_STR = 'LACIPORT|SEVAW|MAERC ECI|NAT|NAECO|DNAS|LOOP|TSUGUA|YLUC|YADILOH|TAEH|NOLMETRAW|MIWS|HCAEB|NUS'; 
 
 
-        // Mapped them to use the same logic: reverse, then split by a unique delimiter.
+        // Mapped them to use the correct reverse and split logic based on their delimiter.
         const THEME_WORDS = {
             'rainbow': RAINBOW_REVERSED_STR
                         .split('|')
                         .map(w => w.split('').reverse().join('')),
             'dark': DARK_REVERSED_STR
-                        .split('!')
+                        .split('!') // Still uses '!' delimiter
                         .map(w => w.split('').reverse().join('')), 
             'banana': BANANA_REVERSED_STR
                         .split('|')
                         .map(w => w.split('').reverse().join('')),
             'winter': WINTER_REVERSED_STR
-                        .split('|')
+                        .split('|') // Now consistently uses '|'
                         .map(w => w.split('').reverse().join('')),
             'halloween': HALLOWEEN_REVERSED_STR
                         .split('|')
