@@ -235,24 +235,24 @@
         }
 
 
-/* 3. BANANA THEME */
-body.theme-banana {
-    background: #f8f4b2 !important; 
-}
-.theme-banana #wordDisplay {
-    color: #ffd200; 
-    animation: bounce-word 0.5s ease-out infinite alternate;
-}
-@keyframes bounce-word {
-    from { transform: translateY(0); }
-    to { transform: translateY(-15px); }
-}
-.theme-banana #gameCard {
-    background-color: rgba(255, 255, 255, 0.95) !important; /* CHANGED TO WHITE */
-    border: 2px solid #f4ef81 !important;
-    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15) !important;
-    padding: 2rem !important; 
-}
+        /* 3. BANANA THEME */
+        body.theme-banana {
+            background: #f8f4b2 !important; 
+        }
+        .theme-banana #wordDisplay {
+            color: #ffd200; 
+            animation: bounce-word 0.5s ease-out infinite alternate;
+        }
+        @keyframes bounce-word {
+            from { transform: translateY(0); }
+            to { transform: translateY(-15px); }
+        }
+        .theme-banana #gameCard {
+            background-color: rgba(255, 255, 255, 0.95) !important; 
+            border: 2px solid #f4ef81 !important;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15) !important;
+            padding: 2rem !important; 
+        }
         
         /* 4. WINTER THEME */
         body.theme-winter {
@@ -267,6 +267,69 @@ body.theme-banana {
             border: 2px solid #81d4fa !important; 
             box-shadow: 0 15px 40px rgba(179, 229, 252, 0.5) !important;
             padding: 2rem !important; 
+        }
+        
+        /* 5. HALLOWEEN THEME */
+        body.theme-halloween {
+            background: linear-gradient(135deg, #2c043e 0%, #5d1703 100%) !important; 
+        }
+        .theme-halloween #wordDisplay {
+            color: #ff9900; /* Bright Orange */
+            text-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
+        }
+        .theme-halloween #gameCard {
+            background-color: rgba(0, 0, 0, 0.85) !important; 
+            border: 3px solid #ff9900 !important; 
+            box-shadow: 0 15px 40px rgba(255, 153, 0, 0.4) !important;
+            padding: 2rem !important; 
+        }
+        .theme-halloween .text-gray-900, .theme-halloween .rank-item .text-gray-800 {
+            color: #ffffff !important;
+        }
+        .theme-halloween .text-gray-500, .theme-halloween .text-gray-600 {
+            color: #ccc !important;
+        }
+        .theme-halloween .vote-counts > div {
+             color: #ff9900 !important;
+        }
+        .theme-halloween .ranking-card {
+            background-color: rgba(44, 4, 62, 0.7) !important;
+            border: 1px solid #ff9900 !important;
+        }
+        .theme-halloween .ranking-card h2 {
+            color: #ff9900 !important;
+            border-color: #5d1703 !important;
+        }
+
+        /* 6. SUMMER THEME (UPDATED WITH SHIMMER) */
+        body.theme-summer {
+            background: linear-gradient(135deg, #81d4fa 0%, #ffeb3b 100%) !important; 
+            /* NEW: Setup for the shimmer/water effect */
+            background-size: 400% 400%;
+            animation: summer-shimmer 15s ease infinite;
+        }
+        @keyframes summer-shimmer {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .theme-summer #wordDisplay {
+            color: #e53935; /* Watermelon red */
+            /* NEW: Sun glow effect on the word */
+            text-shadow: 0 0 15px rgba(255, 255, 0, 0.8), 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .theme-summer #gameCard {
+            background-color: rgba(255, 255, 255, 0.9) !important; 
+            border: 2px solid #4fc3f7 !important; 
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2) !important;
+            padding: 2rem !important; 
+        }
+        .theme-summer .good-button { background: linear-gradient(145deg, #4CAF50, #8BC34A); }
+        .theme-summer .bad-button { background: linear-gradient(145deg, #FF9800, #FFC107); }
+        .theme-summer .not-word-button { background: linear-gradient(145deg, #03A9F4, #00BCD4); }
+        .theme-summer .vote-counts {
+            background-color: #f7f7f7 !important;
         }
         
         /* SNOW EFFECT STYLES */
@@ -467,12 +530,12 @@ body.theme-banana {
 
 
     <div class="version-indicator">
-        v3.9.4 | Made by Gilxs in 12,025
+        v3.9.2 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.9.4'; 
+        const APP_VERSION = '3.9.2'; 
         
         // --- NEW BOOST CONSTANTS ---
         const BOOSTED_WORD = 'CAKE';
@@ -499,6 +562,8 @@ body.theme-banana {
         const DARK_REVERSED_STR = 'THGINDIM!KCALB!EDAHS!HTOG!WODAHS!AJNIN!KRAD!THGIN!HTLAETS'; 
         const BANANA_STR = 'BANANA,BANANAS,PLANTAIN,YELLOW,SPLIT,MONKEY';
         const WINTER_STR = 'SNOWMAN|SNOW|ICE|WINTER|FROZEN|CHILL|COLD|FLAKE|BLIZZARD|ICICLE|SLEIGH|SNOWBALL|SCARF|JACKET|SLEDGE|NOVEMBER|DECEMBER|JANUARY|JINGLE'; 
+        const HALLOWEEN_STR = 'GHOST|SPIDER|WITCH|SPOOKY|VAMPIRE|HALLOWEEN|CANDY|PUMPKIN|ZOMBIE|BAT|TRICK|TREAT|OCTOBER|SCARY|MONSTER'; 
+        const SUMMER_STR = 'SUN|BEACH|SWIM|WATERMELON|HEAT|HOLIDAY|JULY|AUGUST|POOL|SAND|OCEAN|TAN|ICE CREAM|WAVES|TROPICAL'; 
 
         const THEME_WORDS = {
             'rainbow': RAINBOW_STR.split('|'),
@@ -506,7 +571,9 @@ body.theme-banana {
                         .split('!')
                         .map(w => w.split('').reverse().join('')), 
             'banana': BANANA_STR.split(','),
-            'winter': WINTER_STR.split('|') 
+            'winter': WINTER_STR.split('|'),
+            'halloween': HALLOWEEN_STR.split('|'), 
+            'summer': SUMMER_STR.split('|') 
         };
         // --- END THEME VARIABLES ---
 
@@ -540,6 +607,26 @@ body.theme-banana {
         const themeChooser = document.getElementById('themeChooser');
         const themeUnlockHint = document.getElementById('themeUnlockHint');
         const snowEffect = document.getElementById('snow-effect'); 
+
+
+        /**
+         * Secret function to test themes instantly.
+         * Type testTheme('themeName') in the console.
+         */
+        window.testTheme = function(themeKey) {
+            const validThemes = Object.keys(THEME_WORDS);
+            if (themeKey === 'default' || validThemes.includes(themeKey)) {
+                applyTheme(themeKey);
+                if (allWords.length > 0) {
+                    displayCurrentWord(allWords[currentWordIndex]);
+                }
+                // Also update the select box to reflect the change
+                themeChooser.value = themeKey;
+                console.log(`Theme set to: ${themeKey}`);
+            } else {
+                console.error(`Invalid theme: ${themeKey}. Available themes: default, ${validThemes.join(', ')}`);
+            }
+        }
 
 
         function init() {
@@ -822,6 +909,12 @@ body.theme-banana {
                 wordDisplay.style.webkitTextFillColor = 'transparent';
                 wordDisplay.style.color = 'transparent';
                 wordDisplay.style.animation = 'rainbow-text 5s ease infinite';
+            } else if (currentTheme === 'halloween') {
+                wordDisplay.style.color = '#ff9900';
+                wordDisplay.style.textShadow = '0 0 10px rgba(0, 0, 0, 0.8)';
+            } else if (currentTheme === 'summer') {
+                wordDisplay.style.color = '#e53935';
+                wordDisplay.style.textShadow = '0 0 15px rgba(255, 255, 0, 0.8), 0 2px 4px rgba(0, 0, 0, 0.1)';
             }
 
 
@@ -1256,5 +1349,3 @@ body.theme-banana {
     </script>
 </body>
 </html>
-
-
