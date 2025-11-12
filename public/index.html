@@ -37,11 +37,11 @@
             color: #9ca3af; 
             z-index: 50; 
         }
+        /* FIX: Removed margin-top: -1.5rem to ensure the message displays correctly */
         #cakeMessage {
             font-size: 1.125rem;
             font-weight: 700;
             color: #4b5563;
-            margin-top: -1.5rem;
             margin-bottom: 1rem;
             opacity: 0;
             transition: opacity 0.3s ease-in-out;
@@ -403,10 +403,16 @@ body.theme-summer {
             >
             <div id="awardBadge" class="absolute top-2 right-2 p-2 cursor-help text-3xl">
                 </div>
-            <div id="cakeBadge" class="absolute top-2 right-16 p-2 cursor-pointer text-3xl hidden" title="Click to find the cake!">
+            <div id="contributorBadge" class="absolute top-2 right-24 p-2 cursor-help text-3xl hidden" title="Contributor! You submitted a custom word.">
+                ✍️
+            </div>
+            <div id="llamaBadge" class="absolute top-2 right-16 p-2 cursor-pointer text-3xl hidden" title="Click to find the llama!">
+                🦙
+            </div>
+            <div id="cakeBadge" class="absolute top-16 right-16 p-2 cursor-pointer text-3xl hidden" title="Click to find the cake!">
                 🎂
             </div>
-            </div>
+        </div>
         <div class="mt-4 flex justify-around p-3 rounded-t-xl bg-white shadow-md vote-counts">
             <div id="goodTotal" class="text-xl font-bold text-green-600">GOOD: 0</div>
             <div id="badTotal" class="text-xl font-bold text-red-600">BAD: 0</div>
@@ -517,16 +523,18 @@ body.theme-summer {
 
 
     <div class="version-indicator">
-        v3.9.6 | Made by Gilxs in 12,025
+        v3.9.8 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.9.6'; 
+        const APP_VERSION = '3.9.8'; 
         
-        // --- NEW BOOST CONSTANTS ---
+        // --- BOOST & LLAMA CONSTANTS ---
         const BOOSTED_WORD = 'CAKE';
         const BOOST_FACTOR = 2.0; 
+        const LLAMA_WORD = 'LLAMA';             
+        const LLAMA_VANISH_DURATION = 2000;     
 
         let allWords = [];
         let currentWordIndex = 0;
@@ -540,6 +548,12 @@ body.theme-summer {
         let cooldownTimer = null;
         let isCoolingDown = false;
         let lastVoteTime = 0; 
+        
+        // CAKE/LLAMA PERSISTENCE
+        let isCakeUnlocked = localStorage.getItem('isCakeUnlocked') === 'true'; 
+        let isLlamaUnlocked = localStorage.getItem('isLlamaUnlocked') === 'true'; 
+        // NEW: Contributor Badge Persistence
+        let isContributorUnlocked = localStorage.getItem('isContributorUnlocked') === 'true';
 
         // --- THEME VARIABLES: OBFUSCATED USING STRING MANIPULATION ---
         let currentTheme = localStorage.getItem('currentTheme') || 'default';
@@ -586,6 +600,9 @@ body.theme-summer {
         const versionIndicator = document.querySelector('.version-indicator');
         const awardBadge = document.getElementById('awardBadge');
         const cakeBadge = document.getElementById('cakeBadge'); 
+        const llamaBadge = document.getElementById('llamaBadge'); // NEW REFERENCE
+        // NEW: Contributor Badge Reference
+        const contributorBadge = document.getElementById('contributorBadge');
         const showTop100Button = document.getElementById('showTop100Button');
         const fullRankingsModalContainer = document.getElementById('fullRankingsModalContainer');
         const closeFullRankingsModal = document.getElementById('closeFullRankingsModal');
@@ -625,7 +642,8 @@ body.theme-summer {
                 }
             });
             
-            cakeBadge.addEventListener('click', loadCakeWord);
+            cakeBadge.addEventListener('click', () => loadSpecialWord('CAKE'));
+            llamaBadge.addEventListener('click', () => loadSpecialWord('LLAMA')); // NEW LLAMA LISTENER
 
             themeChooser.addEventListener('change', (e) => {
                 applyTheme(e.target.value);
@@ -638,6 +656,7 @@ body.theme-summer {
             updateAwardBadge();
             populateThemeChooser(); 
             applyTheme(currentTheme); 
+            updateSpecialBadgesVisibility(); // RENAMED: Initial badge visibility
             
             window.addEventListener('resize', () => {
                 if (allWords.length > 0) {
@@ -646,16 +665,86 @@ body.theme-summer {
             });
         }
         
-        function loadCakeWord() {
-            const cakeWord = allWords.find(w => w.text.toUpperCase() === 'CAKE');
-            if (cakeWord) {
-                const newIndex = allWords.findIndex(w => w.text.toUpperCase() === 'CAKE');
+        // <--- NEW UTILITY FUNCTIONS for Console Testing & Badges -->
+        /**
+         * Loads and displays a specific word if it exists in the pool.
+         * Used for badge clicks and console testing.
+         */
+        function loadSpecialWord(wordText) {
+            const upperText = wordText.toUpperCase();
+            const word = allWords.find(w => w.text.toUpperCase() === upperText);
+            
+            if (word) {
+                const newIndex = allWords.findIndex(w => w.text.toUpperCase() === upperText);
                 if (newIndex !== -1) {
                     currentWordIndex = newIndex;
                 }
-                displayCurrentWord(cakeWord);
+                displayCurrentWord(word);
+                return true;
+            }
+            return false;
+        }
+
+        function loadCakeWord() {
+            loadSpecialWord('CAKE');
+        }
+        
+        function loadLlamaWord() {
+            loadSpecialWord('LLAMA');
+        }
+        
+        /**
+         * Handles the Llama vanishing effect (The 2-second delay and animation).
+         */
+        function processLlamaVanishing() {
+            // 1. Show message
+            cakeMessage.textContent = 'Wait... where did he go?';
+            cakeMessage.classList.remove('opacity-0');
+            cakeMessage.classList.add('opacity-100');
+            
+            // 2. Animate and remove LLAMA word (500ms transition)
+            wordDisplay.style.transition = 'transform 0.5s ease-in-out, opacity 0.5s ease-in-out';
+            wordDisplay.style.transform = 'translateY(-100px) scale(1.2)';
+            wordDisplay.style.opacity = '0';
+            
+            // 3. Load next word after animation is complete
+            setTimeout(() => {
+                wordDisplay.style.transition = ''; // Reset transition
+                wordDisplay.style.transform = ''; // Reset transform
+                wordDisplay.style.opacity = '';   // Reset opacity
+                
+                cakeMessage.classList.remove('opacity-100');
+                cakeMessage.classList.add('opacity-0');
+                cakeMessage.textContent = '';
+                
+                nextWord();
+                fetchWords(false);
+            }, 500); 
+        }
+
+        /**
+         * Toggles badge visibility based on permanent unlock status.
+         */
+        function updateSpecialBadgesVisibility() {
+            if (isCakeUnlocked) {
+                cakeBadge.classList.remove('hidden');
+            } else {
+                cakeBadge.classList.add('hidden');
+            }
+            if (isLlamaUnlocked) {
+                llamaBadge.classList.remove('hidden');
+            } else {
+                llamaBadge.classList.add('hidden');
+            }
+            // NEW: Contributor Badge Logic
+            if (isContributorUnlocked) {
+                contributorBadge.classList.remove('hidden');
+            } else {
+                contributorBadge.classList.add('hidden');
             }
         }
+        // <--- END NEW UTILITY FUNCTIONS -->
+
 
         function populateThemeChooser() {
             themeChooser.innerHTML = '<option value="default">Default</option>'; 
@@ -691,7 +780,7 @@ body.theme-summer {
             document.body.classList.add(`theme-${themeToApply}`);
 
             currentTheme = theme;
-            localStorage.setItem('currentTheme', theme);
+            localStorage.setItem('currentTheme', currentTheme);
             
             // 3. Manage snow effect visibility
             if (theme === 'winter') {
@@ -782,7 +871,7 @@ body.theme-summer {
             cakeMessage.classList.add('opacity-0');
             cakeMessage.textContent = ''; 
             
-            cakeBadge.classList.add('hidden');
+            updateSpecialBadgesVisibility();
 
             goodButton.disabled = true;
             badButton.disabled = true;
@@ -811,12 +900,12 @@ body.theme-summer {
             cakeMessage.classList.add('opacity-0');
             cakeMessage.textContent = '';
             
-            cakeBadge.classList.add('hidden');
+            updateSpecialBadgesVisibility();
         }
         
         function showCooldownMessage(remainingSeconds) {
             wordDisplay.textContent = `Button mashing will not be tolerated. Wait ${remainingSeconds}s...`;
-            wordDisplay.className = 'text-4xl font-bold text-red-600 text-center min-h-[72px]';
+            wordDisplay.className = 'text-4xl font-bold text-red-600 text-center min-h-[72px]`;
             wordDisplay.style.fontSize = '1.5rem'; 
             
             wordFrame.style.padding = '0';
@@ -830,7 +919,7 @@ body.theme-summer {
             cakeMessage.classList.add('opacity-0');
             cakeMessage.textContent = '';
             
-            cakeBadge.classList.add('hidden');
+            updateSpecialBadgesVisibility();
         }
 
         /**
@@ -842,10 +931,10 @@ body.theme-summer {
                 return;
             }
             
-            const wordText = currentWord.text.toUpperCase();
+            const wordUpper = currentWord.text.toUpperCase();
             
             wordDisplay.classList.remove('word-transition-good', 'word-transition-bad');
-            wordDisplay.textContent = wordText;
+            wordDisplay.textContent = wordUpper;
             wordDisplay.className = 'font-extrabold text-gray-900 text-center min-h-[72px]';
             
             // 1. Reset all theme-specific word styling and frame styling
@@ -856,6 +945,7 @@ body.theme-summer {
             wordDisplay.style.animation = '';
             wordDisplay.style.transform = '';
             wordDisplay.style.textShadow = '';
+            wordDisplay.style.opacity = '1';
             wordFrame.style.padding = '0';
             wordFrame.style.backgroundColor = 'transparent';
             
@@ -931,8 +1021,12 @@ body.theme-summer {
             }
 
 
-            // 4. CAKE MESSAGE LOGIC
-            if (wordText === 'CAKE') {
+            // 4. CAKE & LLAMA MESSAGE LOGIC 
+            
+            // Ensure badges are visible if unlocked
+            updateSpecialBadgesVisibility();
+            
+            if (wordUpper === BOOSTED_WORD) { // BOOSTED_WORD is 'CAKE'
                 cakeMessage.textContent = 'The cake is a lie!';
                 cakeMessage.classList.remove('opacity-0');
                 cakeMessage.classList.add('opacity-100');
@@ -940,23 +1034,34 @@ body.theme-summer {
                 setTimeout(() => {
                     cakeMessage.classList.remove('opacity-100');
                     cakeMessage.classList.add('opacity-0');
+                    cakeMessage.textContent = ''; // Clear content when fading out
                 }, 3000); 
+
+            } else if (wordUpper === LLAMA_WORD) { // LLAMA LOGIC
                 
-                cakeBadge.classList.remove('hidden');
+                // Clear any existing cake message
+                cakeMessage.classList.remove('opacity-100');
+                cakeMessage.classList.add('opacity-0');
+                cakeMessage.textContent = ''; 
+
+                // Start vanishing process with a 2-second delay
+                setTimeout(processLlamaVanishing, LLAMA_VANISH_DURATION);
 
             } else {
                 cakeMessage.classList.remove('opacity-100');
                 cakeMessage.classList.add('opacity-0');
                 cakeMessage.textContent = ''; 
-                
-                cakeBadge.classList.add('hidden');
             }
             
             // 5. Only enable buttons if not in a special message state (like cooldown or award)
-            if (!isCoolingDown && !currentWord.isSpecialMessage) {
+            if (!isCoolingDown && !currentWord.isSpecialMessage && wordUpper !== LLAMA_WORD) {
                 goodButton.disabled = false;
                 badButton.disabled = false;
                 notWordButton.disabled = false;
+            } else if (wordUpper === LLAMA_WORD) {
+                goodButton.disabled = true;
+                badButton.disabled = true;
+                notWordButton.disabled = true;
             }
         }
 
@@ -1009,6 +1114,23 @@ body.theme-summer {
             
             displayCurrentWord(allWords[currentWordIndex]);
         }
+        
+        /**
+         * Ensures special words (CAKE, LLAMA) are in the local word pool for testing.
+         */
+        function injectSpecialWords(wordsArray) { 
+            const specialWords = [
+                { text: 'CAKE', _id: 'special-cake', goodVotes: 0, badVotes: 0, notWordVotes: 0 },
+                { text: 'LLAMA', _id: 'special-llama', goodVotes: 0, badVotes: 0, notWordVotes: 0 }
+            ];
+            
+            specialWords.forEach(sw => {
+                if (!wordsArray.some(w => w.text.toUpperCase() === sw.text.toUpperCase())) {
+                    wordsArray.push(sw);
+                }
+            });
+            return wordsArray;
+        }
 
         async function fetchWords(updateDisplay = true) {
             try {
@@ -1021,7 +1143,10 @@ body.theme-summer {
                 }
                 let fetchedWords = await response.json();
                 
-                const availableWords = fetchedWords.filter(w => (w.notWordVotes || 0) < 3);
+                let availableWords = fetchedWords.filter(w => (w.notWordVotes || 0) < 3);
+                
+                availableWords = injectSpecialWords(availableWords); // ADDED INJECTION
+
                 allWords = availableWords;
                 
                 wordCount.textContent = `Words in Database: ${fetchedWords.length}`;
@@ -1101,6 +1226,19 @@ body.theme-summer {
             
             if (voteType === 'good' || voteType === 'bad') {
                 wordDisplay.classList.add(voteType === 'good' ? 'word-transition-good' : 'word-transition-bad');
+            }
+            
+            // Special Word Unlock Logic: Persist badges after first vote
+            const wordUpper = currentWord.text.toUpperCase();
+            if (wordUpper === 'CAKE' && !isCakeUnlocked) {
+                isCakeUnlocked = true;
+                localStorage.setItem('isCakeUnlocked', 'true');
+                updateSpecialBadgesVisibility();
+            }
+            if (wordUpper === 'LLAMA' && !isLlamaUnlocked) {
+                isLlamaUnlocked = true;
+                localStorage.setItem('isLlamaUnlocked', 'true');
+                updateSpecialBadgesVisibility();
             }
 
             const themeWasNewlyUnlocked = checkAndApplyTheme(currentWord.text);
@@ -1297,6 +1435,13 @@ body.theme-summer {
                 const result = await response.json();
                 
                 if (response.status === 201) {
+                    // NEW: Unlock Contributor Badge
+                    if (!isContributorUnlocked) {
+                        isContributorUnlocked = true;
+                        localStorage.setItem('isContributorUnlocked', 'true');
+                        updateSpecialBadgesVisibility();
+                    }
+                    
                     modalMessage.textContent = "Success! Word added to the pool.";
                     setTimeout(() => {
                         hideModal();
