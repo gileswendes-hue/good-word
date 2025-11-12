@@ -48,7 +48,7 @@
         }
         .opacity-100 { opacity: 1; }
 
-        /* FIX: Add transition for the cake and llama badges */
+        /* ADDED: Transition for badges */
         #cakeBadge, #llamaBadge {
             transition: opacity 0.3s ease-in-out; 
         }
@@ -358,10 +358,10 @@ body.theme-banana {
             >
             <div id="awardBadge" class="absolute top-2 right-2 p-2 cursor-help text-3xl">
                 </div>
-            <div id="cakeBadge" class="absolute top-2 right-16 p-2 cursor-pointer text-3xl opacity-0" title="Click to find the cake!">
+            <div id="cakeBadge" class="absolute top-2 right-16 p-2 cursor-pointer text-3xl opacity-0 hidden" title="Click to find the cake!">
                 🎂
             </div>
-            <div id="llamaBadge" class="absolute top-2 right-28 p-2 cursor-pointer text-3xl opacity-0" title="What a fluffy word!">
+            <div id="llamaBadge" class="absolute top-2 right-28 p-2 cursor-pointer text-3xl opacity-0 hidden" title="What a fluffy word!">
                 🦙
             </div>
             </div>
@@ -475,16 +475,16 @@ body.theme-banana {
 
 
     <div class="version-indicator">
-        v3.9.4 | Made by Gilxs in 12,025
+        v3.9.5 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.9.4'; 
+        const APP_VERSION = '3.9.5'; 
         
         // --- NEW BOOST CONSTANTS ---
         const BOOSTED_WORD = 'CAKE';
-        const LLAMA_WORD = 'LLAMA';
+        const LLAMA_WORD = 'LLAMA'; // Re-added LLAMA_WORD
         const BOOST_FACTOR = 2.0; 
 
         let allWords = [];
@@ -492,9 +492,10 @@ body.theme-banana {
         let userId = localStorage.getItem('userId');
         let voteCount = 0; 
         
-        let cakeFound = localStorage.getItem('cakeFound') === 'true'; // NEW: Track permanent cake unlock
-        let llamaFound = localStorage.getItem('llamaFound') === 'true'; // NEW: Track permanent llama unlock
-        
+        // Re-added permanent unlock tracking
+        let cakeFound = localStorage.getItem('cakeFound') === 'true'; 
+        let llamaFound = localStorage.getItem('llamaFound') === 'true'; 
+
         let voteStreak = 0;
         const MASH_LIMIT = 10;
         const COOLDOWN_SECONDS = 10;
@@ -543,7 +544,7 @@ body.theme-banana {
         const versionIndicator = document.querySelector('.version-indicator');
         const awardBadge = document.getElementById('awardBadge');
         const cakeBadge = document.getElementById('cakeBadge'); 
-        const llamaBadge = document.getElementById('llamaBadge'); // NEW: Llama Badge
+        const llamaBadge = document.getElementById('llamaBadge'); // Re-added element reference
         const showTop100Button = document.getElementById('showTop100Button');
         const fullRankingsModalContainer = document.getElementById('fullRankingsModalContainer');
         const closeFullRankingsModal = document.getElementById('closeFullRankingsModal');
@@ -584,7 +585,7 @@ body.theme-banana {
             });
             
             cakeBadge.addEventListener('click', loadCakeWord);
-            llamaBadge.addEventListener('click', loadLlamaWord); // NEW: Llama Badge click handler
+            llamaBadge.addEventListener('click', loadLlamaWord); // Added click handler
 
             themeChooser.addEventListener('change', (e) => {
                 applyTheme(e.target.value);
@@ -597,7 +598,7 @@ body.theme-banana {
             updateAwardBadge();
             populateThemeChooser(); 
             applyTheme(currentTheme); 
-            updatePermanentBadges(); // NEW: Check and display permanent badges on load
+            updatePermanentBadges(); // Initial check for permanent badges
             
             window.addEventListener('resize', () => {
                 if (allWords.length > 0) {
@@ -608,15 +609,24 @@ body.theme-banana {
         
         // NEW FUNCTION: Check localStorage and apply opacity-100 to permanent badges
         function updatePermanentBadges() {
+            // Cake Badge Logic
             if (cakeFound) {
-                cakeBadge.classList.remove('opacity-0');
+                cakeBadge.classList.remove('hidden', 'opacity-0');
                 cakeBadge.classList.add('opacity-100');
+            } else {
+                 cakeBadge.classList.remove('opacity-100');
+                 cakeBadge.classList.add('opacity-0', 'hidden'); 
             }
+            // Llama Badge Logic
             if (llamaFound) {
-                llamaBadge.classList.remove('opacity-0');
+                llamaBadge.classList.remove('hidden', 'opacity-0');
                 llamaBadge.classList.add('opacity-100');
+            } else {
+                 llamaBadge.classList.remove('opacity-100');
+                 llamaBadge.classList.add('opacity-0', 'hidden');
             }
         }
+
 
         function loadCakeWord() {
             const cakeWord = allWords.find(w => w.text.toUpperCase() === 'CAKE');
@@ -766,7 +776,8 @@ body.theme-banana {
             cakeMessage.classList.add('opacity-0');
             cakeMessage.textContent = ''; 
             
-            // Removed cake/llama badge fade out - they are handled by updatePermanentBadges()
+            // Re-check and update permanent badges in case unlock happened just now
+            updatePermanentBadges();
 
             goodButton.disabled = true;
             badButton.disabled = true;
@@ -795,7 +806,7 @@ body.theme-banana {
             cakeMessage.classList.add('opacity-0');
             cakeMessage.textContent = '';
             
-            // Removed cake/llama badge fade out - they are handled by updatePermanentBadges()
+            updatePermanentBadges(); // Ensure badges are correctly displayed on non-word messages
         }
         
         function showCooldownMessage(remainingSeconds) {
@@ -814,7 +825,59 @@ body.theme-banana {
             cakeMessage.classList.add('opacity-0');
             cakeMessage.textContent = '';
             
-            // Removed cake/llama badge fade out - they are handled by updatePermanentBadges()
+            updatePermanentBadges(); // Ensure badges are correctly displayed on non-word messages
+        }
+
+        // NEW FUNCTION: Shows the special message after a vote on CAKE or LLAMA
+        function showSpecialMessageAfterVote(wordText, voteType) {
+            let message = '';
+            let isLlama = false;
+
+            if (wordText === BOOSTED_WORD) {
+                message = 'The cake is a lie!';
+                if (!cakeFound) {
+                    cakeFound = true;
+                    localStorage.setItem('cakeFound', 'true');
+                }
+            } else if (wordText === LLAMA_WORD) {
+                message = `You voted ${voteType.toUpperCase()} on the mysterious LLAMA. Poof!`;
+                isLlama = true;
+                if (!llamaFound) {
+                    llamaFound = true;
+                    localStorage.setItem('llamaFound', 'true');
+                }
+            } else {
+                return false; 
+            }
+            
+            updatePermanentBadges(); // Update badges immediately if newly unlocked
+
+            // Display message
+            cakeMessage.textContent = message;
+            cakeMessage.classList.remove('opacity-0');
+            cakeMessage.classList.add('opacity-100');
+            
+            // Disable buttons (already done in submitVote, but good for clarity)
+            goodButton.disabled = true;
+            badButton.disabled = true;
+            notWordButton.disabled = true;
+
+            const delay = isLlama ? 2000 : 1500; 
+
+            setTimeout(() => {
+                // Message fade out
+                cakeMessage.classList.remove('opacity-100');
+                cakeMessage.classList.add('opacity-0');
+                setTimeout(() => {
+                    cakeMessage.textContent = '';
+                }, 300);
+
+                // Continue to the next word
+                nextWord(); 
+                fetchWords(false);
+            }, delay);
+
+            return true;
         }
 
         /**
@@ -832,144 +895,26 @@ body.theme-banana {
             wordDisplay.textContent = wordText;
             wordDisplay.className = 'font-extrabold text-gray-900 text-center min-h-[72px]';
             
-            // --- 0. Reset Special Word Styles/States ---
-            wordDisplay.style.transition = ''; // Reset long transition
-            wordDisplay.style.opacity = '1';  // Reset opacity
-            cakeMessage.style.transition = 'opacity 0.3s ease-in-out'; // Reset to fast fade
-            cakeMessage.classList.remove('opacity-0', 'opacity-100');
+            // 1. Reset all theme-specific word styling and frame styling
+            wordDisplay.style.background = '';
+            wordDisplay.style.webkitBackgroundClip = '';
+            wordDisplay.style.webkitTextFillColor = '';
+            wordDisplay.style.color = '#111827'; 
+            wordDisplay.style.animation = '';
+            wordDisplay.style.transform = '';
+            wordDisplay.style.textShadow = '';
+            wordFrame.style.padding = '0';
+            wordFrame.style.backgroundColor = 'transparent';
             
-            // Apply permanent badge visibility before checking current word
+            // Reset message state
+            cakeMessage.classList.remove('opacity-100');
+            cakeMessage.classList.add('opacity-0');
+            cakeMessage.textContent = ''; 
+            
+            // Update permanent badges (but don't show dynamic messages here)
             updatePermanentBadges(); 
-
-            // 1. LLAMA LOGIC (Word fades over 8s)
-            if (wordText === LLAMA_WORD) {
-                
-                // NEW: Unlock Llama Badge Permanently
-                if (!llamaFound) {
-                    llamaFound = true;
-                    localStorage.setItem('llamaFound', 'true');
-                    llamaBadge.classList.remove('opacity-0');
-                    llamaBadge.classList.add('opacity-100');
-                }
-                
-                // 1a. Set up message (instant show)
-                cakeMessage.textContent = 'poof!';
-                cakeMessage.classList.add('opacity-100');
-                
-                // 1b. Start the word's 8s fade
-                wordDisplay.style.transition = 'opacity 8s ease-in-out';
-                
-                // Use a small delay to ensure the transition property is registered before the change
-                setTimeout(() => {
-                    wordDisplay.style.opacity = '0';
-                }, 50);
-
-                // 1c. After 8.3 seconds (fade + buffer) clear everything and move on
-                const currentWordReference = currentWord;
-                setTimeout(() => {
-                    // Reset word display and move to next word
-                    wordDisplay.style.transition = '';
-                    wordDisplay.style.opacity = '1'; 
-                    
-                    // Fast fade out the message
-                    cakeMessage.classList.remove('opacity-100');
-                    cakeMessage.classList.add('opacity-0');
-                    setTimeout(() => {
-                        cakeMessage.textContent = ''; 
-                    }, 300); 
-
-                    if (allWords[currentWordIndex] === currentWordReference) {
-                        nextWord(); // Move to the next word after the animation
-                        fetchWords(false); // Update rankings in the background
-                    }
-
-                }, 8300); 
-                
-                // 1d. Disable buttons for the duration
-                goodButton.disabled = true;
-                badButton.disabled = true;
-                notWordButton.disabled = true;
-
-            } 
-            // 2. CAKE LOGIC (Message fades out after 3s display. Badge is permanent)
-            else if (wordText === BOOSTED_WORD) {
-                
-                // NEW: Unlock Cake Badge Permanently
-                if (!cakeFound) {
-                    cakeFound = true;
-                    localStorage.setItem('cakeFound', 'true');
-                    cakeBadge.classList.remove('opacity-0');
-                    cakeBadge.classList.add('opacity-100');
-                }
-
-                // 2a. Display message (instant show)
-                cakeMessage.textContent = 'The cake is a lie!';
-                cakeMessage.classList.add('opacity-100');
-                
-                // 2b. Start message fade out after 3 seconds 
-                setTimeout(() => {
-                    // Message fade out (0.3s)
-                    cakeMessage.classList.remove('opacity-100');
-                    cakeMessage.classList.add('opacity-0');
-                    
-                    // Clear message content after fade
-                    setTimeout(() => {
-                        cakeMessage.textContent = ''; 
-                    }, 300);
-                }, 3000); 
-                
-                // 2c. Enable buttons (CAKE can be voted on)
-                goodButton.disabled = false;
-                badButton.disabled = false;
-                notWordButton.disabled = false;
-
-            } 
-            // 3. REGULAR WORD LOGIC
-            else {
-                // Ensure word is fully visible
-                wordDisplay.style.opacity = '1'; 
-
-                // Clear cake message (fast fade-out)
-                cakeMessage.classList.remove('opacity-100');
-                cakeMessage.classList.add('opacity-0');
-                
-                if (cakeMessage.textContent !== '') {
-                    setTimeout(() => {
-                        cakeMessage.textContent = '';
-                    }, 300); 
-                }
-                
-                // Only enable buttons if not in a special message state (like cooldown or award)
-                if (!isCoolingDown && !currentWord.isSpecialMessage) {
-                    goodButton.disabled = false;
-                    badButton.disabled = false;
-                    notWordButton.disabled = false;
-                }
-            }
             
-            // 4. Apply theme-specific styles
-            
-            // ... [Omitted for brevity, but retained from previous versions] ...
-            if (currentTheme === 'dark') {
-                wordDisplay.style.color = '#f3f4f6';
-            } else if (currentTheme === 'banana') {
-                wordDisplay.style.transform = 'translateY(0)';
-                wordDisplay.style.animation = 'bounce-word 0.5s ease-out infinite alternate';
-                wordDisplay.style.color = '#ffd200';
-            } else if (currentTheme === 'winter') {
-                wordDisplay.style.color = '#01579b'; 
-                wordDisplay.style.textShadow = '0 0 8px rgba(255, 255, 255, 0.8)';
-            } else if (currentTheme === 'rainbow') {
-                // RAINBOW THEME TEXT STYLES
-                wordDisplay.style.background = 'linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #9400d3)';
-                wordDisplay.style.webkitBackgroundClip = 'text';
-                wordDisplay.style.webkitTextFillColor = 'transparent';
-                wordDisplay.style.color = 'transparent';
-                wordDisplay.style.animation = 'rainbow-text 5s ease infinite';
-            }
-
-
-            // 5. Word Sizing Logic 
+            // 3. Word Sizing Logic 
             const maxFontSize = 96; 
             
             const cardElement = document.getElementById('gameCard');
@@ -1009,6 +954,13 @@ body.theme-banana {
                 wordDisplay.style.padding = '0 0.5rem';
             } else {
                 wordDisplay.style.padding = '0 1rem';
+            }
+            
+            // 4. Only enable buttons if not in a special message state (like cooldown or award)
+            if (!isCoolingDown && !currentWord.isSpecialMessage) {
+                goodButton.disabled = false;
+                badButton.disabled = false;
+                notWordButton.disabled = false;
             }
         }
 
@@ -1150,11 +1102,14 @@ body.theme-banana {
             
             const wordId = currentWord._id;
             const transitionDuration = 400; 
+            const upperWord = currentWord.text.toUpperCase();
             
             if (voteType === 'good' || voteType === 'bad') {
                 wordDisplay.classList.add(voteType === 'good' ? 'word-transition-good' : 'word-transition-bad');
             }
 
+            // Check if it's a special word BEFORE the API call
+            const isSpecialWord = upperWord === BOOSTED_WORD || upperWord === LLAMA_WORD;
             const themeWasNewlyUnlocked = checkAndApplyTheme(currentWord.text);
 
             try {
@@ -1209,6 +1164,8 @@ body.theme-banana {
                         showAwardMessageAndContinue(`'${themeName}' Theme`, '🎁');
                     } else if (awardAchieved) {
                         showAwardMessageAndContinue(awardName, emoji);
+                    } else if (isSpecialWord) { // Handle special words after awards/themes
+                        showSpecialMessageAfterVote(upperWord, voteType);
                     } else {
                         if (voteType === 'good' || voteType === 'bad') {
                             setTimeout(() => {
