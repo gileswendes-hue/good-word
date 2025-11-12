@@ -37,16 +37,8 @@
             color: #9ca3af; 
             z-index: 50; 
         }
-        /* CAKE MESSAGE FIX: Relies on default opacity: 0 and uses transition for visibility */
-        #cakeMessage {
-            font-size: 1.125rem;
-            font-weight: 700;
-            color: #4b5563;
-            opacity: 0;
-            transition: opacity 0.3s ease-in-out;
-            z-index: 20; 
-        }
-        .opacity-100 { opacity: 1; }
+        
+        /* --- REMOVED #cakeMessage CSS --- */
 
         @media (max-width: 640px) {
             .rank-item { font-size: 0.8rem; }
@@ -465,9 +457,7 @@
             <div id="wordDisplay" class="font-extrabold text-gray-900 text-center min-h-[72px]">
                 Loading...
             </div>
-            <div id="cakeMessage" class="text-center absolute inset-0 flex items-center justify-center">
             </div>
-        </div>
         
         <div class="flex space-x-4 w-full mb-3">
             <button id="goodButton" class="good-button flex-1 py-4 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-green-500/50" disabled>
@@ -571,11 +561,10 @@
         const LLAMA_WORD = 'LLAMA'; 
         const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
         
-        // NEW CAKE TIMING CONSTANTS (For Fix v3.9.12)
+        // --- SIMPLIFIED CAKE TIMING CONSTANTS (FIX v3.9.13) ---
         const CAKE_WORD_FADE_DURATION = 300; // 0.3s
-        const CAKE_MESSAGE_DISPLAY_DURATION = 3000; // 3.0s
-        const CAKE_MESSAGE_FADE_DURATION = 300; // 0.3s
-        const CAKE_TOTAL_DELAY = CAKE_WORD_FADE_DURATION + CAKE_MESSAGE_DISPLAY_DURATION + CAKE_MESSAGE_FADE_DURATION; // 3600ms
+        const CAKE_MESSAGE_DURATION = 3000; // 3.0s
+        // --- REMOVED old CAKE constants ---
 
         let allWords = [];
         let currentWordIndex = 0;
@@ -621,7 +610,7 @@
 
         const wordFrame = document.getElementById('wordFrame'); 
         const wordDisplay = document.getElementById('wordDisplay');
-        const cakeMessage = document.getElementById('cakeMessage');
+        // --- REMOVED cakeMessage variable ---
         const goodButton = document.getElementById('goodButton');
         const badButton = document.getElementById('badButton');
         const notWordButton = document.getElementById('notWordButton');
@@ -918,8 +907,7 @@
             wordFrame.style.padding = '0';
             wordFrame.style.backgroundColor = 'transparent';
 
-            cakeMessage.classList.remove('opacity-100');
-            cakeMessage.textContent = ''; 
+            // --- REMOVED cakeMessage cleanup ---
             
             goodButton.disabled = true;
             badButton.disabled = true;
@@ -944,8 +932,7 @@
             badButton.disabled = true;
             notWordButton.disabled = true;
 
-            cakeMessage.classList.remove('opacity-100');
-            cakeMessage.textContent = '';
+            // --- REMOVED cakeMessage cleanup ---
         }
         
         function showCooldownMessage(remainingSeconds) {
@@ -960,8 +947,7 @@
             badButton.disabled = true;
             notWordButton.disabled = true;
 
-            cakeMessage.classList.remove('opacity-100');
-            cakeMessage.textContent = '';
+            // --- REMOVED cakeMessage cleanup ---
         }
 
         /**
@@ -1062,20 +1048,7 @@
                 wordDisplay.style.padding = '0 1rem';
             }
 
-            // --- START FIX ---
-            // 4. Reset CAKE message state
-            // Remove opacity to *start* the 300ms fade-out (if it's visible)
-            cakeMessage.classList.remove('opacity-100');
-            
-            // Clear text *after* the 300ms fade-out transition finishes
-            // This prevents this function from clearing the text prematurely.
-            setTimeout(() => {
-                // Only clear the text if the message wasn't re-activated
-                if (!cakeMessage.classList.contains('opacity-100')) {
-                    cakeMessage.textContent = '';
-                }
-            }, 300); // This 300ms must match your CSS transition-duration
-            // --- END FIX ---
+            // --- REMOVED old cakeMessage reset logic ---
             
             // 5. Only enable buttons if not in a special message state (like cooldown or award)
             if (!isCoolingDown && !currentWord.isSpecialMessage) {
@@ -1241,23 +1214,29 @@
             
             // --- SPECIAL WORD LOGIC ---
             
-            // CAKE Logic (Show/Fade message, unlock badge)
+            // --- START FIX: Reworked CAKE logic to match LLAMA logic ---
             if (isCake) {
                 updateSpecialBadges(currentWord.text);
                 
-                // Delay message appearance until word is faded (word fade is 0.3s)
+                // Wait for the word to fade out (0.3s)
                 setTimeout(() => {
-                    cakeMessage.textContent = 'The cake is a lie!'; // MESSAGE UNDERNEATH
-                    // FIX: Only add opacity-100, relying on base CSS for opacity: 0
-                    cakeMessage.classList.add('opacity-100');
+                    wordDisplay.classList.remove('word-fade-cake'); // Reset
+                    wordDisplay.style.opacity = '1'; // Reset
                     
-                    // Fade out the message after 3 seconds (starting from when it appears)
+                    // Display the new message using showMessage()
+                    showMessage("The cake is a lie!", false); 
+                    wordDisplay.style.fontSize = '2rem'; // Make it message-sized
+                    
+                    // Wait for the message to be read, then move to the next word
                     setTimeout(() => {
-                        // FIX: Only remove opacity-100, relying on base CSS for opacity: 0
-                        cakeMessage.classList.remove('opacity-100');
-                    }, CAKE_MESSAGE_DISPLAY_DURATION); // 3000ms 
+                        nextWord(); 
+                        fetchWords(false);
+                    }, CAKE_MESSAGE_DURATION); // 3000ms
                 }, CAKE_WORD_FADE_DURATION); // 300ms
+                
+                return; // EXIT FUNCTION to prevent normal transition/fetch
             }
+            // --- END FIX ---
 
             // LLAMA Logic (Slow Fade-Out, unlock badge)
             if (isLlama) {
@@ -1300,7 +1279,9 @@
                     voteStreak = 0; 
                     
                     // Already transitioned, just move on
-                    const totalDelay = isCake ? CAKE_TOTAL_DELAY : ((voteType === 'good' || voteType === 'bad') ? transitionDuration : 0);
+                    // --- START FIX: Simplified totalDelay (isCake is handled above) ---
+                    const totalDelay = ((voteType === 'good' || voteType === 'bad') ? transitionDuration : 0);
+                    // --- END FIX ---
                     
                     setTimeout(() => {
                         nextWord();
@@ -1341,8 +1322,9 @@
                         // NORMAL FLOW
                         const transitionDelay = (voteType === 'good' || voteType === 'bad') ? transitionDuration : 0;
                         
-                        // FIX: Use CAKE_TOTAL_DELAY for the cake word
-                        const totalDelay = isCake ? CAKE_TOTAL_DELAY : transitionDelay; 
+                        // --- START FIX: Simplified totalDelay (isCake is handled above) ---
+                        const totalDelay = transitionDelay; 
+                        // --- END FIX ---
                         
                         setTimeout(() => {
                             nextWord(); 
