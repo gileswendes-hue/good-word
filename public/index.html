@@ -558,18 +558,24 @@
 
 
     <div class="version-indicator">
-        v3.9.11 | Made by Gilxs in 12,025
+        v3.9.12 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.9.11'; // Bumped version for fix
+        const APP_VERSION = '3.9.12'; // Bumped version for fix
         
         // --- BOOST & SPECIAL WORD CONSTANTS ---
         const BOOSTED_WORD = 'CAKE';
         const BOOST_FACTOR = 2.0; 
         const LLAMA_WORD = 'LLAMA'; 
         const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
+        
+        // NEW CAKE TIMING CONSTANTS (For Fix v3.9.12)
+        const CAKE_WORD_FADE_DURATION = 300; // 0.3s
+        const CAKE_MESSAGE_DISPLAY_DURATION = 3000; // 3.0s
+        const CAKE_MESSAGE_FADE_DURATION = 300; // 0.3s
+        const CAKE_TOTAL_DELAY = CAKE_WORD_FADE_DURATION + CAKE_MESSAGE_DISPLAY_DURATION + CAKE_MESSAGE_FADE_DURATION; // 3600ms
 
         let allWords = [];
         let currentWordIndex = 0;
@@ -1239,8 +1245,8 @@
                     setTimeout(() => {
                         // FIX: Only remove opacity-100, relying on base CSS for opacity: 0
                         cakeMessage.classList.remove('opacity-100');
-                    }, 3000); 
-                }, 300); // Wait 300ms (CAKE fade duration)
+                    }, CAKE_MESSAGE_DISPLAY_DURATION); // 3000ms 
+                }, CAKE_WORD_FADE_DURATION); // 300ms
             }
 
             // LLAMA Logic (Slow Fade-Out, unlock badge)
@@ -1284,11 +1290,12 @@
                     voteStreak = 0; 
                     
                     // Already transitioned, just move on
-                    const delay = isCake ? (300 + 3000) : ((voteType === 'good' || voteType === 'bad') ? transitionDuration : 0);
+                    const totalDelay = isCake ? CAKE_TOTAL_DELAY : ((voteType === 'good' || voteType === 'bad') ? transitionDuration : 0);
+                    
                     setTimeout(() => {
                         nextWord();
                         fetchWords(false); 
-                    }, delay); 
+                    }, totalDelay); 
                 } else if (!response.ok) {
                     throw new Error(result.message || "Failed to register vote.");
                 } else {
@@ -1324,8 +1331,8 @@
                         // NORMAL FLOW
                         const transitionDelay = (voteType === 'good' || voteType === 'bad') ? transitionDuration : 0;
                         
-                        // Use 3300ms for cake (word fade + message duration), otherwise use transition delay.
-                        const totalDelay = isCake ? (300 + 3000) : transitionDelay; 
+                        // FIX: Use CAKE_TOTAL_DELAY for the cake word
+                        const totalDelay = isCake ? CAKE_TOTAL_DELAY : transitionDelay; 
                         
                         setTimeout(() => {
                             nextWord(); 
