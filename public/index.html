@@ -59,6 +59,13 @@
         .word-transition-bad {
             animation: slide-out-right-bad 0.4s ease-out forwards;
         }
+        
+        /* LLAMA FADE-OUT (8 seconds, no horizontal slide) */
+        .word-transition-llama {
+            animation: fade-away-llama 8s ease-out forwards; 
+            /* Ensure other transitions don't interfere */
+            transform: none !important; 
+        }
 
         @keyframes slide-out-left-good {
             0% { transform: translateX(0); opacity: 1; color: #111827;}
@@ -69,6 +76,13 @@
             0% { transform: translateX(0); opacity: 1; color: #111827;}
             100% { transform: translateX(150%); opacity: 0; color: #ef4444;}
         }
+        
+        @keyframes fade-away-llama {
+            0% { opacity: 1; transform: scale(1); }
+            10% { transform: scale(1.05); }
+            100% { opacity: 0; transform: scale(0.5); }
+        }
+
 
         #wordDisplay {
             font-size: 6rem;
@@ -326,13 +340,13 @@
         @keyframes sun-pulse {
             0% {
                 text-shadow: 
-                    0 0 10px rgba(255, 255, 150, 0.4),
-                    0 0 20px rgba(255, 152, 0, 0.6);
+                    0 0 15px rgba(255, 255, 150, 0.4),
+                    0 0 30px rgba(255, 152, 0, 0.6);
             }
             100% {
                 text-shadow: 
-                    0 0 15px rgba(255, 255, 200, 0.8),
-                    0 0 30px rgba(255, 160, 0, 1.0);
+                    0 0 20px rgba(255, 255, 200, 0.8),
+                    0 0 40px rgba(255, 160, 0, 1.0);
             }
         }
         
@@ -547,15 +561,16 @@
 
 
     <div class="version-indicator">
-        v3.9.4 | Made by Gilxs in 12,025
+        v3.9.6 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.9.4'; 
+        const APP_VERSION = '3.9.6'; 
         
         // --- NEW BOOST CONSTANTS ---
         const BOOSTED_WORD = 'CAKE';
+        const LLAMA_WORD = 'LLAMA';
         const BOOST_FACTOR = 2.0; 
 
         let allWords = [];
@@ -570,37 +585,6 @@
         let cooldownTimer = null;
         let isCoolingDown = false;
         let lastVoteTime = 0; 
-
-        /**
- * Secret function to test the 'LLAMA' feature by forcing the word to load.
- * Type loadLlamaWord() in the console.
- */
-window.loadLlamaWord = function() {
-    // 1. Ensure words are loaded (optional, but good practice)
-    if (allWords.length === 0) {
-        console.warn("Words not yet loaded. Trying to fetch them first.");
-        fetchWords(); // This might delay the result
-    }
-
-    // 2. Find the word 'LLAMA' and display it
-    const llamaWord = allWords.find(w => w.text.toUpperCase() === 'LLAMA');
-    if (llamaWord) {
-        const newIndex = allWords.findIndex(w => w.text.toUpperCase() === 'LLAMA');
-        if (newIndex !== -1) {
-            currentWordIndex = newIndex;
-        }
-        displayCurrentWord(allWords[currentWordIndex]);
-        
-        console.log("LLAMA loaded successfully. Click any vote button to test the 5s fade-away.");
-        
-        // Ensure buttons are enabled for testing
-        goodButton.disabled = false;
-        badButton.disabled = false;
-        notWordButton.disabled = false;
-    } else {
-        console.error("The word 'LLAMA' was not found in the current word list. Please ensure it has been submitted or loaded.");
-    }
-}
         
         // --- CAKE FEATURE STATE ---
         let cakeFound = localStorage.getItem('cakeFound') === 'true'; 
@@ -745,15 +729,45 @@ window.loadLlamaWord = function() {
             cakeFound = true;
             localStorage.setItem('cakeFound', 'true'); // Persist the finding in localStorage
 
-            const cakeWord = allWords.find(w => w.text.toUpperCase() === 'CAKE');
+            const cakeWord = allWords.find(w => w.text.toUpperCase() === BOOSTED_WORD);
             if (cakeWord) {
-                const newIndex = allWords.findIndex(w => w.text.toUpperCase() === 'CAKE');
+                const newIndex = allWords.findIndex(w => w.text.toUpperCase() === BOOSTED_WORD);
                 if (newIndex !== -1) {
                     currentWordIndex = newIndex;
                 }
                 displayCurrentWord(allWords[currentWordIndex]);
             }
         }
+        
+        /**
+         * Secret function to test the 'LLAMA' feature by forcing the word to load.
+         * Type loadLlamaWord() in the console.
+         */
+        window.loadLlamaWord = function() {
+            if (allWords.length === 0) {
+                console.warn("Words not yet loaded. Trying to fetch them first.");
+                fetchWords(); 
+            }
+
+            const llamaWord = allWords.find(w => w.text.toUpperCase() === LLAMA_WORD);
+            if (llamaWord) {
+                const newIndex = allWords.findIndex(w => w.text.toUpperCase() === LLAMA_WORD);
+                if (newIndex !== -1) {
+                    currentWordIndex = newIndex;
+                }
+                displayCurrentWord(allWords[currentWordIndex]);
+                
+                console.log("LLAMA loaded successfully. Click any vote button to test the 8s fade-away.");
+                
+                // Ensure buttons are enabled for testing
+                goodButton.disabled = false;
+                badButton.disabled = false;
+                notWordButton.disabled = false;
+            } else {
+                console.error(`The word '${LLAMA_WORD}' was not found in the current word list. Please ensure it has been submitted or loaded.`);
+            }
+        }
+
 
         function populateThemeChooser() {
             themeChooser.innerHTML = '<option value="default">Default</option>'; 
@@ -948,7 +962,7 @@ window.loadLlamaWord = function() {
             
             const wordText = currentWord.text.toUpperCase();
             
-            wordDisplay.classList.remove('word-transition-good', 'word-transition-bad');
+            wordDisplay.classList.remove('word-transition-good', 'word-transition-bad', 'word-transition-llama');
             wordDisplay.textContent = wordText;
             wordDisplay.className = 'font-extrabold text-gray-900 text-center min-h-[72px]';
             
@@ -1035,7 +1049,7 @@ window.loadLlamaWord = function() {
 
 
             // 4. CAKE MESSAGE LOGIC (FIXED)
-            const isCake = wordText === 'CAKE';
+            const isCake = wordText === BOOSTED_WORD;
 
             // Ensure the badge is shown permanently if CAKE has ever been displayed
             if (isCake && !cakeFound) {
@@ -1054,13 +1068,19 @@ window.loadLlamaWord = function() {
                 setTimeout(() => {
                     cakeMessage.classList.remove('opacity-100');
                     cakeMessage.classList.add('opacity-0');
+                    
+                    // Clear the content AFTER the fade-out duration (0.3s)
+                    setTimeout(() => {
+                        cakeMessage.textContent = '';
+                    }, 300); 
+
                 }, 3000); 
 
             } else {
-                // Clear message content, but don't interfere with the fade-out if it's already triggered
-                if (!cakeMessage.classList.contains('opacity-0')) {
-                    cakeMessage.classList.add('opacity-0');
-                }
+                // For all other words, ensure the message is hidden and clear the content
+                cakeMessage.classList.remove('opacity-100');
+                cakeMessage.classList.add('opacity-0');
+                cakeMessage.textContent = '';
             }
             
             // 5. Only enable buttons if not in a special message state (like cooldown or award)
@@ -1202,17 +1222,30 @@ window.loadLlamaWord = function() {
 
             const currentWord = allWords[currentWordIndex];
             if (!currentWord) return;
+            
+            const isLlama = currentWord.text.toUpperCase() === LLAMA_WORD;
+
 
             goodButton.disabled = true;
             badButton.disabled = true;
             notWordButton.disabled = true;
             
             const wordId = currentWord._id;
-            const transitionDuration = 400; 
-            
-            if (voteType === 'good' || voteType === 'bad') {
+            let transitionDuration = 400; // Default quick transition duration
+
+            // **FIXED: Clear all potential transition classes first**
+            wordDisplay.classList.remove('word-transition-good', 'word-transition-bad');
+
+
+            // --- LLAMA LOGIC (8 seconds fade) ---
+            if (isLlama) {
+                transitionDuration = 8000; 
+                wordDisplay.classList.add('word-transition-llama');
+            } else if (voteType === 'good' || voteType === 'bad') {
+                // Existing logic for good/bad vote transition
                 wordDisplay.classList.add(voteType === 'good' ? 'word-transition-good' : 'word-transition-bad');
             }
+            // --- END LLAMA LOGIC ---
 
             const themeWasNewlyUnlocked = checkAndApplyTheme(currentWord.text);
 
@@ -1228,7 +1261,7 @@ window.loadLlamaWord = function() {
                 if (response.status === 403) {
                     voteStreak = 0; 
                     
-                    if (voteType === 'good' || voteType === 'bad') {
+                    if (isLlama || voteType === 'good' || voteType === 'bad') {
                         setTimeout(() => {
                             nextWord();
                             fetchWords(false); 
@@ -1269,21 +1302,24 @@ window.loadLlamaWord = function() {
                     } else if (awardAchieved) {
                         showAwardMessageAndContinue(awardName, emoji);
                     } else {
-                        if (voteType === 'good' || voteType === 'bad') {
+                        // --- MODIFIED CONTINUATION LOGIC ---
+                        if (isLlama || voteType === 'good' || voteType === 'bad') {
                             setTimeout(() => {
                                 nextWord(); 
                                 fetchWords(false); 
                             }, transitionDuration);
                         } else {
+                            // Logic for 'notWord' or default
                             nextWord();
                             fetchWords(false);
                         }
+                        // --- END MODIFIED CONTINUATION LOGIC ---
                     }
                 }
             } catch (error) {
                 console.error('Error submitting vote:', error);
                 showMessage("Vote failed. Try again.", true);
-                wordDisplay.classList.remove('word-transition-good', 'word-transition-bad'); 
+                wordDisplay.classList.remove('word-transition-good', 'word-transition-bad', 'word-transition-llama'); 
                 goodButton.disabled = false;
                 badButton.disabled = false;
                 notWordButton.disabled = false;
@@ -1430,4 +1466,3 @@ window.loadLlamaWord = function() {
     </script>
 </body>
 </html>
-
