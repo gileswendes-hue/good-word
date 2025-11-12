@@ -44,7 +44,8 @@
             margin-top: -1.5rem;
             margin-bottom: 1rem;
             opacity: 0;
-            transition: opacity 0.3s ease-in-out;
+            /* Added transition for smoother fade-in/out of the text itself */
+            transition: opacity 0.3s ease-in-out; 
         }
         .opacity-100 { opacity: 1; }
 
@@ -469,7 +470,7 @@
                 Loading...
             </div>
         </div>
-        <div id="cakeMessage" class="text-center">
+        <div id="cakeMessage" class="text-center hidden">
             </div>
         
         <div class="flex space-x-4 w-full mb-3">
@@ -561,12 +562,12 @@
 
 
     <div class="version-indicator">
-        v3.9.6 | Made by Gilxs in 12,025
+        v3.9.7 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.9.6'; 
+        const APP_VERSION = '3.9.7'; 
         
         // --- NEW BOOST CONSTANTS ---
         const BOOSTED_WORD = 'CAKE';
@@ -1059,6 +1060,9 @@
             }
 
             if (isCake) {
+                // FIX 1: Ensure the element is visible before changing opacity
+                cakeMessage.classList.remove('hidden'); 
+                
                 // Show the message immediately
                 cakeMessage.textContent = 'The cake is a lie!';
                 cakeMessage.classList.remove('opacity-0');
@@ -1069,9 +1073,11 @@
                     cakeMessage.classList.remove('opacity-100');
                     cakeMessage.classList.add('opacity-0');
                     
-                    // Clear the content AFTER the fade-out duration (0.3s)
+                    // Clear the content and hide element AFTER the fade-out duration (0.3s)
                     setTimeout(() => {
                         cakeMessage.textContent = '';
+                        // FIX 2: Re-hide the element after transition completes
+                        cakeMessage.classList.add('hidden'); 
                     }, 300); 
 
                 }, 3000); 
@@ -1081,6 +1087,8 @@
                 cakeMessage.classList.remove('opacity-100');
                 cakeMessage.classList.add('opacity-0');
                 cakeMessage.textContent = '';
+                // Ensure it is hidden by default
+                cakeMessage.classList.add('hidden'); 
             }
             
             // 5. Only enable buttons if not in a special message state (like cooldown or award)
