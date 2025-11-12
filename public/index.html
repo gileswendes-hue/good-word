@@ -547,12 +547,12 @@
 
 
     <div class="version-indicator">
-        v3.9.2 | Made by Gilxs in 12,025
+        v3.9.4 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.9.2'; 
+        const APP_VERSION = '3.9.4'; 
         
         // --- NEW BOOST CONSTANTS ---
         const BOOSTED_WORD = 'CAKE';
@@ -570,6 +570,9 @@
         let cooldownTimer = null;
         let isCoolingDown = false;
         let lastVoteTime = 0; 
+        
+        // --- CAKE FEATURE STATE ---
+        let cakeFound = localStorage.getItem('cakeFound') === 'true'; 
 
         // --- THEME VARIABLES: OBFUSCATED USING STRING MANIPULATION ---
         let currentTheme = localStorage.getItem('currentTheme') || 'default';
@@ -586,7 +589,7 @@
             'rainbow': RAINBOW_STR.split('|'),
             'dark': DARK_REVERSED_STR
                         .split('!')
-                        .map(w => w.split('').reverse().join('')), 
+                        .map(w => w => w.split('').reverse().join('')), 
             'banana': BANANA_STR.split(','),
             'winter': WINTER_STR.split('|'),
             'halloween': HALLOWEEN_STR.split('|'), 
@@ -676,6 +679,12 @@
             
             // CAKE BADGE LISTENER
             cakeBadge.addEventListener('click', loadCakeWord);
+            
+            // Set initial visibility of the badge if already found
+            if (cakeFound) {
+                cakeBadge.classList.remove('hidden');
+            }
+
 
             themeChooser.addEventListener('change', (e) => {
                 applyTheme(e.target.value);
@@ -700,13 +709,18 @@
          * Finds the word 'CAKE' and forces it to be the current word displayed.
          */
         function loadCakeWord() {
+            // 1. Permanently show the badge once this function is called
+            cakeBadge.classList.remove('hidden');
+            cakeFound = true;
+            localStorage.setItem('cakeFound', 'true'); // Persist the finding in localStorage
+
             const cakeWord = allWords.find(w => w.text.toUpperCase() === 'CAKE');
             if (cakeWord) {
                 const newIndex = allWords.findIndex(w => w.text.toUpperCase() === 'CAKE');
                 if (newIndex !== -1) {
                     currentWordIndex = newIndex;
                 }
-                displayCurrentWord(cakeWord);
+                displayCurrentWord(allWords[currentWordIndex]);
             }
         }
 
@@ -835,7 +849,9 @@
             cakeMessage.classList.add('opacity-0');
             cakeMessage.textContent = ''; 
             
-            cakeBadge.classList.add('hidden');
+            if (!cakeFound) {
+                cakeBadge.classList.add('hidden');
+            }
 
             goodButton.disabled = true;
             badButton.disabled = true;
@@ -864,7 +880,9 @@
             cakeMessage.classList.add('opacity-0');
             cakeMessage.textContent = '';
             
-            cakeBadge.classList.add('hidden');
+            if (!cakeFound) {
+                cakeBadge.classList.add('hidden');
+            }
         }
         
         function showCooldownMessage(remainingSeconds) {
@@ -883,7 +901,9 @@
             cakeMessage.classList.add('opacity-0');
             cakeMessage.textContent = '';
             
-            cakeBadge.classList.add('hidden');
+            if (!cakeFound) {
+                cakeBadge.classList.add('hidden');
+            }
         }
 
         /**
@@ -983,25 +1003,33 @@
             }
 
 
-            // 4. CAKE MESSAGE LOGIC
-            if (wordText === 'CAKE') {
+            // 4. CAKE MESSAGE LOGIC (FIXED)
+            const isCake = wordText === 'CAKE';
+
+            // Ensure the badge is shown permanently if CAKE has ever been displayed
+            if (isCake && !cakeFound) {
+                cakeBadge.classList.remove('hidden');
+                cakeFound = true;
+                localStorage.setItem('cakeFound', 'true'); 
+            }
+
+            if (isCake) {
+                // Show the message immediately
                 cakeMessage.textContent = 'The cake is a lie!';
                 cakeMessage.classList.remove('opacity-0');
                 cakeMessage.classList.add('opacity-100');
                 
+                // Schedule the fade-out
                 setTimeout(() => {
                     cakeMessage.classList.remove('opacity-100');
                     cakeMessage.classList.add('opacity-0');
                 }, 3000); 
-                
-                cakeBadge.classList.remove('hidden');
 
             } else {
-                cakeMessage.classList.remove('opacity-100');
-                cakeMessage.classList.add('opacity-0');
-                cakeMessage.textContent = ''; 
-                
-                cakeBadge.classList.add('hidden');
+                // Clear message content, but don't interfere with the fade-out if it's already triggered
+                if (!cakeMessage.classList.contains('opacity-0')) {
+                    cakeMessage.classList.add('opacity-0');
+                }
             }
             
             // 5. Only enable buttons if not in a special message state (like cooldown or award)
