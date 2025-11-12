@@ -60,14 +60,14 @@
             animation: slide-out-right-bad 0.4s ease-out forwards;
         }
         
-        /* NEW: LLAMA Slow Fade-Out (TRANSFORM IS NOW 8s) */
+        /* LLAMA Slow Fade-Out (TRANSFORM IS NOW 8s) */
         .word-fade-llama {
             transition: opacity 8s ease-out, transform 8s ease-out;
             opacity: 0 !important; 
             transform: scale(0.9) !important;
         }
 
-        /* NEW: CAKE Quick Fade-Out */
+        /* CAKE Quick Fade-Out */
         .word-fade-cake {
             transition: opacity 0.3s ease-out, transform 0.3s ease-out;
             opacity: 0 !important; 
@@ -558,12 +558,12 @@
 
 
     <div class="version-indicator">
-        v3.9.8 | Made by Gilxs in 12,025
+        v3.9.9 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.9.8'; // Bumped version for fix
+        const APP_VERSION = '3.9.9'; // Bumped version for fix
         
         // --- BOOST & SPECIAL WORD CONSTANTS ---
         const BOOSTED_WORD = 'CAKE';
@@ -575,7 +575,7 @@
         let currentWordIndex = 0;
         let userId = localStorage.getItem('userId');
         let voteCount = 0; 
-        let contributorCount = 0; // NEW: Track word submissions
+        let contributorCount = 0; 
         
         // NEW STATE VARIABLES
         let cakeBadgeUnlocked = localStorage.getItem('cakeBadgeUnlocked') === 'true';
@@ -635,7 +635,7 @@
         const awardBadge = document.getElementById('awardBadge');
         const cakeBadge = document.getElementById('cakeBadge'); 
         const llamaBadge = document.getElementById('llamaBadge'); 
-        const contributorBadge = document.getElementById('contributorBadge'); // NEW
+        const contributorBadge = document.getElementById('contributorBadge'); 
         const showTop100Button = document.getElementById('showTop100Button');
         const fullRankingsModalContainer = document.getElementById('fullRankingsModalContainer');
         const closeFullRankingsModal = document.getElementById('closeFullRankingsModal');
@@ -658,13 +658,12 @@
                 voteCount = parseInt(storedVoteCount, 10);
             }
             
-            // NEW: Load Contributor Count
+            // Load Contributor Count
             const storedContributorCount = localStorage.getItem('contributorCount');
             if (storedContributorCount) {
                 contributorCount = parseInt(storedContributorCount, 10);
             }
-            // END NEW
-
+            
             versionIndicator.textContent = `v${APP_VERSION} | Made by Gilxs in 12,025`;
             
             goodButton.addEventListener('click', () => submitVote('good'));
@@ -683,7 +682,7 @@
             });
             
             cakeBadge.addEventListener('click', loadCakeWord);
-            llamaBadge.addEventListener('click', loadLlamaWord); // LLAMA badge listener
+            llamaBadge.addEventListener('click', loadLlamaWord); 
 
             themeChooser.addEventListener('change', (e) => {
                 applyTheme(e.target.value);
@@ -694,7 +693,7 @@
 
             fetchWords();
             updateAwardBadge();
-            updateContributorBadge(); // NEW: Update contributor badge on load
+            updateContributorBadge(); 
             populateThemeChooser(); 
             applyTheme(currentTheme); 
             
@@ -725,7 +724,7 @@
             findAndLoadSpecialWord(BOOSTED_WORD);
         }
         
-        // NEW: Function to load LLAMA word for testing
+        // Function to load LLAMA word for testing
         function loadLlamaWord() {
             findAndLoadSpecialWord(LLAMA_WORD);
         }
@@ -889,7 +888,7 @@
             awardBadge.title = title;
         }
         
-        // NEW: Contributor Badge Logic
+        // Contributor Badge Logic
         function updateContributorBadge() {
             if (contributorCount >= CONTRIBUTION_THRESHOLD) {
                 contributorBadge.textContent = '✍️';
@@ -974,7 +973,7 @@
             const wordText = currentWord.text.toUpperCase();
             
             // REMOVED CAKE FADE FROM RESET LIST
-            wordDisplay.classList.remove('word-transition-good', 'word-transition-bad', 'word-fade-llama', 'word-fade-cake'); // ADDED word-fade-cake to reset
+            wordDisplay.classList.remove('word-transition-good', 'word-transition-bad', 'word-fade-llama', 'word-fade-cake'); 
             wordDisplay.textContent = wordText;
             wordDisplay.className = 'font-extrabold text-gray-900 text-center min-h-[72px]';
             
@@ -986,7 +985,7 @@
             wordDisplay.style.animation = '';
             wordDisplay.style.transform = '';
             wordDisplay.style.textShadow = '';
-            wordDisplay.style.opacity = '1'; // Ensure LLAMA fade is reset
+            wordDisplay.style.opacity = '1'; 
             wordFrame.style.padding = '0';
             wordFrame.style.backgroundColor = 'transparent';
             
@@ -1006,8 +1005,8 @@
                 wordDisplay.style.color = '#01579b'; 
                 wordDisplay.style.textShadow = '0 0 8px rgba(255, 255, 255, 0.8)';
             } else if (currentTheme === 'summer') {
-                wordDisplay.style.color = '#FF9800'; // UPDATED COLOR
-                wordDisplay.style.textShadow = '0 0 20px #FFF8E1, 0 0 10px #FFEB3B'; // Sun glow
+                wordDisplay.style.color = '#FF9800'; 
+                wordDisplay.style.textShadow = '0 0 20px #FFF8E1, 0 0 10px #FFEB3B'; 
             } else if (currentTheme === 'rainbow') {
                 // RAINBOW THEME TEXT STYLES
                 wordDisplay.style.background = 'linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #9400d3)';
@@ -1206,7 +1205,8 @@
             const currentWord = allWords[currentWordIndex];
             if (!currentWord) return;
 
-            const isCake = currentWord.text.toUpperCase() === BOOSTED_WORD; // Defined early
+            const isCake = currentWord.text.toUpperCase() === BOOSTED_WORD; 
+            const isLlama = currentWord.text.toUpperCase() === LLAMA_WORD;
             
             // Disable buttons immediately for smooth transition
             goodButton.disabled = true;
@@ -1219,7 +1219,9 @@
             // 1. Conditional Transition/Fade Application
             if (voteType === 'good' || voteType === 'bad') {
                 if (isCake) {
-                    wordDisplay.classList.add('word-fade-cake'); // ADDED: CAKE fade
+                    wordDisplay.classList.add('word-fade-cake'); 
+                } else if (isLlama) {
+                    wordDisplay.classList.add('word-fade-llama'); // LLAMA fade applied immediately
                 } else {
                     wordDisplay.classList.add(voteType === 'good' ? 'word-transition-good' : 'word-transition-bad');
                 }
@@ -1229,41 +1231,49 @@
             
             // CAKE Logic (Show/Fade message, unlock badge)
             if (isCake) {
-                cakeMessage.textContent = 'The cake is a lie!'; // MESSAGE UNDERNEATH
-                cakeMessage.classList.remove('opacity-0');
-                cakeMessage.classList.add('opacity-100');
-                
-                // Fade out the message after 3 seconds
-                setTimeout(() => {
-                    cakeMessage.classList.remove('opacity-100');
-                    cakeMessage.classList.add('opacity-0');
-                }, 3000); 
-                
                 updateSpecialBadges(currentWord.text);
+                
+                // Delay message appearance until word is faded (word fade is 0.3s)
+                setTimeout(() => {
+                    cakeMessage.textContent = 'The cake is a lie!'; // MESSAGE UNDERNEATH
+                    cakeMessage.classList.remove('opacity-0');
+                    cakeMessage.classList.add('opacity-100');
+                    
+                    // Fade out the message after 3 seconds (starting from when it appears)
+                    setTimeout(() => {
+                        cakeMessage.classList.remove('opacity-100');
+                        cakeMessage.classList.add('opacity-0');
+                    }, 3000); 
+                }, 300); // Wait 300ms (CAKE fade duration)
             }
 
             // LLAMA Logic (Slow Fade-Out, unlock badge)
-            if (currentWord.text.toUpperCase() === LLAMA_WORD) {
+            if (isLlama) {
                 
                 updateSpecialBadges(currentWord.text);
                 
-                showMessage("🦙 The Llama Vanishes... 💨", false);
-                
-                // Apply slow fade transition
-                wordDisplay.classList.add('word-fade-llama');
-                
-                // Wait 8 seconds for the fade-out before moving to the next word
+                // Wait 8 seconds for the fade-out
                 setTimeout(() => {
-                    nextWord(); 
-                    fetchWords(false);
+                    wordDisplay.classList.remove('word-fade-llama'); // Reset
+                    wordDisplay.style.opacity = '1'; // Reset
+                    
+                    // Display the new message
+                    showMessage("what llama?", false); 
+                    wordDisplay.style.fontSize = '2rem'; 
+                    
+                    // Wait 2 seconds for the message to be read, then move to the next word
+                    setTimeout(() => {
+                        nextWord(); 
+                        fetchWords(false);
+                    }, 2000); 
                 }, 8000);
                 
-                return; // EXIT FUNCTION
+                return; // EXIT FUNCTION to prevent normal transition/fetch
             }
             // -----------------------------
 
             const themeWasNewlyUnlocked = checkAndApplyTheme(currentWord.text);
-            updateSpecialBadges(currentWord.text); // Permanent badge unlock (for non-cake/llama words too, it does nothing)
+            updateSpecialBadges(currentWord.text); // Permanent badge unlock 
 
             try {
                 const response = await fetch(`/api/words/${wordId}/vote`, {
@@ -1278,7 +1288,7 @@
                     voteStreak = 0; 
                     
                     // Already transitioned, just move on
-                    const delay = isCake ? 3000 : ((voteType === 'good' || voteType === 'bad') ? transitionDuration : 0);
+                    const delay = isCake ? (300 + 3000) : ((voteType === 'good' || voteType === 'bad') ? transitionDuration : 0);
                     setTimeout(() => {
                         nextWord();
                         fetchWords(false); 
@@ -1315,11 +1325,11 @@
                     } else if (awardAchieved) {
                         showAwardMessageAndContinue(awardName, emoji);
                     } else {
-                        // NORMAL FLOW (Including CAKE delay fix)
+                        // NORMAL FLOW
                         const transitionDelay = (voteType === 'good' || voteType === 'bad') ? transitionDuration : 0;
                         
-                        // Use 3000ms for cake, otherwise use transition delay.
-                        const totalDelay = isCake ? 3000 : transitionDelay; 
+                        // Use 3300ms for cake (word fade + message duration), otherwise use transition delay.
+                        const totalDelay = isCake ? (300 + 3000) : transitionDelay; 
                         
                         setTimeout(() => {
                             nextWord(); 
@@ -1457,7 +1467,7 @@
                 if (response.status === 201) {
                     modalMessage.textContent = "Success! Word added to the pool.";
                     
-                    // NEW: Update contributor count and badge
+                    // Update contributor count and badge
                     contributorCount++;
                     localStorage.setItem('contributorCount', contributorCount);
                     updateContributorBadge();
