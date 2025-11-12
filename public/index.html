@@ -396,17 +396,6 @@
         .theme-halloween .border-b {
             border-color: #691C00 !important; /* Darker orange/red for separator */
         }
-
-        /* --- NEW FIX FOR TOP 100 RANKINGS MODAL SCROLLING --- */
-        #fullRankingsModal {
-            max-height: 90vh; /* Set a maximum height relative to the viewport */
-            overflow-y: auto; /* Allow the modal itself to scroll if it's still too tall */
-        }
-        .full-rankings-scroll-area {
-            max-height: 60vh; /* Limit the height of the ranking lists */
-            overflow-y: auto; /* Enable vertical scrolling for the lists */
-            padding-right: 1rem; /* Add padding to prevent the scrollbar from obscuring content */
-        }
     </style>
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen p-4 theme-default">
@@ -509,6 +498,9 @@
         <button id="showTop100Button" class="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 transition duration-150">
             Show Top 100 Rankings
         </button>
+        <button id="compareWordsButton" class="mt-4 px-6 py-2 bg-purple-600 text-white font-bold rounded-lg shadow-md hover:bg-purple-700 transition duration-150">
+            Compare Any Two Words
+        </button>
     </div>
 
     <div class="mt-6 p-4 bg-white/70 rounded-xl w-full max-w-sm flex flex-col items-center shadow-lg border border-gray-100">
@@ -518,6 +510,7 @@
             </select>
         <p id="themeUnlockHint" class="text-xs text-gray-500 mt-2">Vote on special words to unlock new themes!</p>
     </div>
+    
     <div id="submissionModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
         <div class="bg-white p-6 rounded-xl w-full max-w-md shadow-2xl">
             <h2 class="text-2xl font-bold mb-4">Submit a New Word</h2>
@@ -535,7 +528,7 @@
     </div>
     
     <div id="fullRankingsModalContainer" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
-        <div id="fullRankingsModal" class="bg-white p-6 rounded-xl w-full max-w-4xl shadow-2xl">
+        <div id="fullRankingsModal" class="bg-white p-6 rounded-xl w-full shadow-2xl">
             <div class="flex justify-between items-center mb-4 border-b pb-2">
                 <h2 class="text-2xl font-bold">Top 100 Word Rankings</h2>
                 <button id="closeFullRankingsModal" class="text-gray-500 hover:text-gray-800 text-2xl font-bold leading-none">
@@ -545,14 +538,39 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <h3 class="text-lg font-semibold text-green-700 mb-2">Top Good Words</h3>
-                    <div id="fullGoodRankings" class="space-y-1 full-rankings-scroll-area">
+                    <div id="fullGoodRankings" class="space-y-1">
                         </div>
                 </div>
                 <div>
                     <h3 class="text-lg font-semibold text-red-700 mb-2">Top Bad Words</h3>
-                    <div id="fullBadRankings" class="space-y-1 full-rankings-scroll-area">
+                    <div id="fullBadRankings" class="space-y-1">
                         </div>
                 </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="compareModalContainer" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
+        <div id="compareModal" class="bg-white p-6 rounded-xl w-full max-w-lg shadow-2xl">
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <h2 class="text-2xl font-bold">Compare Any Two Words</h2>
+                <button id="closeCompareModal" class="text-gray-500 hover:text-gray-800 text-2xl font-bold leading-none">
+                    &times;
+                </button>
+            </div>
+            
+            <div class="space-y-4">
+                <input type="text" id="wordOneInput" placeholder="Enter first word..." class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                <input type="text" id="wordTwoInput" placeholder="Enter second word..." class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                <div id="compareResults" class="p-3 bg-gray-50 rounded-lg min-h-[50px]">
+                    Type words above to compare them!
+                </div>
+            </div>
+            
+            <div class="flex justify-end space-x-3 mt-4">
+                <button id="runComparisonButton" class="px-4 py-2 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 transition">
+                    Compare
+                </button>
             </div>
         </div>
     </div>
@@ -649,6 +667,15 @@
         const themeChooser = document.getElementById('themeChooser');
         const themeUnlockHint = document.getElementById('themeUnlockHint');
         const snowEffect = document.getElementById('snow-effect'); 
+        
+        // NEW COMPARISON ELEMENTS
+        const compareWordsButton = document.getElementById('compareWordsButton');
+        const compareModalContainer = document.getElementById('compareModalContainer');
+        const closeCompareModal = document.getElementById('closeCompareModal');
+        const wordOneInput = document.getElementById('wordOneInput');
+        const wordTwoInput = document.getElementById('wordTwoInput');
+        const compareResults = document.getElementById('compareResults');
+        const runComparisonButton = document.getElementById('runComparisonButton');
 
 
         function init() {
@@ -684,6 +711,17 @@
                     hideFullRankingsModal();
                 }
             });
+            
+            // NEW COMPARISON EVENT LISTENERS
+            compareWordsButton.addEventListener('click', showCompareModal);
+            closeCompareModal.addEventListener('click', hideCompareModal);
+            compareModalContainer.addEventListener('click', (e) => {
+                if (e.target === compareModalContainer) {
+                    hideCompareModal();
+                }
+            });
+            runComparisonButton.addEventListener('click', runComparison);
+            // END NEW COMPARISON EVENT LISTENERS
             
             cakeBadge.addEventListener('click', loadCakeWord);
             llamaBadge.addEventListener('click', loadLlamaWord); 
@@ -1386,7 +1424,7 @@
 
             list.forEach((word, index) => {
                 const item = document.createElement('div');
-                item.className = `flex justify-between items-center py-1 ${isFullList ? 'full-ranking-item text-sm' : 'rank-item'} border-b border-gray-100 last:border-b-0`;
+                item.className = `flex justify-between items-center py-1 ${isFullList ? 'full-ranking-item text-sm' : 'rank-item'}`;
                 
                 const scoreIndicator = type === 'good' 
                     ? `<span class="text-xs text-white bg-green-500 px-2 rounded-full font-bold">${word.score}</span>`
@@ -1474,6 +1512,149 @@
             } finally {
                 submitWordButton.disabled = false;
             }
+        }
+        
+        // --- NEW COMPARISON FEATURE IMPLEMENTATION ---
+
+        function showCompareModal() {
+            compareModalContainer.classList.remove('hidden');
+            compareModalContainer.classList.add('flex');
+            wordOneInput.value = '';
+            wordTwoInput.value = '';
+            compareResults.innerHTML = 'Type words above to compare them!';
+        }
+
+        function hideCompareModal() {
+            compareModalContainer.classList.remove('flex');
+            compareModalContainer.classList.add('hidden');
+        }
+        
+        // Utility to find a word in the local database
+        function findWordInLocalDB(text) {
+            return allWords.find(w => w.text.toUpperCase() === text.toUpperCase());
+        }
+
+        // Utility to check/submit a word and return its status/data
+        async function checkAndSubmitWord(text) {
+            const wordData = findWordInLocalDB(text);
+            const upperText = text.toUpperCase();
+
+            if (wordData) {
+                return {
+                    text: upperText,
+                    status: 'exists',
+                    good: wordData.goodVotes || 0,
+                    bad: wordData.badVotes || 0
+                };
+            } else {
+                // Submit the new word to the server as requested by the feature spec.
+                try {
+                    const response = await fetch(API_BASE_URL, { 
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text: text }) // Send original casing for server
+                    });
+
+                    if (response.status === 201) {
+                        // Word successfully added. Update local contributor count only (actual word list update happens on next fetchWords)
+                        contributorCount++;
+                        localStorage.setItem('contributorCount', contributorCount);
+                        updateContributorBadge();
+                        return { text: upperText, status: 'newlyAdded' };
+                    } else if (response.status === 409) {
+                        // Word already exists on server (another user submitted it), but not in our local list.
+                        // We assume the local list is slightly stale and fetch the data for display.
+                         const fetchSingle = await fetch(`${API_BASE_URL}/${text}`);
+                         const fetchedData = await fetchSingle.json();
+                        
+                         if (fetchSingle.ok) {
+                            // Add to local list for immediate comparison use
+                            allWords.push(fetchedData); 
+                            return {
+                                text: upperText,
+                                status: 'exists',
+                                good: fetchedData.goodVotes || 0,
+                                bad: fetchedData.badVotes || 0
+                            };
+                         }
+                         return { text: upperText, status: 'error', message: 'Word exists but could not retrieve data.' };
+                    } else {
+                        const result = await response.json();
+                        throw new Error(result.message || 'Failed to submit word.');
+                    }
+                } catch (error) {
+                    console.error(`Error submitting word ${text}:`, error);
+                    return { text: upperText, status: 'error', message: `Submission failed: ${error.message}` };
+                }
+            }
+        }
+
+        async function runComparison() {
+            const wordOneText = wordOneInput.value.trim();
+            const wordTwoText = wordTwoInput.value.trim();
+            
+            if (!wordOneText && !wordTwoText) {
+                compareResults.innerHTML = '<span class="text-red-500">Please enter at least one word to compare.</span>';
+                return;
+            }
+            
+            runComparisonButton.disabled = true;
+            compareResults.innerHTML = 'Analyzing words...';
+
+            const results = [];
+            
+            if (wordOneText) {
+                const resultOne = await checkAndSubmitWord(wordOneText);
+                results.push(resultOne);
+            }
+            
+            if (wordTwoText) {
+                // Check if word two is different from word one before processing
+                if (!wordOneText || wordOneText.toUpperCase() !== wordTwoText.toUpperCase()) {
+                     const resultTwo = await checkAndSubmitWord(wordTwoText);
+                     results.push(resultTwo);
+                } else if (wordOneText) {
+                    // If they are the same word, add the first result again for proper formatting of two entries
+                    if (results.length === 1) {
+                        results.push({...results[0], status: 'duplicate'});
+                    }
+                }
+            }
+            
+            let outputHtml = '';
+            
+            // Loop through results to generate display
+            for (const [index, result] of results.entries()) {
+                const word = `<strong>${result.text}</strong>`;
+                const isWordOne = index === 0;
+
+                if (result.status === 'exists') {
+                    outputHtml += `
+                        <div class="${isWordOne ? 'border-b pb-2 mb-2' : ''}">
+                        <p class="mb-2">Word ${index + 1} (${word}) exists in the database:</p>
+                        <ul class="list-disc list-inside ml-4 mb-3 text-sm">
+                            <li>Good Votes: <span class="text-green-600 font-bold">${result.good}</span></li>
+                            <li>Bad Votes: <span class="text-red-600 font-bold">${result.bad}</span></li>
+                            <li>Score (Good - Bad): <span class="font-bold">${result.good - result.bad}</span></li>
+                        </ul>
+                        </div>
+                    `;
+                } else if (result.status === 'newlyAdded') {
+                    outputHtml += `<p class="mb-3 text-purple-600 ${isWordOne ? 'border-b pb-2' : ''}">Word ${index + 1} (${word}) was **not found** and has been **added** to the database! (0 Good, 0 Bad votes).</p>`;
+                } else if (result.status === 'error') {
+                     outputHtml += `<p class="mb-3 text-red-500 ${isWordOne ? 'border-b pb-2' : ''}">Word ${index + 1} (${word}) status could not be determined: ${result.message}</p>`;
+                } else if (result.status === 'duplicate') {
+                    outputHtml += `<p class="mb-3 text-gray-500">Word 2 is a duplicate of Word 1 (${word}). Showing the same stats.</p>`;
+                }
+            }
+            
+            // Re-fetch the words in the background to get the database's new word count
+            if (results.some(r => r.status === 'newlyAdded')) {
+                 fetchWords(false); 
+            }
+
+            compareResults.innerHTML = outputHtml || '<span class="text-red-500">No valid words were entered.</span>';
+            runComparisonButton.disabled = false;
         }
 
         // --- Expose functions for console testing ---
