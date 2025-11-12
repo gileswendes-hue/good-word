@@ -550,12 +550,12 @@
 
 
     <div class="version-indicator">
-        v3.9.6 | Made by Gilxs in 12,025
+        v3.9.7 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.9.6'; // Bumped version for changes
+        const APP_VERSION = '3.9.7'; // Bumped version for fix
         
         // --- BOOST & SPECIAL WORD CONSTANTS ---
         const BOOSTED_WORD = 'CAKE';
@@ -754,7 +754,7 @@
             // Show/Hide Llama Badge
             if (llamaBadgeUnlocked) {
                 llamaBadge.classList.remove('hidden');
-                llamaBadge.classList.add('cursor-pointer');
+                llamaBadge.classList.add('cursor-pointer'); // Ensure cursor is set
             } else if (init) {
                 llamaBadge.classList.add('hidden'); 
                 llamaBadge.classList.remove('cursor-pointer');
@@ -1002,7 +1002,9 @@
             } else if (currentTheme === 'rainbow') {
                 // RAINBOW THEME TEXT STYLES
                 wordDisplay.style.background = 'linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #9400d3)';
-                -webkit-background-clip: text;
+                // FIX START: Corrected JavaScript syntax error that was breaking the game
+                wordDisplay.style.webkitBackgroundClip = 'text'; 
+                // FIX END
                 wordDisplay.style.webkitTextFillColor = 'transparent';
                 wordDisplay.style.color = 'transparent';
                 wordDisplay.style.animation = 'rainbow-text 5s ease infinite';
