@@ -37,16 +37,18 @@
             color: #9ca3af; 
             z-index: 50; 
         }
-        /* FIX: Removed margin-top: -1.5rem to ensure the message displays correctly */
+        /* UPDATED: Changed font-size to 0.875rem (text-sm) to make it smaller */
         #cakeMessage {
-            font-size: 1.125rem;
+            font-size: 0.875rem; 
             font-weight: 700;
             color: #4b5563;
             margin-bottom: 1rem;
             opacity: 0;
             transition: opacity 0.3s ease-in-out;
         }
-        .opacity-100 { opacity: 1; }
+        /* FIX FOR CAKE MESSAGE: Use !important to override the ID selector's opacity: 0 */
+        .opacity-100 { opacity: 1 !important; }
+        .opacity-0 { opacity: 0 !important; } /* Added for consistency */
 
         @media (max-width: 640px) {
             .rank-item { font-size: 0.8rem; }
@@ -523,21 +525,23 @@ body.theme-summer {
 
 
     <div class="version-indicator">
-        v3.9.9 | Made by Gilxs in 12,025
+        v3.9.12 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.9.9'; // UPDATED VERSION
+        const APP_VERSION = '3.9.12'; // UPDATED VERSION
         
         // --- BOOST & LLAMA CONSTANTS ---
         const BOOSTED_WORD = 'CAKE';
         const BOOST_FACTOR = 2.0; 
         const LLAMA_WORD = 'LLAMA';             
         const LLAMA_VANISH_DURATION = 2000;     
+        const LLAMA_FADE_DURATION = 8000; // UPDATED to 8000ms (8 seconds)
 
         let allWords = [];
         let currentWordIndex = 0;
+        let llamaVanishTimeout = null; 
         let userId = localStorage.getItem('userId');
         let voteCount = 0; 
         
@@ -694,32 +698,40 @@ body.theme-summer {
         }
         
         /**
-         * Handles the Llama vanishing effect (The 2-second delay and animation).
+         * Handles the Llama vanishing effect (The slow fade and message).
+         * This function is called either on badge delay (via setTimeout) or immediately on vote.
          */
         function processLlamaVanishing() {
-            // 1. Show message
+            // 1. Show message (Now smaller via CSS changes)
             cakeMessage.textContent = 'Wait... where did he go?';
             cakeMessage.classList.remove('opacity-0');
             cakeMessage.classList.add('opacity-100');
             
-            // 2. Animate and remove LLAMA word (500ms transition)
-            wordDisplay.style.transition = 'transform 0.5s ease-in-out, opacity 0.5s ease-in-out';
-            wordDisplay.style.transform = 'translateY(-100px) scale(1.2)';
-            wordDisplay.style.opacity = '0';
+            // 2. Animate and remove LLAMA word (STATIC + SLOW FADE - 8s)
+            wordDisplay.style.transition = `opacity ${LLAMA_FADE_DURATION}ms ease-out`; 
+            wordDisplay.style.transform = ''; // Keep static
+            wordDisplay.style.opacity = '0'; // Start fade out
             
-            // 3. Load next word after animation is complete
-            setTimeout(() => {
-                wordDisplay.style.transition = ''; // Reset transition
-                wordDisplay.style.transform = ''; // Reset transform
-                wordDisplay.style.opacity = '';   // Reset opacity
+            // 3. Start the sequence for next word and message fade-out
+            llamaVanishTimeout = setTimeout(() => { 
+                // Reset wordDisplay styles
+                wordDisplay.style.transition = ''; 
+                wordDisplay.style.transform = ''; 
+                wordDisplay.style.opacity = '';   
                 
+                // Start message fade-out
                 cakeMessage.classList.remove('opacity-100');
                 cakeMessage.classList.add('opacity-0');
-                cakeMessage.textContent = '';
                 
+                // Clear message content after its own CSS transition (0.3s + small buffer)
+                setTimeout(() => {
+                     cakeMessage.textContent = ''; 
+                }, 500); // Wait 500ms for 300ms transition to complete
+
                 nextWord();
                 fetchWords(false);
-            }, 500); 
+                llamaVanishTimeout = null;
+            }, LLAMA_FADE_DURATION); // Wait 8000ms
         }
 
         /**
@@ -905,7 +917,6 @@ body.theme-summer {
         
         function showCooldownMessage(remainingSeconds) {
             wordDisplay.textContent = `Button mashing will not be tolerated. Wait ${remainingSeconds}s...`;
-            // FIX: Corrected the closing quote from backtick to single quote to fix the syntax error
             wordDisplay.className = 'text-4xl font-bold text-red-600 text-center min-h-[72px]'; 
             wordDisplay.style.fontSize = '1.5rem'; 
             
@@ -947,6 +958,7 @@ body.theme-summer {
             wordDisplay.style.transform = '';
             wordDisplay.style.textShadow = '';
             wordDisplay.style.opacity = '1';
+            wordDisplay.style.transition = ''; // Reset transition
             wordFrame.style.padding = '0';
             wordFrame.style.backgroundColor = 'transparent';
             
@@ -1027,6 +1039,12 @@ body.theme-summer {
             // Ensure badges are visible if unlocked
             updateSpecialBadgesVisibility();
             
+            // NEW: Clear any existing LLAMA timeout from a previous word, just in case
+            if (llamaVanishTimeout) {
+                clearTimeout(llamaVanishTimeout);
+                llamaVanishTimeout = null;
+            }
+
             if (wordUpper === BOOSTED_WORD) { // BOOSTED_WORD is 'CAKE'
                 cakeMessage.textContent = 'The cake is a lie!';
                 cakeMessage.classList.remove('opacity-0');
@@ -1045,8 +1063,8 @@ body.theme-summer {
                 cakeMessage.classList.add('opacity-0');
                 cakeMessage.textContent = ''; 
 
-                // Start vanishing process with a 2-second delay
-                setTimeout(processLlamaVanishing, LLAMA_VANISH_DURATION);
+                // Start vanishing process with a 2-second delay before the 8-second fade begins
+                llamaVanishTimeout = setTimeout(processLlamaVanishing, LLAMA_VANISH_DURATION);
 
             } else {
                 cakeMessage.classList.remove('opacity-100');
@@ -1060,9 +1078,10 @@ body.theme-summer {
                 badButton.disabled = false;
                 notWordButton.disabled = false;
             } else if (wordUpper === LLAMA_WORD) {
-                goodButton.disabled = true;
-                badButton.disabled = true;
-                notWordButton.disabled = true;
+                // LLAMA buttons are enabled to allow immediate voting (which starts the fade)
+                goodButton.disabled = false;
+                badButton.disabled = false;
+                notWordButton.disabled = false;
             }
         }
 
@@ -1225,18 +1244,22 @@ body.theme-summer {
             const wordId = currentWord._id;
             const transitionDuration = 400; 
             
+            const wordUpper = currentWord.text.toUpperCase();
+            const isLlamaWord = wordUpper === LLAMA_WORD;
+
             if (voteType === 'good' || voteType === 'bad') {
-                wordDisplay.classList.add(voteType === 'good' ? 'word-transition-good' : 'word-transition-bad');
+                if (!isLlamaWord) { // Only add transition class if NOT LLAMA
+                    wordDisplay.classList.add(voteType === 'good' ? 'word-transition-good' : 'word-transition-bad');
+                }
             }
             
             // Special Word Unlock Logic: Persist badges after first vote
-            const wordUpper = currentWord.text.toUpperCase();
             if (wordUpper === 'CAKE' && !isCakeUnlocked) {
                 isCakeUnlocked = true;
                 localStorage.setItem('isCakeUnlocked', 'true');
                 updateSpecialBadgesVisibility();
             }
-            if (wordUpper === 'LLAMA' && !isLlamaUnlocked) {
+            if (isLlamaWord && !isLlamaUnlocked) {
                 isLlamaUnlocked = true;
                 localStorage.setItem('isLlamaUnlocked', 'true');
                 updateSpecialBadgesVisibility();
@@ -1290,8 +1313,20 @@ body.theme-summer {
                         emoji = '🌟';
                         awardAchieved = true;
                     }
-
-                    if (themeWasNewlyUnlocked) {
+                    
+                    if (isLlamaWord) {
+                        // NEW LLAMA VOTE LOGIC: STATIC + SLOW FADE + MESSAGE
+                        
+                        // Clear the timer that would have faded it out anyway
+                        if (llamaVanishTimeout) {
+                            clearTimeout(llamaVanishTimeout);
+                            llamaVanishTimeout = null;
+                        }
+                        
+                        // Call the main vanishing function immediately (starts 8s fade and message sequence)
+                        processLlamaVanishing();
+                        
+                    } else if (themeWasNewlyUnlocked) {
                         const themeName = currentTheme.charAt(0).toUpperCase() + currentTheme.slice(1);
                         showAwardMessageAndContinue(`'${themeName}' Theme`, '🎁');
                     } else if (awardAchieved) {
