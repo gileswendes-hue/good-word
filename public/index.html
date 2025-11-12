@@ -562,12 +562,12 @@
 
 
     <div class="version-indicator">
-        v3.9.8 | Made by Gilxs in 12,025
+        v3.9.10 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.9.8'; 
+        const APP_VERSION = '3.9.10'; 
         
         // --- NEW BOOST CONSTANTS ---
         const BOOSTED_WORD = 'CAKE';
@@ -594,22 +594,35 @@
         let currentTheme = localStorage.getItem('currentTheme') || 'default';
         let unlockedThemes = JSON.parse(localStorage.getItem('unlockedThemes')) || [];
         
-        const RAINBOW_STR = 'RAINBOW|GAY|SPARKLE|COLOUR|PRIDE|UNICORN|PROUD|QUEER|GLITTER|LESBIAN|TINSEL';
+        // OBFUSCATED STRINGS
+        const RAINBOW_REVERSED_STR = 'ELKRAPS|EDIRP|RUOLOC|ELKRAPS|YAG|WOBNIAR|LESNIT|NAIBSEL|RETTILG|REEUQ|DUORP|NROCINU'; 
         const DARK_REVERSED_STR = 'THGINDIM!KCALB!EDAHS!HTOG!WODAHS!AJNIN!KRAD!THGIN!HTLAETS'; 
-        const BANANA_STR = 'BANANA,BANANAS,PLANTAIN,YELLOW,SPLIT,MONKEY';
-        const WINTER_STR = 'SNOWMAN|SNOW|ICE|WINTER|FROZEN|CHILL|COLD|FLAKE|BLIZZARD|ICICLE|SLEIGH|SNOWBALL|SCARF|JACKET|SLEDGE|NOVEMBER|DECEMBER|JANUARY|JINGLE'; 
-        const HALLOWEEN_STR = 'GHOST|SPIDER|WITCH|SPOOKY|VAMPIRE|HALLOWEEN|CANDY|PUMPKIN|ZOMBIE|BAT|TRICK|TREAT|OCTOBER|SCARY|MONSTER'; 
-        const SUMMER_STR = 'SUN|BEACH|SWIM|WATERMELON|HEAT|HOLIDAY|JULY|AUGUST|POOL|SAND|OCEAN|TAN|ICE CREAM|WAVES|TROPICAL'; 
+        const BANANA_REVERSED_STR = 'YEKNO|TILPS|WOLLEY|NIATNALP|SANANAB|ANANAB';
+        const WINTER_REVERSED_STR = 'ELGNIB!YRTSE!TEKCAJ!FRACS|EGDELSL!LLABWONS|ECICIL!DRAZZILB|EKALF|DLOC|LLHIC|NEZORF|RETNIW|ECI|SOWNS|NAMWONS|YRAUNAJ!REBMECE|REBMEVON'; 
+        const HALLOWEEN_REVERSED_STR = 'RETSNOM|YRACS|REBOTCO|TAERT|KCIRT|TAB|EIBMOZ|NIKPMUP|YDNAC|NEEWOLAH|ERIPMAV|YKOOPS|HCTIW|REDIPS|TSOHG'; 
+        const SUMMER_REVERSED_STR = 'LACIPORT|SEVAW|MAERC ECI|NAT|NAECO|DNAS|LOOP|TSUGUA|YLUC|YADILOH|TAEH|NOLMETRAW|MIWS|HCAEB|NUS'; 
 
+
+        // Mapped them to use the same logic: reverse, then split by a unique delimiter.
         const THEME_WORDS = {
-            'rainbow': RAINBOW_STR.split('|'),
+            'rainbow': RAINBOW_REVERSED_STR
+                        .split('|')
+                        .map(w => w.split('').reverse().join('')),
             'dark': DARK_REVERSED_STR
                         .split('!')
-                        .map(w => w => w.split('').reverse().join('')), 
-            'banana': BANANA_STR.split(','),
-            'winter': WINTER_STR.split('|'),
-            'halloween': HALLOWEEN_STR.split('|'), 
-            'summer': SUMMER_STR.split('|') 
+                        .map(w => w.split('').reverse().join('')), 
+            'banana': BANANA_REVERSED_STR
+                        .split('|')
+                        .map(w => w.split('').reverse().join('')),
+            'winter': WINTER_REVERSED_STR
+                        .split('|')
+                        .map(w => w.split('').reverse().join('')),
+            'halloween': HALLOWEEN_REVERSED_STR
+                        .split('|')
+                        .map(w => w.split('').reverse().join('')), 
+            'summer': SUMMER_REVERSED_STR
+                        .split('|')
+                        .map(w => w.split('').reverse().join('')) 
         };
         // --- END THEME VARIABLES ---
 
@@ -1001,8 +1014,8 @@
             } else if (currentTheme === 'rainbow') {
                 // RAINBOW THEME TEXT STYLES
                 wordDisplay.style.background = 'linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #9400d3)';
-                wordDisplay.style.webkitBackgroundClip = 'text';
-                wordDisplay.style.webkitTextFillColor = 'transparent';
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
                 wordDisplay.style.color = 'transparent';
                 wordDisplay.style.animation = 'rainbow-text 5s ease infinite';
             } else if (currentTheme === 'halloween') {
@@ -1058,7 +1071,7 @@
             }
 
 
-            // 4. CAKE MESSAGE LOGIC (FIXED v3.9.8)
+            // 4. CAKE MESSAGE LOGIC (v3.9.9 FADE IN/OUT FIX)
             const isCake = wordText === BOOSTED_WORD;
 
             // Ensure the badge is shown permanently if CAKE has ever been displayed
@@ -1069,34 +1082,37 @@
             }
 
             if (isCake) {
-                // FIX 1: Ensure the element is visible (remove display: none)
+                // 1. Ensure element is visible (remove display: none)
                 cakeMessage.classList.remove('hidden'); 
-                
-                // Show the message immediately
                 cakeMessage.textContent = 'The cake is a lie!';
-                cakeMessage.classList.remove('opacity-0');
-                cakeMessage.classList.add('opacity-100');
                 
-                // Schedule the fade-out
+                // 2. Schedule the delayed fade-in (allowing CSS transition to apply)
                 setTimeout(() => {
-                    cakeMessage.classList.remove('opacity-100');
-                    cakeMessage.classList.add('opacity-0');
-                    
-                    // Clear the content and hide element AFTER the fade-out duration (0.3s)
-                    setTimeout(() => {
-                        cakeMessage.textContent = '';
-                        // FIX 2: Re-hide the element after transition completes
-                        cakeMessage.classList.add('hidden'); 
-                    }, 300); 
+                    cakeMessage.classList.remove('opacity-0');
+                    cakeMessage.classList.add('opacity-100');
+                }, 50); // Small delay to trigger transition
 
-                }, 3000); 
+                // 3. Schedule the automatic fade-out after 4 seconds (if no vote yet)
+                setTimeout(() => {
+                    // Check if it's still fully visible before starting auto fade-out
+                    if (cakeMessage.classList.contains('opacity-100')) {
+                        cakeMessage.classList.remove('opacity-100');
+                        cakeMessage.classList.add('opacity-0');
+                        
+                        // Clear the content and hide element AFTER the fade-out duration (0.3s)
+                        setTimeout(() => {
+                            cakeMessage.textContent = '';
+                            cakeMessage.classList.add('hidden'); 
+                        }, 300); 
+                    }
+                }, 4000); // 4 seconds before auto fade-out starts
+
 
             } else {
                 // For all other words, ensure the message is hidden and clear the content
                 cakeMessage.classList.remove('opacity-100');
                 cakeMessage.classList.add('opacity-0');
                 cakeMessage.textContent = '';
-                // Ensure it is hidden by default
                 cakeMessage.classList.add('hidden'); 
             }
             
@@ -1241,6 +1257,7 @@
             if (!currentWord) return;
             
             const isLlama = currentWord.text.toUpperCase() === LLAMA_WORD;
+            const isCake = currentWord.text.toUpperCase() === BOOSTED_WORD;
 
 
             goodButton.disabled = true;
@@ -1263,6 +1280,20 @@
                 wordDisplay.classList.add(voteType === 'good' ? 'word-transition-good' : 'word-transition-bad');
             }
             // --- END LLAMA LOGIC ---
+            
+            // --- NEW CAKE FADE-OUT ON VOTE ---
+            if (isCake) {
+                cakeMessage.classList.remove('opacity-100');
+                cakeMessage.classList.add('opacity-0');
+                
+                // Ensure it is hidden after the transition completes (300ms)
+                setTimeout(() => {
+                    cakeMessage.textContent = '';
+                    cakeMessage.classList.add('hidden'); 
+                }, 300);
+            }
+            // --- END NEW CAKE FADE-OUT ---
+
 
             const themeWasNewlyUnlocked = checkAndApplyTheme(currentWord.text);
 
