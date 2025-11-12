@@ -558,12 +558,12 @@
 
 
     <div class="version-indicator">
-        v3.9.13 | Made by Gilxs in 12,025
+        v3.9.14 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.9.13'; // Bumped version for fix
+        const APP_VERSION = '3.9.14'; // Bumped version for fix
         
         // --- BOOST & SPECIAL WORD CONSTANTS ---
         const BOOSTED_WORD = 'CAKE';
@@ -571,11 +571,18 @@
         const LLAMA_WORD = 'LLAMA'; 
         const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
         
-        // NEW CAKE TIMING CONSTANTS (For Fix v3.9.12)
+        // NEW CAKE TIMING CONSTANTS (For Fix v3.9.14)
         const CAKE_WORD_FADE_DURATION = 300; // 0.3s
-        const CAKE_MESSAGE_DISPLAY_DURATION = 3000; // 3.0s
-        const CAKE_MESSAGE_FADE_DURATION = 300; // 0.3s
-        const CAKE_TOTAL_DELAY = CAKE_WORD_FADE_DURATION + CAKE_MESSAGE_DISPLAY_DURATION + CAKE_MESSAGE_FADE_DURATION; // 3600ms
+        const CAKE_MESSAGE_DISPLAY_DURATION = 3000; // 3.0s (Time message is fully displayed)
+        const CAKE_MESSAGE_FADE_DURATION = 300; // 0.3s (Time for fade-in/fade-out)
+        
+        // FIX: Added CAKE_MESSAGE_FADE_DURATION (300ms) for the fade-in time.
+        // Total = 300 (Word Fade) + 300 (Msg Fade-In) + 3000 (Msg Display) + 300 (Msg Fade-Out) = 3900ms
+        const CAKE_TOTAL_DELAY = 
+            CAKE_WORD_FADE_DURATION + 
+            CAKE_MESSAGE_FADE_DURATION + 
+            CAKE_MESSAGE_DISPLAY_DURATION + 
+            CAKE_MESSAGE_FADE_DURATION; // 3900ms
 
         let allWords = [];
         let currentWordIndex = 0;
