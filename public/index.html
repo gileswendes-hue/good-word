@@ -558,12 +558,12 @@
 
 
     <div class="version-indicator">
-        v3.9.12 | Made by Gilxs in 12,025
+        v3.9.13 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.9.12'; // Bumped version for fix
+        const APP_VERSION = '3.9.13'; // Bumped version for fix
         
         // --- BOOST & SPECIAL WORD CONSTANTS ---
         const BOOSTED_WORD = 'CAKE';
@@ -1237,6 +1237,10 @@
                 
                 // Delay message appearance until word is faded (word fade is 0.3s)
                 setTimeout(() => {
+                    
+                    // NEW: Clear the content of the faded word to ensure no residual layout impact
+                    wordDisplay.textContent = ''; 
+                    
                     cakeMessage.textContent = 'The cake is a lie!'; // MESSAGE UNDERNEATH
                     // FIX: Only add opacity-100, relying on base CSS for opacity: 0
                     cakeMessage.classList.add('opacity-100');
