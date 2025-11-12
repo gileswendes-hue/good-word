@@ -1062,10 +1062,20 @@
                 wordDisplay.style.padding = '0 1rem';
             }
 
-
-            // 4. Reset CAKE message state (FIX: Only remove opacity-100)
+            // --- START FIX ---
+            // 4. Reset CAKE message state
+            // Remove opacity to *start* the 300ms fade-out (if it's visible)
             cakeMessage.classList.remove('opacity-100');
-            cakeMessage.textContent = ''; 
+            
+            // Clear text *after* the 300ms fade-out transition finishes
+            // This prevents this function from clearing the text prematurely.
+            setTimeout(() => {
+                // Only clear the text if the message wasn't re-activated
+                if (!cakeMessage.classList.contains('opacity-100')) {
+                    cakeMessage.textContent = '';
+                }
+            }, 300); // This 300ms must match your CSS transition-duration
+            // --- END FIX ---
             
             // 5. Only enable buttons if not in a special message state (like cooldown or award)
             if (!isCoolingDown && !currentWord.isSpecialMessage) {
