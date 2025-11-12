@@ -523,12 +523,12 @@ body.theme-summer {
 
 
     <div class="version-indicator">
-        v3.9.8 | Made by Gilxs in 12,025
+        v3.9.9 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.9.8'; 
+        const APP_VERSION = '3.9.9'; // UPDATED VERSION
         
         // --- BOOST & LLAMA CONSTANTS ---
         const BOOSTED_WORD = 'CAKE';
@@ -905,7 +905,8 @@ body.theme-summer {
         
         function showCooldownMessage(remainingSeconds) {
             wordDisplay.textContent = `Button mashing will not be tolerated. Wait ${remainingSeconds}s...`;
-            wordDisplay.className = 'text-4xl font-bold text-red-600 text-center min-h-[72px]`;
+            // FIX: Corrected the closing quote from backtick to single quote to fix the syntax error
+            wordDisplay.className = 'text-4xl font-bold text-red-600 text-center min-h-[72px]'; 
             wordDisplay.style.fontSize = '1.5rem'; 
             
             wordFrame.style.padding = '0';
