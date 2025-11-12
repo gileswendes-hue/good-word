@@ -37,14 +37,14 @@
             color: #9ca3af; 
             z-index: 50; 
         }
+        /* CAKE MESSAGE FIX: Removed layout/margin properties, added z-index, relied on absolute positioning */
         #cakeMessage {
             font-size: 1.125rem;
             font-weight: 700;
             color: #4b5563;
-            margin-top: -1.5rem;
-            margin-bottom: 1rem;
             opacity: 0;
             transition: opacity 0.3s ease-in-out;
+            z-index: 20; 
         }
         .opacity-100 { opacity: 1; }
 
@@ -140,7 +140,7 @@
             background-color: #fff; 
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
         }
-
+        
         /* Outer Rainbow Border (::before) - THINNER */
         .theme-rainbow .thin-rainbow-frame::before {
             content: '';
@@ -461,13 +461,13 @@
 
     <main id="gameCard" class="card p-8 w-full max-w-sm flex flex-col items-center rounded-2xl">
         
-        <div id="wordFrame" class="w-full text-center rounded-xl mb-8">
+        <div id="wordFrame" class="w-full text-center rounded-xl mb-8 relative">
             <div id="wordDisplay" class="font-extrabold text-gray-900 text-center min-h-[72px]">
                 Loading...
             </div>
-        </div>
-        <div id="cakeMessage" class="text-center">
+            <div id="cakeMessage" class="text-center absolute inset-0 flex items-center justify-center">
             </div>
+        </div>
         
         <div class="flex space-x-4 w-full mb-3">
             <button id="goodButton" class="good-button flex-1 py-4 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-green-500/50" disabled>
@@ -558,12 +558,12 @@
 
 
     <div class="version-indicator">
-        v3.9.9 | Made by Gilxs in 12,025
+        v3.9.10 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '3.9.9'; // Bumped version for fix
+        const APP_VERSION = '3.9.10'; // Bumped version for fix
         
         // --- BOOST & SPECIAL WORD CONSTANTS ---
         const BOOSTED_WORD = 'CAKE';
