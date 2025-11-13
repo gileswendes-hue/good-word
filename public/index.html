@@ -731,13 +731,75 @@
             return [reversedStr.split('').reverse().join('')];
         }
 
+        // --- UPDATED THEME_WORDS WITH MULTIPLE TRIGGERS ---
         const THEME_WORDS = {
-            'rainbow': reverseAndSplit(RAINBOW_REVERSED_STR),
-            'banana': reverseAndSplit(BANANA_REVERSED_STR),
-            'winter': reverseAndSplit(WINTER_REVERSED_STR),
-            'summer': reverseAndSplit(SUMMER_REVERSED_STR),
-            'halloween': reverseAndSplit(HALLOWEEN_REVERSED_STR),
-            'submarine': reverseAndSplit(SUBMARINE_REVERSED_STR)
+            'rainbow': [
+                ...reverseAndSplit(RAINBOW_REVERSED_STR),
+                'PRIDE', 
+                'SPARKLE', 
+                'COLOUR', 
+                'GAY',
+                'PROUD',
+                'GLITTER',
+                'LESBIAN',
+                'UNICORN'
+            ],
+            'banana': [
+                ...reverseAndSplit(BANANA_REVERSED_STR),
+                'YELLOW', 
+                'MONKEY', 
+                'SPLIT', 
+                'PEEL',
+                'BANANAS',
+                'PLANTAIN'
+        // Added a common related word
+            ],
+            'winter': [
+                ...reverseAndSplit(WINTER_REVERSED_STR),
+                'SNOW', 
+                'ICE', 
+                'FROST', 
+                'CHILL',
+                'XMAS',
+                'CHRISTMAS',
+                'JUMPER',
+                'FIRE'
+                // Added a common related word
+            ],
+            'summer': [
+                ...reverseAndSplit(SUMMER_REVERSED_STR),
+                'SUN', 
+                'BEACH', 
+                'HOT', 
+                'SWIM',
+                'SWIMMING',
+                'HEAT',
+                'VACATION',
+                'HOLIDAY'
+        // Added a common related word
+            ],
+            'halloween': [
+                ...reverseAndSplit(HALLOWEEN_REVERSED_STR),
+                'SPOOKY', 
+                'GHOST', 
+                'PUMPKIN', 
+                'TREAT',
+                'TRICK',
+                'VAMPIRE',
+                'GHOUL'
+        // Added a common related word
+            ],
+            'submarine': [
+                ...reverseAndSplit(SUBMARINE_REVERSED_STR),
+                'WAVE', 
+                'DEEP', 
+                'OCEAN', 
+                'WATER',
+                'AQUA',
+                'AQUATIC',
+                'WAVES'
+        // Added a common related word
+            ]
         };
         // --- END THEME VARIABLES ---
 
@@ -1282,7 +1344,7 @@
                 if (submissionResult.status === 'newlyAdded') {
                     modalMessage.textContent = `"${text.toUpperCase()}" submitted successfully and added to the database! Thank you for contributing.`;
                 } else if (submissionResult.status === 'exists') {
-                    modalMessage.textContent = `"${text.toUpperCase()}" already exists in the database! (${submissionResult.good} Good / ${submissionResult.bad} Bad votes).`;
+                    modalMessage.textContent = `"${text.toUpperCase()}" already exists in the database! (${submissionResult.good} Good / ${submissionResult.bad} votes).`;
                 } else if (submissionResult.status === 'error') {
                      modalMessage.textContent = `Error: ${submissionResult.message}`;
                 }
@@ -1479,6 +1541,7 @@
             let themeWasNewlyUnlocked = false;
 
             for (const [themeKey, triggerWords] of Object.entries(THEME_WORDS)) {
+                // Check if the current word is in the list of trigger words for this theme
                 if (triggerWords.includes(upperWord)) {
                     newThemeToUnlock = themeKey;
                     break;
