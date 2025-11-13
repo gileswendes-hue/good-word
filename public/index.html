@@ -528,21 +528,21 @@
     </div>
     
     <div id="fullRankingsModalContainer" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
-        <div id="fullRankingsModal" class="bg-white p-6 rounded-xl w-full max-w-4xl shadow-2xl max-h-full overflow-y-auto" style="max-height: 90vh;">
+        <div id="fullRankingsModal" class="bg-white p-6 rounded-xl w-full shadow-2xl">
             <div class="flex justify-between items-center mb-4 border-b pb-2">
                 <h2 class="text-2xl font-bold">Top 100 Word Rankings</h2>
                 <button id="closeFullRankingsModal" class="text-gray-500 hover:text-gray-800 text-2xl font-bold leading-none">
                     &times;
                 </button>
             </div>
-            <div class="flex-grow grid grid-cols-1 lg:grid-cols-2 gap-8 h-full" style="max-height: calc(90vh - 120px);">
-    <div class="bg-green-50/50 p-4 rounded-lg shadow-inner flex flex-col overflow-y-hidden">
+            <div class="flex-grow grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <div class="bg-green-50/50 p-4 rounded-lg shadow-inner flex flex-col">
         <h3 class="text-xl font-semibold mb-4 text-green-700">Top 100 Good Words</h3>
         <div id="fullGoodRankings" class="space-y-1 flex-grow overflow-y-auto">
             </div>
     </div>
 
-    <div class="bg-red-50/50 p-4 rounded-lg shadow-inner flex flex-col overflow-y-hidden">
+    <div class="bg-red-50/50 p-4 rounded-lg shadow-inner flex flex-col">
         <h3 class="text-xl font-semibold mb-4 text-red-700">Top 100 Bad Words</h3>
         <div id="fullBadRankings" class="space-y-1 flex-grow overflow-y-auto">
             </div>
@@ -583,7 +583,7 @@
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '4.0.4'; // Bumped version for message flow fix
+        const APP_VERSION = '4.0.3'; // Bumped version for fix
         
         // --- BOOST & SPECIAL WORD CONSTANTS ---
         const BOOSTED_WORD = 'CAKE';
@@ -913,11 +913,11 @@
             let star = '';
             let title = '';
             
-            // FIX: Reorder checks from highest threshold to lowest (Platinum fix)
             if (voteCount >= 250) {
                 star = '🏆';
                 title = `Platinum Star Award! (${voteCount} Votes)`;
-            } else if (voteCount >= 50) {
+            }
+            if (voteCount >= 50) {
                 star = '🌟';
                 title = `Gold Star Award! (${voteCount} Votes)`;
             } else if (voteCount >= 25) {
@@ -948,79 +948,26 @@
             }
         }
 
-        // Helper function to show a temporary message
-        function showTemporaryMessage(text, emoji, duration, callback) {
-            wordDisplay.textContent = `${emoji} ${text} ${emoji}`;
+        function showAwardMessageAndContinue(awardName, emoji) {
+            wordDisplay.textContent = `${emoji} ${awardName} Unlocked! ${emoji}`;
+            
             wordDisplay.style.fontSize = '2.25rem'; 
             wordDisplay.style.color = '#10b981';
+            
             wordDisplay.className = 'text-4xl font-extrabold text-green-700 text-center min-h-[72px] animate-pulse';
             
             wordFrame.style.padding = '0';
             wordFrame.style.backgroundColor = 'transparent';
-
-            // Disable buttons during message display
+            
             goodButton.disabled = true;
             badButton.disabled = true;
             notWordButton.disabled = true;
 
             setTimeout(() => {
                 wordDisplay.classList.remove('animate-pulse');
-                // All messages shown, proceed to the next word
-                if (callback === nextWord) {
-                     callback(); 
-                     fetchWords(false);
-                } else if (callback) {
-                    callback();
-                }
-            }, duration);
-        }
-
-        // Function to handle the sequential display of unlock messages
-        function checkAndRunMessageSequence(themeUnlocked, awardAchieved, awardName, awardEmoji, themeName) {
-            const messages = [];
-
-            if (themeUnlocked) {
-                messages.push({
-                    text: `'${themeName}' Theme Unlocked!`, 
-                    emoji: '🎁', 
-                    duration: 2500 
-                });
-            }
-
-            if (awardAchieved) {
-                messages.push({
-                    text: `${awardName} Award Unlocked!`, 
-                    emoji: awardEmoji, 
-                    duration: 2500 
-                });
-            }
-
-            // If no messages, just proceed to the next word immediately
-            if (messages.length === 0) {
                 nextWord(); 
                 fetchWords(false);
-                return;
-            }
-            
-            // Recursive function to show messages one by one
-            function showNextMessage(index) {
-                if (index < messages.length) {
-                    const message = messages[index];
-                    
-                    showTemporaryMessage(
-                        message.text, 
-                        message.emoji, 
-                        message.duration, 
-                        () => showNextMessage(index + 1) // Callback to next message
-                    );
-                } else {
-                    // All messages shown, proceed to the next word
-                    nextWord(); 
-                    fetchWords(false);
-                }
-            }
-
-            showNextMessage(0);
+            }, 2500);
         }
 
         function showMessage(text, isError = false) {
@@ -1294,87 +1241,74 @@
             badButton.disabled = true;
             notWordButton.disabled = true;
 
-            // --- Special Word Voting Restriction Logic ---
-            if (isCake || isLlama) {
-                const isUnlocked = isCake ? cakeBadgeUnlocked : llamaBadgeUnlocked;
-                
-                if (isUnlocked) {
-                    // Badge is unlocked: Block the vote and move to the next word immediately.
-                    wordDisplay.classList.remove('word-transition-good', 'word-transition-bad', 'word-fade-llama', 'word-fade-cake'); 
-                    setTimeout(() => {
-                        nextWord();
-                        fetchWords(false);
-                    }, 50); 
-                    return; 
-                } else {
-                    // Badge is NOT unlocked: Proceed to the unique transition/message sequence 
-                    
-                    updateSpecialBadges(currentWord.text); // Unlock the badge permanently
-                    
-                    if (isCake) {
-                         wordDisplay.classList.add('word-fade-cake'); 
-                         setTimeout(() => {
-                            wordDisplay.classList.remove('word-fade-cake'); 
-                            wordDisplay.style.opacity = '1'; 
-                            
-                            // FIX: Delay 1 (50ms): Ensure opacity is rendered before changing content/class
-                            setTimeout(() => { 
-                                showMessage("The cake is a lie!", false); 
-                                wordDisplay.style.fontSize = '2rem'; 
-                                
-                                // Delay 2 (CAKE_MESSAGE_DURATION): Wait for message display duration
-                                setTimeout(() => { 
-                                    nextWord(); 
-                                    fetchWords(false);
-                                }, CAKE_MESSAGE_DURATION); 
-
-                            }, 50); // Small delay for rendering safety
-
-                        }, CAKE_WORD_FADE_DURATION);
-                        return; // EXIT here as required
-                    } 
-                    
-                    if (isLlama) {
-                         wordDisplay.classList.add('word-fade-llama');
-                         setTimeout(() => {
-                            wordDisplay.classList.remove('word-fade-llama'); 
-                            wordDisplay.style.opacity = '1'; 
-                            
-                            // FIX: Delay 1 (50ms): Ensure opacity is rendered before changing content/class
-                            setTimeout(() => { 
-                                showMessage("what llama?", false); 
-                                wordDisplay.style.fontSize = '2rem'; 
-                                
-                                // Delay 2 (2000ms): Wait for message display duration
-                                setTimeout(() => { 
-                                    nextWord(); 
-                                    fetchWords(false);
-                                }, 2000); 
-
-                            }, 50); // Small delay for rendering safety
-
-                        }, 8000); // LLAMA_WORD_FADE_DURATION (8s)
-                        return; // EXIT here as required
-                    }
-                }
-            }
-            // ---------------------------------------------
-            
-            // --- Normal Word Voting Logic ---
-
             const wordId = currentWord._id;
             const transitionDuration = 400; 
             
-            // 1. Apply Normal Transition
-            wordDisplay.classList.add(voteType === 'good' ? 'word-transition-good' : 'word-transition-bad');
+            // 1. Conditional Transition/Fade Application
+            if (voteType === 'good' || voteType === 'bad') {
+                if (isCake) {
+                    // Handled inside the CAKE logic block to ensure it's not double-applied
+                } else if (isLlama) {
+                    // Handled inside the LLAMA logic block
+                } else {
+                    wordDisplay.classList.add(voteType === 'good' ? 'word-transition-good' : 'word-transition-bad');
+                }
+            }
             
-            // 2. Check for Theme Unlock (this happens before the API call for immediate feedback)
+            // --- SPECIAL WORD LOGIC ---
+            
+            if (isCake) {
+                wordDisplay.classList.add('word-fade-cake'); // FIX: Apply fade-out class
+                updateSpecialBadges(currentWord.text);
+                
+                // Wait for the word to fade out (0.3s)
+                setTimeout(() => {
+                    wordDisplay.classList.remove('word-fade-cake'); // Reset
+                    wordDisplay.style.opacity = '1'; // Reset
+                    wordDisplay.style.transform = 'none'; // FIX: Ensure transform is reset for next message
+                    
+                    // Display the new message using showMessage()
+                    showMessage("The cake is a lie!", false); 
+                    wordDisplay.style.fontSize = '2rem'; // Make it message-sized
+                    
+                    // Wait for the message to be read, then move to the next word
+                    setTimeout(() => {
+                        nextWord(); 
+                        fetchWords(false);
+                    }, CAKE_MESSAGE_DURATION); // 3000ms
+                }, CAKE_WORD_FADE_DURATION); // 300ms
+                
+                return; // EXIT FUNCTION to prevent normal transition/fetch
+            }
+
+            // LLAMA Logic (Slow Fade-Out, unlock badge)
+            if (isLlama) {
+                wordDisplay.classList.add('word-fade-llama'); // FIX: Apply fade-out class
+                updateSpecialBadges(currentWord.text);
+                
+                // Wait 8 seconds for the fade-out
+                setTimeout(() => {
+                    wordDisplay.classList.remove('word-fade-llama'); // Reset
+                    wordDisplay.style.opacity = '1'; // Reset
+                    wordDisplay.style.transform = 'none'; // FIX: Ensure transform is reset for next message
+                    
+                    // Display the new message
+                    showMessage("what llama?", false); 
+                    wordDisplay.style.fontSize = '2rem'; 
+                    
+                    // Wait 2 seconds for the message to be read, then move to the next word
+                    setTimeout(() => {
+                        nextWord(); 
+                        fetchWords(false);
+                    }, 2000); 
+                }, 8000);
+                
+                return; // EXIT FUNCTION to prevent normal transition/fetch
+            }
+            // -----------------------------
+
             const themeWasNewlyUnlocked = checkAndApplyTheme(currentWord.text);
-            
-            let awardAchieved = false;
-            let awardName = '';
-            let awardEmoji = '';
-            let themeName = '';
+            updateSpecialBadges(currentWord.text); // Permanent badge unlock 
 
             try {
                 const response = await fetch(`/api/words/${wordId}/vote`, {
@@ -1386,60 +1320,61 @@
                 const result = await response.json();
 
                 if (response.status === 403) {
-                    // Already voted on this word. Just transition and move on.
                     voteStreak = 0; 
+                    
+                    const totalDelay = ((voteType === 'good' || voteType === 'bad') ? transitionDuration : 0);
+                    
                     setTimeout(() => {
                         nextWord();
                         fetchWords(false); 
-                    }, transitionDuration); 
+                    }, totalDelay); 
                 } else if (!response.ok) {
                     throw new Error(result.message || "Failed to register vote.");
                 } else {
-                    // Successful Vote: Update local stats and check for award milestones
                     const previousVoteCount = voteCount; 
                     voteCount++;
                     localStorage.setItem('voteCount', voteCount);
-                    updateAwardBadge(); // Update badge appearance
+                    updateAwardBadge();
+                    
+                    let awardAchieved = false;
+                    let awardName = '';
+                    let emoji = '';
 
-                    // Check for Award Milestones (Could be converted to else if for slight efficiency gain)
                     if (previousVoteCount < 5 && voteCount >= 5) {
                         awardName = 'Bronze Star';
-                        awardEmoji = '🥉';
+                        emoji = '😶';
                         awardAchieved = true;
-                    } 
-                    if (previousVoteCount < 25 && voteCount >= 25) {
+                    } else if (previousVoteCount < 25 && voteCount >= 25) {
                         awardName = 'Silver Star';
-                        awardEmoji = '🥈';
+                        emoji = '🥈';
                         awardAchieved = true;
-                    } 
-                    if (previousVoteCount < 50 && voteCount >= 50) {
+                    } else if (previousVoteCount < 50 && voteCount >= 50) {
                         awardName = 'Gold Star';
-                        awardEmoji = '🌟';
+                        emoji = '🌟';
                         awardAchieved = true;
-                    } 
-                    if (previousVoteCount < 250 && voteCount >= 250) {
+                    } else if (previousVoteCount < 250 && voteCount >= 250) {
                         awardName = 'Platinum Star';
-                        awardEmoji = '🏆';
+                        emoji = '🏆';
                         awardAchieved = true;
                     }
-                    
-                    // 3. Run sequential messages or just transition/next word
-                    setTimeout(() => {
-                        wordDisplay.classList.remove('word-transition-good', 'word-transition-bad');
-                        
-                        if (themeWasNewlyUnlocked) {
-                            themeName = currentTheme.charAt(0).toUpperCase() + currentTheme.slice(1);
-                        }
 
-                        // Call the new sequential message handler
-                        checkAndRunMessageSequence(
-                            themeWasNewlyUnlocked, 
-                            awardAchieved, 
-                            awardName, 
-                            awardEmoji, 
-                            themeName
-                        );
-                    }, transitionDuration);
+
+                    if (themeWasNewlyUnlocked) {
+                        const themeName = currentTheme.charAt(0).toUpperCase() + currentTheme.slice(1);
+                        showAwardMessageAndContinue(`'${themeName}' Theme`, '🎁');
+                    } else if (awardAchieved) {
+                        showAwardMessageAndContinue(awardName, emoji);
+                    } else {
+                        // NORMAL FLOW
+                        const transitionDelay = (voteType === 'good' || voteType === 'bad') ? transitionDuration : 0;
+                        
+                        const totalDelay = transitionDelay; 
+                        
+                        setTimeout(() => {
+                            nextWord(); 
+                            fetchWords(false); 
+                        }, totalDelay);
+                    }
                 }
             } catch (error) {
                 console.error('Error submitting vote:', error);
