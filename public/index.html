@@ -919,8 +919,7 @@
             if (voteCount >= 250) {
                 star = '🏆';
                 title = `Platinum Star Award! (${voteCount} Votes)`;
-            }
-            if (voteCount >= 50) {
+            } else if (voteCount >= 50) { // <-- FIX: Changed 'if' to 'else if' to prevent overwriting Platinum
                 star = '🌟';
                 title = `Gold Star Award! (${voteCount} Votes)`;
             } else if (voteCount >= 25) {
@@ -1345,7 +1344,7 @@
 
                     if (previousVoteCount < 5 && voteCount >= 5) {
                         awardName = 'Bronze Star';
-                        emoji = '😶';
+                        emoji = '🥉';
                         awardAchieved = true;
                     } else if (previousVoteCount < 25 && voteCount >= 25) {
                         awardName = 'Silver Star';
