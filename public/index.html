@@ -1106,7 +1106,7 @@ const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
         function showMessage(text, isError = false) {
             wordDisplay.textContent = text;
             wordDisplay.className = `text-4xl font-bold text-center min-h-[72px] ${isError ? 'text-red-500' : 'text-gray-500'}`;
-            wordDisplay.style.fontSize = '1.5rem'; 
+            wordDisplay.style.fontSize = '1.0rem'; 
             
             wordFrame.style.padding = '0';
             wordFrame.style.backgroundColor = 'transparent';
@@ -1426,7 +1426,7 @@ function getWeightedRandomWordIndex(excludeIndex = -1) {
                     
                     // Display the new message using showMessage()
                     showMessage("The cake is a lie!", false); 
-                    wordDisplay.style.fontSize = '2rem'; // Make it message-sized
+                    wordDisplay.style.fontSize = '1.5rem'; // Make it message-sized
                     
                     // Wait for the message to be read, then move to the next word
                     setTimeout(() => {
@@ -1451,7 +1451,7 @@ function getWeightedRandomWordIndex(excludeIndex = -1) {
                     
                     // Display the new message
                     showMessage("what llama?", false); 
-                    wordDisplay.style.fontSize = '2rem'; 
+                    wordDisplay.style.fontSize = '1rem'; 
                     
                     // Wait 2 seconds for the message to be read, then move to the next word
                     setTimeout(() => {
@@ -1838,7 +1838,6 @@ function getWeightedRandomWordIndex(excludeIndex = -1) {
     </script>
 </body>
 </html>
-
 
 
 
