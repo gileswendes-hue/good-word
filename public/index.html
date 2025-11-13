@@ -396,11 +396,125 @@
         .theme-halloween .border-b {
             border-color: #691C00 !important; /* Darker orange/red for separator */
         }
+        
+        /* --- NEW THEME: 7. SUBMARINE THEME --- */
+
+        @keyframes bobbing-word {
+            0% { transform: translateY(0px) rotate(-1deg); }
+            50% { transform: translateY(-8px) rotate(1deg); }
+            100% { transform: translateY(0px) rotate(-1deg); }
+        }
+
+        @keyframes bubble-rise-1 {
+            0% { transform: translate3d(0vw, 100vh, 0); }
+            100% { transform: translate3d(5vw, -100vh, 0); } 
+        }
+        @keyframes bubble-rise-2 {
+            0% { transform: translate3d(0vw, 100vh, 0); }
+            100% { transform: translate3d(-10vw, -100vh, 0); }
+        }
+
+        body.theme-submarine {
+            background: linear-gradient(135deg, #020c1e 0%, #0a1931 50%, #183a5a 100%) !important; /* Deep dark blue */
+        }
+        .theme-submarine #wordDisplay {
+            color: #b0e0e6; /* Light powder blue */
+            text-shadow: 0 0 10px rgba(176, 224, 230, 0.7), 0 0 5px rgba(255, 255, 255, 0.3);
+            animation: bobbing-word 2.5s ease-in-out infinite;
+        }
+        
+        /* Dark mode card styles */
+        .theme-submarine .card, 
+        .theme-submarine .ranking-card {
+            background-color: rgba(10, 25, 49, 0.9) !important; /* Dark blue card */
+            border: 2px solid #1c4a7a !important; /* Lighter blue border */
+            box-shadow: 0 0 20px rgba(28, 74, 122, 0.5), 0 15px 40px rgba(0, 0, 0, 0.7) !important; /* Blue glow */
+        }
+        .theme-submarine #gameCard {
+            padding: 2rem !important; 
+        }
+        
+        /* Dark mode text overrides */
+        .theme-submarine .text-gray-900, 
+        .theme-submarine .rank-item .text-gray-800 {
+            color: #F3F4F6 !important; 
+        }
+        .theme-submarine .text-gray-500, 
+        .theme-submarine .text-gray-600 {
+            color: #9CA3AF !important; 
+        }
+        .theme-submarine header .bg-white {
+            background-color: #0a1931 !important; 
+            color: #d1d5db;
+        }
+        .theme-submarine header .bg-gray-50 {
+            background-color: #020c1e !important; 
+        }
+        .theme-submarine h2 {
+            color: #b0e0e6 !important; /* Light blue titles */
+        }
+        .theme-submarine .border-b {
+            border-color: #1c4a7a !important; /* Separator color */
+        }
+        
+        /* BUBBLE EFFECT STYLES (Adapted from Snow) */
+        .theme-submarine #bubble-effect {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            z-index: 40; 
+            pointer-events: none;
+        }
+        .theme-submarine #bubble-effect::before,
+        .theme-submarine #bubble-effect::after {
+            content: '';
+            position: absolute;
+            top: 0; /* Start from top, animation moves from bottom */
+            left: 0;
+            width: 100%;
+            height: 200%; 
+            background-repeat: repeat;
+        }
+        .theme-submarine #bubble-effect::before {
+            background-image: 
+                radial-gradient(4px 4px at 5% 10%, rgba(176, 224, 230, 0.4), transparent),
+                radial-gradient(5px 5px at 95% 40%, rgba(176, 224, 230, 0.4), transparent),
+                radial-gradient(4px 4px at 30% 70%, rgba(176, 224, 230, 0.4), transparent),
+                radial-gradient(6px 6px at 60% 95%, rgba(176, 224, 230, 0.4), transparent),
+                radial-gradient(4px 4px at 15% 55%, rgba(176, 224, 230, 0.4), transparent),
+                radial-gradient(5px 5px at 75% 20%, rgba(176, 224, 230, 0.4), transparent);
+                
+            background-size: 300px 350px;
+            
+            opacity: 0.8; 
+            animation: bubble-rise-1 40s linear infinite; 
+            animation-delay: -5s; 
+        }
+
+        .theme-submarine #bubble-effect::after {
+             background-image: 
+                radial-gradient(7px 7px at 20% 5%, rgba(176, 224, 230, 0.5), transparent),
+                radial-gradient(8px 8px at 70% 35%, rgba(176, 224, 230, 0.5), transparent),
+                radial-gradient(7px 7px at 40% 80%, rgba(176, 224, 230, 0.5), transparent),
+                radial-gradient(9px 9px at 90% 60%, rgba(176, 224, 230, 0.5), transparent),
+                radial-gradient(7px 7px at 10% 95%, rgba(176, 224, 230, 0.5), transparent),
+                radial-gradient(8px 8px at 55% 25%, rgba(176, 224, 230, 0.5), transparent);
+            
+            background-size: 500px 600px;
+            
+            opacity: 0.9; 
+            animation: bubble-rise-2 65s linear infinite; 
+            animation-delay: -30s; 
+        }
     </style>
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen p-4 theme-default">
 
     <div id="snow-effect" class="fixed inset-0 pointer-events-none hidden"></div> 
+    <div id="bubble-effect" class="fixed inset-0 pointer-events-none hidden"></div> <!-- ADDED BUBBLE EFFECT DIV -->
 
     <header class="text-center mb-8 w-full max-w-lg">
         
@@ -627,6 +741,7 @@
         const WINTER_STR = 'SNOWMAN|SNOW|ICE|WINTER|FROZEN|CHILL|COLD|FLAKE|BLIZZARD|ICICLE|SLEIGH|SNOWBALL|SCARF|JACKET|SLEDGE|NOVEMBER|DECEMBER|JANUARY|JINGLE'; 
         const SUMMER_STR = 'SUMMER|HOT|BEACH|HOLIDAY|SUN|VACATION|SWIM|SAND|POOL|JULY|AUGUST|JUNE'; 
         const HALLOWEEN_STR = 'HALLOWEEN|GHOST|PUMPKIN|SPIDER|CANDY|COSTUME|SPOOKY|OCTOBER|WITCH|VAMPIRE|ZOMBIE|BAT'; 
+        const SUBMARINE_STR = 'SUBMARINE|WATER|WAVES|SEA|AQUATIC|AQUA|DEEP'; // ADDED
 
         const THEME_WORDS = {
             'rainbow': RAINBOW_STR.split('|'),
@@ -636,7 +751,8 @@
             'banana': BANANA_STR.split('|'),
             'winter': WINTER_STR.split('|'),
             'summer': SUMMER_STR.split('|'),
-            'halloween': HALLOWEEN_STR.split('|') 
+            'halloween': HALLOWEEN_STR.split('|'),
+            'submarine': SUBMARINE_STR.split('|') // ADDED
         };
         // --- END THEME VARIABLES ---
 
@@ -671,6 +787,7 @@
         const themeChooser = document.getElementById('themeChooser');
         const themeUnlockHint = document.getElementById('themeUnlockHint');
         const snowEffect = document.getElementById('snow-effect'); 
+        const bubbleEffect = document.getElementById('bubble-effect'); // ADDED
         
         // NEW COMPARISON ELEMENTS
         const compareWordsButton = document.getElementById('compareWordsButton');
@@ -860,12 +977,23 @@
             currentTheme = theme;
             localStorage.setItem('currentTheme', theme);
             
-            // 3. Manage snow effect visibility
-            if (theme === 'winter') {
-                if (snowEffect) snowEffect.classList.remove('hidden');
-            } else {
-                if (snowEffect) snowEffect.classList.add('hidden');
+            // 3. Manage effects visibility
+            if (snowEffect) {
+                if (theme === 'winter') {
+                    snowEffect.classList.remove('hidden');
+                } else {
+                    snowEffect.classList.add('hidden');
+                }
             }
+            
+            if (bubbleEffect) { // ADDED BUBBLE LOGIC
+                if (theme === 'submarine') {
+                    bubbleEffect.classList.remove('hidden');
+                } else {
+                    bubbleEffect.classList.add('hidden');
+                }
+            }
+
 
             // 4. Handle the structural changes for the main card based on theme
             if (theme === 'rainbow') {
@@ -1027,12 +1155,20 @@
             
             // 2. Apply theme-specific styles
             
-            if (currentTheme === 'dark' || currentTheme === 'halloween') {
-                wordDisplay.style.color = '#f3f4f6';
+            if (currentTheme === 'dark' || currentTheme === 'halloween' || currentTheme === 'submarine') { // ADDED SUBMARINE
+                wordDisplay.style.color = '#f3f4f6'; // Default dark-mode text
+                
                 if (currentTheme === 'halloween') {
                     wordDisplay.style.color = '#FF8C00'; 
                     wordDisplay.style.textShadow = '0 0 20px rgba(255, 140, 0, 1), 0 0 5px rgba(255, 140, 0, 0.5)';
                 }
+                
+                if (currentTheme === 'submarine') { // ADDED
+                    wordDisplay.style.color = '#b0e0e6';
+                    wordDisplay.style.textShadow = '0 0 10px rgba(176, 224, 230, 0.7), 0 0 5px rgba(255, 255, 255, 0.3)';
+                    wordDisplay.style.animation = 'bobbing-word 2.5s ease-in-out infinite';
+                }
+
             } else if (currentTheme === 'banana') {
                 wordDisplay.style.transform = 'translateY(0)';
                 wordDisplay.style.animation = 'bounce-word 0.5s ease-out infinite alternate';
@@ -1675,6 +1811,7 @@
         // --- Expose functions for console testing ---
         window.loadCakeWord = loadCakeWord;
         window.loadLlamaWord = loadLlamaWord;
+        window.applyTheme = applyTheme; // ADDED
         // ------------------------------------------
 
         window.onload = init;
