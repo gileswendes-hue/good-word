@@ -735,24 +735,26 @@
         let currentTheme = localStorage.getItem('currentTheme') || 'default';
         let unlockedThemes = JSON.parse(localStorage.getItem('unlockedThemes')) || [];
         
-        const RAINBOW_STR = 'RAINBOW|GAY|SPARKLE|COLOUR|PRIDE|UNICORN|PROUD|QUEER|GLITTER|LESBIAN|TINSEL';
+        // UPDATED: All strings are now reversed and split by '!'
+        const RAINBOW_REVERSED_STR = 'WOBNIAR!YAG!ELKRAPS!RUOLOC!EDIRP!NROCINU!DUORP!REEUQ!RETTILG!NAIBSEL!LESNIT';
         const DARK_REVERSED_STR = 'THGINDIM!KCALB!EDAHS!HTOG!WODAHS!AJNIN!KRAD!THGIN!HTLAETS'; 
-        const BANANA_STR = 'BANANA|BANANAS|PLANTAIN|YELLOW|SPLIT|MONKEY';
-        const WINTER_STR = 'SNOWMAN|SNOW|ICE|WINTER|FROZEN|CHILL|COLD|FLAKE|BLIZZARD|ICICLE|SLEIGH|SNOWBALL|SCARF|JACKET|SLEDGE|NOVEMBER|DECEMBER|JANUARY|JINGLE'; 
-        const SUMMER_STR = 'SUMMER|HOT|BEACH|HOLIDAY|SUN|VACATION|SWIM|SAND|POOL|JULY|AUGUST|JUNE'; 
-        const HALLOWEEN_STR = 'HALLOWEEN|GHOST|PUMPKIN|SPIDER|CANDY|COSTUME|SPOOKY|OCTOBER|WITCH|VAMPIRE|ZOMBIE|BAT'; 
-        const SUBMARINE_STR = 'SUBMARINE|WATER|WAVES|SEA|AQUATIC|AQUA|DEEP'; // ADDED
+        const BANANA_REVERSED_STR = 'ANANAB!SANANAB!NIATNALP!WOLLEY!TILPS!YEKNOM';
+        const WINTER_REVERSED_STR = 'NAMWONS!WONS!ECI!RETNIW!NEZORF!LLIHC!DLOC!EKALF!DRAZZILB!ELCICI!HGIELS!LLABWONS!FRACS!TEKCAJ!EGDELS!REBMEVON!REBMECED!YRAUNAJ!ELGNIJ';
+        const SUMMER_REVERSED_STR = 'REMMUS!TOH!HCAEB!YADILOH!NUS!NOITACAV!MIWS!DNAS!LOOP!YLUJ!TSUGUA!ENUJ';
+        const HALLOWEEN_REVERSED_STR = 'NEEWALLAH!TSOHG!NIKPMUP!REDIPS!YDNAC!EMUTSOC!YKOOPS!REBOTCO!HCTIW!ERIPMAV!EIBMOZ!TAB';
+        const SUBMARINE_REVERSED_STR = 'ENIRAMBUS!RETAW!SEVAW!AES!CITAUQA!AUQA!PEED';
+
+        // Helper function to reverse and split strings
+        const reverseAndSplit = (str) => str.split('!').map(w => w.split('').reverse().join(''));
 
         const THEME_WORDS = {
-            'rainbow': RAINBOW_STR.split('|'),
-            'dark': DARK_REVERSED_STR
-                        .split('!')
-                        .map(w => w.split('').reverse().join('')), 
-            'banana': BANANA_STR.split('|'),
-            'winter': WINTER_STR.split('|'),
-            'summer': SUMMER_STR.split('|'),
-            'halloween': HALLOWEEN_STR.split('|'),
-            'submarine': SUBMARINE_STR.split('|') // ADDED
+            'rainbow': reverseAndSplit(RAINBOW_REVERSED_STR),
+            'dark': reverseAndSplit(DARK_REVERSED_STR), 
+            'banana': reverseAndSplit(BANANA_REVERSED_STR),
+            'winter': reverseAndSplit(WINTER_REVERSED_STR),
+            'summer': reverseAndSplit(SUMMER_REVERSED_STR),
+            'halloween': reverseAndSplit(HALLOWEEN_REVERSED_STR),
+            'submarine': reverseAndSplit(SUBMARINE_REVERSED_STR)
         };
         // --- END THEME VARIABLES ---
 
