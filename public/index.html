@@ -1085,8 +1085,11 @@
             
             wordDisplay.style.fontSize = '2.25rem'; 
             wordDisplay.style.color = '#10b981';
+            // wordDisplay.style.whiteSpace = 'normal'; // <-- REMOVED
+            // wordDisplay.style.lineHeight = '1.2'; // <-- REMOVED
             
-            wordDisplay.className = 'text-4xl font-extrabold text-green-700 text-center min-h-[72px] animate-pulse';
+            wordDisplay.className = 'font-extrabold text-green-700 text-center min-h-[72px] animate-pulse'; // <-- REMOVED text-4xl
+            autoSizeMessageText(2.25); // <-- ADDED
             
             wordFrame.style.padding = '0';
             wordFrame.style.backgroundColor = 'transparent';
@@ -1104,8 +1107,11 @@
 
         function showMessage(text, isError = false) {
             wordDisplay.textContent = text;
-            wordDisplay.className = `text-4xl font-bold text-center min-h-[72px] ${isError ? 'text-red-500' : 'text-gray-500'}`;
+            wordDisplay.className = `font-bold text-center min-h-[72px] ${isError ? 'text-red-500' : 'text-gray-500'}`; // <-- REMOVED text-4xl
             wordDisplay.style.fontSize = '1.5rem'; 
+            // wordDisplay.style.whiteSpace = 'normal'; // <-- REMOVED
+            // wordDisplay.style.lineHeight = '1.2'; // <-- REMOVED
+            autoSizeMessageText(1.5); // <-- ADDED
             
             wordFrame.style.padding = '0';
             wordFrame.style.backgroundColor = 'transparent';
@@ -1117,8 +1123,11 @@
         
         function showCooldownMessage(remainingSeconds) {
             wordDisplay.textContent = `Button mashing will not be tolerated. Wait ${remainingSeconds}s...`;
-            wordDisplay.className = 'text-4xl font-bold text-red-600 text-center min-h-[72px]';
+            wordDisplay.className = 'font-bold text-red-600 text-center min-h-[72px]'; // <-- REMOVED text-4xl
             wordDisplay.style.fontSize = '1.5rem'; 
+            // wordDisplay.style.whiteSpace = 'normal'; // <-- REMOVED
+            // wordDisplay.style.lineHeight = '1.2'; // <-- REMOVED
+            autoSizeMessageText(1.5); // <-- ADDED
             
             wordFrame.style.padding = '0';
             wordFrame.style.backgroundColor = 'transparent';
@@ -1126,6 +1135,46 @@
             goodButton.disabled = true;
             badButton.disabled = true;
             notWordButton.disabled = true;
+        }
+
+        /**
+         * NEW: Autosizes message text to fit on one line
+         */
+        function autoSizeMessageText(maxFontSizeRem) {
+            const cardElement = document.getElementById('gameCard');
+            const cardComputedStyle = window.getComputedStyle(cardElement);
+            const cardPaddingHorizontal = parseFloat(cardComputedStyle.paddingLeft) + parseFloat(cardComputedStyle.paddingRight);
+            const cardContentWidth = cardElement.clientWidth - cardPaddingHorizontal; 
+            
+            let wordDisplayPaddingHorizontal = 0;
+            
+            // Use the same padding as the main word display for calculation
+            if (currentTheme === 'rainbow') {
+                wordDisplay.style.padding = '0 0.5rem';
+                wordDisplayPaddingHorizontal = parseFloat(window.getComputedStyle(wordDisplay).paddingLeft) * 2;
+            } else {
+                wordDisplay.style.padding = '0 1rem'; 
+                wordDisplayPaddingHorizontal = parseFloat(window.getComputedStyle(wordDisplay).paddingLeft) * 2;
+            }
+
+            const maxAvailableWidthForTextContent = cardContentWidth - wordDisplayPaddingHorizontal;
+            
+            wordDisplay.style.whiteSpace = 'nowrap';
+            wordDisplay.style.fontSize = `${maxFontSizeRem}rem`; // Set max/base font size
+
+            let currentTextWidth = wordDisplay.scrollWidth;
+            let currentFontSize = parseFloat(window.getComputedStyle(wordDisplay).fontSize);
+
+            if (currentTextWidth > maxAvailableWidthForTextContent) { 
+                const scaleFactor = maxAvailableWidthForTextContent / currentTextWidth;
+                let finalFontSize = Math.floor(currentFontSize * scaleFactor);
+                
+                // Set a minimum font size (e.g., 12px)
+                if (finalFontSize < 12) finalFontSize = 12; 
+                
+                wordDisplay.style.fontSize = `${finalFontSize}px`;
+            }
+            // We leave 'nowrap' set, as it will be reset by displayCurrentWord next
         }
 
         /**
@@ -1152,6 +1201,7 @@
             wordDisplay.style.transform = '';
             wordDisplay.style.textShadow = '';
             wordDisplay.style.opacity = '1'; 
+            wordDisplay.style.lineHeight = ''; // <-- ADDED RESET
             wordFrame.style.padding = '0';
             wordFrame.style.backgroundColor = 'transparent';
             
@@ -1230,8 +1280,15 @@
             
             if (currentTheme === 'rainbow') {
                 wordDisplay.style.padding = '0 0.5rem';
+                wordDisplay.style.lineHeight = '1'; // Apply rainbow's line-height
             } else {
                 wordDisplay.style.padding = '0 1rem';
+                // Apply a default line-height for wrapped words
+                if (finalFontSize < maxFontSize * 0.9) { 
+                    wordDisplay.style.lineHeight = '1.1';
+                } else {
+                    wordDisplay.style.lineHeight = '1';
+                }
             }
             
             // 5. Only enable buttons if not in a special message state (like cooldown or award)
