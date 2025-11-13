@@ -578,12 +578,12 @@
 
 
     <div class="version-indicator">
-        v4.0.2 | Made by Gilxs in 12,025
+        v4.0.3 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '4.0.3'; // Bumped version for fix
+        const APP_VERSION = '4.0.4'; // Bumped version for message flow fix
         
         // --- BOOST & SPECIAL WORD CONSTANTS ---
         const BOOSTED_WORD = 'CAKE';
@@ -913,7 +913,7 @@
             let star = '';
             let title = '';
             
-            // FIX: Reorder checks from highest threshold to lowest
+            // FIX: Reorder checks from highest threshold to lowest (Platinum fix)
             if (voteCount >= 250) {
                 star = '🏆';
                 title = `Platinum Star Award! (${voteCount} Votes)`;
@@ -1316,12 +1316,20 @@
                          setTimeout(() => {
                             wordDisplay.classList.remove('word-fade-cake'); 
                             wordDisplay.style.opacity = '1'; 
-                            showMessage("The cake is a lie!", false); 
-                            wordDisplay.style.fontSize = '2rem'; 
-                            setTimeout(() => {
-                                nextWord(); 
-                                fetchWords(false);
-                            }, CAKE_MESSAGE_DURATION); 
+                            
+                            // FIX: Delay 1 (50ms): Ensure opacity is rendered before changing content/class
+                            setTimeout(() => { 
+                                showMessage("The cake is a lie!", false); 
+                                wordDisplay.style.fontSize = '2rem'; 
+                                
+                                // Delay 2 (CAKE_MESSAGE_DURATION): Wait for message display duration
+                                setTimeout(() => { 
+                                    nextWord(); 
+                                    fetchWords(false);
+                                }, CAKE_MESSAGE_DURATION); 
+
+                            }, 50); // Small delay for rendering safety
+
                         }, CAKE_WORD_FADE_DURATION);
                         return; // EXIT here as required
                     } 
@@ -1331,13 +1339,21 @@
                          setTimeout(() => {
                             wordDisplay.classList.remove('word-fade-llama'); 
                             wordDisplay.style.opacity = '1'; 
-                            showMessage("what llama?", false); 
-                            wordDisplay.style.fontSize = '2rem'; 
-                            setTimeout(() => {
-                                nextWord(); 
-                                fetchWords(false);
-                            }, 2000); 
-                        }, 8000);
+                            
+                            // FIX: Delay 1 (50ms): Ensure opacity is rendered before changing content/class
+                            setTimeout(() => { 
+                                showMessage("what llama?", false); 
+                                wordDisplay.style.fontSize = '2rem'; 
+                                
+                                // Delay 2 (2000ms): Wait for message display duration
+                                setTimeout(() => { 
+                                    nextWord(); 
+                                    fetchWords(false);
+                                }, 2000); 
+
+                            }, 50); // Small delay for rendering safety
+
+                        }, 8000); // LLAMA_WORD_FADE_DURATION (8s)
                         return; // EXIT here as required
                     }
                 }
@@ -1385,7 +1401,7 @@
                     localStorage.setItem('voteCount', voteCount);
                     updateAwardBadge(); // Update badge appearance
 
-                    // Check for Award Milestones
+                    // Check for Award Milestones (Could be converted to else if for slight efficiency gain)
                     if (previousVoteCount < 5 && voteCount >= 5) {
                         awardName = 'Bronze Star';
                         awardEmoji = '🥉';
