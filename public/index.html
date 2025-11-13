@@ -528,21 +528,21 @@
     </div>
     
     <div id="fullRankingsModalContainer" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
-        <div id="fullRankingsModal" class="bg-white p-6 rounded-xl w-full shadow-2xl">
+        <div id="fullRankingsModal" class="bg-white p-6 rounded-xl w-full max-w-4xl shadow-2xl max-h-full overflow-y-auto" style="max-height: 90vh;">
             <div class="flex justify-between items-center mb-4 border-b pb-2">
                 <h2 class="text-2xl font-bold">Top 100 Word Rankings</h2>
                 <button id="closeFullRankingsModal" class="text-gray-500 hover:text-gray-800 text-2xl font-bold leading-none">
                     &times;
                 </button>
             </div>
-            <div class="flex-grow grid grid-cols-1 lg:grid-cols-2 gap-8">
-    <div class="bg-green-50/50 p-4 rounded-lg shadow-inner flex flex-col">
+            <div class="flex-grow grid grid-cols-1 lg:grid-cols-2 gap-8 h-full" style="max-height: calc(90vh - 120px);">
+    <div class="bg-green-50/50 p-4 rounded-lg shadow-inner flex flex-col overflow-y-hidden">
         <h3 class="text-xl font-semibold mb-4 text-green-700">Top 100 Good Words</h3>
         <div id="fullGoodRankings" class="space-y-1 flex-grow overflow-y-auto">
             </div>
     </div>
 
-    <div class="bg-red-50/50 p-4 rounded-lg shadow-inner flex flex-col">
+    <div class="bg-red-50/50 p-4 rounded-lg shadow-inner flex flex-col overflow-y-hidden">
         <h3 class="text-xl font-semibold mb-4 text-red-700">Top 100 Bad Words</h3>
         <div id="fullBadRankings" class="space-y-1 flex-grow overflow-y-auto">
             </div>
@@ -1677,5 +1677,3 @@
     </script>
 </body>
 </html>
-
-
