@@ -396,6 +396,21 @@
         .theme-halloween .border-b {
             border-color: #691C00 !important; /* Darker orange/red for separator */
         }
+        
+        /* 7. WATER THEME */
+        body.theme-water {
+            background: linear-gradient(135deg, #e3f2fd 0%, #4fc3f7 100%) !important; /* Very light blue to sky blue */
+        }
+        .theme-water #wordDisplay {
+            color: #01579b; /* Deep ocean blue */
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.8), 0 0 5px rgba(2, 119, 189, 0.6); /* Water reflection/light ripple */
+        }
+        .theme-water #gameCard {
+            background-color: rgba(255, 255, 255, 0.9) !important; 
+            border: 2px solid #81d4fa !important; 
+            box-shadow: 0 15px 40px rgba(2, 119, 189, 0.5) !important; /* Deep blue shadow */
+            padding: 2rem !important; 
+        }
     </style>
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen p-4 theme-default">
@@ -528,29 +543,26 @@
     </div>
     
     <div id="fullRankingsModalContainer" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
-        <div id="fullRankingsModal" class="bg-white p-6 rounded-xl w-full max-w-6xl max-h-[90vh] shadow-2xl flex flex-col">
+        <div id="fullRankingsModal" class="bg-white p-6 rounded-xl w-full shadow-2xl">
             <div class="flex justify-between items-center mb-4 border-b pb-2">
                 <h2 class="text-2xl font-bold">Top 100 Word Rankings</h2>
                 <button id="closeFullRankingsModal" class="text-gray-500 hover:text-gray-800 text-2xl font-bold leading-none">
                     &times;
                 </button>
             </div>
-            
-            <div class="flex-grow overflow-y-auto">
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div class="bg-green-50/50 p-4 rounded-lg shadow-inner flex flex-col">
-                        <h3 class="text-xl font-semibold mb-4 text-green-700">Top 100 Good Words</h3>
-                        <div id="fullGoodRankings" class="space-y-1">
-                            </div>
-                    </div>
-
-                    <div class="bg-red-50/50 p-4 rounded-lg shadow-inner flex flex-col">
-                        <h3 class="text-xl font-semibold mb-4 text-red-700">Top 100 Bad Words</h3>
-                        <div id="fullBadRankings" class="space-y-1">
-                            </div>
-                    </div>
-                </div>
+            <div class="flex-grow grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <div class="bg-green-50/50 p-4 rounded-lg shadow-inner flex flex-col">
+        <h3 class="text-xl font-semibold mb-4 text-green-700">Top 100 Good Words</h3>
+        <div id="fullGoodRankings" class="space-y-1 flex-grow overflow-y-auto">
             </div>
+    </div>
+
+    <div class="bg-red-50/50 p-4 rounded-lg shadow-inner flex flex-col">
+        <h3 class="text-xl font-semibold mb-4 text-red-700">Top 100 Bad Words</h3>
+        <div id="fullBadRankings" class="space-y-1 flex-grow overflow-y-auto">
+            </div>
+    </div>
+</div>
         </div>
     </div>
     
@@ -581,12 +593,12 @@
 
 
     <div class="version-indicator">
-        v4.0.3 | Made by Gilxs in 12,025
+        v4.0.2 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '4.0.3'; // Bumped version for fix
+        const APP_VERSION = '4.0.2'; // Bumped version for fix
         
         // --- BOOST & SPECIAL WORD CONSTANTS ---
         const BOOSTED_WORD = 'CAKE';
@@ -627,6 +639,9 @@
         const WINTER_STR = 'SNOWMAN|SNOW|ICE|WINTER|FROZEN|CHILL|COLD|FLAKE|BLIZZARD|ICICLE|SLEIGH|SNOWBALL|SCARF|JACKET|SLEDGE|NOVEMBER|DECEMBER|JANUARY|JINGLE'; 
         const SUMMER_STR = 'SUMMER|HOT|BEACH|HOLIDAY|SUN|VACATION|SWIM|SAND|POOL|JULY|AUGUST|JUNE'; 
         const HALLOWEEN_STR = 'HALLOWEEN|GHOST|PUMPKIN|SPIDER|CANDY|COSTUME|SPOOKY|OCTOBER|WITCH|VAMPIRE|ZOMBIE|BAT'; 
+        
+        // NEW WATER THEME WORDS
+        const WATER_STR = 'WATER|DEEP|WAVE|BUBBLE|BUBBLES|WAVES';
 
         const THEME_WORDS = {
             'rainbow': RAINBOW_STR.split('|'),
@@ -636,7 +651,8 @@
             'banana': BANANA_STR.split('|'),
             'winter': WINTER_STR.split('|'),
             'summer': SUMMER_STR.split('|'),
-            'halloween': HALLOWEEN_STR.split('|') 
+            'halloween': HALLOWEEN_STR.split('|'),
+            'water': WATER_STR.split('|') // NEW THEME
         };
         // --- END THEME VARIABLES ---
 
@@ -698,16 +714,15 @@
             if (storedContributorCount) {
                 contributorCount = parseInt(storedContributorCount, 10);
             }
-            
+
             versionIndicator.textContent = `v${APP_VERSION} | Made by Gilxs in 12,025`;
-            
+
             goodButton.addEventListener('click', () => submitVote('good'));
             badButton.addEventListener('click', () => submitVote('bad'));
             notWordButton.addEventListener('click', () => submitVote('notWord'));
             customWordButton.addEventListener('click', () => showModal());
             cancelSubmitButton.addEventListener('click', () => hideModal());
             submitWordButton.addEventListener('click', submitCustomWord);
-            
             showTop100Button.addEventListener('click', showFullRankingsModal);
             closeFullRankingsModal.addEventListener('click', hideFullRankingsModal);
             fullRankingsModalContainer.addEventListener('click', (e) => {
@@ -726,10 +741,10 @@
             });
             runComparisonButton.addEventListener('click', runComparison);
             // END NEW COMPARISON EVENT LISTENERS
-            
-            cakeBadge.addEventListener('click', loadCakeWord);
-            llamaBadge.addEventListener('click', loadLlamaWord); 
 
+            cakeBadge.addEventListener('click', loadCakeWord);
+            llamaBadge.addEventListener('click', loadLlamaWord);
+            
             themeChooser.addEventListener('change', (e) => {
                 applyTheme(e.target.value);
                 if (allWords.length > 0) {
@@ -739,20 +754,20 @@
 
             fetchWords();
             updateAwardBadge();
-            updateContributorBadge(); 
-            populateThemeChooser(); 
-            applyTheme(currentTheme); 
+            updateContributorBadge();
+            populateThemeChooser();
+            applyTheme(currentTheme);
             
             // Initial badge display
             updateSpecialBadges(null, true);
             
             window.addEventListener('resize', () => {
                 if (allWords.length > 0) {
-                    displayCurrentWord(allWords[currentWordIndex]); 
+                    displayCurrentWord(allWords[currentWordIndex]);
                 }
             });
         }
-        
+
         function findAndLoadSpecialWord(wordText) {
             const specialWord = allWords.find(w => w.text.toUpperCase() === wordText);
             if (specialWord) {
@@ -762,14 +777,14 @@
                 }
                 displayCurrentWord(specialWord);
             } else {
-                 showMessage(`The word '${wordText}' is not currently in the database. Please submit it via the 'Submit Custom Word' button to enable testing.`, true);
+                showMessage(`The word '${wordText}' is not currently in the database. Please submit it via the 'Submit Custom Word' button to enable testing.`, true);
             }
         }
-        
+
         function loadCakeWord() {
             findAndLoadSpecialWord(BOOSTED_WORD);
         }
-        
+
         // Function to load LLAMA word for testing
         function loadLlamaWord() {
             findAndLoadSpecialWord(LLAMA_WORD);
@@ -779,55 +794,43 @@
          * Checks if special badges should be unlocked and updates their visibility/cursor.
          */
         function updateSpecialBadges(votedWordText = null, init = false) {
-            
             if (votedWordText) {
                 const upperWord = votedWordText.toUpperCase();
-                
-                // Unlock Cake Badge permanently
-                if (upperWord === BOOSTED_WORD) {
+                if (upperWord === BOOSTED_WORD && !cakeBadgeUnlocked) {
                     cakeBadgeUnlocked = true;
                     localStorage.setItem('cakeBadgeUnlocked', 'true');
                 }
-                
-                // Unlock Llama Badge permanently
-                if (upperWord === LLAMA_WORD) {
+                if (upperWord === LLAMA_WORD && !llamaBadgeUnlocked) {
                     llamaBadgeUnlocked = true;
                     localStorage.setItem('llamaBadgeUnlocked', 'true');
                 }
             }
-            
-            // Show/Hide Cake Badge
+
             if (cakeBadgeUnlocked) {
                 cakeBadge.classList.remove('hidden');
-                cakeBadge.classList.add('cursor-pointer');
-            } else if (init) {
-                cakeBadge.classList.add('hidden', 'cursor-pointer'); 
             }
-            
-            // Show/Hide Llama Badge
             if (llamaBadgeUnlocked) {
                 llamaBadge.classList.remove('hidden');
-                llamaBadge.classList.add('cursor-pointer'); // Ensure cursor is set
-            } else if (init) {
-                llamaBadge.classList.add('hidden'); 
-                llamaBadge.classList.remove('cursor-pointer');
             }
         }
 
+
         function populateThemeChooser() {
-            themeChooser.innerHTML = '<option value="default">Default</option>'; 
+            // Clear all options except 'Default'
+            Array.from(themeChooser.options)
+                .filter(option => option.value !== 'default')
+                .forEach(option => option.remove());
 
-            const availableThemes = [...new Set(unlockedThemes)].sort();
-
-            // Ensure all unlocked themes are present and sorted
+            const availableThemes = [];
             const allThemeKeys = Object.keys(THEME_WORDS);
+
             for (const key of allThemeKeys) {
                 if (unlockedThemes.includes(key) && !availableThemes.includes(key)) {
                     availableThemes.push(key);
                 }
             }
-            availableThemes.sort();
 
+            availableThemes.sort();
 
             availableThemes.forEach(themeKey => {
                 const themeName = themeKey.charAt(0).toUpperCase() + themeKey.slice(1);
@@ -836,9 +839,9 @@
                 option.textContent = themeName;
                 themeChooser.appendChild(option);
             });
-            
+
             themeChooser.value = currentTheme;
-            
+
             if (availableThemes.length > 0) {
                 themeUnlockHint.textContent = `You have ${availableThemes.length} themes unlocked!`;
             } else {
@@ -846,20 +849,20 @@
             }
         }
 
+
         /**
          * Applies the selected theme and manages structural classes on gameCard.
          */
-        function applyTheme(theme) {
+        window.applyTheme = function(theme) {
             // 1. Remove ALL existing theme classes
             document.body.className = document.body.className.split(' ').filter(c => !c.startsWith('theme-')).join(' ');
 
             // 2. Add the correct theme class
             const themeToApply = theme === 'default' ? 'default' : theme;
             document.body.classList.add(`theme-${themeToApply}`);
-
             currentTheme = theme;
             localStorage.setItem('currentTheme', theme);
-            
+
             // 3. Manage snow effect visibility
             if (theme === 'winter') {
                 if (snowEffect) snowEffect.classList.remove('hidden');
@@ -872,10 +875,10 @@
                 gameCard.classList.add('thin-rainbow-frame');
                 // Remove base card styling
                 gameCard.classList.remove('card', 'p-8');
-                gameCard.classList.add('p-6'); 
+                gameCard.classList.add('p-6');
             } else {
                 gameCard.classList.remove('thin-rainbow-frame');
-                // Restore base card styling (the theme CSS handles specific overrides for dark/winter/banana/summer/halloween)
+                // Restore base card styling (the theme CSS handles specific overrides for dark/winter/banana/summer/halloween/water)
                 gameCard.classList.add('card', 'p-8');
                 gameCard.classList.remove('p-6');
             }
@@ -892,23 +895,20 @@
                     break;
                 }
             }
-            
+
             if (newThemeToUnlock) {
                 if (!unlockedThemes.includes(newThemeToUnlock)) {
                     unlockedThemes.push(newThemeToUnlock);
                     localStorage.setItem('unlockedThemes', JSON.stringify(unlockedThemes));
                     themeWasNewlyUnlocked = true;
-                    
                     applyTheme(newThemeToUnlock);
                     populateThemeChooser();
-                    
                     return true;
                 } else if (currentTheme !== newThemeToUnlock) {
                     applyTheme(newThemeToUnlock);
                     populateThemeChooser();
                 }
             }
-            
             return themeWasNewlyUnlocked;
         }
 
@@ -918,26 +918,27 @@
             
             if (voteCount >= 250) {
                 star = '🏆';
-                title = `Platinum Star Award! (${voteCount} Votes)`;
-            } else if (voteCount >= 50) { // <-- FIX: Changed 'if' to 'else if' to prevent overwriting Platinum
+                title = `Platinum Star Award! (${voteCount} votes)`;
+            } else if (voteCount >= 50) {
                 star = '🌟';
-                title = `Gold Star Award! (${voteCount} Votes)`;
+                title = `Gold Star Award! (${voteCount} votes)`;
             } else if (voteCount >= 25) {
                 star = '🥈';
-                title = `Silver Star Award! (${voteCount} Votes)`;
+                title = `Silver Star Award! (${voteCount} votes)`;
             } else if (voteCount >= 5) {
-                star = '🥉';
-                title = `Bronze Star Award! (${voteCount} Votes)`;
-            } else {
                 star = '😶';
-                title = `Votes: ${voteCount}. Next Award: Bronze (5 Votes)`;
+                title = `Bronze Star Award! (${voteCount} votes)`;
             }
 
             awardBadge.textContent = star;
             awardBadge.title = title;
+            if (star) {
+                awardBadge.classList.remove('hidden');
+            } else {
+                awardBadge.classList.add('hidden');
+            }
         }
         
-        // Contributor Badge Logic
         function updateContributorBadge() {
             if (contributorCount >= CONTRIBUTION_THRESHOLD) {
                 contributorBadge.textContent = '✍️';
@@ -952,22 +953,19 @@
 
         function showAwardMessageAndContinue(awardName, emoji) {
             wordDisplay.textContent = `${emoji} ${awardName} Unlocked! ${emoji}`;
-            
-            wordDisplay.style.fontSize = '2.25rem'; 
+            wordDisplay.style.fontSize = '2.25rem';
             wordDisplay.style.color = '#10b981';
-            
             wordDisplay.className = 'text-4xl font-extrabold text-green-700 text-center min-h-[72px] animate-pulse';
-            
             wordFrame.style.padding = '0';
             wordFrame.style.backgroundColor = 'transparent';
-            
+
             goodButton.disabled = true;
             badButton.disabled = true;
             notWordButton.disabled = true;
 
             setTimeout(() => {
                 wordDisplay.classList.remove('animate-pulse');
-                nextWord(); 
+                nextWord();
                 fetchWords(false);
             }, 2500);
         }
@@ -975,8 +973,7 @@
         function showMessage(text, isError = false) {
             wordDisplay.textContent = text;
             wordDisplay.className = `text-4xl font-bold text-center min-h-[72px] ${isError ? 'text-red-500' : 'text-gray-500'}`;
-            wordDisplay.style.fontSize = '1.5rem'; 
-            
+            wordDisplay.style.fontSize = '1.5rem';
             wordFrame.style.padding = '0';
             wordFrame.style.backgroundColor = 'transparent';
 
@@ -984,12 +981,11 @@
             badButton.disabled = true;
             notWordButton.disabled = true;
         }
-        
+
         function showCooldownMessage(remainingSeconds) {
             wordDisplay.textContent = `Button mashing will not be tolerated. Wait ${remainingSeconds}s...`;
             wordDisplay.className = 'text-4xl font-bold text-red-600 text-center min-h-[72px]';
-            wordDisplay.style.fontSize = '1.5rem'; 
-            
+            wordDisplay.style.fontSize = '1.5rem';
             wordFrame.style.padding = '0';
             wordFrame.style.backgroundColor = 'transparent';
 
@@ -1006,60 +1002,51 @@
                 showMessage("No words available! Try submitting one.", false);
                 return;
             }
-            
+
             const wordText = currentWord.text.toUpperCase();
-            
-            wordDisplay.classList.remove('word-transition-good', 'word-transition-bad', 'word-fade-llama', 'word-fade-cake'); 
+
+            wordDisplay.classList.remove('word-transition-good', 'word-transition-bad', 'word-fade-llama', 'word-fade-cake');
             wordDisplay.textContent = wordText;
             wordDisplay.className = 'font-extrabold text-gray-900 text-center min-h-[72px]';
-            
+
             // 1. Reset all theme-specific word styling and frame styling
             wordDisplay.style.background = '';
             wordDisplay.style.webkitBackgroundClip = '';
             wordDisplay.style.webkitTextFillColor = '';
-            wordDisplay.style.color = '#111827'; 
+            wordDisplay.style.color = '#111827';
             wordDisplay.style.animation = '';
-            wordDisplay.style.transform = '';
-            wordDisplay.style.textShadow = '';
-            wordDisplay.style.opacity = '1'; 
-            wordFrame.style.padding = '0';
-            wordFrame.style.backgroundColor = 'transparent';
+            wordDisplay.style.textShadow = ''; 
             
-            // 2. Apply theme-specific styles
-            
-            if (currentTheme === 'dark' || currentTheme === 'halloween') {
-                wordDisplay.style.color = '#f3f4f6';
-                if (currentTheme === 'halloween') {
-                    wordDisplay.style.color = '#FF8C00'; 
-                    wordDisplay.style.textShadow = '0 0 20px rgba(255, 140, 0, 1), 0 0 5px rgba(255, 140, 0, 0.5)';
-                }
-            } else if (currentTheme === 'banana') {
-                wordDisplay.style.transform = 'translateY(0)';
+            // 2. Apply theme-specific word styling overrides
+            if (currentTheme === 'banana') {
                 wordDisplay.style.animation = 'bounce-word 0.5s ease-out infinite alternate';
                 wordDisplay.style.color = '#ffd200';
             } else if (currentTheme === 'winter') {
                 wordDisplay.style.color = '#01579b'; 
                 wordDisplay.style.textShadow = '0 0 8px rgba(255, 255, 255, 0.8)';
             } else if (currentTheme === 'summer') {
-                wordDisplay.style.color = '#FF9800'; 
-                wordDisplay.style.textShadow = '0 0 20px #FFF8E1, 0 0 10px #FFEB3B'; 
+                wordDisplay.style.color = '#FF9800';
+                wordDisplay.style.textShadow = '0 0 20px #FFF8E1, 0 0 10px #FFEB3B';
+            } else if (currentTheme === 'halloween') {
+                wordDisplay.style.color = '#FF8C00';
+                wordDisplay.style.textShadow = '0 0 20px rgba(255, 140, 0, 1), 0 0 5px rgba(255, 140, 0, 0.5)';
+            } else if (currentTheme === 'water') {
+                wordDisplay.style.color = '#01579b';
+                wordDisplay.style.textShadow = '0 0 10px rgba(255, 255, 255, 0.8), 0 0 5px rgba(2, 119, 189, 0.6)';
             } else if (currentTheme === 'rainbow') {
-                // RAINBOW THEME TEXT STYLES
                 wordDisplay.style.background = 'linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #9400d3)';
-                wordDisplay.style.webkitBackgroundClip = 'text'; 
+                wordDisplay.style.webkitBackgroundClip = 'text';
                 wordDisplay.style.webkitTextFillColor = 'transparent';
                 wordDisplay.style.color = 'transparent';
                 wordDisplay.style.animation = 'rainbow-text 5s ease infinite';
             }
 
-
-            // 3. Word Sizing Logic 
-            const maxFontSize = 96; 
-            
+            // 3. Word Sizing Logic
+            const maxFontSize = 96;
             const cardElement = document.getElementById('gameCard');
             const cardComputedStyle = window.getComputedStyle(cardElement);
             const cardPaddingHorizontal = parseFloat(cardComputedStyle.paddingLeft) + parseFloat(cardComputedStyle.paddingRight);
-            const cardContentWidth = cardElement.clientWidth - cardPaddingHorizontal; 
+            const cardContentWidth = cardElement.clientWidth - cardPaddingHorizontal;
             
             let wordDisplayPaddingHorizontal = 0;
             let maxAvailableWidthForTextContent = cardContentWidth;
@@ -1069,32 +1056,32 @@
                 wordDisplayPaddingHorizontal = parseFloat(window.getComputedStyle(wordDisplay).paddingLeft) * 2;
                 maxAvailableWidthForTextContent = cardContentWidth - wordDisplayPaddingHorizontal;
             } else {
-                wordDisplay.style.padding = '0 1rem'; 
+                wordDisplay.style.padding = '0 1rem';
                 wordDisplayPaddingHorizontal = parseFloat(window.getComputedStyle(wordDisplay).paddingLeft) * 2;
                 maxAvailableWidthForTextContent = cardContentWidth - wordDisplayPaddingHorizontal;
             }
 
             wordDisplay.style.fontSize = `${maxFontSize}px`;
-            wordDisplay.style.whiteSpace = 'nowrap'; 
+            wordDisplay.style.whiteSpace = 'nowrap';
             
             let currentTextWidth = wordDisplay.scrollWidth;
             let finalFontSize = maxFontSize;
 
-            if (currentTextWidth > maxAvailableWidthForTextContent) { 
+            if (currentTextWidth > maxAvailableWidthForTextContent) {
                 const scaleFactor = maxAvailableWidthForTextContent / currentTextWidth;
                 finalFontSize = Math.floor(maxFontSize * scaleFactor);
-                if (finalFontSize < 24) finalFontSize = 24; 
+                if (finalFontSize < 24) finalFontSize = 24;
             }
-            
+
             wordDisplay.style.fontSize = `${finalFontSize}px`;
-            wordDisplay.style.whiteSpace = 'normal'; 
-            
+            wordDisplay.style.whiteSpace = 'normal';
+
             if (currentTheme === 'rainbow') {
                 wordDisplay.style.padding = '0 0.5rem';
             } else {
                 wordDisplay.style.padding = '0 1rem';
             }
-            
+
             // 5. Only enable buttons if not in a special message state (like cooldown or award)
             if (!isCoolingDown && !currentWord.isSpecialMessage) {
                 goodButton.disabled = false;
@@ -1106,80 +1093,95 @@
         function getWeightedRandomWordIndex(excludeIndex = -1) {
             if (allWords.length === 0) return -1;
             if (allWords.length === 1) return 0;
-
-            const availableWords = allWords
-                .map((w, index) => ({
-                    index,
-                    totalVotes: (w.goodVotes || 0) + (w.badVotes || 0) + (w.notWordVotes || 0)
-                }))
-                .filter(w => w.index !== excludeIndex); 
-
-            const wordPool = availableWords.length > 0 
-                ? availableWords 
-                : allWords.map((w, index) => ({ 
-                    index, 
-                    totalVotes: (w.goodVotes || 0) + (w.badVotes || 0) + (w.notWordVotes || 0) 
-                }));
-
-            let totalWeight = 0;
-            const weightedWords = wordPool.map(w => {
-                let weight = 1.0 / (w.totalVotes + 1);
-                
-                if (allWords[w.index].text.toUpperCase() === BOOSTED_WORD) {
-                    weight *= BOOST_FACTOR;
-                }
-
-                totalWeight += weight;
-                return { index: w.index, weight: weight };
-            });
-
-            let randomNum = Math.random() * totalWeight;
             
-            for (const word of weightedWords) {
-                randomNum -= word.weight;
-                if (randomNum <= 0) {
-                    return word.index; 
+            const availableWords = allWords
+                .map((w, index) => ({ 
+                    index, 
+                    totalVotes: (w.goodVotes || 0) + (w.badVotes || 0) + (w.notWordVotes || 0),
+                    isLlama: w.text.toUpperCase() === LLAMA_WORD 
+                }))
+                .filter(w => w.index !== excludeIndex);
+
+            // Special logic for LLAMA word: it should only appear once it's unlocked, 
+            // but not *after* it has been seen, unless it is the only word left.
+            if (llamaBadgeUnlocked) {
+                // If unlocked, ensure it is still in the pool for random selection
+            } else {
+                // If not unlocked, remove LLAMA from the pool entirely
+                const llamaIndex = availableWords.findIndex(w => w.isLlama);
+                if (llamaIndex !== -1) {
+                    availableWords.splice(llamaIndex, 1);
                 }
             }
-            
-            return wordPool[wordPool.length - 1].index;
+
+            if (availableWords.length === 0) {
+                // Should only happen if LLAMA was the last word and was filtered out. 
+                // In that case, we can simply reload the list or use the only excluded word.
+                return allWords.findIndex(w => w.text.toUpperCase() === LLAMA_WORD);
+            }
+
+            // The CAKE word gets an extra "vote" weight (2 votes total) for randomization
+            const weights = availableWords.map(word => {
+                let weight = 1 + Math.log10(word.totalVotes + 1); // logarithmic weight for total votes
+                if (word.text.toUpperCase() === BOOSTED_WORD) {
+                    weight *= BOOST_FACTOR; // Boost CAKE's probability
+                }
+                return weight;
+            });
+
+            const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+            let random = Math.random() * totalWeight;
+
+            for (let i = 0; i < availableWords.length; i++) {
+                if (random < weights[i]) {
+                    return availableWords[i].index;
+                }
+                random -= weights[i];
+            }
+
+            // Fallback to a simple random index if weighted selection fails (shouldn't happen)
+            return availableWords[Math.floor(Math.random() * availableWords.length)].index;
         }
 
         function nextWord() {
-            if (allWords.length === 0) return;
+            if (allWords.length === 0) {
+                showMessage("No words available! Try submitting one.", false);
+                return;
+            }
             
             currentWordIndex = getWeightedRandomWordIndex(currentWordIndex);
             
-            displayCurrentWord(allWords[currentWordIndex]);
+            if (currentWordIndex !== -1) {
+                displayCurrentWord(allWords[currentWordIndex]);
+            } else {
+                showMessage("No words available! Try submitting one.", false);
+            }
         }
 
         async function fetchWords(updateDisplay = true) {
             try {
-                if(updateDisplay) {
-                    showMessage("Loading words...", false);
-                }
                 const response = await fetch(API_BASE_URL);
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
+                
                 let fetchedWords = await response.json();
                 
+                // Filter out words voted "Not a word" three or more times
                 const availableWords = fetchedWords.filter(w => (w.notWordVotes || 0) < 3);
+                
                 allWords = availableWords;
-                
                 wordCount.textContent = `Words in Database: ${fetchedWords.length}`;
-                
+
                 if (allWords.length > 0) {
                     updateStatsAndRankings();
-                    
                     if (updateDisplay) {
                         currentWordIndex = getWeightedRandomWordIndex(-1);
                         displayCurrentWord(allWords[currentWordIndex]);
-                    } 
+                    }
                 } else {
                     showMessage("No words available! Try submitting one.", false);
                 }
-
             } catch (error) {
                 console.error('Error fetching words:', error);
                 if(updateDisplay) {
@@ -1197,19 +1199,17 @@
 
             const now = Date.now();
             if (lastVoteTime > 0 && (now - lastVoteTime) > STREAK_WINDOW_MS) {
-                voteStreak = 1; 
+                voteStreak = 1;
             } else {
-                voteStreak++; 
+                voteStreak++;
             }
-            lastVoteTime = now; 
+            lastVoteTime = now;
 
             if (voteStreak > MASH_LIMIT) {
                 isCoolingDown = true;
-                voteStreak = 0; 
-                
+                voteStreak = 0;
                 let remaining = COOLDOWN_SECONDS;
                 const cooldownEndTime = Date.now() + COOLDOWN_SECONDS * 1000;
-
                 showCooldownMessage(remaining);
 
                 cooldownTimer = setInterval(() => {
@@ -1220,22 +1220,20 @@
                         clearInterval(cooldownTimer);
                         cooldownTimer = null;
                         isCoolingDown = false;
-                        
                         if (allWords.length > 0) {
                             displayCurrentWord(allWords[currentWordIndex]);
                         } else {
-                            fetchWords(); 
+                            fetchWords();
                         }
                     }
                 }, 1000);
-
                 return;
             }
 
             const currentWord = allWords[currentWordIndex];
             if (!currentWord) return;
 
-            const isCake = currentWord.text.toUpperCase() === BOOSTED_WORD; 
+            const isCake = currentWord.text.toUpperCase() === BOOSTED_WORD;
             const isLlama = currentWord.text.toUpperCase() === LLAMA_WORD;
             
             // Disable buttons immediately for smooth transition
@@ -1244,122 +1242,103 @@
             notWordButton.disabled = true;
 
             const wordId = currentWord._id;
-            const transitionDuration = 400; 
-            
+            const transitionDuration = 400; // Default transition duration
+
             // 1. Conditional Transition/Fade Application
             if (voteType === 'good' || voteType === 'bad') {
                 if (isCake) {
-                    // Handled inside the CAKE logic block to ensure it's not double-applied
-                } else if (isLlama) {
-                    // Handled inside the LLAMA logic block
-                } else {
-                    wordDisplay.classList.add(voteType === 'good' ? 'word-transition-good' : 'word-transition-bad');
+                    wordDisplay.classList.add('word-fade-cake'); 
+                } else if (!isLlama) {
+                    wordDisplay.classList.add(`word-transition-${voteType}`);
                 }
             }
             
-            // --- SPECIAL WORD LOGIC ---
-            
+            // CAKE Logic (Quick Fade-Out, show message, unlock badge)
             if (isCake) {
-                wordDisplay.classList.add('word-fade-cake'); // FIX: Apply fade-out class
-                updateSpecialBadges(currentWord.text);
-                
-                // Wait for the word to fade out (0.3s)
+                updateSpecialBadges(currentWord.text); // Unlock badge
+                // Wait for cake fade-out duration (0.3s)
                 setTimeout(() => {
                     wordDisplay.classList.remove('word-fade-cake'); // Reset
                     wordDisplay.style.opacity = '1'; // Reset
-                    wordDisplay.style.transform = 'none'; // FIX: Ensure transform is reset for next message
-                    
-                    // Display the new message using showMessage()
-                    showMessage("The cake is a lie!", false); 
-                    wordDisplay.style.fontSize = '2rem'; // Make it message-sized
-                    
-                    // Wait for the message to be read, then move to the next word
+                    // Display the special message
+                    showMessage("THE CAKE IS A LIE", false);
+                    wordDisplay.style.fontSize = '3rem';
+                    // Wait for message duration (3.0s), then move to next word
                     setTimeout(() => {
-                        nextWord(); 
+                        nextWord();
                         fetchWords(false);
-                    }, CAKE_MESSAGE_DURATION); // 3000ms
-                }, CAKE_WORD_FADE_DURATION); // 300ms
-                
+                    }, CAKE_MESSAGE_DURATION);
+                }, CAKE_WORD_FADE_DURATION);
                 return; // EXIT FUNCTION to prevent normal transition/fetch
             }
 
             // LLAMA Logic (Slow Fade-Out, unlock badge)
             if (isLlama) {
-                wordDisplay.classList.add('word-fade-llama'); // FIX: Apply fade-out class
-                updateSpecialBadges(currentWord.text);
+                wordDisplay.classList.add('word-fade-llama'); // Start slow fade-out
+                updateSpecialBadges(currentWord.text); // Unlock badge
                 
                 // Wait 8 seconds for the fade-out
                 setTimeout(() => {
                     wordDisplay.classList.remove('word-fade-llama'); // Reset
                     wordDisplay.style.opacity = '1'; // Reset
-                    wordDisplay.style.transform = 'none'; // FIX: Ensure transform is reset for next message
                     
                     // Display the new message
-                    showMessage("what llama?", false); 
-                    wordDisplay.style.fontSize = '2rem'; 
+                    showMessage("what llama?", false);
+                    wordDisplay.style.fontSize = '2rem';
                     
                     // Wait 2 seconds for the message to be read, then move to the next word
                     setTimeout(() => {
-                        nextWord(); 
+                        nextWord();
                         fetchWords(false);
-                    }, 2000); 
+                    }, 2000);
                 }, 8000);
-                
                 return; // EXIT FUNCTION to prevent normal transition/fetch
             }
+            
             // -----------------------------
-
             const themeWasNewlyUnlocked = checkAndApplyTheme(currentWord.text);
-            updateSpecialBadges(currentWord.text); // Permanent badge unlock 
+            updateSpecialBadges(currentWord.text); // Permanent badge unlock
 
             try {
                 const response = await fetch(`/api/words/${wordId}/vote`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify({ voteType, userId })
                 });
 
                 const result = await response.json();
 
                 if (response.status === 403) {
-                    voteStreak = 0; 
-                    
+                    // 403 means word was voted 'Not a word' by other users, and is removed from list.
+                    voteStreak = 0;
                     const totalDelay = ((voteType === 'good' || voteType === 'bad') ? transitionDuration : 0);
-                    
                     setTimeout(() => {
                         nextWord();
-                        fetchWords(false); 
-                    }, totalDelay); 
+                        fetchWords(false);
+                    }, totalDelay);
                 } else if (!response.ok) {
                     throw new Error(result.message || "Failed to register vote.");
                 } else {
-                    const previousVoteCount = voteCount; 
+                    const previousVoteCount = voteCount;
                     voteCount++;
                     localStorage.setItem('voteCount', voteCount);
                     updateAwardBadge();
-                    
+
                     let awardAchieved = false;
                     let awardName = '';
                     let emoji = '';
-
+                    
                     if (previousVoteCount < 5 && voteCount >= 5) {
-                        awardName = 'Bronze Star';
-                        emoji = '🥉';
-                        awardAchieved = true;
+                        awardName = 'Bronze Star'; emoji = '😶'; awardAchieved = true;
                     } else if (previousVoteCount < 25 && voteCount >= 25) {
-                        awardName = 'Silver Star';
-                        emoji = '🥈';
-                        awardAchieved = true;
+                        awardName = 'Silver Star'; emoji = '🥈'; awardAchieved = true;
                     } else if (previousVoteCount < 50 && voteCount >= 50) {
-                        awardName = 'Gold Star';
-                        emoji = '🌟';
-                        awardAchieved = true;
+                        awardName = 'Gold Star'; emoji = '🌟'; awardAchieved = true;
                     } else if (previousVoteCount < 250 && voteCount >= 250) {
-                        awardName = 'Platinum Star';
-                        emoji = '🏆';
-                        awardAchieved = true;
+                        awardName = 'Platinum Star'; emoji = '🏆'; awardAchieved = true;
                     }
-
 
                     if (themeWasNewlyUnlocked) {
                         const themeName = currentTheme.charAt(0).toUpperCase() + currentTheme.slice(1);
@@ -1368,36 +1347,34 @@
                         showAwardMessageAndContinue(awardName, emoji);
                     } else {
                         // NORMAL FLOW
-                        const transitionDelay = (voteType === 'good' || voteType === 'bad') ? transitionDuration : 0;
-                        
-                        const totalDelay = transitionDelay; 
-                        
+                        const transitionDelay = (voteType === 'good' || voteType === 'bad' || voteType === 'notWord') ? transitionDuration : 0;
                         setTimeout(() => {
-                            nextWord(); 
-                            fetchWords(false); 
-                        }, totalDelay);
+                            nextWord();
+                            fetchWords(false); // Fetch in background to update rankings
+                        }, transitionDelay);
                     }
                 }
             } catch (error) {
                 console.error('Error submitting vote:', error);
-                showMessage("Vote failed. Try again.", true);
-                wordDisplay.classList.remove('word-transition-good', 'word-transition-bad', 'word-fade-cake'); 
-                goodButton.disabled = false;
-                badButton.disabled = false;
-                notWordButton.disabled = false;
-                voteStreak = 0; 
+                // On error, restore buttons immediately and show error message briefly
+                showMessage("Vote failed due to a server error.", true);
+                setTimeout(() => {
+                    displayCurrentWord(currentWord);
+                }, 2000); // Show word again after 2 seconds
             }
         }
+        
+        // --- RANKING LOGIC ---
 
         function getRankedWords(limit) {
-            const allWordsFetched = JSON.parse(JSON.stringify(allWords));
-            
-            const rankedWords = allWordsFetched.map(w => ({
-                text: w.text,
-                good: w.goodVotes || 0,
-                bad: w.badVotes || 0,
-                score: (w.goodVotes || 0) - (w.badVotes || 0)
-            }));
+            const rankedWords = allWords
+                .filter(w => (w.notWordVotes || 0) < 3)
+                .map(w => ({ 
+                    text: w.text, 
+                    good: w.goodVotes || 0, 
+                    bad: w.badVotes || 0, 
+                    score: (w.goodVotes || 0) - (w.badVotes || 0) 
+                }));
 
             const topGood = [...rankedWords]
                 .sort((a, b) => {
@@ -1416,22 +1393,24 @@
             return { topGood, topBad };
         }
 
-
         function updateStatsAndRankings() {
             if (allWords.length === 0) return;
 
             const totalGood = allWords.reduce((sum, w) => sum + (w.goodVotes || 0), 0);
             const totalBad = allWords.reduce((sum, w) => sum + (w.badVotes || 0), 0);
+            
             goodTotal.textContent = `GOOD: ${totalGood}`;
             badTotal.textContent = `BAD: ${totalBad}`;
-            
+
             const { topGood, topBad } = getRankedWords(5);
+            
             renderRankings(goodRankingsDiv, topGood, 'good');
             renderRankings(badRankingsDiv, topBad, 'bad');
         }
 
         function renderRankings(container, list, type, isFullList = false) {
             container.innerHTML = '';
+
             if (list.length === 0) {
                 container.innerHTML = `<p class="text-gray-500">${type === 'good' ? 'No clear winners yet.' : 'No clear losers yet.'}</p>`;
                 return;
@@ -1440,7 +1419,7 @@
             list.forEach((word, index) => {
                 const item = document.createElement('div');
                 item.className = `flex justify-between items-center py-1 ${isFullList ? 'full-ranking-item text-sm' : 'rank-item'}`;
-                
+
                 const scoreIndicator = type === 'good' 
                     ? `<span class="text-xs text-white bg-green-500 px-2 rounded-full font-bold">${word.score}</span>`
                     : `<span class="text-xs text-white bg-red-500 px-2 rounded-full font-bold">${Math.abs(word.score)}</span>`;
@@ -1448,31 +1427,37 @@
                 item.innerHTML = `
                     <div class="flex items-center space-x-2">
                         <span class="font-bold ${isFullList ? 'text-base w-4' : 'text-lg w-5'} text-center text-gray-500">${index + 1}.</span>
-                        <span class="font-medium text-gray-800">${word.text.toUpperCase()}</span>
+                        <span class="font-medium text-gray-800">${word.text}</span>
                     </div>
-                    <div class="flex items-center space-x-3">
+                    <div class="flex items-center space-x-2 vote-counts">
+                        <span class="text-green-600">${word.good} Good</span>
+                        <span class="text-red-600">${word.bad} Bad</span>
                         ${scoreIndicator}
-                        <span class="text-sm text-gray-600">(${word.good} / ${word.bad})</span>
                     </div>
                 `;
                 container.appendChild(item);
             });
         }
         
+        // --- RANKINGS MODAL LOGIC ---
+
         function showFullRankingsModal() {
-            const { topGood, topBad } = getRankedWords(100);
-            
+            const { topGood, topBad } = getRankedWords(100); 
             renderRankings(fullGoodRankingsDiv, topGood, 'good', true);
             renderRankings(fullBadRankingsDiv, topBad, 'bad', true);
-            
             fullRankingsModalContainer.classList.remove('hidden');
             fullRankingsModalContainer.classList.add('flex');
+            // Make modal vertically scrollable on large screens
+            document.getElementById('fullRankingsModal').style.maxHeight = '90vh';
+            document.getElementById('fullRankingsModal').style.overflowY = 'auto';
         }
 
         function hideFullRankingsModal() {
             fullRankingsModalContainer.classList.remove('flex');
             fullRankingsModalContainer.classList.add('hidden');
         }
+
+        // --- SUBMISSION MODAL LOGIC ---
 
         function showModal() {
             submissionModal.classList.remove('hidden');
@@ -1487,9 +1472,17 @@
         }
 
         async function submitCustomWord() {
-            const text = newWordInput.value.trim();
-            if (!text) {
-                modalMessage.textContent = "Please enter a word.";
+            const wordText = newWordInput.value.trim();
+            if (!wordText) {
+                modalMessage.textContent = "Word cannot be empty.";
+                return;
+            }
+            if (wordText.length > 30) {
+                modalMessage.textContent = "Word is too long (max 30 characters).";
+                return;
+            }
+            if (/[^a-zA-Z0-9\s]/.test(wordText)) {
+                modalMessage.textContent = "Word contains invalid characters. Only letters, numbers, and spaces are allowed.";
                 return;
             }
 
@@ -1497,22 +1490,29 @@
             modalMessage.textContent = "Submitting...";
 
             try {
-                const response = await fetch(API_BASE_URL, { 
+                const response = await fetch(API_BASE_URL, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text })
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ text: wordText })
                 });
 
                 const result = await response.json();
-                
+
                 if (response.status === 201) {
-                    modalMessage.textContent = "Success! Word added to the pool.";
-                    
-                    // Update contributor count and badge
+                    modalMessage.textContent = `Word '${wordText}' successfully submitted!`;
+                    // Increment contributor count and update badge
                     contributorCount++;
                     localStorage.setItem('contributorCount', contributorCount);
                     updateContributorBadge();
-                    
+
+                    setTimeout(() => {
+                        hideModal();
+                        fetchWords();
+                    }, 1000);
+                } else if (response.status === 409) {
+                    modalMessage.textContent = result.message || "This word has already been submitted.";
                     setTimeout(() => {
                         hideModal();
                         fetchWords();
@@ -1520,7 +1520,6 @@
                 } else {
                     modalMessage.textContent = result.message || "Failed to submit word due to an unknown error.";
                 }
-
             } catch (error) {
                 console.error('Error submitting custom word:', error);
                 modalMessage.textContent = "A network error occurred.";
@@ -1528,7 +1527,7 @@
                 submitWordButton.disabled = false;
             }
         }
-        
+
         // --- NEW COMPARISON FEATURE IMPLEMENTATION ---
 
         function showCompareModal() {
@@ -1543,7 +1542,7 @@
             compareModalContainer.classList.remove('flex');
             compareModalContainer.classList.add('hidden');
         }
-        
+
         // Utility to find a word in the local database
         function findWordInLocalDB(text) {
             return allWords.find(w => w.text.toUpperCase() === text.toUpperCase());
@@ -1553,20 +1552,27 @@
         async function checkAndSubmitWord(text) {
             const wordData = findWordInLocalDB(text);
             const upperText = text.toUpperCase();
+            
+            if (!text || text.length === 0) {
+                return { text: '', status: 'empty' };
+            }
+            if (text.length > 30) {
+                return { text: upperText, status: 'error', message: 'Word is too long (max 30).' };
+            }
+            if (/[^a-zA-Z0-9\s]/.test(text)) {
+                return { text: upperText, status: 'error', message: 'Invalid characters.' };
+            }
 
             if (wordData) {
-                return {
-                    text: upperText,
-                    status: 'exists',
-                    good: wordData.goodVotes || 0,
-                    bad: wordData.badVotes || 0
-                };
+                return { text: upperText, status: 'exists', good: wordData.goodVotes || 0, bad: wordData.badVotes || 0 };
             } else {
                 // Submit the new word to the server as requested by the feature spec.
                 try {
-                    const response = await fetch(API_BASE_URL, { 
+                    const response = await fetch(API_BASE_URL, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
                         body: JSON.stringify({ text: text }) // Send original casing for server
                     });
 
@@ -1576,30 +1582,23 @@
                         localStorage.setItem('contributorCount', contributorCount);
                         updateContributorBadge();
                         return { text: upperText, status: 'newlyAdded' };
+
                     } else if (response.status === 409) {
                         // Word already exists on server (another user submitted it), but not in our local list.
                         // We assume the local list is slightly stale and fetch the data for display.
-                         const fetchSingle = await fetch(`${API_BASE_URL}/${text}`);
-                         const fetchedData = await fetchSingle.json();
+                        const fetchSingle = await fetch(`${API_BASE_URL}/${text}`);
+                        const fetchedData = await fetchSingle.json();
                         
-                         if (fetchSingle.ok) {
-                            // Add to local list for immediate comparison use
-                            allWords.push(fetchedData); 
-                            return {
-                                text: upperText,
-                                status: 'exists',
-                                good: fetchedData.goodVotes || 0,
-                                bad: fetchedData.badVotes || 0
-                            };
-                         }
-                         return { text: upperText, status: 'error', message: 'Word exists but could not retrieve data.' };
+                        // After fetching, add to local list temporarily (or just use the data)
+                        return { text: upperText, status: 'exists', good: fetchedData.goodVotes || 0, bad: fetchedData.badVotes || 0 };
+                        
                     } else {
                         const result = await response.json();
-                        throw new Error(result.message || 'Failed to submit word.');
+                        return { text: upperText, status: 'error', message: result.message || 'Server error on submission.' };
                     }
                 } catch (error) {
-                    console.error(`Error submitting word ${text}:`, error);
-                    return { text: upperText, status: 'error', message: `Submission failed: ${error.message}` };
+                    console.error('Error in checkAndSubmitWord:', error);
+                    return { text: upperText, status: 'error', message: 'A network error occurred.' };
                 }
             }
         }
@@ -1607,7 +1606,7 @@
         async function runComparison() {
             const wordOneText = wordOneInput.value.trim();
             const wordTwoText = wordTwoInput.value.trim();
-            
+
             if (!wordOneText && !wordTwoText) {
                 compareResults.innerHTML = '<span class="text-red-500">Please enter at least one word to compare.</span>';
                 return;
@@ -1626,8 +1625,8 @@
             if (wordTwoText) {
                 // Check if word two is different from word one before processing
                 if (!wordOneText || wordOneText.toUpperCase() !== wordTwoText.toUpperCase()) {
-                     const resultTwo = await checkAndSubmitWord(wordTwoText);
-                     results.push(resultTwo);
+                    const resultTwo = await checkAndSubmitWord(wordTwoText);
+                    results.push(resultTwo);
                 } else if (wordOneText) {
                     // If they are the same word, add the first result again for proper formatting of two entries
                     if (results.length === 1) {
@@ -1635,23 +1634,26 @@
                     }
                 }
             }
-            
+
             let outputHtml = '';
-            
+
             // Loop through results to generate display
             for (const [index, result] of results.entries()) {
-                const word = `<strong>${result.text}</strong>`;
                 const isWordOne = index === 0;
-
+                const word = result.text || `Word ${index + 1}`;
+                
                 if (result.status === 'exists') {
+                    const totalVotes = result.good + result.bad;
+                    const goodPercent = totalVotes > 0 ? ((result.good / totalVotes) * 100).toFixed(1) : 0;
+                    const badPercent = totalVotes > 0 ? ((result.bad / totalVotes) * 100).toFixed(1) : 0;
+                    const score = result.good - result.bad;
+
                     outputHtml += `
-                        <div class="${isWordOne ? 'border-b pb-2 mb-2' : ''}">
-                        <p class="mb-2">Word ${index + 1} (${word}) exists in the database:</p>
-                        <ul class="list-disc list-inside ml-4 mb-3 text-sm">
-                            <li>Good Votes: <span class="text-green-600 font-bold">${result.good}</span></li>
-                            <li>Bad Votes: <span class="text-red-600 font-bold">${result.bad}</span></li>
-                            <li>Score (Good - Bad): <span class="font-bold">${result.good - result.bad}</span></li>
-                        </ul>
+                        <div class="mb-3 ${isWordOne ? 'border-b pb-2' : ''}">
+                            <p class="text-lg font-bold text-gray-800">${word}</p>
+                            <p class="text-sm text-gray-600">Total Votes: ${totalVotes} | Score: ${score}</p>
+                            <p class="text-sm text-green-600">${result.good} Good Votes (${goodPercent}%)</p>
+                            <p class="text-sm text-red-600">${result.bad} Bad Votes (${badPercent}%)</p>
                         </div>
                     `;
                 } else if (result.status === 'newlyAdded') {
@@ -1660,6 +1662,8 @@
                      outputHtml += `<p class="mb-3 text-red-500 ${isWordOne ? 'border-b pb-2' : ''}">Word ${index + 1} (${word}) status could not be determined: ${result.message}</p>`;
                 } else if (result.status === 'duplicate') {
                     outputHtml += `<p class="mb-3 text-gray-500">Word 2 is a duplicate of Word 1 (${word}). Showing the same stats.</p>`;
+                } else if (result.status === 'empty') {
+                    // Do nothing for empty word entries
                 }
             }
             
@@ -1675,10 +1679,11 @@
         // --- Expose functions for console testing ---
         window.loadCakeWord = loadCakeWord;
         window.loadLlamaWord = loadLlamaWord;
-        // ------------------------------------------
-
-        window.onload = init;
-
+        window.applyTheme = applyTheme;
+        window.init = init; // Expose init for easy manual restart
+        
+        // Initialize the app on load
+        init();
     </script>
 </body>
 </html>
