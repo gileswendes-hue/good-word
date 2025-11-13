@@ -406,12 +406,12 @@
         }
 
         @keyframes bubble-rise-1 {
-            0% { transform: translate3d(0vw, 100vh, 0); }
-            100% { transform: translate3d(5vw, -100vh, 0); } 
+            0% { transform: translate3d(5vw, 100vh, 0); } /* ADDED horizontal start */
+            100% { transform: translate3d(20vw, -100vh, 0); } /* INCREASED horizontal drift */
         }
         @keyframes bubble-rise-2 {
-            0% { transform: translate3d(0vw, 100vh, 0); }
-            100% { transform: translate3d(-10vw, -100vh, 0); }
+            0% { transform: translate3d(-5vw, 100vh, 0); } /* ADDED horizontal start */
+            100% { transform: translate3d(-25vw, -100vh, 0); } /* INCREASED horizontal drift */
         }
 
         body.theme-submarine {
@@ -490,7 +490,7 @@
             background-size: 300px 350px;
             
             opacity: 0.8; 
-            animation: bubble-rise-1 40s linear infinite; 
+            animation: bubble-rise-1 50s linear infinite; /* INCREASED duration */
             animation-delay: -5s; 
         }
 
@@ -506,7 +506,7 @@
             background-size: 500px 600px;
             
             opacity: 0.9; 
-            animation: bubble-rise-2 65s linear infinite; 
+            animation: bubble-rise-2 75s linear infinite; /* INCREASED duration */
             animation-delay: -30s; 
         }
     </style>
@@ -695,12 +695,12 @@
 
 
     <div class="version-indicator">
-        v4.0.3 | Made by Gilxs in 12,025
+        v4.0.5 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '4.0.3'; // Bumped version for fix
+        const APP_VERSION = '4.0.5'; // Bumped version for fix
         
         // --- BOOST & SPECIAL WORD CONSTANTS ---
         const BOOSTED_WORD = 'CAKE';
@@ -1166,6 +1166,7 @@
                 if (currentTheme === 'submarine') { // ADDED
                     wordDisplay.style.color = '#b0e0e6';
                     wordDisplay.style.textShadow = '0 0 10px rgba(176, 224, 230, 0.7), 0 0 5px rgba(255, 255, 255, 0.3)';
+                    wordDisplay.style.transform = 'translateY(0)'; // EXPLICITLY set base transform
                     wordDisplay.style.animation = 'bobbing-word 2.5s ease-in-out infinite';
                 }
 
