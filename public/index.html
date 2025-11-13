@@ -479,7 +479,7 @@
         <div class="ranking-card card p-6 rounded-xl">
             <h2 class="text-xl font-bold text-green-700 mb-4 border-b pb-2">Top Good Words</h2>
             <div class="ranking-frame thin-rainbow-frame rounded-xl">
-                <div id="goodRankings" class="space-y-2 max-h-40 overflow-y-auto">
+                <div id="goodRankings" class="space-y-2">
                     <p class="text-gray-500">No data yet.</p>
                 </div>
             </div>
@@ -487,7 +487,7 @@
         <div class="ranking-card card p-6 rounded-xl">
             <h2 class="text-xl font-bold text-red-700 mb-4 border-b pb-2">Top Bad Words</h2>
             <div class="ranking-frame thin-rainbow-frame rounded-xl">
-                <div id="badRankings" class="space-y-2 max-h-40 overflow-y-auto">
+                <div id="badRankings" class="space-y-2">
                     <p class="text-gray-500">No data yet.</p>
                 </div>
             </div>
@@ -528,26 +528,29 @@
     </div>
     
     <div id="fullRankingsModalContainer" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
-        <div id="fullRankingsModal" class="bg-white p-6 rounded-xl w-full shadow-2xl">
+        <div id="fullRankingsModal" class="bg-white p-6 rounded-xl w-full max-w-6xl max-h-[90vh] shadow-2xl flex flex-col">
             <div class="flex justify-between items-center mb-4 border-b pb-2">
                 <h2 class="text-2xl font-bold">Top 100 Word Rankings</h2>
                 <button id="closeFullRankingsModal" class="text-gray-500 hover:text-gray-800 text-2xl font-bold leading-none">
                     &times;
                 </button>
             </div>
-            <div class="flex-grow grid grid-cols-1 lg:grid-cols-2 gap-8">
-    <div class="bg-green-50/50 p-4 rounded-lg shadow-inner flex flex-col">
-        <h3 class="text-xl font-semibold mb-4 text-green-700">Top 100 Good Words</h3>
-        <div id="fullGoodRankings" class="space-y-1 flex-grow overflow-y-auto">
-            </div>
-    </div>
+            
+            <div class="flex-grow overflow-y-auto">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-green-50/50 p-4 rounded-lg shadow-inner flex flex-col">
+                        <h3 class="text-xl font-semibold mb-4 text-green-700">Top 100 Good Words</h3>
+                        <div id="fullGoodRankings" class="space-y-1">
+                            </div>
+                    </div>
 
-    <div class="bg-red-50/50 p-4 rounded-lg shadow-inner flex flex-col">
-        <h3 class="text-xl font-semibold mb-4 text-red-700">Top 100 Bad Words</h3>
-        <div id="fullBadRankings" class="space-y-1 flex-grow overflow-y-auto">
+                    <div class="bg-red-50/50 p-4 rounded-lg shadow-inner flex flex-col">
+                        <h3 class="text-xl font-semibold mb-4 text-red-700">Top 100 Bad Words</h3>
+                        <div id="fullBadRankings" class="space-y-1">
+                            </div>
+                    </div>
+                </div>
             </div>
-    </div>
-</div>
         </div>
     </div>
     
