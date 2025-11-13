@@ -1586,7 +1586,7 @@
                     } else if (response.status === 409) {
                         // Word already exists on server (another user submitted it), but not in our local list.
                         // We assume the local list is slightly stale and fetch the data for display.
-                        const fetchSingle = await fetch(`${API_BASE_URL}/${text}`);
+                        const fetchSingle = await fetch(`${API_BASE_URL}/${encodeURIComponent(text)}`); // FIX: URI-encode the text for the fetch call
                         const fetchedData = await fetchSingle.json();
                         
                         // After fetching, add to local list temporarily (or just use the data)
