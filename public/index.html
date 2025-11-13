@@ -535,18 +535,19 @@
                     &times;
                 </button>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <h3 class="text-lg font-semibold text-green-700 mb-2">Top Good Words</h3>
-                    <div id="fullGoodRankings" class="space-y-1">
-                        </div>
-                </div>
-                <div>
-                    <h3 class="text-lg font-semibold text-red-700 mb-2">Top Bad Words</h3>
-                    <div id="fullBadRankings" class="space-y-1">
-                        </div>
-                </div>
+            <div class="flex-grow grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <div class="bg-green-50/50 p-4 rounded-lg shadow-inner flex flex-col">
+        <h3 class="text-xl font-semibold mb-4 text-green-700">Top 100 Good Words</h3>
+        <div id="fullGoodRankings" class="space-y-1 flex-grow overflow-y-auto">
             </div>
+    </div>
+
+    <div class="bg-red-50/50 p-4 rounded-lg shadow-inner flex flex-col">
+        <h3 class="text-xl font-semibold mb-4 text-red-700">Top 100 Bad Words</h3>
+        <div id="fullBadRankings" class="space-y-1 flex-grow overflow-y-auto">
+            </div>
+    </div>
+</div>
         </div>
     </div>
     
@@ -577,12 +578,12 @@
 
 
     <div class="version-indicator">
-        v4.0.1 | Made by Gilxs in 12,025
+        v4.0.2 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '4.0.1'; // Bumped version for fix
+        const APP_VERSION = '4.0.2'; // Bumped version for fix
         
         // --- BOOST & SPECIAL WORD CONSTANTS ---
         const BOOSTED_WORD = 'CAKE';
@@ -619,7 +620,7 @@
         
         const RAINBOW_STR = 'RAINBOW|GAY|SPARKLE|COLOUR|PRIDE|UNICORN|PROUD|QUEER|GLITTER|LESBIAN|TINSEL';
         const DARK_REVERSED_STR = 'THGINDIM!KCALB!EDAHS!HTOG!WODAHS!AJNIN!KRAD!THGIN!HTLAETS'; 
-        const BANANA_STR = 'BANANA,BANANAS,PLANTAIN,YELLOW,SPLIT,MONKEY';
+        const BANANA_STR = 'BANANA|BANANAS|PLANTAIN|YELLOW|SPLIT|MONKEY';
         const WINTER_STR = 'SNOWMAN|SNOW|ICE|WINTER|FROZEN|CHILL|COLD|FLAKE|BLIZZARD|ICICLE|SLEIGH|SNOWBALL|SCARF|JACKET|SLEDGE|NOVEMBER|DECEMBER|JANUARY|JINGLE'; 
         const SUMMER_STR = 'SUMMER|HOT|BEACH|HOLIDAY|SUN|VACATION|SWIM|SAND|POOL|JULY|AUGUST|JUNE'; 
         const HALLOWEEN_STR = 'HALLOWEEN|GHOST|PUMPKIN|SPIDER|CANDY|COSTUME|SPOOKY|OCTOBER|WITCH|VAMPIRE|ZOMBIE|BAT'; 
@@ -629,7 +630,7 @@
             'dark': DARK_REVERSED_STR
                         .split('!')
                         .map(w => w.split('').reverse().join('')), 
-            'banana': BANANA_STR.split(','),
+            'banana': BANANA_STR.split('|'),
             'winter': WINTER_STR.split('|'),
             'summer': SUMMER_STR.split('|'),
             'halloween': HALLOWEEN_STR.split('|') 
@@ -912,6 +913,10 @@
             let star = '';
             let title = '';
             
+            if (voteCount >= 250) {
+                star = '🏆';
+                title = `Platinum Star Award! (${voteCount} Votes)`;
+            }
             if (voteCount >= 50) {
                 star = '🌟';
                 title = `Gold Star Award! (${voteCount} Votes)`;
@@ -922,7 +927,7 @@
                 star = '🥉';
                 title = `Bronze Star Award! (${voteCount} Votes)`;
             } else {
-                star = '✨';
+                star = '😶';
                 title = `Votes: ${voteCount}. Next Award: Bronze (5 Votes)`;
             }
 
@@ -1334,7 +1339,7 @@
 
                     if (previousVoteCount < 5 && voteCount >= 5) {
                         awardName = 'Bronze Star';
-                        emoji = '🥉';
+                        emoji = '😶';
                         awardAchieved = true;
                     } else if (previousVoteCount < 25 && voteCount >= 25) {
                         awardName = 'Silver Star';
@@ -1344,7 +1349,12 @@
                         awardName = 'Gold Star';
                         emoji = '🌟';
                         awardAchieved = true;
+                    } else if (previousVoteCount < 250 && voteCount >= 250) {
+                        awardName = 'Platinum Star';
+                        emoji = '🏆';
+                        awardAchieved = true;
                     }
+
 
                     if (themeWasNewlyUnlocked) {
                         const themeName = currentTheme.charAt(0).toUpperCase() + currentTheme.slice(1);
@@ -1667,4 +1677,5 @@
     </script>
 </body>
 </html>
+
 
