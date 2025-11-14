@@ -514,9 +514,7 @@
 <body class="flex flex-col items-center justify-center min-h-screen p-4 theme-default">
 
     <div id="snow-effect" class="fixed inset-0 pointer-events-none hidden"></div> 
-    <div id="bubble-effect" class="fixed inset-0 pointer-events-none hidden"></div> <!-- ADDED BUBBLE EFFECT DIV -->
-
-    <header class="text-center mb-8 w-full max-w-lg">
+    <div id="bubble-effect" class="fixed inset-0 pointer-events-none hidden"></div> <header class="text-center mb-8 w-full max-w-lg">
         
         <div id="logoArea" class="h-32 w-full flex items-center justify-center mb-4 relative">
             
@@ -695,12 +693,12 @@
 
 
     <div class="version-indicator">
-        v4.1.1 | Made by Gilxs in 12,025
+        v4.1.2 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '4.1.1'; // Bumped version for fix
+        const APP_VERSION = '4.1.2'; // Bumped version for fix
         
       // --- BOOST & SPECIAL WORD CONSTANTS --- 
 const BOOSTED_WORD = 'CAKE'; 
@@ -1647,6 +1645,17 @@ function getWeightedRandomWordIndex(excludeIndex = -1) {
                 modalMessage.textContent = "Please enter a word.";
                 return;
             }
+            
+            // --- NEW VALIDATION ---
+            if (text.length > 45) {
+                modalMessage.textContent = "Word must be 45 characters or less.";
+                return;
+            }
+            if (text.includes(' ')) {
+                modalMessage.textContent = "Please enter a single word (no spaces).";
+                return;
+            }
+            // --- END NEW VALIDATION ---
 
             submitWordButton.disabled = true;
             modalMessage.textContent = "Submitting...";
@@ -1838,6 +1847,3 @@ function getWeightedRandomWordIndex(excludeIndex = -1) {
     </script>
 </body>
 </html>
-
-
-
