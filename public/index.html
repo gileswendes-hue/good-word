@@ -1,2209 +1,1108 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GOOD WORD / BAD WORD</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
-    <style>
-        body { 
-            font-family: 'Inter', sans-serif; 
-        }
-        /* Base styling for all cards (now excludes #gameCard's default look) */
-        .card { 
-            backdrop-filter: blur(10px); 
-            background-color: rgba(255, 255, 255, 0.95);
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
-            border: 1px solid rgba(0, 0, 0, 0.05);
-            transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
-            position: relative; 
-            z-index: 10;
-        }
-        
-        /* Base button styles */
-        .good-button { background: linear-gradient(145deg, #10b981, #059669); }
-        .bad-button { background: linear-gradient(145deg, #ef4444, #dc2626); }
-        .not-word-button { background: linear-gradient(145deg, #64748b, #475569); }
-        button { transition: transform 0.1s ease, box-shadow 0.1s ease; }
-        button:active { transform: scale(0.98); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); }
-        
-        .version-indicator { 
-            position: fixed; 
-            bottom: 5px; 
-            left: 50%; 
-            transform: translateX(-50%); 
-            font-size: 0.75rem; 
-            color: #9ca3af; 
-            z-index: 50; 
-        }
-        
-        @media (max-width: 640px) {
-            .rank-item { font-size: 0.8rem; }
-            .vote-counts { font-size: 0.875rem; }
-        }
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>GOOD WORD / BAD WORD</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+  <style>
+    /* ---------- Base ---------- */
+    :root { --card-bg: rgba(255,255,255,0.95); --card-shadow: 0 15px 40px rgba(0,0,0,0.15); }
+    body { font-family: 'Inter', sans-serif; }
+    .card {
+      backdrop-filter: blur(10px);
+      background-color: var(--card-bg);
+      box-shadow: var(--card-shadow);
+      border: 1px solid rgba(0,0,0,0.05);
+      transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+      position: relative;
+      z-index: 10;
+    }
+    button { transition: transform 0.1s ease, box-shadow 0.1s ease; }
+    button:active { transform: scale(0.98); box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+    .version-indicator { position: fixed; bottom: 5px; left: 50%; transform: translateX(-50%); font-size: .75rem; color: #9ca3af; z-index:50; }
+    #wordDisplay { font-size: 6rem; white-space: nowrap; overflow:hidden; max-width:100%; box-sizing:border-box; position:relative; z-index:10; }
 
-        /* These classes are now only used as a reference for the JS, but we'll keep them */
-        .word-transition-good {
-            animation: slide-out-left-good 0.7s ease-out forwards;
-        }
-        .word-transition-bad {
-            animation: slide-out-right-bad 0.7s ease-out forwards;
-        }
-        
-        /* LLAMA Slow Fade-Out (TRANSFORM IS NOW 8s) */
-        .word-fade-llama {
-            transition: opacity 8s ease-out, transform 8s ease-out;
-            opacity: 0 !important; 
-            transform: scale(0.9) !important;
-        }
+    /* ---------- Buttons (gradients) ---------- */
+    .good-button { background: linear-gradient(145deg,#10b981,#059669); }
+    .bad-button { background: linear-gradient(145deg,#ef4444,#dc2626); }
+    .not-word-button { background: linear-gradient(145deg,#64748b,#475569); }
 
-        /* CAKE Quick Fade-Out */
-        .word-fade-cake {
-            transition: opacity 0.3s ease-out, transform 0.3s ease-out;
-            opacity: 0 !important; 
-            transform: scale(0.95) !important;
-        }
+    /* ---------- Animations ---------- */
+    @keyframes slide-out-left-good { 0% {transform:translateX(0);opacity:1} 100% {transform:translateX(-150%);opacity:0;color:#10b981} }
+    @keyframes slide-out-right-bad { 0% {transform:translateX(0);opacity:1} 100% {transform:translateX(150%);opacity:0;color:#ef4444} }
+    .word-transition-good { animation: slide-out-left-good 0.7s ease-out forwards; }
+    .word-transition-bad { animation: slide-out-right-bad 0.7s ease-out forwards; }
 
-        /* Keyframes fixed to not flash black */
-        @keyframes slide-out-left-good {
-            0% { transform: translateX(0); opacity: 1; }
-            100% { transform: translateX(-150%); opacity: 0; color: #10b981;}
-        }
-        
-        @keyframes slide-out-right-bad {
-            0% { transform: translateX(0); opacity: 1; }
-            100% { transform: translateX(150%); opacity: 0; color: #ef4444;}
-        }
+    /* Llama/Cake fades */
+    .word-fade-llama { transition: opacity 8s ease-out, transform 8s ease-out; opacity:0 !important; transform:scale(.9) !important; }
+    .word-fade-cake { transition: opacity 0.3s ease-out, transform 0.3s ease-out; opacity:0 !important; transform:scale(.95) !important; }
 
-        #wordDisplay {
-            font-size: 6rem;
-            white-space: nowrap; 
-            overflow: hidden;
-            max-width: 100%; 
-            box-sizing: border-box;
-            position: relative;
-            z-index: 10;
-        }
-        
-        /* --- THEME STYLES --- */
-        
-        /* 0. DEFAULT THEME */
-        body.theme-default { 
-            background: linear-gradient(135deg, #fef2be 0%, #b5def0 100%) !important; 
-        }
-        .theme-default #gameCard {
-            /* Restore default card look for #gameCard in default theme */
-            backdrop-filter: blur(10px); 
-            background-color: rgba(255, 255, 255, 0.95);
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
-            border: 1px solid rgba(0, 0, 0, 0.05);
-        }
-        
-        @keyframes rotate-border {
-            0% { background-position: 0% 0%; }
-            100% { background-position: 100% 100%; }
-        }
-        
-        @keyframes rainbow-text {
-            0% { -webkit-filter: hue-rotate(0deg); filter: hue-rotate(0deg); }
-            100% { -webkit-filter: hue-rotate(360deg); filter: hue-rotate(360deg); }
-        }
+    /* ---------- Theme base adjustments (kept minimal here; theme-specific rules below) ---------- */
+    body.theme-default { background: linear-gradient(135deg,#fef2be 0%,#b5def0 100%) !important; }
+    .theme-default #gameCard { backdrop-filter: blur(10px); background-color: rgba(255,255,255,0.95); box-shadow: 0 15px 40px rgba(0,0,0,0.15); border: 1px solid rgba(0,0,0,0.05); }
 
-        /* 1. RAINBOW THEME */
-        body.theme-rainbow {
-            background: #f7f7f7 !important; 
-        }
+    /* Rainbow (thin frame) */
+    @keyframes rotate-border { 0% { background-position:0% 0% } 100% { background-position:100% 100% } }
+    @keyframes rainbow-text { 0% { filter: hue-rotate(0deg) } 100% { filter: hue-rotate(360deg) } }
 
-        /* Base Card and Ranking Card (Only the outer frame is applied here now) */
-        .theme-rainbow .card, .theme-rainbow .ranking-card {
-            background-color: transparent; 
-            backdrop-filter: none; 
-            box-shadow: none; 
-            border: none;
-            position: relative; 
-            z-index: 10; 
-        }
-        
-        /* Thin Frame Class applied to #gameCard and .ranking-frame */
-        .theme-rainbow .thin-rainbow-frame {
-            position: relative;
-            background-color: #fff; 
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-        }
-        
-        /* Outer Rainbow Border (::before) - THINNER */
-        .theme-rainbow .thin-rainbow-frame::before {
-            content: '';
-            position: absolute;
-            inset: -3px; 
-            border-radius: 1.25rem; 
-            background: linear-gradient(
-                45deg, 
-                #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #9400d3, #ff0000 
-            );
-            background-size: 400% 400%; 
-            animation: rotate-border 20s linear infinite; 
-            z-index: -3; 
-        }
-        
-        /* Inner White Background (::after) - THINNER */
-        .theme-rainbow .thin-rainbow-frame::after {
-            content: '';
-            position: absolute;
-            inset: -1px; 
-            border-radius: 1.1rem; 
-            background-color: #ffffff; 
-            z-index: -2; 
-        }
-        
-        /* Main Game Card Layout Adjustments */
-        .theme-rainbow #gameCard {
-            padding: 1.5rem; 
-        }
+    body.theme-rainbow { background: #f7f7f7 !important; }
+    .theme-rainbow .card, .theme-rainbow .ranking-card { background-color: transparent; backdrop-filter:none; box-shadow:none; border:none; position:relative; z-index:10; }
+    .theme-rainbow .thin-rainbow-frame { position:relative; background-color:#fff; box-shadow:0 5px 15px rgba(0,0,0,0.1); border-radius:1rem; }
+    .theme-rainbow .thin-rainbow-frame::before {
+      content:''; position:absolute; inset:-3px; border-radius:1.25rem;
+      background: linear-gradient(45deg,#ff0000,#ff7f00,#ffff00,#00ff00,#00ffff,#0000ff,#9400d3,#ff0000);
+      background-size:400% 400%; animation: rotate-border 20s linear infinite; z-index:-3;
+    }
+    .theme-rainbow .thin-rainbow-frame::after { content:''; position:absolute; inset:-1px; border-radius:1.1rem; background:#fff; z-index:-2; }
+    .theme-rainbow #wordDisplay { background: linear-gradient(45deg,#ff0000,#ff7f00,#ffff00,#00ff00,#00ffff,#0000ff,#9400d3); -webkit-background-clip:text; -webkit-text-fill-color:transparent; color:transparent !important; animation: rainbow-text 5s linear infinite; padding:0 .5rem; line-height:1; }
 
-        .theme-rainbow #wordFrame {
-            padding: 0; 
-            background-color: transparent; 
-            margin-bottom: 1.5rem; 
-        }
-        
-        .theme-rainbow #wordDisplay {
-            background: linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #9400d3);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            color: transparent !important; 
-            animation: rainbow-text 5s ease infinite;
-            margin-bottom: 0 !important;
-            padding: 0 0.5rem; 
-            line-height: 1; 
-        }
+    /* Dark */
+    body.theme-dark { background: #121212 !important; }
+    .theme-dark #gameCard, .theme-dark .card, .theme-dark .ranking-card { background-color: rgba(18,18,18,0.95) !important; box-shadow: 0 15px 40px rgba(0,0,0,0.5) !important; border:none !important; }
+    .theme-dark .text-gray-500, .theme-dark .text-gray-600 { color: #9ca3af !important; }
 
-        .theme-rainbow #goodButton, 
-        .theme-rainbow #badButton, 
-        .theme-rainbow #notWordButton {
-            z-index: 10; 
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); 
-        }
+    /* Banana */
+    body.theme-banana { background: #f8f4b2 !important; }
+    .theme-banana #wordDisplay { color: #ffd200; animation: bounce-word .5s ease-out infinite alternate; }
+    @keyframes bounce-word { from { transform:translateY(0) } to { transform: translateY(-15px) } }
 
-        /* --- RANKING FRAME STYLES --- */
-        .theme-rainbow .ranking-frame {
-            padding: 0.75rem; 
-            margin-top: 0.5rem;
-            margin-bottom: 0.5rem;
-        }
+    /* Winter */
+    body.theme-winter { background: linear-gradient(135deg,#e0f7fa 0%,#b3e5fc 100%) !important; }
+    .theme-winter #wordDisplay { color: #01579b; text-shadow: 0 0 8px rgba(255,255,255,.8); }
 
-        /* 2. DARK THEME - FIXES */
-        body.theme-dark {
-            background: #121212 !important; 
-        }
-        
-        /* Main Card: Remove all borders/lines */
-        .theme-dark #gameCard {
-            background-color: rgba(18, 18, 18, 0.95) !important; 
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5) !important;
-            border: none !important; /* HIDE BORDER */
-            padding: 2rem !important; 
-        }
-        .theme-dark .card, .theme-dark .ranking-card {
-            background-color: rgba(18, 18, 18, 0.95); 
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
-            border: none; /* HIDE BORDER */
-        }
-        
-        /* Ranking Frame: Remove all inner frame effects */
-        .theme-dark .thin-rainbow-frame {
-            background-color: transparent !important; 
-            box-shadow: none !important; 
-            border: none !important;
-            padding: 0.75rem; /* Keep padding for layout */
-        }
-        .theme-dark .thin-rainbow-frame::after,
-        .theme-dark .thin-rainbow-frame::before { 
-            content: none !important; /* HIDE RAINBOW/WHITE LAYERS */
-        }
-        
-        .theme-dark header .bg-white {
-            background-color: #374151 !important; 
-            color: #d1d5db;
-        }
-        .theme-dark header .bg-gray-50 {
-            background-color: #121212 !important; 
-        }
-        .theme-dark #wordDisplay, .theme-dark .text-gray-900, .theme-dark .rank-item .text-gray-800 {
-            color: #f3f4f6 !important; 
-        }
-        .theme-dark .text-gray-500, .theme-dark .text-gray-600, .theme-dark .text-gray-800 {
-            color: #9ca3af !important; 
-        }
-        .theme-dark .border-b {
-            border-color: #4b5563 !important;
-        }
+    /* Summer */
+    body.theme-summer { background: linear-gradient(135deg,#FFD700 0%,#FFA500 100%) !important; }
+    .theme-summer #wordDisplay { color: #FF9800; text-shadow: 0 0 20px #FFF8E1, 0 0 10px #FFEB3B; }
 
+    /* Halloween */
+    body.theme-halloween { background: linear-gradient(135deg,#000000 0%,#3a0000 100%) !important; }
+    .theme-halloween .card, .theme-halloween .ranking-card { background-color: rgba(10,0,0,0.9) !important; border: 2px solid #FF8C00 !important; box-shadow: 0 0 30px rgba(255,140,0,0.5), 0 15px 40px rgba(0,0,0,0.7) !important; }
+    .theme-halloween #wordDisplay { color: #FF8C00; text-shadow: 0 0 20px rgba(255,140,0,1), 0 0 5px rgba(255,140,0,.5); }
 
-        /* 3. BANANA THEME */
-        body.theme-banana {
-            background: #f8f4b2 !important; 
-        }
-        .theme-banana #wordDisplay {
-            color: #ffd200; 
-            animation: bounce-word 0.5s ease-out infinite alternate;
-        }
-        @keyframes bounce-word {
-            from { transform: translateY(0); }
-            to { transform: translateY(-15px); }
-        }
-        .theme-banana #gameCard {
-            background-color: rgba(255, 255, 255, 0.95) !important; /* CHANGED TO WHITE */
-            border: 2px solid #f4ef81 !important;
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15) !important;
-            padding: 2rem !important; 
-        }
-        
-        /* 4. WINTER THEME */
-        body.theme-winter {
-            background: linear-gradient(135deg, #e0f7fa 0%, #b3e5fc 100%) !important; 
-        }
-        .theme-winter #wordDisplay {
-            color: #01579b; 
-            text-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
-        }
-        .theme-winter #gameCard {
-            background-color: rgba(255, 255, 255, 0.9) !important; 
-            border: 2px solid #81d4fa !important; 
-            box-shadow: 0 15px 40px rgba(179, 229, 252, 0.5) !important;
-            padding: 2rem !important; 
-        }
-        
-        /* SNOW EFFECT STYLES (Kept for completeness) */
-        @keyframes snowfall-1 {
-            0% { transform: translate3d(0vw, -100vh, 0); }
-            100% { transform: translate3d(10vw, 100vh, 0); } 
-        }
-        @keyframes snowfall-2 {
-            0% { transform: translate3d(0vw, -100vh, 0); }
-            100% { transform: translate3d(-15vw, 100vh, 0); }
-        }
-        .theme-winter #snow-effect {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            overflow: hidden;
-            z-index: 40; 
-            pointer-events: none;
-        }
-        .theme-winter #snow-effect::before,
-        .theme-winter #snow-effect::after {
-            content: '';
-            position: absolute;
-            top: -100vh; 
-            left: 0;
-            width: 100%;
-            height: 200%; 
-            background-repeat: repeat;
-        }
-        .theme-winter #snow-effect::before {
-            background-image: 
-                radial-gradient(4px 4px at 5% 10%, #fff, transparent),
-                radial-gradient(5px 5px at 95% 40%, #fff, transparent),
-                radial-gradient(4px 4px at 30% 70%, #fff, transparent),
-                radial-gradient(6px 6px at 60% 95%, #fff, transparent),
-                radial-gradient(4px 4px at 15% 55%, #fff, transparent),
-                radial-gradient(5px 5px at 75% 20%, #fff, transparent),
-                radial-gradient(4px 4px at 45% 5%, #fff, transparent),
-                radial-gradient(6px 6px at 85% 85%, #fff, transparent);
-                
-            background-size: 300px 350px, 300px 350px, 300px 350px, 300px 350px, 300px 350px, 300px 350px, 300px 350px, 300px 350px;
-            
-            opacity: 0.6; 
-            animation: snowfall-1 50s linear infinite; 
-            animation-delay: -5s; 
-        }
+    /* Submarine */
+    body.theme-submarine { background: linear-gradient(135deg, #020c1e 0%, #0a1931 50%, #183a5a 100%) !important; }
+    .theme-submarine #wordDisplay { color: #b0e0e6; text-shadow: 0 0 10px rgba(176,224,230,.7), 0 0 5px rgba(255,255,255,.3); animation: bobbing-word 2.5s ease-in-out infinite; }
+    @keyframes bobbing-word { 0% { transform: translateY(0px) rotate(-1deg); } 50% { transform: translateY(-8px) rotate(1deg); } 100% { transform: translateY(0px) rotate(-1deg); } }
 
-        .theme-winter #snow-effect::after {
-            background-image: 
-                radial-gradient(7px 7px at 20% 5%, #fff, transparent),
-                radial-gradient(8px 8px at 70% 35%, #fff, transparent),
-                radial-gradient(7px 7px at 40% 80%, #fff, transparent),
-                radial-gradient(9px 9px at 90% 60%, #fff, transparent),
-                radial-gradient(7px 7px at 10% 95%, #fff, transparent),
-                radial-gradient(8px 8px at 55% 25%, #fff, transparent),
-                radial-gradient(7px 7px at 25% 45%, #fff, transparent),
-                radial-gradient(9px 9px at 80% 15%, #fff, transparent);
-            
-            background-size: 500px 600px, 500px 600px, 500px 600px, 500px 600px, 500px 600px, 500px 600px, 500px 600px, 500px 600px;
-            
-            opacity: 0.9; 
-            animation: snowfall-2 75s linear infinite; 
-            animation-delay: -30s; 
-        }
+    /* Submarine bubbles & winter snow surfaces */
+    #snow-effect, #bubble-effect { position: fixed; top:0; left:0; width:100vw; height:100vh; overflow:hidden; z-index:40; pointer-events:none; display:none; }
+    body.theme-winter #snow-effect { display:block; }
+    body.theme-submarine #bubble-effect { display:block; }
 
-        /* 5. SUMMER THEME (Enhanced Sun Glow, COLOR CHANGE) */
-        body.theme-summer {
-            background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%) !important; /* Gold to Orange */
-        }
-        .theme-summer #wordDisplay {
-            color: #FF9800; /* Deep Red/Orange -> CHANGED TO VIBRANT ORANGE */
-            text-shadow: 0 0 20px #FFF8E1, 0 0 10px #FFEB3B; /* Sun glow effect */
-        }
-        .theme-summer #gameCard {
-            background-color: rgba(255, 255, 255, 0.9) !important; 
-            border: 2px solid #FFEB3B !important; /* Yellow border */
-            box-shadow: 0 15px 40px rgba(255, 152, 0, 0.5) !important;
-            padding: 2rem !important; 
-        }
-
-        /* 6. HALLOWEEN THEME (More Spooky) */
-        body.theme-halloween {
-            background: linear-gradient(135deg, #000000 0%, #3a0000 100%) !important; /* Black to Deep Maroon */
-        }
-        .theme-halloween #wordDisplay {
-            color: #FF8C00; /* Dark Orange */
-            text-shadow: 0 0 20px rgba(255, 140, 0, 1), 0 0 5px rgba(255, 140, 0, 0.5); /* Enhanced Glow */
-        }
-        /* FIX 1: Apply dark background and border to all cards including rankings */
-        .theme-halloween .card, 
-        .theme-halloween .ranking-card {
-            background-color: rgba(10, 0, 0, 0.9) !important; /* Almost black card */
-            border: 2px solid #FF8C00 !important; /* Dark Orange border */
-            box-shadow: 0 0 30px rgba(255, 140, 0, 0.5), 0 15px 40px rgba(0, 0, 0, 0.7) !important; /* Orange glow on card */
-        }
-        .theme-halloween #gameCard {
-            /* Inherits background/border from .card, only keeps padding override */
-            padding: 2rem !important; 
-        }
-        /* Dark mode overrides for text/containers */
-        .theme-halloween .text-gray-900, 
-        .theme-halloween .rank-item .text-gray-800 {
-            color: #F3F4F6 !important; /* Light text for rankings */
-        }
-        .theme-halloween .text-gray-500, 
-        .theme-halloween .text-gray-600 {
-            color: #9CA3AF !important; 
-        }
-        .theme-halloween header .bg-white {
-            background-color: #3A015E !important; 
-            color: #d1d5db;
-        }
-        .theme-halloween header .bg-gray-50 {
-            background-color: #1C1C1C !important; 
-        }
-        /* FIX 2: Ensure Ranking Titles and Dividers are visible */
-        .theme-halloween h2 {
-            color: #FF8C00 !important;
-        }
-        .theme-halloween .border-b {
-            border-color: #691C00 !important; /* Darker orange/red for separator */
-        }
-        
-        /* --- NEW THEME: 7. SUBMARINE THEME --- */
-
-        @keyframes bobbing-word {
-            0% { transform: translateY(0px) rotate(-1deg); }
-            50% { transform: translateY(-8px) rotate(1deg); }
-            100% { transform: translateY(0px) rotate(-1deg); }
-        }
-
-        @keyframes bubble-rise-1 {
-            0% { transform: translate3d(5vw, 100vh, 0); } /* ADDED horizontal start */
-            100% { transform: translate3d(20vw, -100vh, 0); } /* INCREASED horizontal drift */
-        }
-        @keyframes bubble-rise-2 {
-            0% { transform: translate3d(-5vw, 100vh, 0); } /* ADDED horizontal start */
-            100% { transform: translate3d(-25vw, -100vh, 0); } /* INCREASED horizontal drift */
-        }
-
-        body.theme-submarine {
-            background: linear-gradient(135deg, #020c1e 0%, #0a1931 50%, #183a5a 100%) !important; /* Deep dark blue */
-        }
-        .theme-submarine #wordDisplay {
-            color: #b0e0e6; /* Light powder blue */
-            text-shadow: 0 0 10px rgba(176, 224, 230, 0.7), 0 0 5px rgba(255, 255, 255, 0.3);
-            animation: bobbing-word 2.5s ease-in-out infinite;
-        }
-        
-        /* Dark mode card styles */
-        .theme-submarine .card, 
-        .theme-submarine .ranking-card {
-            background-color: rgba(10, 25, 49, 0.9) !important; /* Dark blue card */
-            border: 2px solid #1c4a7a !important; /* Lighter blue border */
-            box-shadow: 0 0 20px rgba(28, 74, 122, 0.5), 0 15px 40px rgba(0, 0, 0, 0.7) !important; /* Blue glow */
-        }
-        .theme-submarine #gameCard {
-            padding: 2rem !important; 
-        }
-        
-        /* Dark mode text overrides */
-        .theme-submarine .text-gray-900, 
-        .theme-submarine .rank-item .text-gray-800 {
-            color: #F3F4F6 !important; 
-        }
-        .theme-submarine .text-gray-500, 
-        .theme-submarine .text-gray-600 {
-            color: #9CA3AF !important; 
-        }
-        .theme-submarine header .bg-white {
-            background-color: #0a1931 !important; 
-            color: #d1d5db;
-        }
-        .theme-submarine header .bg-gray-50 {
-            background-color: #020c1e !important; 
-        }
-        .theme-submarine h2 {
-            color: #b0e0e6 !important; /* Light blue titles */
-        }
-        .theme-submarine .border-b {
-            border-color: #1c4a7a !important; /* Separator color */
-        }
-        
-        /* BUBBLE EFFECT STYLES (Adapted from Snow) */
-        .theme-submarine #bubble-effect {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            overflow: hidden;
-            z-index: 40; 
-            pointer-events: none;
-        }
-        .theme-submarine #bubble-effect::before,
-        .theme-submarine #bubble-effect::after {
-            content: '';
-            position: absolute;
-            top: 0; /* Start from top, animation moves from bottom */
-            left: 0;
-            width: 100%;
-            height: 200%; 
-            background-repeat: repeat;
-        }
-        .theme-submarine #bubble-effect::before {
-            background-image: 
-                radial-gradient(4px 4px at 5% 10%, rgba(176, 224, 230, 0.4), transparent),
-                radial-gradient(5px 5px at 95% 40%, rgba(176, 224, 230, 0.4), transparent),
-                radial-gradient(4px 4px at 30% 70%, rgba(176, 224, 230, 0.4), transparent),
-                radial-gradient(6px 6px at 60% 95%, rgba(176, 224, 230, 0.4), transparent),
-                radial-gradient(4px 4px at 15% 55%, rgba(176, 224, 230, 0.4), transparent),
-                radial-gradient(5px 5px at 75% 20%, rgba(176, 224, 230, 0.4), transparent);
-                
-            background-size: 300px 350px;
-            
-            opacity: 0.8; 
-            animation: bubble-rise-1 50s linear infinite; /* INCREASED duration */
-            animation-delay: -5s; 
-        }
-
-        .theme-submarine #bubble-effect::after {
-             background-image: 
-                radial-gradient(7px 7px at 20% 5%, rgba(176, 224, 230, 0.5), transparent),
-                radial-gradient(8px 8px at 70% 35%, rgba(176, 224, 230, 0.5), transparent),
-                radial-gradient(7px 7px at 40% 80%, rgba(176, 224, 230, 0.5), transparent),
-                radial-gradient(9px 9px at 90% 60%, rgba(176, 224, 230, 0.5), transparent),
-                radial-gradient(7px 7px at 10% 95%, rgba(176, 224, 230, 0.5), transparent),
-                radial-gradient(8px 8px at 55% 25%, rgba(176, 224, 230, 0.5), transparent);
-            
-            background-size: 500px 600px;
-            
-            opacity: 0.9; 
-            animation: bubble-rise-2 75s linear infinite; /* INCREASED duration */
-            animation-delay: -30s; 
-        }
-    </style>
+    @media (max-width: 640px) { .rank-item { font-size: .8rem } .vote-counts { font-size: .875rem } }
+  </style>
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen p-4 theme-default">
 
-    <div id="snow-effect" class="fixed inset-0 pointer-events-none hidden"></div> 
-    <div id="bubble-effect" class="fixed inset-0 pointer-events-none hidden"></div> <header class="text-center mb-8 w-full max-w-lg">
-        
-        <div id="logoArea" class="h-32 w-full flex items-center justify-center mb-4 relative">
-            
-            <div id="leftBadgeContainer" class="absolute left-0 top-1/2 transform -translate-y-1/2 flex flex-col items-start space-y-1 pl-4">
-                <div 
-                    id="cakeBadge" 
-                    class="p-2 cursor-pointer text-3xl hidden transition duration-300 hover:scale-110" 
-                    title="The cake is a lie! Click to go back to the word.">
-                    🎂
-                </div>
-                <div 
-                    id="llamaBadge" 
-                    class="p-2 text-3xl hidden transition duration-300 hover:scale-110" 
-                    title="The Llama has vanished! Click to find the Llama word." >
-                    🦙
-                </div>
-            </div>
+  <!-- Visual / header -->
+  <div id="snow-effect"></div>
+  <div id="bubble-effect"></div>
 
-            <img 
-                src="logo.png" 
-                alt="Good Word / Bad Word Logo with Rainbow and Devil" 
-                class="h-full w-auto max-w-full"
-            >
+  <header class="text-center mb-8 w-full max-w-lg">
+    <div id="logoArea" class="h-32 w-full flex items-center justify-center mb-4 relative">
+      <div id="leftBadgeContainer" class="absolute left-0 top-1/2 transform -translate-y-1/2 flex flex-col items-start space-y-1 pl-4">
+        <div id="cakeBadge" class="p-2 cursor-pointer text-3xl hidden transition duration-300 hover:scale-110" title="The cake is a lie! Click to go back to the word.">🎂</div>
+        <div id="llamaBadge" class="p-2 text-3xl hidden transition duration-300 hover:scale-110" title="The Llama has vanished! Click to find the Llama word.">🦙</div>
+      </div>
 
-            <div id="rightBadgeContainer" class="absolute right-0 top-1/2 transform -translate-y-1/2 flex flex-col items-end space-y-1 pr-4">
-                <div 
-                    id="contributorBadge" 
-                    class="p-2 cursor-help text-3xl hidden transition duration-300 hover:scale-110"
-                    title="Contributor Badge (0 Submissions)">
-                </div>
-                <div 
-                    id="awardBadge" 
-                    class="p-2 cursor-help text-3xl transition duration-300 hover:scale-110">
-                </div>
-            </div>
+      <img src="logo.png" alt="Good Word / Bad Word Logo" class="h-full w-auto max-w-full"/>
 
-        </div>
-        <div class="mt-4 flex justify-around p-3 rounded-t-xl bg-white shadow-md vote-counts">
-            <div id="goodTotal" class="text-xl font-bold text-green-600">GOOD: 0</div>
-            <div id="badTotal" class="text-xl font-bold text-red-600">BAD: 0</div>
-        </div>
-        <div class="flex justify-center p-2 rounded-b-xl bg-gray-50 shadow-md">
-            <div id="wordCount" class="text-sm font-semibold text-gray-500">
-                Words in Database: 0
-            </div>
-        </div>
-    </header>
-
-    <main id="gameCard" class="card p-8 w-full max-w-sm flex flex-col items-center rounded-2xl">
-        
-        <div id="wordFrame" class="w-full text-center rounded-xl mb-8 relative">
-            <div id="wordDisplay" class="font-extrabold text-gray-900 text-center min-h-[72px]">
-                Loading...
-            </div>
-        </div>
-        
-        <div class="flex space-x-4 w-full mb-3">
-            <button id="goodButton" class="good-button flex-1 py-4 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-green-500/50" disabled>
-                Good Word
-            </button>
-            <button id="badButton" class="bad-button flex-1 py-4 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-red-500/50" disabled>
-                Bad Word
-            </button>
-        </div>
-        <button id="notWordButton" class="not-word-button w-full py-3 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-slate-500/50" disabled>
-            Not a word!
-        </button>
-        <button id="customWordButton" class="mt-4 text-sm text-gray-600 hover:text-gray-900 transition duration-150">
-            Submit Custom Word
-        </button>
-    </main>
-
-    <div id="postVoteMessage" class="mt-4 w-full max-w-sm text-center text-sm font-medium text-gray-600 min-h-[1.5rem]">
-        </div>
-    <section class="mt-8 w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div class="ranking-card card p-6 rounded-xl">
-            <h2 class="text-xl font-bold text-green-700 mb-4 border-b pb-2">Top Good Words</h2>
-            <div class="ranking-frame thin-rainbow-frame rounded-xl">
-                <div id="goodRankings" class="space-y-2">
-                    <p class="text-gray-500">No data yet.</p>
-                </div>
-            </div>
-        </div>
-        <div class="ranking-card card p-6 rounded-xl">
-            <h2 class="text-xl font-bold text-red-700 mb-4 border-b pb-2">Top Bad Words</h2>
-            <div class="ranking-frame thin-rainbow-frame rounded-xl">
-                <div id="badRankings" class="space-y-2">
-                    <p class="text-gray-500">No data yet.</p>
-                </div>
-            </div>
-        </div>
-    </section>
-    
-    <div class="mt-6 w-full max-w-4xl text-center">
-        <button id="showTop100Button" class="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 transition duration-150">
-            Show Top 100 Rankings
-        </button>
-        <button id="compareWordsButton" class="mt-4 px-6 py-2 bg-purple-600 text-white font-bold rounded-lg shadow-md hover:bg-purple-700 transition duration-150">
-            Compare Any Two Words
-        </button>
+      <div id="rightBadgeContainer" class="absolute right-0 top-1/2 transform -translate-y-1/2 flex flex-col items-end space-y-1 pr-4">
+        <div id="contributorBadge" class="p-2 cursor-help text-3xl hidden transition duration-300 hover:scale-110" title="Contributor Badge (0 Submissions)"></div>
+        <div id="awardBadge" class="p-2 cursor-help text-3xl transition duration-300 hover:scale-110"></div>
+      </div>
     </div>
 
-    <div class="mt-6 p-4 bg-white/70 rounded-xl w-full max-w-sm flex flex-col items-center shadow-lg border border-gray-100">
-        <h3 class="text-lg font-bold text-gray-700 mb-2">Unlocked Themes 🎨</h3>
-        <select id="themeChooser" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 font-semibold">
-            <option value="default">Default</option>
-            </select>
-        <p id="themeUnlockHint" class="text-xs text-gray-500 mt-2">Vote on special words to unlock new themes!</p>
-
-        <button id="showSettingsButton" class="mt-4 px-4 py-2 w-full bg-slate-200 text-gray-700 font-bold rounded-lg shadow-md hover:bg-slate-300 transition duration-150 text-sm">
-            ⚙️ Settings
-        </button>
-        </div>
-    
-    <div id="submissionModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
-        <div class="bg-white p-6 rounded-xl w-full max-w-md shadow-2xl">
-            <h2 class="text-2xl font-bold mb-4">Submit a New Word</h2>
-            <input type="text" id="newWordInput" placeholder="Enter your word here..." class="w-full p-3 border border-gray-300 rounded-lg mb-4 focus:ring-2 focus:ring-indigo-500">
-            <div id="modalMessage" class="text-sm text-red-500 mb-4"></div>
-            <div class="flex justify-end space-x-3">
-                <button id="cancelSubmitButton" class="px-4 py-2 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 transition">
-                    Cancel
-                </button>
-                <button id="submitWordButton" class="px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition">
-                    Submit Word
-                </button>
-            </div>
-        </div>
+    <div class="mt-4 flex justify-around p-3 rounded-t-xl bg-white shadow-md vote-counts">
+      <div id="goodTotal" class="text-xl font-bold text-green-600">GOOD: 0</div>
+      <div id="badTotal" class="text-xl font-bold text-red-600">BAD: 0</div>
     </div>
-    
-    <div id="fullRankingsModalContainer" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
-        <div id="fullRankingsModal" class="bg-white p-6 rounded-xl w-full max-w-6xl max-h-[90vh] shadow-2xl flex flex-col">
-            <div class="flex justify-between items-center mb-4 border-b pb-2">
-                <h2 class="text-2xl font-bold">Top 100 Word Rankings</h2>
-                <button id="closeFullRankingsModal" class="text-gray-500 hover:text-gray-800 text-2xl font-bold leading-none">
-                    &times;
-                </button>
-            </div>
-            
-            <div class="flex-grow overflow-y-auto">
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div class="bg-green-50/50 p-4 rounded-lg shadow-inner flex flex-col">
-                        <h3 class="text-xl font-semibold mb-4 text-green-700">Top 100 Good Words</h3>
-                        <div id="fullGoodRankings" class="space-y-1">
-                            </div>
-                    </div>
+    <div class="flex justify-center p-2 rounded-b-xl bg-gray-50 shadow-md">
+      <div id="wordCount" class="text-sm font-semibold text-gray-500">Words in Database: 0</div>
+    </div>
+  </header>
 
-                    <div class="bg-red-50/50 p-4 rounded-lg shadow-inner flex flex-col">
-                        <h3 class="text-xl font-semibold mb-4 text-red-700">Top 100 Bad Words</h3>
-                        <div id="fullBadRankings" class="space-y-1">
-                            </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+  <!-- Game card -->
+  <main id="gameCard" class="card p-8 w-full max-w-sm flex flex-col items-center rounded-2xl">
+    <div id="wordFrame" class="w-full text-center rounded-xl mb-8 relative">
+      <div id="wordDisplay" class="font-extrabold text-gray-900 text-center min-h-[72px]">Loading...</div>
     </div>
 
-    <div id="definitionModalContainer" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
-        <div id="definitionModal" class="bg-white p-6 rounded-xl w-full max-w-lg shadow-2xl flex flex-col max-h-[80vh]">
-            <div class="flex justify-between items-center mb-4 border-b pb-2">
-                <h2 id="definitionWord" class="text-2xl font-bold">DEFINITION</h2>
-                <button id="closeDefinitionModal" class="text-gray-500 hover:text-gray-800 text-2xl font-bold leading-none">
-                    &times;
-                </button>
-            </div>
-            
-            <div id="definitionResults" class="space-y-4 overflow-y-auto">
-                <p>Loading definition...</p>
-            </div>
+    <div class="flex space-x-4 w-full mb-3">
+      <button id="goodButton" class="good-button flex-1 py-4 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-green-500/50" disabled>Good Word</button>
+      <button id="badButton" class="bad-button flex-1 py-4 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-red-500/50" disabled>Bad Word</button>
+    </div>
+    <button id="notWordButton" class="not-word-button w-full py-3 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-slate-500/50" disabled>Not a word!</button>
+    <button id="customWordButton" class="mt-4 text-sm text-gray-600 hover:text-gray-900 transition duration-150">Submit Custom Word</button>
+  </main>
+
+  <div id="postVoteMessage" class="mt-4 w-full max-w-sm text-center text-sm font-medium text-gray-600 min-h-[1.5rem]"></div>
+
+  <!-- Rankings -->
+  <section class="mt-8 w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8">
+    <div class="ranking-card card p-6 rounded-xl">
+      <h2 class="text-xl font-bold text-green-700 mb-4 border-b pb-2">Top Good Words</h2>
+      <div class="ranking-frame thin-rainbow-frame rounded-xl">
+        <div id="goodRankings" class="space-y-2"><p class="text-gray-500">No data yet.</p></div>
+      </div>
+    </div>
+
+    <div class="ranking-card card p-6 rounded-xl">
+      <h2 class="text-xl font-bold text-red-700 mb-4 border-b pb-2">Top Bad Words</h2>
+      <div class="ranking-frame thin-rainbow-frame rounded-xl">
+        <div id="badRankings" class="space-y-2"><p class="text-gray-500">No data yet.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="mt-6 w-full max-w-4xl text-center">
+    <button id="showTop100Button" class="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 transition duration-150">Show Top 100 Rankings</button>
+    <button id="compareWordsButton" class="mt-4 px-6 py-2 bg-purple-600 text-white font-bold rounded-lg shadow-md hover:bg-purple-700 transition duration-150">Compare Any Two Words</button>
+  </div>
+
+  <!-- Themes + settings -->
+  <div class="mt-6 p-4 bg-white/70 rounded-xl w-full max-w-sm flex flex-col items-center shadow-lg border border-gray-100">
+    <h3 class="text-lg font-bold text-gray-700 mb-2">Unlocked Themes 🎨</h3>
+    <select id="themeChooser" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 font-semibold">
+      <option value="default">Default</option>
+    </select>
+    <p id="themeUnlockHint" class="text-xs text-gray-500 mt-2">Vote on special words to unlock new themes!</p>
+
+    <button id="showSettingsButton" class="mt-4 px-4 py-2 w-full bg-slate-200 text-gray-700 font-bold rounded-lg shadow-md hover:bg-slate-300 transition duration-150 text-sm">⚙️ Settings</button>
+  </div>
+
+  <!-- Modals (submission, full rankings, definition, compare, settings) -->
+  <div id="submissionModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
+    <div class="bg-white p-6 rounded-xl w-full max-w-md shadow-2xl">
+      <h2 class="text-2xl font-bold mb-4">Submit a New Word</h2>
+      <input type="text" id="newWordInput" placeholder="Enter your word here..." class="w-full p-3 border border-gray-300 rounded-lg mb-4 focus:ring-2 focus:ring-indigo-500">
+      <div id="modalMessage" class="text-sm text-red-500 mb-4"></div>
+      <div class="flex justify-end space-x-3">
+        <button id="cancelSubmitButton" class="px-4 py-2 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 transition">Cancel</button>
+        <button id="submitWordButton" class="px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition">Submit Word</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="fullRankingsModalContainer" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
+    <div id="fullRankingsModal" class="bg-white p-6 rounded-xl w-full max-w-6xl max-h-[90vh] shadow-2xl flex flex-col">
+      <div class="flex justify-between items-center mb-4 border-b pb-2">
+        <h2 class="text-2xl font-bold">Top 100 Word Rankings</h2>
+        <button id="closeFullRankingsModal" class="text-gray-500 hover:text-gray-800 text-2xl font-bold leading-none">&times;</button>
+      </div>
+      <div class="flex-grow overflow-y-auto">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div class="bg-green-50/50 p-4 rounded-lg shadow-inner flex flex-col">
+            <h3 class="text-xl font-semibold mb-4 text-green-700">Top 100 Good Words</h3>
+            <div id="fullGoodRankings" class="space-y-1"></div>
+          </div>
+          <div class="bg-red-50/50 p-4 rounded-lg shadow-inner flex flex-col">
+            <h3 class="text-xl font-semibold mb-4 text-red-700">Top 100 Bad Words</h3>
+            <div id="fullBadRankings" class="space-y-1"></div>
+          </div>
         </div>
+      </div>
     </div>
-    <div id="compareModalContainer" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
-        <div id="compareModal" class="bg-white p-6 rounded-xl w-full max-w-lg shadow-2xl">
-            <div class="flex justify-between items-center mb-4 border-b pb-2">
-                <h2 class="text-2xl font-bold">Compare Any Two Words</h2>
-                <button id="closeCompareModal" class="text-gray-500 hover:text-gray-800 text-2xl font-bold leading-none">
-                    &times;
-                </button>
-            </div>
-            
-            <div class="space-y-4">
-                <input type="text" id="wordOneInput" placeholder="Enter first word..." class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
-                <input type="text" id="wordTwoInput" placeholder="Enter second word..." class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
-                <div id="compareResults" class="p-3 bg-gray-50 rounded-lg min-h-[50px]">
-                    Type words above to compare them!
-                </div>
-            </div>
-            
-            <div class="flex justify-end space-x-3 mt-4">
-                <button id="runComparisonButton" class="px-4 py-2 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 transition">
-                    Compare
-                </button>
-            </div>
+  </div>
+
+  <div id="definitionModalContainer" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
+    <div id="definitionModal" class="bg-white p-6 rounded-xl w-full max-w-lg shadow-2xl flex flex-col max-h-[80vh]">
+      <div class="flex justify-between items-center mb-4 border-b pb-2">
+        <h2 id="definitionWord" class="text-2xl font-bold">DEFINITION</h2>
+        <button id="closeDefinitionModal" class="text-gray-500 hover:text-gray-800 text-2xl font-bold leading-none">&times;</button>
+      </div>
+      <div id="definitionResults" class="space-y-4 overflow-y-auto"><p>Loading definition...</p></div>
+    </div>
+  </div>
+
+  <div id="compareModalContainer" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
+    <div id="compareModal" class="bg-white p-6 rounded-xl w-full max-w-lg shadow-2xl">
+      <div class="flex justify-between items-center mb-4 border-b pb-2">
+        <h2 class="text-2xl font-bold">Compare Any Two Words</h2>
+        <button id="closeCompareModal" class="text-gray-500 hover:text-gray-800 text-2xl font-bold leading-none">&times;</button>
+      </div>
+      <div class="space-y-4">
+        <input type="text" id="wordOneInput" placeholder="Enter first word..." class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+        <input type="text" id="wordTwoInput" placeholder="Enter second word..." class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+        <div id="compareResults" class="p-3 bg-gray-50 rounded-lg min-h-[50px]">Type words above to compare them!</div>
+      </div>
+      <div class="flex justify-end space-x-3 mt-4">
+        <button id="runComparisonButton" class="px-4 py-2 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 transition">Compare</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="settingsModalContainer" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
+    <div id="settingsModal" class="bg-white p-6 rounded-xl w-full max-w-md shadow-2xl">
+      <div class="flex justify-between items-center mb-4 border-b pb-2">
+        <h2 class="text-2xl font-bold">User Settings</h2>
+        <button id="closeSettingsModal" class="text-gray-500 hover:text-gray-800 text-2xl font-bold leading-none">&times;</button>
+      </div>
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <label for="togglePercentages" class="text-lg font-medium text-gray-700">Show Vote Percentages</label>
+          <input type="checkbox" id="togglePercentages" class="h-6 w-6 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
         </div>
-    </div>
-    
-    <div id="settingsModalContainer" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
-        <div id="settingsModal" class="bg-white p-6 rounded-xl w-full max-w-md shadow-2xl">
-            <div class="flex justify-between items-center mb-4 border-b pb-2">
-                <h2 class="text-2xl font-bold">User Settings</h2>
-                <button id="closeSettingsModal" class="text-gray-500 hover:text-gray-800 text-2xl font-bold leading-none">
-                    &times;
-                </button>
-            </div>
-            
-            <div class="space-y-4">
-                <div class="flex items-center justify-between">
-                    <label for="togglePercentages" class="text-lg font-medium text-gray-700">Show Vote Percentages</label>
-                    <input type="checkbox" id="togglePercentages" class="h-6 w-6 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
-                </div>
-                
-                <div class="flex items-center justify-between">
-                    <label for="toggleTips" class="text-lg font-medium text-gray-700">Show Tips & Hints</label>
-                    <input type="checkbox" id="toggleTips" class="h-6 w-6 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
-                </div>
-            </div>
-            
-            <div class="mt-6 border-t pt-4">
-                <p class="text-sm text-gray-500">You can also clear all local data (votes, awards, themes, streaks) below. This action is irreversible.</p>
-                <button id="clearAllDataButton" class="mt-3 px-4 py-2 w-full bg-red-500 text-white font-medium rounded-lg shadow-md hover:bg-red-600 transition">
-                    Clear All Local Data
-                </button>
-            </div>
+        <div class="flex items-center justify-between">
+          <label for="toggleTips" class="text-lg font-medium text-gray-700">Show Tips & Hints</label>
+          <input type="checkbox" id="toggleTips" class="h-6 w-6 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
         </div>
+      </div>
+      <div class="mt-6 border-t pt-4">
+        <p class="text-sm text-gray-500">You can also clear all local data (votes, awards, themes, streaks) below. This action is irreversible.</p>
+        <button id="clearAllDataButton" class="mt-3 px-4 py-2 w-full bg-red-500 text-white font-medium rounded-lg shadow-md hover:bg-red-600 transition">Clear All Local Data</button>
+      </div>
     </div>
-    <div class="version-indicator">
-        v4.3.1 | Made by Gilxs in 12,025
-    </div>
+  </div>
 
-    <script>
-        const API_BASE_URL = '/api/words';
-        const APP_VERSION = '4.3.1'; // Updated version
-        
-      // --- BOOST & SPECIAL WORD CONSTANTS --- 
-        const BOOSTED_WORD = 'CAKE'; 
-        const BOOST_FACTOR = 2.0; 
-        const LLAMA_WORD = 'LLAMA';
-        // NEW: Fixed probability for special words (0.5% each)
-        const CAKE_PROBABILITY = 0.005; 
-        const LLAMA_PROBABILITY = 0.005;
-        const CONTRIBUTION_THRESHOLD = 5; // Unlock contributor badge at 5 submissions
-        
-        // --- SIMPLIFIED CAKE TIMING CONSTANTS (FIX v3.9.13) ---
-        const CAKE_WORD_FADE_DURATION = 300; // 0.3s
-        const CAKE_MESSAGE_DURATION = 3000; // 3.0s
-        
-        // --- NEW TIP/MESSAGE CONSTANTS ---
-        const TIPS = [
-            "Tip: You can now cast a vote by swiping! Swipe left for GOOD and right for BAD.",
-            "Tip: Have you tried comparing words yet? Use the 'Compare Any Two Words' button!",
-            "Tip: Tap the word on the card to see its definition!",
-            "Tip: Check out the theme chooser below to unlock new styles."
-        ];
-        const TIP_COOLDOWN = 4; // Display a tip every 4 votes
-        let voteCounterForTips = parseInt(localStorage.getItem('voteCounterForTips')) || 0;
-        // END NEW TIP/MESSAGE CONSTANTS
+  <div class="version-indicator">v4.3.1 | Made by Gilxs in 12,025</div>
 
-        let allWords = [];
-        let currentWordIndex = 0;
-        let userId = localStorage.getItem('userId');
-        let voteCount = 0; 
-        let contributorCount = 0; 
-        
-        // NEW STATE VARIABLES
-        let cakeBadgeUnlocked = localStorage.getItem('cakeBadgeUnlocked') === 'true';
-        let llamaBadgeUnlocked = localStorage.getItem('llamaBadgeUnlocked') === 'true';
-        // NEW USER SETTINGS
-        let userSettings = JSON.parse(localStorage.getItem('userSettings')) || {
-            showTips: true,
-            showPercentages: true
-        };
-        // END NEW STATE VARIABLES
+  <!-- ---------- JavaScript (cleaned & refactored) ---------- -->
+  <script>
+  (function () {
+    'use strict';
 
-        let voteStreak = 0;
-        const MASH_LIMIT = 10;
-        const COOLDOWN_SECONDS = 10;
-        const STREAK_WINDOW_MS = 1500; 
-        let cooldownTimer = null;
-        let isCoolingDown = false;
-        let lastVoteTime = 0; 
-        
-        // SWIPE TRACKING VARIABLES
-        let startX = 0;
-        let startY = 0;
-        const SWIPE_THRESHOLD = 50; // Minimum horizontal swipe distance in pixels
-        // END SWIPE TRACKING VARIABLES
+    // ------ Configuration / constants ------
+    const API_BASE_URL = '/api/words';
+    const APP_VERSION = '4.3.1';
 
-        // --- THEME VARIABLES: OBFUSCATED USING STRING MANIPULATION ---
-        let currentTheme = localStorage.getItem('currentTheme') || 'default';
-        let unlockedThemes = JSON.parse(localStorage.getItem('unlockedThemes')) || [];
-        
-        const RAINBOW_STR = 'RAINBOW|GAY|SPARKLE|COLOUR|PRIDE|UNICORN|PROUD|QUEER|GLITTER|LESBIAN|TINSEL';
-        const DARK_REVERSED_STR = 'THGINDIM!KCALB!EDAHS!HTOG!WODAHS!AJNIN!KRAD!THGIN!HTLAETS'; 
-        const BANANA_STR = 'BANANA|BANANAS|PLANTAIN|YELLOW|SPLIT|MONKEY|HAMMOCK';
-        const WINTER_STR = 'SNOWMAN|SNOW|ICE|WINTER|FROZEN|CHILL|COLD|FLAKE|BLIZZARD|ICICLE|SLEIGH|SNOWBALL|SCARF|JACKET|SLEDGE|NOVEMBER|DECEMBER|JANUARY|JINGLE'; 
-        const SUMMER_STR = 'SUMMER|HOT|BEACH|HOLIDAY|SUN|VACATION|SWIM|SAND|POOL|JULY|AUGUST|JUNE'; 
-        const HALLOWEEN_STR = 'HALLOWEEN|GHOST|PUMPKIN|SPIDER|SWEETS|COSTUME|SPOOKY|OCTOBER|WITCH|VAMPIRE|ZOMBIE|BAT|MONSTER'; 
-        const SUBMARINE_STR = 'SUBMARINE|WATER|WAVES||PLYMOUTH|BRIXHAM|PIRATE|SEA|AQUATIC|AQUA|DEEP|OCTOPUS'; // ADDED
+    const BOOSTED_WORD = 'CAKE';
+    const LLAMA_WORD = 'LLAMA';
+    const BOOST_FACTOR = 2.0;
+    const CAKE_PROBABILITY = 0.005;
+    const LLAMA_PROBABILITY = 0.005;
+    const CONTRIBUTION_THRESHOLD = 5;
 
-        const THEME_WORDS = {
-            'rainbow': RAINBOW_STR.split('|'),
-            'dark': DARK_REVERSED_STR
-                        .split('!')
-                        .map(w => w.split('').reverse().join('')), 
-            'banana': BANANA_STR.split('|'),
-            'winter': WINTER_STR.split('|'),
-            'summer': SUMMER_STR.split('|'),
-            'halloween': HALLOWEEN_STR.split('|'),
-            'submarine': SUBMARINE_STR.split('|') // ADDED
-        };
-        // --- END THEME VARIABLES ---
+    const CAKE_WORD_FADE_DURATION = 300; // ms
+    const CAKE_MESSAGE_DURATION = 3000; // ms
 
-        const wordFrame = document.getElementById('wordFrame'); 
-        const wordDisplay = document.getElementById('wordDisplay');
-        const goodButton = document.getElementById('goodButton');
-        const badButton = document.getElementById('badButton');
-        const notWordButton = document.getElementById('notWordButton');
-        const gameCard = document.getElementById('gameCard'); 
-        const goodTotal = document.getElementById('goodTotal');
-        const badTotal = document.getElementById('badTotal');
-        const wordCount = document.getElementById('wordCount');
-        const goodRankingsDiv = document.getElementById('goodRankings');
-        const badRankingsDiv = document.getElementById('badRankings');
-        const submissionModal = document.getElementById('submissionModal');
-        const newWordInput = document.getElementById('newWordInput');
-        const modalMessage = document.getElementById('modalMessage');
-        const submitWordButton = document.getElementById('submitWordButton');
-        const cancelSubmitButton = document.getElementById('cancelSubmitButton');
-        const customWordButton = document.getElementById('customWordButton');
-        const versionIndicator = document.querySelector('.version-indicator');
-        const awardBadge = document.getElementById('awardBadge');
-        const cakeBadge = document.getElementById('cakeBadge'); 
-        const llamaBadge = document.getElementById('llamaBadge'); 
-        const contributorBadge = document.getElementById('contributorBadge'); 
-        const showTop100Button = document.getElementById('showTop100Button');
-        const fullRankingsModalContainer = document.getElementById('fullRankingsModalContainer');
-        const closeFullRankingsModal = document.getElementById('closeFullRankingsModal');
-        const fullGoodRankingsDiv = document.getElementById('fullGoodRankings');
-        const fullBadRankingsDiv = document.getElementById('fullBadRankings');
-        
-        const themeChooser = document.getElementById('themeChooser');
-        const themeUnlockHint = document.getElementById('themeUnlockHint');
-        const snowEffect = document.getElementById('snow-effect'); 
-        const bubbleEffect = document.getElementById('bubble-effect'); // ADDED
-        
-        // NEW DEFINITION ELEMENTS
-        const definitionModalContainer = document.getElementById('definitionModalContainer');
-        const closeDefinitionModal = document.getElementById('closeDefinitionModal');
-        const definitionWord = document.getElementById('definitionWord');
-        const definitionResults = document.getElementById('definitionResults');
+    const TIPS = [
+      "Tip: You can now cast a vote by swiping! Swipe left for GOOD and right for BAD.",
+      "Tip: Have you tried comparing words yet? Use the 'Compare Any Two Words' button!",
+      "Tip: Tap the word on the card to see its definition!",
+      "Tip: Check out the theme chooser below to unlock new styles."
+    ];
+    const TIP_COOLDOWN = 4;
 
-        // NEW COMPARISON ELEMENTS
-        const compareWordsButton = document.getElementById('compareWordsButton');
-        const compareModalContainer = document.getElementById('compareModalContainer');
-        const closeCompareModal = document.getElementById('closeCompareModal');
-        const wordOneInput = document.getElementById('wordOneInput');
-        const wordTwoInput = document = document.getElementById('wordTwoInput');
-        const compareResults = document.getElementById('compareResults');
-        const runComparisonButton = document.getElementById('runComparisonButton');
-        
-        // NEW SETTINGS ELEMENTS
-        const postVoteMessage = document.getElementById('postVoteMessage'); // NEW
-        const showSettingsButton = document.getElementById('showSettingsButton'); // NEW
-        const settingsModalContainer = document.getElementById('settingsModalContainer'); // NEW
-        const closeSettingsModal = document.getElementById('closeSettingsModal'); // NEW
-        const togglePercentages = document.getElementById('togglePercentages'); // NEW
-        const toggleTips = document.getElementById('toggleTips'); // NEW
-        const clearAllDataButton = document.getElementById('clearAllDataButton'); // NEW
+    const MASH_LIMIT = 10;
+    const COOLDOWN_SECONDS = 10;
+    const STREAK_WINDOW_MS = 1500;
+    const SWIPE_THRESHOLD = 50;
 
+    // ------ App state ------
+    let allWords = [];
+    let currentWordIndex = -1;
+    let userId = localStorage.getItem('userId') || null;
+    let voteCount = parseInt(localStorage.getItem('voteCount') || '0', 10);
+    let contributorCount = parseInt(localStorage.getItem('contributorCount') || '0', 10);
+    let unlockedThemes = JSON.parse(localStorage.getItem('unlockedThemes') || '[]');
 
-        function init() {
-            if (!userId) {
-                userId = crypto.randomUUID();
-                localStorage.setItem('userId', userId);
-            }
-            
-            const storedVoteCount = localStorage.getItem('voteCount');
-            if (storedVoteCount) {
-                voteCount = parseInt(storedVoteCount, 10);
-            }
-            
-            // Load Contributor Count
-            const storedContributorCount = localStorage.getItem('contributorCount');
-            if (storedContributorCount) {
-                contributorCount = parseInt(storedContributorCount, 10);
-            }
-            
-            versionIndicator.textContent = `v${APP_VERSION} | Made by Gilxs in 12,025`; // Update version
-            
-            goodButton.addEventListener('click', () => submitVote('good'));
-            badButton.addEventListener('click', () => submitVote('bad'));
-            notWordButton.addEventListener('click', () => submitVote('notWord'));
-            customWordButton.addEventListener('click', () => showModal());
-            cancelSubmitButton.addEventListener('click', () => hideModal());
-            submitWordButton.addEventListener('click', submitCustomWord);
-            
-            showTop100Button.addEventListener('click', showFullRankingsModal);
-            closeFullRankingsModal.addEventListener('click', hideFullRankingsModal);
-            fullRankingsModalContainer.addEventListener('click', (e) => {
-                if (e.target === fullRankingsModalContainer) {
-                    hideFullRankingsModal();
-                }
-            });
-            
-            // NEW: Add swipe functionality to gameCard
-            gameCard.addEventListener('touchstart', handleTouchStart, false);
-            gameCard.addEventListener('touchend', handleTouchEnd, false);
-            
-            // NEW DEFINITION EVENT LISTENERS
-            wordDisplay.addEventListener('click', showDefinitionModal);
-            closeDefinitionModal.addEventListener('click', hideDefinitionModal);
-            definitionModalContainer.addEventListener('click', (e) => {
-                if (e.target === definitionModalContainer) {
-                    hideDefinitionModal();
-                }
-            });
-            // END NEW DEFINITION EVENT LISTENERS
+    let cakeBadgeUnlocked = localStorage.getItem('cakeBadgeUnlocked') === 'true';
+    let llamaBadgeUnlocked = localStorage.getItem('llamaBadgeUnlocked') === 'true';
+    let userSettings = JSON.parse(localStorage.getItem('userSettings') || JSON.stringify({ showTips: true, showPercentages: true }));
 
-            // NEW COMPARISON EVENT LISTENERS
-            compareWordsButton.addEventListener('click', showCompareModal);
-            closeCompareModal.addEventListener('click', hideCompareModal);
-            compareModalContainer.addEventListener('click', (e) => {
-                if (e.target === compareModalContainer) {
-                    hideCompareModal();
-                }
-            });
-            runComparisonButton.addEventListener('click', runComparison);
-            // END NEW COMPARISON EVENT LISTENERS
-            
-            // NEW SETTINGS EVENT LISTENERS
-            showSettingsButton.addEventListener('click', showSettingsModal);
-            closeSettingsModal.addEventListener('click', hideSettingsModal);
-            settingsModalContainer.addEventListener('click', (e) => {
-                if (e.target === settingsModalContainer) {
-                    hideSettingsModal();
-                }
-            });
-            togglePercentages.addEventListener('change', updateSettings);
-            toggleTips.addEventListener('change', updateSettings);
-            clearAllDataButton.addEventListener('click', clearAllLocalData);
-            // END NEW SETTINGS EVENT LISTENERS
-            
-            cakeBadge.addEventListener('click', loadCakeWord);
-            llamaBadge.addEventListener('click', loadLlamaWord); 
+    // Cooldown / mash detection
+    let voteStreak = 0;
+    let lastVoteTime = 0;
+    let isCoolingDown = false;
+    let cooldownEndTime = 0;
+    let voteCounterForTips = parseInt(localStorage.getItem('voteCounterForTips') || '0', 10);
 
-            themeChooser.addEventListener('change', (e) => {
-                applyTheme(e.target.value);
-                if (allWords.length > 0) {
-                    displayCurrentWord(allWords[currentWordIndex]);
-                }
-            });
+    // Swipe tracking
+    let startX = 0, startY = 0;
 
-            fetchWords();
-            updateAwardBadge();
-            updateContributorBadge(); 
-            populateThemeChooser(); 
-            applyTheme(currentTheme); 
-            
-            // Initial badge display
-            updateSpecialBadges(null, true);
-            
-            window.addEventListener('resize', () => {
-                if (allWords.length > 0) {
-                    displayCurrentWord(allWords[currentWordIndex]); 
-                }
-            });
-            
-            // Apply initial settings state to toggles
-            loadSettings();
-        }
-        
-        // --- SETTINGS LOGIC ---
-        
-        function loadSettings() {
-            togglePercentages.checked = userSettings.showPercentages;
-            toggleTips.checked = userSettings.showTips;
-        }
+    // Theme words
+    const THEME_WORDS = {
+      rainbow: 'RAINBOW|GAY|SPARKLE|COLOUR|PRIDE|UNICORN|PROUD|GLITTER|LESBIAN|TINSEL'.split('|'),
+      dark: 'THGINDIM!KCALB!EDAHS!HTOG!WODAHS!AJNIN!KRAD!THGIN!HTLAETS'.split('!').map(s => s.split('').reverse().join('')),
+      banana: 'BANANA|BANANAS|PLANTAIN|YELLOW|SPLIT|MONKEY|HAMMOCK'.split('|'),
+      winter: 'SNOWMAN|SNOW|ICE|WINTER|FROZEN|CHILL|COLD|FLAKE|BLIZZARD|ICICLE|SLEIGH|SNOWBALL|SCARF|JACKET|SLEDGE|NOVEMBER|DECEMBER|JANUARY|JINGLE'.split('|'),
+      summer: 'SUMMER|HOT|BEACH|HOLIDAY|SUN|VACATION|SWIM|SAND|POOL|JULY|AUGUST|JUNE'.split('|'),
+      halloween: 'HALLOWEEN|GHOST|PUMPKIN|SPIDER|SWEETS|COSTUME|SPOOKY|OCTOBER|WITCH|VAMPIRE|ZOMBIE|BAT|MONSTER'.split('|'),
+      submarine: 'SUBMARINE|WATER|WAVES|PLYMOUTH|BRIXHAM|PIRATE|SEA|AQUATIC|AQUA|DEEP|OCTOPUS'.split('|')
+    };
 
-        function updateSettings() {
-            userSettings.showPercentages = togglePercentages.checked;
-            userSettings.showTips = toggleTips.checked;
-            localStorage.setItem('userSettings', JSON.stringify(userSettings));
-            
-            // Clear message area when settings change
-            document.getElementById('postVoteMessage').textContent = 'Settings updated.';
-            setTimeout(() => {
-                document.getElementById('postVoteMessage').textContent = ' ';
-            }, 2000);
-        }
+    // ------ DOM Elements ------
+    const wordFrame = document.getElementById('wordFrame');
+    const wordDisplay = document.getElementById('wordDisplay');
+    const goodButton = document.getElementById('goodButton');
+    const badButton = document.getElementById('badButton');
+    const notWordButton = document.getElementById('notWordButton');
+    const gameCard = document.getElementById('gameCard');
+    const goodTotal = document.getElementById('goodTotal');
+    const badTotal = document.getElementById('badTotal');
+    const wordCount = document.getElementById('wordCount');
+    const goodRankingsDiv = document.getElementById('goodRankings');
+    const badRankingsDiv = document.getElementById('badRankings');
+    const submissionModal = document.getElementById('submissionModal');
+    const newWordInput = document.getElementById('newWordInput');
+    const modalMessage = document.getElementById('modalMessage');
+    const submitWordButton = document.getElementById('submitWordButton');
+    const cancelSubmitButton = document.getElementById('cancelSubmitButton');
+    const customWordButton = document.getElementById('customWordButton');
+    const versionIndicator = document.querySelector('.version-indicator');
+    const awardBadge = document.getElementById('awardBadge');
+    const cakeBadge = document.getElementById('cakeBadge');
+    const llamaBadge = document.getElementById('llamaBadge');
+    const contributorBadge = document.getElementById('contributorBadge');
+    const showTop100Button = document.getElementById('showTop100Button');
+    const fullRankingsModalContainer = document.getElementById('fullRankingsModalContainer');
+    const closeFullRankingsModal = document.getElementById('closeFullRankingsModal');
+    const fullGoodRankingsDiv = document.getElementById('fullGoodRankings');
+    const fullBadRankingsDiv = document.getElementById('fullBadRankings');
+    const themeChooser = document.getElementById('themeChooser');
+    const themeUnlockHint = document.getElementById('themeUnlockHint');
+    const snowEffect = document.getElementById('snow-effect');
+    const bubbleEffect = document.getElementById('bubble-effect');
+    const definitionModalContainer = document.getElementById('definitionModalContainer');
+    const closeDefinitionModal = document.getElementById('closeDefinitionModal');
+    const definitionWord = document.getElementById('definitionWord');
+    const definitionResults = document.getElementById('definitionResults');
+    const compareWordsButton = document.getElementById('compareWordsButton');
+    const compareModalContainer = document.getElementById('compareModalContainer');
+    const closeCompareModal = document.getElementById('closeCompareModal');
+    const wordOneInput = document.getElementById('wordOneInput');
+    const wordTwoInput = document.getElementById('wordTwoInput');
+    const compareResults = document.getElementById('compareResults');
+    const runComparisonButton = document.getElementById('runComparisonButton');
+    const postVoteMessage = document.getElementById('postVoteMessage');
+    const showSettingsButton = document.getElementById('showSettingsButton');
+    const settingsModalContainer = document.getElementById('settingsModalContainer');
+    const closeSettingsModal = document.getElementById('closeSettingsModal');
+    const togglePercentages = document.getElementById('togglePercentages');
+    const toggleTips = document.getElementById('toggleTips');
+    const clearAllDataButton = document.getElementById('clearAllDataButton');
 
-        function showSettingsModal() {
-            loadSettings(); // Ensure toggles reflect current settings
-            settingsModalContainer.classList.remove('hidden');
-            settingsModalContainer.classList.add('flex');
-        }
+    // current theme state
+    let currentTheme = localStorage.getItem('currentTheme') || 'default';
 
-        function hideSettingsModal() {
-            settingsModalContainer.classList.remove('flex');
-            settingsModalContainer.classList.add('hidden');
-        }
+    // ------ Helper utilities ------
+    function $(id) { return document.getElementById(id); }
 
-        function clearAllLocalData() {
-            if (confirm("Are you sure you want to clear ALL your local data (votes, awards, themes, streaks, settings)? This cannot be undone.")) {
-                localStorage.clear();
-                alert("All local data has been cleared. The application will now reload.");
-                window.location.reload();
-            }
-        }
-        
-        // --- END SETTINGS LOGIC ---
-        
-        // --- SWIPE LOGIC IMPLEMENTATION ---
-
-        function handleTouchStart(evt) {
-            // Only capture touch if buttons are enabled
-            if (isCoolingDown || goodButton.disabled) return; 
-
-            // Use the first touch point
-            const touch = evt.changedTouches[0];
-            startX = touch.screenX;
-            startY = touch.screenY;
-        }
-
-        function handleTouchEnd(evt) {
-            // Only process touch end if buttons are enabled
-            if (isCoolingDown || goodButton.disabled) return; 
-
-            const touch = evt.changedTouches[0];
-            const endX = touch.screenX;
-            const endY = touch.screenY;
-            
-            const diffX = endX - startX;
-            const diffY = endY - startY;
-
-            // Check if the swipe is significant enough and primarily horizontal
-            if (Math.abs(diffX) > SWIPE_THRESHOLD && Math.abs(diffX) > Math.abs(diffY)) {
-                if (diffX > 0) {
-                    // Swipe Right: BAD WORD
-                    submitVote('bad');
-                } else {
-                    // Swipe Left: GOOD WORD
-                    submitVote('good');
-                }
-            }
-        }
-        // --- END SWIPE LOGIC ---
-        
-        function findAndLoadSpecialWord(wordText) {
-            const specialWord = allWords.find(w => w.text.toUpperCase() === wordText);
-            if (specialWord) {
-                const newIndex = allWords.findIndex(w => w.text.toUpperCase() === wordText);
-                if (newIndex !== -1) {
-                    currentWordIndex = newIndex;
-                }
-                displayCurrentWord(specialWord);
-                postVoteMessage.textContent = ' '; // Clear any previous message
-            } else {
-                 showMessage(`The word '${wordText}' is not currently in the database. Please submit it via the 'Submit Custom Word' button to enable testing.`, true);
-            }
-        }
-        
-        function loadCakeWord() {
-            findAndLoadSpecialWord(BOOSTED_WORD);
-        }
-        
-        // Function to load LLAMA word for testing
-        function loadLlamaWord() {
-            findAndLoadSpecialWord(LLAMA_WORD);
-        }
-
-        /**
-         * Checks if special badges should be unlocked and updates their visibility/cursor.
-         */
-        function updateSpecialBadges(votedWordText = null, init = false) {
-            
-            if (votedWordText) {
-                const upperWord = votedWordText.toUpperCase();
-                
-                // Unlock Cake Badge permanently
-                if (upperWord === BOOSTED_WORD) {
-                    cakeBadgeUnlocked = true;
-                    localStorage.setItem('cakeBadgeUnlocked', 'true');
-                }
-                
-                // Unlock Llama Badge permanently
-                if (upperWord === LLAMA_WORD) {
-                    llamaBadgeUnlocked = true;
-                    localStorage.setItem('llamaBadgeUnlocked', 'true');
-                }
-            }
-            
-            // Show/Hide Cake Badge
-            if (cakeBadgeUnlocked) {
-                cakeBadge.classList.remove('hidden');
-                cakeBadge.classList.add('cursor-pointer');
-            } else if (init) {
-                cakeBadge.classList.add('hidden', 'cursor-pointer'); 
-            }
-            
-            // Show/Hide Llama Badge
-            if (llamaBadgeUnlocked) {
-                llamaBadge.classList.remove('hidden');
-                llamaBadge.classList.add('cursor-pointer'); // Ensure cursor is set
-            } else if (init) {
-                llamaBadge.classList.add('hidden'); 
-                llamaBadge.classList.remove('cursor-pointer');
-            }
-        }
-
-        function populateThemeChooser() {
-            themeChooser.innerHTML = '<option value="default">Default</option>'; 
-
-            const availableThemes = [...new Set(unlockedThemes)].sort();
-
-            // Ensure all unlocked themes are present and sorted
-            const allThemeKeys = Object.keys(THEME_WORDS);
-            for (const key of allThemeKeys) {
-                if (unlockedThemes.includes(key) && !availableThemes.includes(key)) {
-                    availableThemes.push(key);
-                }
-            }
-            availableThemes.sort();
-
-
-            availableThemes.forEach(themeKey => {
-                const themeName = themeKey.charAt(0).toUpperCase() + themeKey.slice(1);
-                const option = document.createElement('option');
-                option.value = themeKey;
-                option.textContent = themeName;
-                themeChooser.appendChild(option);
-            });
-            
-            themeChooser.value = currentTheme;
-            
-            if (availableThemes.length > 0) {
-                themeUnlockHint.textContent = `You have ${availableThemes.length} themes unlocked!`;
-            } else {
-                themeUnlockHint.textContent = `Vote on special words to unlock new themes!`;
-            }
-        }
-
-        /**
-         * Applies the selected theme and manages structural classes on gameCard.
-         */
-        function applyTheme(theme) {
-            // 1. Remove ALL existing theme classes
-            document.body.className = document.body.className.split(' ').filter(c => !c.startsWith('theme-')).join(' ');
-
-            // 2. Add the correct theme class
-            const themeToApply = theme === 'default' ? 'default' : theme;
-            document.body.classList.add(`theme-${themeToApply}`);
-
-            currentTheme = theme;
-            localStorage.setItem('currentTheme', currentTheme);
-            
-            // 3. Manage effects visibility
-            if (snowEffect) {
-                if (theme === 'winter') {
-                    snowEffect.classList.remove('hidden');
-                } else {
-                    snowEffect.classList.add('hidden');
-                }
-            }
-            
-            if (bubbleEffect) { // ADDED BUBBLE LOGIC
-                if (theme === 'submarine') {
-                    bubbleEffect.classList.remove('hidden');
-                } else {
-                    bubbleEffect.classList.add('hidden');
-                }
-            }
-
-
-            // 4. Handle the structural changes for the main card based on theme
-            if (theme === 'rainbow') {
-                gameCard.classList.add('thin-rainbow-frame');
-                // Remove base card styling
-                gameCard.classList.remove('card', 'p-8');
-                gameCard.classList.add('p-6'); 
-            } else {
-                gameCard.classList.remove('thin-rainbow-frame');
-                // Restore base card styling (the theme CSS handles specific overrides for dark/winter/banana/summer/halloween)
-                gameCard.classList.add('card', 'p-8');
-                gameCard.classList.remove('p-6');
-            }
-        }
-
-        function checkAndApplyTheme(wordText) {
-            const upperWord = wordText.toUpperCase();
-            let newThemeToUnlock = null;
-            let themeWasNewlyUnlocked = false;
-
-            for (const [themeKey, triggerWords] of Object.entries(THEME_WORDS)) {
-                if (triggerWords.includes(upperWord)) {
-                    newThemeToUnlock = themeKey;
-                    break;
-                }
-            }
-            
-            if (newThemeToUnlock) {
-                if (!unlockedThemes.includes(newThemeToUnlock)) {
-                    unlockedThemes.push(newThemeToUnlock);
-                    localStorage.setItem('unlockedThemes', JSON.stringify(unlockedThemes));
-                    themeWasNewlyUnlocked = true;
-                    
-                    applyTheme(newThemeToUnlock);
-                    populateThemeChooser();
-                    
-                    return true;
-                } else if (currentTheme !== newThemeToUnlock) {
-                    applyTheme(newThemeToUnlock);
-                    populateThemeChooser();
-                }
-            }
-            
-            return themeWasNewlyUnlocked;
-        }
-
-        function updateAwardBadge() {
-            let star = '';
-            let title = '';
-            
-            if (voteCount >= 250) {
-                star = '🏆';
-                title = `Platinum Star Award! (${voteCount} Votes)`;
-            } else if (voteCount >= 50) { // <-- FIX: Changed 'if' to 'else if' to prevent overwriting Platinum
-                star = '🌟';
-                title = `Gold Star Award! (${voteCount} Votes)`;
-            } else if (voteCount >= 25) {
-                star = '🥈';
-                title = `Silver Star Award! (${voteCount} Votes)`;
-            } else if (voteCount >= 5) {
-                star = '🥉';
-                title = `Bronze Star Award! (${voteCount} Votes)`;
-            } else {
-                star = '😶';
-                title = `Votes: ${voteCount}. Next Award: Bronze (5 Votes)`;
-            }
-
-            awardBadge.textContent = star;
-            awardBadge.title = title;
-        }
-        
-        // Contributor Badge Logic
-        function updateContributorBadge() {
-            if (contributorCount >= CONTRIBUTION_THRESHOLD) {
-                contributorBadge.textContent = '✍️';
-                contributorBadge.title = `Contributor Badge Unlocked! (${contributorCount} Submissions)`;
-                contributorBadge.classList.remove('hidden');
-            } else {
-                contributorBadge.textContent = '';
-                contributorBadge.title = `Submissions: ${contributorCount}. Next Badge: Contributor (1 Submission)`;
-                contributorBadge.classList.add('hidden');
-            }
-        }
-
-        function showAwardMessageAndContinue(awardName, emoji) {
-            wordDisplay.textContent = `${emoji} ${awardName} Unlocked! ${emoji}`;
-            
-            wordDisplay.style.fontSize = '2.25rem'; 
-            wordDisplay.style.color = '#10b981';
-            wordDisplay.style.cursor = 'default'; // <-- ADDED
-            
-            wordDisplay.className = 'text-4xl font-extrabold text-green-700 text-center min-h-[72px] animate-pulse';
-            
-            wordFrame.style.padding = '0';
-            wordFrame.style.backgroundColor = 'transparent';
-            
-            goodButton.disabled = true;
-            badButton.disabled = true;
-            notWordButton.disabled = true;
-            postVoteMessage.textContent = ' '; // Clear message area
-
-            setTimeout(() => {
-                wordDisplay.classList.remove('animate-pulse');
-                nextWord(); 
-                fetchWords(false);
-            }, 2500);
-        }
-
-        function showMessage(text, isError = false) {
-            wordDisplay.textContent = text;
-            wordDisplay.className = `text-4xl font-bold text-center min-h-[72px] ${isError ? 'text-red-500' : 'text-gray-500'}`;
-            wordDisplay.style.fontSize = '1.0rem'; 
-            wordDisplay.style.cursor = 'default'; // <-- ADDED
-            
-            wordFrame.style.padding = '0';
-            wordFrame.style.backgroundColor = 'transparent';
-
-            goodButton.disabled = true;
-            badButton.disabled = true;
-            notWordButton.disabled = true;
-            postVoteMessage.textContent = ' '; // Clear message area
-        }
-        
-        function showCooldownMessage(remainingSeconds) {
-            wordDisplay.textContent = `Button mashing will not be tolerated. Wait ${remainingSeconds}s...`;
-            wordDisplay.className = 'text-4xl font-bold text-red-600 text-center min-h-[72px]';
-            wordDisplay.style.fontSize = '1.5rem'; 
-            wordDisplay.style.cursor = 'default'; // <-- ADDED
-            
-            wordFrame.style.padding = '0';
-            wordFrame.style.backgroundColor = 'transparent';
-
-            goodButton.disabled = true;
-            badButton.disabled = true;
-            notWordButton.disabled = true;
-            postVoteMessage.textContent = ' '; // Clear message area
-        }
-        
-        // --- NEW POST-VOTE MESSAGE LOGIC ---
-        
-        function displayPostVoteMessage(word, voteType, themeUnlocked, awardAchieved) {
-            const messageDiv = document.getElementById('postVoteMessage');
-            
-            // 1. Prioritize Special Messages
-            if (themeUnlocked) {
-                messageDiv.textContent = `🎉 New theme unlocked! Check the theme chooser.`;
-                return;
-            }
-            if (awardAchieved) {
-                messageDiv.textContent = `🌟 New award unlocked! Check the badge area.`;
-                return;
-            }
-            
-            const isGoodOrBad = voteType === 'good' || voteType === 'bad';
-            
-            if (isGoodOrBad) {
-                const totalVotes = (word.goodVotes || 0) + (word.badVotes || 0);
-                
-                // 2. Percentage Message Logic
-                if (userSettings.showPercentages && totalVotes > 0) {
-                    const sameVotes = voteType === 'good' ? (word.goodVotes || 0) : (word.badVotes || 0);
-                    const percentage = Math.round((sameVotes / totalVotes) * 100);
-                    const voteText = voteType === 'good' ? 'Good' : 'Bad';
-                    
-                    messageDiv.textContent = `${voteText} vote registered! ${percentage}% of people also voted '${voteText}' for this word. (${sameVotes}/${totalVotes})`;
-                    return; 
-                }
-                
-                // 3. Tip Logic (Only if percentage is off or totalVotes is 0)
-                if (userSettings.showTips) {
-                    voteCounterForTips++;
-                    localStorage.setItem('voteCounterForTips', voteCounterForTips);
-                    
-                    if (voteCounterForTips % TIP_COOLDOWN === 0) {
-                        const tipIndex = Math.floor(Math.random() * TIPS.length);
-                        messageDiv.textContent = TIPS[tipIndex];
-                        return;
-                    }
-                }
-            }
-            
-            // 4. Default Empty State
-            messageDiv.textContent = ' ';
-        }
-        
-        // --- END NEW POST-VOTE MESSAGE LOGIC ---
-
-        /**
-         * Displays the current word, handling sizing and theme-specific styles.
-         */
-        function displayCurrentWord(currentWord) {
-            if (!currentWord) {
-                showMessage("No words available! Try submitting one.", false);
-                return;
-            }
-            
-            const wordText = currentWord.text.toUpperCase();
-            
-            wordDisplay.classList.remove('word-transition-good', 'word-transition-bad', 'word-fade-llama', 'word-fade-cake'); 
-            wordDisplay.textContent = wordText;
-            wordDisplay.className = 'font-extrabold text-gray-900 text-center min-h-[72px]';
-            
-            // 1. Reset all theme-specific word styling and frame styling
-            wordDisplay.style.background = '';
-            wordDisplay.style.webkitBackgroundClip = '';
-            wordDisplay.style.webkitTextFillColor = '';
-            wordDisplay.style.color = '#111827'; 
-            wordDisplay.style.animation = '';
-            wordDisplay.style.transform = '';
-            wordDisplay.style.textShadow = '';
-            wordDisplay.style.opacity = '1'; 
-            wordDisplay.style.cursor = 'default'; // Reset cursor
-            wordDisplay.style.removeProperty('animation'); // Clear inline animation added by submitVote
-            wordFrame.style.padding = '0';
-            wordFrame.style.backgroundColor = 'transparent';
-            postVoteMessage.textContent = ' '; // Clear message area on new word
-
-            // 2. Apply theme-specific styles
-            
-            if (currentTheme === 'dark' || currentTheme === 'halloween' || currentTheme === 'submarine') { // ADDED SUBMARINE
-                wordDisplay.style.color = '#f3f4f6'; // Default dark-mode text
-                
-                if (currentTheme === 'halloween') {
-                    wordDisplay.style.color = '#FF8C00'; 
-                    wordDisplay.style.textShadow = '0 0 20px rgba(255, 140, 0, 1), 0 0 5px rgba(255, 140, 0, 0.5)';
-                }
-                
-                if (currentTheme === 'submarine') { // ADDED
-                    wordDisplay.style.color = '#b0e0e6';
-                    wordDisplay.style.textShadow = '0 0 10px rgba(176, 224, 230, 0.7), 0 0 5px rgba(255, 255, 255, 0.3)';
-                    wordDisplay.style.transform = 'translateY(0)'; // EXPLICITLY set base transform
-                    wordDisplay.style.animation = 'bobbing-word 2.5s ease-in-out infinite';
-                }
-
-            } else if (currentTheme === 'banana') {
-                wordDisplay.style.transform = 'translateY(0)';
-                wordDisplay.style.animation = 'bounce-word 0.5s ease-out infinite alternate';
-                wordDisplay.style.color = '#ffd200';
-            } else if (currentTheme === 'winter') {
-                wordDisplay.style.color = '#01579b'; 
-                wordDisplay.style.textShadow = '0 0 8px rgba(255, 255, 255, 0.8)';
-            } else if (currentTheme === 'summer') {
-                wordDisplay.style.color = '#FF9800'; 
-                wordDisplay.style.textShadow = '0 0 20px #FFF8E1, 0 0 10px #FFEB3B'; 
-            } else if (currentTheme === 'rainbow') {
-                // RAINBOW THEME TEXT STYLES
-                wordDisplay.style.background = 'linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #9400d3)';
-                wordDisplay.style.webkitBackgroundClip = 'text'; 
-                wordDisplay.style.webkitTextFillColor = 'transparent';
-                wordDisplay.style.color = 'transparent';
-                wordDisplay.style.animation = 'rainbow-text 5s ease infinite';
-            }
-
-
-            // 3. Word Sizing Logic 
-            const maxFontSize = 96; 
-            
-            const cardElement = document.getElementById('gameCard');
-            const cardComputedStyle = window.getComputedStyle(cardElement);
-            const cardPaddingHorizontal = parseFloat(cardComputedStyle.paddingLeft) + parseFloat(cardComputedStyle.paddingRight);
-            const cardContentWidth = cardElement.clientWidth - cardPaddingHorizontal; 
-            
-            let wordDisplayPaddingHorizontal = 0;
-            let maxAvailableWidthForTextContent = cardContentWidth;
-
-            if (currentTheme === 'rainbow') {
-                wordDisplay.style.padding = '0 0.5rem';
-                wordDisplayPaddingHorizontal = parseFloat(window.getComputedStyle(wordDisplay).paddingLeft) * 2;
-                maxAvailableWidthForTextContent = cardContentWidth - wordDisplayPaddingHorizontal;
-            } else {
-                wordDisplay.style.padding = '0 1rem'; 
-                wordDisplayPaddingHorizontal = parseFloat(window.getComputedStyle(wordDisplay).paddingLeft) * 2;
-                maxAvailableWidthForTextContent = cardContentWidth - wordDisplayPaddingHorizontal;
-            }
-
-            wordDisplay.style.fontSize = `${maxFontSize}px`;
-            wordDisplay.style.whiteSpace = 'nowrap'; 
-            
-            let currentTextWidth = wordDisplay.scrollWidth;
-            let finalFontSize = maxFontSize;
-
-            if (currentTextWidth > maxAvailableWidthForTextContent) { 
-                const scaleFactor = maxAvailableWidthForTextContent / currentTextWidth;
-                finalFontSize = Math.floor(maxFontSize * scaleFactor);
-                if (finalFontSize < 24) finalFontSize = 24; 
-            }
-            
-            wordDisplay.style.fontSize = `${finalFontSize}px`;
-            wordDisplay.style.whiteSpace = 'normal'; 
-            
-            if (currentTheme === 'rainbow') {
-                wordDisplay.style.padding = '0 0.5rem';
-            } else {
-                wordDisplay.style.padding = '0 1rem';
-            }
-            
-            // 5. Only enable buttons if not in a special message state (like cooldown or award)
-            if (!isCoolingDown && !currentWord.isSpecialMessage) {
-                wordDisplay.style.cursor = 'help'; // <-- ADDED
-                goodButton.disabled = false;
-                badButton.disabled = false;
-                notWordButton.disabled = false;
-            }
-        }
-
-    function getWeightedRandomWordIndex(excludeIndex = -1) { 
-        if (allWords.length === 0) return -1;
-        
-        const random = Math.random();
-        
-        // 1. Fixed Probability Check for Special Words
-        let specialWordText = null;
-        let specialWordIndex = -1;
-
-        // Check for special words ONLY if their badges are not yet unlocked
-        if (!cakeBadgeUnlocked && random < CAKE_PROBABILITY) {
-            // This is the first 1% slice (0.00 to 0.0099...)
-            specialWordText = BOOSTED_WORD;
-        } else if (!llamaBadgeUnlocked && random >= CAKE_PROBABILITY && random < (CAKE_PROBABILITY + LLAMA_PROBABILITY)) {
-            // This is the second 1% slice (0.01 to 0.0199...)
-            specialWordText = LLAMA_WORD;
-        }
-
-        if (specialWordText) {
-            specialWordIndex = allWords.findIndex(w => w.text.toUpperCase() === specialWordText);
-            
-            // Only return the special word if it exists and is not the word we just voted on
-            if (specialWordIndex !== -1 && specialWordIndex !== excludeIndex) {
-                return specialWordIndex;
-            }
-            // If the special word is the excluded word or doesn't exist, fall through to weighted selection.
-        }
-        
-        // 2. Original Weighted Logic (Fallback)
-        if (allWords.length === 1) return 0;
-
-        // The remaining code is the original logic to select based on voting weight
-        const availableWords = allWords
-            .map((w, index) => ({
-                index,
-                totalVotes: (w.goodVotes || 0) + (w.badVotes || 0) + (w.notWordVotes || 0)
-            }))
-            .filter(w => w.index !== excludeIndex);
-        
-        const wordPool = availableWords.length > 0 ? availableWords : allWords.map((w, index) => ({ index, totalVotes: (w.goodVotes || 0) + (w.badVotes || 0) + (w.notWordVotes || 0) }));
-        let totalWeight = 0;
-        const weightedWords = wordPool.map(w => {
-            let weight = 1.0 / (w.totalVotes + 1);
-            if (allWords[w.index].text.toUpperCase() === BOOSTED_WORD) {
-                weight *= BOOST_FACTOR;
-            }
-            totalWeight += weight;
-            return { index: w.index, weight: weight };
-        });
-
-        let randomNum = Math.random() * totalWeight;
-        for (const word of weightedWords) {
-            randomNum -= word.weight;
-            if (randomNum <= 0) {
-                return word.index;
-            }
-        }
-        return wordPool[wordPool.length - 1].index;
+    function safeJsonParse(str, fallback) {
+      try { return JSON.parse(str); } catch { return fallback; }
     }
 
-        function nextWord() {
-            if (allWords.length === 0) return;
-            
+    function setLocal(key, value) {
+      try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { console.warn('localStorage set failed', e); }
+    }
+    function getLocalParsed(key, fallback) {
+      const v = localStorage.getItem(key);
+      return v ? safeJsonParse(v, fallback) : fallback;
+    }
+
+    function resetWordFrame() {
+      wordFrame.style.padding = '';
+      wordFrame.style.backgroundColor = '';
+    }
+    function resetWordDisplayInlineStyles() {
+      wordDisplay.style.background = '';
+      wordDisplay.style.webkitBackgroundClip = '';
+      wordDisplay.style.webkitTextFillColor = '';
+      wordDisplay.style.color = '';
+      wordDisplay.style.animation = '';
+      wordDisplay.style.transform = '';
+      wordDisplay.style.textShadow = '';
+      wordDisplay.style.opacity = '';
+      wordDisplay.style.cursor = '';
+      wordDisplay.style.fontSize = '';
+      wordDisplay.style.whiteSpace = '';
+      wordDisplay.classList.remove('word-fade-llama', 'word-fade-cake', 'word-transition-good', 'word-transition-bad');
+    }
+
+    function showMessage(text, isError) {
+      resetWordDisplayInlineStyles();
+      wordDisplay.textContent = text;
+      wordDisplay.className = `text-4xl font-bold text-center min-h-[72px] ${isError ? 'text-red-500' : 'text-gray-500'}`;
+      wordDisplay.style.fontSize = '1rem';
+      wordDisplay.style.cursor = 'default';
+      resetWordFrame();
+      goodButton.disabled = badButton.disabled = notWordButton.disabled = true;
+      postVoteMessage.textContent = ' ';
+    }
+
+    function showCooldownMessage(remaining) {
+      showMessage(`Button mashing will not be tolerated. Wait ${remaining}s...`, true);
+    }
+
+    // Safe fetch wrapper
+    async function safeFetchJson(url, options = {}) {
+      const resp = await fetch(url, options);
+      const contentType = resp.headers.get('content-type') || '';
+      if (!resp.ok) {
+        // try parse body
+        let body;
+        if (contentType.includes('application/json')) {
+          try { body = await resp.json(); } catch(e) { body = null; }
+        } else {
+          try { body = await resp.text(); } catch(e){ body = null; }
+        }
+        const message = body && body.message ? body.message : `HTTP ${resp.status}`;
+        throw new Error(message);
+      }
+      if (contentType.includes('application/json')) {
+        return resp.json();
+      } else {
+        return resp.text();
+      }
+    }
+
+    // ------ Theme / UI helpers ------
+    function populateThemeChooser() {
+      themeChooser.innerHTML = '<option value="default">Default</option>';
+      const availableThemes = [...new Set(unlockedThemes || [])].sort();
+      availableThemes.forEach(key => {
+        const option = document.createElement('option');
+        option.value = key;
+        option.textContent = key.charAt(0).toUpperCase() + key.slice(1);
+        themeChooser.appendChild(option);
+      });
+      themeChooser.value = currentTheme;
+      themeUnlockHint.textContent = availableThemes.length ? `You have ${availableThemes.length} themes unlocked!` : 'Vote on special words to unlock new themes!';
+    }
+
+    function toggleEffect(effectEl, active) {
+      if (!effectEl) return;
+      if (active) effectEl.style.display = '';
+      else effectEl.style.display = 'none';
+    }
+
+    function applyTheme(theme) {
+      // remove old theme classes beginning with theme-
+      document.body.className = document.body.className.split(' ').filter(c => !c.startsWith('theme-')).join(' ');
+      const themeToApply = theme === 'default' ? 'default' : theme;
+      document.body.classList.add(`theme-${themeToApply}`);
+      currentTheme = themeToApply;
+      localStorage.setItem('currentTheme', currentTheme);
+
+      // effects
+      toggleEffect(snowEffect, themeToApply === 'winter');
+      toggleEffect(bubbleEffect, themeToApply === 'submarine');
+
+      // card structural adjustments
+      if (themeToApply === 'rainbow') {
+        gameCard.classList.add('thin-rainbow-frame');
+        gameCard.classList.remove('card', 'p-8');
+        gameCard.classList.add('p-6');
+      } else {
+        gameCard.classList.remove('thin-rainbow-frame');
+        gameCard.classList.add('card', 'p-8');
+        gameCard.classList.remove('p-6');
+      }
+
+      displayCurrentWord(allWords[currentWordIndex]);
+    }
+
+    function checkAndUnlockThemeForWord(wordText) {
+      if (!wordText) return false;
+      const upper = wordText.toUpperCase();
+      const themeToUnlock = Object.keys(THEME_WORDS).find(k => THEME_WORDS[k].includes(upper));
+      if (themeToUnlock && !unlockedThemes.includes(themeToUnlock)) {
+        unlockedThemes.push(themeToUnlock);
+        setLocal('unlockedThemes', unlockedThemes);
+        populateThemeChooser();
+        applyTheme(themeToUnlock);
+        return true;
+      }
+      if (themeToUnlock && currentTheme !== themeToUnlock) {
+        applyTheme(themeToUnlock);
+      }
+      return false;
+    }
+
+    // ------ Badges / Awards ------
+    function updateAwardBadge() {
+      let star = '😶', title = `Votes: ${voteCount}. Next Award: Bronze (5 Votes)`;
+      if (voteCount >= 250) { star = '🏆'; title = `Platinum Star Award! (${voteCount} Votes)`; }
+      else if (voteCount >= 50) { star = '🌟'; title = `Gold Star Award! (${voteCount} Votes)`; }
+      else if (voteCount >= 25) { star = '🥈'; title = `Silver Star Award! (${voteCount} Votes)`; }
+      else if (voteCount >= 5) { star = '🥉'; title = `Bronze Star Award! (${voteCount} Votes)`; }
+      awardBadge.textContent = star; awardBadge.title = title;
+    }
+
+    function updateContributorBadge() {
+      if (contributorCount >= CONTRIBUTION_THRESHOLD) {
+        contributorBadge.textContent = '✍️';
+        contributorBadge.title = `Contributor Badge Unlocked! (${contributorCount} Submissions)`;
+        contributorBadge.classList.remove('hidden');
+      } else {
+        contributorBadge.textContent = '';
+        contributorBadge.title = `Submissions: ${contributorCount}. Next Badge: Contributor (${CONTRIBUTION_THRESHOLD} Submissions)`;
+        contributorBadge.classList.add('hidden');
+      }
+    }
+
+    function updateSpecialBadges(votedWordText = null, init = false) {
+      if (votedWordText) {
+        const upperWord = votedWordText.toUpperCase();
+        if (upperWord === BOOSTED_WORD) { cakeBadgeUnlocked = true; localStorage.setItem('cakeBadgeUnlocked','true'); }
+        if (upperWord === LLAMA_WORD) { llamaBadgeUnlocked = true; localStorage.setItem('llamaBadgeUnlocked','true'); }
+      }
+      if (cakeBadgeUnlocked) { cakeBadge.classList.remove('hidden'); cakeBadge.classList.add('cursor-pointer'); } else if (init) { cakeBadge.classList.add('hidden'); }
+      if (llamaBadgeUnlocked) { llamaBadge.classList.remove('hidden'); llamaBadge.classList.add('cursor-pointer'); } else if (init) { llamaBadge.classList.add('hidden'); }
+    }
+
+    // ------ Word selection & display logic ------
+    function getWeightedRandomWordIndex(excludeIndex = -1) {
+      if (!allWords || allWords.length === 0) return -1;
+      if (allWords.length === 1) return 0;
+
+      // fixed-probability special words (if not unlocked)
+      const rnd = Math.random();
+      let specialWordIndex = -1;
+      if (!cakeBadgeUnlocked && rnd < CAKE_PROBABILITY) {
+        specialWordIndex = allWords.findIndex(w => w.text.toUpperCase() === BOOSTED_WORD);
+      } else if (!llamaBadgeUnlocked && rnd < (CAKE_PROBABILITY + LLAMA_PROBABILITY)) {
+        specialWordIndex = allWords.findIndex(w => w.text.toUpperCase() === LLAMA_WORD);
+      }
+      if (specialWordIndex !== -1 && specialWordIndex !== excludeIndex) return specialWordIndex;
+
+      // fallback weighted selection: words with fewer votes are more likely
+      const pool = allWords.map((w, idx) => ({
+        idx,
+        weight: 1.0 / (((w.goodVotes || 0) + (w.badVotes || 0) + (w.notWordVotes || 0)) + 1)
+      })).filter(i => i.idx !== excludeIndex);
+
+      // boost CAKE a bit in weighting
+      pool.forEach(p => { if (allWords[p.idx].text.toUpperCase() === BOOSTED_WORD) p.weight *= BOOST_FACTOR; });
+
+      const total = pool.reduce((s,p) => s + p.weight, 0);
+      let r = Math.random() * total;
+      for (const p of pool) {
+        r -= p.weight;
+        if (r <= 0) return p.idx;
+      }
+      return pool[pool.length-1].idx;
+    }
+
+    function resizeWordToFit() {
+      // compute available width inside card
+      const card = gameCard;
+      const style = window.getComputedStyle(card);
+      const padding = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+      const available = card.clientWidth - padding - 24; // some extra safety
+      const maxFont = 96;
+      wordDisplay.style.whiteSpace = 'nowrap';
+      wordDisplay.style.fontSize = maxFont + 'px';
+      let scrollW = wordDisplay.scrollWidth;
+      let font = maxFont;
+      if (scrollW > available) {
+        const scale = available / scrollW;
+        font = Math.max(24, Math.floor(maxFont * scale));
+      }
+      wordDisplay.style.fontSize = font + 'px';
+      wordDisplay.style.whiteSpace = 'normal';
+    }
+
+    function displayCurrentWord(wordObj) {
+      if (!wordObj) { showMessage("No words available! Try submitting one.", false); return; }
+      resetWordDisplayInlineStyles();
+      wordDisplay.textContent = wordObj.text.toUpperCase();
+      wordDisplay.className = 'font-extrabold text-gray-900 text-center min-h-[72px]';
+      resetWordFrame();
+      postVoteMessage.textContent = ' ';
+
+      // theme-specific inline adjustments
+      if (currentTheme === 'dark' || currentTheme === 'halloween' || currentTheme === 'submarine') {
+        wordDisplay.style.color = '#f3f4f6';
+        if (currentTheme === 'halloween') {
+          wordDisplay.style.color = '#FF8C00';
+          wordDisplay.style.textShadow = '0 0 20px rgba(255,140,0,1), 0 0 5px rgba(255,140,0,0.5)';
+        }
+        if (currentTheme === 'submarine') {
+          wordDisplay.style.color = '#b0e0e6';
+          wordDisplay.style.textShadow = '0 0 10px rgba(176,224,230,0.7), 0 0 5px rgba(255,255,255,0.3)';
+          wordDisplay.style.animation = 'bobbing-word 2.5s ease-in-out infinite';
+        }
+      } else if (currentTheme === 'banana') {
+        wordDisplay.style.animation = 'bounce-word .5s ease-out infinite alternate';
+        wordDisplay.style.color = '#ffd200';
+      } else if (currentTheme === 'winter') {
+        wordDisplay.style.color = '#01579b';
+        wordDisplay.style.textShadow = '0 0 8px rgba(255,255,255,0.8)';
+      } else if (currentTheme === 'summer') {
+        wordDisplay.style.color = '#FF9800';
+        wordDisplay.style.textShadow = '0 0 20px #FFF8E1, 0 0 10px #FFEB3B';
+      } else if (currentTheme === 'rainbow') {
+        wordDisplay.style.background = 'linear-gradient(45deg,#ff0000,#ff7f00,#ffff00,#00ff00,#00ffff,#0000ff,#9400d3)';
+        wordDisplay.style.webkitBackgroundClip = 'text';
+        wordDisplay.style.webkitTextFillColor = 'transparent';
+        wordDisplay.style.color = 'transparent';
+        wordDisplay.style.animation = 'rainbow-text 5s linear infinite';
+        wordDisplay.style.padding = '0 .5rem';
+      }
+
+      // enable buttons if not cooling down
+      if (!isCoolingDown) {
+        wordDisplay.style.cursor = 'help';
+        goodButton.disabled = badButton.disabled = notWordButton.disabled = false;
+      } else {
+        goodButton.disabled = badButton.disabled = notWordButton.disabled = true;
+      }
+
+      resizeWordToFit();
+    }
+
+    // ------ Rankings / Stats ------
+    function updateStatsAndRankings() {
+      const totalGood = allWords.reduce((s,w) => s + (w.goodVotes || 0), 0);
+      const totalBad = allWords.reduce((s,w) => s + (w.badVotes || 0), 0);
+      goodTotal.textContent = `GOOD: ${totalGood}`;
+      badTotal.textContent = `BAD: ${totalBad}`;
+      wordCount.textContent = `Words in Database: ${allWords.length}`;
+
+      // compute ranked arrays
+      const ranked = allWords.map(w => ({
+        text: w.text,
+        good: w.goodVotes || 0,
+        bad: w.badVotes || 0,
+        score: (w.goodVotes || 0) - (w.badVotes || 0)
+      }));
+      const topGood = [...ranked].sort((a,b) => (b.score - a.score) || ((b.good + b.bad) - (a.good + a.bad))).slice(0,10);
+      const topBad = [...ranked].sort((a,b) => (a.score - b.score) || ((b.good + b.bad) - (a.good + a.bad))).slice(0,10);
+
+      goodRankingsDiv.innerHTML = topGood.length ? topGood.map((r,i) => `<div class="rank-item flex justify-between"><span class="text-gray-900 font-semibold">${i+1}. ${r.text}</span><span class="text-sm text-green-600 font-bold">${r.score} (${r.good}/${r.bad})</span></div>`).join('') : '<p class="text-gray-500">No data yet.</p>';
+      badRankingsDiv.innerHTML = topBad.length ? topBad.map((r,i) => `<div class="rank-item flex justify-between"><span class="text-gray-900 font-semibold">${i+1}. ${r.text}</span><span class="text-sm text-red-600 font-bold">${-r.score} (${r.good}/${r.bad})</span></div>`).join('') : '<p class="text-gray-500">No data yet.</p>';
+    }
+
+    function getRankedWords(limit=100) {
+      const ranked = allWords.map(w => ({ text: w.text, good: w.goodVotes || 0, bad: w.badVotes || 0, score: (w.goodVotes || 0) - (w.badVotes || 0) }));
+      const sortedGood = [...ranked].sort((a,b) => (b.score - a.score) || ((b.good + b.bad) - (a.good + a.bad))).slice(0,limit);
+      const sortedBad = [...ranked].sort((a,b) => (a.score - b.score) || ((b.good + b.bad) - (a.good + a.bad))).slice(0,limit);
+      return { topGood: sortedGood, topBad: sortedBad };
+    }
+
+    // ------ Fetch words ------
+    async function fetchWords(updateDisplay = true) {
+      try {
+        if (updateDisplay) showMessage('Loading words.', false);
+        const fetched = await safeFetchJson(API_BASE_URL);
+        if (!Array.isArray(fetched)) throw new Error('Invalid response from API');
+        // filter out heavily flagged words
+        const available = fetched.filter(w => (w.notWordVotes || 0) < 3);
+        allWords = available;
+        wordCount.textContent = `Words in Database: ${fetched.length}`;
+        updateStatsAndRankings();
+        if (updateDisplay) {
+          currentWordIndex = getWeightedRandomWordIndex(-1);
+          if (currentWordIndex === -1) showMessage('No words available! Try submitting one.', false);
+          else displayCurrentWord(allWords[currentWordIndex]);
+        }
+      } catch (err) {
+        console.error('Error fetching words:', err);
+        if (updateDisplay) showMessage('Connection Error. Check your API URL in the script.', true);
+      }
+    }
+
+    // ------ Voting ------
+    function enterCooldown() {
+      isCoolingDown = true;
+      cooldownEndTime = Date.now() + COOLDOWN_SECONDS * 1000;
+      goodButton.disabled = badButton.disabled = notWordButton.disabled = true;
+      // show countdown
+      const interval = setInterval(() => {
+        const remain = Math.ceil((cooldownEndTime - Date.now()) / 1000);
+        if (remain <= 0) {
+          clearInterval(interval);
+          isCoolingDown = false;
+          postVoteMessage.textContent = ' ';
+          if (allWords[currentWordIndex]) displayCurrentWord(allWords[currentWordIndex]);
+        } else {
+          showCooldownMessage(remain);
+        }
+      }, 250);
+    }
+
+    async function submitVote(voteType) {
+      if (isCoolingDown) {
+        const remaining = Math.max(0, Math.ceil((cooldownEndTime - Date.now()) / 1000));
+        showCooldownMessage(remaining);
+        return;
+      }
+
+      const now = Date.now();
+      if (lastVoteTime > 0 && (now - lastVoteTime) > STREAK_WINDOW_MS) voteStreak = 1;
+      else voteStreak++;
+      lastVoteTime = now;
+
+      if (voteStreak > MASH_LIMIT) {
+        voteStreak = 0;
+        enterCooldown();
+        return;
+      }
+
+      if (!allWords[currentWordIndex]) return;
+
+      // visual transition
+      const transitionDuration = 400;
+      try {
+        // disable buttons while processing
+        goodButton.disabled = badButton.disabled = notWordButton.disabled = true;
+
+        // prepare payload
+        const currentWord = allWords[currentWordIndex];
+        const payload = { id: currentWord.id, vote: voteType, userId };
+
+        // optimistic local update (for immediate UI)
+        // send server request
+        const response = await fetch(`${API_BASE_URL}/${currentWord.id}/vote`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          const txt = await response.text();
+          throw new Error(txt || `Vote failed ${response.status}`);
+        }
+
+        // increment local counters safely (will be refreshed on next fetch)
+        if (!currentWord[`${voteType}Votes`]) currentWord[`${voteType}Votes`] = 0;
+        currentWord[`${voteType}Votes`]++;
+
+        // increment global vote count and awards
+        const previousVoteCount = voteCount;
+        voteCount++;
+        localStorage.setItem('voteCount', voteCount);
+        updateAwardBadge();
+
+        // check for theme unlock
+        const themeUnlocked = checkAndUnlockThemeForWord(currentWord.text);
+        // check for award achieved
+        let awardAchieved = false;
+        let awardName = '', awardEmoji = '';
+        if (previousVoteCount < 5 && voteCount >= 5) { awardAchieved = true; awardName = 'Bronze Star'; awardEmoji = '🥉'; }
+        else if (previousVoteCount < 25 && voteCount >=25) { awardAchieved = true; awardName = 'Silver Star'; awardEmoji = '🥈'; }
+        else if (previousVoteCount < 50 && voteCount >=50) { awardAchieved = true; awardName = 'Gold Star'; awardEmoji = '🌟'; }
+        else if (previousVoteCount < 250 && voteCount >=250) { awardAchieved = true; awardName = 'Platinum Star'; awardEmoji = '🏆'; }
+
+        // display post-vote message
+        displayPostVoteMessage(currentWord, voteType, themeUnlocked, awardAchieved);
+
+        if (themeUnlocked || awardAchieved) {
+          // show award message then continue
+          showAwardMessageAndContinue(themeUnlocked ? `${currentTheme.charAt(0).toUpperCase()+currentTheme.slice(1)} Theme` : awardName, themeUnlocked ? '🎁' : awardEmoji);
+        } else {
+          // normal flow -> transition to next
+          setTimeout(() => {
             currentWordIndex = getWeightedRandomWordIndex(currentWordIndex);
-            
             displayCurrentWord(allWords[currentWordIndex]);
+            // fetch to refresh server state in background
+            fetchWords(false);
+          }, transitionDuration);
         }
 
-        async function fetchWords(updateDisplay = true) {
-            try {
-                if(updateDisplay) {
-                    showMessage("Loading words...", false);
-                }
-                const response = await fetch(API_BASE_URL);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                let fetchedWords = await response.json();
-                
-                const availableWords = fetchedWords.filter(w => (w.notWordVotes || 0) < 3);
-                allWords = availableWords;
-                
-                wordCount.textContent = `Words in Database: ${fetchedWords.length}`;
-                
-                if (allWords.length > 0) {
-                    updateStatsAndRankings();
-                    
-                    if (updateDisplay) {
-                        currentWordIndex = getWeightedRandomWordIndex(-1);
-                        displayCurrentWord(allWords[currentWordIndex]);
-                    } 
-                } else {
-                    showMessage("No words available! Try submitting one.", false);
-                }
+      } catch (err) {
+        console.error('Error submitting vote:', err);
+        showMessage('Vote failed. Try again.', true);
+        voteStreak = 0;
+      } finally {
+        // allow buttons to re-enable based on state (displayCurrentWord will set them)
+        setTimeout(() => {
+          if (!isCoolingDown && allWords[currentWordIndex]) displayCurrentWord(allWords[currentWordIndex]);
+        }, 300);
+      }
+    }
 
-            } catch (error) {
-                console.error('Error fetching words:', error);
-                if(updateDisplay) {
-                    showMessage("Connection Error. Check your API URL in the script.", true);
-                }
-            }
+    // post-vote message logic
+    function displayPostVoteMessage(word, voteType, themeUnlocked, awardAchieved) {
+      const messageDiv = postVoteMessage;
+      if (themeUnlocked) { messageDiv.textContent = `🎉 New theme unlocked! Check the theme chooser.`; return; }
+      if (awardAchieved) { messageDiv.textContent = `🌟 New award unlocked! Check the badge area.`; return; }
+
+      const isGoodOrBad = (voteType === 'good' || voteType === 'bad');
+      if (isGoodOrBad) {
+        const totalVotes = (word.goodVotes || 0) + (word.badVotes || 0);
+        if (userSettings.showPercentages && totalVotes > 0) {
+          const sameVotes = voteType === 'good' ? (word.goodVotes || 0) : (word.badVotes || 0);
+          const pct = Math.round((sameVotes / totalVotes) * 100);
+          const voteText = (voteType === 'good' ? 'Good' : 'Bad');
+          messageDiv.textContent = `${voteText} vote registered! ${pct}% also voted '${voteText}' for this word. (${sameVotes}/${totalVotes})`;
+          return;
         }
-
-        async function submitVote(voteType) {
-            if (isCoolingDown) {
-                const remaining = Math.ceil((cooldownEndTime - Date.now()) / 1000);
-                showCooldownMessage(remaining > 0 ? remaining : 0);
-                return;
-            }
-
-            const now = Date.now();
-            if (lastVoteTime > 0 && (now - lastVoteTime) > STREAK_WINDOW_MS) {
-                voteStreak = 1; 
-            } else {
-                voteStreak++; 
-            }
-            lastVoteTime = now; 
-
-            if (voteStreak > MASH_LIMIT) {
-                isCoolingDown = true;
-                voteStreak = 0; 
-                
-                let remaining = COOLDOWN_SECONDS;
-                const cooldownEndTime = Date.now() + COOLDOWN_SECONDS * 1000;
-
-                showCooldownMessage(remaining);
-
-                cooldownTimer = setInterval(() => {
-                    remaining--;
-                    if (remaining > 0) {
-                        showCooldownMessage(remaining);
-                    } else {
-                        clearInterval(cooldownTimer);
-                        cooldownTimer = null;
-                        isCoolingDown = false;
-                        
-                        if (allWords.length > 0) {
-                            displayCurrentWord(allWords[currentWordIndex]);
-                        } else {
-                            fetchWords(); 
-                        }
-                    }
-                }, 1000);
-
-                return;
-            }
-
-            const currentWord = allWords[currentWordIndex];
-            if (!currentWord) return;
-
-            const isCake = currentWord.text.toUpperCase() === BOOSTED_WORD; 
-            const isLlama = currentWord.text.toUpperCase() === LLAMA_WORD;
-            
-            // Disable buttons immediately for smooth transition
-            goodButton.disabled = true;
-            badButton.disabled = true;
-            notWordButton.disabled = true;
-
-            const wordId = currentWord._id;
-            
-            const transitionDuration = 700; 
-            
-            // 1. Conditional Transition/Fade Application
-            if (voteType === 'good' || voteType === 'bad') {
-                if (isCake) {
-                    // Handled inside the CAKE logic block
-                } else if (isLlama) {
-                    // Handled inside the LLAMA logic block
-                } else {
-                    // --- FIX: Apply animation as an inline style ---
-                    const animationName = voteType === 'good' ? 'slide-out-left-good' : 'slide-out-right-bad';
-                    wordDisplay.style.animation = `${animationName} ${transitionDuration / 1000}s ease-out forwards`;
-                }
-            }
-            
-            // --- SPECIAL WORD LOGIC ---
-            
-            if (isCake) {
-                wordDisplay.classList.add('word-fade-cake'); // FIX: Apply fade-out class
-                updateSpecialBadges(currentWord.text);
-                
-                // Wait for the word to fade out (0.3s)
-                setTimeout(() => {
-                    wordDisplay.classList.remove('word-fade-cake'); // Reset
-                    wordDisplay.style.opacity = '1'; // Reset
-                    wordDisplay.style.transform = 'none'; // FIX: Ensure transform is reset for next message
-                    
-                    // Display the new message using showMessage()
-                    showMessage("The cake is a lie!", false); 
-                    wordDisplay.style.fontSize = '1.5rem'; // Make it message-sized
-                    
-                    // Wait for the message to be read, then move to the next word
-                    setTimeout(() => {
-                        nextWord(); 
-                        fetchWords(false);
-                    }, CAKE_MESSAGE_DURATION); // 3000ms
-                }, CAKE_WORD_FADE_DURATION); // 300ms
-                
-                return; // EXIT FUNCTION to prevent normal transition/fetch
-            }
-
-            // LLAMA Logic (Slow Fade-Out, unlock badge)
-            if (isLlama) {
-                wordDisplay.classList.add('word-fade-llama'); // FIX: Apply fade-out class
-                updateSpecialBadges(currentWord.text);
-                
-                // Wait 8 seconds for the fade-out
-                setTimeout(() => {
-                    wordDisplay.classList.remove('word-fade-llama'); // Reset
-                    wordDisplay.style.opacity = '1'; // Reset
-                    wordDisplay.style.transform = 'none'; // FIX: Ensure transform is reset for next message
-                    
-                    // Display the new message
-                    showMessage("what llama?", false); 
-                    wordDisplay.style.fontSize = '1rem'; 
-                    
-                    // Wait 2 seconds for the message to be read, then move to the next word
-                    setTimeout(() => {
-                        nextWord(); 
-                        fetchWords(false);
-                    }, 2000); 
-                }, 8000);
-                
-                return; // EXIT FUNCTION to prevent normal transition/fetch
-            }
-            // -----------------------------
-
-            const themeWasNewlyUnlocked = checkAndApplyTheme(currentWord.text);
-            updateSpecialBadges(currentWord.text); // Permanent badge unlock 
-
-            let updatedWordData = currentWord;
-            let awardAchieved = false;
-
-            try {
-                const response = await fetch(`/api/words/${wordId}/vote`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ voteType, userId })
-                });
-
-                const result = await response.json();
-
-                if (response.status === 403) {
-                    voteStreak = 0; 
-                    
-                    const totalDelay = ((voteType === 'good' || voteType === 'bad') ? transitionDuration : 0);
-                    
-                    // Display general message on cooldown for failed vote
-                    displayPostVoteMessage(currentWord, voteType, themeWasNewlyUnlocked, false); 
-                    
-                    setTimeout(() => {
-                        nextWord();
-                        fetchWords(false); 
-                    }, totalDelay); 
-                } else if (!response.ok) {
-                    throw new Error(result.message || "Failed to register vote.");
-                } else {
-                    
-                    // --- SUCCESSFUL VOTE HANDLING ---
-                    
-                    // Fetch the single word's updated stats to ensure percentage accuracy
-                    const updatedWordResponse = await fetch(`${API_BASE_URL}/${wordId}`);
-                    if (updatedWordResponse.ok) {
-                        updatedWordData = await updatedWordResponse.json();
-                        // Update the word in the local allWords array for rankings/next word selection
-                        Object.assign(currentWord, updatedWordData);
-                    } else {
-                        // Fallback: manually update the local data by incrementing the vote
-                         currentWord[`${voteType}Votes`] = (currentWord[`${voteType}Votes`] || 0) + 1;
-                         updatedWordData = currentWord;
-                    }
-
-                    const previousVoteCount = voteCount; 
-                    voteCount++;
-                    localStorage.setItem('voteCount', voteCount);
-                    updateAwardBadge();
-                    
-                    let awardName = '';
-                    let emoji = '';
-
-                    if (previousVoteCount < 5 && voteCount >= 5) {
-                        awardName = 'Bronze Star';
-                        emoji = '🥉';
-                        awardAchieved = true;
-                    } else if (previousVoteCount < 25 && voteCount >= 25) { 
-                        awardName = 'Silver Star';
-                        emoji = '🥈';
-                        awardAchieved = true;
-                    } else if (previousVoteCount < 50 && voteCount >= 50) {
-                        awardName = 'Gold Star';
-                        emoji = '🌟';
-                        awardAchieved = true;
-                    } else if (previousVoteCount < 250 && voteCount >= 250) {
-                        awardName = 'Platinum Star';
-                        emoji = '🏆';
-                        awardAchieved = true;
-                    }
-
-                    // Display post-vote message
-                    displayPostVoteMessage(updatedWordData, voteType, themeWasNewlyUnlocked, awardAchieved);
-
-                    if (themeWasNewlyUnlocked || awardAchieved) {
-                        const messageToDisplay = themeWasNewlyUnlocked 
-                            ? `'${currentTheme.charAt(0).toUpperCase() + currentTheme.slice(1)}' Theme`
-                            : awardName;
-                        const emojiToDisplay = themeWasNewlyUnlocked ? '🎁' : emoji;
-                            
-                        showAwardMessageAndContinue(messageToDisplay, emojiToDisplay);
-                    } else {
-                        // NORMAL FLOW
-                        const transitionDelay = (voteType === 'good' || voteType === 'bad') ? transitionDuration : 0;
-                        
-                        setTimeout(() => {
-                            nextWord(); 
-                            fetchWords(false); 
-                        }, transitionDelay);
-                    }
-                }
-            } catch (error) {
-                console.error('Error submitting vote:', error);
-                showMessage("Vote failed. Try again.", true);
-                wordDisplay.classList.remove('word-transition-good', 'word-transition-bad', 'word-fade-cake'); 
-                goodButton.disabled = false;
-                badButton.disabled = false;
-                notWordButton.disabled = false;
-                voteStreak = 0; 
-                postVoteMessage.textContent = ' '; // Clear any pending message
-            }
+        if (userSettings.showTips) {
+          voteCounterForTips++;
+          localStorage.setItem('voteCounterForTips', voteCounterForTips);
+          if (voteCounterForTips % TIP_COOLDOWN === 0) {
+            const tip = TIPS[Math.floor(Math.random() * TIPS.length)];
+            messageDiv.textContent = tip;
+            return;
+          }
         }
+      }
+      messageDiv.textContent = ' ';
+    }
 
-        function getRankedWords(limit) {
-            const allWordsFetched = JSON.parse(JSON.stringify(allWords));
-            
-            const rankedWords = allWordsFetched.map(w => ({
-                text: w.text,
-                good: w.goodVotes || 0,
-                bad: w.badVotes || 0,
-                score: (w.goodVotes || 0) - (w.badVotes || 0)
-            }));
+    function showAwardMessageAndContinue(awardName, emoji) {
+      wordDisplay.textContent = `${emoji} ${awardName} Unlocked! ${emoji}`;
+      wordDisplay.style.fontSize = '2.25rem';
+      wordDisplay.style.color = '#10b981';
+      wordDisplay.style.cursor = 'default';
+      wordDisplay.className = 'text-4xl font-extrabold text-green-700 text-center min-h-[72px] animate-pulse';
+      resetWordFrame();
+      goodButton.disabled = badButton.disabled = notWordButton.disabled = true;
+      setTimeout(() => {
+        // continue
+        currentWordIndex = getWeightedRandomWordIndex(currentWordIndex);
+        displayCurrentWord(allWords[currentWordIndex]);
+        fetchWords(false);
+      }, 2500);
+    }
 
-            const topGood = [...rankedWords]
-                .sort((a, b) => {
-                    if (b.score !== a.score) return b.score - a.score;
-                    return (b.good + b.bad) - (a.good + a.bad);
-                })
-                .slice(0, limit);
+    // ------ Submit custom word ------
+    async function submitCustomWord() {
+      const text = (newWordInput.value || '').trim();
+      modalMessage.textContent = '';
+      if (!text) { modalMessage.textContent = 'Word cannot be empty.'; return; }
+      if (text.length > 45) { modalMessage.textContent = 'Word must be 45 characters or less.'; return; }
+      if (text.includes(' ')) { modalMessage.textContent = 'Please enter a single word (no spaces).'; return; }
 
-            const topBad = [...rankedWords]
-                .sort((a, b) => {
-                    if (a.score !== b.score) return a.score - b.score;
-                    return (b.good + b.bad) - (a.good + a.bad);
-                })
-                .slice(0, limit);
-                
-            return { topGood, topBad };
+      submitWordButton.disabled = true;
+      modalMessage.textContent = 'Submitting...';
+
+      try {
+        const resp = await fetch(API_BASE_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text })
+        });
+        const body = await (resp.headers.get('content-type') || '').includes('application/json') ? resp.json().catch(() => null) : null;
+        if (resp.status === 201) {
+          modalMessage.textContent = 'Success! Word added to the pool.';
+          contributorCount++;
+          localStorage.setItem('contributorCount', contributorCount);
+          updateContributorBadge();
+          setTimeout(() => { hideModal(); fetchWords(); }, 1000);
+        } else {
+          modalMessage.textContent = (body && body.message) ? body.message : `Failed to submit word (${resp.status})`;
         }
+      } catch (err) {
+        console.error('Error submitting custom word:', err);
+        modalMessage.textContent = 'A network error occurred.';
+      } finally {
+        submitWordButton.disabled = false;
+      }
+    }
+    function showModal() { submissionModal.classList.remove('hidden'); submissionModal.classList.add('flex'); newWordInput.value = ''; modalMessage.textContent=''; }
+    function hideModal() { submissionModal.classList.remove('flex'); submissionModal.classList.add('hidden'); }
 
-
-        function updateStatsAndRankings() {
-            if (allWords.length === 0) return;
-
-            const totalGood = allWords.reduce((sum, w) => sum + (w.goodVotes || 0), 0);
-            const totalBad = allWords.reduce((sum, w) => sum + (w.badVotes || 0), 0);
-            goodTotal.textContent = `GOOD: ${totalGood}`;
-            badTotal.textContent = `BAD: ${totalBad}`;
-            
-            const { topGood, topBad } = getRankedWords(5);
-            renderRankings(goodRankingsDiv, topGood, 'good');
-            renderRankings(badRankingsDiv, topBad, 'bad');
+    // ------ Compare feature ------
+    async function checkAndSubmitWord(text) {
+      const t = (text || '').trim();
+      if (!t) return { text: t.toUpperCase(), status: 'error', message: 'Empty' };
+      const local = allWords.find(w => w.text.toUpperCase() === t.toUpperCase());
+      if (local) return { text: t.toUpperCase(), status: 'exists', good: local.goodVotes||0, bad: local.badVotes||0 };
+      try {
+        const resp = await fetch(API_BASE_URL, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ text: t }) });
+        if (resp.status === 201) {
+          contributorCount++; localStorage.setItem('contributorCount', contributorCount); updateContributorBadge();
+          return { text: t.toUpperCase(), status: 'newlyAdded' };
+        } else if (resp.status === 409) {
+          return { text: t.toUpperCase(), status: 'exists' };
+        } else {
+          const body = await resp.json().catch(()=>null);
+          return { text: t.toUpperCase(), status: 'error', message: (body && body.message) ? body.message : `Server ${resp.status}` };
         }
+      } catch (err) {
+        console.error('compare submit error', err);
+        return { text: t.toUpperCase(), status: 'error', message: err.message || 'Network error' };
+      }
+    }
 
-        function renderRankings(container, list, type, isFullList = false) {
-            container.innerHTML = '';
-            if (list.length === 0) {
-                container.innerHTML = `<p class="text-gray-500">${type === 'good' ? 'No clear winners yet.' : 'No clear losers yet.'}</p>`;
-                return;
-            }
-
-            list.forEach((word, index) => {
-                const item = document.createElement('div');
-                item.className = `flex justify-between items-center py-1 ${isFullList ? 'full-ranking-item text-sm' : 'rank-item'}`;
-                
-                const scoreIndicator = type === 'good' 
-                    ? `<span class="text-xs text-white bg-green-500 px-2 rounded-full font-bold">${word.score}</span>`
-                    : `<span class="text-xs text-white bg-red-500 px-2 rounded-full font-bold">${Math.abs(word.score)}</span>`;
-                
-                item.innerHTML = `
-                    <div class="flex items-center ${isFullList ? 'space-x-3' : 'space-x-2'}">
-                        <span class="font-bold ${isFullList ? 'text-base w-8' : 'text-lg w-5'} text-center text-gray-500 flex-shrink-0">${index + 1}.</span>
-                        <span class="font-medium text-gray-800">${word.text.toUpperCase()}</span>
-                    </div>
-                    <div class="flex items-center space-x-3">
-                        ${scoreIndicator}
-                        <span class="text-sm text-gray-600">(${word.good} / ${word.bad})</span>
-                    </div>
-                `;
-                container.appendChild(item);
-            });
+    async function runComparison() {
+      const a = (wordOneInput.value || '').trim();
+      const b = (wordTwoInput.value || '').trim();
+      if (!a && !b) { compareResults.innerHTML = '<span class="text-red-500">Please enter at least one word to compare.</span>'; return; }
+      runComparisonButton.disabled = true;
+      compareResults.innerHTML = 'Analyzing words.';
+      const results = [];
+      if (a) results.push(await checkAndSubmitWord(a));
+      if (b) {
+        if (!a || a.toUpperCase() !== b.toUpperCase()) results.push(await checkAndSubmitWord(b));
+        else if (a) results.push({ ...results[0], status: 'duplicate' });
+      }
+      let html = '';
+      results.forEach((res, idx) => {
+        const word = `<strong>${res.text}</strong>`;
+        if (res.status === 'exists') {
+          html += `<div class="${idx===0?'border-b pb-2 mb-2':''}"><p class="mb-2">Word ${idx+1} (${word}) exists in the database:</p><ul class="list-disc list-inside ml-4 mb-3 text-sm"><li>Good Votes: <span class="text-green-600 font-bold">${res.good}</span></li><li>Bad Votes: <span class="text-red-600 font-bold">${res.bad}</span></li><li>Score (Good - Bad): <span class="font-bold">${(res.good||0)-(res.bad||0)}</span></li></ul></div>`;
+        } else if (res.status === 'newlyAdded') {
+          html += `<p class="mb-3 text-purple-600 ${idx===0?'border-b pb-2':''}">Word ${idx+1} (${word}) was <strong>not found</strong> and has been <strong>added</strong> to the database! (0 Good, 0 Bad votes).</p>`;
+        } else if (res.status === 'duplicate') {
+          html += `<p class="mb-3 text-gray-500">Word 2 is a duplicate of Word 1 (${word}). Showing the same stats.</p>`;
+        } else {
+          html += `<p class="mb-3 text-red-500 ${idx===0?'border-b pb-2':''}">Word ${idx+1} (${word}) status could not be determined: ${res.message || 'Unknown'}</p>`;
         }
-        
-        function showFullRankingsModal() {
-            const { topGood, topBad } = getRankedWords(100);
-            
-            renderRankings(fullGoodRankingsDiv, topGood, 'good', true);
-            renderRankings(fullBadRankingsDiv, topBad, 'bad', true);
-            
-            fullRankingsModalContainer.classList.remove('hidden');
-            fullRankingsModalContainer.classList.add('flex');
+      });
+      if (results.some(r => r.status === 'newlyAdded')) fetchWords(false);
+      compareResults.innerHTML = html || '<span class="text-red-500">No valid words were entered.</span>';
+      runComparisonButton.disabled = false;
+    }
+
+    // ------ Definition modal ------
+    async function showDefinitionModal() {
+      if (isCoolingDown || !allWords[currentWordIndex] || goodButton.disabled) return;
+      const current = allWords[currentWordIndex];
+      const wordText = (current.text || '').toLowerCase();
+      definitionModalContainer.classList.remove('hidden'); definitionModalContainer.classList.add('flex');
+      definitionWord.textContent = current.text.toUpperCase();
+      definitionResults.innerHTML = '<p>Loading definition.</p>';
+      try {
+        const resp = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(wordText)}`);
+        if (!resp.ok) {
+          if (resp.status === 404) { definitionResults.innerHTML = '<p class="text-red-500">Sorry, no definition was found for this word.</p>'; return; }
+          throw new Error(`API error ${resp.status}`);
         }
+        const data = await resp.json();
+        definitionResults.innerHTML = formatDefinitionHtml(data);
+      } catch (err) {
+        console.error('Error fetching definition:', err);
+        definitionResults.innerHTML = '<p class="text-red-500">An error occurred while fetching the definition.</p>';
+      }
+    }
+    function hideDefinitionModal() { definitionModalContainer.classList.remove('flex'); definitionModalContainer.classList.add('hidden'); }
+    function formatDefinitionHtml(data) {
+      if (!data || !Array.isArray(data) || data.length === 0) return '<p class="text-red-500">Sorry, no definition was found.</p>';
+      let html = '';
+      const wordData = data[0];
+      (wordData.meanings || []).forEach(meaning => {
+        html += `<div class="mb-4"><h4 class="text-lg font-bold italic text-indigo-600">${meaning.partOfSpeech}</h4>`;
+        html += '<ol class="list-decimal list-inside pl-4 mt-2 space-y-1">';
+        (meaning.definitions || []).forEach(def => {
+          html += `<li>${def.definition}</li>`;
+          if (def.example) html += `<p class="text-sm text-gray-500 pl-4 italic">"${def.example}"</p>`;
+        });
+        html += '</ol></div>';
+      });
+      return html;
+    }
 
-        function hideFullRankingsModal() {
-            fullRankingsModalContainer.classList.remove('flex');
-            fullRankingsModalContainer.classList.add('hidden');
-        }
+    // ------ UI & Event wiring ------
+    function loadSettingsToUI() {
+      togglePercentages.checked = userSettings.showPercentages;
+      toggleTips.checked = userSettings.showTips;
+    }
 
-        function showModal() {
-            submissionModal.classList.remove('hidden');
-            submissionModal.classList.add('flex');
-            newWordInput.value = '';
-            modalMessage.textContent = '';
-        }
+    function updateSettingsFromUI() {
+      userSettings.showPercentages = togglePercentages.checked;
+      userSettings.showTips = toggleTips.checked;
+      localStorage.setItem('userSettings', JSON.stringify(userSettings));
+      postVoteMessage.textContent = 'Settings updated.';
+      setTimeout(()=> postVoteMessage.textContent = ' ', 2000);
+    }
 
-        function hideModal() {
-            submissionModal.classList.remove('flex');
-            submissionModal.classList.add('hidden');
-        }
+    function showFullRankingsModal() {
+      const { topGood, topBad } = getRankedWords(100);
+      fullGoodRankingsDiv.innerHTML = topGood.map((r,i)=>`<div class="flex justify-between"><span>${i+1}. ${r.text}</span><span class="font-bold">${r.score} (${r.good}/${r.bad})</span></div>`).join('') || '<p>No data</p>';
+      fullBadRankingsDiv.innerHTML = topBad.map((r,i)=>`<div class="flex justify-between"><span>${i+1}. ${r.text}</span><span class="font-bold">${-r.score} (${r.good}/${r.bad})</span></div>`).join('') || '<p>No data</p>';
+      fullRankingsModalContainer.classList.remove('hidden'); fullRankingsModalContainer.classList.add('flex');
+    }
+    function hideFullRankingsModal() { fullRankingsModalContainer.classList.remove('flex'); fullRankingsModalContainer.classList.add('hidden'); }
 
-        async function submitCustomWord() {
-            const text = newWordInput.value.trim();
-            if (!text) {
-                modalMessage.textContent = "Please enter a word.";
-                return;
-            }
-            
-            // --- NEW VALIDATION ---
-            if (text.length > 45) {
-                modalMessage.textContent = "Word must be 45 characters or less.";
-                return;
-            }
-            if (text.includes(' ')) {
-                modalMessage.textContent = "Please enter a single word (no spaces).";
-                return;
-            }
-            // --- END NEW VALIDATION ---
+    // clear local data
+    function clearAllLocalData() {
+      if (!confirm("Are you sure you want to clear ALL your local data (votes, awards, themes, streaks, settings)? This cannot be undone.")) return;
+      localStorage.clear();
+      alert("All local data has been cleared. The application will now reload.");
+      window.location.reload();
+    }
 
-            submitWordButton.disabled = true;
-            modalMessage.textContent = "Submitting...";
+    // swipe handlers
+    function handleTouchStart(evt) {
+      if (isCoolingDown || goodButton.disabled) return;
+      const t = evt.changedTouches[0]; startX = t.screenX; startY = t.screenY;
+    }
+    function handleTouchEnd(evt) {
+      if (isCoolingDown || goodButton.disabled) return;
+      const t = evt.changedTouches[0]; const endX = t.screenX, endY = t.screenY;
+      const dx = endX - startX, dy = endY - startY;
+      if (Math.abs(dx) > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy)) {
+        if (dx > 0) submitVote('bad'); else submitVote('good');
+      }
+    }
 
-            try {
-                const response = await fetch(API_BASE_URL, { 
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text })
-                });
+    // central init
+    function init() {
+      // ensure userId
+      if (!userId) { userId = crypto.randomUUID(); localStorage.setItem('userId', userId); }
 
-                const result = await response.json();
-                
-                if (response.status === 201) {
-                    modalMessage.textContent = "Success! Word added to the pool.";
-                    
-                    // Update contributor count and badge
-                    contributorCount++;
-                    localStorage.setItem('contributorCount', contributorCount);
-                    updateContributorBadge();
-                    
-                    setTimeout(() => {
-                        hideModal();
-                        fetchWords();
-                    }, 1000);
-                } else {
-                    modalMessage.textContent = result.message || "Failed to submit word due to an unknown error.";
-                }
+      // apply version
+      versionIndicator.textContent = `v${APP_VERSION} | Made by Gilxs in 12,025`;
 
-            } catch (error) {
-                console.error('Error submitting custom word:', error);
-                modalMessage.textContent = "A network error occurred.";
-            } finally {
-                submitWordButton.disabled = false;
-            }
-        }
-        
-        // --- NEW COMPARISON FEATURE IMPLEMENTATION ---
+      // restore counts
+      voteCount = parseInt(localStorage.getItem('voteCount') || '0', 10);
+      contributorCount = parseInt(localStorage.getItem('contributorCount') || '0', 10);
+      updateAwardBadge(); updateContributorBadge();
 
-        function showCompareModal() {
-            compareModalContainer.classList.remove('hidden');
-            compareModalContainer.classList.add('flex');
-            wordOneInput.value = '';
-            wordTwoInput.value = '';
-            compareResults.innerHTML = 'Type words above to compare them!';
-        }
+      // event listeners
+      goodButton.addEventListener('click', () => submitVote('good'));
+      badButton.addEventListener('click', () => submitVote('bad'));
+      notWordButton.addEventListener('click', () => submitVote('notWord'));
+      customWordButton.addEventListener('click', showModal);
+      cancelSubmitButton.addEventListener('click', hideModal);
+      submitWordButton.addEventListener('click', submitCustomWord);
 
-        function hideCompareModal() {
-            compareModalContainer.classList.remove('flex');
-            compareModalContainer.classList.add('hidden');
-        }
-        
-        // Utility to find a word in the local database
-        function findWordInLocalDB(text) {
-            return allWords.find(w => w.text.toUpperCase() === text.toUpperCase());
-        }
+      gameCard.addEventListener('touchstart', handleTouchStart, {passive:true});
+      gameCard.addEventListener('touchend', handleTouchEnd, {passive:true});
 
-        // Utility to check/submit a word and return its status/data
-        async function checkAndSubmitWord(text) {
-            const wordData = findWordInLocalDB(text);
-            const upperText = text.toUpperCase();
+      showTop100Button.addEventListener('click', showFullRankingsModal);
+      closeFullRankingsModal.addEventListener('click', hideFullRankingsModal);
+      fullRankingsModalContainer.addEventListener('click', e => { if (e.target === fullRankingsModalContainer) hideFullRankingsModal(); });
 
-            if (wordData) {
-                return {
-                    text: upperText,
-                    status: 'exists',
-                    good: wordData.goodVotes || 0,
-                    bad: wordData.badVotes || 0
-                };
-            } else {
-                // Submit the new word to the server as requested by the feature spec.
-                try {
-                    const response = await fetch(API_BASE_URL, { 
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ text: text }) // Send original casing for server
-                    });
+      wordDisplay.addEventListener('click', showDefinitionModal);
+      closeDefinitionModal.addEventListener('click', hideDefinitionModal);
+      definitionModalContainer.addEventListener('click', e => { if (e.target === definitionModalContainer) hideDefinitionModal(); });
 
-                    if (response.status === 201) {
-                        // Word successfully added. Update local contributor count only (actual word list update happens on next fetchWords)
-                        contributorCount++;
-                        localStorage.setItem('contributorCount', contributorCount);
-                        updateContributorBadge();
-                        return { text: upperText, status: 'newlyAdded' };
-                    } else if (response.status === 409) {
-                        // Word already exists on server (another user submitted it), but not in our local list.
-                        // We assume the local list is slightly stale and fetch the data for display.
-                         const fetchSingle = await fetch(`${API_BASE_URL}/${text}`);
-                         const fetchedData = await fetchSingle.json();
-                        
-                         if (fetchSingle.ok) {
-                            // Add to local list for immediate comparison use
-                            allWords.push(fetchedData); 
-                            return {
-                                text: upperText,
-                                status: 'exists',
-                                good: fetchedData.goodVotes || 0,
-                                bad: fetchedData.badVotes || 0
-                            };
-                         }
-                         return { text: upperText, status: 'error', message: 'Word exists but could not retrieve data.' };
-                    } else {
-                        const result = await response.json();
-                        throw new Error(result.message || 'Failed to submit word.');
-                    }
-                } catch (error) {
-                    console.error(`Error submitting word ${text}:`, error);
-                    return { text: upperText, status: 'error', message: `Submission failed: ${error.message}` };
-                }
-            }
-        }
+      compareWordsButton.addEventListener('click', () => { compareModalContainer.classList.remove('hidden'); compareModalContainer.classList.add('flex'); wordOneInput.value=''; wordTwoInput.value=''; compareResults.innerHTML='Type words above to compare them!'; });
+      closeCompareModal.addEventListener('click', ()=>{ compareModalContainer.classList.remove('flex'); compareModalContainer.classList.add('hidden'); });
+      compareModalContainer.addEventListener('click', e=> { if (e.target === compareModalContainer) { compareModalContainer.classList.remove('flex'); compareModalContainer.classList.add('hidden'); } });
+      runComparisonButton.addEventListener('click', runComparison);
 
-        async function runComparison() {
-            const wordOneText = wordOneInput.value.trim();
-            const wordTwoText = wordTwoInput.value.trim();
-            
-            if (!wordOneText && !wordTwoText) {
-                compareResults.innerHTML = '<span class="text-red-500">Please enter at least one word to compare.</span>';
-                return;
-            }
-            
-            runComparisonButton.disabled = true;
-            compareResults.innerHTML = 'Analyzing words...';
+      showSettingsButton.addEventListener('click', ()=> { settingsModalContainer.classList.remove('hidden'); settingsModalContainer.classList.add('flex'); loadSettingsToUI(); });
+      closeSettingsModal.addEventListener('click', ()=> { settingsModalContainer.classList.remove('flex'); settingsModalContainer.classList.add('hidden'); });
+      settingsModalContainer.addEventListener('click', e => { if (e.target === settingsModalContainer) { settingsModalContainer.classList.remove('flex'); settingsModalContainer.classList.add('hidden'); } });
+      togglePercentages.addEventListener('change', updateSettingsFromUI);
+      toggleTips.addEventListener('change', updateSettingsFromUI);
+      clearAllDataButton.addEventListener('click', clearAllLocalData);
 
-            const results = [];
-            
-            if (wordOneText) {
-                const resultOne = await checkAndSubmitWord(wordOneText);
-                results.push(resultOne);
-            }
-            
-            if (wordTwoText) {
-                // Check if word two is different from word one before processing
-                if (!wordOneText || wordOneText.toUpperCase() !== wordTwoText.toUpperCase()) {
-                     const resultTwo = await checkAndSubmitWord(wordTwoText);
-                     results.push(resultTwo);
-                } else if (wordOneText) {
-                    // If they are the same word, add the first result again for proper formatting of two entries
-                    if (results.length === 1) {
-                        results.push({...results[0], status: 'duplicate'});
-                    }
-                }
-            }
-            
-            let outputHtml = '';
-            
-            // Loop through results to generate display
-            for (const [index, result] of results.entries()) {
-                const word = `<strong>${result.text}</strong>`;
-                const isWordOne = index === 0;
+      cakeBadge.addEventListener('click', () => findAndLoadSpecialWord(BOOSTED_WORD));
+      llamaBadge.addEventListener('click', () => findAndLoadSpecialWord(LLAMA_WORD));
+      themeChooser.addEventListener('change', (e) => applyTheme(e.target.value));
 
-                if (result.status === 'exists') {
-                    outputHtml += `
-                        <div class="${isWordOne ? 'border-b pb-2 mb-2' : ''}">
-                        <p class="mb-2">Word ${index + 1} (${word}) exists in the database:</p>
-                        <ul class="list-disc list-inside ml-4 mb-3 text-sm">
-                            <li>Good Votes: <span class="text-green-600 font-bold">${result.good}</span></li>
-                            <li>Bad Votes: <span class="text-red-600 font-bold">${result.bad}</span></li>
-                            <li>Score (Good - Bad): <span class="font-bold">${result.good - result.bad}</span></li>
-                        </ul>
-                        </div>
-                    `;
-                } else if (result.status === 'newlyAdded') {
-                    outputHtml += `<p class="mb-3 text-purple-600 ${isWordOne ? 'border-b pb-2' : ''}">Word ${index + 1} (${word}) was **not found** and has been **added** to the database! (0 Good, 0 Bad votes).</p>`;
-                } else if (result.status === 'error') {
-                     outputHtml += `<p class="mb-3 text-red-500 ${isWordOne ? 'border-b pb-2' : ''}">Word ${index + 1} (${word}) status could not be determined: ${result.message}</p>`;
-                } else if (result.status === 'duplicate') {
-                    outputHtml += `<p class="mb-3 text-gray-500">Word 2 is a duplicate of Word 1 (${word}). Showing the same stats.</p>`;
-                }
-            }
-            
-            // Re-fetch the words in the background to get the database's new word count
-            if (results.some(r => r.status === 'newlyAdded')) {
-                 fetchWords(false); 
-            }
+      // populate UI
+      populateThemeChooser();
+      applyTheme(currentTheme);
+      updateSpecialBadges(null, true);
+      loadSettingsToUI();
 
-            compareResults.innerHTML = outputHtml || '<span class="text-red-500">No valid words were entered.</span>';
-            runComparisonButton.disabled = false;
-        }
+      // initial fetch
+      fetchWords(true);
 
-        // --- NEW DEFINITION FEATURE IMPLEMENTATION ---
+      // responsive resize
+      window.addEventListener('resize', () => { if (allWords[currentWordIndex]) resizeWordToFit(); });
+    }
 
-        /**
-         * Fetches and displays the definition for the current word.
-         */
-        async function showDefinitionModal() {
-            // Don't run if a special message is showing or if there's no word
-            if (isCoolingDown || !allWords[currentWordIndex] || goodButton.disabled) return; 
+    function findAndLoadSpecialWord(wordText) {
+      const idx = allWords.findIndex(w => w.text.toUpperCase() === wordText.toUpperCase());
+      if (idx !== -1) {
+        currentWordIndex = idx;
+        displayCurrentWord(allWords[currentWordIndex]);
+        postVoteMessage.textContent = ' ';
+      } else {
+        showMessage(`The word '${wordText}' is not currently in the database. Please submit it via 'Submit Custom Word'.`, true);
+      }
+    }
 
-            const currentWord = allWords[currentWordIndex];
-            const wordText = currentWord.text.toLowerCase(); // API prefers lowercase
+    // expose a couple of debug hooks to console (like original)
+    window.loadCakeWord = () => findAndLoadSpecialWord(BOOSTED_WORD);
+    window.loadLlamaWord = () => findAndLoadSpecialWord(LLAMA_WORD);
+    window.applyTheme = applyTheme;
 
-            // Show modal and set loading state
-            definitionModalContainer.classList.remove('hidden');
-            definitionModalContainer.classList.add('flex');
-            definitionWord.textContent = currentWord.text.toUpperCase();
-            definitionResults.innerHTML = '<p>Loading definition...</p>';
-
-            try {
-                // Fetch from the free dictionary API
-                const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${wordText}`);
-                
-                if (!response.ok) {
-                    if (response.status === 404) {
-                         definitionResults.innerHTML = '<p class="text-red-500">Sorry, no definition was found for this word.</p>';
-                    } else {
-                        throw new Error(`API error! status: ${response.status}`);
-                    }
-                } else {
-                    const data = await response.json();
-                    // Format and display results
-                    definitionResults.innerHTML = formatDefinitionHtml(data);
-                }
-            } catch (error) {
-                console.error('Error fetching definition:', error);
-                definitionResults.innerHTML = '<p class="text-red-500">An error occurred while fetching the definition.</p>';
-            }
-        }
-
-        /**
-         * Hides the definition modal.
-         */
-        function hideDefinitionModal() {
-            definitionModalContainer.classList.remove('flex');
-            definitionModalContainer.classList.add('hidden');
-        }
-
-        /**
-         * Helper function to parse the API data into clean HTML.
-         */
-        function formatDefinitionHtml(data) {
-            if (!data || data.length === 0) return '<p class="text-red-500">Sorry, no definition was found.</p>';
-
-            let html = '';
-            const wordData = data[0]; // Use the first result
-
-            // Loop through the different "meanings" (e.g., noun, verb)
-            wordData.meanings.forEach(meaning => {
-                html += `<div class="mb-4">`;
-                html += `<h4 class="text-lg font-bold italic text-indigo-600">${meaning.partOfSpeech}</h4>`;
-                
-                // Loop through definitions for this part of speech
-                html += '<ol class="list-decimal list-inside pl-4 mt-2 space-y-1">';
-                meaning.definitions.forEach(def => {
-                    html += `<li>${def.definition}</li>`;
-                    if (def.example) {
-                        html += `<p class="text-sm text-gray-500 pl-4 italic">"${def.example}"</p>`;
-                    }
-                });
-                html += '</ol>';
-                html += `</div>`;
-            });
-
-            return html;
-        }
-        
-        // --- END NEW DEFINITION FEATURE ---
-
-
-        window.loadCakeWord = loadCakeWord;
-        window.loadLlamaWord = loadLlamaWord;
-        window.applyTheme = applyTheme; 
-
-
-        window.onload = init;
-
-    </script>
+    // run init
+    window.addEventListener('load', init);
+  })();
+  </script>
 </body>
 </html>
-
