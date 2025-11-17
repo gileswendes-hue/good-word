@@ -743,21 +743,21 @@
         </div>
     </div>
     <div class="version-indicator">
-        v4.3.1 | Made by Gilxs in 12,025
+        v4.3.3 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '4.3.1'; // Updated version
+        const APP_VERSION = '4.3.3'; // Updated version
         
       // --- BOOST & SPECIAL WORD CONSTANTS --- 
         const BOOSTED_WORD = 'CAKE'; 
         const BOOST_FACTOR = 2.0; 
         const LLAMA_WORD = 'LLAMA';
-        // NEW: Fixed probability for special words (1% each)
-        const CAKE_PROBABILITY = 0.01; 
-        const LLAMA_PROBABILITY = 0.01;
-        const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
+        // NEW: Fixed probability for special words (0.5% each)
+        const CAKE_PROBABILITY = 0.005; 
+        const LLAMA_PROBABILITY = 0.005;
+        const CONTRIBUTION_THRESHOLD = 5; // Unlock contributor badge at 5 submission
         
         // --- SIMPLIFIED CAKE TIMING CONSTANTS (FIX v3.9.13) ---
         const CAKE_WORD_FADE_DURATION = 300; // 0.3s
@@ -769,12 +769,13 @@
             "Tip: Have you tried comparing words yet? Use the 'Compare Any Two Words' button!",
             "Tip: Tap the word on the card to see its definition!",
             "Tip: Check out the theme chooser below to unlock new styles."
+            "Tip: Badges are available to contributors of new words!"
         ];
         const TIP_COOLDOWN = 4; // Display a tip every 4 votes
         let voteCounterForTips = parseInt(localStorage.getItem('voteCounterForTips')) || 0;
         
         // UPDATED: Duration for post-vote messages (4 seconds for comfortable reading)
-        const POST_VOTE_MESSAGE_DURATION = 4000; 
+        const POST_VOTE_MESSAGE_DURATION = 2000; 
         // END NEW TIP/MESSAGE CONSTANTS
 
         let allWords = [];
@@ -2219,3 +2220,4 @@
     </script>
 </body>
 </html>
+
