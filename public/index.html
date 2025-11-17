@@ -753,10 +753,10 @@
         const BOOSTED_WORD = 'CAKE'; 
         const BOOST_FACTOR = 2.0; 
         const LLAMA_WORD = 'LLAMA';
-        // NEW: Fixed probability for special words (1% each)
-        const CAKE_PROBABILITY = 0.01; 
-        const LLAMA_PROBABILITY = 0.01;
-        const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
+        // NEW: Fixed probability for special words (0.5% each)
+        const CAKE_PROBABILITY = 0.005; 
+        const LLAMA_PROBABILITY = 0.005;
+        const CONTRIBUTION_THRESHOLD = 5; // Unlock contributor badge at 5 submissions
         
         // --- SIMPLIFIED CAKE TIMING CONSTANTS (FIX v3.9.13) ---
         const CAKE_WORD_FADE_DURATION = 300; // 0.3s
@@ -2206,3 +2206,4 @@
     </script>
 </body>
 </html>
+
