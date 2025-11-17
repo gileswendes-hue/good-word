@@ -1806,14 +1806,7 @@
                     // Display post-vote message
                     displayPostVoteMessage(updatedWordData, voteType, themeWasNewlyUnlocked, awardAchieved);
 
-                    // NEW: Set timeout to clear post vote message after 4 seconds for normal flow.
-                    if (!themeWasNewlyUnlocked && !awardAchieved) {
-                        setTimeout(() => {
-                            document.getElementById('postVoteMessage').textContent = ' '; 
-                        }, POST_VOTE_MESSAGE_DURATION);
-                    }
-                    // END NEW
-
+                    // The message is cleared by nextWord() via displayCurrentWord()
                     if (themeWasNewlyUnlocked || awardAchieved) {
                         const messageToDisplay = themeWasNewlyUnlocked 
                             ? `'${currentTheme.charAt(0).toUpperCase() + currentTheme.slice(1)}' Theme`
@@ -1823,12 +1816,12 @@
                         showAwardMessageAndContinue(messageToDisplay, emojiToDisplay);
                     } else {
                         // NORMAL FLOW
-                        const transitionDelay = (voteType === 'good' || voteType === 'bad') ? transitionDuration : 0;
-                        
+                        // Delay nextWord by POST_VOTE_MESSAGE_DURATION (4000ms) to allow user to read the message.
+                        // The original 700ms transition is now absorbed into this longer delay.
                         setTimeout(() => {
                             nextWord(); 
                             fetchWords(false); 
-                        }, transitionDelay);
+                        }, POST_VOTE_MESSAGE_DURATION); 
                     }
                 }
             } catch (error) {
