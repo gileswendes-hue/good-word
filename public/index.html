@@ -707,12 +707,12 @@
 
 
     <div class="version-indicator">
-        v4.1.2 | Made by Gilxs in 12,025
+        v4.2.0 | Made by Gilxs in 12,025
     </div>
 
-    <script>
+   <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '4.1.2'; // Bumped version for fix
+        const APP_VERSION = '4.2.0'; // Bumped version for fix
         
       // --- BOOST & SPECIAL WORD CONSTANTS --- 
 const BOOSTED_WORD = 'CAKE'; 
@@ -1276,7 +1276,8 @@ const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
             }
         }
 
-function getWeightedRandomWordIndex(excludeIndex = -1) { 
+    // --- MODIFIED FUNCTION ---
+    function getWeightedRandomWordIndex(excludeIndex = -1) { 
         if (allWords.length === 0) return -1;
         
         const random = Math.random();
@@ -1285,9 +1286,12 @@ function getWeightedRandomWordIndex(excludeIndex = -1) {
         let specialWordText = null;
         let specialWordIndex = -1;
 
-        if (random < CAKE_PROBABILITY) {
+        // Check for special words ONLY if their badges are not yet unlocked
+        if (!cakeBadgeUnlocked && random < CAKE_PROBABILITY) {
+            // This is the first 1% slice (0.00 to 0.0099...)
             specialWordText = BOOSTED_WORD;
-        } else if (random < CAKE_PROBABILITY + LLAMA_PROBABILITY) {
+        } else if (!llamaBadgeUnlocked && random >= CAKE_PROBABILITY && random < (CAKE_PROBABILITY + LLAMA_PROBABILITY)) {
+            // This is the second 1% slice (0.01 to 0.0199...)
             specialWordText = LLAMA_WORD;
         }
 
@@ -1332,6 +1336,7 @@ function getWeightedRandomWordIndex(excludeIndex = -1) {
         }
         return wordPool[wordPool.length - 1].index;
     }
+    // --- END MODIFIED FUNCTION ---
 
         function nextWord() {
             if (allWords.length === 0) return;
@@ -1633,9 +1638,10 @@ function getWeightedRandomWordIndex(excludeIndex = -1) {
                     ? `<span class="text-xs text-white bg-green-500 px-2 rounded-full font-bold">${word.score}</span>`
                     : `<span class="text-xs text-white bg-red-500 px-2 rounded-full font-bold">${Math.abs(word.score)}</span>`;
                 
+                // --- MODIFIED LINE FOR RANKING LAYOUT ---
                 item.innerHTML = `
-                    <div class="flex items-center space-x-2">
-                        <span class="font-bold ${isFullList ? 'text-base w-4' : 'text-lg w-5'} text-center text-gray-500">${index + 1}.</span>
+                    <div class="flex items-center ${isFullList ? 'space-x-3' : 'space-x-2'}">
+                        <span class="font-bold ${isFullList ? 'text-base w-8' : 'text-lg w-5'} text-center text-gray-500 flex-shrink-0">${index + 1}.</span>
                         <span class="font-medium text-gray-800">${word.text.toUpperCase()}</span>
                     </div>
                     <div class="flex items-center space-x-3">
@@ -1643,6 +1649,7 @@ function getWeightedRandomWordIndex(excludeIndex = -1) {
                         <span class="text-sm text-gray-600">(${word.good} / ${word.bad})</span>
                     </div>
                 `;
+                // --- END MODIFICATION ---
                 container.appendChild(item);
             });
         }
@@ -1958,5 +1965,3 @@ function getWeightedRandomWordIndex(excludeIndex = -1) {
         window.onload = init;
 
     </script>
-</body>
-</html>
