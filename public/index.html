@@ -590,6 +590,7 @@
 
     <div id="postVoteMessage" class="mt-4 w-full max-w-sm text-center text-sm font-medium text-gray-600 min-h-[3rem]">
         </div>
+
     <section class="mt-8 w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8">
         <div class="ranking-card card p-6 rounded-xl">
             <h2 class="text-xl font-bold text-green-700 mb-4 border-b pb-2">Top Good Words</h2>
@@ -742,12 +743,12 @@
         </div>
     </div>
     <div class="version-indicator">
-        v4.3.3 | Made by Gilxs in 12,025
+        v4.3.1 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '4.3.3'; // Updated version
+        const APP_VERSION = '4.3.1'; // Updated version
         
       // --- BOOST & SPECIAL WORD CONSTANTS --- 
         const BOOSTED_WORD = 'CAKE'; 
@@ -1402,7 +1403,7 @@
             wordDisplay.style.color = '#111827'; 
             wordDisplay.style.animation = '';
             wordDisplay.style.transform = '';
-            wordDisplay.style.textShadow = '';
+            wordDisplay.style.textShadow = ''; // Reset text-shadow
             wordDisplay.style.opacity = '1'; 
             wordDisplay.style.cursor = 'default'; // Reset cursor
             wordDisplay.style.removeProperty('animation'); // Clear inline animation added by submitVote
@@ -1433,7 +1434,7 @@
                 wordDisplay.style.color = '#ffd200';
             } else if (currentTheme === 'winter') {
                 wordDisplay.style.color = '#01579b'; 
-                text-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+                wordDisplay.style.textShadow = '0 0 8px rgba(255, 255, 255, 0.8)'; // FIXED JS SYNTAX ERROR
             } else if (currentTheme === 'summer') {
                 wordDisplay.style.color = '#FF9800'; 
                 wordDisplay.style.textShadow = '0 0 20px #FFF8E1, 0 0 10px #FFEB3B'; 
