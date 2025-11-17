@@ -588,9 +588,8 @@
         </button>
     </main>
 
-    <div id="postVoteMessage" class="mt-4 w-full max-w-sm text-center text-sm font-medium text-gray-600 min-h-[3rem]">
+    <div id="postVoteMessage" class="mt-4 w-full max-w-sm text-center text-sm font-medium text-gray-600 min-h-[1.5rem]">
         </div>
-
     <section class="mt-8 w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8">
         <div class="ranking-card card p-6 rounded-xl">
             <h2 class="text-xl font-bold text-green-700 mb-4 border-b pb-2">Top Good Words</h2>
@@ -743,12 +742,12 @@
         </div>
     </div>
     <div class="version-indicator">
-        v4.3.3 | Made by Gilxs in 12,025
+        v4.3.1 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '4.3.3'; // Updated version
+        const APP_VERSION = '4.3.1'; // Updated version
         
       // --- BOOST & SPECIAL WORD CONSTANTS --- 
         const BOOSTED_WORD = 'CAKE'; 
@@ -757,7 +756,7 @@
         // NEW: Fixed probability for special words (0.5% each)
         const CAKE_PROBABILITY = 0.005; 
         const LLAMA_PROBABILITY = 0.005;
-        const CONTRIBUTION_THRESHOLD = 5; // Unlock contributor badge at 5 submission
+        const CONTRIBUTION_THRESHOLD = 5; // Unlock contributor badge at 5 submissions
         
         // --- SIMPLIFIED CAKE TIMING CONSTANTS (FIX v3.9.13) ---
         const CAKE_WORD_FADE_DURATION = 300; // 0.3s
@@ -769,13 +768,9 @@
             "Tip: Have you tried comparing words yet? Use the 'Compare Any Two Words' button!",
             "Tip: Tap the word on the card to see its definition!",
             "Tip: Check out the theme chooser below to unlock new styles."
-            "Tip: Badges are available to contributors of new words!"
         ];
         const TIP_COOLDOWN = 4; // Display a tip every 4 votes
         let voteCounterForTips = parseInt(localStorage.getItem('voteCounterForTips')) || 0;
-        
-        // UPDATED: Duration for post-vote messages (4 seconds for comfortable reading)
-        const POST_VOTE_MESSAGE_DURATION = 2000; 
         // END NEW TIP/MESSAGE CONSTANTS
 
         let allWords = [];
@@ -988,7 +983,7 @@
                 }
             });
             
-            // Initial settings state is applied via loadSettings()
+            // Apply initial settings state to toggles
             loadSettings();
         }
         
@@ -1006,10 +1001,9 @@
             
             // Clear message area when settings change
             document.getElementById('postVoteMessage').textContent = 'Settings updated.';
-            // The message will now be cleared by a 4 second timeout
             setTimeout(() => {
                 document.getElementById('postVoteMessage').textContent = ' ';
-            }, POST_VOTE_MESSAGE_DURATION);
+            }, 2000);
         }
 
         function showSettingsModal() {
@@ -1095,7 +1089,7 @@
         /**
          * Checks if special badges should be unlocked and updates their visibility/cursor.
          */
-        function updateSpecialBadges(votedWordText = null, init = true) {
+        function updateSpecialBadges(votedWordText = null, init = false) {
             
             if (votedWordText) {
                 const upperWord = votedWordText.toUpperCase();
@@ -1358,7 +1352,7 @@
                     const percentage = Math.round((sameVotes / totalVotes) * 100);
                     const voteText = voteType === 'good' ? 'Good' : 'Bad';
                     
-                    messageDiv.innerHTML = `${voteText} vote registered! <br/> ${percentage}% of people also voted '${voteText}' for this word. (${sameVotes}/${totalVotes})`;
+                    messageDiv.textContent = `${voteText} vote registered! ${percentage}% of people also voted '${voteText}' for this word. (${sameVotes}/${totalVotes})`;
                     return; 
                 }
                 
@@ -1369,8 +1363,7 @@
                     
                     if (voteCounterForTips % TIP_COOLDOWN === 0) {
                         const tipIndex = Math.floor(Math.random() * TIPS.length);
-                        // Use innerHTML with <br> to ensure the tip uses two lines
-                        messageDiv.innerHTML = TIPS[tipIndex].replace(':', ': <br/>'); 
+                        messageDiv.textContent = TIPS[tipIndex];
                         return;
                     }
                 }
@@ -1404,7 +1397,7 @@
             wordDisplay.style.color = '#111827'; 
             wordDisplay.style.animation = '';
             wordDisplay.style.transform = '';
-            wordDisplay.style.textShadow = ''; // Reset text-shadow
+            wordDisplay.style.textShadow = '';
             wordDisplay.style.opacity = '1'; 
             wordDisplay.style.cursor = 'default'; // Reset cursor
             wordDisplay.style.removeProperty('animation'); // Clear inline animation added by submitVote
@@ -1435,7 +1428,7 @@
                 wordDisplay.style.color = '#ffd200';
             } else if (currentTheme === 'winter') {
                 wordDisplay.style.color = '#01579b'; 
-                wordDisplay.style.textShadow = '0 0 8px rgba(255, 255, 255, 0.8)'; // FIXED JS SYNTAX ERROR
+                wordDisplay.style.textShadow = '0 0 8px rgba(255, 255, 255, 0.8)';
             } else if (currentTheme === 'summer') {
                 wordDisplay.style.color = '#FF9800'; 
                 wordDisplay.style.textShadow = '0 0 20px #FFF8E1, 0 0 10px #FFEB3B'; 
@@ -1750,12 +1743,6 @@
                     // Display general message on cooldown for failed vote
                     displayPostVoteMessage(currentWord, voteType, themeWasNewlyUnlocked, false); 
                     
-                    // NEW: Set timeout to clear post vote message after 4 seconds for failed vote
-                    setTimeout(() => {
-                        document.getElementById('postVoteMessage').textContent = ' '; 
-                    }, POST_VOTE_MESSAGE_DURATION);
-                    // END NEW
-                    
                     setTimeout(() => {
                         nextWord();
                         fetchWords(false); 
@@ -1807,7 +1794,6 @@
                     // Display post-vote message
                     displayPostVoteMessage(updatedWordData, voteType, themeWasNewlyUnlocked, awardAchieved);
 
-                    // The message is cleared by nextWord() via displayCurrentWord()
                     if (themeWasNewlyUnlocked || awardAchieved) {
                         const messageToDisplay = themeWasNewlyUnlocked 
                             ? `'${currentTheme.charAt(0).toUpperCase() + currentTheme.slice(1)}' Theme`
@@ -1817,12 +1803,12 @@
                         showAwardMessageAndContinue(messageToDisplay, emojiToDisplay);
                     } else {
                         // NORMAL FLOW
-                        // Delay nextWord by POST_VOTE_MESSAGE_DURATION (4000ms) to allow user to read the message.
-                        // The original 700ms transition is now absorbed into this longer delay.
+                        const transitionDelay = (voteType === 'good' || voteType === 'bad') ? transitionDuration : 0;
+                        
                         setTimeout(() => {
                             nextWord(); 
                             fetchWords(false); 
-                        }, POST_VOTE_MESSAGE_DURATION); 
+                        }, transitionDelay);
                     }
                 }
             } catch (error) {
