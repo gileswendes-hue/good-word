@@ -64,7 +64,7 @@
             transform: scale(0.95) !important;
         }
 
-        /* --- MODIFIED KEYFRAMES --- */
+        /* Keyframes fixed to not flash black */
         @keyframes slide-out-left-good {
             0% { transform: translateX(0); opacity: 1; }
             100% { transform: translateX(-150%); opacity: 0; color: #10b981;}
@@ -1438,11 +1438,13 @@ const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
             
             const transitionDuration = 700; 
             
-            // --- NEW FIX FOR ANIMATION CONFLICT ---
-            // Remove any theme-based animations (like bounce/bob) to allow the exit animation to play
+            // --- MODIFIED FIX FOR ANIMATION CONFLICT ---
+            // 1. Remove any theme-based animations (like bounce/bob)
             wordDisplay.style.animation = 'none';
-            // Force browser reflow to apply the style change before adding the next class
+            // 2. Force browser reflow to apply the "no animation" state
             void wordDisplay.offsetWidth; 
+            // 3. Remove the inline style so a class-based animation can take over
+            wordDisplay.style.animation = '';
             // --- END FIX ---
 
             // 1. Conditional Transition/Fade Application
