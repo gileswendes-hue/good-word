@@ -713,7 +713,7 @@
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '4.1.2'; // Bumped version for fix
+        const APP_VERSION = '4.3.0'; // Updated version
         
       // --- BOOST & SPECIAL WORD CONSTANTS --- 
 const BOOSTED_WORD = 'CAKE'; 
@@ -746,6 +746,12 @@ const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
         let cooldownTimer = null;
         let isCoolingDown = false;
         let lastVoteTime = 0; 
+        
+        // SWIPE TRACKING VARIABLES
+        let startX = 0;
+        let startY = 0;
+        const SWIPE_THRESHOLD = 50; // Minimum horizontal swipe distance in pixels
+        // END SWIPE TRACKING VARIABLES
 
         // --- THEME VARIABLES: OBFUSCATED USING STRING MANIPULATION ---
         let currentTheme = localStorage.getItem('currentTheme') || 'default';
@@ -816,7 +822,7 @@ const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
         const compareModalContainer = document.getElementById('compareModalContainer');
         const closeCompareModal = document.getElementById('closeCompareModal');
         const wordOneInput = document.getElementById('wordOneInput');
-        const wordTwoInput = document.getElementById('wordTwoInput');
+        const wordTwoInput = document = document.getElementById('wordTwoInput');
         const compareResults = document.getElementById('compareResults');
         const runComparisonButton = document.getElementById('runComparisonButton');
 
@@ -838,7 +844,7 @@ const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
                 contributorCount = parseInt(storedContributorCount, 10);
             }
             
-            versionIndicator.textContent = `v${APP_VERSION} | Made by Gilxs in 12,025`;
+            versionIndicator.textContent = `v${APP_VERSION} | Made by Gilxs in 12,025`; // Update version
             
             goodButton.addEventListener('click', () => submitVote('good'));
             badButton.addEventListener('click', () => submitVote('bad'));
@@ -854,6 +860,10 @@ const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
                     hideFullRankingsModal();
                 }
             });
+            
+            // NEW: Add swipe functionality to gameCard
+            gameCard.addEventListener('touchstart', handleTouchStart, false);
+            gameCard.addEventListener('touchend', handleTouchEnd, false);
             
             // NEW DEFINITION EVENT LISTENERS
             wordDisplay.addEventListener('click', showDefinitionModal);
@@ -901,6 +911,42 @@ const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
                 }
             });
         }
+        
+        // --- SWIPE LOGIC IMPLEMENTATION ---
+
+        function handleTouchStart(evt) {
+            // Only capture touch if buttons are enabled
+            if (isCoolingDown || goodButton.disabled) return; 
+
+            // Use the first touch point
+            const touch = evt.changedTouches[0];
+            startX = touch.screenX;
+            startY = touch.screenY;
+        }
+
+        function handleTouchEnd(evt) {
+            // Only process touch end if buttons are enabled
+            if (isCoolingDown || goodButton.disabled) return; 
+
+            const touch = evt.changedTouches[0];
+            const endX = touch.screenX;
+            const endY = touch.screenY;
+            
+            const diffX = endX - startX;
+            const diffY = endY - startY;
+
+            // Check if the swipe is significant enough and primarily horizontal
+            if (Math.abs(diffX) > SWIPE_THRESHOLD && Math.abs(diffX) > Math.abs(diffY)) {
+                if (diffX > 0) {
+                    // Swipe Right: BAD WORD
+                    submitVote('bad');
+                } else {
+                    // Swipe Left: GOOD WORD
+                    submitVote('good');
+                }
+            }
+        }
+        // --- END SWIPE LOGIC ---
         
         function findAndLoadSpecialWord(wordText) {
             const specialWord = allWords.find(w => w.text.toUpperCase() === wordText);
@@ -1186,6 +1232,7 @@ const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
             wordDisplay.style.textShadow = '';
             wordDisplay.style.opacity = '1'; 
             wordDisplay.style.cursor = 'default'; // Reset cursor
+            wordDisplay.style.removeProperty('animation'); // Clear inline animation added by submitVote
             wordFrame.style.padding = '0';
             wordFrame.style.backgroundColor = 'transparent';
             
@@ -1446,11 +1493,8 @@ const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
                 } else if (isLlama) {
                     // Handled inside the LLAMA logic block
                 } else {
-                    // --- NEW FIX: Apply animation as an inline style ---
-                    // This has higher specificity and overrides theme animations (like bounce/bob).
-                    // The animation is cleared by displayCurrentWord() when the next word loads.
+                    // --- FIX: Apply animation as an inline style ---
                     const animationName = voteType === 'good' ? 'slide-out-left-good' : 'slide-out-right-bad';
-                    // We use the transitionDuration variable (in seconds) to ensure it's in sync.
                     wordDisplay.style.animation = `${animationName} ${transitionDuration / 1000}s ease-out forwards`;
                 }
             }
@@ -1888,7 +1932,7 @@ const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
          */
         async function showDefinitionModal() {
             // Don't run if a special message is showing or if there's no word
-            if (isCoolingDown || !allWords[currentWordIndex]) return; 
+            if (isCoolingDown || !allWords[currentWordIndex] || goodButton.disabled) return; 
 
             const currentWord = allWords[currentWordIndex];
             const wordText = currentWord.text.toLowerCase(); // API prefers lowercase
