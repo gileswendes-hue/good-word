@@ -43,6 +43,7 @@
             .vote-counts { font-size: 0.875rem; }
         }
 
+        /* These classes are now only used as a reference for the JS, but we'll keep them */
         .word-transition-good {
             animation: slide-out-left-good 0.7s ease-out forwards;
         }
@@ -1438,23 +1439,19 @@ const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
             
             const transitionDuration = 700; 
             
-            // --- MODIFIED FIX FOR ANIMATION CONFLICT ---
-            // 1. Remove any theme-based animations (like bounce/bob)
-            wordDisplay.style.animation = 'none';
-            // 2. Force browser reflow to apply the "no animation" state
-            void wordDisplay.offsetWidth; 
-            // 3. Remove the inline style so a class-based animation can take over
-            wordDisplay.style.animation = '';
-            // --- END FIX ---
-
             // 1. Conditional Transition/Fade Application
             if (voteType === 'good' || voteType === 'bad') {
                 if (isCake) {
-                    // Handled inside the CAKE logic block to ensure it's not double-applied
+                    // Handled inside the CAKE logic block
                 } else if (isLlama) {
                     // Handled inside the LLAMA logic block
                 } else {
-                    wordDisplay.classList.add(voteType === 'good' ? 'word-transition-good' : 'word-transition-bad');
+                    // --- NEW FIX: Apply animation as an inline style ---
+                    // This has higher specificity and overrides theme animations (like bounce/bob).
+                    // The animation is cleared by displayCurrentWord() when the next word loads.
+                    const animationName = voteType === 'good' ? 'slide-out-left-good' : 'slide-out-right-bad';
+                    // We use the transitionDuration variable (in seconds) to ensure it's in sync.
+                    wordDisplay.style.animation = `${animationName} ${transitionDuration / 1000}s ease-out forwards`;
                 }
             }
             
