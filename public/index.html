@@ -588,7 +588,7 @@
         </button>
     </main>
 
-    <div id="postVoteMessage" class="mt-4 w-full max-w-sm text-center text-sm font-medium text-gray-600 min-h-[1.5rem]">
+    <div id="postVoteMessage" class="mt-4 w-full max-w-sm text-center text-sm font-medium text-gray-600 min-h-[3rem]">
         </div>
     <section class="mt-8 w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8">
         <div class="ranking-card card p-6 rounded-xl">
@@ -742,21 +742,21 @@
         </div>
     </div>
     <div class="version-indicator">
-        v4.3.1 | Made by Gilxs in 12,025
+        v4.3.3 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '4.3.1'; // Updated version
+        const APP_VERSION = '4.3.3'; // Updated version
         
       // --- BOOST & SPECIAL WORD CONSTANTS --- 
         const BOOSTED_WORD = 'CAKE'; 
         const BOOST_FACTOR = 2.0; 
         const LLAMA_WORD = 'LLAMA';
-        // NEW: Fixed probability for special words (0.5% each)
-        const CAKE_PROBABILITY = 0.005; 
-        const LLAMA_PROBABILITY = 0.005;
-        const CONTRIBUTION_THRESHOLD = 5; // Unlock contributor badge at 5 submissions
+        // NEW: Fixed probability for special words (1% each)
+        const CAKE_PROBABILITY = 0.01; 
+        const LLAMA_PROBABILITY = 0.01;
+        const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
         
         // --- SIMPLIFIED CAKE TIMING CONSTANTS (FIX v3.9.13) ---
         const CAKE_WORD_FADE_DURATION = 300; // 0.3s
@@ -771,6 +771,9 @@
         ];
         const TIP_COOLDOWN = 4; // Display a tip every 4 votes
         let voteCounterForTips = parseInt(localStorage.getItem('voteCounterForTips')) || 0;
+        
+        // UPDATED: Duration for post-vote messages (4 seconds for comfortable reading)
+        const POST_VOTE_MESSAGE_DURATION = 4000; 
         // END NEW TIP/MESSAGE CONSTANTS
 
         let allWords = [];
@@ -983,7 +986,7 @@
                 }
             });
             
-            // Apply initial settings state to toggles
+            // Initial settings state is applied via loadSettings()
             loadSettings();
         }
         
@@ -1001,9 +1004,10 @@
             
             // Clear message area when settings change
             document.getElementById('postVoteMessage').textContent = 'Settings updated.';
+            // The message will now be cleared by a 4 second timeout
             setTimeout(() => {
                 document.getElementById('postVoteMessage').textContent = ' ';
-            }, 2000);
+            }, POST_VOTE_MESSAGE_DURATION);
         }
 
         function showSettingsModal() {
@@ -1089,7 +1093,7 @@
         /**
          * Checks if special badges should be unlocked and updates their visibility/cursor.
          */
-        function updateSpecialBadges(votedWordText = null, init = false) {
+        function updateSpecialBadges(votedWordText = null, init = true) {
             
             if (votedWordText) {
                 const upperWord = votedWordText.toUpperCase();
@@ -1352,7 +1356,7 @@
                     const percentage = Math.round((sameVotes / totalVotes) * 100);
                     const voteText = voteType === 'good' ? 'Good' : 'Bad';
                     
-                    messageDiv.textContent = `${voteText} vote registered! ${percentage}% of people also voted '${voteText}' for this word. (${sameVotes}/${totalVotes})`;
+                    messageDiv.innerHTML = `${voteText} vote registered! <br/> ${percentage}% of people also voted '${voteText}' for this word. (${sameVotes}/${totalVotes})`;
                     return; 
                 }
                 
@@ -1363,7 +1367,8 @@
                     
                     if (voteCounterForTips % TIP_COOLDOWN === 0) {
                         const tipIndex = Math.floor(Math.random() * TIPS.length);
-                        messageDiv.textContent = TIPS[tipIndex];
+                        // Use innerHTML with <br> to ensure the tip uses two lines
+                        messageDiv.innerHTML = TIPS[tipIndex].replace(':', ': <br/>'); 
                         return;
                     }
                 }
@@ -1428,7 +1433,7 @@
                 wordDisplay.style.color = '#ffd200';
             } else if (currentTheme === 'winter') {
                 wordDisplay.style.color = '#01579b'; 
-                wordDisplay.style.textShadow = '0 0 8px rgba(255, 255, 255, 0.8)';
+                text-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
             } else if (currentTheme === 'summer') {
                 wordDisplay.style.color = '#FF9800'; 
                 wordDisplay.style.textShadow = '0 0 20px #FFF8E1, 0 0 10px #FFEB3B'; 
@@ -1743,6 +1748,12 @@
                     // Display general message on cooldown for failed vote
                     displayPostVoteMessage(currentWord, voteType, themeWasNewlyUnlocked, false); 
                     
+                    // NEW: Set timeout to clear post vote message after 4 seconds for failed vote
+                    setTimeout(() => {
+                        document.getElementById('postVoteMessage').textContent = ' '; 
+                    }, POST_VOTE_MESSAGE_DURATION);
+                    // END NEW
+                    
                     setTimeout(() => {
                         nextWord();
                         fetchWords(false); 
@@ -1793,6 +1804,14 @@
 
                     // Display post-vote message
                     displayPostVoteMessage(updatedWordData, voteType, themeWasNewlyUnlocked, awardAchieved);
+
+                    // NEW: Set timeout to clear post vote message after 4 seconds for normal flow.
+                    if (!themeWasNewlyUnlocked && !awardAchieved) {
+                        setTimeout(() => {
+                            document.getElementById('postVoteMessage').textContent = ' '; 
+                        }, POST_VOTE_MESSAGE_DURATION);
+                    }
+                    // END NEW
 
                     if (themeWasNewlyUnlocked || awardAchieved) {
                         const messageToDisplay = themeWasNewlyUnlocked 
@@ -2206,4 +2225,3 @@
     </script>
 </body>
 </html>
-
