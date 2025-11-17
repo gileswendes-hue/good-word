@@ -43,7 +43,6 @@
             .vote-counts { font-size: 0.875rem; }
         }
 
-        /* --- MODIFIED TRANSITION SPEED --- */
         .word-transition-good {
             animation: slide-out-left-good 0.7s ease-out forwards;
         }
@@ -65,14 +64,14 @@
             transform: scale(0.95) !important;
         }
 
-
+        /* --- MODIFIED KEYFRAMES --- */
         @keyframes slide-out-left-good {
-            0% { transform: translateX(0); opacity: 1; color: #111827;}
+            0% { transform: translateX(0); opacity: 1; }
             100% { transform: translateX(-150%); opacity: 0; color: #10b981;}
         }
         
         @keyframes slide-out-right-bad {
-            0% { transform: translateX(0); opacity: 1; color: #111827;}
+            0% { transform: translateX(0); opacity: 1; }
             100% { transform: translateX(150%); opacity: 0; color: #ef4444;}
         }
 
@@ -1437,9 +1436,15 @@ const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
 
             const wordId = currentWord._id;
             
-            // --- MODIFIED TRANSITION SPEED (JS) ---
-            const transitionDuration = 700; // 700ms (to match 0.7s in CSS)
+            const transitionDuration = 700; 
             
+            // --- NEW FIX FOR ANIMATION CONFLICT ---
+            // Remove any theme-based animations (like bounce/bob) to allow the exit animation to play
+            wordDisplay.style.animation = 'none';
+            // Force browser reflow to apply the style change before adding the next class
+            void wordDisplay.offsetWidth; 
+            // --- END FIX ---
+
             // 1. Conditional Transition/Fade Application
             if (voteType === 'good' || voteType === 'bad') {
                 if (isCake) {
@@ -1639,7 +1644,6 @@ const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
                     ? `<span class="text-xs text-white bg-green-500 px-2 rounded-full font-bold">${word.score}</span>`
                     : `<span class="text-xs text-white bg-red-500 px-2 rounded-full font-bold">${Math.abs(word.score)}</span>`;
                 
-                // --- MODIFIED LINE FOR RANKING LAYOUT ---
                 item.innerHTML = `
                     <div class="flex items-center ${isFullList ? 'space-x-3' : 'space-x-2'}">
                         <span class="font-bold ${isFullList ? 'text-base w-8' : 'text-lg w-5'} text-center text-gray-500 flex-shrink-0">${index + 1}.</span>
@@ -1650,7 +1654,6 @@ const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
                         <span class="text-sm text-gray-600">(${word.good} / ${word.bad})</span>
                     </div>
                 `;
-                // --- END MODIFICATION ---
                 container.appendChild(item);
             });
         }
