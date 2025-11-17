@@ -588,6 +588,8 @@
         </button>
     </main>
 
+    <div id="postVoteMessage" class="mt-4 w-full max-w-sm text-center text-sm font-medium text-gray-600 min-h-[1.5rem]">
+        </div>
     <section class="mt-8 w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8">
         <div class="ranking-card card p-6 rounded-xl">
             <h2 class="text-xl font-bold text-green-700 mb-4 border-b pb-2">Top Good Words</h2>
@@ -622,7 +624,11 @@
             <option value="default">Default</option>
             </select>
         <p id="themeUnlockHint" class="text-xs text-gray-500 mt-2">Vote on special words to unlock new themes!</p>
-    </div>
+
+        <button id="showSettingsButton" class="mt-4 px-4 py-2 w-full bg-slate-200 text-gray-700 font-bold rounded-lg shadow-md hover:bg-slate-300 transition duration-150 text-sm">
+            ⚙️ Settings
+        </button>
+        </div>
     
     <div id="submissionModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
         <div class="bg-white p-6 rounded-xl w-full max-w-md shadow-2xl">
@@ -705,28 +711,67 @@
             </div>
         </div>
     </div>
-
-
+    
+    <div id="settingsModalContainer" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
+        <div id="settingsModal" class="bg-white p-6 rounded-xl w-full max-w-md shadow-2xl">
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <h2 class="text-2xl font-bold">User Settings</h2>
+                <button id="closeSettingsModal" class="text-gray-500 hover:text-gray-800 text-2xl font-bold leading-none">
+                    &times;
+                </button>
+            </div>
+            
+            <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <label for="togglePercentages" class="text-lg font-medium text-gray-700">Show Vote Percentages</label>
+                    <input type="checkbox" id="togglePercentages" class="h-6 w-6 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                </div>
+                
+                <div class="flex items-center justify-between">
+                    <label for="toggleTips" class="text-lg font-medium text-gray-700">Show Tips & Hints</label>
+                    <input type="checkbox" id="toggleTips" class="h-6 w-6 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                </div>
+            </div>
+            
+            <div class="mt-6 border-t pt-4">
+                <p class="text-sm text-gray-500">You can also clear all local data (votes, awards, themes, streaks) below. This action is irreversible.</p>
+                <button id="clearAllDataButton" class="mt-3 px-4 py-2 w-full bg-red-500 text-white font-medium rounded-lg shadow-md hover:bg-red-600 transition">
+                    Clear All Local Data
+                </button>
+            </div>
+        </div>
+    </div>
     <div class="version-indicator">
-        v4.3.0 | Made by Gilxs in 12,025
+        v4.3.1 | Made by Gilxs in 12,025
     </div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '4.3.0'; // Updated version
+        const APP_VERSION = '4.3.1'; // Updated version
         
       // --- BOOST & SPECIAL WORD CONSTANTS --- 
-const BOOSTED_WORD = 'CAKE'; 
-const BOOST_FACTOR = 2.0; 
-const LLAMA_WORD = 'LLAMA';
-// NEW: Fixed probability for special words (1% each)
-const CAKE_PROBABILITY = 0.01; 
-const LLAMA_PROBABILITY = 0.01;
-const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
+        const BOOSTED_WORD = 'CAKE'; 
+        const BOOST_FACTOR = 2.0; 
+        const LLAMA_WORD = 'LLAMA';
+        // NEW: Fixed probability for special words (1% each)
+        const CAKE_PROBABILITY = 0.01; 
+        const LLAMA_PROBABILITY = 0.01;
+        const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
         
         // --- SIMPLIFIED CAKE TIMING CONSTANTS (FIX v3.9.13) ---
         const CAKE_WORD_FADE_DURATION = 300; // 0.3s
         const CAKE_MESSAGE_DURATION = 3000; // 3.0s
+        
+        // --- NEW TIP/MESSAGE CONSTANTS ---
+        const TIPS = [
+            "Tip: You can now cast a vote by swiping! Swipe left for GOOD and right for BAD.",
+            "Tip: Have you tried comparing words yet? Use the 'Compare Any Two Words' button!",
+            "Tip: Tap the word on the card to see its definition!",
+            "Tip: Check out the theme chooser below to unlock new styles."
+        ];
+        const TIP_COOLDOWN = 4; // Display a tip every 4 votes
+        let voteCounterForTips = parseInt(localStorage.getItem('voteCounterForTips')) || 0;
+        // END NEW TIP/MESSAGE CONSTANTS
 
         let allWords = [];
         let currentWordIndex = 0;
@@ -737,6 +782,11 @@ const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
         // NEW STATE VARIABLES
         let cakeBadgeUnlocked = localStorage.getItem('cakeBadgeUnlocked') === 'true';
         let llamaBadgeUnlocked = localStorage.getItem('llamaBadgeUnlocked') === 'true';
+        // NEW USER SETTINGS
+        let userSettings = JSON.parse(localStorage.getItem('userSettings')) || {
+            showTips: true,
+            showPercentages: true
+        };
         // END NEW STATE VARIABLES
 
         let voteStreak = 0;
@@ -825,6 +875,15 @@ const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
         const wordTwoInput = document = document.getElementById('wordTwoInput');
         const compareResults = document.getElementById('compareResults');
         const runComparisonButton = document.getElementById('runComparisonButton');
+        
+        // NEW SETTINGS ELEMENTS
+        const postVoteMessage = document.getElementById('postVoteMessage'); // NEW
+        const showSettingsButton = document.getElementById('showSettingsButton'); // NEW
+        const settingsModalContainer = document.getElementById('settingsModalContainer'); // NEW
+        const closeSettingsModal = document.getElementById('closeSettingsModal'); // NEW
+        const togglePercentages = document.getElementById('togglePercentages'); // NEW
+        const toggleTips = document.getElementById('toggleTips'); // NEW
+        const clearAllDataButton = document.getElementById('clearAllDataButton'); // NEW
 
 
         function init() {
@@ -886,6 +945,19 @@ const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
             runComparisonButton.addEventListener('click', runComparison);
             // END NEW COMPARISON EVENT LISTENERS
             
+            // NEW SETTINGS EVENT LISTENERS
+            showSettingsButton.addEventListener('click', showSettingsModal);
+            closeSettingsModal.addEventListener('click', hideSettingsModal);
+            settingsModalContainer.addEventListener('click', (e) => {
+                if (e.target === settingsModalContainer) {
+                    hideSettingsModal();
+                }
+            });
+            togglePercentages.addEventListener('change', updateSettings);
+            toggleTips.addEventListener('change', updateSettings);
+            clearAllDataButton.addEventListener('click', clearAllLocalData);
+            // END NEW SETTINGS EVENT LISTENERS
+            
             cakeBadge.addEventListener('click', loadCakeWord);
             llamaBadge.addEventListener('click', loadLlamaWord); 
 
@@ -910,7 +982,50 @@ const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
                     displayCurrentWord(allWords[currentWordIndex]); 
                 }
             });
+            
+            // Apply initial settings state to toggles
+            loadSettings();
         }
+        
+        // --- SETTINGS LOGIC ---
+        
+        function loadSettings() {
+            togglePercentages.checked = userSettings.showPercentages;
+            toggleTips.checked = userSettings.showTips;
+        }
+
+        function updateSettings() {
+            userSettings.showPercentages = togglePercentages.checked;
+            userSettings.showTips = toggleTips.checked;
+            localStorage.setItem('userSettings', JSON.stringify(userSettings));
+            
+            // Clear message area when settings change
+            document.getElementById('postVoteMessage').textContent = 'Settings updated.';
+            setTimeout(() => {
+                document.getElementById('postVoteMessage').textContent = ' ';
+            }, 2000);
+        }
+
+        function showSettingsModal() {
+            loadSettings(); // Ensure toggles reflect current settings
+            settingsModalContainer.classList.remove('hidden');
+            settingsModalContainer.classList.add('flex');
+        }
+
+        function hideSettingsModal() {
+            settingsModalContainer.classList.remove('flex');
+            settingsModalContainer.classList.add('hidden');
+        }
+
+        function clearAllLocalData() {
+            if (confirm("Are you sure you want to clear ALL your local data (votes, awards, themes, streaks, settings)? This cannot be undone.")) {
+                localStorage.clear();
+                alert("All local data has been cleared. The application will now reload.");
+                window.location.reload();
+            }
+        }
+        
+        // --- END SETTINGS LOGIC ---
         
         // --- SWIPE LOGIC IMPLEMENTATION ---
 
@@ -956,6 +1071,7 @@ const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
                     currentWordIndex = newIndex;
                 }
                 displayCurrentWord(specialWord);
+                postVoteMessage.textContent = ' '; // Clear any previous message
             } else {
                  showMessage(`The word '${wordText}' is not currently in the database. Please submit it via the 'Submit Custom Word' button to enable testing.`, true);
             }
@@ -1053,7 +1169,7 @@ const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
             document.body.classList.add(`theme-${themeToApply}`);
 
             currentTheme = theme;
-            localStorage.setItem('currentTheme', theme);
+            localStorage.setItem('currentTheme', currentTheme);
             
             // 3. Manage effects visibility
             if (snowEffect) {
@@ -1171,6 +1287,7 @@ const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
             goodButton.disabled = true;
             badButton.disabled = true;
             notWordButton.disabled = true;
+            postVoteMessage.textContent = ' '; // Clear message area
 
             setTimeout(() => {
                 wordDisplay.classList.remove('animate-pulse');
@@ -1191,6 +1308,7 @@ const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
             goodButton.disabled = true;
             badButton.disabled = true;
             notWordButton.disabled = true;
+            postVoteMessage.textContent = ' '; // Clear message area
         }
         
         function showCooldownMessage(remainingSeconds) {
@@ -1205,7 +1323,57 @@ const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
             goodButton.disabled = true;
             badButton.disabled = true;
             notWordButton.disabled = true;
+            postVoteMessage.textContent = ' '; // Clear message area
         }
+        
+        // --- NEW POST-VOTE MESSAGE LOGIC ---
+        
+        function displayPostVoteMessage(word, voteType, themeUnlocked, awardAchieved) {
+            const messageDiv = document.getElementById('postVoteMessage');
+            
+            // 1. Prioritize Special Messages
+            if (themeUnlocked) {
+                messageDiv.textContent = `🎉 New theme unlocked! Check the theme chooser.`;
+                return;
+            }
+            if (awardAchieved) {
+                messageDiv.textContent = `🌟 New award unlocked! Check the badge area.`;
+                return;
+            }
+            
+            const isGoodOrBad = voteType === 'good' || voteType === 'bad';
+            
+            if (isGoodOrBad) {
+                const totalVotes = (word.goodVotes || 0) + (word.badVotes || 0);
+                
+                // 2. Percentage Message Logic
+                if (userSettings.showPercentages && totalVotes > 0) {
+                    const sameVotes = voteType === 'good' ? (word.goodVotes || 0) : (word.badVotes || 0);
+                    const percentage = Math.round((sameVotes / totalVotes) * 100);
+                    const voteText = voteType === 'good' ? 'Good' : 'Bad';
+                    
+                    messageDiv.textContent = `${voteText} vote registered! ${percentage}% of people also voted '${voteText}' for this word. (${sameVotes}/${totalVotes})`;
+                    return; 
+                }
+                
+                // 3. Tip Logic (Only if percentage is off or totalVotes is 0)
+                if (userSettings.showTips) {
+                    voteCounterForTips++;
+                    localStorage.setItem('voteCounterForTips', voteCounterForTips);
+                    
+                    if (voteCounterForTips % TIP_COOLDOWN === 0) {
+                        const tipIndex = Math.floor(Math.random() * TIPS.length);
+                        messageDiv.textContent = TIPS[tipIndex];
+                        return;
+                    }
+                }
+            }
+            
+            // 4. Default Empty State
+            messageDiv.textContent = ' ';
+        }
+        
+        // --- END NEW POST-VOTE MESSAGE LOGIC ---
 
         /**
          * Displays the current word, handling sizing and theme-specific styles.
@@ -1235,7 +1403,8 @@ const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
             wordDisplay.style.removeProperty('animation'); // Clear inline animation added by submitVote
             wordFrame.style.padding = '0';
             wordFrame.style.backgroundColor = 'transparent';
-            
+            postVoteMessage.textContent = ' '; // Clear message area on new word
+
             // 2. Apply theme-specific styles
             
             if (currentTheme === 'dark' || currentTheme === 'halloween' || currentTheme === 'submarine') { // ADDED SUBMARINE
@@ -1554,6 +1723,9 @@ const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
             const themeWasNewlyUnlocked = checkAndApplyTheme(currentWord.text);
             updateSpecialBadges(currentWord.text); // Permanent badge unlock 
 
+            let updatedWordData = currentWord;
+            let awardAchieved = false;
+
             try {
                 const response = await fetch(`/api/words/${wordId}/vote`, {
                     method: 'PUT',
@@ -1568,6 +1740,9 @@ const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
                     
                     const totalDelay = ((voteType === 'good' || voteType === 'bad') ? transitionDuration : 0);
                     
+                    // Display general message on cooldown for failed vote
+                    displayPostVoteMessage(currentWord, voteType, themeWasNewlyUnlocked, false); 
+                    
                     setTimeout(() => {
                         nextWord();
                         fetchWords(false); 
@@ -1575,12 +1750,26 @@ const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
                 } else if (!response.ok) {
                     throw new Error(result.message || "Failed to register vote.");
                 } else {
+                    
+                    // --- SUCCESSFUL VOTE HANDLING ---
+                    
+                    // Fetch the single word's updated stats to ensure percentage accuracy
+                    const updatedWordResponse = await fetch(`${API_BASE_URL}/${wordId}`);
+                    if (updatedWordResponse.ok) {
+                        updatedWordData = await updatedWordResponse.json();
+                        // Update the word in the local allWords array for rankings/next word selection
+                        Object.assign(currentWord, updatedWordData);
+                    } else {
+                        // Fallback: manually update the local data by incrementing the vote
+                         currentWord[`${voteType}Votes`] = (currentWord[`${voteType}Votes`] || 0) + 1;
+                         updatedWordData = currentWord;
+                    }
+
                     const previousVoteCount = voteCount; 
                     voteCount++;
                     localStorage.setItem('voteCount', voteCount);
                     updateAwardBadge();
                     
-                    let awardAchieved = false;
                     let awardName = '';
                     let emoji = '';
 
@@ -1588,7 +1777,7 @@ const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
                         awardName = 'Bronze Star';
                         emoji = '🥉';
                         awardAchieved = true;
-                    } else if (previousVoteCount < 25 && voteCount >= 25) {
+                    } else if (previousVoteCount < 25 && voteCount >= 25) { 
                         awardName = 'Silver Star';
                         emoji = '🥈';
                         awardAchieved = true;
@@ -1602,22 +1791,24 @@ const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
                         awardAchieved = true;
                     }
 
+                    // Display post-vote message
+                    displayPostVoteMessage(updatedWordData, voteType, themeWasNewlyUnlocked, awardAchieved);
 
-                    if (themeWasNewlyUnlocked) {
-                        const themeName = currentTheme.charAt(0).toUpperCase() + currentTheme.slice(1);
-                        showAwardMessageAndContinue(`'${themeName}' Theme`, '🎁');
-                    } else if (awardAchieved) {
-                        showAwardMessageAndContinue(awardName, emoji);
+                    if (themeWasNewlyUnlocked || awardAchieved) {
+                        const messageToDisplay = themeWasNewlyUnlocked 
+                            ? `'${currentTheme.charAt(0).toUpperCase() + currentTheme.slice(1)}' Theme`
+                            : awardName;
+                        const emojiToDisplay = themeWasNewlyUnlocked ? '🎁' : emoji;
+                            
+                        showAwardMessageAndContinue(messageToDisplay, emojiToDisplay);
                     } else {
                         // NORMAL FLOW
                         const transitionDelay = (voteType === 'good' || voteType === 'bad') ? transitionDuration : 0;
                         
-                        const totalDelay = transitionDelay; 
-                        
                         setTimeout(() => {
                             nextWord(); 
                             fetchWords(false); 
-                        }, totalDelay);
+                        }, transitionDelay);
                     }
                 }
             } catch (error) {
@@ -1628,6 +1819,7 @@ const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
                 badButton.disabled = false;
                 notWordButton.disabled = false;
                 voteStreak = 0; 
+                postVoteMessage.textContent = ' '; // Clear any pending message
             }
         }
 
@@ -2014,4 +2206,3 @@ const CONTRIBUTION_THRESHOLD = 1; // Unlock contributor badge at 1 submission
     </script>
 </body>
 </html>
-
