@@ -402,11 +402,11 @@
         </div>
     </div>
     
-    <div class="version-indicator">v4.4.4 | Made by Gilxs in 12,025</div>
+    <div class="version-indicator">v4.4.5 | Made by Gilxs in 12,025</div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '4.4.4'; 
+        const APP_VERSION = '4.4.5'; 
         
         // Special Words
         const BOOSTED_WORD = 'CAKE'; 
@@ -430,7 +430,13 @@
             "Tip: You can now cast a vote by swiping! Drag the word left for GOOD and right for BAD.",
             "Tip: Have you tried comparing words yet? Use the 'Compare Any Two Words' button!",
             "Tip: Tap the word on the card to see its definition!",
-            "Tip: Check out the theme chooser below to unlock new styles."
+            "Tip: Check out the theme chooser below to unlock new styles.",
+            "Tip: You can turn off these messages in the Settings.",
+            "Tip: Just the.",
+            "Tip: You could go outside for a stomp?",
+            "Tip: Nobody else has a clue what's going on either.",
+            "Tip: Ask them out for a coffee.",
+            "Tip: Can you smell burning toast?"
         ];
         const TIP_COOLDOWN = 4; 
         let voteCounterForTips = parseInt(localStorage.getItem('voteCounterForTips')) || 0;
@@ -454,7 +460,7 @@
         };
 
         let voteStreak = 0;
-        const MASH_LIMIT = 10;
+        const MASH_LIMIT = 5;
         const COOLDOWN_SECONDS = 10;
         const STREAK_WINDOW_MS = 1500; 
         let cooldownTimer = null;
@@ -1570,3 +1576,4 @@
     </script>
 </body>
 </html>
+
