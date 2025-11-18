@@ -286,7 +286,7 @@
         <button id="customWordButton" class="mt-4 text-sm text-gray-600 hover:text-gray-900 transition duration-150">Submit Custom Word</button>
     </main>
 
-    <div id="postVoteMessage" class="mt-4 w-full max-w-sm text-center text-sm font-medium text-gray-600 min-h-[1.5rem]"></div>
+    <div id="postVoteMessage" class="mt-4 w-full max-w-sm text-center text-sm font-medium text-gray-600 min-h-[1.5rem] transition-opacity duration-500 opacity-0"></div>
     
     <section class="mt-8 w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8">
         <div class="ranking-card card p-6 rounded-xl">
@@ -400,11 +400,11 @@
         </div>
     </div>
     
-    <div class="version-indicator">v4.3.1 | Made by Gilxs in 12,025</div>
+    <div class="version-indicator">v4.4.0 | Made by Gilxs in 12,025</div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '4.3.1'; 
+        const APP_VERSION = '4.4.0'; 
         
         const BOOSTED_WORD = 'CAKE'; 
         const BOOST_FACTOR = 2.0; 
@@ -423,6 +423,7 @@
         ];
         const TIP_COOLDOWN = 4; 
         let voteCounterForTips = parseInt(localStorage.getItem('voteCounterForTips')) || 0;
+        let messageTimeout = null; // NEW: Timer for message fade out
 
         let allWords = [];
         let currentWordIndex = 0;
@@ -446,13 +447,13 @@
         let isCoolingDown = false;
         let lastVoteTime = 0; 
         
-        // --- ENHANCED SWIPE TRACKING VARIABLES ---
+        // --- SWIPE TRACKING VARIABLES ---
         let isDragging = false;
         let startX = 0;
         let currentX = 0;
         let initialX = 0;
         let xOffset = 0;
-        const SWIPE_THRESHOLD = 100; // Increased slightly for deliberate throws
+        const SWIPE_THRESHOLD = 100; 
         // --- END SWIPE TRACKING VARIABLES ---
 
         // --- THEME VARIABLES ---
@@ -564,9 +565,9 @@
                 }
             });
             
-            // --- NEW: DRAG & SWIPE EVENT LISTENERS ---
+            // DRAG & SWIPE EVENT LISTENERS
             gameCard.addEventListener('touchstart', handleTouchStart, false);
-            gameCard.addEventListener('touchmove', handleTouchMove, { passive: false }); // passive: false to prevent scrolling
+            gameCard.addEventListener('touchmove', handleTouchMove, { passive: false }); 
             gameCard.addEventListener('touchend', handleTouchEnd, false);
             
             wordDisplay.addEventListener('click', showDefinitionModal);
@@ -633,10 +634,23 @@
             userSettings.showTips = toggleTips.checked;
             localStorage.setItem('userSettings', JSON.stringify(userSettings));
             
-            document.getElementById('postVoteMessage').textContent = 'Settings updated.';
+            // Flash settings saved message
+            const messageDiv = document.getElementById('postVoteMessage');
+            if (messageTimeout) clearTimeout(messageTimeout);
+            
+            messageDiv.classList.remove('opacity-100');
+            messageDiv.classList.add('opacity-0');
+            
             setTimeout(() => {
-                document.getElementById('postVoteMessage').textContent = ' ';
-            }, 2000);
+                messageDiv.textContent = 'Settings updated.';
+                messageDiv.classList.remove('opacity-0');
+                messageDiv.classList.add('opacity-100');
+                
+                messageTimeout = setTimeout(() => {
+                    messageDiv.classList.remove('opacity-100');
+                    messageDiv.classList.add('opacity-0');
+                }, 2000);
+            }, 150);
         }
         function showSettingsModal() {
             loadSettings(); 
@@ -655,70 +669,42 @@
             }
         }
         
-        // --- NEW DRAG & THROW LOGIC ---
+        // --- DRAG & THROW LOGIC ---
         function handleTouchStart(evt) {
             if (isCoolingDown || goodButton.disabled) return; 
-
             initialX = evt.touches[0].clientX;
             isDragging = true;
-            
-            // Stop any idle animations so dragging feels responsive
             wordDisplay.style.animation = 'none'; 
             wordDisplay.style.transition = 'none'; 
         }
-
         function handleTouchMove(evt) {
             if (!isDragging) return;
-            
-            // Prevent scrolling the page while trying to swipe the card
             evt.preventDefault(); 
-
             currentX = evt.touches[0].clientX;
             xOffset = currentX - initialX;
-
-            // Calculate rotation: 1 degree for every 20px moved
             const rotation = xOffset * 0.05; 
-            
-            // Apply the transform to the word
             wordDisplay.style.transform = `translateX(${xOffset}px) rotate(${rotation}deg)`;
-            
-            // Visual feedback on the text color opacity based on side
             if (xOffset > 0) {
-                // Dragging Right (BAD) - Red Tint Hint
                 wordDisplay.style.color = `rgba(239, 68, 68, ${0.5 + (Math.min(Math.abs(xOffset), 200)/400)})`; 
             } else {
-                // Dragging Left (GOOD) - Green Tint Hint
                 wordDisplay.style.color = `rgba(16, 185, 129, ${0.5 + (Math.min(Math.abs(xOffset), 200)/400)})`;
             }
         }
-
         function handleTouchEnd(evt) {
             if (!isDragging) return;
             isDragging = false;
-
-            // Determine if swipe was far enough
             if (Math.abs(xOffset) > SWIPE_THRESHOLD) {
                 const voteType = xOffset > 0 ? 'bad' : 'good';
-                
-                // Manual Exit Animation (The "Throw")
-                // Calculate a destination off-screen based on the velocity/direction
                 const endX = xOffset > 0 ? window.innerWidth : -window.innerWidth;
-                
                 wordDisplay.style.transition = 'transform 0.5s ease-out, opacity 0.5s ease-out';
                 wordDisplay.style.transform = `translateX(${endX}px) rotate(${xOffset * 0.1}deg)`;
                 wordDisplay.style.opacity = '0';
-                
-                // Call submitVote with fromSwipe = true
                 submitVote(voteType, true);
             } else {
-                // Snap Back (Reset)
-                wordDisplay.style.transition = 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), color 0.3s'; // Bouncy reset
+                wordDisplay.style.transition = 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), color 0.3s'; 
                 wordDisplay.style.transform = 'translateX(0px) rotate(0deg)';
-                
-                // Reset color based on theme
                 setTimeout(() => {
                      wordDisplay.style.color = ''; 
-                     // Re-apply ambient animations if specific themes are active
                      if (currentTheme === 'submarine') {
                          wordDisplay.style.animation = 'bobbing-word 2.5s ease-in-out infinite';
                      } else if (currentTheme === 'banana') {
@@ -726,28 +712,23 @@
                      } else if (currentTheme === 'rainbow') {
                          wordDisplay.style.animation = 'rainbow-text 5s ease infinite';
                      }
-                     // Re-apply theme colors if needed
                      displayCurrentWord(allWords[currentWordIndex]);
                 }, 300);
             }
-            
-            startX = 0;
-            currentX = 0;
-            xOffset = 0;
+            startX = 0; currentX = 0; xOffset = 0;
         }
-        // --- END DRAG & THROW LOGIC ---
         
         function findAndLoadSpecialWord(wordText) {
             const specialWord = allWords.find(w => w.text.toUpperCase() === wordText);
             if (specialWord) {
                 const newIndex = allWords.findIndex(w => w.text.toUpperCase() === wordText);
-                if (newIndex !== -1) {
-                    currentWordIndex = newIndex;
-                }
+                if (newIndex !== -1) currentWordIndex = newIndex;
                 displayCurrentWord(specialWord);
-                postVoteMessage.textContent = ' '; 
+                // Clear previous messages when manually switching
+                const messageDiv = document.getElementById('postVoteMessage');
+                messageDiv.classList.add('opacity-0');
             } else {
-                 showMessage(`The word '${wordText}' is not currently in the database. Please submit it via the 'Submit Custom Word' button to enable testing.`, true);
+                 showMessage(`The word '${wordText}' is not currently in the database.`, true);
             }
         }
         
@@ -766,14 +747,12 @@
                     localStorage.setItem('llamaBadgeUnlocked', 'true');
                 }
             }
-            
             if (cakeBadgeUnlocked) {
                 cakeBadge.classList.remove('hidden');
                 cakeBadge.classList.add('cursor-pointer');
             } else if (init) {
                 cakeBadge.classList.add('hidden', 'cursor-pointer'); 
             }
-            
             if (llamaBadgeUnlocked) {
                 llamaBadge.classList.remove('hidden');
                 llamaBadge.classList.add('cursor-pointer');
@@ -801,9 +780,7 @@
                 option.textContent = themeName;
                 themeChooser.appendChild(option);
             });
-            
             themeChooser.value = currentTheme;
-            
             if (availableThemes.length > 0) {
                 themeUnlockHint.textContent = `You have ${availableThemes.length} themes unlocked!`;
             } else {
@@ -847,7 +824,6 @@
                     unlockedThemes.push(newThemeToUnlock);
                     localStorage.setItem('unlockedThemes', JSON.stringify(unlockedThemes));
                     themeWasNewlyUnlocked = true;
-                    
                     applyTheme(newThemeToUnlock);
                     populateThemeChooser();
                     return true;
@@ -892,7 +868,10 @@
             goodButton.disabled = true;
             badButton.disabled = true;
             notWordButton.disabled = true;
-            postVoteMessage.textContent = ' '; 
+            
+            // Clear message area for the award
+            document.getElementById('postVoteMessage').classList.add('opacity-0');
+            
             setTimeout(() => {
                 wordDisplay.classList.remove('animate-pulse');
                 nextWord(); 
@@ -910,7 +889,6 @@
             goodButton.disabled = true;
             badButton.disabled = true;
             notWordButton.disabled = true;
-            postVoteMessage.textContent = ' '; 
         }
         
         function showCooldownMessage(remainingSeconds) {
@@ -923,36 +901,67 @@
             goodButton.disabled = true;
             badButton.disabled = true;
             notWordButton.disabled = true;
-            postVoteMessage.textContent = ' '; 
         }
         
+        // --- NEW: Updated display logic to allow combined messages and fading ---
         function displayPostVoteMessage(word, voteType, themeUnlocked, awardAchieved) {
             const messageDiv = document.getElementById('postVoteMessage');
-            if (themeUnlocked) { messageDiv.textContent = `🎉 New theme unlocked! Check the theme chooser.`; return; }
-            if (awardAchieved) { messageDiv.textContent = `🌟 New award unlocked! Check the badge area.`; return; }
             
-            const isGoodOrBad = voteType === 'good' || voteType === 'bad';
-            if (isGoodOrBad) {
-                const totalVotes = (word.goodVotes || 0) + (word.badVotes || 0);
-                if (userSettings.showPercentages && totalVotes > 0) {
-                    const sameVotes = voteType === 'good' ? (word.goodVotes || 0) : (word.badVotes || 0);
-                    const percentage = Math.round((sameVotes / totalVotes) * 100);
-                    const voteText = voteType === 'good' ? 'Good' : 'Bad';
-                    messageDiv.textContent = `${voteText} vote registered! ${percentage}% of people also voted '${voteText}' for this word. (${sameVotes}/${totalVotes})`;
-                    return; 
+            // Clear existing timeout to prevent overlap behavior
+            if (messageTimeout) clearTimeout(messageTimeout);
+
+            let contentParts = [];
+
+            if (themeUnlocked) {
+                contentParts.push(`🎉 New theme unlocked! Check the theme chooser.`);
+            } else if (awardAchieved) {
+                contentParts.push(`🌟 New award unlocked! Check the badge area.`);
+            } else {
+                const isGoodOrBad = voteType === 'good' || voteType === 'bad';
+                
+                // 1. Percentage Logic
+                if (isGoodOrBad && userSettings.showPercentages) {
+                    const totalVotes = (word.goodVotes || 0) + (word.badVotes || 0);
+                    if (totalVotes > 0) {
+                        const sameVotes = voteType === 'good' ? (word.goodVotes || 0) : (word.badVotes || 0);
+                        const percentage = Math.round((sameVotes / totalVotes) * 100);
+                        const voteText = voteType === 'good' ? 'Good' : 'Bad';
+                        contentParts.push(`${voteText} vote registered! ${percentage}% of people also voted '${voteText}'. (${sameVotes}/${totalVotes})`);
+                    }
                 }
-                if (userSettings.showTips) {
+
+                // 2. Tip Logic (Now runs independently of percentage logic)
+                if (isGoodOrBad && userSettings.showTips) {
                     voteCounterForTips++;
                     localStorage.setItem('voteCounterForTips', voteCounterForTips);
+                    
                     if (voteCounterForTips % TIP_COOLDOWN === 0) {
                         const tipIndex = Math.floor(Math.random() * TIPS.length);
-                        messageDiv.textContent = TIPS[tipIndex];
-                        return;
+                        contentParts.push(TIPS[tipIndex]);
                     }
                 }
             }
-            messageDiv.textContent = ' ';
+
+            if (contentParts.length === 0) return; // Nothing to show
+
+            // FADE OUT (Reset)
+            messageDiv.classList.remove('opacity-100');
+            messageDiv.classList.add('opacity-0');
+
+            // FADE IN (After short delay to allow reset)
+            setTimeout(() => {
+                messageDiv.innerHTML = contentParts.join('<br>'); // Combine messages
+                messageDiv.classList.remove('opacity-0');
+                messageDiv.classList.add('opacity-100');
+
+                // Set timer for fade out (5 seconds - increased readability time)
+                messageTimeout = setTimeout(() => {
+                    messageDiv.classList.remove('opacity-100');
+                    messageDiv.classList.add('opacity-0');
+                }, 5000); 
+            }, 150);
         }
+        // --- END NEW MESSAGE LOGIC ---
 
         function displayCurrentWord(currentWord) {
             if (!currentWord) { showMessage("No words available! Try submitting one.", false); return; }
@@ -967,7 +976,8 @@
             wordDisplay.style.textShadow = ''; wordDisplay.style.opacity = '1'; wordDisplay.style.cursor = 'default'; 
             wordDisplay.style.removeProperty('animation'); 
             wordFrame.style.padding = '0'; wordFrame.style.backgroundColor = 'transparent';
-            postVoteMessage.textContent = ' '; 
+            
+            // NOTE: postVoteMessage is NOT cleared here anymore to allow it to persist during transitions
 
             if (currentTheme === 'dark' || currentTheme === 'halloween' || currentTheme === 'submarine') { 
                 wordDisplay.style.color = '#f3f4f6'; 
@@ -1034,7 +1044,7 @@
             wordDisplay.style.whiteSpace = 'normal'; 
             
             if (!isCoolingDown && !currentWord.isSpecialMessage) {
-                wordDisplay.style.cursor = 'grab'; // UPDATED CURSOR
+                wordDisplay.style.cursor = 'grab'; 
                 goodButton.disabled = false;
                 badButton.disabled = false;
                 notWordButton.disabled = false;
@@ -1107,7 +1117,6 @@
             }
         }
 
-        // UPDATED SUBMIT VOTE FUNCTION TO SUPPORT SWIPE
         async function submitVote(voteType, fromSwipe = false) {
             if (isCoolingDown) {
                 const remaining = Math.ceil((cooldownEndTime - Date.now()) / 1000);
@@ -1157,7 +1166,6 @@
                 if (isCake) { /* handled below */ } 
                 else if (isLlama) { /* handled below */ } 
                 else if (!fromSwipe) {
-                    // ONLY animate if not from swipe
                     const animationName = voteType === 'good' ? 'slide-out-left-good' : 'slide-out-right-bad';
                     wordDisplay.style.animation = `${animationName} ${transitionDuration / 1000}s ease-out forwards`;
                 }
@@ -1250,7 +1258,7 @@
                 showMessage("Vote failed. Try again.", true);
                 wordDisplay.classList.remove('word-transition-good', 'word-transition-bad', 'word-fade-cake'); 
                 goodButton.disabled = false; badButton.disabled = false; notWordButton.disabled = false;
-                voteStreak = 0; postVoteMessage.textContent = ' '; 
+                voteStreak = 0; 
             }
         }
 
