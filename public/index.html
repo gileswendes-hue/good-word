@@ -254,26 +254,19 @@
     <div id="bubble-effect" class="fixed inset-0 pointer-events-none hidden"></div> 
     
     <header class="text-center mb-8 w-full max-w-lg">
-        <div id="logoArea" class="h-32 w-full flex items-center justify-center mb-4 relative">
-            <div id="leftBadgeContainer" class="absolute left-0 top-1/2 transform -translate-y-1/2 flex flex-col items-start space-y-1 pl-4">
-                <div id="cakeBadge" class="p-2 cursor-pointer text-3xl hidden transition duration-300 hover:scale-110" title="The cake is a lie! Click to go back to the word.">🎂</div>
-                <div id="llamaBadge" class="p-2 cursor-pointer text-3xl hidden transition duration-300 hover:scale-110" title="The Llama has vanished! Click to find the Llama word." >🦙</div>
-                <div id="potatoBadge" class="p-2 cursor-pointer text-3xl hidden transition duration-300 hover:scale-110" title="Potatoes gonna potate. Click to find the Potato word.">🥔</div>
-                <div id="squirrelBadge" class="p-2 cursor-pointer text-3xl hidden transition duration-300 hover:scale-110" title="SQUIRREL! Click to find the Squirrel word.">🐿️</div>
-            </div>
-            <img src="logo.png" alt="Good Word / Bad Word Logo" class="h-full w-auto max-w-full">
-            <div id="rightBadgeContainer" class="absolute right-0 top-1/2 transform -translate-y-1/2 flex flex-col items-end space-y-1 pr-4">
-                <div id="contributorBadge" class="p-2 cursor-help text-3xl hidden transition duration-300 hover:scale-110" title="Contributor Badge (0 Submissions)"></div>
-                <div id="awardBadge" class="p-2 cursor-help text-3xl transition duration-300 hover:scale-110"></div>
-            </div>
+    <div id="logoArea" class="h-32 w-full flex items-center justify-center mb-4 relative">
+        <div id="leftBadgeContainer" class="absolute left-0 top-1/2 transform -translate-y-1/2 grid grid-cols-2 gap-1 pl-4">
+            <div id="cakeBadge" class="p-2 cursor-pointer text-3xl hidden transition duration-300 hover:scale-110" title="The cake is a lie! Click to go back to the word.">🎂</div>
+            <div id="llamaBadge" class="p-2 cursor-pointer text-3xl hidden transition duration-300 hover:scale-110" title="The Llama has vanished! Click to find the Llama word." >🦙</div>
+            <div id="potatoBadge" class="p-2 cursor-pointer text-3xl hidden transition duration-300 hover:scale-110" title="Potatoes gonna potate. Click to find the Potato word.">🥔</div>
+            <div id="squirrelBadge" class="p-2 cursor-pointer text-3xl hidden transition duration-300 hover:scale-110" title="SQUIGGLE! Click to find the Squirrel word.">🐿️</div>
         </div>
-        <div class="mt-4 flex justify-around p-3 rounded-t-xl bg-white shadow-md vote-counts">
-            <div id="goodTotal" class="text-xl font-bold text-green-600">GOOD: 0</div>
-            <div id="badTotal" class="text-xl font-bold text-red-600">BAD: 0</div>
+        <img src="logo.png" alt="Good Word / Bad Word Logo" class="h-full w-auto max-w-full">
+        <div id="rightBadgeContainer" class="absolute right-0 top-1/2 transform -translate-y-1/2 flex flex-col items-end space-y-1 pr-4">
+            <div id="contributorBadge" class="p-2 cursor-help text-3xl hidden transition duration-300 hover:scale-110" title="Contributor Badge (0 Submissions)"></div>
+            <div id="awardBadge" class="p-2 cursor-help text-3xl transition duration-300 hover:scale-110"></div>
         </div>
-        <div class="flex justify-center p-2 rounded-b-xl bg-gray-50 shadow-md">
-            <div id="wordCount" class="text-sm font-semibold text-gray-500">Words in Database: 0</div>
-        </div>
+    </div>
     </header>
 
     <main id="gameCard" class="card p-8 w-full max-w-sm flex flex-col items-center rounded-2xl">
@@ -402,11 +395,11 @@
         </div>
     </div>
     
-    <div class="version-indicator">v4.4.5 | Made by Gilxs in 12,025</div>
+    <div class="version-indicator">v4.4.6 | Made by Gilxs in 12,025</div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '4.4.5'; 
+        const APP_VERSION = '4.4.6'; 
         
         // Special Words
         const BOOSTED_WORD = 'CAKE'; 
@@ -432,11 +425,12 @@
             "Tip: Tap the word on the card to see its definition!",
             "Tip: Check out the theme chooser below to unlock new styles.",
             "Tip: You can turn off these messages in the Settings.",
-            "Tip: Just the.",
+            "Tip: Don't go mistaking your house burning down for the dawn.",
             "Tip: You could go outside for a stomp?",
             "Tip: Nobody else has a clue what's going on either.",
             "Tip: Ask them out for a coffee.",
-            "Tip: Can you smell burning toast?"
+            "Tip: Can you smell burning toast?",
+            "Tip: TAP!"
         ];
         const TIP_COOLDOWN = 4; 
         let voteCounterForTips = parseInt(localStorage.getItem('voteCounterForTips')) || 0;
@@ -1576,4 +1570,5 @@
     </script>
 </body>
 </html>
+
 
