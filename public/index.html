@@ -400,11 +400,11 @@
         </div>
     </div>
     
-    <div class="version-indicator">v4.4.0 | Made by Gilxs in 12,025</div>
+    <div class="version-indicator">v4.4.3 | Made by Gilxs in 12,025</div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '4.4.0'; 
+        const APP_VERSION = '4.4.3'; 
         
         const BOOSTED_WORD = 'CAKE'; 
         const BOOST_FACTOR = 2.0; 
@@ -423,7 +423,7 @@
         ];
         const TIP_COOLDOWN = 4; 
         let voteCounterForTips = parseInt(localStorage.getItem('voteCounterForTips')) || 0;
-        let messageTimeout = null; // NEW: Timer for message fade out
+        let messageTimeout = null;
 
         let allWords = [];
         let currentWordIndex = 0;
@@ -624,7 +624,6 @@
             loadSettings();
         }
         
-        // --- SETTINGS LOGIC ---
         function loadSettings() {
             togglePercentages.checked = userSettings.showPercentages;
             toggleTips.checked = userSettings.showTips;
@@ -634,7 +633,6 @@
             userSettings.showTips = toggleTips.checked;
             localStorage.setItem('userSettings', JSON.stringify(userSettings));
             
-            // Flash settings saved message
             const messageDiv = document.getElementById('postVoteMessage');
             if (messageTimeout) clearTimeout(messageTimeout);
             
@@ -672,11 +670,16 @@
         // --- DRAG & THROW LOGIC ---
         function handleTouchStart(evt) {
             if (isCoolingDown || goodButton.disabled) return; 
+
+            // FIX: Stop swipe logic if touching a button or input
+            if (evt.target.closest('button') || evt.target.closest('input') || evt.target.closest('select')) return;
+
             initialX = evt.touches[0].clientX;
             isDragging = true;
             wordDisplay.style.animation = 'none'; 
             wordDisplay.style.transition = 'none'; 
         }
+
         function handleTouchMove(evt) {
             if (!isDragging) return;
             evt.preventDefault(); 
@@ -724,7 +727,6 @@
                 const newIndex = allWords.findIndex(w => w.text.toUpperCase() === wordText);
                 if (newIndex !== -1) currentWordIndex = newIndex;
                 displayCurrentWord(specialWord);
-                // Clear previous messages when manually switching
                 const messageDiv = document.getElementById('postVoteMessage');
                 messageDiv.classList.add('opacity-0');
             } else {
@@ -869,7 +871,6 @@
             badButton.disabled = true;
             notWordButton.disabled = true;
             
-            // Clear message area for the award
             document.getElementById('postVoteMessage').classList.add('opacity-0');
             
             setTimeout(() => {
@@ -903,15 +904,11 @@
             notWordButton.disabled = true;
         }
         
-        // --- NEW: Updated display logic to allow combined messages and fading ---
         function displayPostVoteMessage(word, voteType, themeUnlocked, awardAchieved) {
             const messageDiv = document.getElementById('postVoteMessage');
-            
-            // Clear existing timeout to prevent overlap behavior
             if (messageTimeout) clearTimeout(messageTimeout);
 
             let contentParts = [];
-
             if (themeUnlocked) {
                 contentParts.push(`🎉 New theme unlocked! Check the theme chooser.`);
             } else if (awardAchieved) {
@@ -919,7 +916,6 @@
             } else {
                 const isGoodOrBad = voteType === 'good' || voteType === 'bad';
                 
-                // 1. Percentage Logic
                 if (isGoodOrBad && userSettings.showPercentages) {
                     const totalVotes = (word.goodVotes || 0) + (word.badVotes || 0);
                     if (totalVotes > 0) {
@@ -930,11 +926,9 @@
                     }
                 }
 
-                // 2. Tip Logic (Now runs independently of percentage logic)
                 if (isGoodOrBad && userSettings.showTips) {
                     voteCounterForTips++;
                     localStorage.setItem('voteCounterForTips', voteCounterForTips);
-                    
                     if (voteCounterForTips % TIP_COOLDOWN === 0) {
                         const tipIndex = Math.floor(Math.random() * TIPS.length);
                         contentParts.push(TIPS[tipIndex]);
@@ -942,26 +936,22 @@
                 }
             }
 
-            if (contentParts.length === 0) return; // Nothing to show
+            if (contentParts.length === 0) return; 
 
-            // FADE OUT (Reset)
             messageDiv.classList.remove('opacity-100');
             messageDiv.classList.add('opacity-0');
 
-            // FADE IN (After short delay to allow reset)
             setTimeout(() => {
-                messageDiv.innerHTML = contentParts.join('<br>'); // Combine messages
+                messageDiv.innerHTML = contentParts.join('<br>'); 
                 messageDiv.classList.remove('opacity-0');
                 messageDiv.classList.add('opacity-100');
 
-                // Set timer for fade out (5 seconds - increased readability time)
                 messageTimeout = setTimeout(() => {
                     messageDiv.classList.remove('opacity-100');
                     messageDiv.classList.add('opacity-0');
                 }, 5000); 
             }, 150);
         }
-        // --- END NEW MESSAGE LOGIC ---
 
         function displayCurrentWord(currentWord) {
             if (!currentWord) { showMessage("No words available! Try submitting one.", false); return; }
@@ -977,8 +967,6 @@
             wordDisplay.style.removeProperty('animation'); 
             wordFrame.style.padding = '0'; wordFrame.style.backgroundColor = 'transparent';
             
-            // NOTE: postVoteMessage is NOT cleared here anymore to allow it to persist during transitions
-
             if (currentTheme === 'dark' || currentTheme === 'halloween' || currentTheme === 'submarine') { 
                 wordDisplay.style.color = '#f3f4f6'; 
                 if (currentTheme === 'halloween') {
