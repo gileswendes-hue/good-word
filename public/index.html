@@ -59,8 +59,8 @@
             transform: scale(0.9) !important;
         }
 
-        /* CAKE Quick Fade-Out */
-        .word-fade-cake {
+        /* CAKE/POTATO/SQUIRREL Quick Fade-Out */
+        .word-fade-quick {
             transition: opacity 0.3s ease-out, transform 0.3s ease-out;
             opacity: 0 !important; 
             transform: scale(0.95) !important;
@@ -257,7 +257,9 @@
         <div id="logoArea" class="h-32 w-full flex items-center justify-center mb-4 relative">
             <div id="leftBadgeContainer" class="absolute left-0 top-1/2 transform -translate-y-1/2 flex flex-col items-start space-y-1 pl-4">
                 <div id="cakeBadge" class="p-2 cursor-pointer text-3xl hidden transition duration-300 hover:scale-110" title="The cake is a lie! Click to go back to the word.">🎂</div>
-                <div id="llamaBadge" class="p-2 text-3xl hidden transition duration-300 hover:scale-110" title="The Llama has vanished! Click to find the Llama word." >🦙</div>
+                <div id="llamaBadge" class="p-2 cursor-pointer text-3xl hidden transition duration-300 hover:scale-110" title="The Llama has vanished! Click to find the Llama word." >🦙</div>
+                <div id="potatoBadge" class="p-2 cursor-pointer text-3xl hidden transition duration-300 hover:scale-110" title="Potatoes gonna potate. Click to find the Potato word.">🥔</div>
+                <div id="squirrelBadge" class="p-2 cursor-pointer text-3xl hidden transition duration-300 hover:scale-110" title="SQUIRREL! Click to find the Squirrel word.">🐿️</div>
             </div>
             <img src="logo.png" alt="Good Word / Bad Word Logo" class="h-full w-auto max-w-full">
             <div id="rightBadgeContainer" class="absolute right-0 top-1/2 transform -translate-y-1/2 flex flex-col items-end space-y-1 pr-4">
@@ -400,17 +402,26 @@
         </div>
     </div>
     
-    <div class="version-indicator">v4.4.3 | Made by Gilxs in 12,025</div>
+    <div class="version-indicator">v4.4.4 | Made by Gilxs in 12,025</div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '4.4.3'; 
+        const APP_VERSION = '4.4.4'; 
         
+        // Special Words
         const BOOSTED_WORD = 'CAKE'; 
-        const BOOST_FACTOR = 2.0; 
         const LLAMA_WORD = 'LLAMA';
+        const POTATO_WORD = 'POTATO';
+        const SQUIRREL_WORD = 'SQUIRREL';
+
+        const BOOST_FACTOR = 2.0; 
+        
+        // Probabilities (must sum up cleanly in logic, each is a slice)
         const CAKE_PROBABILITY = 0.005; 
         const LLAMA_PROBABILITY = 0.005;
+        const POTATO_PROBABILITY = 0.005;
+        const SQUIRREL_PROBABILITY = 0.005;
+
         const CONTRIBUTION_THRESHOLD = 5; 
         const CAKE_WORD_FADE_DURATION = 300; 
         const CAKE_MESSAGE_DURATION = 3000; 
@@ -431,8 +442,11 @@
         let voteCount = 0; 
         let contributorCount = 0; 
         
+        // Badge States
         let cakeBadgeUnlocked = localStorage.getItem('cakeBadgeUnlocked') === 'true';
         let llamaBadgeUnlocked = localStorage.getItem('llamaBadgeUnlocked') === 'true';
+        let potatoBadgeUnlocked = localStorage.getItem('potatoBadgeUnlocked') === 'true';
+        let squirrelBadgeUnlocked = localStorage.getItem('squirrelBadgeUnlocked') === 'true';
         
         let userSettings = JSON.parse(localStorage.getItem('userSettings')) || {
             showTips: true,
@@ -466,7 +480,7 @@
         const WINTER_STR = 'SNOWMAN|SNOW|ICE|WINTER|FROZEN|CHILL|COLD|FLAKE|BLIZZARD|ICICLE|SLEIGH|SNOWBALL|SCARF|JACKET|SLEDGE|NOVEMBER|DECEMBER|JANUARY|JINGLE'; 
         const SUMMER_STR = 'SUMMER|HOT|BEACH|HOLIDAY|SUN|VACATION|SWIM|SAND|POOL|JULY|AUGUST|JUNE'; 
         const HALLOWEEN_STR = 'HALLOWEEN|GHOST|PUMPKIN|SPIDER|SWEETS|COSTUME|SPOOKY|OCTOBER|WITCH|VAMPIRE|ZOMBIE|BAT|MONSTER'; 
-        const SUBMARINE_STR = 'SUBMARINE|WATER|WAVES||PLYMOUTH|BRIXHAM|PIRATE|SEA|AQUATIC|AQUA|DEEP|OCTOPUS'; 
+        const SUBMARINE_STR = 'SUBMARINE|WATER|WAVES|PLYMOUTH|BRIXHAM|PIRATE|SEA|AQUATIC|AQUA|DEEP|OCTOPUS|RUM|SHIP'; 
 
         const THEME_WORDS = {
             'rainbow': RAINBOW_STR.split('|'),
@@ -497,8 +511,13 @@
         const customWordButton = document.getElementById('customWordButton');
         const versionIndicator = document.querySelector('.version-indicator');
         const awardBadge = document.getElementById('awardBadge');
+        
+        // Badge Elements
         const cakeBadge = document.getElementById('cakeBadge'); 
         const llamaBadge = document.getElementById('llamaBadge'); 
+        const potatoBadge = document.getElementById('potatoBadge');
+        const squirrelBadge = document.getElementById('squirrelBadge');
+
         const contributorBadge = document.getElementById('contributorBadge'); 
         const showTop100Button = document.getElementById('showTop100Button');
         const fullRankingsModalContainer = document.getElementById('fullRankingsModalContainer');
@@ -598,8 +617,11 @@
             toggleTips.addEventListener('change', updateSettings);
             clearAllDataButton.addEventListener('click', clearAllLocalData);
             
+            // Badge Listeners
             cakeBadge.addEventListener('click', loadCakeWord);
-            llamaBadge.addEventListener('click', loadLlamaWord); 
+            llamaBadge.addEventListener('click', loadLlamaWord);
+            potatoBadge.addEventListener('click', loadPotatoWord);
+            squirrelBadge.addEventListener('click', loadSquirrelWord);
 
             themeChooser.addEventListener('change', (e) => {
                 applyTheme(e.target.value);
@@ -671,7 +693,7 @@
         function handleTouchStart(evt) {
             if (isCoolingDown || goodButton.disabled) return; 
 
-            // FIX: Stop swipe logic if touching a button or input
+            // Stop swipe logic if touching a button or input
             if (evt.target.closest('button') || evt.target.closest('input') || evt.target.closest('select')) return;
 
             initialX = evt.touches[0].clientX;
@@ -736,6 +758,8 @@
         
         function loadCakeWord() { findAndLoadSpecialWord(BOOSTED_WORD); }
         function loadLlamaWord() { findAndLoadSpecialWord(LLAMA_WORD); }
+        function loadPotatoWord() { findAndLoadSpecialWord(POTATO_WORD); }
+        function loadSquirrelWord() { findAndLoadSpecialWord(SQUIRREL_WORD); }
 
         function updateSpecialBadges(votedWordText = null, init = false) {
             if (votedWordText) {
@@ -748,19 +772,47 @@
                     llamaBadgeUnlocked = true;
                     localStorage.setItem('llamaBadgeUnlocked', 'true');
                 }
+                if (upperWord === POTATO_WORD) {
+                    potatoBadgeUnlocked = true;
+                    localStorage.setItem('potatoBadgeUnlocked', 'true');
+                }
+                if (upperWord === SQUIRREL_WORD) {
+                    squirrelBadgeUnlocked = true;
+                    localStorage.setItem('squirrelBadgeUnlocked', 'true');
+                }
             }
+            
+            // Cake
             if (cakeBadgeUnlocked) {
                 cakeBadge.classList.remove('hidden');
                 cakeBadge.classList.add('cursor-pointer');
             } else if (init) {
                 cakeBadge.classList.add('hidden', 'cursor-pointer'); 
             }
+            
+            // Llama
             if (llamaBadgeUnlocked) {
                 llamaBadge.classList.remove('hidden');
                 llamaBadge.classList.add('cursor-pointer');
             } else if (init) {
                 llamaBadge.classList.add('hidden'); 
                 llamaBadge.classList.remove('cursor-pointer');
+            }
+
+            // Potato
+            if (potatoBadgeUnlocked) {
+                potatoBadge.classList.remove('hidden');
+                potatoBadge.classList.add('cursor-pointer');
+            } else if (init) {
+                potatoBadge.classList.add('hidden', 'cursor-pointer'); 
+            }
+
+            // Squirrel
+            if (squirrelBadgeUnlocked) {
+                squirrelBadge.classList.remove('hidden');
+                squirrelBadge.classList.add('cursor-pointer');
+            } else if (init) {
+                squirrelBadge.classList.add('hidden', 'cursor-pointer'); 
             }
         }
 
@@ -957,7 +1009,7 @@
             if (!currentWord) { showMessage("No words available! Try submitting one.", false); return; }
             const wordText = currentWord.text.toUpperCase();
             
-            wordDisplay.classList.remove('word-transition-good', 'word-transition-bad', 'word-fade-llama', 'word-fade-cake'); 
+            wordDisplay.classList.remove('word-transition-good', 'word-transition-bad', 'word-fade-llama', 'word-fade-cake', 'word-fade-quick'); 
             wordDisplay.textContent = wordText;
             wordDisplay.className = 'font-extrabold text-gray-900 text-center min-h-[72px]';
             
@@ -1044,8 +1096,15 @@
             const random = Math.random();
             let specialWordText = null, specialWordIndex = -1;
 
-            if (!cakeBadgeUnlocked && random < CAKE_PROBABILITY) { specialWordText = BOOSTED_WORD; } 
-            else if (!llamaBadgeUnlocked && random >= CAKE_PROBABILITY && random < (CAKE_PROBABILITY + LLAMA_PROBABILITY)) { specialWordText = LLAMA_WORD; }
+            if (!cakeBadgeUnlocked && random < CAKE_PROBABILITY) { 
+                specialWordText = BOOSTED_WORD; 
+            } else if (!llamaBadgeUnlocked && random >= CAKE_PROBABILITY && random < (CAKE_PROBABILITY + LLAMA_PROBABILITY)) { 
+                specialWordText = LLAMA_WORD; 
+            } else if (!potatoBadgeUnlocked && random >= (CAKE_PROBABILITY + LLAMA_PROBABILITY) && random < (CAKE_PROBABILITY + LLAMA_PROBABILITY + POTATO_PROBABILITY)) {
+                specialWordText = POTATO_WORD;
+            } else if (!squirrelBadgeUnlocked && random >= (CAKE_PROBABILITY + LLAMA_PROBABILITY + POTATO_PROBABILITY) && random < (CAKE_PROBABILITY + LLAMA_PROBABILITY + POTATO_PROBABILITY + SQUIRREL_PROBABILITY)) {
+                specialWordText = SQUIRREL_WORD;
+            }
 
             if (specialWordText) {
                 specialWordIndex = allWords.findIndex(w => w.text.toUpperCase() === specialWordText);
@@ -1142,6 +1201,8 @@
 
             const isCake = currentWord.text.toUpperCase() === BOOSTED_WORD; 
             const isLlama = currentWord.text.toUpperCase() === LLAMA_WORD;
+            const isPotato = currentWord.text.toUpperCase() === POTATO_WORD;
+            const isSquirrel = currentWord.text.toUpperCase() === SQUIRREL_WORD;
             
             goodButton.disabled = true;
             badButton.disabled = true;
@@ -1151,8 +1212,7 @@
             const transitionDuration = 700; 
             
             if (voteType === 'good' || voteType === 'bad') {
-                if (isCake) { /* handled below */ } 
-                else if (isLlama) { /* handled below */ } 
+                if (isCake || isLlama || isPotato || isSquirrel) { /* handled below */ } 
                 else if (!fromSwipe) {
                     const animationName = voteType === 'good' ? 'slide-out-left-good' : 'slide-out-right-bad';
                     wordDisplay.style.animation = `${animationName} ${transitionDuration / 1000}s ease-out forwards`;
@@ -1182,6 +1242,32 @@
                     wordDisplay.style.fontSize = '1rem'; 
                     setTimeout(() => { nextWord(); fetchWords(false); }, 2000); 
                 }, 8000);
+                return; 
+            }
+
+            if (isPotato) {
+                wordDisplay.classList.add('word-fade-quick'); 
+                updateSpecialBadges(currentWord.text);
+                setTimeout(() => {
+                    wordDisplay.classList.remove('word-fade-quick'); 
+                    wordDisplay.style.opacity = '1'; wordDisplay.style.transform = 'none'; 
+                    showMessage("Potatoes gonna potate.", false); 
+                    wordDisplay.style.fontSize = '1.5rem'; 
+                    setTimeout(() => { nextWord(); fetchWords(false); }, 2000); 
+                }, 300); 
+                return; 
+            }
+
+            if (isSquirrel) {
+                wordDisplay.classList.add('word-fade-quick'); 
+                updateSpecialBadges(currentWord.text);
+                setTimeout(() => {
+                    wordDisplay.classList.remove('word-fade-quick'); 
+                    wordDisplay.style.opacity = '1'; wordDisplay.style.transform = 'none'; 
+                    showMessage("SQUIRREL!", false); 
+                    wordDisplay.style.fontSize = '3rem'; 
+                    setTimeout(() => { nextWord(); fetchWords(false); }, 1500); 
+                }, 300); 
                 return; 
             }
 
@@ -1244,7 +1330,7 @@
             } catch (error) {
                 console.error('Error submitting vote:', error);
                 showMessage("Vote failed. Try again.", true);
-                wordDisplay.classList.remove('word-transition-good', 'word-transition-bad', 'word-fade-cake'); 
+                wordDisplay.classList.remove('word-transition-good', 'word-transition-bad', 'word-fade-cake', 'word-fade-quick'); 
                 goodButton.disabled = false; badButton.disabled = false; notWordButton.disabled = false;
                 voteStreak = 0; 
             }
