@@ -464,7 +464,7 @@
         </div>
     </div>
     
-    <div class="version-indicator">v4.6.2 | Made by <a href="mailto:gileswendes@gmail.com">Gilxs</a> in 12,025</div>
+    <div id="versionIndicator" class="version-indicator"></div>
 
     <script>
         const API_BASE_URL = '/api/words';
@@ -561,6 +561,18 @@
             'submarine': 'U1VCTUFSSU5FfFdBVEVSfFdBVkVTfFBMWU1PVVRIfEJSSVhIQU18UElSQVRFfFNFQXxBUVVBVElDfEFRVUF8REVFUHxPQ1RPUFVTfFJVTXxTSElQ',
             'fire': 'RklSRXxCVVJOfEhPVHxIRUxMfElORkVSTk98RkxBTUV8Q09BTFN8Q1JBQ0tMRXxUT0FTVHxIRUFU'
         };
+
+        const versionIndicator = document.getElementById('versionIndicator');
+
+if (versionIndicator) {
+    // We add Tailwind classes to the <a> tag:
+    // text-blue-500: Makes the text a standard blue color.
+    // hover:text-blue-700: Adds a darker blue color on hover.
+    // underline: Explicitly adds the underline.
+    const linkHtml = `<a href="mailto:gileswendes@gmail.com" class="text-blue-500 hover:text-blue-700">Gilxs</a>`;
+
+    versionIndicator.innerHTML = `v${APP_VERSION} | Made by ${linkHtml} in 12,025`;
+}
 
         function decodeSecret(str) {
             try {
@@ -1728,5 +1740,6 @@
     </script>
 </body>
 </html>
+
 
 
