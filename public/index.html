@@ -319,9 +319,9 @@
     <div id="logoArea" class="h-32 w-full flex items-center justify-center mb-4 relative">
         <div id="leftBadgeContainer" class="absolute left-0 top-1/2 transform -translate-y-1/2 grid grid-cols-2 gap-1 pl-4">
             <div id="cakeBadge" class="p-2 cursor-pointer text-3xl hidden transition duration-300 hover:scale-110" title="The cake is a lie! Click to go back to the word.">🎂</div>
-            <div id="llamaBadge" class="p-2 cursor-pointer text-3xl hidden transition duration-300 hover:scale-110" title="The Llama has vanished! Click to find the Llama word." >🦙</div>
-            <div id="potatoBadge" class="p-2 cursor-pointer text-3xl hidden transition duration-300 hover:scale-110" title="Potatoes gonna potate. Click to find the Potato word.">🥔</div>
-            <div id="squirrelBadge" class="p-2 cursor-pointer text-3xl hidden transition duration-300 hover:scale-110" title="SQUIGGLE! Click to find the Squirrel word.">🐿️</div>
+            <div id="llamaBadge" class="p-2 cursor-pointer text-3xl hidden transition duration-300 hover:scale-110" title="The Llama has vanished! Click to go back to the word." >🦙</div>
+            <div id="potatoBadge" class="p-2 cursor-pointer text-3xl hidden transition duration-300 hover:scale-110" title="Potatoes gonna potate. Click to go back to the word.">🥔</div>
+            <div id="squirrelBadge" class="p-2 cursor-pointer text-3xl hidden transition duration-300 hover:scale-110" title="SQUIGGLE! Click to go back to the word.">🐿️</div>
         </div>
         <img src="logo.png" alt="Good Word / Bad Word Logo" class="h-full w-auto max-w-full transform translate-x-4">
         <div id="rightBadgeContainer" class="absolute right-0 top-1/2 transform -translate-y-1/2 flex flex-col items-end space-y-1 pr-4">
@@ -1410,8 +1410,8 @@
                 setTimeout(() => {
                     wordDisplay.classList.remove('word-fade-quick'); 
                     wordDisplay.style.opacity = '1'; wordDisplay.style.transform = 'none'; 
-                    showMessage("SQUIRREL!", false); 
-                    wordDisplay.style.fontSize = '3rem'; 
+                    showMessage("SQUIGGLE!", false); 
+                    wordDisplay.style.fontSize = '1.5rem'; 
                     setTimeout(() => { nextWord(); fetchWords(false); }, 1500); 
                 }, 300); 
                 return; 
@@ -1716,4 +1716,5 @@
     </script>
 </body>
 </html>
+
 
