@@ -120,15 +120,19 @@
         .theme-rainbow .thin-rainbow-frame {
             position: relative; background-color: #fff; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
         }
+        /* Updated: Thicker border (inset -6px) */
         .theme-rainbow .thin-rainbow-frame::before {
-            content: ''; position: absolute; inset: -3px; border-radius: 1.25rem; 
+            content: ''; position: absolute; inset: -6px; border-radius: 1.25rem; 
             background: linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #9400d3, #ff0000);
             background-size: 400% 400%; animation: rotate-border 20s linear infinite; z-index: -3; 
         }
         .theme-rainbow .thin-rainbow-frame::after {
             content: ''; position: absolute; inset: -1px; border-radius: 1.1rem; background-color: #ffffff; z-index: -2; 
         }
-        .theme-rainbow #gameCard { padding: 1.5rem; }
+        /* Updated: Increased padding */
+        .theme-rainbow #gameCard { padding: 2.5rem !important; }
+        .theme-rainbow .ranking-card { padding: 2rem !important; }
+
         .theme-rainbow #wordFrame { padding: 0; background-color: transparent; margin-bottom: 1.5rem; }
         .theme-rainbow #wordDisplay {
             background: linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #9400d3);
@@ -263,8 +267,8 @@
         </div>
         <img src="logo.png" alt="Good Word / Bad Word Logo" class="h-full w-auto max-w-full transform translate-x-4">
         <div id="rightBadgeContainer" class="absolute right-0 top-1/2 transform -translate-y-1/2 flex flex-col items-end space-y-1 pr-4">
-            <div id="contributorBadge" class="p-2 cursor-help text-3xl hidden transition duration-300 hover:scale-110" title="Contributor Badge (0 Submissions)"></div>
-            <div id="awardBadge" class="p-2 cursor-help text-3xl transition duration-300 hover:scale-110"></div>
+            <div id="contributorBadge" class="p-2 cursor-pointer text-3xl hidden transition duration-300 hover:scale-110" title="Contributor Badge (0 Submissions)"></div>
+            <div id="awardBadge" class="p-2 cursor-pointer text-3xl transition duration-300 hover:scale-110"></div>
         </div>
     </div>
     <div class="mt-4 flex justify-around p-3 rounded-t-xl bg-white shadow-md vote-counts">
@@ -402,11 +406,11 @@
         </div>
     </div>
     
-    <div class="version-indicator">v4.4.6 | Made by Gilxs in 12,025</div>
+    <div class="version-indicator">v4.4.7 | Made by Gilxs in 12,025</div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '4.4.6'; 
+        const APP_VERSION = '4.4.7'; 
         
         // Special Words
         const BOOSTED_WORD = 'CAKE'; 
@@ -630,6 +634,10 @@
             llamaBadge.addEventListener('click', loadLlamaWord);
             potatoBadge.addEventListener('click', loadPotatoWord);
             squirrelBadge.addEventListener('click', loadSquirrelWord);
+
+            // Stats Badge Listeners (UPDATED)
+            awardBadge.addEventListener('click', () => showStatsMessage('award'));
+            contributorBadge.addEventListener('click', () => showStatsMessage('contributor'));
 
             themeChooser.addEventListener('change', (e) => {
                 applyTheme(e.target.value);
@@ -899,19 +907,22 @@
 
         function updateAwardBadge() {
             let star = '', title = '';
-            if (voteCount >= 250) { star = '🏆'; title = `Platinum Star Award! (${voteCount} Votes)`; } 
-            else if (voteCount >= 50) { star = '🌟'; title = `Gold Star Award! (${voteCount} Votes)`; } 
-            else if (voteCount >= 25) { star = '🥈'; title = `Silver Star Award! (${voteCount} Votes)`; } 
-            else if (voteCount >= 5) { star = '🥉'; title = `Bronze Star Award! (${voteCount} Votes)`; } 
-            else { star = '😶'; title = `Votes: ${voteCount}. Next Award: Bronze (5 Votes)`; }
+            if (voteCount >= 250) { star = '🏆'; title = `Platinum Star Award!`; } 
+            else if (voteCount >= 50) { star = '🌟'; title = `Gold Star Award!`; } 
+            else if (voteCount >= 25) { star = '🥈'; title = `Silver Star Award!`; } 
+            else if (voteCount >= 5) { star = '🥉'; title = `Bronze Star Award!`; } 
+            else { star = '😶'; title = `Next Award: Bronze (5 Votes)`; }
+            
             awardBadge.textContent = star;
-            awardBadge.title = title;
+            // Combined stats string
+            awardBadge.title = `${title} (Total Votes: ${voteCount} | Submitted: ${contributorCount})`;
         }
         
         function updateContributorBadge() {
             if (contributorCount >= CONTRIBUTION_THRESHOLD) {
                 contributorBadge.textContent = '✍️';
-                contributorBadge.title = `Contributor Badge Unlocked! (${contributorCount} Submissions)`;
+                // Combined stats string
+                contributorBadge.title = `Contributor Badge Unlocked! (Total Votes: ${voteCount} | Submitted: ${contributorCount})`;
                 contributorBadge.classList.remove('hidden');
             } else {
                 contributorBadge.textContent = '';
@@ -963,46 +974,85 @@
             badButton.disabled = true;
             notWordButton.disabled = true;
         }
-        
-        function displayPostVoteMessage(word, voteType, themeUnlocked, awardAchieved) {
+
+        // NEW FUNCTION: Displays stats in the message area on click
+        function showStatsMessage(type) {
             const messageDiv = document.getElementById('postVoteMessage');
             if (messageTimeout) clearTimeout(messageTimeout);
 
-            let contentParts = [];
-            if (themeUnlocked) {
-                contentParts.push(`🎉 New theme unlocked! Check the theme chooser.`);
-            } else if (awardAchieved) {
-                contentParts.push(`🌟 New award unlocked! Check the badge area.`);
-            } else {
-                const isGoodOrBad = voteType === 'good' || voteType === 'bad';
+            let msg = '';
+            if (type === 'award') {
+                let title = 'No Award Yet';
+                if (voteCount >= 250) title = 'Platinum Star Award';
+                else if (voteCount >= 50) title = 'Gold Star Award';
+                else if (voteCount >= 25) title = 'Silver Star Award';
+                else if (voteCount >= 5) title = 'Bronze Star Award';
                 
-                if (isGoodOrBad && userSettings.showPercentages) {
-                    const totalVotes = (word.goodVotes || 0) + (word.badVotes || 0);
-                    if (totalVotes > 0) {
-                        const sameVotes = voteType === 'good' ? (word.goodVotes || 0) : (word.badVotes || 0);
-                        const percentage = Math.round((sameVotes / totalVotes) * 100);
-                        const voteText = voteType === 'good' ? 'Good' : 'Bad';
-                        contentParts.push(`${voteText} vote registered! ${percentage}% of people also voted '${voteText}'. (${sameVotes}/${totalVotes})`);
-                    }
-                }
-
-                if (isGoodOrBad && userSettings.showTips) {
-                    voteCounterForTips++;
-                    localStorage.setItem('voteCounterForTips', voteCounterForTips);
-                    if (voteCounterForTips % TIP_COOLDOWN === 0) {
-                        const tipIndex = Math.floor(Math.random() * TIPS.length);
-                        contentParts.push(TIPS[tipIndex]);
-                    }
-                }
+                msg = `🏆 ${title}<br>Total Votes: ${voteCount} | Submitted: ${contributorCount}`;
+            } else {
+                msg = `✍️ Contributor Stats<br>Total Votes: ${voteCount} | Submitted: ${contributorCount}`;
             }
-
-            if (contentParts.length === 0) return; 
 
             messageDiv.classList.remove('opacity-100');
             messageDiv.classList.add('opacity-0');
 
             setTimeout(() => {
-                messageDiv.innerHTML = contentParts.join('<br>'); 
+                messageDiv.innerHTML = msg;
+                messageDiv.classList.remove('opacity-0');
+                messageDiv.classList.add('opacity-100');
+
+                messageTimeout = setTimeout(() => {
+                    messageDiv.classList.remove('opacity-100');
+                    messageDiv.classList.add('opacity-0');
+                }, 3000);
+            }, 150);
+        }
+        
+        function displayPostVoteMessage(word, voteType, themeUnlocked, awardAchieved) {
+            const messageDiv = document.getElementById('postVoteMessage');
+            if (messageTimeout) clearTimeout(messageTimeout);
+
+            let messageContent = '';
+            const isGoodOrBad = voteType === 'good' || voteType === 'bad';
+            
+            // Determine which message should show (Mutual Exclusion Logic)
+            if (themeUnlocked) {
+                messageContent = `🎉 New theme unlocked! Check the theme chooser.`;
+            } else if (awardAchieved) {
+                messageContent = `🌟 New award unlocked! Check the badge area.`;
+            } else if (isGoodOrBad) {
+                // Check if tip should be shown first
+                let showTip = false;
+                if (userSettings.showTips) {
+                    voteCounterForTips++;
+                    localStorage.setItem('voteCounterForTips', voteCounterForTips);
+                    if (voteCounterForTips % TIP_COOLDOWN === 0) {
+                        showTip = true;
+                    }
+                }
+
+                if (showTip) {
+                     const tipIndex = Math.floor(Math.random() * TIPS.length);
+                     messageContent = TIPS[tipIndex];
+                } else if (userSettings.showPercentages) {
+                    // Show stats only if tip isn't showing
+                    const totalVotes = (word.goodVotes || 0) + (word.badVotes || 0);
+                    if (totalVotes > 0) {
+                        const sameVotes = voteType === 'good' ? (word.goodVotes || 0) : (word.badVotes || 0);
+                        const percentage = Math.round((sameVotes / totalVotes) * 100);
+                        const voteText = voteType === 'good' ? 'Good' : 'Bad';
+                        messageContent = `${voteText} vote registered! ${percentage}% of people also voted '${voteText}'. (${sameVotes}/${totalVotes})`;
+                    }
+                }
+            }
+
+            if (!messageContent) return; 
+
+            messageDiv.classList.remove('opacity-100');
+            messageDiv.classList.add('opacity-0');
+
+            setTimeout(() => {
+                messageDiv.innerHTML = messageContent;
                 messageDiv.classList.remove('opacity-0');
                 messageDiv.classList.add('opacity-100');
 
@@ -1578,11 +1628,3 @@
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
