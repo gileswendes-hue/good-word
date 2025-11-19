@@ -411,11 +411,11 @@
         </div>
     </div>
     
-    <div class="version-indicator">v4.4.8 | Made by Gilxs in 12,025</div>
+    <div class="version-indicator">v4.4.9 | Made by Gilxs in 12,025</div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '4.4.8'; 
+        const APP_VERSION = '4.4.9'; 
         
         // Special Words
         const BOOSTED_WORD = 'CAKE'; 
@@ -1009,9 +1009,12 @@
                 else if (voteCount >= 25) title = 'Silver Star Award';
                 else if (voteCount >= 5) title = 'Bronze Star Award';
                 
-                msg = `🏆 ${title}<br>Total Votes: ${voteCount} | Submitted: ${contributorCount}`;
+                // Changed: Now shows Award + Total User Votes
+                msg = `🏆 ${title}<br>Total Votes Cast: ${voteCount}`;
             } else {
-                msg = `✍️ Contributor Stats<br>Total Votes: ${voteCount} | Submitted: ${contributorCount}`;
+                // Changed: Now shows User Submissions + Total Words in Database
+                const totalGlobal = allWords.length;
+                msg = `✍️ Contributor Stats<br>You Submitted: ${contributorCount} | Total Words in DB: ${totalGlobal}`;
             }
 
             messageDiv.classList.remove('opacity-100');
