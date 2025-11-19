@@ -464,11 +464,11 @@
         </div>
     </div>
     
-    <div class="version-indicator">v4.5.2 | Made by Gilxs in 12,025</div>
+    <div class="version-indicator">v4.6.1 | Made by Gilxs in 12,025</div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '4.5.2'; 
+        const APP_VERSION = '4.6.1'; 
         
         // Special Words
         const BOOSTED_WORD = 'CAKE'; 
@@ -550,24 +550,36 @@
         let currentTheme = localStorage.getItem('currentTheme') || 'default';
         let unlockedThemes = JSON.parse(localStorage.getItem('unlockedThemes')) || [];
         
-        const RAINBOW_STR = 'RAINBOW|GAY|SPARKLE|COLOUR|PRIDE|UNICORN|PROUD|QUEER|GLITTER|LESBIAN|TINSEL';
-        const DARK_REVERSED_STR = 'THGINDIM!KCALB!EDAHS!HTOG!WODAHS!AJNIN!KRAD!THGIN!HTLAETS'; 
-        const BANANA_STR = 'BANANA|BANANAS|PLANTAIN|YELLOW|SPLIT|MONKEY|HAMMOCK';
-        const WINTER_STR = 'SNOWMAN|SNOW|ICE|WINTER|FROZEN|CHILL|COLD|FLAKE|BLIZZARD|ICICLE|SLEIGH|SNOWBALL|SCARF|JACKET|SLEDGE|NOVEMBER|DECEMBER|JANUARY|JINGLE'; 
-        const SUMMER_STR = 'SUMMER|HOT|BEACH|HOLIDAY|SUN|VACATION|SWIM|SAND|POOL|JULY|AUGUST|JUNE'; 
-        const HALLOWEEN_STR = 'HALLOWEEN|GHOST|PUMPKIN|SPIDER|SWEETS|COSTUME|SPOOKY|OCTOBER|WITCH|VAMPIRE|ZOMBIE|BAT|MONSTER'; 
-        const SUBMARINE_STR = 'SUBMARINE|WATER|WAVES|PLYMOUTH|BRIXHAM|PIRATE|SEA|AQUATIC|AQUA|DEEP|OCTOPUS|RUM|SHIP'; 
-        const FIRE_STR = 'FIRE|BURN|HOT|HELL|INFERNO|FLAME|COALS|CRACKLE|TOAST|HEAT';
+        // Base64 Encoded Theme Triggers
+        const ENCODED_THEMES = {
+            'rainbow': 'UkFJTkJPV3xHQVl8U1BBUktMRXxDT0xPVVJ8UFJJREV8VU5JQ09STnxQUk9VRHxRVUVFUnxHTElUVEVSfExFU0JJQU58VElOU0VM',
+            'dark': 'TUlETklHSFR8QkxBQ0t8U0hBREV8R09USHxTSEFET1d8TklOSkF8REFSS3xOSUdIVHxTVEVBTFRI',
+            'banana': 'QkFOQU5BfEJBTkFOQVN8UExBTlRBSU58WUVMTE9XfFNQTElUfE1vbktFWXxIQU1NT0NL',
+            'winter': 'U05PV01BTnxTTk9XfElDRXxXSU5URVJ8RlJPWkVOfENISUxMfENPTER8RkxBS0V8QkxJWlpBUkR8SUNJQ0xFfFNMRUlHSHxTTk9XQkFMTHxTQ0FSRnxKQUNLRVR8U0xFREdFfE5PVkVNQkVSfERFQ0VNQkVSfEpBTlVBUll8SklOR0xF',
+            'summer': 'U1VNTUVSfEhPVHxCRUFDSHxIT0xJREFZfFNVTnxWQUNBVElPTnxTV0lNfFNBTkR8UE9PTHxKVUxZfEFVR1VTVHxKVU5F',
+            'halloween': 'SEFMTE9XRUVOfEdIT1NUfFBVTVBLSU58U1BJREVSfFNXRUVUU3xDT1NUVU1FfFNQT09LWXxPQ1RPQkVSfFdJVENIfFZBTVBJUkV8Wk9NQklFfEJBVHxNT05TVEVS',
+            'submarine': 'U1VCTUFSSU5FfFdBVEVSfFdBVkVTfFBMWU1PVVRIfEJSSVhIQU18UElSQVRFfFNFQXxBUVVBVElDfEFRVUF8REVFUHxPQ1RPUFVTfFJVTXxTSElQ',
+            'fire': 'RklSRXxCVVJOfEhPVHxIRUxMfElORkVSTk98RkxBTUV8Q09BTFN8Q1JBQ0tMRXxUT0FTVHxIRUFU'
+        };
+
+        function decodeSecret(str) {
+            try {
+                return atob(str).split('|');
+            } catch (e) {
+                console.error("Error decoding theme secrets");
+                return [];
+            }
+        }
 
         const THEME_WORDS = {
-            'rainbow': RAINBOW_STR.split('|'),
-            'dark': DARK_REVERSED_STR.split('!').map(w => w.split('').reverse().join('')), 
-            'banana': BANANA_STR.split('|'),
-            'winter': WINTER_STR.split('|'),
-            'summer': SUMMER_STR.split('|'),
-            'halloween': HALLOWEEN_STR.split('|'),
-            'submarine': SUBMARINE_STR.split('|'),
-            'fire': FIRE_STR.split('|')
+            'rainbow': decodeSecret(ENCODED_THEMES.rainbow),
+            'dark': decodeSecret(ENCODED_THEMES.dark),
+            'banana': decodeSecret(ENCODED_THEMES.banana),
+            'winter': decodeSecret(ENCODED_THEMES.winter),
+            'summer': decodeSecret(ENCODED_THEMES.summer),
+            'halloween': decodeSecret(ENCODED_THEMES.halloween),
+            'submarine': decodeSecret(ENCODED_THEMES.submarine),
+            'fire': decodeSecret(ENCODED_THEMES.fire)
         };
 
         const wordFrame = document.getElementById('wordFrame'); 
@@ -1716,5 +1728,3 @@
     </script>
 </body>
 </html>
-
-
