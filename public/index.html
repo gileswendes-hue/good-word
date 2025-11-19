@@ -114,13 +114,16 @@
 
         /* 1. RAINBOW THEME */
         body.theme-rainbow { background: #f7f7f7 !important; }
-        .theme-rainbow .card, .theme-rainbow .ranking-card {
-            background-color: transparent; backdrop-filter: none; box-shadow: none; border: none; position: relative; z-index: 10; 
-        }
+        
+        /* Specific overrides for when elements have the rainbow frame */
         .theme-rainbow .thin-rainbow-frame {
-            position: relative; background-color: #fff; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            position: relative; 
+            background-color: transparent; /* Rely on ::after for white bg */
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            border: none;
+            z-index: 10;
         }
-        /* Updated: Thicker border (inset -6px) */
+        /* Thicker border: inset -6px */
         .theme-rainbow .thin-rainbow-frame::before {
             content: ''; position: absolute; inset: -6px; border-radius: 1.25rem; 
             background: linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #9400d3, #ff0000);
@@ -129,9 +132,11 @@
         .theme-rainbow .thin-rainbow-frame::after {
             content: ''; position: absolute; inset: -1px; border-radius: 1.1rem; background-color: #ffffff; z-index: -2; 
         }
-        /* Updated: Increased padding */
-        .theme-rainbow #gameCard { padding: 2.5rem !important; }
-        .theme-rainbow .ranking-card { padding: 2rem !important; }
+
+        /* Increase padding for rainbow cards to look spacious */
+        .theme-rainbow #gameCard, .theme-rainbow .ranking-card { 
+            padding: 2.5rem !important; 
+        }
 
         .theme-rainbow #wordFrame { padding: 0; background-color: transparent; margin-bottom: 1.5rem; }
         .theme-rainbow #wordDisplay {
@@ -297,13 +302,13 @@
     <section class="mt-8 w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8">
         <div class="ranking-card card p-6 rounded-xl">
             <h2 class="text-xl font-bold text-green-700 mb-4 border-b pb-2">Top Good Words</h2>
-            <div class="ranking-frame thin-rainbow-frame rounded-xl">
+            <div class="ranking-frame rounded-xl">
                 <div id="goodRankings" class="space-y-2"><p class="text-gray-500">No data yet.</p></div>
             </div>
         </div>
         <div class="ranking-card card p-6 rounded-xl">
             <h2 class="text-xl font-bold text-red-700 mb-4 border-b pb-2">Top Bad Words</h2>
-            <div class="ranking-frame thin-rainbow-frame rounded-xl">
+            <div class="ranking-frame rounded-xl">
                 <div id="badRankings" class="space-y-2"><p class="text-gray-500">No data yet.</p></div>
             </div>
         </div>
@@ -406,11 +411,11 @@
         </div>
     </div>
     
-    <div class="version-indicator">v4.4.7 | Made by Gilxs in 12,025</div>
+    <div class="version-indicator">v4.4.8 | Made by Gilxs in 12,025</div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '4.4.7'; 
+        const APP_VERSION = '4.4.8'; 
         
         // Special Words
         const BOOSTED_WORD = 'CAKE'; 
@@ -868,12 +873,28 @@
             if (snowEffect) snowEffect.classList.toggle('hidden', theme !== 'winter');
             if (bubbleEffect) bubbleEffect.classList.toggle('hidden', theme !== 'submarine');
 
+            const rankingCards = document.querySelectorAll('.ranking-card');
+
             if (theme === 'rainbow') {
-                gameCard.classList.add('thin-rainbow-frame', 'p-6');
-                gameCard.classList.remove('card', 'p-8');
+                gameCard.classList.add('thin-rainbow-frame');
+                // Increase padding for rainbow theme for breathing room (was p-8, now p-10)
+                // Actually keeping standard p-8 on gameCard looks fine, but prompt said p-10 for thicker feeling
+                // Let's match CSS logic: .theme-rainbow #gameCard is forced to padding: 2.5rem (p-10 equivalent)
+                
+                gameCard.classList.remove('card'); // Remove default shadow/blur
+
+                rankingCards.forEach(card => {
+                    card.classList.add('thin-rainbow-frame');
+                    card.classList.remove('card');
+                });
             } else {
-                gameCard.classList.remove('thin-rainbow-frame', 'p-6');
-                gameCard.classList.add('card', 'p-8');
+                gameCard.classList.remove('thin-rainbow-frame');
+                gameCard.classList.add('card'); 
+
+                rankingCards.forEach(card => {
+                    card.classList.remove('thin-rainbow-frame');
+                    card.classList.add('card');
+                });
             }
         }
 
