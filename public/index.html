@@ -255,12 +255,73 @@
              background-image: radial-gradient(7px 7px at 20% 5%, rgba(176, 224, 230, 0.5), transparent), radial-gradient(8px 8px at 70% 35%, rgba(176, 224, 230, 0.5), transparent);
             background-size: 500px 600px; opacity: 0.9; animation: bubble-rise-2 75s linear infinite; animation-delay: -30s; 
         }
+        
+        /* 8. FIRE THEME */
+        body.theme-fire { background-color: rgb(48,8,8) !important; }
+        
+        .theme-fire #gameCard, .theme-fire .ranking-card {
+             background-color: rgba(48, 8, 8, 0.95) !important; 
+             border: 2px solid #ff5000 !important;
+             box-shadow: 0 0 30px rgba(255, 80, 0, 0.3), 0 15px 40px rgba(0, 0, 0, 0.7) !important;
+             padding: 2.5rem !important; /* Consistent sizing */
+        }
+        
+        .theme-fire #wordDisplay { 
+            color: #ff5000; 
+            text-shadow: 0 0 10px #ff5000, 0 0 20px #ff0000; 
+        }
+        .theme-fire .text-gray-900, .theme-fire .rank-item .text-gray-800 { color: #ffdcd0 !important; }
+        .theme-fire .text-gray-500, .theme-fire .text-gray-600 { color: #a66 !important; }
+        .theme-fire h2 { color: #ff5000 !important; }
+        .theme-fire header .bg-white { background-color: #3d0a0a !important; color: #ffb3b3; }
+        .theme-fire header .bg-gray-50 { background-color: #2b0505 !important; }
+        .theme-fire .border-b { border-color: #801010 !important; }
+
+        /* Fire Effect Container */
+        .theme-fire #fire-effect {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh; 
+            pointer-events: none;
+            z-index: 5;
+            overflow: hidden;
+        }
+
+        /* Particle Animation */
+        .fire-particle {
+            position: absolute;
+            bottom: 0;
+            border-radius: 50%;
+            mix-blend-mode: screen;
+            background-image: radial-gradient(rgb(255, 80, 0) 20%, rgba(255, 80, 0, 0) 70%);
+            opacity: 0;
+            width: 5em; /* Corresponds to $partSize */
+            height: 5em;
+            animation: fire-rise 1s ease-in infinite;
+        }
+
+        @keyframes fire-rise {
+            from {
+                opacity: 0;
+                transform: translateY(0) scale(1);
+            }
+            25% {
+                opacity: 1;
+            }
+            to {
+                opacity: 0;
+                transform: translateY(-80vh) scale(0); 
+            }
+        }
     </style>
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen p-4 theme-default">
 
     <div id="snow-effect" class="fixed inset-0 pointer-events-none hidden"></div> 
     <div id="bubble-effect" class="fixed inset-0 pointer-events-none hidden"></div> 
+    <div id="fire-effect" class="hidden"></div>
     
 <header class="text-center mb-8 w-full max-w-lg">
     <div id="logoArea" class="h-32 w-full flex items-center justify-center mb-4 relative">
@@ -411,11 +472,11 @@
         </div>
     </div>
     
-    <div class="version-indicator">v4.4.9 | Made by Gilxs in 12,025</div>
+    <div class="version-indicator">v4.5.1 | Made by Gilxs in 12,025</div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '4.4.9'; 
+        const APP_VERSION = '4.5.1'; 
         
         // Special Words
         const BOOSTED_WORD = 'CAKE'; 
@@ -447,6 +508,8 @@
             "Tip: Ask them out for a coffee.",
             "Tip: Can you smell burning toast?",
             "Tip: Your bedroom.",
+            "Tip: Words are, of course, the most powerful drug used by mankind.",
+            "Tip: Nothing travels faster than the speed of light, with the possible exception of bad news, which obeys its own special laws.",
             "Tip: Play with friends! Not this, something classic like chess or Tetris."
         ];
         const TIP_COOLDOWN = 4; 
@@ -498,6 +561,7 @@
         const SUMMER_STR = 'SUMMER|HOT|BEACH|HOLIDAY|SUN|VACATION|SWIM|SAND|POOL|JULY|AUGUST|JUNE'; 
         const HALLOWEEN_STR = 'HALLOWEEN|GHOST|PUMPKIN|SPIDER|SWEETS|COSTUME|SPOOKY|OCTOBER|WITCH|VAMPIRE|ZOMBIE|BAT|MONSTER'; 
         const SUBMARINE_STR = 'SUBMARINE|WATER|WAVES|PLYMOUTH|BRIXHAM|PIRATE|SEA|AQUATIC|AQUA|DEEP|OCTOPUS|RUM|SHIP'; 
+        const FIRE_STR = 'FIRE|BURN|HOT|HELL|INFERNO|FLAME|COALS|CRACKLE|TOAST|HEAT';
 
         const THEME_WORDS = {
             'rainbow': RAINBOW_STR.split('|'),
@@ -506,7 +570,8 @@
             'winter': WINTER_STR.split('|'),
             'summer': SUMMER_STR.split('|'),
             'halloween': HALLOWEEN_STR.split('|'),
-            'submarine': SUBMARINE_STR.split('|')
+            'submarine': SUBMARINE_STR.split('|'),
+            'fire': FIRE_STR.split('|')
         };
 
         const wordFrame = document.getElementById('wordFrame'); 
@@ -546,6 +611,7 @@
         const themeUnlockHint = document.getElementById('themeUnlockHint');
         const snowEffect = document.getElementById('snow-effect'); 
         const bubbleEffect = document.getElementById('bubble-effect');
+        const fireEffect = document.getElementById('fire-effect');
         
         const definitionModalContainer = document.getElementById('definitionModalContainer');
         const closeDefinitionModal = document.getElementById('closeDefinitionModal');
@@ -862,6 +928,28 @@
                 themeUnlockHint.textContent = `Vote on special words to unlock new themes!`;
             }
         }
+        
+        // Generate random fire particles
+        function generateFireParticles() {
+            if (!fireEffect) return;
+            fireEffect.innerHTML = '';
+            const parts = 50;
+            
+            for (let i = 0; i < parts; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'fire-particle';
+                
+                // Random delay 0 to 1s
+                const delay = Math.random();
+                // Random left position
+                const left = (i / parts) * 100; // Spread evenly, can add noise if desired
+
+                particle.style.animationDelay = `${delay}s`;
+                particle.style.left = `calc((100% - 5em) * ${left/100})`;
+                
+                fireEffect.appendChild(particle);
+            }
+        }
 
         function applyTheme(theme) {
             document.body.className = document.body.className.split(' ').filter(c => !c.startsWith('theme-')).join(' ');
@@ -872,16 +960,22 @@
             
             if (snowEffect) snowEffect.classList.toggle('hidden', theme !== 'winter');
             if (bubbleEffect) bubbleEffect.classList.toggle('hidden', theme !== 'submarine');
+            
+            if (fireEffect) {
+                if (theme === 'fire') {
+                    fireEffect.classList.remove('hidden');
+                    generateFireParticles();
+                } else {
+                    fireEffect.classList.add('hidden');
+                    fireEffect.innerHTML = ''; // Clear to save performance
+                }
+            }
 
             const rankingCards = document.querySelectorAll('.ranking-card');
 
             if (theme === 'rainbow') {
                 gameCard.classList.add('thin-rainbow-frame');
-                // Increase padding for rainbow theme for breathing room (was p-8, now p-10)
-                // Actually keeping standard p-8 on gameCard looks fine, but prompt said p-10 for thicker feeling
-                // Let's match CSS logic: .theme-rainbow #gameCard is forced to padding: 2.5rem (p-10 equivalent)
-                
-                gameCard.classList.remove('card'); // Remove default shadow/blur
+                gameCard.classList.remove('card'); 
 
                 rankingCards.forEach(card => {
                     card.classList.add('thin-rainbow-frame');
@@ -1012,9 +1106,8 @@
                 // Changed: Now shows Award + Total User Votes
                 msg = `🏆 ${title}<br>Total Votes Cast: ${voteCount}`;
             } else {
-                // Changed: Now shows User Submissions + Total Words in Database
-                const totalGlobal = allWords.length;
-                msg = `✍️ Contributor Stats<br>You Submitted: ${contributorCount} | Total Words in DB: ${totalGlobal}`;
+                // Changed: Now shows User Submissions only (removed Total DB count)
+                msg = `✍️ Contributor Stats<br>You Submitted: ${contributorCount}`;
             }
 
             messageDiv.classList.remove('opacity-100');
@@ -1101,7 +1194,7 @@
             wordDisplay.style.removeProperty('animation'); 
             wordFrame.style.padding = '0'; wordFrame.style.backgroundColor = 'transparent';
             
-            if (currentTheme === 'dark' || currentTheme === 'halloween' || currentTheme === 'submarine') { 
+            if (currentTheme === 'dark' || currentTheme === 'halloween' || currentTheme === 'submarine' || currentTheme === 'fire') { 
                 wordDisplay.style.color = '#f3f4f6'; 
                 if (currentTheme === 'halloween') {
                     wordDisplay.style.color = '#FF8C00'; 
@@ -1112,6 +1205,10 @@
                     wordDisplay.style.textShadow = '0 0 10px rgba(176, 224, 230, 0.7), 0 0 5px rgba(255, 255, 255, 0.3)';
                     wordDisplay.style.transform = 'translateY(0)'; 
                     wordDisplay.style.animation = 'bobbing-word 2.5s ease-in-out infinite';
+                }
+                if (currentTheme === 'fire') {
+                    wordDisplay.style.color = '#ff5000'; 
+                    wordDisplay.style.textShadow = '0 0 10px #ff5000, 0 0 20px #ff0000'; 
                 }
             } else if (currentTheme === 'banana') {
                 wordDisplay.style.transform = 'translateY(0)';
