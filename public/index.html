@@ -475,11 +475,11 @@
         </div>
     </div>
     
-    <div class="version-indicator">v4.6.2 | Made by <a href="mailto:gileswendes@gmail.com">Gilxs</a> in 12,025</div>
+    <div class="version-indicator">v4.6.8 | Made by <a href="mailto:gileswendes@gmail.com">Gilxs</a> in 12,025</div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '4.6.2'; 
+        const APP_VERSION = '4.6.8'; 
         
         // Special Words
         const BOOSTED_WORD = 'CAKE'; 
@@ -508,6 +508,9 @@
             "Tip: Don't go mistaking your house burning down for the dawn.",
             "Tip: You could go outside for a stomp?",
             "Tip: Nobody else has a clue what's going on either.",
+            "Tip: That's right I've got a floor, so what?",
+            "Tip: Wear sunscreen.",
+            "Tip: How thick is wall?",
             "Tip: Ask them out for a coffee.",
             "Tip: Can you smell burning toast?",
             "Tip: Time is an illusion. Lunchtime doubly so.",
@@ -968,7 +971,7 @@
                 flake.className = 'snow-particle';
                 
                 // Size variation (Depth of field)
-                const size = Math.random() * 5 + 2; // 2px to 7px
+                const size = Math.random() * 12 + 5; // 5px to 12px
                 flake.style.width = `${size}px`;
                 flake.style.height = `${size}px`;
                 
@@ -989,7 +992,7 @@
                 flake.style.setProperty('--sway', `${sway}px`);
 
                 // Animation duration (fall speed)
-                const duration = Math.random() * 10 + 5; // 5s to 15s
+                const duration = Math.random() * 15 + 8; // 8s to 15s
                 flake.style.animationDuration = `${duration}s`;
                 
                 // Delay so they don't all start at once
@@ -1824,3 +1827,4 @@
     </script>
 </body>
 </html>
+
