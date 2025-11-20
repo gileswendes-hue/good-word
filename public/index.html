@@ -10,6 +10,7 @@
         body { 
             font-family: 'Inter', sans-serif; 
             overscroll-behavior-y: none; 
+            overflow-x: hidden; /* FIX: Prevents horizontal scroll expansion during animations */
         }
         /* Base styling for all cards */
         .card { 
@@ -475,11 +476,11 @@
         </div>
     </div>
     
-    <div class="version-indicator">v4.6.2 | Made by <a href="mailto:gileswendes@gmail.com">Gilxs</a> in 12,025</div>
+    <div class="version-indicator">v4.6.4 | Made by Gilxs in 12,025</div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '4.6.2'; 
+        const APP_VERSION = '4.6.4'; 
         
         // Special Words
         const BOOSTED_WORD = 'CAKE'; 
@@ -509,6 +510,7 @@
             "Tip: You could go outside for a stomp?",
             "Tip: Nobody else has a clue what's going on either.",
             "Tip: Ask them out for a coffee.",
+            "Tip: That's right I've got a floor, so what?",
             "Tip: Can you smell burning toast?",
             "Tip: Time is an illusion. Lunchtime doubly so.",
             "Tip: It is better to keep your mouth closed and let people think you are a fool than to open it and remove all doubt.",
@@ -516,7 +518,7 @@
             "Tip: You might roll your eyes at this, but I’m so glad that you exist.",
             "Tip: Play with friends! Not this, something classic like chess or Tetris."
         ];
-        const TIP_COOLDOWN = 4; 
+        const TIP_COOLDOWN = 8; 
         let voteCounterForTips = parseInt(localStorage.getItem('voteCounterForTips')) || 0;
         let messageTimeout = null;
 
@@ -526,7 +528,6 @@
         let voteCount = 0; 
         let contributorCount = 0; 
 
-        // History Buffer (New in v4.5.2)
         let recentWordHistory = [];
         const HISTORY_SIZE = 300; 
         
@@ -961,38 +962,30 @@
         function generateSnowParticles() {
             if (!snowEffect) return;
             snowEffect.innerHTML = '';
-            const flakes = 60; // Number of snowflakes
+            const flakes = 60; 
             
             for (let i = 0; i < flakes; i++) {
                 const flake = document.createElement('div');
                 flake.className = 'snow-particle';
                 
-                // Size variation (Depth of field)
-                const size = Math.random() * 5 + 2; // 2px to 7px
+                // Size variation: 5px to 12px (Increased size)
+                const size = Math.random() * 7 + 5; 
                 flake.style.width = `${size}px`;
                 flake.style.height = `${size}px`;
                 
-                // Opacity variation
                 flake.style.opacity = Math.random() * 0.6 + 0.3;
                 
-                // Blur for depth (smaller ones are blurrier/further)
-                if (size < 4) {
+                if (size < 8) {
                     flake.style.filter = `blur(${Math.random() * 2}px)`;
                 }
 
-                // Random starting position
                 flake.style.left = `${Math.random() * 100}vw`;
                 
-                // Sway calculation (Wind) - applied via CSS Variable
-                // Random number between -50px and 50px
                 const sway = (Math.random() - 0.5) * 100; 
                 flake.style.setProperty('--sway', `${sway}px`);
 
-                // Animation duration (fall speed)
-                const duration = Math.random() * 10 + 5; // 5s to 15s
+                const duration = Math.random() * 10 + 5; 
                 flake.style.animationDuration = `${duration}s`;
-                
-                // Delay so they don't all start at once
                 flake.style.animationDelay = `-${Math.random() * 15}s`;
 
                 snowEffect.appendChild(flake);
