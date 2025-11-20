@@ -164,28 +164,32 @@
             box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15) !important; padding: 2rem !important; 
         }
         
-        /* 4. WINTER THEME */
+        /* 4. WINTER THEME (New Realistic Snow) */
         body.theme-winter { background: linear-gradient(135deg, #e0f7fa 0%, #b3e5fc 100%) !important; }
         .theme-winter #wordDisplay { color: #01579b; text-shadow: 0 0 8px rgba(255, 255, 255, 0.8); }
         .theme-winter #gameCard {
             background-color: rgba(255, 255, 255, 0.9) !important; border: 2px solid #81d4fa !important; 
             box-shadow: 0 15px 40px rgba(179, 229, 252, 0.5) !important; padding: 2rem !important; 
         }
-        @keyframes snowfall-1 { 0% { transform: translate3d(0vw, -100vh, 0); } 100% { transform: translate3d(10vw, 100vh, 0); } }
-        @keyframes snowfall-2 { 0% { transform: translate3d(0vw, -100vh, 0); } 100% { transform: translate3d(-15vw, 100vh, 0); } }
+
         .theme-winter #snow-effect {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; overflow: hidden; z-index: 40; pointer-events: none;
         }
-        .theme-winter #snow-effect::before, .theme-winter #snow-effect::after {
-            content: ''; position: absolute; top: -100vh; left: 0; width: 100%; height: 200%; background-repeat: repeat;
+
+        .snow-particle {
+            position: absolute;
+            top: -20px;
+            border-radius: 50%;
+            background: white;
+            pointer-events: none;
+            /* Fall animation using CSS Variable for Sway distance */
+            animation: snow-fall linear infinite;
         }
-        .theme-winter #snow-effect::before {
-            background-image: radial-gradient(4px 4px at 5% 10%, #fff, transparent), radial-gradient(5px 5px at 95% 40%, #fff, transparent);
-            background-size: 300px 350px; opacity: 0.6; animation: snowfall-1 50s linear infinite; animation-delay: -5s; 
-        }
-        .theme-winter #snow-effect::after {
-            background-image: radial-gradient(7px 7px at 20% 5%, #fff, transparent), radial-gradient(8px 8px at 70% 35%, #fff, transparent);
-            background-size: 500px 600px; opacity: 0.9; animation: snowfall-2 75s linear infinite; animation-delay: -30s; 
+
+        @keyframes snow-fall {
+            0% { transform: translate(0, 0); opacity: 0; }
+            10% { opacity: 1; }
+            100% { transform: translate(var(--sway), 110vh); opacity: 0; }
         }
 
         /* 5. SUMMER THEME */
@@ -932,33 +936,66 @@
         function generateBubbleParticles() {
             if (!bubbleEffect) return;
             bubbleEffect.innerHTML = '';
-            const parts = 40; // Increased number of bubbles
-            
-            // Define a few "vents" or cluster centers (percent of width)
+            const parts = 40; 
             const clusters = [10, 30, 70, 90];
             
             for (let i = 0; i < parts; i++) {
                 const particle = document.createElement('div');
                 particle.className = 'bubble-particle';
-                
-                // Size variation
-                const size = Math.random() * 30 + 10; // 10px to 40px
+                const size = Math.random() * 30 + 10; 
                 particle.style.width = `${size}px`;
                 particle.style.height = `${size}px`;
-                
-                // Position Logic: Pick a cluster center, then jitter around it
                 const clusterCenter = clusters[Math.floor(Math.random() * clusters.length)];
-                const jitter = (Math.random() - 0.5) * 20; // +/- 10% spread
+                const jitter = (Math.random() - 0.5) * 20; 
                 const left = clusterCenter + jitter;
                 particle.style.left = `${left}%`;
-
-                // Animation properties
-                const duration = Math.random() * 10 + 10; // 10s to 20s rise time
-                const delay = Math.random() * 15; // Start delay
+                const duration = Math.random() * 10 + 10; 
+                const delay = Math.random() * 15; 
                 particle.style.animationDuration = `${duration}s`;
-                particle.style.animationDelay = `-${delay}s`; // Negative delay to start mid-screen
-
+                particle.style.animationDelay = `-${delay}s`; 
                 bubbleEffect.appendChild(particle);
+            }
+        }
+        
+        // Generate Realistic Snow Particles
+        function generateSnowParticles() {
+            if (!snowEffect) return;
+            snowEffect.innerHTML = '';
+            const flakes = 60; // Number of snowflakes
+            
+            for (let i = 0; i < flakes; i++) {
+                const flake = document.createElement('div');
+                flake.className = 'snow-particle';
+                
+                // Size variation (Depth of field)
+                const size = Math.random() * 5 + 2; // 2px to 7px
+                flake.style.width = `${size}px`;
+                flake.style.height = `${size}px`;
+                
+                // Opacity variation
+                flake.style.opacity = Math.random() * 0.6 + 0.3;
+                
+                // Blur for depth (smaller ones are blurrier/further)
+                if (size < 4) {
+                    flake.style.filter = `blur(${Math.random() * 2}px)`;
+                }
+
+                // Random starting position
+                flake.style.left = `${Math.random() * 100}vw`;
+                
+                // Sway calculation (Wind) - applied via CSS Variable
+                // Random number between -50px and 50px
+                const sway = (Math.random() - 0.5) * 100; 
+                flake.style.setProperty('--sway', `${sway}px`);
+
+                // Animation duration (fall speed)
+                const duration = Math.random() * 10 + 5; // 5s to 15s
+                flake.style.animationDuration = `${duration}s`;
+                
+                // Delay so they don't all start at once
+                flake.style.animationDelay = `-${Math.random() * 15}s`;
+
+                snowEffect.appendChild(flake);
             }
         }
 
@@ -969,7 +1006,16 @@
             currentTheme = theme;
             localStorage.setItem('currentTheme', currentTheme);
             
-            if (snowEffect) snowEffect.classList.toggle('hidden', theme !== 'winter');
+            // Handle Winter/Snow Theme
+            if (snowEffect) {
+                if (theme === 'winter') {
+                    snowEffect.classList.remove('hidden');
+                    generateSnowParticles();
+                } else {
+                    snowEffect.classList.add('hidden');
+                    snowEffect.innerHTML = '';
+                }
+            }
             
             if (bubbleEffect) {
                 if (theme === 'submarine') {
