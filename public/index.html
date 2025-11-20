@@ -10,7 +10,6 @@
         body { 
             font-family: 'Inter', sans-serif; 
             overscroll-behavior-y: none; 
-            overflow-x: hidden; /* FIX: Prevents horizontal scroll expansion during animations */
         }
         /* Base styling for all cards */
         .card { 
@@ -67,14 +66,17 @@
             transform: scale(0.95) !important;
         }
 
+        /* OPTIMIZED ANIMATIONS: 
+           Removed color transition to prevent mobile repaint stutter on heavy themes (Fire).
+        */
         @keyframes slide-out-left-good {
             0% { transform: translateX(0); opacity: 1; }
-            100% { transform: translateX(-150%); opacity: 0; color: #10b981;}
+            100% { transform: translateX(-150%); opacity: 0; }
         }
         
         @keyframes slide-out-right-bad {
             0% { transform: translateX(0); opacity: 1; }
-            100% { transform: translateX(150%); opacity: 0; color: #ef4444;}
+            100% { transform: translateX(150%); opacity: 0; }
         }
 
         #wordDisplay {
@@ -87,6 +89,8 @@
             z-index: 10;
             touch-action: none; 
             user-select: none;
+            /* FIX: Force GPU promotion to prevent mobile stuttering on animations */
+            will-change: transform, opacity; 
         }
         
         /* --- THEME STYLES --- */
@@ -165,7 +169,7 @@
             box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15) !important; padding: 2rem !important; 
         }
         
-        /* 4. WINTER THEME (New Realistic Snow) */
+        /* 4. WINTER THEME */
         body.theme-winter { background: linear-gradient(135deg, #e0f7fa 0%, #b3e5fc 100%) !important; }
         .theme-winter #wordDisplay { color: #01579b; text-shadow: 0 0 8px rgba(255, 255, 255, 0.8); }
         .theme-winter #gameCard {
@@ -178,12 +182,7 @@
         }
 
         .snow-particle {
-            position: absolute;
-            top: -20px;
-            border-radius: 50%;
-            background: white;
-            pointer-events: none;
-            /* Fall animation using CSS Variable for Sway distance */
+            position: absolute; top: -20px; border-radius: 50%; background: white; pointer-events: none;
             animation: snow-fall linear infinite;
         }
 
@@ -193,12 +192,38 @@
             100% { transform: translate(var(--sway), 110vh); opacity: 0; }
         }
 
-        /* 5. SUMMER THEME */
-        body.theme-summer { background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%) !important; }
-        .theme-summer #wordDisplay { color: #FF9800; text-shadow: 0 0 20px #FFF8E1, 0 0 10px #FFEB3B; }
+        /* 5. SUMMER THEME (REMASTERED) */
+        body.theme-summer { 
+            /* Blue Sky to Green Grass Gradient */
+            background: linear-gradient(to bottom, #87CEEB 0%, #E0F7FA 50%, #4CAF50 50%, #2E7D32 100%) !important; 
+            /* Radial gradient to simulate clouds overlay on the blue part */
+            background-image: 
+                radial-gradient(circle 60px at 10% 15%, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 60%),
+                radial-gradient(circle 50px at 15% 20%, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 60%),
+                radial-gradient(circle 80px at 85% 10%, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 60%),
+                radial-gradient(circle 60px at 90% 18%, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 60%),
+                linear-gradient(to bottom, #87CEEB 0%, #E0F7FA 50%, #4CAF50 50%, #2E7D32 100%) !important;
+        }
+        
+        /* Sun Glow Animation for Summer Word */
+        @keyframes sun-glow {
+            0% { text-shadow: 0 0 20px #FFD700, 0 0 40px #FFA500; transform: scale(1); }
+            50% { text-shadow: 0 0 40px #FFD700, 0 0 80px #FF4500; transform: scale(1.05); }
+            100% { text-shadow: 0 0 20px #FFD700, 0 0 40px #FFA500; transform: scale(1); }
+        }
+
+        .theme-summer #wordDisplay { 
+            color: #FFD700; /* Sun Gold */
+            /* Animated sun glow */
+            animation: sun-glow 3s ease-in-out infinite;
+            text-shadow: 0 0 20px #FFD700, 0 0 40px #FF8C00; 
+        }
+        
         .theme-summer #gameCard {
-            background-color: rgba(255, 255, 255, 0.9) !important; border: 2px solid #FFEB3B !important;
-            box-shadow: 0 15px 40px rgba(255, 152, 0, 0.5) !important; padding: 2rem !important; 
+            background-color: rgba(255, 255, 255, 0.85) !important; 
+            border: 2px solid #FFEB3B !important;
+            box-shadow: 0 15px 40px rgba(255, 193, 7, 0.4) !important; 
+            padding: 2rem !important; 
         }
 
         /* 6. HALLOWEEN THEME */
@@ -247,7 +272,7 @@
         
         .bubble-particle {
             position: absolute;
-            bottom: -50px; /* Start off screen */
+            bottom: -50px;
             border-radius: 50%;
             background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05) 60%, rgba(255, 255, 255, 0));
             box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.3), 0 0 4px rgba(255, 255, 255, 0.1);
@@ -287,27 +312,15 @@
 
         /* Fire Effect Container */
         .theme-fire #fire-effect {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 100vh; 
-            pointer-events: none;
-            z-index: 5;
-            overflow: hidden;
+            position: fixed; bottom: 0; left: 0; width: 100%; height: 100vh; 
+            pointer-events: none; z-index: 5; overflow: hidden;
         }
 
         /* Particle Animation */
         .fire-particle {
-            position: absolute;
-            bottom: 0;
-            border-radius: 50%;
-            mix-blend-mode: screen;
+            position: absolute; bottom: 0; border-radius: 50%; mix-blend-mode: screen;
             background-image: radial-gradient(rgb(255, 80, 0) 20%, rgba(255, 80, 0, 0) 70%);
-            opacity: 0;
-            width: 5em; 
-            height: 5em;
-            animation: fire-rise 1s ease-in infinite;
+            opacity: 0; width: 5em; height: 5em; animation: fire-rise 1s ease-in infinite;
         }
 
         @keyframes fire-rise {
@@ -476,11 +489,11 @@
         </div>
     </div>
     
-    <div class="version-indicator">v4.6.4 | Made by Gilxs in 12,025</div>
+    <div class="version-indicator">v4.7.1 | Made by <a href="mailto:gileswendes@gmail.com">Gilxs</a> in 12,025</div>
 
     <script>
         const API_BASE_URL = '/api/words';
-        const APP_VERSION = '4.6.4'; 
+        const APP_VERSION = '4.7.1'; 
         
         // Special Words
         const BOOSTED_WORD = 'CAKE'; 
@@ -510,7 +523,6 @@
             "Tip: You could go outside for a stomp?",
             "Tip: Nobody else has a clue what's going on either.",
             "Tip: Ask them out for a coffee.",
-            "Tip: That's right I've got a floor, so what?",
             "Tip: Can you smell burning toast?",
             "Tip: Time is an illusion. Lunchtime doubly so.",
             "Tip: It is better to keep your mouth closed and let people think you are a fool than to open it and remove all doubt.",
@@ -518,7 +530,7 @@
             "Tip: You might roll your eyes at this, but I’m so glad that you exist.",
             "Tip: Play with friends! Not this, something classic like chess or Tetris."
         ];
-        const TIP_COOLDOWN = 8; 
+        const TIP_COOLDOWN = 4; 
         let voteCounterForTips = parseInt(localStorage.getItem('voteCounterForTips')) || 0;
         let messageTimeout = null;
 
@@ -528,6 +540,7 @@
         let voteCount = 0; 
         let contributorCount = 0; 
 
+        // History Buffer (New in v4.5.2)
         let recentWordHistory = [];
         const HISTORY_SIZE = 300; 
         
@@ -670,7 +683,7 @@
                 contributorCount = parseInt(storedContributorCount, 10);
             }
             
-            versionIndicator.textContent = `v${APP_VERSION} | Made by Gilxs in 12,025`;
+            versionIndicator.innerHTML = `v${APP_VERSION} | Made by <a href="mailto:gileswendes@gmail.com">Gilxs</a> in 12,025`;
             
             goodButton.addEventListener('click', () => submitVote('good'));
             badButton.addEventListener('click', () => submitVote('bad'));
@@ -840,6 +853,8 @@
                          wordDisplay.style.animation = 'bounce-word 0.5s ease-out infinite alternate';
                      } else if (currentTheme === 'rainbow') {
                          wordDisplay.style.animation = 'rainbow-text 5s ease infinite';
+                     } else if (currentTheme === 'summer') {
+                         wordDisplay.style.animation = 'sun-glow 3s ease-in-out infinite';
                      }
                      displayCurrentWord(allWords[currentWordIndex]);
                 }, 300);
@@ -962,30 +977,38 @@
         function generateSnowParticles() {
             if (!snowEffect) return;
             snowEffect.innerHTML = '';
-            const flakes = 60; 
+            const flakes = 60; // Number of snowflakes
             
             for (let i = 0; i < flakes; i++) {
                 const flake = document.createElement('div');
                 flake.className = 'snow-particle';
                 
-                // Size variation: 5px to 12px (Increased size)
-                const size = Math.random() * 7 + 5; 
+                // Size variation (Depth of field)
+                const size = Math.random() * 5 + 2; // 2px to 7px
                 flake.style.width = `${size}px`;
                 flake.style.height = `${size}px`;
                 
+                // Opacity variation
                 flake.style.opacity = Math.random() * 0.6 + 0.3;
                 
-                if (size < 8) {
+                // Blur for depth (smaller ones are blurrier/further)
+                if (size < 4) {
                     flake.style.filter = `blur(${Math.random() * 2}px)`;
                 }
 
+                // Random starting position
                 flake.style.left = `${Math.random() * 100}vw`;
                 
+                // Sway calculation (Wind) - applied via CSS Variable
+                // Random number between -50px and 50px
                 const sway = (Math.random() - 0.5) * 100; 
                 flake.style.setProperty('--sway', `${sway}px`);
 
-                const duration = Math.random() * 10 + 5; 
+                // Animation duration (fall speed)
+                const duration = Math.random() * 10 + 5; // 5s to 15s
                 flake.style.animationDuration = `${duration}s`;
+                
+                // Delay so they don't all start at once
                 flake.style.animationDelay = `-${Math.random() * 15}s`;
 
                 snowEffect.appendChild(flake);
@@ -1258,8 +1281,9 @@
                 wordDisplay.style.color = '#01579b'; 
                 wordDisplay.style.textShadow = '0 0 8px rgba(255, 255, 255, 0.8)';
             } else if (currentTheme === 'summer') {
-                wordDisplay.style.color = '#FF9800'; 
-                wordDisplay.style.textShadow = '0 0 20px #FFF8E1, 0 0 10px #FFEB3B'; 
+                wordDisplay.style.color = '#FFD700'; 
+                wordDisplay.style.textShadow = '0 0 20px #FFD700, 0 0 40px #FF8C00'; 
+                wordDisplay.style.animation = 'sun-glow 3s ease-in-out infinite';
             } else if (currentTheme === 'rainbow') {
                 wordDisplay.style.background = 'linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #9400d3)';
                 wordDisplay.style.webkitBackgroundClip = 'text'; 
@@ -1461,6 +1485,8 @@
             if (voteType === 'good' || voteType === 'bad') {
                 if (isCake || isLlama || isPotato || isSquirrel) { /* handled below */ } 
                 else if (!fromSwipe) {
+                    // Ensure we don't fight with drag transitions
+                    wordDisplay.style.transition = 'none'; 
                     const animationName = voteType === 'good' ? 'slide-out-left-good' : 'slide-out-right-bad';
                     wordDisplay.style.animation = `${animationName} ${transitionDuration / 1000}s ease-out forwards`;
                 }
