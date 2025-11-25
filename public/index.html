@@ -150,7 +150,8 @@
         .animate-snow-drift { animation: snow-drift-rise 20s linear forwards !important; }
         @keyframes snow-drift-rise { 0% { height: 0px; opacity: 0.5; } 100% { height: 300px; opacity: 1; } }
 
-        .theme-winter #snow-effect { position: fixed; inset: 0; width: 100vw; height: 100%; overflow: hidden; z-index: 40; pointer-events: none; }
+        /* Updated Snow Effect Z-Index to be in front of card (z-35 vs card z-10/20) */
+        .theme-winter #snow-effect { position: fixed; inset: 0; width: 100vw; height: 100%; overflow: hidden; z-index: 35; pointer-events: none; }
         .snow-particle { position: absolute; top: -20px; border-radius: 50%; background: white; pointer-events: none; animation: snow-fall linear infinite; }
         @keyframes snow-fall { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 1; } 100% { transform: translate(var(--sway), 110vh); opacity: 0; } }
 
@@ -217,6 +218,35 @@
         .theme-halloween header .bg-gray-50 { background-color: #1C1C1C !important; }
         .theme-halloween h2 { color: #FF8C00 !important; }
         .theme-halloween .border-b { border-color: #691C00 !important; }
+
+        /* SPIDER EFFECT */
+        #spider-effect { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 45; overflow: visible; display: none; }
+        .theme-halloween #spider-effect { display: block; }
+        
+        .spider-wrap {
+            position: absolute; top: -300px; /* Start hidden above */
+            width: 1px; height: 300px;
+            background: rgba(255, 255, 255, 0.4);
+            left: 50%;
+            /* Drop, dangle, climb */
+            animation: spider-drop 8s ease-in-out forwards;
+        }
+        .spider-body {
+            position: absolute; bottom: -25px; left: -25px;
+            font-size: 3rem;
+            filter: drop-shadow(0 5px 10px rgba(0,0,0,0.8));
+            content: '🕷️';
+        }
+
+        @keyframes spider-drop {
+            0% { transform: translateY(0); }
+            20% { transform: translateY(60vh); } /* Fast drop */
+            25% { transform: translateY(58vh) rotate(5deg); }
+            30% { transform: translateY(60vh) rotate(-5deg); }
+            35% { transform: translateY(59vh) rotate(3deg); }
+            45% { transform: translateY(60vh); }
+            100% { transform: translateY(-300px); } /* Climb back up */
+        }
 
         /* SUBMARINE */
         @keyframes bobbing-word { 0% { transform: translateY(0px) rotate(-1deg); } 50% { transform: translateY(-8px) rotate(1deg); } 100% { transform: translateY(0px) rotate(-1deg); } }
@@ -296,6 +326,7 @@
     <div id="bubble-effect" class="hidden"></div> 
     <div id="fire-effect" class="hidden"></div>
     <div id="summer-effect" class="hidden"></div>
+    <div id="spider-effect" class="hidden"></div>
     
     <header class="text-center mb-8 w-full max-w-lg z-20 relative">
         <div id="logoArea" class="h-32 w-full flex items-center justify-center mb-4 relative">
@@ -448,7 +479,7 @@
          */
         const CONFIG = {
             API_BASE_URL: '/api/words',
-            APP_VERSION: '4.9.9',
+            APP_VERSION: '5.0.1',
             SPECIAL_WORDS: {
                 CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", msgDur: 3000 },
                 LLAMA: { text: 'LLAMA', prob: 0.005, fade: 8000, msg: "what llama?", msgDur: 2000 },
@@ -514,7 +545,8 @@
                 streak: 0,
                 lastVoteTime: 0,
                 isCoolingDown: false,
-                cooldownTimer: null
+                cooldownTimer: null,
+                spiderTimer: null
             },
             save(key, value) {
                 this.data[key] = value;
@@ -589,7 +621,8 @@
                     snow: document.getElementById('snow-effect'),
                     bubble: document.getElementById('bubble-effect'),
                     fire: document.getElementById('fire-effect'),
-                    summer: document.getElementById('summer-effect')
+                    summer: document.getElementById('summer-effect'),
+                    spider: document.getElementById('spider-effect')
                 }
             },
             modals: {
@@ -695,6 +728,11 @@
                 DOM.theme.effects.summer.classList.toggle('hidden', theme !== 'summer');
                 if (theme === 'summer') Effects.summer();
                 else DOM.theme.effects.summer.innerHTML = '';
+
+                // Spider
+                DOM.theme.effects.spider.classList.toggle('hidden', theme !== 'halloween');
+                if (theme === 'halloween') Effects.startSpiderLoop();
+                else Effects.stopSpiderLoop();
 
                 const cards = document.querySelectorAll('.card, .ranking-card');
                 const isRainbow = theme === 'rainbow';
@@ -811,6 +849,44 @@
                     c.style.animationDelay = `-${Math.random() * 100}s`; 
                     container.appendChild(c);
                 }
+            },
+            spider() {
+                const container = DOM.theme.effects.spider;
+                // Only spawn if empty (one spider at a time)
+                if (container.children.length > 0) return;
+                
+                const wrap = document.createElement('div');
+                wrap.className = 'spider-wrap';
+                wrap.style.left = `${10 + Math.random() * 80}%`; // Random horizontal position
+                
+                const body = document.createElement('div');
+                body.className = 'spider-body';
+                body.textContent = '🕷️';
+                
+                wrap.appendChild(body);
+                container.appendChild(wrap);
+                
+                // Cleanup after animation
+                wrap.addEventListener('animationend', () => {
+                    wrap.remove();
+                    this.triggerNextSpider();
+                });
+            },
+            triggerNextSpider() {
+                if (State.data.currentTheme !== 'halloween') return;
+                const delay = Math.random() * 15000 + 5000; // 5 to 20 seconds wait
+                State.runtime.spiderTimer = setTimeout(() => this.spider(), delay);
+            },
+            startSpiderLoop() {
+                DOM.theme.effects.spider.innerHTML = ''; // Clear existing
+                this.triggerNextSpider();
+            },
+            stopSpiderLoop() {
+                if (State.runtime.spiderTimer) {
+                    clearTimeout(State.runtime.spiderTimer);
+                    State.runtime.spiderTimer = null;
+                }
+                DOM.theme.effects.spider.innerHTML = '';
             }
         };
 
