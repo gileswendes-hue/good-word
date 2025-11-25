@@ -63,14 +63,24 @@
         body.theme-default { background: linear-gradient(135deg, #fef2be 0%, #b5def0 100%) !important; }
         .theme-default #gameCard { backdrop-filter: blur(10px); background-color: rgba(255, 255, 255, 0.95); box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15); border: 1px solid rgba(0, 0, 0, 0.05); }
         
-        @keyframes rotate-border { 0% { background-position: 0% 0%; } 100% { background-position: 100% 100%; } }
         @keyframes rainbow-text { 0% { -webkit-filter: hue-rotate(0deg); filter: hue-rotate(0deg); } 100% { -webkit-filter: hue-rotate(360deg); filter: hue-rotate(360deg); } }
 
-        /* RAINBOW */
+        /* RAINBOW - FIXED CHASING BORDER */
         body.theme-rainbow { background: #f7f7f7 !important; }
         .theme-rainbow .thin-rainbow-frame { position: relative; background-color: transparent; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1); border: none; z-index: 10; }
-        .theme-rainbow .thin-rainbow-frame::before { content: ''; position: absolute; inset: -6px; border-radius: 1.25rem; background: linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #9400d3, #ff0000); background-size: 400% 400%; animation: rotate-border 20s linear infinite; z-index: -3; }
-        .theme-rainbow .thin-rainbow-frame::after { content: ''; position: absolute; inset: -1px; border-radius: 1.1rem; background-color: #ffffff; z-index: -2; }
+        
+        .theme-rainbow .thin-rainbow-frame::before { 
+            content: ''; position: absolute; inset: -6px; border-radius: 1.25rem; 
+            /* Conic gradient for hard "chasing" edges */
+            background: conic-gradient(
+                #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #8b00ff, #ff0000
+            );
+            animation: spin-border 3s linear infinite; 
+            z-index: -3; 
+        }
+        @keyframes spin-border { 100% { transform: rotate(360deg); } }
+
+        .theme-rainbow .thin-rainbow-frame::after { content: ''; position: absolute; inset: -2px; border-radius: 1.1rem; background-color: #ffffff; z-index: -2; }
         .theme-rainbow #gameCard, .theme-rainbow .ranking-card { padding: 2.5rem !important; }
         .theme-rainbow #wordFrame { padding: 0; background-color: transparent; margin-bottom: 1.5rem; }
         .theme-rainbow #wordDisplay { background: linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #9400d3); -webkit-background-clip: text; -webkit-text-fill-color: transparent; color: transparent !important; animation: rainbow-text 5s ease infinite; margin-bottom: 0 !important; padding: 0 0.5rem; line-height: 1; }
@@ -91,28 +101,33 @@
         @keyframes bounce-word { from { transform: translateY(0); } to { transform: translateY(-15px); } }
         .theme-banana #gameCard { background-color: rgba(255, 255, 255, 0.95) !important; border: 2px solid #f4ef81 !important; box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15) !important; padding: 2rem !important; }
         
-        /* WINTER */
+        /* WINTER - FIXED SNOW VISIBILITY */
         body.theme-winter { background: linear-gradient(135deg, #e0f7fa 0%, #b3e5fc 100%) !important; }
-        /* Text accumulates snow from bottom using gradient animation */
+        
+        /* Text Snow Accumulation */
         .theme-winter #wordDisplay { 
-            color: #01579b; 
-            text-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+            color: transparent; 
+            /* Gradient: Sharp line between snow (white) and Text (Blue) */
             background-image: linear-gradient(to top, #ffffff 50%, #01579b 50%);
-            background-size: 100% 250%; /* Make gradient larger than text */
-            background-position: 0% 0%; /* Start with blue visible */
+            background-size: 100% 220%; /* Tall background to allow sliding */
+            background-position: 0 100%; /* Start with blue */
             -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            animation: snow-pile-text 8s ease-in-out infinite alternate;
+            background-clip: text;
+            text-shadow: none; /* Shadow interferes with clip */
+            /* Filter drop-shadow works better with background-clip than text-shadow */
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1)); 
+            animation: snow-pile-text 10s ease-in-out infinite alternate;
         }
         @keyframes snow-pile-text {
-            0% { background-position: 0% 0%; } /* No snow on text */
-            100% { background-position: 0% 25%; } /* Snow covers bottom 25% */
+            0% { background-position: 0 100%; } /* All Blue */
+            100% { background-position: 0 20%; } /* White rises to cover ~60% */
         }
         .theme-winter #gameCard { background-color: rgba(255, 255, 255, 0.9) !important; border: 2px solid #81d4fa !important; box-shadow: 0 15px 40px rgba(179, 229, 252, 0.5) !important; padding: 2rem !important; }
 
-        /* Snow Drift on Card */
-        #card-snow-drift { position: absolute; bottom: 0; left: 0; right: 0; height: 0; background: linear-gradient(to top, rgba(255,255,255,0.8), transparent); border-radius: 0 0 1rem 1rem; transition: height 1s; pointer-events: none; z-index: 5; }
-        .theme-winter #card-snow-drift { height: 30px; }
+        /* Card Snow Drift (Visible Build-up) */
+        #card-snow-drift { position: absolute; bottom: 0; left: 0; right: 0; height: 0; background: linear-gradient(to top, #fff, rgba(255,255,255,0)); border-radius: 0 0 1rem 1rem; pointer-events: none; z-index: 5; opacity: 0.9; }
+        .theme-winter #card-snow-drift { animation: snow-drift-rise 12s ease-in-out infinite alternate; }
+        @keyframes snow-drift-rise { from { height: 5px; } to { height: 40px; } }
 
         .theme-winter #snow-effect { position: fixed; inset: 0; width: 100vw; height: 100%; overflow: hidden; z-index: 40; pointer-events: none; }
         .snow-particle { position: absolute; top: -20px; border-radius: 50%; background: white; pointer-events: none; animation: snow-fall linear infinite; }
@@ -152,10 +167,10 @@
         .bubble-particle { position: absolute; bottom: -50px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05) 60%, rgba(255, 255, 255, 0)); box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.3), 0 0 4px rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.15); opacity: 0; z-index: 0; animation: bubble-rise-float linear infinite; }
         @keyframes bubble-rise-float { 0% { transform: translateY(0) translateX(0) scale(0.8); opacity: 0; } 10% { opacity: 1; } 50% { transform: translateY(-50vh) translateX(15px) scale(1); } 100% { transform: translateY(-120vh) translateX(-15px) scale(1.1); opacity: 0; } }
 
-        /* FIRE & SMOKE */
+        /* FIRE & SMOKE - FIXED VISIBILITY */
         body.theme-fire { background-color: rgb(48,8,8) !important; }
         .theme-fire #gameCard, .theme-fire .ranking-card { background-color: rgba(48, 8, 8, 0.95) !important; border: 2px solid #ff5000 !important; box-shadow: 0 0 30px rgba(255, 80, 0, 0.3), 0 15px 40px rgba(0, 0, 0, 0.7) !important; padding: 2.5rem !important; }
-        .theme-fire #wordDisplay { color: #ff5000; text-shadow: 0 0 10px #ff5000, 0 0 20px #ff0000; }
+        .theme-fire #wordDisplay { color: #ff5000; text-shadow: 0 0 10px #ff5000, 0 0 20px #ff0000; position: relative; z-index: 20;}
         .theme-fire .text-gray-900, .theme-fire .rank-item .text-gray-800 { color: #ffdcd0 !important; }
         .theme-fire .text-gray-500, .theme-fire .text-gray-600 { color: #a66 !important; }
         .theme-fire h2 { color: #ff5000 !important; }
@@ -168,8 +183,25 @@
         .fire-particle { position: absolute; bottom: 0; border-radius: 50%; mix-blend-mode: screen; background-image: radial-gradient(rgb(255, 80, 0) 20%, rgba(255, 80, 0, 0) 70%); opacity: 0; width: 5em; height: 5em; animation: fire-rise 1s ease-in infinite; }
         @keyframes fire-rise { from { opacity: 0; transform: translateY(0) scale(1); } 25% { opacity: 1; } to { opacity: 0; transform: translateY(-80vh) scale(0); } }
 
-        .smoke-particle { position: absolute; bottom: -50px; left: 50%; width: 40px; height: 40px; background: rgba(50, 50, 50, 0.4); border-radius: 50%; filter: blur(10px); animation: smoke-rise 3s linear infinite; pointer-events: none; }
-        @keyframes smoke-rise { 0% { transform: translate(-50%, 0) scale(1); opacity: 0; } 20% { opacity: 0.5; } 100% { transform: translate(var(--sway), -90vh) scale(3); opacity: 0; } }
+        /* Obvious Smoke */
+        .smoke-particle { 
+            position: absolute; 
+            bottom: -50px; 
+            left: 50%; 
+            width: 60px; 
+            height: 60px; 
+            background: radial-gradient(circle, rgba(80,80,80,0.8) 0%, rgba(0,0,0,0) 70%); /* Dark gray smoke */
+            border-radius: 50%; 
+            filter: blur(8px); 
+            animation: smoke-rise 4s linear infinite; 
+            pointer-events: none; 
+            z-index: 4; /* Behind text but visible */
+        }
+        @keyframes smoke-rise { 
+            0% { transform: translate(-50%, 0) scale(1); opacity: 0; } 
+            20% { opacity: 0.7; } /* Start visibly dark */
+            100% { transform: translate(var(--sway), -90vh) scale(4); opacity: 0; } 
+        }
 
     </style>
 </head>
@@ -329,7 +361,7 @@
          */
         const CONFIG = {
             API_BASE_URL: '/api/words',
-            APP_VERSION: '4.9.0',
+            APP_VERSION: '4.9.1',
             SPECIAL_WORDS: {
                 CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", msgDur: 3000 },
                 LLAMA: { text: 'LLAMA', prob: 0.005, fade: 8000, msg: "what llama?", msgDur: 2000 },
@@ -611,11 +643,11 @@
                     container.appendChild(p);
                 }
                 // Smoke (NEW)
-                for (let i = 0; i < 20; i++) {
+                for (let i = 0; i < 15; i++) {
                     const s = document.createElement('div'); s.className = 'smoke-particle';
-                    s.style.animationDelay = `${Math.random() * 2}s`;
-                    s.style.left = `${Math.random() * 100}%`;
-                    s.style.setProperty('--sway', `${(Math.random()-0.5)*100}px`);
+                    s.style.animationDelay = `${Math.random() * 3}s`;
+                    s.style.left = `${Math.random() * 90 + 5}%`; // Constrain slightly
+                    s.style.setProperty('--sway', `${(Math.random()-0.5)*150}px`);
                     container.appendChild(s);
                 }
             },
@@ -756,7 +788,7 @@
                 if (t === 'submarine') { wd.style.color = '#b0e0e6'; wd.style.textShadow = '0 0 10px rgba(176,224,230,0.7), 0 0 5px rgba(255,255,255,0.3)'; wd.style.animation = 'bobbing-word 2.5s ease-in-out infinite'; }
                 if (t === 'fire') { wd.style.color = '#ff5000'; wd.style.textShadow = '0 0 10px #ff5000, 0 0 20px #ff0000'; }
                 if (t === 'banana') { wd.style.color = '#ffd200'; wd.style.animation = 'bounce-word 0.5s ease-out infinite alternate'; }
-                if (t === 'winter') { wd.style.color = '#01579b'; wd.style.textShadow = '0 0 8px rgba(255, 255, 255, 0.8);'; } /* Gradient handled in CSS class */
+                if (t === 'winter') { wd.style.color = '#01579b'; wd.style.textShadow = '0 0 8px rgba(255, 255, 255, 0.8)'; }
                 if (t === 'summer') { wd.style.color = '#FF9800'; wd.style.textShadow = '0 0 20px #FFF8E1, 0 0 10px #FFEB3B'; }
                 if (t === 'rainbow') { 
                     wd.style.background = 'linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #9400d3)';
@@ -829,6 +861,7 @@
                 wd.style.webkitTextFillColor = 'initial'; // Resets text fill
                 wd.style.textShadow = 'none';
                 wd.style.transform = 'none'; // Resets position
+                wd.style.filter = 'none'; // Resets drop shadows
                 // Note: We leave fontSize intact so it doesn't shrink/pop
             },
 
