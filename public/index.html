@@ -15,7 +15,6 @@
             width: 100%;
         }
 
-        /* Standard Card */
         .card { 
             backdrop-filter: blur(10px); 
             background-color: rgba(255, 255, 255, 0.95);
@@ -39,8 +38,6 @@
         @media (max-width: 640px) { .rank-item { font-size: 0.8rem; } .vote-counts { font-size: 0.875rem; } }
 
         /* --- ANIMATION CLASSES --- */
-        
-        /* Fly Out Animations */
         .animate-fly-left { animation: fly-out-left 0.6s ease-out forwards; }
         .animate-fly-right { animation: fly-out-right 0.6s ease-out forwards; }
 
@@ -53,13 +50,9 @@
             100% { transform: translate(150vw, 0) rotate(25deg); opacity: 0; } 
         }
 
-        /* Reset Transition */
         .word-reset { transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), color 0.2s, opacity 0.2s !important; }
-        
-        /* Color Transition for Button Clicks */
         .color-fade { transition: color 0.15s ease-out !important; }
 
-        /* Special Words */
         .word-fade-llama { transition: opacity 8s ease-out, transform 8s ease-out; opacity: 0 !important; transform: scale(0.9) !important; }
         .word-fade-quick { transition: opacity 0.3s ease-out, transform 0.3s ease-out; opacity: 0 !important; transform: scale(0.95) !important; }
 
@@ -77,60 +70,29 @@
         
         @keyframes rainbow-text { 0% { -webkit-filter: hue-rotate(0deg); filter: hue-rotate(0deg); } 100% { -webkit-filter: hue-rotate(360deg); filter: hue-rotate(360deg); } }
 
-        /* RAINBOW - FIXED STATIC CARD STRUCTURE */
+        /* RAINBOW */
         body.theme-rainbow { background: #f7f7f7 !important; }
-        
-        /* 1. The Card Container acts as the frame */
         .theme-rainbow .thin-rainbow-frame { 
-            position: relative;
-            background: transparent; /* Transparent so we see layers */
-            border: none; 
-            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
-            border-radius: 1.5rem;
-            z-index: 10;
-            overflow: hidden; /* Keep the spinning border contained */
-            padding: 3px !important; /* The thickness of the rainbow border */
+            position: relative; background: transparent; border: none; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15); border-radius: 1.5rem; z-index: 10; overflow: hidden; padding: 3px !important; 
         }
-
-        /* 2. The Spinning Gradient Layer (Behind everything) */
         .theme-rainbow .thin-rainbow-frame::before { 
-            content: ''; 
-            position: absolute; 
-            top: -50%; left: -50%; width: 200%; height: 200%; /* Big enough to cover rotation */
-            background: conic-gradient(
-                #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #8b00ff, #ff0000
-            );
-            animation: spin-border 4s linear infinite; 
-            z-index: 0; 
+            content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; 
+            background: conic-gradient(#ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #8b00ff, #ff0000);
+            animation: spin-border 4s linear infinite; z-index: 0; 
         }
-        
-        /* 3. The Inner Static White Card (Mask) */
         .theme-rainbow .thin-rainbow-frame::after {
-            content: ''; 
-            position: absolute; 
-            inset: 3px; /* Matches padding to reveal 3px border */
-            background: #ffffff; 
-            border-radius: 1.3rem; /* Slightly smaller radius */
-            z-index: 1;
+            content: ''; position: absolute; inset: 3px; background: #ffffff; border-radius: 1.3rem; z-index: 1;
         }
-        
-        /* 4. Content Layer (Must be above the white mask) */
-        .theme-rainbow #gameCard > * {
-            position: relative;
-            z-index: 5; /* Above the ::after mask */
-        }
-
+        .theme-rainbow .thin-rainbow-frame > * { position: relative; z-index: 5; }
         @keyframes spin-border { 100% { transform: rotate(360deg); } }
 
-        /* Specific Theme Padding Overrides */
-        .theme-rainbow #gameCard { padding: 2.5rem !important; }
+        .theme-rainbow #gameCard, .theme-rainbow .ranking-card { padding: 2.5rem !important; }
         .theme-rainbow #wordFrame { padding: 0; background-color: transparent; margin-bottom: 1.5rem; }
-        
         .theme-rainbow #wordDisplay { 
             background: linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #9400d3); 
             -webkit-background-clip: text; -webkit-text-fill-color: transparent; color: transparent !important; 
-            animation: rainbow-text 5s ease infinite; 
-            margin-bottom: 0 !important; padding: 0 0.5rem; line-height: 1; 
+            animation: rainbow-text 5s ease infinite; margin-bottom: 0 !important; padding: 0 0.5rem; line-height: 1; 
         }
 
         /* DARK */
@@ -149,24 +111,29 @@
         @keyframes bounce-word { from { transform: translateY(0); } to { transform: translateY(-15px); } }
         .theme-banana #gameCard { background-color: rgba(255, 255, 255, 0.95) !important; border: 2px solid #f4ef81 !important; box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15) !important; padding: 2rem !important; }
         
-        /* WINTER - VISIBLE PILE UP */
+        /* WINTER - UPDATED */
         body.theme-winter { background: linear-gradient(135deg, #e0f7fa 0%, #b3e5fc 100%) !important; }
         
-        /* Text Snow: Hard-edge Gradient for Piling Effect */
+        /* Text Snow: Slow accumulation, no oscillation */
         .theme-winter #wordDisplay { 
             color: transparent; 
             background-image: linear-gradient(to top, #ffffff 50%, #01579b 50%);
-            background-size: 100% 205%; 
-            background-position: 0 100%; /* 100% = Blue */
+            background-size: 100% 220%; 
+            background-position: 0 100%; /* Start Blue */
             -webkit-background-clip: text;
             background-clip: text;
-            filter: drop-shadow(0 1px 1px rgba(0,0,0,0.3)); /* shadow to see white on light bg */
-            animation: snow-pile-text 10s linear infinite;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+            /* Animation is set in JS via class re-application */
         }
+        
+        /* Class triggered by JS to run once */
+        .animate-snow-text {
+            animation: snow-pile-text 20s linear forwards !important;
+        }
+
         @keyframes snow-pile-text {
             0% { background-position: 0 100%; } 
-            50% { background-position: 0 20%; } /* Snow piles up */
-            100% { background-position: 0 100%; } /* Melts back down */
+            100% { background-position: 0 15%; } /* Rises to cover 85% of text */
         }
         
         .theme-winter #gameCard { 
@@ -178,25 +145,26 @@
             overflow: hidden; 
         }
 
-        /* Card Snow Drift: Visible Element */
+        /* Card Snow Drift: Slow rise, higher pile */
         #card-snow-drift { 
-            position: absolute; 
-            bottom: 0; left: 0; right: 0; 
+            position: absolute; bottom: 0; left: 0; right: 0; 
             height: 0px; 
-            background: #ffffff;
-            box-shadow: 0 -4px 10px rgba(180, 220, 255, 0.8);
-            border-radius: 50% 50% 0 0 / 20px 20px 0 0;
+            background: linear-gradient(to top, #ffffff, rgba(255,255,255,0.8));
+            box-shadow: 0 -5px 15px rgba(200, 235, 255, 0.9);
+            border-radius: 40% 40% 0 0 / 30px 30px 0 0;
             pointer-events: none; 
             z-index: 2; 
-            transition: height 0.1s;
+            opacity: 0;
         }
-        .theme-winter #card-snow-drift { 
-            animation: drift-accumulate 10s ease-in-out infinite; 
+        
+        /* Class triggered by JS to run once */
+        .animate-snow-drift {
+            animation: snow-drift-rise 20s linear forwards !important;
         }
-        @keyframes drift-accumulate { 
-            0% { height: 0px; } 
-            50% { height: 60px; } 
-            100% { height: 0px; } 
+
+        @keyframes snow-drift-rise { 
+            0% { height: 0px; opacity: 0.5; } 
+            100% { height: 150px; opacity: 1; } /* Goes much higher now */
         }
 
         .theme-winter #snow-effect { position: fixed; inset: 0; width: 100vw; height: 100%; overflow: hidden; z-index: 40; pointer-events: none; }
@@ -237,7 +205,7 @@
         .bubble-particle { position: absolute; bottom: -50px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05) 60%, rgba(255, 255, 255, 0)); box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.3), 0 0 4px rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.15); opacity: 0; z-index: 0; animation: bubble-rise-float linear infinite; }
         @keyframes bubble-rise-float { 0% { transform: translateY(0) translateX(0) scale(0.8); opacity: 0; } 10% { opacity: 1; } 50% { transform: translateY(-50vh) translateX(15px) scale(1); } 100% { transform: translateY(-120vh) translateX(-15px) scale(1.1); opacity: 0; } }
 
-        /* FIRE */
+        /* FIRE - RESTORED & ENHANCED */
         body.theme-fire { background-color: rgb(30, 10, 5) !important; }
         .theme-fire #gameCard, .theme-fire .ranking-card { background-color: rgba(48, 8, 8, 0.95) !important; border: 2px solid #ff5000 !important; box-shadow: 0 0 30px rgba(255, 80, 0, 0.3), 0 15px 40px rgba(0, 0, 0, 0.7) !important; padding: 2.5rem !important; }
         .theme-fire #wordDisplay { color: #ff5000; text-shadow: 0 0 10px #ff5000, 0 0 20px #ff0000; position: relative; z-index: 20;}
@@ -250,17 +218,16 @@
 
         .theme-fire #fire-effect { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; overflow: hidden; }
         
-        /* More realistic fire particles */
+        /* Realistic Fire (Radial) with density */
         .fire-particle { 
             position: absolute; bottom: -20px; border-radius: 50%; 
             mix-blend-mode: screen; 
-            background-image: radial-gradient(circle, #ff9900 10%, #ff0000 60%, transparent 70%); 
+            background-image: radial-gradient(circle, #ffaa00 10%, #ff0000 60%, transparent 70%); 
             opacity: 0.8; width: 8em; height: 8em; 
             animation: fire-rise 1.5s ease-in infinite; 
         }
         @keyframes fire-rise { from { opacity: 0.8; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-90vh) scale(0.2); } }
 
-        /* Distinct Smoke */
         .smoke-particle { 
             position: absolute; bottom: -50px; left: 50%; width: 100px; height: 100px; 
             background: radial-gradient(circle, rgba(80,80,80,0.6) 0%, rgba(0,0,0,0) 60%); 
@@ -304,7 +271,8 @@
         <div id="wordFrame" class="w-full text-center rounded-xl mb-8 relative">
             <div id="wordDisplay" class="font-extrabold text-gray-900 text-center min-h-[72px]">Loading...</div>
         </div>
-        <div id="card-snow-drift"></div> <div class="flex space-x-4 w-full mb-3 relative z-20"> <button id="goodButton" class="good-button flex-1 py-4 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-green-500/50" disabled>Good Word</button>
+        <div id="card-snow-drift"></div> <div class="flex space-x-4 w-full mb-3 relative z-20">
+            <button id="goodButton" class="good-button flex-1 py-4 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-green-500/50" disabled>Good Word</button>
             <button id="badButton" class="bad-button flex-1 py-4 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-red-500/50" disabled>Bad Word</button>
         </div>
         <button id="notWordButton" class="not-word-button w-full py-3 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-slate-500/50 relative z-20" disabled>Not a word!</button>
@@ -426,7 +394,7 @@
          */
         const CONFIG = {
             API_BASE_URL: '/api/words',
-            APP_VERSION: '4.9.4',
+            APP_VERSION: '4.9.6',
             SPECIAL_WORDS: {
                 CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", msgDur: 3000 },
                 LLAMA: { text: 'LLAMA', prob: 0.005, fade: 8000, msg: "what llama?", msgDur: 2000 },
@@ -696,14 +664,14 @@
             fire() {
                 const container = DOM.theme.effects.fire;
                 container.innerHTML = '';
-                // Fire
+                // Fire (More Density)
                 for (let i = 0; i < 60; i++) { 
                     const p = document.createElement('div'); p.className = 'fire-particle';
                     p.style.animationDelay = `${Math.random()}s`;
                     p.style.left = `calc(10% + (80% * ${Math.random()}))`;
                     container.appendChild(p);
                 }
-                // Smoke
+                // Smoke (Darker, Bigger)
                 for (let i = 0; i < 15; i++) {
                     const s = document.createElement('div'); s.className = 'smoke-particle';
                     s.style.animationDelay = `${Math.random() * 3}s`;
@@ -849,12 +817,27 @@
                 if (t === 'submarine') { wd.style.color = '#b0e0e6'; wd.style.textShadow = '0 0 10px rgba(176,224,230,0.7), 0 0 5px rgba(255,255,255,0.3)'; wd.style.animation = 'bobbing-word 2.5s ease-in-out infinite'; }
                 if (t === 'fire') { wd.style.color = '#ff5000'; wd.style.textShadow = '0 0 10px #ff5000, 0 0 20px #ff0000'; }
                 if (t === 'banana') { wd.style.color = '#ffd200'; wd.style.animation = 'bounce-word 0.5s ease-out infinite alternate'; }
-                if (t === 'winter') { wd.style.color = '#01579b'; wd.style.textShadow = '0 0 8px rgba(255, 255, 255, 0.8)'; }
+                if (t === 'winter') { 
+                    wd.style.color = '#01579b'; 
+                    wd.classList.remove('animate-snow-text');
+                    void wd.offsetWidth; // Trigger Reflow for Animation Reset
+                    wd.classList.add('animate-snow-text');
+                }
                 if (t === 'summer') { wd.style.color = '#FF9800'; wd.style.textShadow = '0 0 20px #FFF8E1, 0 0 10px #FFEB3B'; }
                 if (t === 'rainbow') { 
                     wd.style.background = 'linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #9400d3)';
                     wd.style.webkitBackgroundClip = 'text'; wd.style.webkitTextFillColor = 'transparent'; wd.style.color = 'transparent';
                     wd.style.animation = 'rainbow-text 5s ease infinite';
+                }
+
+                // Reset Drift
+                const drift = document.getElementById('card-snow-drift');
+                if(t === 'winter') {
+                    drift.classList.remove('animate-snow-drift');
+                    void drift.offsetWidth;
+                    drift.classList.add('animate-snow-drift');
+                } else {
+                    drift.style.height = '0';
                 }
 
                 this.fitText(txt);
@@ -1307,6 +1290,7 @@
                         wd.style.transform = `translate(${endX}px, 0px) rotate(${endRot}deg)`;
                         wd.style.opacity = '0';
 
+                        // Game.vote will handle cleanup
                         Game.vote(isLeft ? 'good' : 'bad', true);
                         
                     } else {
