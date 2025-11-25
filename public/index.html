@@ -137,7 +137,7 @@
             overflow: hidden; 
         }
 
-        /* SNOW DRIFT: z-index increased to 25 to appear IN FRONT of word (z-index 20) */
+        /* SNOW DRIFT: z-index 25 to appear IN FRONT of word (z-index 20) */
         #card-snow-drift { 
             position: absolute; bottom: 0; left: 0; right: 0; 
             height: 0px; 
@@ -145,7 +145,7 @@
             box-shadow: 0 -5px 15px rgba(200, 235, 255, 0.9);
             border-radius: 40% 40% 0 0 / 30px 30px 0 0;
             pointer-events: none; 
-            z-index: 25; /* <--- CHANGED THIS */
+            z-index: 25; 
             opacity: 0;
         }
         .animate-snow-drift { animation: snow-drift-rise 20s linear forwards !important; }
@@ -209,10 +209,9 @@
         
         .theme-halloween #halloween-effect { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 40; overflow: hidden; }
 
-        /* COBWEBS - Replaced with curved SVG */
+        /* COBWEBS - Curved SVG */
         .cobweb {
             position: absolute; width: 350px; height: 350px; opacity: 0.7; pointer-events: none;
-            /* New SVG path with quadratic bezier curves (Q) for the web connections */
             background-image: url('data:image/svg+xml;utf8,<svg width="100%" height="100%" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path d="M0 0 L100 50 M0 0 L50 100 M0 0 L100 100" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/><path d="M20 10 Q 15 15 10 20" stroke="rgba(255,255,255,0.2)" stroke-width="1" fill="none"/><path d="M40 20 Q 30 30 20 40" stroke="rgba(255,255,255,0.2)" stroke-width="1" fill="none"/><path d="M60 30 Q 45 45 30 60" stroke="rgba(255,255,255,0.2)" stroke-width="1" fill="none"/><path d="M80 40 Q 60 60 40 80" stroke="rgba(255,255,255,0.2)" stroke-width="1" fill="none"/><path d="M95 55 Q 75 75 55 95" stroke="rgba(255,255,255,0.2)" stroke-width="1" fill="none"/></svg>');
             background-repeat: no-repeat;
             filter: drop-shadow(0 2px 2px rgba(0,0,0,0.5));
@@ -247,11 +246,11 @@
 
         @keyframes spider-drop-surprise {
             0% { transform: translateY(0); }
-            30% { transform: translateY(350px); } /* Drop down */
-            45% { transform: translateY(330px); } /* Bounce up slightly */
-            55% { transform: translateY(350px); } /* Back down */
-            70% { transform: translateY(350px); } /* Hover */
-            100% { transform: translateY(0); } /* Retract */
+            30% { transform: translateY(350px); } 
+            45% { transform: translateY(330px); } 
+            55% { transform: translateY(350px); } 
+            70% { transform: translateY(350px); } 
+            100% { transform: translateY(0); } 
         }
         
         @keyframes spider-wiggle {
@@ -918,18 +917,31 @@
 
                 // Surprise Logic
                 const scheduleSpider = () => {
+                    // Stop if theme changed
                     if(State.data.currentTheme !== 'halloween') return;
+                    
+                    // 10s to 20s random delay
                     const delay = Math.random() * 10000 + 10000; 
+                    
                     setTimeout(() => {
                         if(State.data.currentTheme !== 'halloween') return;
+                        
+                        // Random horizontal position (10% to 90%)
                         spiderCont.style.left = `${10 + Math.random() * 80}%`;
+                        
+                        // Trigger Drop
                         spiderCont.classList.add('dropping');
+                        
+                        // Remove class after animation (8s) to reset
                         setTimeout(() => {
                             spiderCont.classList.remove('dropping');
-                            scheduleSpider(); 
+                            scheduleSpider(); // Schedule next drop
                         }, 8000);
+                        
                     }, delay);
                 };
+                
+                // Start the loop
                 scheduleSpider();
             }
         };
