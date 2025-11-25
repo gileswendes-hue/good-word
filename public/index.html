@@ -37,24 +37,31 @@
         
         @media (max-width: 640px) { .rank-item { font-size: 0.8rem; } .vote-counts { font-size: 0.875rem; } }
 
-        /* --- ANIMATION & INTERACTION CLASSES --- */
-        .word-reset { transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), color 0.2s, opacity 0.2s !important; }
+        /* --- ANIMATION CLASSES --- */
+        
+        /* Fly Out Animations */
         .animate-fly-left { animation: fly-out-left 0.6s ease-out forwards; }
         .animate-fly-right { animation: fly-out-right 0.6s ease-out forwards; }
 
-        @keyframes fly-out-left { 0% { transform: translate(0, 0) rotate(0deg); opacity: 1; } 100% { transform: translate(-150vw, 0) rotate(-20deg); opacity: 0; } }
-        @keyframes fly-out-right { 0% { transform: translate(0, 0) rotate(0deg); opacity: 1; } 100% { transform: translate(150vw, 0) rotate(20deg); opacity: 0; } }
+        @keyframes fly-out-left { 
+            0% { transform: translate(0, 0) rotate(0deg); opacity: 1; } 
+            100% { transform: translate(-150vw, 0) rotate(-25deg); opacity: 0; } 
+        }
+        @keyframes fly-out-right { 
+            0% { transform: translate(0, 0) rotate(0deg); opacity: 1; } 
+            100% { transform: translate(150vw, 0) rotate(25deg); opacity: 0; } 
+        }
 
-        /* Helper for button clicks to mimic swipe color */
-        .swipe-good-color { color: #10b981 !important; }
-        .swipe-bad-color { color: #ef4444 !important; }
-        
+        /* Reset Transition */
+        .word-reset { transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), color 0.2s, opacity 0.2s !important; }
+
+        /* Special Words */
         .word-fade-llama { transition: opacity 8s ease-out, transform 8s ease-out; opacity: 0 !important; transform: scale(0.9) !important; }
         .word-fade-quick { transition: opacity 0.3s ease-out, transform 0.3s ease-out; opacity: 0 !important; transform: scale(0.95) !important; }
 
         #wordDisplay { 
             font-size: 6rem; white-space: nowrap; overflow: hidden; max-width: 100%; box-sizing: border-box; 
-            position: relative; z-index: 10; touch-action: none; user-select: none; 
+            position: relative; z-index: 20; touch-action: none; user-select: none; 
             will-change: transform, opacity, color; 
         }
         
@@ -66,41 +73,45 @@
         
         @keyframes rainbow-text { 0% { -webkit-filter: hue-rotate(0deg); filter: hue-rotate(0deg); } 100% { -webkit-filter: hue-rotate(360deg); filter: hue-rotate(360deg); } }
 
-        /* RAINBOW - FIXED BORDER CHASE */
+        /* RAINBOW - FIXED SPINNING BORDER */
         body.theme-rainbow { background: #f7f7f7 !important; }
+        
+        /* The Card Container (Static) */
         .theme-rainbow .thin-rainbow-frame { 
             position: relative; 
-            background: #ffffff; /* Solid white card */
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1); 
-            border: none; 
-            z-index: 10; 
-            border-radius: 1.25rem;
+            background: #ffffff !important; /* Ensure card is solid white */
+            border-radius: 1.5rem;
+            border: none;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            z-index: 10;
+            /* Isolate allows the negative z-index pseudo-element to show behind this element but above body */
+            transform-style: preserve-3d; 
         }
-        
-        /* Spinning border behind the card */
+
+        /* The Spinning Gradient (Behind) */
         .theme-rainbow .thin-rainbow-frame::before { 
             content: ''; 
             position: absolute; 
-            top: -6px; left: -6px; right: -6px; bottom: -6px;
-            border-radius: 1.5rem; 
+            inset: -6px; /* Extends 6px out */
+            border-radius: 1.8rem; 
             background: conic-gradient(
                 #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #8b00ff, #ff0000
             );
             animation: spin-border 3s linear infinite; 
-            z-index: -1; /* Behind */
+            transform: translateZ(-1px); /* Forces it behind in 3D space */
+            z-index: -1; 
         }
-        /* Inner white mask to ensure only rim shows */
-        .theme-rainbow .thin-rainbow-frame::after {
-            content: ''; position: absolute; inset: 0; 
-            background: #fff; border-radius: 1.25rem; 
-            z-index: -1;
-        }
-
-        @keyframes spin-border { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        
+        @keyframes spin-border { from { transform: translateZ(-1px) rotate(0deg); } to { transform: translateZ(-1px) rotate(360deg); } }
 
         .theme-rainbow #gameCard, .theme-rainbow .ranking-card { padding: 2.5rem !important; }
         .theme-rainbow #wordFrame { padding: 0; background-color: transparent; margin-bottom: 1.5rem; }
-        .theme-rainbow #wordDisplay { background: linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #9400d3); -webkit-background-clip: text; -webkit-text-fill-color: transparent; color: transparent !important; animation: rainbow-text 5s ease infinite; margin-bottom: 0 !important; padding: 0 0.5rem; line-height: 1; }
+        .theme-rainbow #wordDisplay { 
+            background: linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #9400d3); 
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; 
+            animation: rainbow-text 5s ease infinite; 
+            margin-bottom: 0 !important; padding: 0 0.5rem; line-height: 1; 
+        }
 
         /* DARK */
         body.theme-dark { background: #121212 !important; }
@@ -118,38 +129,48 @@
         @keyframes bounce-word { from { transform: translateY(0); } to { transform: translateY(-15px); } }
         .theme-banana #gameCard { background-color: rgba(255, 255, 255, 0.95) !important; border: 2px solid #f4ef81 !important; box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15) !important; padding: 2rem !important; }
         
-        /* WINTER - FIXED SNOW */
+        /* WINTER - FIXED VISIBILITY */
         body.theme-winter { background: linear-gradient(135deg, #e0f7fa 0%, #b3e5fc 100%) !important; }
         
+        /* Text Snow Accumulation */
         .theme-winter #wordDisplay { 
             color: transparent; 
-            /* Gradient: Sharp White (Snow) bottom, Dark Blue (Text) top */
+            /* Sharp line gradient for accumulation */
             background-image: linear-gradient(to top, #ffffff 50%, #01579b 50%);
             background-size: 100% 220%; 
-            background-position: 0 100%; /* Start showing only blue */
+            background-position: 0 100%; /* Start Blue */
             -webkit-background-clip: text;
             background-clip: text;
-            filter: drop-shadow(0 2px 2px rgba(0,0,0,0.2)); 
+            filter: drop-shadow(0 2px 3px rgba(0,0,0,0.2)); 
             animation: snow-pile-text 8s ease-in-out infinite alternate;
         }
         @keyframes snow-pile-text {
-            0% { background-position: 0 100%; } /* No snow */
-            100% { background-position: 0 35%; } /* Snow rises to cover ~65% of text */
+            0% { background-position: 0 100%; } 
+            100% { background-position: 0 30%; } /* Snow (White) rises */
         }
-        .theme-winter #gameCard { background-color: rgba(255, 255, 255, 0.9) !important; border: 2px solid #81d4fa !important; box-shadow: 0 15px 40px rgba(179, 229, 252, 0.5) !important; padding: 2rem !important; overflow: hidden; }
+        .theme-winter #gameCard { 
+            background-color: rgba(255, 255, 255, 0.9) !important; 
+            border: 2px solid #81d4fa !important; 
+            box-shadow: 0 15px 40px rgba(179, 229, 252, 0.5) !important; 
+            padding: 2rem !important; 
+            position: relative; 
+            overflow: hidden; /* Clip snow drift */
+        }
 
-        /* Visible Snow Drift */
+        /* Snow Drift at Bottom of Card */
         #card-snow-drift { 
             position: absolute; bottom: 0; left: 0; right: 0; 
             height: 0; 
-            background: #ffffff; /* Solid white */
-            box-shadow: 0 -5px 15px rgba(255,255,255,0.8);
-            border-radius: 100% 100% 0 0 / 20px 20px 0 0;
-            pointer-events: none; 
+            background: linear-gradient(to top, #ffffff 80%, rgba(255,255,255,0));
             z-index: 5; 
+            pointer-events: none;
+            opacity: 0;
         }
-        .theme-winter #card-snow-drift { animation: snow-drift-rise 10s ease-in-out infinite alternate; }
-        @keyframes snow-drift-rise { from { height: 0px; opacity: 0; } to { height: 60px; opacity: 1; } }
+        .theme-winter #card-snow-drift { 
+            animation: snow-drift-rise 10s ease-in-out infinite alternate; 
+            opacity: 1;
+        }
+        @keyframes snow-drift-rise { from { height: 0px; } to { height: 60px; } }
 
         .theme-winter #snow-effect { position: fixed; inset: 0; width: 100vw; height: 100%; overflow: hidden; z-index: 40; pointer-events: none; }
         .snow-particle { position: absolute; top: -20px; border-radius: 50%; background: white; pointer-events: none; animation: snow-fall linear infinite; }
@@ -189,7 +210,7 @@
         .bubble-particle { position: absolute; bottom: -50px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05) 60%, rgba(255, 255, 255, 0)); box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.3), 0 0 4px rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.15); opacity: 0; z-index: 0; animation: bubble-rise-float linear infinite; }
         @keyframes bubble-rise-float { 0% { transform: translateY(0) translateX(0) scale(0.8); opacity: 0; } 10% { opacity: 1; } 50% { transform: translateY(-50vh) translateX(15px) scale(1); } 100% { transform: translateY(-120vh) translateX(-15px) scale(1.1); opacity: 0; } }
 
-        /* FIRE & SMOKE */
+        /* FIRE */
         body.theme-fire { background-color: rgb(48,8,8) !important; }
         .theme-fire #gameCard, .theme-fire .ranking-card { background-color: rgba(48, 8, 8, 0.95) !important; border: 2px solid #ff5000 !important; box-shadow: 0 0 30px rgba(255, 80, 0, 0.3), 0 15px 40px rgba(0, 0, 0, 0.7) !important; padding: 2.5rem !important; }
         .theme-fire #wordDisplay { color: #ff5000; text-shadow: 0 0 10px #ff5000, 0 0 20px #ff0000; position: relative; z-index: 20;}
@@ -202,11 +223,24 @@
 
         .theme-fire #fire-effect { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; overflow: hidden; }
         
-        .fire-particle { position: absolute; bottom: 0; border-radius: 50%; mix-blend-mode: screen; background-image: radial-gradient(rgb(255, 80, 0) 20%, rgba(255, 80, 0, 0) 70%); opacity: 0; width: 5em; height: 5em; animation: fire-rise 1s ease-in infinite; }
-        @keyframes fire-rise { from { opacity: 0; transform: translateY(0) scale(1); } 25% { opacity: 1; } to { opacity: 0; transform: translateY(-80vh) scale(0); } }
+        /* Thicker, more visible fire */
+        .fire-particle { 
+            position: absolute; bottom: 0; border-radius: 50%; 
+            mix-blend-mode: screen; 
+            background-image: radial-gradient(circle, #ffaa00 20%, rgba(255, 0, 0, 0) 70%); 
+            opacity: 0.9; width: 6em; height: 6em; 
+            animation: fire-rise 1.5s ease-in infinite; 
+        }
+        @keyframes fire-rise { from { opacity: 0.9; transform: translateY(0) scale(1); } 25% { opacity: 1; } to { opacity: 0; transform: translateY(-80vh) scale(0); } }
 
-        .smoke-particle { position: absolute; bottom: -50px; left: 50%; width: 80px; height: 80px; background: radial-gradient(circle, rgba(80,80,80,0.7) 0%, rgba(0,0,0,0) 70%); border-radius: 50%; filter: blur(8px); animation: smoke-rise 4s linear infinite; pointer-events: none; z-index: 4; }
-        @keyframes smoke-rise { 0% { transform: translate(-50%, 0) scale(1); opacity: 0; } 20% { opacity: 0.7; } 100% { transform: translate(var(--sway), -90vh) scale(4); opacity: 0; } }
+        /* Visible Smoke */
+        .smoke-particle { 
+            position: absolute; bottom: -50px; left: 50%; width: 90px; height: 90px; 
+            background: radial-gradient(circle, rgba(120,120,120,0.5) 0%, rgba(0,0,0,0) 70%); 
+            border-radius: 50%; filter: blur(10px); 
+            animation: smoke-rise 5s linear infinite; pointer-events: none; z-index: 4; 
+        }
+        @keyframes smoke-rise { 0% { transform: translate(-50%, 0) scale(1); opacity: 0; } 20% { opacity: 0.6; } 100% { transform: translate(var(--sway), -90vh) scale(4); opacity: 0; } }
 
     </style>
 </head>
@@ -366,7 +400,7 @@
          */
         const CONFIG = {
             API_BASE_URL: '/api/words',
-            APP_VERSION: '4.9.2',
+            APP_VERSION: '4.9.3',
             SPECIAL_WORDS: {
                 CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", msgDur: 3000 },
                 LLAMA: { text: 'LLAMA', prob: 0.005, fade: 8000, msg: "what llama?", msgDur: 2000 },
@@ -421,7 +455,6 @@
                 currentTheme: localStorage.getItem('currentTheme') || 'default',
                 unlockedThemes: JSON.parse(localStorage.getItem('unlockedThemes')) || [],
                 voteCounterForTips: parseInt(localStorage.getItem('voteCounterForTips')) || 0,
-                // NEW: Track if the user has manually selected a theme
                 manualTheme: localStorage.getItem('manualTheme') === 'true',
             },
             runtime: {
@@ -584,7 +617,6 @@
                 DOM.theme.hint.textContent = avail.length > 0 ? `You have ${avail.length} themes unlocked!` : `Vote on special words to unlock new themes!`;
             },
             apply(theme, manual = false) {
-                // If the user manually picks a theme, lock it.
                 if (manual) {
                     State.save('manualTheme', true);
                 }
@@ -625,8 +657,6 @@
                     State.data.unlockedThemes.push(unlocked);
                     State.save('unlockedThemes', State.data.unlockedThemes);
                     this.populateChooser();
-                    
-                    // NEW LOGIC: Only auto-switch if the user hasn't locked their theme
                     if (!State.data.manualTheme) {
                         this.apply(unlocked);
                     }
@@ -640,15 +670,14 @@
             fire() {
                 const container = DOM.theme.effects.fire;
                 container.innerHTML = '';
-                // Fire
-                for (let i = 0; i < 60; i++) { // Increased count
+                // Fire (More Density)
+                for (let i = 0; i < 60; i++) { 
                     const p = document.createElement('div'); p.className = 'fire-particle';
                     p.style.animationDelay = `${Math.random()}s`;
-                    // Concentration more at bottom center but spread enough
                     p.style.left = `calc(10% + (80% * ${Math.random()}))`;
                     container.appendChild(p);
                 }
-                // Smoke (NEW VISIBLE)
+                // Smoke (Darker, Bigger)
                 for (let i = 0; i < 15; i++) {
                     const s = document.createElement('div'); s.className = 'smoke-particle';
                     s.style.animationDelay = `${Math.random() * 3}s`;
@@ -860,15 +889,14 @@
          * 5. GAME LOGIC CONTROLLER
          */
         const Game = {
-            // Helper to strip theme-specific inline styles (Fixes Rainbow/Submarine/Banana issues)
             cleanStyles(wd) {
-                wd.style.animation = 'none'; // Stops bounce, bobbing, rotating colors
-                wd.style.background = 'none'; // Removes gradients
-                wd.style.webkitTextFillColor = 'initial'; // Resets text fill
+                wd.style.animation = 'none';
+                wd.style.background = 'none';
+                wd.style.webkitTextFillColor = 'initial';
                 wd.style.textShadow = 'none';
-                wd.style.transform = 'none'; // Resets position
-                wd.style.filter = 'none'; // Resets drop shadows
-                // Note: We leave fontSize intact so it doesn't shrink/pop
+                wd.style.transform = 'none';
+                wd.style.filter = 'none';
+                wd.style.color = ''; // Reset color
             },
 
             async init() {
@@ -902,10 +930,9 @@
                 };
 
                 document.getElementById('runComparisonButton').onclick = async () => {
+                   // Comparison logic
                    const w1Input = DOM.inputs.wordOne.value.trim(); 
                    const w2Input = DOM.inputs.wordTwo.value.trim();
-                   
-                   // Helper wrapper for comparison logic
                    if(!w1Input && !w2Input) { DOM.inputs.compareResults.innerHTML = '<span class="text-red-500">Please enter at least one word.</span>'; return; }
                    DOM.inputs.compareResults.innerHTML = '<span class="text-gray-500 animate-pulse">Analyzing words...</span>';
                    
@@ -968,7 +995,6 @@
                    DOM.inputs.compareResults.innerHTML = html;
                 };
 
-                // UPDATED LISTENER: Pass 'true' to indicate manual selection
                 DOM.theme.chooser.onchange = (e) => ThemeManager.apply(e.target.value, true);
                 
                 document.getElementById('clearAllDataButton').onclick = State.clearAll;
@@ -1092,28 +1118,24 @@
 
                 const wd = DOM.game.wordDisplay;
                 
-                // --- FIXED ANIMATION LOGIC START ---
+                // --- FIXED ANIMATION LOGIC ---
                 if (!fromSwipe && (type === 'good' || type === 'bad')) {
-                    // CRITICAL FIX: Strip inline animations (Submarine/Banana) and Backgrounds (Rainbow) 
-                    // BEFORE adding the fly-out class.
-                    this.cleanStyles(wd);
+                    this.cleanStyles(wd); // Remove drag transforms/colors
                     
-                    // Reset base class
-                    wd.className = 'font-extrabold text-gray-900 text-center min-h-[72px]';
+                    // Force Solid Color BEFORE Animation
+                    wd.style.color = type === 'good' ? '#10b981' : '#ef4444';
+                    wd.style.transition = 'none'; // Ensure instant color switch
                     
-                    if (type === 'good') {
-                        wd.classList.add('swipe-good-color'); 
-                        wd.classList.add('animate-fly-left'); 
-                    } else {
-                        wd.classList.add('swipe-bad-color');  
-                        wd.classList.add('animate-fly-right'); 
-                    }
+                    // Trigger Fly Out in next frame
+                    requestAnimationFrame(() => {
+                        wd.classList.add(type === 'good' ? 'animate-fly-left' : 'animate-fly-right');
+                    });
                 }
-                // --- ANIMATION LOGIC END ---
+                // -----------------------------
 
                 const handleSpecial = (conf, badgeKey) => {
                     State.unlockBadge(badgeKey);
-                    this.cleanStyles(wd); // Ensure special words don't carry theme baggage
+                    this.cleanStyles(wd); 
                     wd.className = 'font-extrabold text-gray-900 text-center min-h-[72px]';
                     wd.classList.add(conf.text === 'LLAMA' ? 'word-fade-llama' : 'word-fade-quick');
                     
@@ -1217,7 +1239,6 @@
                         }
                         this.isDragging = true;
                         
-                        // Clean styles immediately on confirmed drag
                         Game.cleanStyles(wd);
                     }
 
@@ -1227,17 +1248,17 @@
                         e.preventDefault(); 
                         const rotation = diffX * 0.05; 
                         
-                        // Allow Y movement
                         const moveY = diffY * 0.8;
                         wd.style.transform = `translate(${diffX}px, ${moveY}px) rotate(${rotation}deg)`;
                         
-                        // SMOOTH FADE COLOR LOGIC (User request: "fade red or green, not suddenly change")
+                        // SMOOTH FADE COLOR LOGIC
+                        // Fade starts at 0 opacity and caps at 1.0 opacity based on drag distance (300px)
                         if (diffX < 0) {
                             // Fading Green
-                            wd.style.color = `rgba(16, 185, 129, ${Math.min(0.4 + Math.abs(diffX)/300, 1)})`; 
+                            wd.style.color = `rgba(16, 185, 129, ${Math.min(Math.abs(diffX)/150, 1)})`; 
                         } else {
                             // Fading Red
-                            wd.style.color = `rgba(239, 68, 68, ${Math.min(0.4 + Math.abs(diffX)/300, 1)})`;
+                            wd.style.color = `rgba(239, 68, 68, ${Math.min(Math.abs(diffX)/150, 1)})`;
                         }
                     }
                 }, { passive: false });
@@ -1265,14 +1286,10 @@
                         // RESET
                         wd.classList.add('word-reset'); 
                         wd.style.transform = 'translate(0px, 0px) rotate(0deg)';
+                        wd.style.color = ''; // Reset color fade
                         
-                        // Remove any dynamic color
-                        wd.style.color = '';
-                        
-                        // Restore theme effects after spring-back
                         setTimeout(() => {
                            wd.classList.remove('word-reset');
-                           // Re-apply theme animations/styles
                            UIManager.displayWord(State.runtime.allWords[State.runtime.currentWordIndex]);
                         }, 300);
                     }
