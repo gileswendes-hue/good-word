@@ -137,6 +137,7 @@
             overflow: hidden; 
         }
 
+        /* SNOW DRIFT: z-index 25 to appear IN FRONT of word */
         #card-snow-drift { 
             position: absolute; bottom: 0; left: 0; right: 0; 
             height: 0px; 
@@ -203,15 +204,16 @@
             padding: 2rem !important; 
         }
 
-        /* --- HALLOWEEN (UPDATED) --- */
+        /* --- HALLOWEEN (COBWEBS & SPIDER) --- */
         body.theme-halloween { background: linear-gradient(135deg, #000000 0%, #3a0000 100%) !important; }
         
         .theme-halloween #halloween-effect { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 40; overflow: hidden; }
 
-        /* COBWEBS */
+        /* COBWEBS - Curved SVG */
         .cobweb {
             position: absolute; width: 350px; height: 350px; opacity: 0.7; pointer-events: none;
-            background-image: url('data:image/svg+xml;utf8,<svg width="100%" height="100%" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path d="M0 0 L100 50 M0 0 L50 100 M0 0 L100 100" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/><path d="M20 10 Q 15 15 10 20" stroke="rgba(255,255,255,0.2)" stroke-width="1" fill="none"/><path d="M40 20 Q 30 30 20 40" stroke="rgba(255,255,255,0.2)" stroke-width="1" fill="none"/><path d="M60 30 Q 45 45 30 60" stroke="rgba(255,255,255,0.2)" stroke-width="1" fill="none"/><path d="M80 40 Q 60 60 40 80" stroke="rgba(255,255,255,0.2)" stroke-width="1" fill="none"/><path d="M95 55 Q 75 75 55 95" stroke="rgba(255,255,255,0.2)" stroke-width="1" fill="none"/></svg>');
+            /* Encoded SVG for better compatibility */
+            background-image: url("data:image/svg+xml,%3Csvg width='100%25' height='100%25' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0 L100 50 M0 0 L50 100 M0 0 L100 100' stroke='rgba(255,255,255,0.2)' stroke-width='1.5'/%3E%3Cpath d='M20 10 Q 15 15 10 20' stroke='rgba(255,255,255,0.2)' stroke-width='1' fill='none'/%3E%3Cpath d='M40 20 Q 30 30 20 40' stroke='rgba(255,255,255,0.2)' stroke-width='1' fill='none'/%3E%3Cpath d='M60 30 Q 45 45 30 60' stroke='rgba(255,255,255,0.2)' stroke-width='1' fill='none'/%3E%3Cpath d='M80 40 Q 60 60 40 80' stroke='rgba(255,255,255,0.2)' stroke-width='1' fill='none'/%3E%3Cpath d='M95 55 Q 75 75 55 95' stroke='rgba(255,255,255,0.2)' stroke-width='1' fill='none'/%3E%3C/svg%3E");
             background-repeat: no-repeat;
             filter: drop-shadow(0 2px 2px rgba(0,0,0,0.5));
         }
@@ -528,7 +530,7 @@
          */
         const CONFIG = {
             API_BASE_URL: '/api/words',
-            APP_VERSION: '4.9.9.9',
+            APP_VERSION: '4.9.9.91',
             SPECIAL_WORDS: {
                 CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", msgDur: 3000 },
                 LLAMA: { text: 'LLAMA', prob: 0.005, fade: 8000, msg: "what llama?", msgDur: 2000 },
@@ -1145,109 +1147,113 @@
             },
 
             async init() {
-                DOM.general.version.textContent = `v${CONFIG.APP_VERSION} | Made by Gilxs`;
-                DOM.game.buttons.good.onclick = () => this.vote('good');
-                DOM.game.buttons.bad.onclick = () => this.vote('bad');
-                DOM.game.buttons.notWord.onclick = () => this.vote('notWord');
-                
-                DOM.header.badges.cake.onclick = () => this.loadSpecial(CONFIG.SPECIAL_WORDS.CAKE.text);
-                DOM.header.badges.llama.onclick = () => this.loadSpecial(CONFIG.SPECIAL_WORDS.LLAMA.text);
-                DOM.header.badges.potato.onclick = () => this.loadSpecial(CONFIG.SPECIAL_WORDS.POTATO.text);
-                DOM.header.badges.squirrel.onclick = () => this.loadSpecial(CONFIG.SPECIAL_WORDS.SQUIRREL.text);
-                DOM.header.badges.award.onclick = () => UIManager.showPostVoteMessage(`🏆 Total Votes Cast: ${State.data.voteCount}`);
-                DOM.header.badges.contributor.onclick = () => UIManager.showPostVoteMessage(`✍️ You Submitted: ${State.data.contributorCount}`);
+                try {
+                    DOM.general.version.textContent = `v${CONFIG.APP_VERSION} | Made by Gilxs`;
+                    DOM.game.buttons.good.onclick = () => this.vote('good');
+                    DOM.game.buttons.bad.onclick = () => this.vote('bad');
+                    DOM.game.buttons.notWord.onclick = () => this.vote('notWord');
+                    
+                    DOM.header.badges.cake.onclick = () => this.loadSpecial(CONFIG.SPECIAL_WORDS.CAKE.text);
+                    DOM.header.badges.llama.onclick = () => this.loadSpecial(CONFIG.SPECIAL_WORDS.LLAMA.text);
+                    DOM.header.badges.potato.onclick = () => this.loadSpecial(CONFIG.SPECIAL_WORDS.POTATO.text);
+                    DOM.header.badges.squirrel.onclick = () => this.loadSpecial(CONFIG.SPECIAL_WORDS.SQUIRREL.text);
+                    DOM.header.badges.award.onclick = () => UIManager.showPostVoteMessage(`🏆 Total Votes Cast: ${State.data.voteCount}`);
+                    DOM.header.badges.contributor.onclick = () => UIManager.showPostVoteMessage(`✍️ You Submitted: ${State.data.contributorCount}`);
 
-                document.getElementById('submitWordButton').onclick = async () => {
-                    const txt = DOM.inputs.newWord.value.trim();
-                    if(!txt || txt.includes(' ') || txt.length>45) { DOM.inputs.modalMsg.textContent="Invalid word."; return; }
-                    const btn = document.getElementById('submitWordButton'); btn.disabled = true;
-                    try {
-                        const res = await API.submitWord(txt);
-                        if(res.status === 201) {
-                            State.incrementContributor();
-                            DOM.inputs.modalMsg.textContent = "Success!";
-                            setTimeout(() => { ModalManager.toggle('submission', false); this.refreshData(); }, 1000);
-                        } else {
-                            const d = await res.json(); DOM.inputs.modalMsg.textContent = d.message || "Error";
-                        }
-                    } catch(e) { DOM.inputs.modalMsg.textContent = "Network Error"; }
-                    btn.disabled = false;
-                };
+                    document.getElementById('submitWordButton').onclick = async () => {
+                        const txt = DOM.inputs.newWord.value.trim();
+                        if(!txt || txt.includes(' ') || txt.length>45) { DOM.inputs.modalMsg.textContent="Invalid word."; return; }
+                        const btn = document.getElementById('submitWordButton'); btn.disabled = true;
+                        try {
+                            const res = await API.submitWord(txt);
+                            if(res.status === 201) {
+                                State.incrementContributor();
+                                DOM.inputs.modalMsg.textContent = "Success!";
+                                setTimeout(() => { ModalManager.toggle('submission', false); this.refreshData(); }, 1000);
+                            } else {
+                                const d = await res.json(); DOM.inputs.modalMsg.textContent = d.message || "Error";
+                            }
+                        } catch(e) { DOM.inputs.modalMsg.textContent = "Network Error"; }
+                        btn.disabled = false;
+                    };
 
-                document.getElementById('runComparisonButton').onclick = async () => {
-                   // Comparison logic
-                   const w1Input = DOM.inputs.wordOne.value.trim(); 
-                   const w2Input = DOM.inputs.wordTwo.value.trim();
-                   if(!w1Input && !w2Input) { DOM.inputs.compareResults.innerHTML = '<span class="text-red-500">Please enter at least one word.</span>'; return; }
-                   DOM.inputs.compareResults.innerHTML = '<span class="text-gray-500 animate-pulse">Analyzing words...</span>';
-                   
-                   const getWordData = async (w) => {
-                       if (w.includes(' ') || w.length > 45) return { t: w, valid: false, err: 'Invalid word.' };
-                       const exist = State.runtime.allWords.find(x => x.text.toUpperCase() === w.toUpperCase());
-                       if(exist) return { t: exist.text, valid: true, exists: true, d: exist };
-                       const r = await API.submitWord(w);
-                       if(r.status === 201) { State.incrementContributor(); return { t: w.toUpperCase(), valid: true, exists: false, isNew: true }; }
-                       return { t: w, valid: false, err: 'Could not fetch data.' };
-                   };
-
-                   const results = [];
-                   if(w1Input) results.push(await getWordData(w1Input));
-                   if(w2Input) results.push(await getWordData(w2Input));
-                   
-                   if(results.some(r => r.isNew)) this.refreshData(false);
-
-                   if(results.some(r => !r.valid)) {
-                       DOM.inputs.compareResults.innerHTML = results.map(r => !r.valid ? `<p class="text-red-500 mb-2"><strong>${r.t}</strong>: ${r.err}</p>` : '').join('');
-                       return;
-                   }
-
-                   const stats = results.map(r => {
-                       if(r.isNew) return { text: r.t.toUpperCase(), score: 0, good: 0, bad: 0, total: 0, approval: 0, isNew: true };
-                       const g = r.d.goodVotes || 0;
-                       const b = r.d.badVotes || 0;
-                       const total = g + b;
-                       return { 
-                           text: r.t.toUpperCase(), 
-                           score: g - b, 
-                           good: g, 
-                           bad: b, 
-                           total: total, 
-                           approval: total > 0 ? Math.round((g / total) * 100) : 0,
-                           isNew: false
-                       };
-                   });
-
-                   let html = '';
-                   if(stats.length === 2) {
-                       const [s1, s2] = stats;
-                       let winnerIdx = -1;
-                       if (s1.score !== s2.score) winnerIdx = s1.score > s2.score ? 0 : 1;
+                    document.getElementById('runComparisonButton').onclick = async () => {
+                       const w1Input = DOM.inputs.wordOne.value.trim(); 
+                       const w2Input = DOM.inputs.wordTwo.value.trim();
+                       if(!w1Input && !w2Input) { DOM.inputs.compareResults.innerHTML = '<span class="text-red-500">Please enter at least one word.</span>'; return; }
+                       DOM.inputs.compareResults.innerHTML = '<span class="text-gray-500 animate-pulse">Analyzing words...</span>';
                        
-                       html = `<div class="flex flex-col md:flex-row gap-4 w-full justify-center items-stretch">`;
-                       stats.forEach((s, idx) => {
-                           const isWinner = idx === winnerIdx;
-                           const isLoser = winnerIdx !== -1 && !isWinner;
-                           const borderClass = isWinner ? 'border-yellow-400 bg-yellow-50 shadow-xl scale-105 z-10' : 'border-gray-200 bg-white';
-                           const opacityClass = isLoser ? 'opacity-70 grayscale-[0.3]' : '';
-                           html += `<div class="flex-1 p-4 rounded-xl border-2 ${borderClass} ${opacityClass} flex flex-col items-center transition-all duration-300">${isWinner ? '<div class="text-2xl mb-2">🏆</div>' : '<div class="h-8 mb-2"></div>'}<h3 class="text-xl font-black text-gray-800 mb-1">${s.text}</h3>${isWinner ? '<span class="bg-yellow-400 text-white text-[10px] font-bold px-2 py-0.5 rounded-full mb-2">WINNER</span>' : ''}${s.isNew ? '<span class="bg-purple-100 text-purple-600 text-xs px-2 py-1 rounded mb-2">New!</span>' : ''}<div class="text-3xl font-bold ${s.score >= 0 ? 'text-green-600' : 'text-red-600'} mb-4">${s.score}</div><div class="w-full space-y-2"><div class="flex justify-between text-xs text-gray-500"><span>Approval</span><span>${s.approval}%</span></div><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-blue-500 h-2.5 rounded-full" style="width: ${s.approval}%"></div></div><div class="flex justify-between text-xs pt-1"><span class="text-green-600 font-bold">+${s.good}</span><span class="text-red-600 font-bold">-${s.bad}</span></div></div></div>`;
-                           if(idx === 0) html += `<div class="flex items-center justify-center font-black text-gray-300 md:px-2">VS</div>`;
+                       const getWordData = async (w) => {
+                           if (w.includes(' ') || w.length > 45) return { t: w, valid: false, err: 'Invalid word.' };
+                           const exist = State.runtime.allWords.find(x => x.text.toUpperCase() === w.toUpperCase());
+                           if(exist) return { t: exist.text, valid: true, exists: true, d: exist };
+                           const r = await API.submitWord(w);
+                           if(r.status === 201) { State.incrementContributor(); return { t: w.toUpperCase(), valid: true, exists: false, isNew: true }; }
+                           return { t: w, valid: false, err: 'Could not fetch data.' };
+                       };
+
+                       const results = [];
+                       if(w1Input) results.push(await getWordData(w1Input));
+                       if(w2Input) results.push(await getWordData(w2Input));
+                       
+                       if(results.some(r => r.isNew)) this.refreshData(false);
+
+                       if(results.some(r => !r.valid)) {
+                           DOM.inputs.compareResults.innerHTML = results.map(r => !r.valid ? `<p class="text-red-500 mb-2"><strong>${r.t}</strong>: ${r.err}</p>` : '').join('');
+                           return;
+                       }
+
+                       const stats = results.map(r => {
+                           if(r.isNew) return { text: r.t.toUpperCase(), score: 0, good: 0, bad: 0, total: 0, approval: 0, isNew: true };
+                           const g = r.d.goodVotes || 0;
+                           const b = r.d.badVotes || 0;
+                           const total = g + b;
+                           return { 
+                               text: r.t.toUpperCase(), 
+                               score: g - b, 
+                               good: g, 
+                               bad: b, 
+                               total: total, 
+                               approval: total > 0 ? Math.round((g / total) * 100) : 0,
+                               isNew: false
+                           };
                        });
-                       html += `</div>`;
-                   } else {
-                       const s = stats[0];
-                       html = `<div class="p-4 rounded-xl border border-gray-200 bg-white flex flex-col items-center w-full max-w-xs mx-auto"><h3 class="text-xl font-black text-gray-800 mb-2">${s.text}</h3>${s.isNew ? '<span class="bg-purple-100 text-purple-600 text-xs px-2 py-1 rounded mb-2">Newly Added!</span>' : ''}<div class="text-4xl font-bold ${s.score >= 0 ? 'text-green-600' : 'text-red-600'} mb-4">${s.score}</div><div class="w-full space-y-2"><div class="flex justify-between text-xs text-gray-500"><span>Approval Rating</span><span>${s.approval}%</span></div><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-blue-500 h-2.5 rounded-full" style="width: ${s.approval}%"></div></div><div class="flex justify-between text-xs pt-1"><span class="text-green-600 font-bold">+${s.good} Votes</span><span class="text-red-600 font-bold">-${s.bad} Votes</span></div></div></div>`;
-                   }
-                   DOM.inputs.compareResults.innerHTML = html;
-                };
 
-                DOM.theme.chooser.onchange = (e) => ThemeManager.apply(e.target.value, true);
-                
-                document.getElementById('clearAllDataButton').onclick = State.clearAll;
+                       let html = '';
+                       if(stats.length === 2) {
+                           const [s1, s2] = stats;
+                           let winnerIdx = -1;
+                           if (s1.score !== s2.score) winnerIdx = s1.score > s2.score ? 0 : 1;
+                           
+                           html = `<div class="flex flex-col md:flex-row gap-4 w-full justify-center items-stretch">`;
+                           stats.forEach((s, idx) => {
+                               const isWinner = idx === winnerIdx;
+                               const isLoser = winnerIdx !== -1 && !isWinner;
+                               const borderClass = isWinner ? 'border-yellow-400 bg-yellow-50 shadow-xl scale-105 z-10' : 'border-gray-200 bg-white';
+                               const opacityClass = isLoser ? 'opacity-70 grayscale-[0.3]' : '';
+                               html += `<div class="flex-1 p-4 rounded-xl border-2 ${borderClass} ${opacityClass} flex flex-col items-center transition-all duration-300">${isWinner ? '<div class="text-2xl mb-2">🏆</div>' : '<div class="h-8 mb-2"></div>'}<h3 class="text-xl font-black text-gray-800 mb-1">${s.text}</h3>${isWinner ? '<span class="bg-yellow-400 text-white text-[10px] font-bold px-2 py-0.5 rounded-full mb-2">WINNER</span>' : ''}${s.isNew ? '<span class="bg-purple-100 text-purple-600 text-xs px-2 py-1 rounded mb-2">New!</span>' : ''}<div class="text-3xl font-bold ${s.score >= 0 ? 'text-green-600' : 'text-red-600'} mb-4">${s.score}</div><div class="w-full space-y-2"><div class="flex justify-between text-xs text-gray-500"><span>Approval</span><span>${s.approval}%</span></div><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-blue-500 h-2.5 rounded-full" style="width: ${s.approval}%"></div></div><div class="flex justify-between text-xs pt-1"><span class="text-green-600 font-bold">+${s.good}</span><span class="text-red-600 font-bold">-${s.bad}</span></div></div></div>`;
+                               if(idx === 0) html += `<div class="flex items-center justify-center font-black text-gray-300 md:px-2">VS</div>`;
+                           });
+                           html += `</div>`;
+                       } else {
+                           const s = stats[0];
+                           html = `<div class="p-4 rounded-xl border border-gray-200 bg-white flex flex-col items-center w-full max-w-xs mx-auto"><h3 class="text-xl font-black text-gray-800 mb-2">${s.text}</h3>${s.isNew ? '<span class="bg-purple-100 text-purple-600 text-xs px-2 py-1 rounded mb-2">Newly Added!</span>' : ''}<div class="text-4xl font-bold ${s.score >= 0 ? 'text-green-600' : 'text-red-600'} mb-4">${s.score}</div><div class="w-full space-y-2"><div class="flex justify-between text-xs text-gray-500"><span>Approval Rating</span><span>${s.approval}%</span></div><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-blue-500 h-2.5 rounded-full" style="width: ${s.approval}%"></div></div><div class="flex justify-between text-xs pt-1"><span class="text-green-600 font-bold">+${s.good} Votes</span><span class="text-red-600 font-bold">-${s.bad} Votes</span></div></div></div>`;
+                       }
+                       DOM.inputs.compareResults.innerHTML = html;
+                    };
 
-                InputHandler.init();
-                ThemeManager.init();
-                ModalManager.init();
-                await this.refreshData();
+                    DOM.theme.chooser.onchange = (e) => ThemeManager.apply(e.target.value, true);
+                    
+                    document.getElementById('clearAllDataButton').onclick = State.clearAll;
+
+                    InputHandler.init();
+                    ThemeManager.init();
+                    ModalManager.init();
+                    await this.refreshData();
+                } catch (err) {
+                    console.error("Game Initialization Error:", err);
+                    UIManager.showMessage("Game Error. Check Console.", true);
+                }
             },
             async refreshData(updateDisplay = true) {
                 if(updateDisplay) UIManager.showMessage("Loading...");
