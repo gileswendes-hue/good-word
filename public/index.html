@@ -122,7 +122,7 @@
         @keyframes bounce-word { from { transform: translateY(0); } to { transform: translateY(-15px); } }
         .theme-banana #gameCard { background-color: rgba(255, 255, 255, 0.95) !important; border: 2px solid #f4ef81 !important; box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15) !important; padding: 2rem !important; }
         
-        /* WINTER - UPDATED */
+        /* WINTER */
         body.theme-winter { background: linear-gradient(135deg, #e0f7fa 0%, #b3e5fc 100%) !important; }
         
         .theme-winter #wordDisplay { 
@@ -177,15 +177,64 @@
         .snow-particle { position: absolute; top: -20px; border-radius: 50%; background: white; pointer-events: none; animation: snow-fall linear infinite; }
         @keyframes snow-fall { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 1; } 100% { transform: translate(var(--sway), 110vh); opacity: 0; } }
 
-        /* SUMMER */
-        body.theme-summer { background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%) !important; }
-        .theme-summer #wordDisplay { color: #FF9800; text-shadow: 0 0 20px #FFF8E1, 0 0 10px #FFEB3B; }
-        .theme-summer #gameCard { background-color: rgba(255, 255, 255, 0.9) !important; border: 2px solid #FFEB3B !important; box-shadow: 0 15px 40px rgba(255, 152, 0, 0.5) !important; padding: 2rem !important; }
+        /* --- SUMMER (UPDATED) --- */
+        body.theme-summer { 
+            /* Blue Sky Gradient */
+            background: linear-gradient(to bottom, #4facfe 0%, #00f2fe 100%) !important; 
+        }
 
-        /* HALLOWEEN */
+        .theme-summer #summer-effect { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; overflow: hidden; }
+        
+        /* Grass at the bottom */
+        .summer-grass {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 15vh;
+            background: linear-gradient(to top, #43a047, #66bb6a);
+            border-radius: 50% 50% 0 0 / 20px 20px 0 0;
+            box-shadow: 0 -5px 15px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+
+        /* Fluffy Clouds */
+        .summer-cloud {
+            position: absolute; background: #fff; border-radius: 100px; opacity: 0.8;
+            animation: cloud-float linear infinite;
+        }
+        .summer-cloud::after, .summer-cloud::before {
+            content: ''; position: absolute; background: #fff; z-index: -1;
+        }
+        .summer-cloud::after { width: 40%; height: 40%; top: -20%; left: 15%; border-radius: 100%; }
+        .summer-cloud::before { width: 60%; height: 60%; top: -35%; right: 15%; border-radius: 100%; }
+        
+        @keyframes cloud-float { 
+            0% { transform: translateX(120vw); } 
+            100% { transform: translateX(-50vw); } 
+        }
+
+        /* Sun-like glowing text */
+        .theme-summer #wordDisplay { 
+            color: #fff9c4; /* Pale yellow core */
+            text-shadow: 0 0 10px #ffeb3b, 0 0 20px #ff9800, 0 0 30px #ff5722;
+            animation: sun-pulse 3s ease-in-out infinite alternate;
+        }
+        @keyframes sun-pulse {
+            from { filter: brightness(1); transform: scale(1); }
+            to { filter: brightness(1.2); transform: scale(1.02); text-shadow: 0 0 15px #ffeb3b, 0 0 30px #ff9800, 0 0 45px #ff5722; }
+        }
+
+        .theme-summer #gameCard { 
+            background-color: rgba(255, 255, 255, 0.85) !important; /* Slightly more transparent to see sky */
+            border: 2px solid #fff !important; 
+            box-shadow: 0 15px 40px rgba(0, 100, 255, 0.2) !important; 
+            padding: 2rem !important; 
+        }
+
+        /* --- HALLOWEEN (SHARPENED) --- */
         body.theme-halloween { background: linear-gradient(135deg, #000000 0%, #3a0000 100%) !important; }
-        .theme-halloween #wordDisplay { color: #FF8C00 !important; text-shadow: 0 0 20px rgba(255, 140, 0, 1), 0 0 5px rgba(255, 140, 0, 0.5) !important; }
-        .theme-halloween .card, .theme-halloween .ranking-card { background-color: rgba(10, 0, 0, 0.9) !important; border: 2px solid #FF8C00 !important; box-shadow: 0 0 30px rgba(255, 140, 0, 0.5), 0 15px 40px rgba(0, 0, 0, 0.7) !important; }
+        .theme-halloween #wordDisplay { 
+            color: #FF8C00 !important; 
+            text-shadow: 2px 2px 0px #1a0000, 0 0 8px rgba(255, 140, 0, 1), 0 0 15px rgba(255, 69, 0, 0.6) !important; 
+        }
+        .theme-halloween .card, .theme-halloween .ranking-card { background-color: rgba(10, 0, 0, 0.9) !important; border: 2px solid #FF8C00 !important; box-shadow: 0 0 30px rgba(255, 140, 0, 0.3), 0 15px 40px rgba(0, 0, 0, 0.7) !important; }
         .theme-halloween #gameCard { padding: 2rem !important; }
         .theme-halloween .text-gray-900, .theme-halloween .rank-item .text-gray-800 { color: #F3F4F6 !important; }
         .theme-halloween .text-gray-500, .theme-halloween .text-gray-600 { color: #9CA3AF !important; }
@@ -193,7 +242,7 @@
         .theme-halloween header .bg-gray-50 { background-color: #1C1C1C !important; }
         .theme-halloween h2 { color: #FF8C00 !important; }
         .theme-halloween .border-b { border-color: #691C00 !important; }
-        
+
         /* SUBMARINE */
         @keyframes bobbing-word { 0% { transform: translateY(0px) rotate(-1deg); } 50% { transform: translateY(-8px) rotate(1deg); } 100% { transform: translateY(0px) rotate(-1deg); } }
         body.theme-submarine { background: linear-gradient(135deg, #020c1e 0%, #0a1931 50%, #183a5a 100%) !important; }
@@ -211,10 +260,14 @@
         .bubble-particle { position: absolute; bottom: -50px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05) 60%, rgba(255, 255, 255, 0)); box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.3), 0 0 4px rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.15); opacity: 0; z-index: 0; animation: bubble-rise-float linear infinite; }
         @keyframes bubble-rise-float { 0% { transform: translateY(0) translateX(0) scale(0.8); opacity: 0; } 10% { opacity: 1; } 50% { transform: translateY(-50vh) translateX(15px) scale(1); } 100% { transform: translateY(-120vh) translateX(-15px) scale(1.1); opacity: 0; } }
 
-        /* FIRE */
+        /* --- FIRE (SHARPENED) --- */
         body.theme-fire { background-color: rgb(30, 10, 5) !important; }
         .theme-fire #gameCard, .theme-fire .ranking-card { background-color: rgba(48, 8, 8, 0.95) !important; border: 2px solid #ff5000 !important; box-shadow: 0 0 30px rgba(255, 80, 0, 0.3), 0 15px 40px rgba(0, 0, 0, 0.7) !important; padding: 2.5rem !important; }
-        .theme-fire #wordDisplay { color: #ff5000 !important; text-shadow: 0 0 10px #ff5000, 0 0 20px #ff0000 !important; position: relative; z-index: 20;}
+        .theme-fire #wordDisplay { 
+            color: #ffaa00 !important; 
+            text-shadow: 2px 2px 0px #300, 0 0 8px #ff5000, 0 0 20px #ff0000 !important; 
+            position: relative; z-index: 20;
+        }
         .theme-fire .text-gray-900, .theme-fire .rank-item .text-gray-800 { color: #ffdcd0 !important; }
         .theme-fire .text-gray-500, .theme-fire .text-gray-600 { color: #a66 !important; }
         .theme-fire h2 { color: #ff5000 !important; }
@@ -250,6 +303,7 @@
     <div id="snow-effect" class="hidden"></div> 
     <div id="bubble-effect" class="hidden"></div> 
     <div id="fire-effect" class="hidden"></div>
+    <div id="summer-effect" class="hidden"></div>
     
     <header class="text-center mb-8 w-full max-w-lg z-20 relative">
         <div id="logoArea" class="h-32 w-full flex items-center justify-center mb-4 relative">
@@ -402,7 +456,7 @@
          */
         const CONFIG = {
             API_BASE_URL: '/api/words',
-            APP_VERSION: '4.9.8',
+            APP_VERSION: '4.9.8.1',
             SPECIAL_WORDS: {
                 CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", msgDur: 3000 },
                 LLAMA: { text: 'LLAMA', prob: 0.005, fade: 8000, msg: "what llama?", msgDur: 2000 },
@@ -541,7 +595,8 @@
                 effects: {
                     snow: document.getElementById('snow-effect'),
                     bubble: document.getElementById('bubble-effect'),
-                    fire: document.getElementById('fire-effect')
+                    fire: document.getElementById('fire-effect'),
+                    summer: document.getElementById('summer-effect')
                 }
             },
             modals: {
@@ -628,17 +683,25 @@
                 document.body.classList.add(`theme-${theme}`);
                 State.save('currentTheme', theme);
                 
+                // Snow
                 DOM.theme.effects.snow.classList.toggle('hidden', theme !== 'winter');
                 if (theme === 'winter') Effects.snow();
                 else DOM.theme.effects.snow.innerHTML = '';
 
+                // Bubble
                 DOM.theme.effects.bubble.classList.toggle('hidden', theme !== 'submarine');
                 if (theme === 'submarine') Effects.bubbles();
                 else DOM.theme.effects.bubble.innerHTML = '';
 
+                // Fire
                 DOM.theme.effects.fire.classList.toggle('hidden', theme !== 'fire');
                 if (theme === 'fire') Effects.fire();
                 else DOM.theme.effects.fire.innerHTML = '';
+                
+                // Summer
+                DOM.theme.effects.summer.classList.toggle('hidden', theme !== 'summer');
+                if (theme === 'summer') Effects.summer();
+                else DOM.theme.effects.summer.innerHTML = '';
 
                 const cards = document.querySelectorAll('.card, .ranking-card');
                 const isRainbow = theme === 'rainbow';
@@ -726,6 +789,29 @@
                     f.style.animationDuration = `${Math.random()*15 + 8}s`;
                     f.style.animationDelay = `-${Math.random()*15}s`;
                     container.appendChild(f);
+                }
+            },
+            summer() {
+                const container = DOM.theme.effects.summer;
+                container.innerHTML = '';
+                
+                // Add Grass
+                const grass = document.createElement('div');
+                grass.className = 'summer-grass';
+                container.appendChild(grass);
+
+                // Add Clouds
+                for (let i = 0; i < 8; i++) {
+                    const c = document.createElement('div');
+                    c.className = 'summer-cloud';
+                    const width = Math.random() * 100 + 100; // 100px to 200px
+                    c.style.width = `${width}px`;
+                    c.style.height = `${width * 0.6}px`; 
+                    c.style.top = `${Math.random() * 60}%`; 
+                    const duration = Math.random() * 20 + 20; 
+                    c.style.animationDuration = `${duration}s`;
+                    c.style.animationDelay = `-${Math.random() * 40}s`; 
+                    container.appendChild(c);
                 }
             }
         };
@@ -830,9 +916,15 @@
                 
                 const t = State.data.currentTheme;
                 if (['dark','halloween','submarine','fire'].includes(t)) wd.style.color = '#f3f4f6';
-                if (t === 'halloween') { wd.style.color = '#FF8C00'; wd.style.textShadow = '0 0 20px rgba(255,140,0,1), 0 0 5px rgba(255,140,0,0.5)'; }
+                if (t === 'halloween') { 
+                    wd.style.color = '#FF8C00'; 
+                    wd.style.textShadow = '2px 2px 0px #1a0000, 0 0 8px rgba(255,140,0,1), 0 0 15px rgba(255,69,0,0.6)'; 
+                }
                 if (t === 'submarine') { wd.style.color = '#b0e0e6'; wd.style.textShadow = '0 0 10px rgba(176,224,230,0.7), 0 0 5px rgba(255,255,255,0.3)'; wd.style.animation = 'bobbing-word 2.5s ease-in-out infinite'; }
-                if (t === 'fire') { wd.style.color = '#ff5000'; wd.style.textShadow = '0 0 10px #ff5000, 0 0 20px #ff0000'; }
+                if (t === 'fire') { 
+                    wd.style.color = '#ffaa00'; 
+                    wd.style.textShadow = '2px 2px 0px #300, 0 0 8px #ff5000, 0 0 20px #ff0000'; 
+                }
                 if (t === 'banana') { wd.style.color = '#ffd200'; wd.style.animation = 'bounce-word 0.5s ease-out infinite alternate'; }
                 if (t === 'winter') { 
                     wd.style.color = '#01579b'; 
@@ -840,7 +932,14 @@
                     void wd.offsetWidth; // Trigger Reflow for Animation Reset
                     wd.classList.add('animate-snow-text');
                 }
-                if (t === 'summer') { wd.style.color = '#FF9800'; wd.style.textShadow = '0 0 20px #FFF8E1, 0 0 10px #FFEB3B'; }
+                if (t === 'summer') { 
+                    wd.style.color = '#fff9c4'; 
+                    wd.style.textShadow = '0 0 10px #ffeb3b, 0 0 20px #ff9800, 0 0 30px #ff5722'; 
+                    wd.style.animation = 'sun-pulse 3s ease-in-out infinite alternate'; 
+                } else {
+                    if(t !== 'banana' && t !== 'rainbow' && t !== 'submarine') wd.style.animation = 'none';
+                }
+                
                 if (t === 'rainbow') { 
                     wd.style.background = 'linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #9400d3)';
                     wd.style.webkitBackgroundClip = 'text'; wd.style.webkitTextFillColor = 'transparent'; wd.style.color = 'transparent';
@@ -1348,4 +1447,3 @@
     </script>
 </body>
 </html>
-
