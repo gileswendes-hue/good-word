@@ -264,9 +264,9 @@
                 <button id="closeCompareModal" class="text-gray-500 hover:text-gray-800 text-2xl font-bold leading-none">&times;</button>
             </div>
             <div class="space-y-4">
-                <div class="flex space-x-2">
-                    <input type="text" id="wordOneInput" placeholder="First word..." class="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
-                    <input type="text" id="wordTwoInput" placeholder="Second word..." class="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                <div class="flex flex-col md:flex-row gap-3">
+                    <input type="text" id="wordOneInput" placeholder="First word..." class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                    <input type="text" id="wordTwoInput" placeholder="Second word..." class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
                 </div>
                 <div id="compareResults" class="p-3 bg-gray-50 rounded-lg min-h-[50px] flex flex-col items-center justify-center text-gray-500">Type two words above to see who wins!</div>
             </div>
@@ -301,7 +301,7 @@
          */
         const CONFIG = {
             API_BASE_URL: '/api/words',
-            APP_VERSION: '4.8.4',
+            APP_VERSION: '4.8.6',
             SPECIAL_WORDS: {
                 CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", msgDur: 3000 },
                 LLAMA: { text: 'LLAMA', prob: 0.005, fade: 8000, msg: "what llama?", msgDur: 2000 },
@@ -849,12 +849,12 @@
 
                    // 2. Prepare Data for Comparison
                    const stats = results.map(r => {
-                       if(r.isNew) return { text: r.t, score: 0, good: 0, bad: 0, total: 0, approval: 0, isNew: true };
+                       if(r.isNew) return { text: r.t.toUpperCase(), score: 0, good: 0, bad: 0, total: 0, approval: 0, isNew: true };
                        const g = r.d.goodVotes || 0;
                        const b = r.d.badVotes || 0;
                        const total = g + b;
                        return { 
-                           text: r.t, 
+                           text: r.t.toUpperCase(), 
                            score: g - b, 
                            good: g, 
                            bad: b, 
