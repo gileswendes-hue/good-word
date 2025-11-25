@@ -15,7 +15,6 @@
             width: 100%;
         }
 
-        /* Standard Card */
         .card { 
             backdrop-filter: blur(10px); 
             background-color: rgba(255, 255, 255, 0.95);
@@ -39,8 +38,6 @@
         @media (max-width: 640px) { .rank-item { font-size: 0.8rem; } .vote-counts { font-size: 0.875rem; } }
 
         /* --- ANIMATION CLASSES --- */
-        
-        /* Fly Out Animations */
         .animate-fly-left { animation: fly-out-left 0.6s ease-out forwards; }
         .animate-fly-right { animation: fly-out-right 0.6s ease-out forwards; }
 
@@ -53,13 +50,18 @@
             100% { transform: translate(150vw, 0) rotate(25deg); opacity: 0; } 
         }
 
-        /* Reset Transition */
         .word-reset { transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), color 0.2s, opacity 0.2s !important; }
-        
-        /* Color Transition for Button Clicks */
-        .color-fade { transition: color 0.15s ease-out !important; }
+        .color-fade { transition: color 0.1s ease-out !important; }
 
-        /* Special Words */
+        /* CRITICAL: This class forces color changes on Swipe/Vote regardless of Theme */
+        .override-theme-color {
+            color: var(--dynamic-swipe-color) !important;
+            -webkit-text-fill-color: var(--dynamic-swipe-color) !important;
+            background: none !important;
+            text-shadow: none !important;
+            filter: none !important;
+        }
+
         .word-fade-llama { transition: opacity 8s ease-out, transform 8s ease-out; opacity: 0 !important; transform: scale(0.9) !important; }
         .word-fade-quick { transition: opacity 0.3s ease-out, transform 0.3s ease-out; opacity: 0 !important; transform: scale(0.95) !important; }
 
@@ -91,7 +93,9 @@
         .theme-rainbow .thin-rainbow-frame::after {
             content: ''; position: absolute; inset: 3px; background: #ffffff; border-radius: 1.3rem; z-index: 1;
         }
+        /* Lift content above mask */
         .theme-rainbow .thin-rainbow-frame > * { position: relative; z-index: 5; }
+        
         @keyframes spin-border { 100% { transform: rotate(360deg); } }
 
         .theme-rainbow #gameCard, .theme-rainbow .ranking-card { padding: 2.5rem !important; }
@@ -118,7 +122,7 @@
         @keyframes bounce-word { from { transform: translateY(0); } to { transform: translateY(-15px); } }
         .theme-banana #gameCard { background-color: rgba(255, 255, 255, 0.95) !important; border: 2px solid #f4ef81 !important; box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15) !important; padding: 2rem !important; }
         
-        /* WINTER - FIXED */
+        /* WINTER - UPDATED */
         body.theme-winter { background: linear-gradient(135deg, #e0f7fa 0%, #b3e5fc 100%) !important; }
         
         .theme-winter #wordDisplay { 
@@ -131,14 +135,13 @@
             filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
         }
         
-        /* JS adds this class to restart animation */
         .animate-snow-text {
             animation: snow-pile-text 20s linear forwards !important;
         }
 
         @keyframes snow-pile-text {
             0% { background-position: 0 100%; } 
-            100% { background-position: 0 0%; } /* Snow covers 100% of text */
+            100% { background-position: 0 0%; } /* Covers 100% of text */
         }
         
         .theme-winter #gameCard { 
@@ -150,7 +153,6 @@
             overflow: hidden; 
         }
 
-        /* Card Snow Drift - Higher and Slower */
         #card-snow-drift { 
             position: absolute; bottom: 0; left: 0; right: 0; 
             height: 0px; 
@@ -168,7 +170,7 @@
 
         @keyframes snow-drift-rise { 
             0% { height: 0px; opacity: 0.5; } 
-            100% { height: 200px; opacity: 1; } /* Increased Height */
+            100% { height: 250px; opacity: 1; } /* Rises much higher */
         }
 
         .theme-winter #snow-effect { position: fixed; inset: 0; width: 100vw; height: 100%; overflow: hidden; z-index: 40; pointer-events: none; }
@@ -182,7 +184,7 @@
 
         /* HALLOWEEN */
         body.theme-halloween { background: linear-gradient(135deg, #000000 0%, #3a0000 100%) !important; }
-        .theme-halloween #wordDisplay { color: #FF8C00; text-shadow: 0 0 20px rgba(255, 140, 0, 1), 0 0 5px rgba(255, 140, 0, 0.5); }
+        .theme-halloween #wordDisplay { color: #FF8C00 !important; text-shadow: 0 0 20px rgba(255, 140, 0, 1), 0 0 5px rgba(255, 140, 0, 0.5) !important; }
         .theme-halloween .card, .theme-halloween .ranking-card { background-color: rgba(10, 0, 0, 0.9) !important; border: 2px solid #FF8C00 !important; box-shadow: 0 0 30px rgba(255, 140, 0, 0.5), 0 15px 40px rgba(0, 0, 0, 0.7) !important; }
         .theme-halloween #gameCard { padding: 2rem !important; }
         .theme-halloween .text-gray-900, .theme-halloween .rank-item .text-gray-800 { color: #F3F4F6 !important; }
@@ -195,7 +197,7 @@
         /* SUBMARINE */
         @keyframes bobbing-word { 0% { transform: translateY(0px) rotate(-1deg); } 50% { transform: translateY(-8px) rotate(1deg); } 100% { transform: translateY(0px) rotate(-1deg); } }
         body.theme-submarine { background: linear-gradient(135deg, #020c1e 0%, #0a1931 50%, #183a5a 100%) !important; }
-        .theme-submarine #wordDisplay { color: #b0e0e6; text-shadow: 0 0 10px rgba(176, 224, 230, 0.7), 0 0 5px rgba(255, 255, 255, 0.3); animation: bobbing-word 2.5s ease-in-out infinite; }
+        .theme-submarine #wordDisplay { color: #b0e0e6 !important; text-shadow: 0 0 10px rgba(176, 224, 230, 0.7), 0 0 5px rgba(255, 255, 255, 0.3) !important; animation: bobbing-word 2.5s ease-in-out infinite; }
         .theme-submarine .card, .theme-submarine .ranking-card { background-color: rgba(10, 25, 49, 0.9) !important; border: 2px solid #1c4a7a !important; box-shadow: 0 0 20px rgba(28, 74, 122, 0.5), 0 15px 40px rgba(0, 0, 0, 0.7) !important; }
         .theme-submarine #gameCard { padding: 2rem !important; }
         .theme-submarine .text-gray-900, .theme-submarine .rank-item .text-gray-800 { color: #F3F4F6 !important; }
@@ -212,7 +214,7 @@
         /* FIRE */
         body.theme-fire { background-color: rgb(30, 10, 5) !important; }
         .theme-fire #gameCard, .theme-fire .ranking-card { background-color: rgba(48, 8, 8, 0.95) !important; border: 2px solid #ff5000 !important; box-shadow: 0 0 30px rgba(255, 80, 0, 0.3), 0 15px 40px rgba(0, 0, 0, 0.7) !important; padding: 2.5rem !important; }
-        .theme-fire #wordDisplay { color: #ff5000; text-shadow: 0 0 10px #ff5000, 0 0 20px #ff0000; position: relative; z-index: 20;}
+        .theme-fire #wordDisplay { color: #ff5000 !important; text-shadow: 0 0 10px #ff5000, 0 0 20px #ff0000 !important; position: relative; z-index: 20;}
         .theme-fire .text-gray-900, .theme-fire .rank-item .text-gray-800 { color: #ffdcd0 !important; }
         .theme-fire .text-gray-500, .theme-fire .text-gray-600 { color: #a66 !important; }
         .theme-fire h2 { color: #ff5000 !important; }
@@ -222,6 +224,7 @@
 
         .theme-fire #fire-effect { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; overflow: hidden; }
         
+        /* Fire */
         .fire-particle { 
             position: absolute; bottom: -20px; border-radius: 50%; 
             mix-blend-mode: screen; 
@@ -231,6 +234,7 @@
         }
         @keyframes fire-rise { from { opacity: 0.8; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-90vh) scale(0.2); } }
 
+        /* Smoke */
         .smoke-particle { 
             position: absolute; bottom: -50px; left: 50%; width: 100px; height: 100px; 
             background: radial-gradient(circle, rgba(80,80,80,0.6) 0%, rgba(0,0,0,0) 60%); 
@@ -274,7 +278,8 @@
         <div id="wordFrame" class="w-full text-center rounded-xl mb-8 relative">
             <div id="wordDisplay" class="font-extrabold text-gray-900 text-center min-h-[72px]">Loading...</div>
         </div>
-        <div id="card-snow-drift"></div> <div class="flex space-x-4 w-full mb-3 relative z-20">
+        <div id="card-snow-drift"></div>
+        <div class="flex space-x-4 w-full mb-3 relative z-20">
             <button id="goodButton" class="good-button flex-1 py-4 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-green-500/50" disabled>Good Word</button>
             <button id="badButton" class="bad-button flex-1 py-4 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-red-500/50" disabled>Bad Word</button>
         </div>
@@ -397,7 +402,7 @@
          */
         const CONFIG = {
             API_BASE_URL: '/api/words',
-            APP_VERSION: '4.9.7',
+            APP_VERSION: '4.9.8',
             SPECIAL_WORDS: {
                 CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", msgDur: 3000 },
                 LLAMA: { text: 'LLAMA', prob: 0.005, fade: 8000, msg: "what llama?", msgDur: 2000 },
@@ -1279,13 +1284,19 @@
                         const moveY = diffY * 0.8;
                         wd.style.transform = `translate(${diffX}px, ${moveY}px) rotate(${rotation}deg)`;
                         
-                        // SMOOTH FADE COLOR LOGIC
-                        // Fade based on drag distance
+                        // DYNAMIC COLOR CALCULATIONS
+                        let colorValue = '';
                         if (diffX < 0) {
-                            wd.style.color = `rgba(16, 185, 129, ${Math.min(Math.abs(diffX)/150, 1)})`; 
+                            // Green
+                            colorValue = `rgba(16, 185, 129, ${Math.min(Math.abs(diffX)/150, 1)})`;
                         } else {
-                            wd.style.color = `rgba(239, 68, 68, ${Math.min(Math.abs(diffX)/150, 1)})`;
+                            // Red
+                            colorValue = `rgba(239, 68, 68, ${Math.min(Math.abs(diffX)/150, 1)})`;
                         }
+
+                        // Apply CSS Variable to force override on ALL themes
+                        wd.style.setProperty('--dynamic-swipe-color', colorValue);
+                        wd.classList.add('override-theme-color');
                     }
                 }, { passive: false });
 
@@ -1295,6 +1306,10 @@
 
                     const diffX = e.changedTouches[0].clientX - this.startX;
                     
+                    // Remove the override class so future words can use theme colors
+                    const wd = DOM.game.wordDisplay;
+                    wd.classList.remove('override-theme-color');
+
                     if (Math.abs(diffX) > CONFIG.VOTE.SWIPE_THRESHOLD) {
                         // COMMIT
                         const isLeft = diffX < 0;
@@ -1305,7 +1320,9 @@
                         wd.style.transform = `translate(${endX}px, 0px) rotate(${endRot}deg)`;
                         wd.style.opacity = '0';
 
-                        // Game.vote will handle cleanup
+                        // Force color one last time for the exit animation
+                        wd.style.color = isLeft ? '#10b981' : '#ef4444';
+
                         Game.vote(isLeft ? 'good' : 'bad', true);
                         
                     } else {
