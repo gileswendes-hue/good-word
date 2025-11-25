@@ -168,7 +168,7 @@
         .snow-particle { position: absolute; top: -20px; border-radius: 50%; background: white; pointer-events: none; animation: snow-fall linear infinite; }
         @keyframes snow-fall { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 1; } 100% { transform: translate(var(--sway), 110vh); opacity: 0; } }
 
-        /* --- SUMMER (SOFTENED) --- */
+        /* --- SUMMER (SOFTENED NO HARD EDGE) --- */
         body.theme-summer { 
             background: linear-gradient(to bottom, #4facfe 0%, #00f2fe 100%) !important; 
         }
@@ -198,20 +198,30 @@
             100% { transform: translateX(-50vw); } 
         }
 
-        /* Softened glowing text */
+        /* Soft glowing text logic:
+           1. Core color is nearly white (#fffde7)
+           2. First shadow layer is a TIGHT blur (5px) of the same color to bridge font edge to glow
+           3. Subsequent layers build the yellow/orange/red aura
+        */
         .theme-summer #wordDisplay { 
-            color: #fff9c4; 
-            /* Significantly increased blur radii to soften the edge */
-            text-shadow: 0 0 20px #ffeb3b, 0 0 40px #ff9800, 0 0 60px #ff5722;
-            animation: sun-pulse 3s ease-in-out infinite alternate;
+            color: #fffde7; 
+            text-shadow: 
+                0 0 5px  #fff9c4, 
+                0 0 20px #ffeb3b, 
+                0 0 40px #ff9800, 
+                0 0 70px #ff5722;
+            animation: sun-pulse 4s ease-in-out infinite alternate;
         }
+        
         @keyframes sun-pulse {
-            from { filter: brightness(1); transform: scale(1); }
+            from { 
+                opacity: 0.9;
+                text-shadow: 0 0 5px #fff9c4, 0 0 20px #ffeb3b, 0 0 40px #ff9800, 0 0 60px #ff5722;
+            }
             to { 
-                filter: brightness(1.1); 
-                transform: scale(1.02); 
-                /* Softer pulse */
-                text-shadow: 0 0 25px #ffeb3b, 0 0 50px #ff9800, 0 0 70px #ff5722; 
+                opacity: 1;
+                transform: scale(1.02);
+                text-shadow: 0 0 10px #fff9c4, 0 0 30px #ffeb3b, 0 0 60px #ff9800, 0 0 80px #ff5722;
             }
         }
 
@@ -461,7 +471,7 @@
          */
         const CONFIG = {
             API_BASE_URL: '/api/words',
-            APP_VERSION: '4.9.8.2',
+            APP_VERSION: '4.9.8.3',
             SPECIAL_WORDS: {
                 CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", msgDur: 3000 },
                 LLAMA: { text: 'LLAMA', prob: 0.005, fade: 8000, msg: "what llama?", msgDur: 2000 },
@@ -938,10 +948,10 @@
                     wd.classList.add('animate-snow-text');
                 }
                 if (t === 'summer') { 
-                    wd.style.color = '#fff9c4'; 
-                    // Softened shadows based on feedback
-                    wd.style.textShadow = '0 0 20px #ffeb3b, 0 0 40px #ff9800, 0 0 60px #ff5722'; 
-                    wd.style.animation = 'sun-pulse 3s ease-in-out infinite alternate'; 
+                    wd.style.color = '#fffde7'; 
+                    // Tighter initial shadow (5px) to remove the "hard edge"
+                    wd.style.textShadow = '0 0 5px #fff9c4, 0 0 20px #ffeb3b, 0 0 40px #ff9800, 0 0 70px #ff5722';
+                    wd.style.animation = 'sun-pulse 4s ease-in-out infinite alternate'; 
                 } else {
                     if(t !== 'banana' && t !== 'rainbow' && t !== 'submarine') wd.style.animation = 'none';
                 }
