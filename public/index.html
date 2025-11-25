@@ -15,6 +15,7 @@
             width: 100%;
         }
 
+        /* Standard Card */
         .card { 
             backdrop-filter: blur(10px); 
             background-color: rgba(255, 255, 255, 0.95);
@@ -38,6 +39,8 @@
         @media (max-width: 640px) { .rank-item { font-size: 0.8rem; } .vote-counts { font-size: 0.875rem; } }
 
         /* --- ANIMATION CLASSES --- */
+        
+        /* Fly Out Animations */
         .animate-fly-left { animation: fly-out-left 0.6s ease-out forwards; }
         .animate-fly-right { animation: fly-out-right 0.6s ease-out forwards; }
 
@@ -50,9 +53,13 @@
             100% { transform: translate(150vw, 0) rotate(25deg); opacity: 0; } 
         }
 
+        /* Reset Transition */
         .word-reset { transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), color 0.2s, opacity 0.2s !important; }
+        
+        /* Color Transition for Button Clicks */
         .color-fade { transition: color 0.15s ease-out !important; }
 
+        /* Special Words */
         .word-fade-llama { transition: opacity 8s ease-out, transform 8s ease-out; opacity: 0 !important; transform: scale(0.9) !important; }
         .word-fade-quick { transition: opacity 0.3s ease-out, transform 0.3s ease-out; opacity: 0 !important; transform: scale(0.95) !important; }
 
@@ -111,29 +118,27 @@
         @keyframes bounce-word { from { transform: translateY(0); } to { transform: translateY(-15px); } }
         .theme-banana #gameCard { background-color: rgba(255, 255, 255, 0.95) !important; border: 2px solid #f4ef81 !important; box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15) !important; padding: 2rem !important; }
         
-        /* WINTER - UPDATED */
+        /* WINTER - FIXED */
         body.theme-winter { background: linear-gradient(135deg, #e0f7fa 0%, #b3e5fc 100%) !important; }
         
-        /* Text Snow: Slow accumulation, no oscillation */
         .theme-winter #wordDisplay { 
             color: transparent; 
             background-image: linear-gradient(to top, #ffffff 50%, #01579b 50%);
             background-size: 100% 220%; 
-            background-position: 0 100%; /* Start Blue */
+            background-position: 0 100%; 
             -webkit-background-clip: text;
             background-clip: text;
             filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
-            /* Animation is set in JS via class re-application */
         }
         
-        /* Class triggered by JS to run once */
+        /* JS adds this class to restart animation */
         .animate-snow-text {
             animation: snow-pile-text 20s linear forwards !important;
         }
 
         @keyframes snow-pile-text {
             0% { background-position: 0 100%; } 
-            100% { background-position: 0 15%; } /* Rises to cover 85% of text */
+            100% { background-position: 0 0%; } /* Snow covers 100% of text */
         }
         
         .theme-winter #gameCard { 
@@ -145,7 +150,7 @@
             overflow: hidden; 
         }
 
-        /* Card Snow Drift: Slow rise, higher pile */
+        /* Card Snow Drift - Higher and Slower */
         #card-snow-drift { 
             position: absolute; bottom: 0; left: 0; right: 0; 
             height: 0px; 
@@ -157,14 +162,13 @@
             opacity: 0;
         }
         
-        /* Class triggered by JS to run once */
         .animate-snow-drift {
             animation: snow-drift-rise 20s linear forwards !important;
         }
 
         @keyframes snow-drift-rise { 
             0% { height: 0px; opacity: 0.5; } 
-            100% { height: 150px; opacity: 1; } /* Goes much higher now */
+            100% { height: 200px; opacity: 1; } /* Increased Height */
         }
 
         .theme-winter #snow-effect { position: fixed; inset: 0; width: 100vw; height: 100%; overflow: hidden; z-index: 40; pointer-events: none; }
@@ -205,7 +209,7 @@
         .bubble-particle { position: absolute; bottom: -50px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05) 60%, rgba(255, 255, 255, 0)); box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.3), 0 0 4px rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.15); opacity: 0; z-index: 0; animation: bubble-rise-float linear infinite; }
         @keyframes bubble-rise-float { 0% { transform: translateY(0) translateX(0) scale(0.8); opacity: 0; } 10% { opacity: 1; } 50% { transform: translateY(-50vh) translateX(15px) scale(1); } 100% { transform: translateY(-120vh) translateX(-15px) scale(1.1); opacity: 0; } }
 
-        /* FIRE - RESTORED & ENHANCED */
+        /* FIRE */
         body.theme-fire { background-color: rgb(30, 10, 5) !important; }
         .theme-fire #gameCard, .theme-fire .ranking-card { background-color: rgba(48, 8, 8, 0.95) !important; border: 2px solid #ff5000 !important; box-shadow: 0 0 30px rgba(255, 80, 0, 0.3), 0 15px 40px rgba(0, 0, 0, 0.7) !important; padding: 2.5rem !important; }
         .theme-fire #wordDisplay { color: #ff5000; text-shadow: 0 0 10px #ff5000, 0 0 20px #ff0000; position: relative; z-index: 20;}
@@ -218,7 +222,6 @@
 
         .theme-fire #fire-effect { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; overflow: hidden; }
         
-        /* Realistic Fire (Radial) with density */
         .fire-particle { 
             position: absolute; bottom: -20px; border-radius: 50%; 
             mix-blend-mode: screen; 
@@ -394,7 +397,7 @@
          */
         const CONFIG = {
             API_BASE_URL: '/api/words',
-            APP_VERSION: '4.9.6',
+            APP_VERSION: '4.9.7',
             SPECIAL_WORDS: {
                 CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", msgDur: 3000 },
                 LLAMA: { text: 'LLAMA', prob: 0.005, fade: 8000, msg: "what llama?", msgDur: 2000 },
@@ -638,6 +641,14 @@
                     if(isRainbow) { el.classList.add('thin-rainbow-frame'); el.classList.remove('card'); }
                     else { el.classList.remove('thin-rainbow-frame'); el.classList.add('card'); }
                 });
+                
+                // Explicitly hide snow drift if not winter
+                const drift = document.getElementById('card-snow-drift');
+                if (theme !== 'winter') {
+                    drift.style.display = 'none';
+                } else {
+                    drift.style.display = 'block';
+                }
                 
                 if (State.runtime.allWords.length > 0) UIManager.displayWord(State.runtime.allWords[State.runtime.currentWordIndex]);
             },
@@ -1252,7 +1263,11 @@
                         }
                         this.isDragging = true;
                         
+                        // Clean styles immediately on confirmed drag to remove theme effects
+                        // and ensure background:none so color property works!
                         Game.cleanStyles(wd);
+                        wd.style.background = 'none'; 
+                        wd.style.webkitTextFillColor = 'initial';
                     }
 
                     if (this.isScrolling) return;
@@ -1297,7 +1312,7 @@
                         // RESET
                         wd.classList.add('word-reset'); 
                         wd.style.transform = 'translate(0px, 0px) rotate(0deg)';
-                        wd.style.color = ''; // Reset color
+                        wd.style.color = ''; // Reset color fade
                         
                         setTimeout(() => {
                            wd.classList.remove('word-reset');
