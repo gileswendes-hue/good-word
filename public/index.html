@@ -65,22 +65,31 @@
         
         @keyframes rainbow-text { 0% { -webkit-filter: hue-rotate(0deg); filter: hue-rotate(0deg); } 100% { -webkit-filter: hue-rotate(360deg); filter: hue-rotate(360deg); } }
 
-        /* RAINBOW - FIXED CHASING BORDER */
+        /* RAINBOW - FIXED: Spinning Border ONLY (Card Static) */
         body.theme-rainbow { background: #f7f7f7 !important; }
-        .theme-rainbow .thin-rainbow-frame { position: relative; background-color: transparent; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1); border: none; z-index: 10; }
+        .theme-rainbow .thin-rainbow-frame { 
+            position: relative; 
+            background: #ffffff; /* Solid background for the card itself */
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1); 
+            border-radius: 1.25rem; /* Match border radius */
+            z-index: 10; 
+            /* Important: Isolate stacking context so pseudo-element stays behind */
+            isolation: isolate; 
+        }
         
         .theme-rainbow .thin-rainbow-frame::before { 
-            content: ''; position: absolute; inset: -6px; border-radius: 1.25rem; 
-            /* Conic gradient for hard "chasing" edges */
+            content: ''; 
+            position: absolute; 
+            inset: -6px; /* Extends outside the card */
+            border-radius: 1.5rem; 
             background: conic-gradient(
                 #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #8b00ff, #ff0000
             );
             animation: spin-border 3s linear infinite; 
-            z-index: -3; 
+            z-index: -1; /* Behind the card background */
         }
-        @keyframes spin-border { 100% { transform: rotate(360deg); } }
+        @keyframes spin-border { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
-        .theme-rainbow .thin-rainbow-frame::after { content: ''; position: absolute; inset: -2px; border-radius: 1.1rem; background-color: #ffffff; z-index: -2; }
         .theme-rainbow #gameCard, .theme-rainbow .ranking-card { padding: 2.5rem !important; }
         .theme-rainbow #wordFrame { padding: 0; background-color: transparent; margin-bottom: 1.5rem; }
         .theme-rainbow #wordDisplay { background: linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #9400d3); -webkit-background-clip: text; -webkit-text-fill-color: transparent; color: transparent !important; animation: rainbow-text 5s ease infinite; margin-bottom: 0 !important; padding: 0 0.5rem; line-height: 1; }
@@ -104,30 +113,38 @@
         /* WINTER - FIXED SNOW VISIBILITY */
         body.theme-winter { background: linear-gradient(135deg, #e0f7fa 0%, #b3e5fc 100%) !important; }
         
-        /* Text Snow Accumulation */
+        /* Text Snow Accumulation - High Contrast */
         .theme-winter #wordDisplay { 
             color: transparent; 
-            /* Gradient: Sharp line between snow (white) and Text (Blue) */
             background-image: linear-gradient(to top, #ffffff 50%, #01579b 50%);
-            background-size: 100% 220%; /* Tall background to allow sliding */
-            background-position: 0 100%; /* Start with blue */
+            background-size: 100% 200%; 
+            background-position: 0 100%; /* Start fully blue */
             -webkit-background-clip: text;
             background-clip: text;
-            text-shadow: none; /* Shadow interferes with clip */
-            /* Filter drop-shadow works better with background-clip than text-shadow */
-            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1)); 
-            animation: snow-pile-text 10s ease-in-out infinite alternate;
+            /* Drop shadow helps define the snow against the blue text */
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2)); 
+            animation: snow-pile-text 8s ease-in-out infinite alternate;
         }
         @keyframes snow-pile-text {
-            0% { background-position: 0 100%; } /* All Blue */
-            100% { background-position: 0 20%; } /* White rises to cover ~60% */
+            0% { background-position: 0 100%; } 
+            100% { background-position: 0 10%; } /* Snow rises to cover most of text */
         }
-        .theme-winter #gameCard { background-color: rgba(255, 255, 255, 0.9) !important; border: 2px solid #81d4fa !important; box-shadow: 0 15px 40px rgba(179, 229, 252, 0.5) !important; padding: 2rem !important; }
+        .theme-winter #gameCard { background-color: rgba(255, 255, 255, 0.9) !important; border: 2px solid #81d4fa !important; box-shadow: 0 15px 40px rgba(179, 229, 252, 0.5) !important; padding: 2rem !important; overflow: hidden; }
 
-        /* Card Snow Drift (Visible Build-up) */
-        #card-snow-drift { position: absolute; bottom: 0; left: 0; right: 0; height: 0; background: linear-gradient(to top, #fff, rgba(255,255,255,0)); border-radius: 0 0 1rem 1rem; pointer-events: none; z-index: 5; opacity: 0.9; }
-        .theme-winter #card-snow-drift { animation: snow-drift-rise 12s ease-in-out infinite alternate; }
-        @keyframes snow-drift-rise { from { height: 5px; } to { height: 40px; } }
+        /* Card Snow Drift - Visible White Pile */
+        #card-snow-drift { 
+            position: absolute; 
+            bottom: 0; left: 0; right: 0; 
+            height: 0; 
+            background: linear-gradient(to top, #ffffff, rgba(255,255,255,0.8)); 
+            border-radius: 40% 40% 0 0; /* Rounded top for drift look */
+            pointer-events: none; 
+            z-index: 5; 
+            opacity: 1;
+            box-shadow: 0 -2px 10px rgba(255,255,255,0.5);
+        }
+        .theme-winter #card-snow-drift { animation: snow-drift-rise 10s ease-in-out infinite alternate; }
+        @keyframes snow-drift-rise { from { height: 0px; } to { height: 50px; } }
 
         .theme-winter #snow-effect { position: fixed; inset: 0; width: 100vw; height: 100%; overflow: hidden; z-index: 40; pointer-events: none; }
         .snow-particle { position: absolute; top: -20px; border-radius: 50%; background: white; pointer-events: none; animation: snow-fall linear infinite; }
@@ -180,26 +197,35 @@
 
         .theme-fire #fire-effect { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; overflow: hidden; }
         
-        .fire-particle { position: absolute; bottom: 0; border-radius: 50%; mix-blend-mode: screen; background-image: radial-gradient(rgb(255, 80, 0) 20%, rgba(255, 80, 0, 0) 70%); opacity: 0; width: 5em; height: 5em; animation: fire-rise 1s ease-in infinite; }
-        @keyframes fire-rise { from { opacity: 0; transform: translateY(0) scale(1); } 25% { opacity: 1; } to { opacity: 0; transform: translateY(-80vh) scale(0); } }
+        /* High Contrast Fire */
+        .fire-particle { 
+            position: absolute; bottom: 0; border-radius: 50%; 
+            mix-blend-mode: screen; 
+            background-image: radial-gradient(circle, #ff8c00 20%, rgba(255, 0, 0, 0) 70%); 
+            opacity: 0.8; width: 6em; height: 6em; 
+            animation: fire-rise 1s ease-in infinite; 
+        }
+        @keyframes fire-rise { from { opacity: 0.8; transform: translateY(0) scale(1); } 25% { opacity: 1; } to { opacity: 0; transform: translateY(-80vh) scale(0); } }
 
-        /* Obvious Smoke */
+        /* Visible Smoke Plumes */
         .smoke-particle { 
             position: absolute; 
             bottom: -50px; 
             left: 50%; 
-            width: 60px; 
-            height: 60px; 
-            background: radial-gradient(circle, rgba(80,80,80,0.8) 0%, rgba(0,0,0,0) 70%); /* Dark gray smoke */
+            width: 80px; 
+            height: 80px; 
+            /* Dark gray smoke that is visible against the dark red background */
+            background: radial-gradient(circle, rgba(100,100,100,0.9) 0%, rgba(50,50,50,0) 70%);
             border-radius: 50%; 
-            filter: blur(8px); 
-            animation: smoke-rise 4s linear infinite; 
+            filter: blur(5px); 
+            opacity: 0.6;
+            animation: smoke-rise 5s linear infinite; 
             pointer-events: none; 
-            z-index: 4; /* Behind text but visible */
+            z-index: 4; 
         }
         @keyframes smoke-rise { 
             0% { transform: translate(-50%, 0) scale(1); opacity: 0; } 
-            20% { opacity: 0.7; } /* Start visibly dark */
+            20% { opacity: 0.5; } 
             100% { transform: translate(var(--sway), -90vh) scale(4); opacity: 0; } 
         }
 
@@ -642,11 +668,11 @@
                     p.style.left = `calc((100% - 5em) * ${i/50})`;
                     container.appendChild(p);
                 }
-                // Smoke (NEW)
+                // Smoke (NEW VISIBLE)
                 for (let i = 0; i < 15; i++) {
                     const s = document.createElement('div'); s.className = 'smoke-particle';
                     s.style.animationDelay = `${Math.random() * 3}s`;
-                    s.style.left = `${Math.random() * 90 + 5}%`; // Constrain slightly
+                    s.style.left = `${Math.random() * 90 + 5}%`;
                     s.style.setProperty('--sway', `${(Math.random()-0.5)*150}px`);
                     container.appendChild(s);
                 }
