@@ -512,7 +512,7 @@
          */
         const CONFIG = {
             API_BASE_URL: '/api/words',
-            APP_VERSION: '4.9.9.3',
+            APP_VERSION: '4.9.9.4',
             SPECIAL_WORDS: {
                 CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", msgDur: 3000 },
                 LLAMA: { text: 'LLAMA', prob: 0.005, fade: 8000, msg: "what llama?", msgDur: 2000 },
@@ -881,7 +881,7 @@
                     s.style.animationDelay = `-${Math.random() * 5}s`;
                     container.appendChild(s);
                 }
-            },
+            }, // <--- COMMA WAS MISSING HERE
             halloween() {
                 const container = DOM.theme.effects.halloween;
                 container.innerHTML = '';
