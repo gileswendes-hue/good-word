@@ -203,43 +203,8 @@
             padding: 2rem !important; 
         }
 
-        /* --- HALLOWEEN (COBWEBS) --- */
+        /* --- HALLOWEEN --- */
         body.theme-halloween { background: linear-gradient(135deg, #000000 0%, #3a0000 100%) !important; }
-        
-        .theme-halloween #halloween-effect { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 20; overflow: hidden; }
-
-        .cobweb {
-            position: absolute; width: 300px; height: 300px; opacity: 0.6;
-            background-image: url('data:image/svg+xml;utf8,<svg width="100%" height="100%" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M0 0 L200 0 M0 0 L0 200 M0 0 L160 160 M0 0 L200 80 M0 0 L80 200" stroke="rgba(200,200,200,0.5)" stroke-width="1" fill="none"/><path d="M40 10 Q 20 20 10 40 M80 20 Q 50 50 20 80 M120 30 Q 75 75 30 120 M160 40 Q 100 100 40 160" stroke="rgba(200,200,200,0.4)" stroke-width="1" fill="none"/></svg>');
-            background-repeat: no-repeat;
-        }
-        .cobweb.left { top: 0; left: 0; transform-origin: top left; animation: web-sway 5s ease-in-out infinite; }
-        .cobweb.right { top: 0; right: 0; transform: scaleX(-1); transform-origin: top right; animation: web-sway-right 6s ease-in-out infinite; }
-
-        @keyframes web-sway { 0% { transform: rotate(0deg); } 50% { transform: rotate(2deg); } 100% { transform: rotate(0deg); } }
-        @keyframes web-sway-right { 0% { transform: scaleX(-1) rotate(0deg); } 50% { transform: scaleX(-1) rotate(2deg); } 100% { transform: scaleX(-1) rotate(0deg); } }
-
-        .spider-container {
-            position: absolute; top: -20px;
-            animation: spider-drop 8s ease-in-out infinite;
-        }
-        .spider-thread {
-            width: 1px; height: 150px; background: rgba(255,255,255,0.6);
-            margin: 0 auto;
-        }
-        .spider-body {
-            font-size: 3rem; line-height: 1; margin-top: -10px;
-            filter: drop-shadow(0 5px 5px rgba(0,0,0,0.5));
-        }
-
-        @keyframes spider-drop {
-            0% { transform: translateY(-150px); }
-            40% { transform: translateY(200px); }
-            50% { transform: translateY(180px); }
-            60% { transform: translateY(200px); }
-            100% { transform: translateY(-150px); }
-        }
-
         .theme-halloween #wordDisplay { 
             color: #FF8C00 !important; 
             text-shadow: 2px 2px 0px #1a0000, 0 0 8px rgba(255, 140, 0, 1), 0 0 15px rgba(255, 69, 0, 0.6) !important; 
@@ -266,11 +231,11 @@
         .theme-submarine h2 { color: #b0e0e6 !important; }
         .theme-submarine .border-b { border-color: #1c4a7a !important; }
         
-        .theme-submarine #bubble-effect { position: fixed; inset: 1; width: 100vw; height: 100%; overflow: hidden; z-index: 40; pointer-events: none; }
+        .theme-submarine #bubble-effect { position: fixed; inset: 0; width: 100vw; height: 100%; overflow: hidden; z-index: 40; pointer-events: none; }
         .bubble-particle { position: absolute; bottom: -50px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05) 60%, rgba(255, 255, 255, 0)); box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.3), 0 0 4px rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.15); opacity: 0; z-index: 0; animation: bubble-rise-float linear infinite; }
         @keyframes bubble-rise-float { 0% { transform: translateY(0) translateX(0) scale(0.8); opacity: 0; } 10% { opacity: 1; } 50% { transform: translateY(-50vh) translateX(15px) scale(1); } 100% { transform: translateY(-120vh) translateX(-15px) scale(1.1); opacity: 0; } }
 
-        /* --- FIRE --- */
+        /* --- FIRE (UPDATED FLAMES) --- */
         body.theme-fire { background-color: rgb(30, 10, 5) !important; }
         .theme-fire #gameCard, .theme-fire .ranking-card { background-color: rgba(48, 8, 8, 0.95) !important; border: 2px solid #ff5000 !important; box-shadow: 0 0 30px rgba(255, 80, 0, 0.3), 0 15px 40px rgba(0, 0, 0, 0.7) !important; padding: 2.5rem !important; }
         .theme-fire #wordDisplay { 
@@ -287,17 +252,23 @@
 
         .theme-fire #fire-effect { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; overflow: hidden; }
         
-        /* FLAMES */
+        /* FLAMES: Pointy Teardrop Shape */
         .fire-particle { 
             position: absolute; bottom: -20px; 
+            /* Asymmetric border creates teardrop */
             border-radius: 50% 0 50% 50%; 
             mix-blend-mode: screen; 
             background-image: radial-gradient(circle at 30% 70%, #ffaa00 10%, #ff0000 60%, transparent 70%); 
             opacity: 0.8; width: 8em; height: 8em; 
+            /* Rotate -45deg so the sharp corner (top-right) points UP */
             transform: rotate(-45deg);
             animation: fire-rise 1.5s ease-in infinite; 
         }
-        @keyframes fire-rise { from { opacity: 0.8; transform: translateY(0) scale(1) rotate(-45deg); } 100% { opacity: 0; transform: translateY(-90vh) scale(0.2) rotate(-45deg); } }
+        
+        @keyframes fire-rise { 
+            from { opacity: 0.8; transform: translateY(0) scale(1) rotate(-45deg); } 
+            100% { opacity: 0; transform: translateY(-90vh) scale(0.2) rotate(-45deg); } 
+        }
 
         /* SMOKE */
         .smoke-particle { 
@@ -307,37 +278,6 @@
             animation: smoke-rise 4s linear infinite; pointer-events: none; z-index: 4; 
         }
         @keyframes smoke-rise { 0% { transform: translate(-50%, 0) scale(1); opacity: 0; } 20% { opacity: 0.5; } 100% { transform: translate(var(--sway), -80vh) scale(3); opacity: 0; } }
-
-        /* --- PLYMOUTH THEME --- */
-        body.theme-plymouth { 
-            background: linear-gradient(180deg, #0f172a 0%, #334155 60%, #f97316 100%) !important; 
-        }
-        
-        .theme-plymouth #plymouth-effect { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; overflow: hidden; }
-        
-        .plymouth-star {
-            position: absolute; background: white; border-radius: 50%;
-            animation: twinkle 3s infinite alternate;
-        }
-        @keyframes twinkle { 0% { opacity: 0.2; transform: scale(0.8); } 100% { opacity: 1; transform: scale(1.2); } }
-
-        .theme-plymouth #gameCard, .theme-plymouth .ranking-card {
-            background-color: rgba(15, 23, 42, 0.9) !important; /* Dark Navy Glass */
-            border: 1px solid #475569 !important;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5) !important;
-        }
-        
-        .theme-plymouth #wordDisplay {
-            color: #ffedd5 !important; 
-            text-shadow: 0 0 10px #fb923c, 0 0 25px #ea580c; 
-        }
-        
-        .theme-plymouth .text-gray-900, .theme-plymouth .rank-item .text-gray-800 { color: #e2e8f0 !important; }
-        .theme-plymouth .text-gray-500, .theme-plymouth .text-gray-600 { color: #94a3b8 !important; }
-        .theme-plymouth h2 { color: #fb923c !important; }
-        .theme-plymouth header .bg-white { background-color: #1e293b !important; color: #e2e8f0; }
-        .theme-plymouth header .bg-gray-50 { background-color: #0f172a !important; }
-        .theme-plymouth .border-b { border-color: #334155 !important; }
 
         /* CRITICAL OVERRIDE CLASS */
         #wordDisplay.override-theme-color {
@@ -356,8 +296,6 @@
     <div id="bubble-effect" class="hidden"></div> 
     <div id="fire-effect" class="hidden"></div>
     <div id="summer-effect" class="hidden"></div>
-    <div id="plymouth-effect" class="hidden"></div>
-    <div id="halloween-effect" class="hidden"></div>
     
     <header class="text-center mb-8 w-full max-w-lg z-20 relative">
         <div id="logoArea" class="h-32 w-full flex items-center justify-center mb-4 relative">
@@ -510,7 +448,7 @@
          */
         const CONFIG = {
             API_BASE_URL: '/api/words',
-            APP_VERSION: '4.9.1',
+            APP_VERSION: '4.9.9',
             SPECIAL_WORDS: {
                 CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", msgDur: 3000 },
                 LLAMA: { text: 'LLAMA', prob: 0.005, fade: 8000, msg: "what llama?", msgDur: 2000 },
@@ -535,18 +473,17 @@
                 'summer': 'U1VNTUVSfEhPVHxCRUFDSHxIT0xJREFZfFNVTnxWQUNBVElPTnxTV0lNfFNBTkR8UE9PTHxKVUxZfEFVR1VTVHxKVU5F',
                 'halloween': 'SEFMTE9XRUVOfEdIT1NUfFBVTVBLSU58U1BJREVSfFNXRUVUU3xDT1NUVU1FfFNQT09LWXxPQ1RPQkVSfFdJVENIfFZBTVBJUkV8Wk9NQklFfEJBVHxNT05TVEVS',
                 'submarine': 'U1VCTUFSSU5FfFdBVEVSfFdBVkVTfFBMWU1PVVRIfEJSSVhIQU18UElSQVRFfFNFQXxBUVVBVElDfEFRVUF8REVFUHxPQ1RPUFVTfFJVTXxTSElQ',
-                'fire': 'RklSRXxCVVJOfEhPVHxIRUxMfElORkVSTk98RkxBTUV8Q09BTFN8Q1JBQ0tMRXxUT0FTVHxIRUFU',
-                'plymouth': 'UExZTU9VVEh8U1VOU0VUfFRXSUxJR0hUfEhPUklaT058T0NFQU5DSVRZfERFVk9OfFNPVVRIV0VTVA=='
+                'fire': 'RklSRXxCVVJOfEhPVHxIRUxMfElORkVSTk98RkxBTUV8Q09BTFN8Q1JBQ0tMRXxUT0FTVHxIRUFU'
             },
             TIPS: [
                 "Tip: Drag the word left for good and right for bad.", "Tip: Try comparing words!", "Tip: Tap the word for a definition.",
                 "Tip: Check the theme chooser.", "Tip: Turn off messages in Settings.", "Tip: Don't go mistaking your house burning down for the dawn.",
                 "Tip: Go outside for a stomp?", "Tip: Nobody else has a clue either.", "Tip: I've got a floor, so what?",
-				"Tip: tell your cat I said 'pspsps'", "Tip: You can see the sea! It's over there between the land and the sky!"
                 "Tip: Wear sunscreen.", "Tip: How thick is wall?", "Tip: Ask them out for a coffee.", "Tip: Can you smell burning toast?",
                 "Tip: Time is an illusion. Lunchtime doubly so.", "Tip: It is better to keep your mouth closed and let people think you are a fool than to open it and remove all doubt.",
                 "Tip: It's the things that are given, not won, are the things that you earned", "Tip: I'm so glad that you exist.", "Tip: Play with friends! Not this, something classic like Tetris or chess.",
-                "Tip: Move into the country, eat a lot of peaches.", "Tip: I wish there was a way to know you're in the good old days, before you've actually left them."
+                "Tip: Move into the country, eat a lot of peaches.", "Tip: I wish there was a way to know you're in the good old days, before you've actually left them.",
+				"Tip: You can see the sea, it's over there between the land and the sky", "Tip: Cake or death?"
             ]
         };
 
@@ -652,9 +589,7 @@
                     snow: document.getElementById('snow-effect'),
                     bubble: document.getElementById('bubble-effect'),
                     fire: document.getElementById('fire-effect'),
-                    summer: document.getElementById('summer-effect'),
-                    plymouth: document.getElementById('plymouth-effect'),
-                    halloween: document.getElementById('halloween-effect')
+                    summer: document.getElementById('summer-effect')
                 }
             },
             modals: {
@@ -741,24 +676,25 @@
                 document.body.classList.add(`theme-${theme}`);
                 State.save('currentTheme', theme);
                 
-                // Toggle Effects
+                // Snow
                 DOM.theme.effects.snow.classList.toggle('hidden', theme !== 'winter');
-                if (theme === 'winter') Effects.snow(); else DOM.theme.effects.snow.innerHTML = '';
+                if (theme === 'winter') Effects.snow();
+                else DOM.theme.effects.snow.innerHTML = '';
 
+                // Bubble
                 DOM.theme.effects.bubble.classList.toggle('hidden', theme !== 'submarine');
-                if (theme === 'submarine') Effects.bubbles(); else DOM.theme.effects.bubble.innerHTML = '';
+                if (theme === 'submarine') Effects.bubbles();
+                else DOM.theme.effects.bubble.innerHTML = '';
 
+                // Fire
                 DOM.theme.effects.fire.classList.toggle('hidden', theme !== 'fire');
-                if (theme === 'fire') Effects.fire(); else DOM.theme.effects.fire.innerHTML = '';
+                if (theme === 'fire') Effects.fire();
+                else DOM.theme.effects.fire.innerHTML = '';
                 
+                // Summer
                 DOM.theme.effects.summer.classList.toggle('hidden', theme !== 'summer');
-                if (theme === 'summer') Effects.summer(); else DOM.theme.effects.summer.innerHTML = '';
-
-                DOM.theme.effects.plymouth.classList.toggle('hidden', theme !== 'plymouth');
-                if (theme === 'plymouth') Effects.plymouth(); else DOM.theme.effects.plymouth.innerHTML = '';
-
-                DOM.theme.effects.halloween.classList.toggle('hidden', theme !== 'halloween');
-                if (theme === 'halloween') Effects.halloween(); else DOM.theme.effects.halloween.innerHTML = '';
+                if (theme === 'summer') Effects.summer();
+                else DOM.theme.effects.summer.innerHTML = '';
 
                 const cards = document.querySelectorAll('.card, .ranking-card');
                 const isRainbow = theme === 'rainbow';
@@ -801,12 +737,14 @@
             fire() {
                 const container = DOM.theme.effects.fire;
                 container.innerHTML = '';
+                // Fire (More Density)
                 for (let i = 0; i < 60; i++) { 
                     const p = document.createElement('div'); p.className = 'fire-particle';
                     p.style.animationDelay = `${Math.random()}s`;
                     p.style.left = `calc(10% + (80% * ${Math.random()}))`;
                     container.appendChild(p);
                 }
+                // Smoke (Darker, Bigger)
                 for (let i = 0; i < 15; i++) {
                     const s = document.createElement('div'); s.className = 'smoke-particle';
                     s.style.animationDelay = `${Math.random() * 3}s`;
@@ -849,53 +787,30 @@
             summer() {
                 const container = DOM.theme.effects.summer;
                 container.innerHTML = '';
+                
+                // Add Grass
                 const grass = document.createElement('div');
                 grass.className = 'summer-grass';
                 container.appendChild(grass);
+
+                // Add Clouds
                 for (let i = 0; i < 8; i++) {
                     const c = document.createElement('div');
+                    // Randomly assign a cloud variant class
                     const variant = Math.floor(Math.random() * 3) + 1;
                     c.className = `summer-cloud v${variant}`;
-                    const width = Math.random() * 100 + 100; 
+                    
+                    const width = Math.random() * 100 + 100; // 100px to 200px
                     c.style.width = `${width}px`;
-                    c.style.height = `${width * 0.35}px`; 
+                    c.style.height = `${width * 0.35}px`; // Flatter pill shape
                     c.style.top = `${Math.random() * 60}%`; 
+                    
+                    // Slower animation: 60s to 120s
                     const duration = Math.random() * 60 + 60; 
                     c.style.animationDuration = `${duration}s`;
                     c.style.animationDelay = `-${Math.random() * 100}s`; 
                     container.appendChild(c);
                 }
-            },
-            plymouth() {
-                const container = DOM.theme.effects.plymouth;
-                container.innerHTML = '';
-                for (let i = 0; i < 50; i++) {
-                    const s = document.createElement('div');
-                    s.className = 'plymouth-star';
-                    const size = Math.random() * 3 + 1;
-                    s.style.width = s.style.height = `${size}px`;
-                    s.style.top = `${Math.random() * 50}%`; // Top half only
-                    s.style.left = `${Math.random() * 100}%`;
-                    s.style.animationDuration = `${Math.random() * 3 + 2}s`;
-                    s.style.animationDelay = `-${Math.random() * 5}s`;
-                    container.appendChild(s);
-                }
-            },
-            halloween() {
-                const container = DOM.theme.effects.halloween;
-                container.innerHTML = '';
-                
-                // Cobwebs
-                const webLeft = document.createElement('div'); webLeft.className = 'cobweb left';
-                const webRight = document.createElement('div'); webRight.className = 'cobweb right';
-                container.appendChild(webLeft);
-                container.appendChild(webRight);
-
-                // Spider
-                const spiderCont = document.createElement('div'); spiderCont.className = 'spider-container';
-                spiderCont.style.left = `${20 + Math.random() * 60}%`;
-                spiderCont.innerHTML = '<div class="spider-thread"></div><div class="spider-body">🕷️</div>';
-                container.appendChild(spiderCont);
             }
         };
 
@@ -1020,9 +935,6 @@
                     // Tighter initial shadow (5px) to remove the "hard edge"
                     wd.style.textShadow = '0 0 5px #fff9c4, 0 0 20px #ffeb3b, 0 0 40px #ff9800, 0 0 70px #ff5722';
                     wd.style.animation = 'sun-pulse 4s ease-in-out infinite alternate'; 
-                } else if (t === 'plymouth') {
-                    wd.style.color = '#ffedd5';
-                    wd.style.textShadow = '0 0 10px #fb923c, 0 0 25px #ea580c';
                 } else {
                     if(t !== 'banana' && t !== 'rainbow' && t !== 'submarine') wd.style.animation = 'none';
                 }
