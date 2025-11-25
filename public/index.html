@@ -150,9 +150,14 @@
         .animate-snow-drift { animation: snow-drift-rise 20s linear forwards !important; }
         @keyframes snow-drift-rise { 0% { height: 0px; opacity: 0.5; } 100% { height: 300px; opacity: 1; } }
 
-        /* Updated Snow Effect Z-Index to be in front of card (z-35 vs card z-10/20) */
-        .theme-winter #snow-effect { position: fixed; inset: 0; width: 100vw; height: 100%; overflow: hidden; z-index: 35; pointer-events: none; }
-        .snow-particle { position: absolute; top: -20px; border-radius: 50%; background: white; pointer-events: none; animation: snow-fall linear infinite; }
+        /* Z-Index 100 to ensure snow is physically in front of Card (z-10) and Text (z-20) */
+        .theme-winter #snow-effect { position: fixed; inset: 0; width: 100vw; height: 100%; overflow: hidden; z-index: 100; pointer-events: none; }
+        
+        .snow-particle { 
+            position: absolute; top: -20px; border-radius: 50%; background: white; 
+            pointer-events: none; z-index: 100;
+            animation: snow-fall linear infinite; 
+        }
         @keyframes snow-fall { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 1; } 100% { transform: translate(var(--sway), 110vh); opacity: 0; } }
 
         /* --- SUMMER --- */
@@ -219,33 +224,48 @@
         .theme-halloween h2 { color: #FF8C00 !important; }
         .theme-halloween .border-b { border-color: #691C00 !important; }
 
-        /* SPIDER EFFECT */
+        /* SPIDER EFFECT - UPDATED (Thread Grows) */
         #spider-effect { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 45; overflow: visible; display: none; }
         .theme-halloween #spider-effect { display: block; }
         
-        .spider-wrap {
-            position: absolute; top: -300px; /* Start hidden above */
-            width: 1px; height: 300px;
-            background: rgba(255, 255, 255, 0.4);
-            left: 50%;
-            /* Drop, dangle, climb */
-            animation: spider-drop 8s ease-in-out forwards;
+        .spider-thread {
+            position: absolute; 
+            top: 0; 
+            /* Thread visual */
+            width: 2px; 
+            background: rgba(255, 255, 255, 0.5);
+            box-shadow: 0 0 2px rgba(255,255,255,0.3);
+            /* Height animates from 0 to target */
+            height: 0vh; 
+            /* Slower animation: 12s total */
+            animation: spider-drop-cycle 12s ease-in-out forwards;
         }
+        
         .spider-body {
-            position: absolute; bottom: -25px; left: -25px;
+            position: absolute; 
+            /* Stick to bottom of thread */
+            bottom: -25px; 
+            left: 50%; 
+            transform: translateX(-50%);
             font-size: 3rem;
             filter: drop-shadow(0 5px 10px rgba(0,0,0,0.8));
+            /* Separate sway animation */
+            animation: spider-sway 3s ease-in-out infinite alternate;
             content: '🕷️';
         }
 
-        @keyframes spider-drop {
-            0% { transform: translateY(0); }
-            20% { transform: translateY(60vh); } /* Fast drop */
-            25% { transform: translateY(58vh) rotate(5deg); }
-            30% { transform: translateY(60vh) rotate(-5deg); }
-            35% { transform: translateY(59vh) rotate(3deg); }
-            45% { transform: translateY(60vh); }
-            100% { transform: translateY(-300px); } /* Climb back up */
+        @keyframes spider-drop-cycle {
+            0% { height: 0vh; }
+            40% { height: 60vh; }    /* Drop */
+            50% { height: 62vh; }    /* Slight bounce */
+            55% { height: 60vh; }    /* Hang start */
+            70% { height: 60vh; }    /* Hang end */
+            100% { height: 0vh; }    /* Retract */
+        }
+        
+        @keyframes spider-sway {
+            from { transform: translateX(-50%) rotate(-5deg); }
+            to { transform: translateX(-50%) rotate(5deg); }
         }
 
         /* SUBMARINE */
@@ -479,7 +499,7 @@
          */
         const CONFIG = {
             API_BASE_URL: '/api/words',
-            APP_VERSION: '5.0.1',
+            APP_VERSION: '4.9.9',
             SPECIAL_WORDS: {
                 CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", msgDur: 3000 },
                 LLAMA: { text: 'LLAMA', prob: 0.005, fade: 8000, msg: "what llama?", msgDur: 2000 },
@@ -855,20 +875,20 @@
                 // Only spawn if empty (one spider at a time)
                 if (container.children.length > 0) return;
                 
-                const wrap = document.createElement('div');
-                wrap.className = 'spider-wrap';
-                wrap.style.left = `${10 + Math.random() * 80}%`; // Random horizontal position
+                const thread = document.createElement('div');
+                thread.className = 'spider-thread';
+                thread.style.left = `${10 + Math.random() * 80}%`; // Random horizontal position
                 
                 const body = document.createElement('div');
                 body.className = 'spider-body';
                 body.textContent = '🕷️';
                 
-                wrap.appendChild(body);
-                container.appendChild(wrap);
+                thread.appendChild(body);
+                container.appendChild(thread);
                 
                 // Cleanup after animation
-                wrap.addEventListener('animationend', () => {
-                    wrap.remove();
+                thread.addEventListener('animationend', () => {
+                    thread.remove();
                     this.triggerNextSpider();
                 });
             },
@@ -1264,26 +1284,6 @@
             loadSpecial(text) {
                 const idx = State.runtime.allWords.findIndex(w => w.text.toUpperCase() === text);
                 if(idx !== -1) { State.runtime.currentWordIndex = idx; UIManager.displayWord(State.runtime.allWords[idx]); }
-            },
-            async showDefinition() {
-                const w = State.runtime.allWords[State.runtime.currentWordIndex];
-                if(!w) return;
-                ModalManager.toggle('definition', true);
-                document.getElementById('definitionWord').textContent = w.text.toUpperCase();
-                const resDiv = document.getElementById('definitionResults');
-                resDiv.innerHTML = 'Loading...';
-                try {
-                    const r = await API.define(w.text);
-                    if(!r.ok) throw new Error();
-                    const d = await r.json();
-                    let html = '';
-                    d[0].meanings.forEach(m => {
-                        html += `<div class="mb-4"><h4 class="text-lg font-bold italic text-indigo-600">${m.partOfSpeech}</h4><ol class="list-decimal list-inside pl-4 mt-2 space-y-1">`;
-                        m.definitions.forEach(def => { html += `<li>${def.definition}</li>`; if(def.example) html+=`<p class="text-sm text-gray-500 pl-4 italic">"${def.example}"</p>`; });
-                        html += '</ol></div>';
-                    });
-                    resDiv.innerHTML = html;
-                } catch { resDiv.innerHTML = '<p class="text-red-500">Definition not found.</p>'; }
             },
             handleCooldown() {
                 State.runtime.isCoolingDown = true;
