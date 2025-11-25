@@ -203,41 +203,59 @@
             padding: 2rem !important; 
         }
 
-        /* --- HALLOWEEN (COBWEBS) --- */
+        /* --- HALLOWEEN (UPDATED) --- */
         body.theme-halloween { background: linear-gradient(135deg, #000000 0%, #3a0000 100%) !important; }
         
-        .theme-halloween #halloween-effect { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 20; overflow: hidden; }
+        .theme-halloween #halloween-effect { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 40; overflow: hidden; }
 
+        /* SVG COBWEBS - High Z-Index, Thick Strokes */
         .cobweb {
-            position: absolute; width: 300px; height: 300px; opacity: 0.6;
-            background-image: url('data:image/svg+xml;utf8,<svg width="100%" height="100%" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><path d="M0 0 L200 0 M0 0 L0 200 M0 0 L160 160 M0 0 L200 80 M0 0 L80 200" stroke="rgba(200,200,200,0.5)" stroke-width="1" fill="none"/><path d="M40 10 Q 20 20 10 40 M80 20 Q 50 50 20 80 M120 30 Q 75 75 30 120 M160 40 Q 100 100 40 160" stroke="rgba(200,200,200,0.4)" stroke-width="1" fill="none"/></svg>');
+            position: absolute; width: 350px; height: 350px; opacity: 0.7; pointer-events: none;
+            background-image: url('data:image/svg+xml;utf8,<svg width="100%" height="100%" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><line x1="0" y1="0" x2="100" y2="50" stroke="rgba(255,255,255,0.2)" stroke-width="2"/><line x1="0" y1="0" x2="50" y2="100" stroke="rgba(255,255,255,0.2)" stroke-width="2"/><line x1="0" y1="0" x2="100" y2="100" stroke="rgba(255,255,255,0.2)" stroke-width="2"/><line x1="0" y1="0" x2="100" y2="0" stroke="rgba(255,255,255,0.2)" stroke-width="2"/><line x1="0" y1="0" x2="0" y2="100" stroke="rgba(255,255,255,0.2)" stroke-width="2"/><path d="M20 0 Q 10 10 0 20" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" fill="none"/><path d="M50 0 Q 25 25 0 50" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" fill="none"/><path d="M80 0 Q 40 40 0 80" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" fill="none"/><path d="M100 20 Q 60 60 20 100" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" fill="none"/></svg>');
             background-repeat: no-repeat;
+            filter: drop-shadow(0 2px 2px rgba(0,0,0,0.5));
         }
-        .cobweb.left { top: 0; left: 0; transform-origin: top left; animation: web-sway 5s ease-in-out infinite; }
-        .cobweb.right { top: 0; right: 0; transform: scaleX(-1); transform-origin: top right; animation: web-sway-right 6s ease-in-out infinite; }
+        .cobweb.left { top: 0; left: 0; transform-origin: top left; animation: web-sway 6s ease-in-out infinite; }
+        .cobweb.right { top: 0; right: 0; transform: scaleX(-1); transform-origin: top right; animation: web-sway-right 7s ease-in-out infinite; }
 
-        @keyframes web-sway { 0% { transform: rotate(0deg); } 50% { transform: rotate(2deg); } 100% { transform: rotate(0deg); } }
-        @keyframes web-sway-right { 0% { transform: scaleX(-1) rotate(0deg); } 50% { transform: scaleX(-1) rotate(2deg); } 100% { transform: scaleX(-1) rotate(0deg); } }
+        @keyframes web-sway { 0% { transform: rotate(0deg); } 50% { transform: rotate(1.5deg); } 100% { transform: rotate(0deg); } }
+        @keyframes web-sway-right { 0% { transform: scaleX(-1) rotate(0deg); } 50% { transform: scaleX(-1) rotate(1.5deg); } 100% { transform: scaleX(-1) rotate(0deg); } }
 
+        /* SPIDER - Hidden by default, animated via JS class */
         .spider-container {
-            position: absolute; top: -20px;
-            animation: spider-drop 8s ease-in-out infinite;
+            position: absolute; top: -300px; /* Start hidden above screen */
+            transition: left 0s; /* Instant horizontal move */
         }
+        
+        .spider-container.dropping {
+            animation: spider-drop-surprise 8s ease-in-out forwards;
+        }
+
         .spider-thread {
-            width: 1px; height: 150px; background: rgba(255,255,255,0.6);
+            width: 2px; height: 250px; background: rgba(255,255,255,0.7);
             margin: 0 auto;
+            box-shadow: 1px 0 2px rgba(0,0,0,0.5);
         }
         .spider-body {
-            font-size: 3rem; line-height: 1; margin-top: -10px;
-            filter: drop-shadow(0 5px 5px rgba(0,0,0,0.5));
+            font-size: 4rem; line-height: 1; margin-top: -15px;
+            filter: drop-shadow(0 5px 8px rgba(0,0,0,0.6));
+            transform-origin: center top;
+            animation: spider-wiggle 2s infinite ease-in-out;
         }
 
-        @keyframes spider-drop {
-            0% { transform: translateY(-150px); }
-            40% { transform: translateY(200px); }
-            50% { transform: translateY(180px); }
-            60% { transform: translateY(200px); }
-            100% { transform: translateY(-150px); }
+        @keyframes spider-drop-surprise {
+            0% { transform: translateY(0); }
+            30% { transform: translateY(350px); } /* Drop down */
+            45% { transform: translateY(330px); } /* Bounce up slightly */
+            55% { transform: translateY(350px); } /* Back down */
+            70% { transform: translateY(350px); } /* Hover */
+            100% { transform: translateY(0); } /* Retract */
+        }
+        
+        @keyframes spider-wiggle {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(5deg); }
+            75% { transform: rotate(-5deg); }
         }
 
         .theme-halloween #wordDisplay { 
@@ -892,9 +910,38 @@
 
                 // Spider
                 const spiderCont = document.createElement('div'); spiderCont.className = 'spider-container';
-                spiderCont.style.left = `${20 + Math.random() * 60}%`;
+                spiderCont.style.left = '50%'; // Initial center
                 spiderCont.innerHTML = '<div class="spider-thread"></div><div class="spider-body">🕷️</div>';
                 container.appendChild(spiderCont);
+
+                // Surprise Logic
+                const scheduleSpider = () => {
+                    // Stop if theme changed
+                    if(State.data.currentTheme !== 'halloween') return;
+                    
+                    // 10s to 20s random delay
+                    const delay = Math.random() * 10000 + 10000; 
+                    
+                    setTimeout(() => {
+                        if(State.data.currentTheme !== 'halloween') return;
+                        
+                        // Random horizontal position (10% to 90%)
+                        spiderCont.style.left = `${10 + Math.random() * 80}%`;
+                        
+                        // Trigger Drop
+                        spiderCont.classList.add('dropping');
+                        
+                        // Remove class after animation (8s) to reset
+                        setTimeout(() => {
+                            spiderCont.classList.remove('dropping');
+                            scheduleSpider(); // Schedule next drop
+                        }, 8000);
+                        
+                    }, delay);
+                };
+                
+                // Start the loop
+                scheduleSpider();
             }
         };
 
