@@ -23,7 +23,6 @@
             transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
             position: relative; 
             z-index: 10;
-            /* CRITICAL FIX: Changed from 'none' to 'pan-y' to allow vertical scrolling */
             touch-action: pan-y; 
         }
         
@@ -259,15 +258,17 @@
     </div>
 
     <div id="compareModalContainer" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
-        <div class="bg-white p-6 rounded-xl w-full max-w-lg shadow-2xl">
+        <div class="bg-white p-6 rounded-xl w-full max-w-2xl shadow-2xl">
             <div class="flex justify-between items-center mb-4 border-b pb-2">
                 <h2 class="text-2xl font-bold">Compare Any Two Words</h2>
                 <button id="closeCompareModal" class="text-gray-500 hover:text-gray-800 text-2xl font-bold leading-none">&times;</button>
             </div>
             <div class="space-y-4">
-                <input type="text" id="wordOneInput" placeholder="Enter first word..." class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
-                <input type="text" id="wordTwoInput" placeholder="Enter second word..." class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
-                <div id="compareResults" class="p-3 bg-gray-50 rounded-lg min-h-[50px]">Type words above to compare them!</div>
+                <div class="flex space-x-2">
+                    <input type="text" id="wordOneInput" placeholder="First word..." class="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                    <input type="text" id="wordTwoInput" placeholder="Second word..." class="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                </div>
+                <div id="compareResults" class="p-3 bg-gray-50 rounded-lg min-h-[50px] flex flex-col items-center justify-center text-gray-500">Type two words above to see who wins!</div>
             </div>
             <div class="flex justify-end space-x-3 mt-4">
                 <button id="runComparisonButton" class="px-4 py-2 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 transition">Compare</button>
@@ -300,7 +301,7 @@
          */
         const CONFIG = {
             API_BASE_URL: '/api/words',
-            APP_VERSION: '4.8.2',
+            APP_VERSION: '4.8.4',
             SPECIAL_WORDS: {
                 CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", msgDur: 3000 },
                 LLAMA: { text: 'LLAMA', prob: 0.005, fade: 8000, msg: "what llama?", msgDur: 2000 },
@@ -625,7 +626,7 @@
                 DOM.rankings.btnShow.onclick = () => { UIManager.renderFullRankings(); this.toggle('fullRankings', true); };
                 document.getElementById('closeFullRankingsModal').onclick = () => this.toggle('fullRankings', false);
                 
-                document.getElementById('compareWordsButton').onclick = () => { DOM.inputs.wordOne.value = ''; DOM.inputs.wordTwo.value = ''; DOM.inputs.compareResults.innerHTML = 'Type words...'; this.toggle('compare', true); };
+                document.getElementById('compareWordsButton').onclick = () => { DOM.inputs.wordOne.value = ''; DOM.inputs.wordTwo.value = ''; DOM.inputs.compareResults.innerHTML = 'Type words above to see who wins!'; this.toggle('compare', true); };
                 document.getElementById('closeCompareModal').onclick = () => this.toggle('compare', false);
                 
                 DOM.game.wordDisplay.onclick = () => Game.showDefinition();
@@ -804,26 +805,132 @@
                 };
 
                 document.getElementById('runComparisonButton').onclick = async () => {
-                   const w1 = DOM.inputs.wordOne.value.trim(); const w2 = DOM.inputs.wordTwo.value.trim();
-                   if(!w1 && !w2) return;
-                   DOM.inputs.compareResults.innerHTML = "Analyzing...";
-                   const check = async (w) => {
-                       const exist = State.runtime.allWords.find(x => x.text.toUpperCase() === w.toUpperCase());
-                       if(exist) return {t: w, s: 'exists', d: exist};
-                       const r = await API.submitWord(w);
-                       if(r.status === 201) { State.incrementContributor(); return {t:w, s:'new'}; }
-                       return {t:w, s:'err'};
-                   };
-                   let resHtml = '';
-                   for(let w of [w1, w2]) {
-                       if(!w) continue;
-                       const r = await check(w);
-                       if(r.s === 'exists') resHtml += `<p class="mb-2"><strong>${r.t}</strong>: +${r.d.goodVotes||0} / -${r.d.badVotes||0}</p>`;
-                       else if(r.s === 'new') resHtml += `<p class="mb-2 text-purple-600"><strong>${r.t}</strong>: Added to database!</p>`;
-                       else resHtml += `<p class="text-red-500">${r.t}: Error</p>`;
+                   const w1Input = DOM.inputs.wordOne.value.trim(); 
+                   const w2Input = DOM.inputs.wordTwo.value.trim();
+                   
+                   if(!w1Input && !w2Input) {
+                       DOM.inputs.compareResults.innerHTML = '<span class="text-red-500">Please enter at least one word.</span>';
+                       return;
                    }
-                   if(resHtml.includes('Added')) this.refreshData(false);
-                   DOM.inputs.compareResults.innerHTML = resHtml;
+                   
+                   DOM.inputs.compareResults.innerHTML = '<span class="text-gray-500 animate-pulse">Analyzing words...</span>';
+
+                   const getWordData = async (w) => {
+                       if (w.includes(' ') || w.length > 45) return { t: w, valid: false, err: 'Invalid word (No spaces, max 45 chars).' };
+                       const exist = State.runtime.allWords.find(x => x.text.toUpperCase() === w.toUpperCase());
+                       if(exist) return { t: exist.text, valid: true, exists: true, d: exist };
+                       
+                       // If not existing locally, try submit/fetch
+                       const r = await API.submitWord(w);
+                       if(r.status === 201) { 
+                           State.incrementContributor(); 
+                           return { t: w.toUpperCase(), valid: true, exists: false, isNew: true }; 
+                       }
+                       // Handle error or duplicate race condition
+                       return { t: w, valid: false, err: 'Could not fetch data.' };
+                   };
+
+                   const results = [];
+                   if(w1Input) results.push(await getWordData(w1Input));
+                   if(w2Input) results.push(await getWordData(w2Input));
+                   
+                   // Check for newly added to refresh background
+                   if(results.some(r => r.isNew)) this.refreshData(false);
+
+                   // --- RENDER LOGIC ---
+                   let html = '';
+                   
+                   // 1. Validation Errors
+                   if(results.some(r => !r.valid)) {
+                       html = results.map(r => !r.valid ? `<p class="text-red-500 mb-2"><strong>${r.t}</strong>: ${r.err}</p>` : '').join('');
+                       DOM.inputs.compareResults.innerHTML = html;
+                       return;
+                   }
+
+                   // 2. Prepare Data for Comparison
+                   const stats = results.map(r => {
+                       if(r.isNew) return { text: r.t, score: 0, good: 0, bad: 0, total: 0, approval: 0, isNew: true };
+                       const g = r.d.goodVotes || 0;
+                       const b = r.d.badVotes || 0;
+                       const total = g + b;
+                       return { 
+                           text: r.t, 
+                           score: g - b, 
+                           good: g, 
+                           bad: b, 
+                           total: total, 
+                           approval: total > 0 ? Math.round((g / total) * 100) : 0,
+                           isNew: false
+                       };
+                   });
+
+                   // 3. Comparison View (2 Words)
+                   if(stats.length === 2) {
+                       const [s1, s2] = stats;
+                       let winnerIdx = -1;
+                       if (s1.score !== s2.score) winnerIdx = s1.score > s2.score ? 0 : 1;
+                       
+                       html = `<div class="flex flex-col md:flex-row gap-4 w-full justify-center items-stretch">`;
+                       
+                       stats.forEach((s, idx) => {
+                           const isWinner = idx === winnerIdx;
+                           const isLoser = winnerIdx !== -1 && !isWinner;
+                           const borderClass = isWinner ? 'border-yellow-400 bg-yellow-50 shadow-xl scale-105 z-10' : 'border-gray-200 bg-white';
+                           const opacityClass = isLoser ? 'opacity-70 grayscale-[0.3]' : '';
+                           
+                           html += `
+                           <div class="flex-1 p-4 rounded-xl border-2 ${borderClass} ${opacityClass} flex flex-col items-center transition-all duration-300">
+                               ${isWinner ? '<div class="text-2xl mb-2">🏆</div>' : '<div class="h-8 mb-2"></div>'}
+                               <h3 class="text-xl font-black text-gray-800 mb-1">${s.text}</h3>
+                               ${isWinner ? '<span class="bg-yellow-400 text-white text-[10px] font-bold px-2 py-0.5 rounded-full mb-2">WINNER</span>' : ''}
+                               ${s.isNew ? '<span class="bg-purple-100 text-purple-600 text-xs px-2 py-1 rounded mb-2">New!</span>' : ''}
+                               
+                               <div class="text-3xl font-bold ${s.score >= 0 ? 'text-green-600' : 'text-red-600'} mb-4">${s.score}</div>
+                               
+                               <div class="w-full space-y-2">
+                                   <div class="flex justify-between text-xs text-gray-500">
+                                       <span>Approval</span>
+                                       <span>${s.approval}%</span>
+                                   </div>
+                                   <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                       <div class="bg-blue-500 h-2.5 rounded-full" style="width: ${s.approval}%"></div>
+                                   </div>
+                                   <div class="flex justify-between text-xs pt-1">
+                                       <span class="text-green-600 font-bold">+${s.good}</span>
+                                       <span class="text-red-600 font-bold">-${s.bad}</span>
+                                   </div>
+                               </div>
+                           </div>`;
+                           
+                           if(idx === 0) html += `<div class="flex items-center justify-center font-black text-gray-300 md:px-2">VS</div>`;
+                       });
+                       html += `</div>`;
+                   } 
+                   // 4. Single Word View
+                   else {
+                       const s = stats[0];
+                       html = `
+                       <div class="p-4 rounded-xl border border-gray-200 bg-white flex flex-col items-center w-full max-w-xs mx-auto">
+                           <h3 class="text-xl font-black text-gray-800 mb-2">${s.text}</h3>
+                           ${s.isNew ? '<span class="bg-purple-100 text-purple-600 text-xs px-2 py-1 rounded mb-2">Newly Added!</span>' : ''}
+                           <div class="text-4xl font-bold ${s.score >= 0 ? 'text-green-600' : 'text-red-600'} mb-4">${s.score}</div>
+                           <div class="w-full space-y-2">
+                               <div class="flex justify-between text-xs text-gray-500">
+                                   <span>Approval Rating</span>
+                                   <span>${s.approval}%</span>
+                               </div>
+                               <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                   <div class="bg-blue-500 h-2.5 rounded-full" style="width: ${s.approval}%"></div>
+                               </div>
+                               <div class="flex justify-between text-xs pt-1">
+                                   <span class="text-green-600 font-bold">+${s.good} Votes</span>
+                                   <span class="text-red-600 font-bold">-${s.bad} Votes</span>
+                               </div>
+                           </div>
+                       </div>`;
+                   }
+                   
+                   DOM.inputs.compareResults.innerHTML = html;
                 };
 
                 DOM.theme.chooser.onchange = (e) => ThemeManager.apply(e.target.value);
