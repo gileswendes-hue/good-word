@@ -53,15 +53,6 @@
         .word-reset { transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), color 0.2s, opacity 0.2s !important; }
         .color-fade { transition: color 0.1s ease-out !important; }
 
-        /* CRITICAL: This class forces color changes on Swipe/Vote regardless of Theme */
-        .override-theme-color {
-            color: var(--dynamic-swipe-color) !important;
-            -webkit-text-fill-color: var(--dynamic-swipe-color) !important;
-            background: none !important;
-            text-shadow: none !important;
-            filter: none !important;
-        }
-
         .word-fade-llama { transition: opacity 8s ease-out, transform 8s ease-out; opacity: 0 !important; transform: scale(0.9) !important; }
         .word-fade-quick { transition: opacity 0.3s ease-out, transform 0.3s ease-out; opacity: 0 !important; transform: scale(0.95) !important; }
 
@@ -141,7 +132,7 @@
 
         @keyframes snow-pile-text {
             0% { background-position: 0 100%; } 
-            100% { background-position: 0 0%; } /* Covers 100% of text */
+            100% { background-position: 0 0%; } 
         }
         
         .theme-winter #gameCard { 
@@ -170,22 +161,20 @@
 
         @keyframes snow-drift-rise { 
             0% { height: 0px; opacity: 0.5; } 
-            100% { height: 300px; opacity: 1; } /* Rises much higher */
+            100% { height: 300px; opacity: 1; }
         }
 
         .theme-winter #snow-effect { position: fixed; inset: 0; width: 100vw; height: 100%; overflow: hidden; z-index: 40; pointer-events: none; }
         .snow-particle { position: absolute; top: -20px; border-radius: 50%; background: white; pointer-events: none; animation: snow-fall linear infinite; }
         @keyframes snow-fall { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 1; } 100% { transform: translate(var(--sway), 110vh); opacity: 0; } }
 
-        /* --- SUMMER (UPDATED) --- */
+        /* --- SUMMER (SOFTENED) --- */
         body.theme-summer { 
-            /* Blue Sky Gradient */
             background: linear-gradient(to bottom, #4facfe 0%, #00f2fe 100%) !important; 
         }
 
         .theme-summer #summer-effect { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; overflow: hidden; }
         
-        /* Grass at the bottom */
         .summer-grass {
             position: absolute; bottom: 0; left: 0; width: 100%; height: 15vh;
             background: linear-gradient(to top, #43a047, #66bb6a);
@@ -194,7 +183,6 @@
             z-index: 10;
         }
 
-        /* Fluffy Clouds */
         .summer-cloud {
             position: absolute; background: #fff; border-radius: 100px; opacity: 0.8;
             animation: cloud-float linear infinite;
@@ -210,25 +198,31 @@
             100% { transform: translateX(-50vw); } 
         }
 
-        /* Sun-like glowing text */
+        /* Softened glowing text */
         .theme-summer #wordDisplay { 
-            color: #fff9c4; /* Pale yellow core */
-            text-shadow: 0 0 10px #ffeb3b, 0 0 20px #ff9800, 0 0 30px #ff5722;
+            color: #fff9c4; 
+            /* Significantly increased blur radii to soften the edge */
+            text-shadow: 0 0 20px #ffeb3b, 0 0 40px #ff9800, 0 0 60px #ff5722;
             animation: sun-pulse 3s ease-in-out infinite alternate;
         }
         @keyframes sun-pulse {
             from { filter: brightness(1); transform: scale(1); }
-            to { filter: brightness(1.2); transform: scale(1.02); text-shadow: 0 0 15px #ffeb3b, 0 0 30px #ff9800, 0 0 45px #ff5722; }
+            to { 
+                filter: brightness(1.1); 
+                transform: scale(1.02); 
+                /* Softer pulse */
+                text-shadow: 0 0 25px #ffeb3b, 0 0 50px #ff9800, 0 0 70px #ff5722; 
+            }
         }
 
         .theme-summer #gameCard { 
-            background-color: rgba(255, 255, 255, 0.85) !important; /* Slightly more transparent to see sky */
+            background-color: rgba(255, 255, 255, 0.85) !important; 
             border: 2px solid #fff !important; 
             box-shadow: 0 15px 40px rgba(0, 100, 255, 0.2) !important; 
             padding: 2rem !important; 
         }
 
-        /* --- HALLOWEEN (SHARPENED) --- */
+        /* --- HALLOWEEN --- */
         body.theme-halloween { background: linear-gradient(135deg, #000000 0%, #3a0000 100%) !important; }
         .theme-halloween #wordDisplay { 
             color: #FF8C00 !important; 
@@ -260,7 +254,7 @@
         .bubble-particle { position: absolute; bottom: -50px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05) 60%, rgba(255, 255, 255, 0)); box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.3), 0 0 4px rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.15); opacity: 0; z-index: 0; animation: bubble-rise-float linear infinite; }
         @keyframes bubble-rise-float { 0% { transform: translateY(0) translateX(0) scale(0.8); opacity: 0; } 10% { opacity: 1; } 50% { transform: translateY(-50vh) translateX(15px) scale(1); } 100% { transform: translateY(-120vh) translateX(-15px) scale(1.1); opacity: 0; } }
 
-        /* --- FIRE (SHARPENED) --- */
+        /* --- FIRE --- */
         body.theme-fire { background-color: rgb(30, 10, 5) !important; }
         .theme-fire #gameCard, .theme-fire .ranking-card { background-color: rgba(48, 8, 8, 0.95) !important; border: 2px solid #ff5000 !important; box-shadow: 0 0 30px rgba(255, 80, 0, 0.3), 0 15px 40px rgba(0, 0, 0, 0.7) !important; padding: 2.5rem !important; }
         .theme-fire #wordDisplay { 
@@ -295,6 +289,17 @@
             animation: smoke-rise 4s linear infinite; pointer-events: none; z-index: 4; 
         }
         @keyframes smoke-rise { 0% { transform: translate(-50%, 0) scale(1); opacity: 0; } 20% { opacity: 0.5; } 100% { transform: translate(var(--sway), -80vh) scale(3); opacity: 0; } }
+
+        /* CRITICAL OVERRIDE CLASS
+           Placed at the bottom to ensure it wins CSS specificity battles (especially against Rainbow theme)
+        */
+        #wordDisplay.override-theme-color {
+            color: var(--dynamic-swipe-color) !important;
+            -webkit-text-fill-color: var(--dynamic-swipe-color) !important;
+            background: none !important;
+            text-shadow: none !important;
+            filter: none !important;
+        }
 
     </style>
 </head>
@@ -456,7 +461,7 @@
          */
         const CONFIG = {
             API_BASE_URL: '/api/words',
-            APP_VERSION: '4.9.8.1',
+            APP_VERSION: '4.9.8.2',
             SPECIAL_WORDS: {
                 CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", msgDur: 3000 },
                 LLAMA: { text: 'LLAMA', prob: 0.005, fade: 8000, msg: "what llama?", msgDur: 2000 },
@@ -934,7 +939,8 @@
                 }
                 if (t === 'summer') { 
                     wd.style.color = '#fff9c4'; 
-                    wd.style.textShadow = '0 0 10px #ffeb3b, 0 0 20px #ff9800, 0 0 30px #ff5722'; 
+                    // Softened shadows based on feedback
+                    wd.style.textShadow = '0 0 20px #ffeb3b, 0 0 40px #ff9800, 0 0 60px #ff5722'; 
                     wd.style.animation = 'sun-pulse 3s ease-in-out infinite alternate'; 
                 } else {
                     if(t !== 'banana' && t !== 'rainbow' && t !== 'submarine') wd.style.animation = 'none';
@@ -1247,10 +1253,14 @@
                 if (!fromSwipe && (type === 'good' || type === 'bad')) {
                     this.cleanStyles(wd); // Remove previous styles
                     
+                    // RAINBOW FIX: Apply override class to force color visibility
+                    wd.style.setProperty('--dynamic-swipe-color', type === 'good' ? '#10b981' : '#ef4444');
+                    wd.classList.add('override-theme-color');
+                    
                     // 1. Apply Fade Transition
                     wd.classList.add('color-fade');
                     
-                    // 2. Set Color (Green/Red)
+                    // 2. Set Color (Green/Red) - though override-theme-color will take precedence
                     wd.style.color = type === 'good' ? '#10b981' : '#ef4444';
                     
                     // 3. Wait briefly for color fade, then Fly Out
@@ -1306,7 +1316,8 @@
 
                     const delay = (type === 'good' || type === 'bad') ? 600 : 0;
                     setTimeout(() => {
-                        wd.classList.remove('animate-fly-left', 'animate-fly-right', 'swipe-good-color', 'swipe-bad-color');
+                        // CLEANUP: Remove animation classes AND the override class
+                        wd.classList.remove('animate-fly-left', 'animate-fly-right', 'swipe-good-color', 'swipe-bad-color', 'override-theme-color');
                         wd.style.transform = ''; 
                         wd.style.opacity = '1';
                         wd.style.color = ''; // Reset color
@@ -1317,7 +1328,7 @@
                 } catch(e) {
                     console.error(e);
                     UIManager.showMessage("Vote Failed", true);
-                    wd.classList.remove('animate-fly-left', 'animate-fly-right', 'swipe-good-color', 'swipe-bad-color');
+                    wd.classList.remove('animate-fly-left', 'animate-fly-right', 'swipe-good-color', 'swipe-bad-color', 'override-theme-color');
                     UIManager.disableButtons(false);
                 }
             }
