@@ -15,6 +15,7 @@
             width: 100%;
         }
 
+        /* Standard Card */
         .card { 
             backdrop-filter: blur(10px); 
             background-color: rgba(255, 255, 255, 0.95);
@@ -54,6 +55,9 @@
 
         /* Reset Transition */
         .word-reset { transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), color 0.2s, opacity 0.2s !important; }
+        
+        /* Color Transition for Button Clicks */
+        .color-fade { transition: color 0.15s ease-out !important; }
 
         /* Special Words */
         .word-fade-llama { transition: opacity 8s ease-out, transform 8s ease-out; opacity: 0 !important; transform: scale(0.9) !important; }
@@ -73,42 +77,58 @@
         
         @keyframes rainbow-text { 0% { -webkit-filter: hue-rotate(0deg); filter: hue-rotate(0deg); } 100% { -webkit-filter: hue-rotate(360deg); filter: hue-rotate(360deg); } }
 
-        /* RAINBOW - FIXED SPINNING BORDER */
+        /* RAINBOW - FIXED STATIC CARD STRUCTURE */
         body.theme-rainbow { background: #f7f7f7 !important; }
         
-        /* The Card Container (Static) */
+        /* 1. The Card Container acts as the frame */
         .theme-rainbow .thin-rainbow-frame { 
-            position: relative; 
-            background: #ffffff !important; /* Ensure card is solid white */
+            position: relative;
+            background: transparent; /* Transparent so we see layers */
+            border: none; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
             border-radius: 1.5rem;
-            border: none;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
             z-index: 10;
-            /* Isolate allows the negative z-index pseudo-element to show behind this element but above body */
-            transform-style: preserve-3d; 
+            overflow: hidden; /* Keep the spinning border contained */
+            padding: 3px !important; /* The thickness of the rainbow border */
         }
 
-        /* The Spinning Gradient (Behind) */
+        /* 2. The Spinning Gradient Layer (Behind everything) */
         .theme-rainbow .thin-rainbow-frame::before { 
             content: ''; 
             position: absolute; 
-            inset: -6px; /* Extends 6px out */
-            border-radius: 1.8rem; 
+            top: -50%; left: -50%; width: 200%; height: 200%; /* Big enough to cover rotation */
             background: conic-gradient(
                 #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #8b00ff, #ff0000
             );
-            animation: spin-border 3s linear infinite; 
-            transform: translateZ(-1px); /* Forces it behind in 3D space */
-            z-index: -1; 
+            animation: spin-border 4s linear infinite; 
+            z-index: 0; 
         }
         
-        @keyframes spin-border { from { transform: translateZ(-1px) rotate(0deg); } to { transform: translateZ(-1px) rotate(360deg); } }
+        /* 3. The Inner Static White Card (Mask) */
+        .theme-rainbow .thin-rainbow-frame::after {
+            content: ''; 
+            position: absolute; 
+            inset: 3px; /* Matches padding to reveal 3px border */
+            background: #ffffff; 
+            border-radius: 1.3rem; /* Slightly smaller radius */
+            z-index: 1;
+        }
+        
+        /* 4. Content Layer (Must be above the white mask) */
+        .theme-rainbow #gameCard > * {
+            position: relative;
+            z-index: 5; /* Above the ::after mask */
+        }
 
-        .theme-rainbow #gameCard, .theme-rainbow .ranking-card { padding: 2.5rem !important; }
+        @keyframes spin-border { 100% { transform: rotate(360deg); } }
+
+        /* Specific Theme Padding Overrides */
+        .theme-rainbow #gameCard { padding: 2.5rem !important; }
         .theme-rainbow #wordFrame { padding: 0; background-color: transparent; margin-bottom: 1.5rem; }
+        
         .theme-rainbow #wordDisplay { 
             background: linear-gradient(45deg, #ff0000, #ff7f00, #ffff00, #00ff00, #00ffff, #0000ff, #9400d3); 
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent; 
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; color: transparent !important; 
             animation: rainbow-text 5s ease infinite; 
             margin-bottom: 0 !important; padding: 0 0.5rem; line-height: 1; 
         }
@@ -129,48 +149,55 @@
         @keyframes bounce-word { from { transform: translateY(0); } to { transform: translateY(-15px); } }
         .theme-banana #gameCard { background-color: rgba(255, 255, 255, 0.95) !important; border: 2px solid #f4ef81 !important; box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15) !important; padding: 2rem !important; }
         
-        /* WINTER - FIXED VISIBILITY */
+        /* WINTER - VISIBLE PILE UP */
         body.theme-winter { background: linear-gradient(135deg, #e0f7fa 0%, #b3e5fc 100%) !important; }
         
-        /* Text Snow Accumulation */
+        /* Text Snow: Hard-edge Gradient for Piling Effect */
         .theme-winter #wordDisplay { 
             color: transparent; 
-            /* Sharp line gradient for accumulation */
             background-image: linear-gradient(to top, #ffffff 50%, #01579b 50%);
-            background-size: 100% 220%; 
-            background-position: 0 100%; /* Start Blue */
+            background-size: 100% 205%; 
+            background-position: 0 100%; /* 100% = Blue */
             -webkit-background-clip: text;
             background-clip: text;
-            filter: drop-shadow(0 2px 3px rgba(0,0,0,0.2)); 
-            animation: snow-pile-text 8s ease-in-out infinite alternate;
+            filter: drop-shadow(0 1px 1px rgba(0,0,0,0.3)); /* shadow to see white on light bg */
+            animation: snow-pile-text 10s linear infinite;
         }
         @keyframes snow-pile-text {
             0% { background-position: 0 100%; } 
-            100% { background-position: 0 30%; } /* Snow (White) rises */
+            50% { background-position: 0 20%; } /* Snow piles up */
+            100% { background-position: 0 100%; } /* Melts back down */
         }
+        
         .theme-winter #gameCard { 
             background-color: rgba(255, 255, 255, 0.9) !important; 
             border: 2px solid #81d4fa !important; 
             box-shadow: 0 15px 40px rgba(179, 229, 252, 0.5) !important; 
             padding: 2rem !important; 
             position: relative; 
-            overflow: hidden; /* Clip snow drift */
+            overflow: hidden; 
         }
 
-        /* Snow Drift at Bottom of Card */
+        /* Card Snow Drift: Visible Element */
         #card-snow-drift { 
-            position: absolute; bottom: 0; left: 0; right: 0; 
-            height: 0; 
-            background: linear-gradient(to top, #ffffff 80%, rgba(255,255,255,0));
-            z-index: 5; 
-            pointer-events: none;
-            opacity: 0;
+            position: absolute; 
+            bottom: 0; left: 0; right: 0; 
+            height: 0px; 
+            background: #ffffff;
+            box-shadow: 0 -4px 10px rgba(180, 220, 255, 0.8);
+            border-radius: 50% 50% 0 0 / 20px 20px 0 0;
+            pointer-events: none; 
+            z-index: 2; 
+            transition: height 0.1s;
         }
         .theme-winter #card-snow-drift { 
-            animation: snow-drift-rise 10s ease-in-out infinite alternate; 
-            opacity: 1;
+            animation: drift-accumulate 10s ease-in-out infinite; 
         }
-        @keyframes snow-drift-rise { from { height: 0px; } to { height: 60px; } }
+        @keyframes drift-accumulate { 
+            0% { height: 0px; } 
+            50% { height: 60px; } 
+            100% { height: 0px; } 
+        }
 
         .theme-winter #snow-effect { position: fixed; inset: 0; width: 100vw; height: 100%; overflow: hidden; z-index: 40; pointer-events: none; }
         .snow-particle { position: absolute; top: -20px; border-radius: 50%; background: white; pointer-events: none; animation: snow-fall linear infinite; }
@@ -211,7 +238,7 @@
         @keyframes bubble-rise-float { 0% { transform: translateY(0) translateX(0) scale(0.8); opacity: 0; } 10% { opacity: 1; } 50% { transform: translateY(-50vh) translateX(15px) scale(1); } 100% { transform: translateY(-120vh) translateX(-15px) scale(1.1); opacity: 0; } }
 
         /* FIRE */
-        body.theme-fire { background-color: rgb(48,8,8) !important; }
+        body.theme-fire { background-color: rgb(30, 10, 5) !important; }
         .theme-fire #gameCard, .theme-fire .ranking-card { background-color: rgba(48, 8, 8, 0.95) !important; border: 2px solid #ff5000 !important; box-shadow: 0 0 30px rgba(255, 80, 0, 0.3), 0 15px 40px rgba(0, 0, 0, 0.7) !important; padding: 2.5rem !important; }
         .theme-fire #wordDisplay { color: #ff5000; text-shadow: 0 0 10px #ff5000, 0 0 20px #ff0000; position: relative; z-index: 20;}
         .theme-fire .text-gray-900, .theme-fire .rank-item .text-gray-800 { color: #ffdcd0 !important; }
@@ -223,24 +250,24 @@
 
         .theme-fire #fire-effect { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; overflow: hidden; }
         
-        /* Thicker, more visible fire */
+        /* More realistic fire particles */
         .fire-particle { 
-            position: absolute; bottom: 0; border-radius: 50%; 
+            position: absolute; bottom: -20px; border-radius: 50%; 
             mix-blend-mode: screen; 
-            background-image: radial-gradient(circle, #ffaa00 20%, rgba(255, 0, 0, 0) 70%); 
-            opacity: 0.9; width: 6em; height: 6em; 
+            background-image: radial-gradient(circle, #ff9900 10%, #ff0000 60%, transparent 70%); 
+            opacity: 0.8; width: 8em; height: 8em; 
             animation: fire-rise 1.5s ease-in infinite; 
         }
-        @keyframes fire-rise { from { opacity: 0.9; transform: translateY(0) scale(1); } 25% { opacity: 1; } to { opacity: 0; transform: translateY(-80vh) scale(0); } }
+        @keyframes fire-rise { from { opacity: 0.8; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-90vh) scale(0.2); } }
 
-        /* Visible Smoke */
+        /* Distinct Smoke */
         .smoke-particle { 
-            position: absolute; bottom: -50px; left: 50%; width: 90px; height: 90px; 
-            background: radial-gradient(circle, rgba(120,120,120,0.5) 0%, rgba(0,0,0,0) 70%); 
-            border-radius: 50%; filter: blur(10px); 
-            animation: smoke-rise 5s linear infinite; pointer-events: none; z-index: 4; 
+            position: absolute; bottom: -50px; left: 50%; width: 100px; height: 100px; 
+            background: radial-gradient(circle, rgba(80,80,80,0.6) 0%, rgba(0,0,0,0) 60%); 
+            border-radius: 50%; filter: blur(8px); 
+            animation: smoke-rise 4s linear infinite; pointer-events: none; z-index: 4; 
         }
-        @keyframes smoke-rise { 0% { transform: translate(-50%, 0) scale(1); opacity: 0; } 20% { opacity: 0.6; } 100% { transform: translate(var(--sway), -90vh) scale(4); opacity: 0; } }
+        @keyframes smoke-rise { 0% { transform: translate(-50%, 0) scale(1); opacity: 0; } 20% { opacity: 0.5; } 100% { transform: translate(var(--sway), -80vh) scale(3); opacity: 0; } }
 
     </style>
 </head>
@@ -277,12 +304,11 @@
         <div id="wordFrame" class="w-full text-center rounded-xl mb-8 relative">
             <div id="wordDisplay" class="font-extrabold text-gray-900 text-center min-h-[72px]">Loading...</div>
         </div>
-        <div id="card-snow-drift"></div> <div class="flex space-x-4 w-full mb-3 relative z-10">
-            <button id="goodButton" class="good-button flex-1 py-4 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-green-500/50" disabled>Good Word</button>
+        <div id="card-snow-drift"></div> <div class="flex space-x-4 w-full mb-3 relative z-20"> <button id="goodButton" class="good-button flex-1 py-4 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-green-500/50" disabled>Good Word</button>
             <button id="badButton" class="bad-button flex-1 py-4 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-red-500/50" disabled>Bad Word</button>
         </div>
-        <button id="notWordButton" class="not-word-button w-full py-3 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-slate-500/50" disabled>Not a word!</button>
-        <button id="customWordButton" class="mt-4 text-sm text-gray-600 hover:text-gray-900 transition duration-150 relative z-10">Submit Custom Word</button>
+        <button id="notWordButton" class="not-word-button w-full py-3 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-slate-500/50 relative z-20" disabled>Not a word!</button>
+        <button id="customWordButton" class="mt-4 text-sm text-gray-600 hover:text-gray-900 transition duration-150 relative z-20">Submit Custom Word</button>
     </main>
 
     <div id="postVoteMessage" class="mt-4 w-full max-w-sm text-center text-sm font-medium text-gray-600 min-h-[1.5rem] transition-opacity duration-500 opacity-0 relative z-10"></div>
@@ -400,7 +426,7 @@
          */
         const CONFIG = {
             API_BASE_URL: '/api/words',
-            APP_VERSION: '4.9.3',
+            APP_VERSION: '4.9.4',
             SPECIAL_WORDS: {
                 CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", msgDur: 3000 },
                 LLAMA: { text: 'LLAMA', prob: 0.005, fade: 8000, msg: "what llama?", msgDur: 2000 },
@@ -670,14 +696,14 @@
             fire() {
                 const container = DOM.theme.effects.fire;
                 container.innerHTML = '';
-                // Fire (More Density)
+                // Fire
                 for (let i = 0; i < 60; i++) { 
                     const p = document.createElement('div'); p.className = 'fire-particle';
                     p.style.animationDelay = `${Math.random()}s`;
                     p.style.left = `calc(10% + (80% * ${Math.random()}))`;
                     container.appendChild(p);
                 }
-                // Smoke (Darker, Bigger)
+                // Smoke
                 for (let i = 0; i < 15; i++) {
                     const s = document.createElement('div'); s.className = 'smoke-particle';
                     s.style.animationDelay = `${Math.random() * 3}s`;
@@ -1118,20 +1144,23 @@
 
                 const wd = DOM.game.wordDisplay;
                 
-                // --- FIXED ANIMATION LOGIC ---
+                // --- FIXED ANIMATION LOGIC START ---
                 if (!fromSwipe && (type === 'good' || type === 'bad')) {
-                    this.cleanStyles(wd); // Remove drag transforms/colors
+                    this.cleanStyles(wd); // Remove previous styles
                     
-                    // Force Solid Color BEFORE Animation
+                    // 1. Apply Fade Transition
+                    wd.classList.add('color-fade');
+                    
+                    // 2. Set Color (Green/Red)
                     wd.style.color = type === 'good' ? '#10b981' : '#ef4444';
-                    wd.style.transition = 'none'; // Ensure instant color switch
                     
-                    // Trigger Fly Out in next frame
-                    requestAnimationFrame(() => {
-                        wd.classList.add(type === 'good' ? 'animate-fly-left' : 'animate-fly-right');
-                    });
+                    // 3. Wait briefly for color fade, then Fly Out
+                    await new Promise(r => setTimeout(r, 50)); // 50ms delay
+                    
+                    wd.classList.remove('color-fade'); // Remove transition class so fly-out moves freely
+                    wd.classList.add(type === 'good' ? 'animate-fly-left' : 'animate-fly-right');
                 }
-                // -----------------------------
+                // --- ANIMATION LOGIC END ---
 
                 const handleSpecial = (conf, badgeKey) => {
                     State.unlockBadge(badgeKey);
@@ -1181,6 +1210,7 @@
                         wd.classList.remove('animate-fly-left', 'animate-fly-right', 'swipe-good-color', 'swipe-bad-color');
                         wd.style.transform = ''; 
                         wd.style.opacity = '1';
+                        wd.style.color = ''; // Reset color
                         this.nextWord(); 
                         this.refreshData(false);
                     }, delay);
@@ -1252,12 +1282,10 @@
                         wd.style.transform = `translate(${diffX}px, ${moveY}px) rotate(${rotation}deg)`;
                         
                         // SMOOTH FADE COLOR LOGIC
-                        // Fade starts at 0 opacity and caps at 1.0 opacity based on drag distance (300px)
+                        // Fade based on drag distance
                         if (diffX < 0) {
-                            // Fading Green
                             wd.style.color = `rgba(16, 185, 129, ${Math.min(Math.abs(diffX)/150, 1)})`; 
                         } else {
-                            // Fading Red
                             wd.style.color = `rgba(239, 68, 68, ${Math.min(Math.abs(diffX)/150, 1)})`;
                         }
                     }
@@ -1279,14 +1307,13 @@
                         wd.style.transform = `translate(${endX}px, 0px) rotate(${endRot}deg)`;
                         wd.style.opacity = '0';
 
-                        // Game.vote will handle cleanup
                         Game.vote(isLeft ? 'good' : 'bad', true);
                         
                     } else {
                         // RESET
                         wd.classList.add('word-reset'); 
                         wd.style.transform = 'translate(0px, 0px) rotate(0deg)';
-                        wd.style.color = ''; // Reset color fade
+                        wd.style.color = ''; // Reset color
                         
                         setTimeout(() => {
                            wd.classList.remove('word-reset');
