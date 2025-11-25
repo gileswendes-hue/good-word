@@ -37,14 +37,14 @@
         
         @media (max-width: 640px) { .rank-item { font-size: 0.8rem; } .vote-counts { font-size: 0.875rem; } }
 
-        /* --- UPDATED ANIMATION & INTERACTION CLASSES (v4.8.7) --- */
+        /* --- ANIMATION & INTERACTION CLASSES --- */
     
         /* 1. Base Transition for releasing the swipe (spring back) */
         .word-reset {
             transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), color 0.2s, opacity 0.2s !important;
         }
 
-        /* 2. Button-Triggered Animations (Matches Swipe Direction) */
+        /* 2. Button-Triggered Animations */
         /* Good = Left = Green */
         .animate-fly-left { 
             animation: fly-out-left 0.6s ease-out forwards; 
@@ -56,17 +56,16 @@
         }
 
         @keyframes fly-out-left { 
-            0% { transform: translateX(0) rotate(0deg); opacity: 1; } 
-            100% { transform: translateX(-150vw) rotate(-20deg); opacity: 0; } 
+            0% { transform: translate(0, 0) rotate(0deg); opacity: 1; } 
+            100% { transform: translate(-150vw, 0) rotate(-20deg); opacity: 0; } 
         }
 
         @keyframes fly-out-right { 
-            0% { transform: translateX(0) rotate(0deg); opacity: 1; } 
-            100% { transform: translateX(150vw) rotate(20deg); opacity: 0; } 
+            0% { transform: translate(0, 0) rotate(0deg); opacity: 1; } 
+            100% { transform: translate(150vw, 0) rotate(20deg); opacity: 0; } 
         }
 
         /* 3. Interaction Colors (Applied during swipe) */
-        /* We use !important to override Theme specifics like Rainbow Gradients */
         .swipe-good-color {
             color: #10b981 !important; /* Green */
             background: none !important; 
@@ -339,7 +338,7 @@
          */
         const CONFIG = {
             API_BASE_URL: '/api/words',
-            APP_VERSION: '4.8.7',
+            APP_VERSION: '4.8.8',
             SPECIAL_WORDS: {
                 CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", msgDur: 3000 },
                 LLAMA: { text: 'LLAMA', prob: 0.005, fade: 8000, msg: "what llama?", msgDur: 2000 },
@@ -812,6 +811,16 @@
          * 5. GAME LOGIC CONTROLLER
          */
         const Game = {
+            // Helper to strip theme-specific inline styles (Fixes Rainbow/Submarine/Banana issues)
+            cleanStyles(wd) {
+                wd.style.animation = 'none'; // Stops bounce, bobbing, rotating colors
+                wd.style.background = 'none'; // Removes gradients
+                wd.style.webkitTextFillColor = 'initial'; // Resets text fill
+                wd.style.textShadow = 'none';
+                wd.style.transform = 'none'; // Resets position
+                // Note: We leave fontSize intact so it doesn't shrink/pop
+            },
+
             async init() {
                 DOM.general.version.textContent = `v${CONFIG.APP_VERSION} | Made by Gilxs`;
                 DOM.game.buttons.good.onclick = () => this.vote('good');
@@ -846,25 +855,16 @@
                    const w1Input = DOM.inputs.wordOne.value.trim(); 
                    const w2Input = DOM.inputs.wordTwo.value.trim();
                    
-                   if(!w1Input && !w2Input) {
-                       DOM.inputs.compareResults.innerHTML = '<span class="text-red-500">Please enter at least one word.</span>';
-                       return;
-                   }
-                   
+                   // Helper wrapper for comparison logic
+                   if(!w1Input && !w2Input) { DOM.inputs.compareResults.innerHTML = '<span class="text-red-500">Please enter at least one word.</span>'; return; }
                    DOM.inputs.compareResults.innerHTML = '<span class="text-gray-500 animate-pulse">Analyzing words...</span>';
-
+                   
                    const getWordData = async (w) => {
-                       if (w.includes(' ') || w.length > 45) return { t: w, valid: false, err: 'Invalid word (No spaces, max 45 chars).' };
+                       if (w.includes(' ') || w.length > 45) return { t: w, valid: false, err: 'Invalid word.' };
                        const exist = State.runtime.allWords.find(x => x.text.toUpperCase() === w.toUpperCase());
                        if(exist) return { t: exist.text, valid: true, exists: true, d: exist };
-                       
-                       // If not existing locally, try submit/fetch
                        const r = await API.submitWord(w);
-                       if(r.status === 201) { 
-                           State.incrementContributor(); 
-                           return { t: w.toUpperCase(), valid: true, exists: false, isNew: true }; 
-                       }
-                       // Handle error or duplicate race condition
+                       if(r.status === 201) { State.incrementContributor(); return { t: w.toUpperCase(), valid: true, exists: false, isNew: true }; }
                        return { t: w, valid: false, err: 'Could not fetch data.' };
                    };
 
@@ -872,20 +872,13 @@
                    if(w1Input) results.push(await getWordData(w1Input));
                    if(w2Input) results.push(await getWordData(w2Input));
                    
-                   // Check for newly added to refresh background
                    if(results.some(r => r.isNew)) this.refreshData(false);
 
-                   // --- RENDER LOGIC ---
-                   let html = '';
-                   
-                   // 1. Validation Errors
                    if(results.some(r => !r.valid)) {
-                       html = results.map(r => !r.valid ? `<p class="text-red-500 mb-2"><strong>${r.t}</strong>: ${r.err}</p>` : '').join('');
-                       DOM.inputs.compareResults.innerHTML = html;
+                       DOM.inputs.compareResults.innerHTML = results.map(r => !r.valid ? `<p class="text-red-500 mb-2"><strong>${r.t}</strong>: ${r.err}</p>` : '').join('');
                        return;
                    }
 
-                   // 2. Prepare Data for Comparison
                    const stats = results.map(r => {
                        if(r.isNew) return { text: r.t.toUpperCase(), score: 0, good: 0, bad: 0, total: 0, approval: 0, isNew: true };
                        const g = r.d.goodVotes || 0;
@@ -902,72 +895,26 @@
                        };
                    });
 
-                   // 3. Comparison View (2 Words)
+                   let html = '';
                    if(stats.length === 2) {
                        const [s1, s2] = stats;
                        let winnerIdx = -1;
                        if (s1.score !== s2.score) winnerIdx = s1.score > s2.score ? 0 : 1;
                        
                        html = `<div class="flex flex-col md:flex-row gap-4 w-full justify-center items-stretch">`;
-                       
                        stats.forEach((s, idx) => {
                            const isWinner = idx === winnerIdx;
                            const isLoser = winnerIdx !== -1 && !isWinner;
                            const borderClass = isWinner ? 'border-yellow-400 bg-yellow-50 shadow-xl scale-105 z-10' : 'border-gray-200 bg-white';
                            const opacityClass = isLoser ? 'opacity-70 grayscale-[0.3]' : '';
-                           
-                           html += `
-                           <div class="flex-1 p-4 rounded-xl border-2 ${borderClass} ${opacityClass} flex flex-col items-center transition-all duration-300">
-                               ${isWinner ? '<div class="text-2xl mb-2">🏆</div>' : '<div class="h-8 mb-2"></div>'}
-                               <h3 class="text-xl font-black text-gray-800 mb-1">${s.text}</h3>
-                               ${isWinner ? '<span class="bg-yellow-400 text-white text-[10px] font-bold px-2 py-0.5 rounded-full mb-2">WINNER</span>' : ''}
-                               ${s.isNew ? '<span class="bg-purple-100 text-purple-600 text-xs px-2 py-1 rounded mb-2">New!</span>' : ''}
-                               
-                               <div class="text-3xl font-bold ${s.score >= 0 ? 'text-green-600' : 'text-red-600'} mb-4">${s.score}</div>
-                               
-                               <div class="w-full space-y-2">
-                                   <div class="flex justify-between text-xs text-gray-500">
-                                       <span>Approval</span>
-                                       <span>${s.approval}%</span>
-                                   </div>
-                                   <div class="w-full bg-gray-200 rounded-full h-2.5">
-                                       <div class="bg-blue-500 h-2.5 rounded-full" style="width: ${s.approval}%"></div>
-                                   </div>
-                                   <div class="flex justify-between text-xs pt-1">
-                                       <span class="text-green-600 font-bold">+${s.good}</span>
-                                       <span class="text-red-600 font-bold">-${s.bad}</span>
-                                   </div>
-                               </div>
-                           </div>`;
-                           
+                           html += `<div class="flex-1 p-4 rounded-xl border-2 ${borderClass} ${opacityClass} flex flex-col items-center transition-all duration-300">${isWinner ? '<div class="text-2xl mb-2">🏆</div>' : '<div class="h-8 mb-2"></div>'}<h3 class="text-xl font-black text-gray-800 mb-1">${s.text}</h3>${isWinner ? '<span class="bg-yellow-400 text-white text-[10px] font-bold px-2 py-0.5 rounded-full mb-2">WINNER</span>' : ''}${s.isNew ? '<span class="bg-purple-100 text-purple-600 text-xs px-2 py-1 rounded mb-2">New!</span>' : ''}<div class="text-3xl font-bold ${s.score >= 0 ? 'text-green-600' : 'text-red-600'} mb-4">${s.score}</div><div class="w-full space-y-2"><div class="flex justify-between text-xs text-gray-500"><span>Approval</span><span>${s.approval}%</span></div><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-blue-500 h-2.5 rounded-full" style="width: ${s.approval}%"></div></div><div class="flex justify-between text-xs pt-1"><span class="text-green-600 font-bold">+${s.good}</span><span class="text-red-600 font-bold">-${s.bad}</span></div></div></div>`;
                            if(idx === 0) html += `<div class="flex items-center justify-center font-black text-gray-300 md:px-2">VS</div>`;
                        });
                        html += `</div>`;
-                   } 
-                   // 4. Single Word View
-                   else {
+                   } else {
                        const s = stats[0];
-                       html = `
-                       <div class="p-4 rounded-xl border border-gray-200 bg-white flex flex-col items-center w-full max-w-xs mx-auto">
-                           <h3 class="text-xl font-black text-gray-800 mb-2">${s.text}</h3>
-                           ${s.isNew ? '<span class="bg-purple-100 text-purple-600 text-xs px-2 py-1 rounded mb-2">Newly Added!</span>' : ''}
-                           <div class="text-4xl font-bold ${s.score >= 0 ? 'text-green-600' : 'text-red-600'} mb-4">${s.score}</div>
-                           <div class="w-full space-y-2">
-                               <div class="flex justify-between text-xs text-gray-500">
-                                   <span>Approval Rating</span>
-                                   <span>${s.approval}%</span>
-                               </div>
-                               <div class="w-full bg-gray-200 rounded-full h-2.5">
-                                   <div class="bg-blue-500 h-2.5 rounded-full" style="width: ${s.approval}%"></div>
-                               </div>
-                               <div class="flex justify-between text-xs pt-1">
-                                   <span class="text-green-600 font-bold">+${s.good} Votes</span>
-                                   <span class="text-red-600 font-bold">-${s.bad} Votes</span>
-                               </div>
-                           </div>
-                       </div>`;
+                       html = `<div class="p-4 rounded-xl border border-gray-200 bg-white flex flex-col items-center w-full max-w-xs mx-auto"><h3 class="text-xl font-black text-gray-800 mb-2">${s.text}</h3>${s.isNew ? '<span class="bg-purple-100 text-purple-600 text-xs px-2 py-1 rounded mb-2">Newly Added!</span>' : ''}<div class="text-4xl font-bold ${s.score >= 0 ? 'text-green-600' : 'text-red-600'} mb-4">${s.score}</div><div class="w-full space-y-2"><div class="flex justify-between text-xs text-gray-500"><span>Approval Rating</span><span>${s.approval}%</span></div><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-blue-500 h-2.5 rounded-full" style="width: ${s.approval}%"></div></div><div class="flex justify-between text-xs pt-1"><span class="text-green-600 font-bold">+${s.good} Votes</span><span class="text-red-600 font-bold">-${s.bad} Votes</span></div></div></div>`;
                    }
-                   
                    DOM.inputs.compareResults.innerHTML = html;
                 };
 
@@ -1093,26 +1040,28 @@
 
                 const wd = DOM.game.wordDisplay;
                 
-                // --- ANIMATION LOGIC START ---
-                // If it wasn't a manual swipe, we need to trigger the CSS animation
+                // --- FIXED ANIMATION LOGIC START ---
                 if (!fromSwipe && (type === 'good' || type === 'bad')) {
-                    // Remove any previous styling/classes
+                    // CRITICAL FIX: Strip inline animations (Submarine/Banana) and Backgrounds (Rainbow) 
+                    // BEFORE adding the fly-out class.
+                    this.cleanStyles(wd);
+                    
+                    // Reset base class
                     wd.className = 'font-extrabold text-gray-900 text-center min-h-[72px]';
                     
-                    // Force the color immediately before animating
                     if (type === 'good') {
-                        wd.classList.add('swipe-good-color'); // Turn Green
-                        wd.classList.add('animate-fly-left'); // Fly Left
+                        wd.classList.add('swipe-good-color'); 
+                        wd.classList.add('animate-fly-left'); 
                     } else {
-                        wd.classList.add('swipe-bad-color');  // Turn Red
-                        wd.classList.add('animate-fly-right'); // Fly Right
+                        wd.classList.add('swipe-bad-color');  
+                        wd.classList.add('animate-fly-right'); 
                     }
                 }
                 // --- ANIMATION LOGIC END ---
 
                 const handleSpecial = (conf, badgeKey) => {
                     State.unlockBadge(badgeKey);
-                    // Reset classes for special fade
+                    this.cleanStyles(wd); // Ensure special words don't carry theme baggage
                     wd.className = 'font-extrabold text-gray-900 text-center min-h-[72px]';
                     wd.classList.add(conf.text === 'LLAMA' ? 'word-fade-llama' : 'word-fade-quick');
                     
@@ -1153,10 +1102,8 @@
                     UIManager.showPostVoteMessage(msg);
                     UIManager.updateStats();
 
-                    // Wait for animation to finish before resetting
                     const delay = (type === 'good' || type === 'bad') ? 600 : 0;
                     setTimeout(() => {
-                        // Clean up animation classes
                         wd.classList.remove('animate-fly-left', 'animate-fly-right', 'swipe-good-color', 'swipe-bad-color');
                         wd.style.transform = ''; 
                         wd.style.opacity = '1';
@@ -1174,7 +1121,7 @@
         };
 
         /**
-         * 6. INPUT HANDLER (SWIPES) - REVISED (v4.8.7)
+         * 6. INPUT HANDLER (SWIPES) - REVISED (v4.8.8 Free Move)
          */
         const InputHandler = {
             startX: 0,
@@ -1197,9 +1144,10 @@
                     this.isDragging = false;
                     this.isScrolling = false;
                     
-                    // Remove transition for instant follow
                     wd.style.transition = 'none';
-                }, { passive: false }); // Non-passive to allow preventDefault
+                    wd.style.animation = 'none'; 
+                    
+                }, { passive: false }); 
 
                 // --- TOUCH MOVE ---
                 card.addEventListener('touchmove', (e) => {
@@ -1210,28 +1158,28 @@
                     const diffX = x - this.startX;
                     const diffY = y - this.startY;
 
-                    // 1. Determine Intent (Scroll vs Swipe)
                     if (!this.isDragging && !this.isScrolling) {
                         if (Math.abs(diffY) > Math.abs(diffX)) {
                             this.isScrolling = true;
-                            return; // Let browser scroll
+                            return; 
                         }
                         this.isDragging = true;
+                        
+                        // Clean styles immediately on confirmed drag
+                        Game.cleanStyles(wd);
                     }
 
                     if (this.isScrolling) return;
 
-                    // 2. Handle Swipe
                     if (this.isDragging) {
-                        e.preventDefault(); // Stop page scroll
+                        e.preventDefault(); 
+                        const rotation = diffX * 0.05; 
                         
-                        // Move text
-                        const rotation = diffX * 0.05; // Slight rotation
-                        wd.style.transform = `translateX(${diffX}px) rotate(${rotation}deg)`;
+                        // NEW: Allow Y movement (diffY) to prevent "rooted" feel
+                        // We slightly dampen Y (0.8) to keep it stable
+                        const moveY = diffY * 0.8;
+                        wd.style.transform = `translate(${diffX}px, ${moveY}px) rotate(${rotation}deg)`;
                         
-                        // Dynamic Color Changing based on direction
-                        // Left (< 0) = Good (Green)
-                        // Right (> 0) = Bad (Red)
                         if (diffX < 0) {
                             wd.classList.add('swipe-good-color');
                             wd.classList.remove('swipe-bad-color');
@@ -1250,36 +1198,29 @@
 
                     const diffX = e.changedTouches[0].clientX - this.startX;
                     
-                    // Threshold check
                     if (Math.abs(diffX) > CONFIG.VOTE.SWIPE_THRESHOLD) {
-                        // COMMIT VOTE
+                        // COMMIT
                         const isLeft = diffX < 0;
-                        
-                        // Calculate flight path off screen
                         const endX = isLeft ? -window.innerWidth : window.innerWidth;
                         const endRot = isLeft ? -20 : 20;
 
-                        // Animate out
                         wd.style.transition = 'transform 0.4s ease-out, opacity 0.4s ease-out';
-                        wd.style.transform = `translateX(${endX}px) rotate(${endRot}deg)`;
+                        wd.style.transform = `translate(${endX}px, 0px) rotate(${endRot}deg)`;
                         wd.style.opacity = '0';
 
-                        // Trigger Vote Logic
-                        // Left = Good, Right = Bad
+                        // Game.vote will handle cleanup
                         Game.vote(isLeft ? 'good' : 'bad', true);
                         
                     } else {
-                        // RESET (Spring back)
-                        wd.classList.add('word-reset'); // Add spring physics class
-                        wd.style.transform = 'translateX(0px) rotate(0deg)';
-                        
-                        // Remove color overrides
+                        // RESET
+                        wd.classList.add('word-reset'); 
+                        wd.style.transform = 'translate(0px, 0px) rotate(0deg)';
                         wd.classList.remove('swipe-good-color', 'swipe-bad-color');
                         
-                        // Refresh Theme styles after short delay
+                        // Restore theme effects after spring-back
                         setTimeout(() => {
                            wd.classList.remove('word-reset');
-                           // Force re-render of theme specific styles if needed
+                           // Re-apply theme animations/styles
                            UIManager.displayWord(State.runtime.allWords[State.runtime.currentWordIndex]);
                         }, 300);
                     }
