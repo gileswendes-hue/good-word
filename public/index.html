@@ -168,7 +168,7 @@
         .snow-particle { position: absolute; top: -20px; border-radius: 50%; background: white; pointer-events: none; animation: snow-fall linear infinite; }
         @keyframes snow-fall { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 1; } 100% { transform: translate(var(--sway), 110vh); opacity: 0; } }
 
-        /* --- SUMMER (SOFTENED NO HARD EDGE) --- */
+        /* --- SUMMER (UPDATED) --- */
         body.theme-summer { 
             background: linear-gradient(to bottom, #4facfe 0%, #00f2fe 100%) !important; 
         }
@@ -183,33 +183,41 @@
             z-index: 10;
         }
 
+        /* Base Cloud */
         .summer-cloud {
-            position: absolute; background: #fff; border-radius: 100px; opacity: 0.8;
+            position: absolute; background: #fff; border-radius: 100px; opacity: 0.85;
             animation: cloud-float linear infinite;
         }
         .summer-cloud::after, .summer-cloud::before {
             content: ''; position: absolute; background: #fff; z-index: -1;
         }
-        .summer-cloud::after { width: 40%; height: 40%; top: -20%; left: 15%; border-radius: 100%; }
-        .summer-cloud::before { width: 60%; height: 60%; top: -35%; right: 15%; border-radius: 100%; }
+
+        /* CLOUD VARIANT 1: Standard Three-Hump */
+        .summer-cloud.v1::after { width: 40%; height: 40%; top: -20%; left: 15%; border-radius: 100%; }
+        .summer-cloud.v1::before { width: 60%; height: 60%; top: -35%; right: 15%; border-radius: 100%; }
+
+        /* CLOUD VARIANT 2: Flat Bottom, Tall Hump */
+        .summer-cloud.v2 { border-radius: 200px 200px 20px 20px; }
+        .summer-cloud.v2::after { width: 35%; height: 90%; top: -50%; left: 10%; border-radius: 50% 50% 0 0; }
+        .summer-cloud.v2::before { width: 50%; height: 120%; top: -80%; right: 15%; border-radius: 50% 50% 40% 40%; }
+
+        /* CLOUD VARIANT 3: Elongated, Small Humps */
+        .summer-cloud.v3 { height: 40% !important; /* Squish base */ }
+        .summer-cloud.v3::after { width: 25%; height: 180%; top: -140%; left: 20%; border-radius: 50%; }
+        .summer-cloud.v3::before { width: 30%; height: 250%; top: -180%; right: 25%; border-radius: 60%; }
         
         @keyframes cloud-float { 
             0% { transform: translateX(120vw); } 
             100% { transform: translateX(-50vw); } 
         }
 
-        /* Soft glowing text logic:
-           1. Core color is nearly white (#fffde7)
-           2. First shadow layer is a TIGHT blur (5px) of the same color to bridge font edge to glow
-           3. Subsequent layers build the yellow/orange/red aura
-        */
+        /* Soft glowing text logic */
         .theme-summer #wordDisplay { 
+            /* Fix for harsh border cutting off glow */
+            overflow: visible !important; 
+            
             color: #fffde7; 
-            text-shadow: 
-                0 0 5px  #fff9c4, 
-                0 0 20px #ffeb3b, 
-                0 0 40px #ff9800, 
-                0 0 70px #ff5722;
+            text-shadow: 0 0 5px #fff9c4, 0 0 20px #ffeb3b, 0 0 40px #ff9800, 0 0 70px #ff5722;
             animation: sun-pulse 4s ease-in-out infinite alternate;
         }
         
@@ -471,7 +479,7 @@
          */
         const CONFIG = {
             API_BASE_URL: '/api/words',
-            APP_VERSION: '4.9.8.3',
+            APP_VERSION: '4.9.8.4',
             SPECIAL_WORDS: {
                 CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", msgDur: 3000 },
                 LLAMA: { text: 'LLAMA', prob: 0.005, fade: 8000, msg: "what llama?", msgDur: 2000 },
@@ -818,14 +826,19 @@
                 // Add Clouds
                 for (let i = 0; i < 8; i++) {
                     const c = document.createElement('div');
-                    c.className = 'summer-cloud';
+                    // Randomly assign a cloud variant class
+                    const variant = Math.floor(Math.random() * 3) + 1;
+                    c.className = `summer-cloud v${variant}`;
+                    
                     const width = Math.random() * 100 + 100; // 100px to 200px
                     c.style.width = `${width}px`;
                     c.style.height = `${width * 0.6}px`; 
                     c.style.top = `${Math.random() * 60}%`; 
-                    const duration = Math.random() * 20 + 20; 
+                    
+                    // Slower animation: 60s to 120s
+                    const duration = Math.random() * 60 + 60; 
                     c.style.animationDuration = `${duration}s`;
-                    c.style.animationDelay = `-${Math.random() * 40}s`; 
+                    c.style.animationDelay = `-${Math.random() * 100}s`; 
                     container.appendChild(c);
                 }
             }
