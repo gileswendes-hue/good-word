@@ -11,7 +11,7 @@
         body { 
             font-family: 'Inter', sans-serif; 
             overscroll-behavior-y: none;
-            overflow-x: hidden; /* CRITICAL FIX: Prevents "Bad Word" animation from widening the page */
+            overflow-x: hidden; 
             width: 100%;
         }
 
@@ -23,7 +23,8 @@
             transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
             position: relative; 
             z-index: 10;
-            touch-action: none; /* CRITICAL FIX: Prevents scroll interference while swiping */
+            /* CRITICAL FIX: Changed from 'none' to 'pan-y' to allow vertical scrolling */
+            touch-action: pan-y; 
         }
         
         /* Base button styles */
@@ -91,7 +92,6 @@
         .theme-winter #wordDisplay { color: #01579b; text-shadow: 0 0 8px rgba(255, 255, 255, 0.8); }
         .theme-winter #gameCard { background-color: rgba(255, 255, 255, 0.9) !important; border: 2px solid #81d4fa !important; box-shadow: 0 15px 40px rgba(179, 229, 252, 0.5) !important; padding: 2rem !important; }
 
-        /* FIXED: Use inset-0 to prevent mobile scroll issues */
         .theme-winter #snow-effect { position: fixed; inset: 0; width: 100vw; height: 100%; overflow: hidden; z-index: 40; pointer-events: none; }
         .snow-particle { position: absolute; top: -20px; border-radius: 50%; background: white; pointer-events: none; animation: snow-fall linear infinite; }
         @keyframes snow-fall { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 1; } 100% { transform: translate(var(--sway), 110vh); opacity: 0; } }
@@ -126,7 +126,6 @@
         .theme-submarine h2 { color: #b0e0e6 !important; }
         .theme-submarine .border-b { border-color: #1c4a7a !important; }
         
-        /* FIXED: Use inset-0 */
         .theme-submarine #bubble-effect { position: fixed; inset: 0; width: 100vw; height: 100%; overflow: hidden; z-index: 40; pointer-events: none; }
         .bubble-particle { position: absolute; bottom: -50px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05) 60%, rgba(255, 255, 255, 0)); box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.3), 0 0 4px rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.15); opacity: 0; z-index: 0; animation: bubble-rise-float linear infinite; }
         @keyframes bubble-rise-float { 0% { transform: translateY(0) translateX(0) scale(0.8); opacity: 0; } 10% { opacity: 1; } 50% { transform: translateY(-50vh) translateX(15px) scale(1); } 100% { transform: translateY(-120vh) translateX(-15px) scale(1.1); opacity: 0; } }
@@ -142,7 +141,6 @@
         .theme-fire header .bg-gray-50 { background-color: #2b0505 !important; }
         .theme-fire .border-b { border-color: #801010 !important; }
 
-        /* FIXED: Use inset-0 to prevent layout shift */
         .theme-fire #fire-effect { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; overflow: hidden; }
         .fire-particle { position: absolute; bottom: 0; border-radius: 50%; mix-blend-mode: screen; background-image: radial-gradient(rgb(255, 80, 0) 20%, rgba(255, 80, 0, 0) 70%); opacity: 0; width: 5em; height: 5em; animation: fire-rise 1s ease-in infinite; }
         @keyframes fire-rise { from { opacity: 0; transform: translateY(0) scale(1); } 25% { opacity: 1; } to { opacity: 0; transform: translateY(-80vh) scale(0); } }
@@ -302,7 +300,7 @@
          */
         const CONFIG = {
             API_BASE_URL: '/api/words',
-            APP_VERSION: '4.8.1',
+            APP_VERSION: '4.8.2',
             SPECIAL_WORDS: {
                 CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", msgDur: 3000 },
                 LLAMA: { text: 'LLAMA', prob: 0.005, fade: 8000, msg: "what llama?", msgDur: 2000 },
@@ -1014,31 +1012,60 @@
          * 6. INPUT HANDLER (SWIPES)
          */
         const InputHandler = {
-            startX: 0, currentX: 0, isDragging: false,
+            startX: 0, startY: 0,
+            isDragging: false, isScrolling: false,
+            
             init() {
                 const card = DOM.game.card;
+                
                 card.addEventListener('touchstart', (e) => {
                     if(State.runtime.isCoolingDown || DOM.game.buttons.good.disabled) return;
                     if(e.target.closest('button, input, select')) return;
+                    
                     this.startX = e.touches[0].clientX;
-                    this.isDragging = true;
+                    this.startY = e.touches[0].clientY;
+                    this.isDragging = false;
+                    this.isScrolling = false;
                     DOM.game.wordDisplay.style.transition = 'none';
                 }, false);
 
                 card.addEventListener('touchmove', (e) => {
-                    if(!this.isDragging) return;
-                    e.preventDefault();
-                    const x = e.touches[0].clientX - this.startX;
-                    const rot = x * 0.05;
-                    const wd = DOM.game.wordDisplay;
-                    wd.style.transform = `translateX(${x}px) rotate(${rot}deg)`;
-                    if(x > 0) wd.style.color = `rgba(239, 68, 68, ${0.5 + Math.abs(x)/400})`; 
-                    else wd.style.color = `rgba(16, 185, 129, ${0.5 + Math.abs(x)/400})`; 
+                    if(State.runtime.isCoolingDown || DOM.game.buttons.good.disabled) return;
+                    
+                    const currentX = e.touches[0].clientX;
+                    const currentY = e.touches[0].clientY;
+                    const diffX = currentX - this.startX;
+                    const diffY = currentY - this.startY;
+
+                    // Determine intent if not already set
+                    if (!this.isDragging && !this.isScrolling) {
+                        // If vertical movement is stronger, flag as scroll
+                        if (Math.abs(diffY) > Math.abs(diffX)) {
+                            this.isScrolling = true;
+                            return; // Allow browser to scroll
+                        }
+                        // If horizontal movement is stronger, flag as drag
+                        this.isDragging = true;
+                    }
+
+                    // If scrolling, do nothing (browser handles it)
+                    if (this.isScrolling) return;
+
+                    // If dragging, handle custom logic
+                    if (this.isDragging) {
+                        e.preventDefault(); // Stop browser back/forward gestures
+                        const rot = diffX * 0.05;
+                        const wd = DOM.game.wordDisplay;
+                        wd.style.transform = `translateX(${diffX}px) rotate(${rot}deg)`;
+                        
+                        if(diffX > 0) wd.style.color = `rgba(239, 68, 68, ${0.5 + Math.abs(diffX)/400})`; 
+                        else wd.style.color = `rgba(16, 185, 129, ${0.5 + Math.abs(diffX)/400})`; 
+                    }
                 }, {passive:false});
 
                 card.addEventListener('touchend', (e) => {
                     if(!this.isDragging) return;
-                    this.isDragging = false;
+                    
                     const x = e.changedTouches[0].clientX - this.startX;
                     const wd = DOM.game.wordDisplay;
                     
@@ -1054,6 +1081,9 @@
                         wd.style.color = ''; 
                         setTimeout(() => UIManager.displayWord(State.runtime.allWords[State.runtime.currentWordIndex]), 300);
                     }
+                    
+                    this.isDragging = false;
+                    this.isScrolling = false;
                 }, false);
             }
         };
