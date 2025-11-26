@@ -203,9 +203,11 @@ body.theme-ballpit { background: linear-gradient(135deg, #4ade80 0%, #60a5fa 100
         <button id="badButton" class="bad-button flex-1 py-4 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-red-500/50" disabled>Bad Word</button>
     </div>
     <button id="notWordButton" class="not-word-button w-full py-3 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-slate-500/50 relative z-20" disabled>Not a word!</button>
-    <button id="customWordButton" class="mt-4 text-sm text-gray-600 hover:text-gray-900 transition duration-150 relative z-20">Submit Custom Word</button>
+    <button id="customWordButton" class="w-full py-3 mt-3 rounded-xl font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 shadow-sm transition duration-150 ease-in-out border border-indigo-100 relative z-20">Submit Custom Word ✍️</button>
+    <p id="themeUnlockHint" class="text-xs text-gray-400 mt-4 text-center italic">Vote on special words to unlock new themes!</p>
+    <div id="postVoteMessage" class="mt-2 w-full text-center text-sm font-medium text-gray-600 min-h-[1.5rem] transition-opacity duration-500 opacity-0 relative z-10"></div>
 </main>
-<div id="postVoteMessage" class="mt-4 w-full max-w-sm text-center text-sm font-medium text-gray-600 min-h-[1.5rem] transition-opacity duration-500 opacity-0 relative z-10"></div>
+
 <section class="mt-8 w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
     <div class="ranking-card card p-6 rounded-xl">
         <h2 class="text-xl font-bold text-green-700 mb-4 border-b pb-2">Top Good Words</h2>
@@ -223,7 +225,6 @@ body.theme-ballpit { background: linear-gradient(135deg, #4ade80 0%, #60a5fa 100
 <div class="mt-6 p-4 bg-white/70 rounded-xl w-full max-w-sm flex flex-col items-center shadow-lg border border-gray-100 relative z-10">
     <h3 class="text-lg font-bold text-gray-700 mb-2">Unlocked Themes 🎨</h3>
     <select id="themeChooser" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 font-semibold"><option value="default">Default</option></select>
-    <p id="themeUnlockHint" class="text-xs text-gray-500 mt-2">Vote on special words to unlock new themes!</p>
     <div class="mt-4 flex space-x-2 w-full">
         <button id="showSettingsButton" class="flex-1 px-3 py-2 bg-slate-200 text-gray-700 font-bold rounded-lg shadow-md hover:bg-slate-300 transition duration-150 text-xs">⚙️ Settings</button>
         <a href="mailto:gileswendes@gmail.com" class="flex-1 flex items-center justify-center px-3 py-2 bg-indigo-100 text-indigo-700 font-bold rounded-lg shadow-md hover:bg-indigo-200 transition duration-150 text-xs">✉️ Contact</a>
