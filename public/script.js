@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.5.4',
+    APP_VERSION: '5.5.5',
 
     // Special words with custom effects and probabilities
     SPECIAL: {
