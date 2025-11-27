@@ -31,8 +31,7 @@ const CONFIG = {
         fire: 'RklSRXxCVVJOfEhPVHxIRUxMfElORkVSTk98RkxBTUV8Q09BTFN8Q1JBQ0tMRXxUT0FTVHxIRUFU',
         plymouth: 'UExZTU9VVEh8REVWT058SkFOTkVSU3xHSU4=',
         ballpit: 'QkFMTHxQSVR8UExBWXxKVU1QfEJPVU5DRXxDT0xPUnxCQUxMUElUfEJBTExSfENPTE9VUg==',
-        space: 'U1BBQ0V8R0FMQVhZfFBMQU5FVHxTVEFSfE9SQklU' 
-},
+        space: 'U1BBQ0V8R0FMQVhZfFBMQU5FVHxTVEFSfE9SQklU'
     },
     TIPS: [
         "Tip: Drag the word left for good and right for bad.",
@@ -61,7 +60,8 @@ const CONFIG = {
         "Tip: London in summertime is great.",
         "You don't need a million dollars to do nothin', man!",
         "Tip: You can see the sea, it's over there between the land and the sky",
-        "Tip: Cake or death?"
+        "Tip: Cake or death?",
+        "Tip: GOOD BOY, MASON! 🦴"
     ]
 };
 
@@ -112,9 +112,8 @@ const DOM = {
             fire: document.getElementById('fire-effect'),
             summer: document.getElementById('summer-effect'),
             plymouth: document.getElementById('plymouth-effect'),
-            ballpit: document.getElementById('ballpit-effect')
-            space: document.getElementById('space-effect') 
-}
+            ballpit: document.getElementById('ballpit-effect'),
+            space: document.getElementById('space-effect')
         }
     },
     modals: {
@@ -796,57 +795,58 @@ const Effects = {
             })
         };
         Physics.run()
+    },
+
+    space(active) {
+        const c = DOM.theme.effects.space;
+        if (!active) {
+            c.innerHTML = '';
+            return;
+        }
+        c.innerHTML = '';
+        
+        // 1. Create Stars
+        for (let i = 0; i < 150; i++) {
+            const s = document.createElement('div');
+            s.className = 'space-star';
+            const size = Math.random() * 2 + 1;
+            s.style.width = s.style.height = `${size}px`;
+            s.style.left = `${Math.random() * 100}vw`;
+            s.style.top = `${Math.random() * 100}vh`;
+            s.style.opacity = Math.random() * 0.8 + 0.2;
+            s.style.animationDelay = `${Math.random() * 3}s`;
+            c.appendChild(s);
+        }
+
+        // 2. Create Planets
+        const createPlanet = (size, x, y, colors, hasRing) => {
+            const wrap = document.createElement('div');
+            wrap.className = 'space-planet-wrap';
+            wrap.style.width = wrap.style.height = `${size}px`;
+            wrap.style.left = x;
+            wrap.style.top = y;
+            wrap.style.animationDuration = `${Math.random() * 10 + 15}s`;
+            
+            const p = document.createElement('div');
+            p.className = 'space-planet';
+            p.style.background = `linear-gradient(135deg, ${colors[0]}, ${colors[1]})`;
+            wrap.appendChild(p);
+
+            if (hasRing) {
+                const r = document.createElement('div');
+                r.className = 'space-ring';
+                wrap.appendChild(r);
+            }
+            c.appendChild(wrap);
+        };
+
+        // Add a few planets
+        createPlanet(120, '10%', '15%', ['#ff6b6b', '#7209b7'], true); // Top left (Ringed)
+        createPlanet(80, '85%', '60%', ['#4cc9f0', '#4361ee'], false); // Right blue
+        createPlanet(40, '20%', '80%', ['#fee440', '#f15bb5'], false); // Bottom left small
+        createPlanet(200, '-5%', '60%', ['#1b1b1b', '#3a3a3a'], true); // Dark giant side
     }
 };
-space(active) {
-    const c = DOM.theme.effects.space;
-    if (!active) {
-        c.innerHTML = '';
-        return;
-    }
-    c.innerHTML = '';
-    
-    // 1. Create Stars
-    for (let i = 0; i < 150; i++) {
-        const s = document.createElement('div');
-        s.className = 'space-star';
-        const size = Math.random() * 2 + 1;
-        s.style.width = s.style.height = `${size}px`;
-        s.style.left = `${Math.random() * 100}vw`;
-        s.style.top = `${Math.random() * 100}vh`;
-        s.style.opacity = Math.random() * 0.8 + 0.2;
-        s.style.animationDelay = `${Math.random() * 3}s`;
-        c.appendChild(s);
-    }
-
-    // 2. Create Planets
-    const createPlanet = (size, x, y, colors, hasRing) => {
-        const wrap = document.createElement('div');
-        wrap.className = 'space-planet-wrap';
-        wrap.style.width = wrap.style.height = `${size}px`;
-        wrap.style.left = x;
-        wrap.style.top = y;
-        wrap.style.animationDuration = `${Math.random() * 10 + 15}s`;
-        
-        const p = document.createElement('div');
-        p.className = 'space-planet';
-        p.style.background = `linear-gradient(135deg, ${colors[0]}, ${colors[1]})`;
-        wrap.appendChild(p);
-
-        if (hasRing) {
-            const r = document.createElement('div');
-            r.className = 'space-ring';
-            wrap.appendChild(r);
-        }
-        c.appendChild(wrap);
-    };
-
-    // Add a few planets
-    createPlanet(120, '10%', '15%', ['#ff6b6b', '#7209b7'], true); // Top left (Ringed)
-    createPlanet(80, '85%', '60%', ['#4cc9f0', '#4361ee'], false); // Right blue
-    createPlanet(40, '20%', '80%', ['#fee440', '#f15bb5'], false); // Bottom left small
-    createPlanet(200, '-5%', '60%', ['#1b1b1b', '#3a3a3a'], true); // Dark giant side
-}
 
 // --- UI AND MODAL MANAGERS ---
 const ModalManager = {
@@ -1252,7 +1252,7 @@ const Game = {
             if (st.length === 2) {
                 const [s1, s2] = st;
                 let wi = -1;
-                if (s1.score !== s2.score) wi = s1.score > s2.score ? 0 : 1;
+                if (s1.score !== s2.score) wi = s1.score > s2.score? 0 : 1;
                 h = `<div class="flex flex-col md:flex-row gap-4 w-full justify-center items-stretch">`;
                 st.forEach((s, i) => {
                     const iw = i === wi,
