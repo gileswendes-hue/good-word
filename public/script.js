@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.5.3',
+    APP_VERSION: '5.5.4',
 
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -73,6 +73,7 @@ const DOM = {
         streak: document.getElementById('headerStreak'),
         userVotes: document.getElementById('headerUserVotes'),
         globalVotes: document.getElementById('headerGlobalVotes'),
+        totalWords: document.getElementById('headerTotalWords')
         good: document.getElementById('headerGood'),
         bad: document.getElementById('headerBad'),
         profileLabel: document.getElementById('headerProfileLabel')
@@ -999,6 +1000,7 @@ const UIManager = {
         const totalBad = w.reduce((a, b) => a + (b.badVotes || 0), 0);
         const globalTotal = totalGood + totalBad;
         DOM.header.globalVotes.textContent = globalTotal.toLocaleString();
+        DOM.header.totalWords.textContent = w.length.toLocaleString();
         DOM.header.good.textContent = totalGood.toLocaleString();
         DOM.header.bad.textContent = totalBad.toLocaleString();
         this.renderMiniRankings()
