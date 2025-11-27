@@ -121,6 +121,87 @@ body.theme-plymouth { background: linear-gradient(to bottom, #0a192f 0%, #1c3a5e
 .theme-plymouth #plymouth-effect { position: fixed; inset: 0; width: 100vw; height: 100%; overflow: hidden; z-index: 1; pointer-events: none; }
 .star-particle { position: absolute; background: white; border-radius: 50%; animation: twinkle linear infinite; }
 @keyframes twinkle { 0%,100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); box-shadow: 0 0 4px white; } }
+/* --- SPACE THEME --- */
+body.theme-space {
+    background: radial-gradient(circle at center, #1b2735 0%, #090a0f 100%) !important;
+}
+
+.theme-space #gameCard,
+.theme-space .ranking-card {
+    background-color: rgba(15, 23, 42, 0.85) !important;
+    border: 1px solid rgba(100, 200, 255, 0.2) !important;
+    box-shadow: 0 0 30px rgba(0, 200, 255, 0.15), inset 0 0 20px rgba(0, 0, 0, 0.5) !important;
+}
+
+.theme-space #wordDisplay {
+    color: #00f3ff !important;
+    text-shadow: 0 0 10px rgba(0, 243, 255, 0.8), 0 0 20px rgba(0, 243, 255, 0.4);
+}
+
+.theme-space .text-gray-900,
+.theme-space .rank-item .text-gray-800 {
+    color: #e2e8f0 !important;
+}
+
+.theme-space #space-effect {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100%;
+    z-index: 1;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+/* Stars */
+.space-star {
+    position: absolute;
+    background: white;
+    border-radius: 50%;
+    animation: twinkle 3s infinite ease-in-out;
+}
+
+/* Planet Construction */
+.space-planet-wrap {
+    position: absolute;
+    transform-style: preserve-3d;
+    animation: float-planet 20s ease-in-out infinite alternate;
+}
+
+.space-planet {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    box-shadow: inset -10px -10px 30px rgba(0,0,0,0.8), 0 0 15px rgba(255,255,255,0.05);
+    position: relative;
+    z-index: 2;
+}
+
+.space-ring {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 160%;
+    height: 160%;
+    border: 15px solid rgba(255, 255, 255, 0.1);
+    border-left-color: rgba(255, 255, 255, 0.4);
+    border-right-color: rgba(255, 255, 255, 0.4);
+    border-radius: 50%;
+    transform: translate(-50%, -50%) rotateX(75deg);
+    z-index: 1;
+    animation: spin-ring 10s linear infinite;
+    box-shadow: 0 0 20px rgba(255,255,255,0.1);
+}
+
+@keyframes spin-ring {
+    from { transform: translate(-50%, -50%) rotateX(75deg) rotate(0deg); }
+    to { transform: translate(-50%, -50%) rotateX(75deg) rotate(360deg); }
+}
+
+@keyframes float-planet {
+    0% { transform: translateY(0); }
+    100% { transform: translateY(-30px); }
+}
 /* BALL PIT THEME */
 body.theme-ballpit { background: linear-gradient(135deg, #4ade80 0%, #60a5fa 100%) !important; }
 .theme-ballpit #gameCard, .theme-ballpit .ranking-card { background-color: rgba(255,255,255,0.85) !important; border: 3px solid #facc15 !important; box-shadow: 0 10px 0 rgba(0,0,0,0.1) !important; }
