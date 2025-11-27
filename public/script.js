@@ -182,7 +182,8 @@ const State = {
             scorpion: localStorage.getItem('scorpionBadgeUnlocked') === 'true',
             mushroom: localStorage.getItem('mushroomBadgeUnlocked') === 'true',
             needle: localStorage.getItem('needleBadgeUnlocked') === 'true',
-            diamond: localStorage.getItem('diamondBadgeUnlocked') === 'true'
+            diamond: localStorage.getItem('diamondBadgeUnlocked') === 'true',
+            rock: localStorage.getItem('rockBadgeUnlocked') === 'true'
         },
         settings: JSON.parse(localStorage.getItem('userSettings')) || {
             showTips: true,
@@ -801,15 +802,19 @@ const Effects = {
         Physics.run()
     },
 
-    space(active) {
+space(active) {
         const c = DOM.theme.effects.space;
+        
+        // Cleanup function for the timeout
+        if (this.spaceRareTimeout) clearTimeout(this.spaceRareTimeout);
+
         if (!active) {
             c.innerHTML = '';
             return;
         }
         c.innerHTML = '';
         
-        // 1. Create Stars
+        // 1. Create Stars (Existing)
         for (let i = 0; i < 150; i++) {
             const s = document.createElement('div');
             s.className = 'space-star';
@@ -822,7 +827,7 @@ const Effects = {
             c.appendChild(s);
         }
 
-        // 2. Create Planets
+        // 2. Create Planets (Existing)
         const createPlanet = (size, x, y, colors, hasRing) => {
             const wrap = document.createElement('div');
             wrap.className = 'space-planet-wrap';
@@ -844,11 +849,52 @@ const Effects = {
             c.appendChild(wrap);
         };
 
-        // Add a few planets
-        createPlanet(120, '10%', '15%', ['#ff6b6b', '#7209b7'], true); // Top left (Ringed)
-        createPlanet(80, '85%', '60%', ['#4cc9f0', '#4361ee'], false); // Right blue
-        createPlanet(40, '20%', '80%', ['#fee440', '#f15bb5'], false); // Bottom left small
-        createPlanet(200, '-5%', '60%', ['#1b1b1b', '#3a3a3a'], true); // Dark giant side
+        createPlanet(120, '10%', '15%', ['#ff6b6b', '#7209b7'], true);
+        createPlanet(80, '85%', '60%', ['#4cc9f0', '#4361ee'], false);
+        createPlanet(40, '20%', '80%', ['#fee440', '#f15bb5'], false);
+        createPlanet(200, '-5%', '60%', ['#1b1b1b', '#3a3a3a'], true);
+
+        // 3. Spawn Rare Item Logic (NEW)
+        const spawnRock = () => {
+            if (!DOM.theme.effects.space.checkVisibility()) return; // Stop if theme changed
+            
+            const el = document.createElement('div');
+            el.textContent = '🤘';
+            el.className = 'space-rock-hand';
+            
+            // Randomize start position (left or right side)
+            const startLeft = Math.random() > 0.5;
+            const duration = Math.random() * 10 + 10; // 10-20 seconds travel time
+            
+            el.style.transition = `left ${duration}s linear, top ${duration}s ease-in-out`;
+            el.style.top = Math.random() * 80 + 10 + 'vh'; // Random vertical position
+            el.style.left = startLeft ? '-100px' : '110vw';
+            
+            // Click Handler
+            el.onclick = (e) => {
+                e.stopPropagation(); // Prevent swiping
+                State.unlockBadge('rock');
+                UIManager.showPostVoteMessage("ROCK! 🤘");
+                el.style.display = 'none';
+            };
+
+            c.appendChild(el);
+
+            // Trigger movement in next frame
+            requestAnimationFrame(() => {
+                el.style.left = startLeft ? '110vw' : '-100px';
+                el.style.top = Math.random() * 80 + 10 + 'vh'; // Drift vertically too
+            });
+
+            // Remove after animation completes
+            setTimeout(() => { if(el.parentNode) el.remove(); }, duration * 1000);
+
+            // Schedule next spawn (between 8 and 20 seconds)
+            this.spaceRareTimeout = setTimeout(spawnRock, Math.random() * 12000 + 8000);
+        };
+
+        // Start the loop
+        this.spaceRareTimeout = setTimeout(spawnRock, 3000);
     }
 };
 
@@ -1023,7 +1069,7 @@ const UIManager = {
         DOM.profile.themes.textContent = d.unlockedThemes.length;
         const b = DOM.profile.badges;
         const row1 = [{ k: 'cake', i: '🎂', w: 'CAKE' }, { k: 'llama', i: '🦙', w: 'LLAMA' }, { k: 'potato', i: '🥔', w: 'POTATO' }, { k: 'squirrel', i: '🐿️', w: 'SQUIRREL' }, { k: 'spider', i: '🕷️', w: 'SPIDER' }, { k: 'germ', i: '🦠', w: 'GERM' }, { k: 'bone', i: '🦴', w: 'MASON' }];
-        const row2 = [{ k: 'poop', i: '💩' }, { k: 'penguin', i: '🐧' }, { k: 'scorpion', i: '🦂' }, { k: 'mushroom', i: '🍄' }, { k: 'needle', i: '💉' }, { k: 'diamond', i: '💎' }];
+        const row2 = [{ k: 'poop', i: '💩' }, { k: 'penguin', i: '🐧' }, { k: 'scorpion', i: '🦂' }, { k: 'mushroom', i: '🍄' }, { k: 'needle', i: '💉' }, { k: 'diamond', i: '💎' },{ k: 'rock', i: '🤘' }];
         const renderRow = (list) => `<div class="flex flex-wrap justify-center gap-3 text-3xl w-full">` + list.map(x => {
             const un = d.badges[x.k];
             return `<span class="${un?'':'opacity-25 grayscale'} transition-all duration-300 transform ${un?'hover:scale-125 cursor-pointer badge-item':''}" title="${un?'Unlocked':'Locked'}" ${x.w?`data-word="${x.w}"`:''}>${x.i}</span>`
