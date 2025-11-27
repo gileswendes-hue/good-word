@@ -990,7 +990,7 @@ const ModalManager = {
         document.getElementById('shareProfileButton').onclick = async () => {
             const d = State.data,
                 t = `I'm on a ${d.daily.streak} day streak with ${d.voteCount} votes cast on Good Word / Bad Word! 🗳️🔥\n\nCan you beat my score?`,
-                u = 'http://www.GBword.com/';
+                u = 'https://good-word.onrender.com/';
             if (navigator.share) {
                 try {
                     await navigator.share({ title: 'Good Word / Bad Word Stats', text: t, url: u })
