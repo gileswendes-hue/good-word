@@ -588,3 +588,34 @@ body.mode-colorblind .bg-green-50 { background-color: #eff6ff !important; }
 body.mode-colorblind .bg-red-50 { background-color: #fff7ed !important; }
 body.mode-colorblind .border-green-100 { border-color: #dbeafe !important; }
 body.mode-colorblind .border-red-100 { border-color: #ffedd5 !important; }
+
+/* Submarine Fish */
+.submarine-fish-wrap {
+    position: absolute;
+    z-index: 20;
+    cursor: pointer;
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: manipulation;
+    pointer-events: auto !important;
+    user-select: none;
+    transition: transform 0.2s;
+}
+
+.submarine-fish-inner {
+    font-size: 3.5rem;
+    filter: drop-shadow(0 4px 4px rgba(0,0,0,0.3));
+    animation: fish-wiggle 1s ease-in-out infinite alternate;
+}
+
+.submarine-fish-wrap:active {
+    transform: scale(1.3);
+}
+
+@keyframes fish-wiggle {
+    0% { transform: translateY(0) rotate(0deg); }
+    100% { transform: translateY(-5px) rotate(5deg); }
+}
