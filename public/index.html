@@ -18,58 +18,57 @@
     <div id="ballpit-effect" class="hidden"></div>
     <div id="space-effect" class="hidden"></div>
     
-    <header class="w-full max-w-2xl z-20 relative mb-8">
-    <div id="logoArea" class="h-32 w-full flex items-center justify-center mb-6 relative">
+   <header class="w-full max-w-3xl z-20 relative mb-8">
+    <div id="logoArea" class="h-32 w-full flex items-center justify-center mb-4 relative">
         <img src="logo.png" alt="Good Word / Bad Word Logo" class="h-full w-auto max-w-full transform translate-x-4">
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
         
-        <div id="userStatsBar" class="bg-white/90 backdrop-blur-sm shadow-lg rounded-2xl p-4 cursor-pointer hover:scale-[1.02] transition-transform border border-indigo-100 flex flex-col justify-center items-center text-center">
+        <div id="userStatsBar" class="md:col-span-2 bg-white/90 backdrop-blur-sm shadow-md rounded-xl p-3 cursor-pointer hover:bg-white hover:scale-[1.02] transition-all border border-indigo-100 flex flex-row items-center justify-between">
             
-            <div class="w-16 h-16 rounded-full overflow-hidden bg-indigo-50 border-2 border-indigo-100 flex items-center justify-center relative mb-2">
-                <span id="headerProfileEmoji" class="text-3xl absolute">👤</span>
-                <img id="headerProfileImage" class="w-full h-full object-cover hidden relative z-10" src="" alt="Profile">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-full overflow-hidden bg-indigo-50 border border-indigo-100 flex-shrink-0 flex items-center justify-center relative">
+                    <span id="headerProfileEmoji" class="text-2xl absolute">👤</span>
+                    <img id="headerProfileImage" class="w-full h-full object-cover hidden relative z-10" src="" alt="Profile">
+                </div>
+                <div class="flex flex-col">
+                    <span id="headerProfileLabel" class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">My Profile</span>
+                    <span class="text-sm font-black text-gray-800 leading-tight">View Badges</span>
+                </div>
             </div>
 
-            <div class="flex flex-col">
-                <span id="headerProfileLabel" class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">My Profile</span>
-                <span class="text-lg font-black text-gray-800 leading-none">View Stats & Badges</span>
-            </div>
-
-            <div class="flex items-center space-x-4 mt-3 bg-gray-50 px-4 py-2 rounded-lg">
-                <div class="flex items-center"><span class="text-xl mr-1">🔥</span><span id="headerStreak" class="font-bold text-gray-700">0</span></div>
-                <div class="flex items-center"><span class="text-xl mr-1">🗳️</span><span id="headerUserVotes" class="font-bold text-gray-700">0</span></div>
+            <div class="flex flex-col items-end justify-center space-y-1 pl-3 border-l border-gray-100">
+                <div class="flex items-center text-xs font-bold text-indigo-600">
+                    <span class="mr-1">🔥</span><span id="headerStreak">0</span>
+                </div>
+                <div class="flex items-center text-xs font-bold text-indigo-600">
+                    <span class="mr-1">🗳️</span><span id="headerUserVotes">0</span>
+                </div>
             </div>
         </div>
 
-        <div class="bg-white/90 backdrop-blur-sm shadow-lg rounded-2xl p-4 border border-gray-100 flex flex-col justify-center">
+        <div class="md:col-span-3 bg-white/90 backdrop-blur-sm shadow-md rounded-xl p-3 border border-gray-100 flex flex-col justify-center">
             
-            <div class="text-center mb-3">
-                <span class="text-xs font-bold text-indigo-400 uppercase tracking-widest">Global Statistics</span>
-            </div>
-
-            <div class="grid grid-cols-2 gap-4 mb-3">
+            <div class="flex justify-between items-center mb-2 px-2">
                 <div class="text-center">
-                    <div class="text-[10px] text-gray-400 font-bold uppercase">Dictionary</div>
-                    <div id="headerTotalWords" class="text-2xl font-black text-gray-600">0</div>
+                    <div class="text-[9px] text-gray-400 font-bold uppercase tracking-wide">Dictionary</div>
+                    <div id="headerTotalWords" class="text-xl font-black text-gray-600 leading-none">0</div>
                 </div>
                 <div class="text-center">
-                    <div class="text-[10px] text-gray-400 font-bold uppercase">Total Votes</div>
-                    <div id="headerGlobalVotes" class="text-2xl font-black text-indigo-600">0</div>
+                    <div class="text-[9px] text-gray-400 font-bold uppercase tracking-wide">Total Votes</div>
+                    <div id="headerGlobalVotes" class="text-2xl font-black text-indigo-700 leading-none">0</div>
                 </div>
             </div>
 
-            <div class="flex items-center justify-between bg-gray-50 rounded-lg p-2 px-4">
-                <div class="text-center">
-                    <span class="block text-xs font-bold text-green-600 uppercase">Good</span>
-                    <span id="headerGood" class="text-lg font-black text-green-600">0</span>
-                </div>
-                <div class="h-8 w-px bg-gray-200 mx-2"></div>
-                <div class="text-center">
-                    <span class="block text-xs font-bold text-red-600 uppercase">Bad</span>
-                    <span id="headerBad" class="text-lg font-black text-red-600">0</span>
-                </div>
+            <div class="w-full bg-gray-100 rounded-full h-1.5 mb-1 flex overflow-hidden">
+                <div class="bg-green-500 h-full w-1/2 opacity-50"></div>
+                <div class="bg-red-500 h-full w-1/2 opacity-50"></div>
+            </div>
+
+            <div class="flex justify-between px-1">
+                <div class="text-[10px] font-bold text-green-600 flex items-center"><span class="mr-1">👍</span> <span id="headerGood">0</span></div>
+                <div class="text-[10px] font-bold text-red-600 flex items-center"><span id="headerBad">0</span> <span class="ml-1">👎</span></div>
             </div>
         </div>
 
@@ -280,6 +279,7 @@
     <script src="script.js"></script>
 </body>
 </html>
+
 
 
 
