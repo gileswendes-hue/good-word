@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.5.8',
+    APP_VERSION: '5.5.9',
 
     // Special words with custom effects and probabilities
     SPECIAL: {
@@ -76,9 +76,11 @@ const DOM = {
         streak: document.getElementById('headerStreak'),
         userVotes: document.getElementById('headerUserVotes'),
         globalVotes: document.getElementById('headerGlobalVotes'),
-        totalWords: document.getElementById('headerTotalWords'), // Fixed: Added comma here
+        totalWords: document.getElementById('headerTotalWords'), 
         good: document.getElementById('headerGood'),
         bad: document.getElementById('headerBad'),
+		barGood: document.getElementById('headerBarGood'), 
+        barBad: document.getElementById('headerBarBad'),
         profileLabel: document.getElementById('headerProfileLabel')
     },
     game: {
@@ -1193,19 +1195,36 @@ const UIManager = {
             }, 5000)
         }, 150)
     },
-    updateStats() {
+	updateStats() {
         const w = State.runtime.allWords;
         if (!w.length) return;
+        
         DOM.header.streak.textContent = State.data.daily.streak;
         DOM.header.userVotes.textContent = State.data.voteCount.toLocaleString();
+        
         const totalGood = w.reduce((a, b) => a + (b.goodVotes || 0), 0);
         const totalBad = w.reduce((a, b) => a + (b.badVotes || 0), 0);
         const globalTotal = totalGood + totalBad;
+
         DOM.header.globalVotes.textContent = globalTotal.toLocaleString();
         DOM.header.totalWords.textContent = w.length.toLocaleString();
         DOM.header.good.textContent = totalGood.toLocaleString();
         DOM.header.bad.textContent = totalBad.toLocaleString();
-        this.renderMiniRankings()
+
+        // --- GRAPH LOGIC ---
+        if (globalTotal > 0) {
+            // Calculate percentage (e.g., 65.4%)
+            const goodPct = (totalGood / globalTotal) * 100;
+            const badPct = 100 - goodPct; // Ensure they perfectly equal 100%
+
+            // Apply widths
+            DOM.header.barGood.style.width = `${goodPct}%`;
+            DOM.header.barBad.style.width = `${badPct}%`;
+        } else {
+            // Default 50/50 if no votes yet
+            DOM.header.barGood.style.width = '50%';
+            DOM.header.barBad.style.width = '50%';
+        }
     },
     updateProfileDisplay() {
         const n = State.data.username;
