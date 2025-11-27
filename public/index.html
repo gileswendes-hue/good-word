@@ -115,56 +115,66 @@
         </div>
     </div>
 
-    <div id="profileModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
-        <div class="bg-white p-6 rounded-2xl w-full max-w-md shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
-            <div class="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-indigo-500 to-purple-500 z-0"></div>
-            <button id="closeProfileModal" class="absolute top-4 right-4 text-white hover:text-gray-200 text-2xl font-bold leading-none z-10">&times;</button>
+<div id="profileModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
+    <div class="bg-white p-6 rounded-2xl w-full max-w-md shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
+        <div class="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-indigo-500 to-purple-500 z-0"></div>
+        <button id="closeProfileModal" class="absolute top-4 right-4 text-white hover:text-gray-200 text-2xl font-bold leading-none z-10">&times;</button>
+        
+        <div class="relative z-10 flex flex-col items-center mt-8 flex-grow overflow-y-auto">
             
-            <div class="relative z-10 flex flex-col items-center mt-8 flex-grow overflow-y-auto">
-                <div class="w-24 h-24 bg-white rounded-full p-1 shadow-lg mb-2">
-                    <div class="w-full h-full bg-gray-100 rounded-full flex items-center justify-center text-4xl">👤</div>
-                </div>
-                
-                <div class="flex items-center justify-center w-full mb-2 space-x-2">
-                    <input type="text" id="usernameInput" placeholder="Enter your name" class="border border-gray-300 rounded-lg px-3 py-1 text-center w-40 text-sm focus:ring-2 focus:ring-indigo-500">
-                    <button id="saveUsernameBtn" class="bg-indigo-600 text-white rounded-lg px-3 py-1 text-sm font-bold hover:bg-indigo-700 shadow-sm">Save</button>
-                </div>
-                <div id="profileSaveMsg" class="h-4 mb-2"></div>
-
-                <h2 id="profileStatsTitle" class="text-2xl font-black text-gray-800">Your Stats</h2>
-                <p class="text-gray-500 text-sm mb-6">Thanks for voting!</p>
-                
-                <div class="grid grid-cols-2 gap-4 w-full mb-6">
-                    <div class="bg-orange-50 p-4 rounded-xl border border-orange-100 flex flex-col items-center">
-                        <span class="text-3xl mb-1">🔥</span>
-                        <span id="profileStreak" class="text-2xl font-black text-orange-600">0</span>
-                        <span class="text-xs text-gray-500 font-bold uppercase">Daily Streak</span>
+            <div class="relative group cursor-pointer" onclick="document.getElementById('photoInput').click()">
+                <div class="w-24 h-24 bg-white rounded-full p-1 shadow-lg mb-2 overflow-hidden relative">
+                    <div class="w-full h-full bg-gray-100 rounded-full flex items-center justify-center overflow-hidden relative">
+                        <span id="modalProfileEmoji" class="text-4xl absolute">👤</span>
+                        <img id="modalProfileImage" class="w-full h-full object-cover hidden relative z-10" src="" alt="Profile">
                     </div>
-                    <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 flex flex-col items-center">
-                        <span class="text-3xl mb-1">🗳️</span>
-                        <span id="profileTotalVotes" class="text-2xl font-black text-blue-600">0</span>
-                        <span class="text-xs text-gray-500 font-bold uppercase">Total Votes</span>
-                    </div>
-                    <div class="bg-green-50 p-4 rounded-xl border border-green-100 flex flex-col items-center">
-                        <span class="text-3xl mb-1">✍️</span>
-                        <span id="profileContributions" class="text-2xl font-black text-green-600">0</span>
-                        <span class="text-xs text-gray-500 font-bold uppercase">Words Added</span>
-                    </div>
-                    <div class="bg-purple-50 p-4 rounded-xl border border-purple-100 flex flex-col items-center">
-                        <span class="text-3xl mb-1">🎨</span>
-                        <span id="profileThemes" class="text-2xl font-black text-purple-600">0</span>
-                        <span class="text-xs text-gray-500 font-bold uppercase">Themes</span>
+                    <div class="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                        <span class="text-white text-xs font-bold">Change</span>
                     </div>
                 </div>
-                
-                <div class="w-full bg-gray-50 rounded-xl p-4 border border-gray-200 mb-4">
-                    <div id="badgeContainer" class="flex flex-col items-center">
-                        </div>
-                </div>
-                <button id="shareProfileButton" class="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-lg hover:bg-indigo-700 mt-auto flex items-center justify-center"><span class="mr-2">📤</span> Share Stats</button>
+                <input type="file" id="photoInput" accept="image/*" class="hidden">
             </div>
+
+            <div class="flex items-center justify-center w-full mb-2 space-x-2">
+                <input type="text" id="usernameInput" placeholder="Enter your name" class="border border-gray-300 rounded-lg px-3 py-1 text-center w-40 text-sm focus:ring-2 focus:ring-indigo-500">
+                <button id="saveUsernameBtn" class="bg-indigo-600 text-white rounded-lg px-3 py-1 text-sm font-bold hover:bg-indigo-700 shadow-sm">Save</button>
+            </div>
+            <div id="profileSaveMsg" class="h-4 mb-2"></div>
+
+            <h2 id="profileStatsTitle" class="text-2xl font-black text-gray-800">Your Stats</h2>
+            <p class="text-gray-500 text-sm mb-6">Thanks for voting!</p>
+            
+            <div class="grid grid-cols-2 gap-4 w-full mb-6">
+                <div class="bg-orange-50 p-4 rounded-xl border border-orange-100 flex flex-col items-center">
+                    <span class="text-3xl mb-1">🔥</span>
+                    <span id="profileStreak" class="text-2xl font-black text-orange-600">0</span>
+                    <span class="text-xs text-gray-500 font-bold uppercase">Daily Streak</span>
+                </div>
+                <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 flex flex-col items-center">
+                    <span class="text-3xl mb-1">🗳️</span>
+                    <span id="profileTotalVotes" class="text-2xl font-black text-blue-600">0</span>
+                    <span class="text-xs text-gray-500 font-bold uppercase">Total Votes</span>
+                </div>
+                <div class="bg-green-50 p-4 rounded-xl border border-green-100 flex flex-col items-center">
+                    <span class="text-3xl mb-1">✍️</span>
+                    <span id="profileContributions" class="text-2xl font-black text-green-600">0</span>
+                    <span class="text-xs text-gray-500 font-bold uppercase">Words Added</span>
+                </div>
+                <div class="bg-purple-50 p-4 rounded-xl border border-purple-100 flex flex-col items-center">
+                    <span class="text-3xl mb-1">🎨</span>
+                    <span id="profileThemes" class="text-2xl font-black text-purple-600">0</span>
+                    <span class="text-xs text-gray-500 font-bold uppercase">Themes</span>
+                </div>
+            </div>
+            
+            <div class="w-full bg-gray-50 rounded-xl p-4 border border-gray-200 mb-4">
+                <div id="badgeContainer" class="flex flex-col items-center">
+                </div>
+            </div>
+            <button id="shareProfileButton" class="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-lg hover:bg-indigo-700 mt-auto flex items-center justify-center"><span class="mr-2">📤</span> Share Stats</button>
         </div>
     </div>
+</div>
 
     <div id="dailyResultModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
         <div class="bg-white p-6 rounded-2xl w-full max-w-sm shadow-2xl text-center relative">
