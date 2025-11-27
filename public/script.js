@@ -60,7 +60,7 @@ const CONFIG = {
         "Tip: Move into the country, eat a lot of peaches 🍑",
         "Tip: I wish there was a way to know you're in the good old days, before you've actually left them.",
         "Tip: London in summertime is great.",
-        "You don't need a million dollars to do nothin', man!",
+        "Tip: You don't need a million dollars to do nothin', man!",
         "Tip: You can see the sea, it's over there between the land and the sky",
         "Tip: Cake or death?",
         "Tip: GOOD BOY, MASON! 🦴",
