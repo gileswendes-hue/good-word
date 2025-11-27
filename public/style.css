@@ -242,3 +242,25 @@ body.mode-colorblind .bg-green-50 { background-color: #eff6ff !important; }
 body.mode-colorblind .bg-red-50 { background-color: #fff7ed !important; }
 body.mode-colorblind .border-green-100 { border-color: #dbeafe !important; }
 body.mode-colorblind .border-red-100 { border-color: #ffedd5 !important; }
+
+/* Space Theme Rare Item */
+.space-rock-hand {
+    position: absolute;
+    font-size: 4rem;
+    z-index: 100;
+    cursor: pointer;
+    filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.5));
+    animation: tumble-rock 3s linear infinite;
+    user-select: none;
+    transition: transform 0.1s;
+}
+
+.space-rock-hand:active {
+    transform: scale(1.5) rotate(15deg) !important;
+    filter: drop-shadow(0 0 20px #a855f7);
+}
+
+@keyframes tumble-rock {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
