@@ -36,7 +36,7 @@ const CONFIG = {
         space: 'U1BBQ0V8R0FMQVhZfFBMQU5FVHxTVEFSfE9SQklU'
     },
     TIPS: [
-        "Tip: Drag the word left for good and right for bad.",
+        "Tip: On mobile, try dragging the word left for good and right for bad.",
         "Tip: Try comparing words!",
         "Tip: Tap the word for a definition.",
         "Tip: Check the theme chooser.",
@@ -57,7 +57,7 @@ const CONFIG = {
         "Tip: It's the things that are given, not won, are the things that you earned",
         "Tip: I'm so glad that you exist.",
         "Tip: Play with friends! Not this, something classic like Tetris or chess.",
-        "Tip: Move into the country, eat a lot of peaches.",
+        "Tip: Move into the country, eat a lot of peaches 🍑",
         "Tip: I wish there was a way to know you're in the good old days, before you've actually left them.",
         "Tip: London in summertime is great.",
         "You don't need a million dollars to do nothin', man!",
