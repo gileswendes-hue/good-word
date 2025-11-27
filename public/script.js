@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.5.12',
+    APP_VERSION: '5.5.11',
 
     // Special words with custom effects and probabilities
     SPECIAL: {
@@ -80,9 +80,11 @@ const DOM = {
         totalWords: document.getElementById('headerTotalWords'),
         good: document.getElementById('headerGood'),
         bad: document.getElementById('headerBad'),
-        barGood: document.getElementById('headerBarGood'), 
+        barGood: document.getElementById('headerBarGood'),
         barBad: document.getElementById('headerBarBad'),
-        profileLabel: document.getElementById('headerProfileLabel')
+        profileLabel: document.getElementById('headerProfileLabel'),
+        profileEmoji: document.getElementById('headerProfileEmoji'),
+        profileImage: document.getElementById('headerProfileImage')
     },
     game: {
         card: document.getElementById('gameCard'),
@@ -139,7 +141,10 @@ const DOM = {
         themes: document.getElementById('profileThemes'),
         badges: document.getElementById('badgeContainer'),
         statsTitle: document.getElementById('profileStatsTitle'),
-        saveMsg: document.getElementById('profileSaveMsg')
+        saveMsg: document.getElementById('profileSaveMsg'),
+        modalEmoji: document.getElementById('modalProfileEmoji'),
+        modalImage: document.getElementById('modalProfileImage'),
+        photoInput: document.getElementById('photoInput')
     },
     daily: {
         peopleCount: document.getElementById('dailyPeopleCount'),
@@ -173,6 +178,7 @@ const State = {
         username: localStorage.getItem('username') || '',
         voteCount: parseInt(localStorage.getItem('voteCount') || 0),
         contributorCount: parseInt(localStorage.getItem('contributorCount') || 0),
+        profilePhoto: localStorage.getItem('profilePhoto') || null,
         badges: {
             cake: localStorage.getItem('cakeBadgeUnlocked') === 'true',
             llama: localStorage.getItem('llamaBadgeUnlocked') === 'true',
@@ -224,6 +230,8 @@ const State = {
         else if (k === 'daily') {
             s.setItem('dailyStreak', v.streak);
             s.setItem('dailyLastDate', v.lastDate);
+        } else if (k === 'profilePhoto') {
+            s.setItem('profilePhoto', v);
         } else if (k.startsWith('badge_')) s.setItem(k, v);
         else s.setItem(k, v)
     },
@@ -455,8 +463,9 @@ const ThemeManager = {
         
         if (t === 'winter') Effects.snow();
         else e.snow.innerHTML = '';
+        
         if (t === 'submarine') Effects.bubbles(true);
-        else Effects.bubbles(false);
+        else Effects.bubbles(false); 
         
         if (t === 'fire') Effects.fire();
         else e.fire.innerHTML = '';
@@ -509,6 +518,7 @@ const Effects = {
     webRaf: null,
     ballLoop: null,
     fishTimeout: null,
+    spaceRareTimeout: null,
     
     plymouth(a) {
         const c = DOM.theme.effects.plymouth;
@@ -555,7 +565,6 @@ const Effects = {
     bubbles(active) {
         const c = DOM.theme.effects.bubble;
         
-        // Clear any existing fish timer
         if (this.fishTimeout) clearTimeout(this.fishTimeout);
 
         if (!active) {
@@ -564,7 +573,6 @@ const Effects = {
         }
         c.innerHTML = '';
 
-        // 1. Create Static Bubbles (Existing Logic)
         const cl = [10, 30, 70, 90];
         for (let i = 0; i < 40; i++) {
             const p = document.createElement('div');
@@ -577,37 +585,31 @@ const Effects = {
             c.appendChild(p);
         }
 
-        // 2. Spawn Swimming Fish Logic (New)
         const spawnFish = () => {
             if (!DOM.theme.effects.bubble.checkVisibility()) return;
 
             const fishTypes = ['🐟', '🐠', '🐡', '🦈'];
             const fishEmoji = fishTypes[Math.floor(Math.random() * fishTypes.length)];
             
-            // Create Wrapper
             const wrap = document.createElement('div');
             wrap.className = 'submarine-fish-wrap';
             
-            // Create Inner (for wiggle)
             const inner = document.createElement('div');
             inner.className = 'submarine-fish-inner';
             inner.textContent = fishEmoji;
             wrap.appendChild(inner);
 
-            // Setup Movement
-            const startLeft = Math.random() > 0.5; // True = Start from Left
-            const duration = Math.random() * 15 + 10; // 10-25 seconds speed
+            const startLeft = Math.random() > 0.5; 
+            const duration = Math.random() * 15 + 10;
             
-            // Face the correct direction
             if (startLeft) {
                 inner.style.transform = "scaleX(-1)"; 
             }
 
             wrap.style.transition = `left ${duration}s linear`;
-            wrap.style.top = Math.random() * 80 + 10 + 'vh'; // Random height
+            wrap.style.top = Math.random() * 80 + 10 + 'vh'; 
             wrap.style.left = startLeft ? '-100px' : '110vw';
 
-            // Interaction
             wrap.onclick = (e) => {
                 e.stopPropagation();
                 UIManager.showPostVoteMessage("Blub blub! 🫧");
@@ -617,19 +619,13 @@ const Effects = {
 
             c.appendChild(wrap);
 
-            // Trigger Move
             requestAnimationFrame(() => {
                 wrap.style.left = startLeft ? '110vw' : '-100px';
             });
 
-            // Cleanup
             setTimeout(() => { if(wrap.parentNode) wrap.remove(); }, duration * 1000);
-
-            // Schedule Next Fish (Every 3-10 seconds)
             this.fishTimeout = setTimeout(spawnFish, Math.random() * 7000 + 3000);
         };
-
-        // Start first fish immediately
         spawnFish();
     },
     snow() {
@@ -877,7 +873,6 @@ const Effects = {
     space(active) {
         const c = DOM.theme.effects.space;
         
-        // Cleanup function for the timeout
         if (this.spaceRareTimeout) clearTimeout(this.spaceRareTimeout);
 
         if (!active) {
@@ -886,7 +881,6 @@ const Effects = {
         }
         c.innerHTML = '';
         
-        // 1. Create Stars (Existing)
         for (let i = 0; i < 150; i++) {
             const s = document.createElement('div');
             s.className = 'space-star';
@@ -899,7 +893,6 @@ const Effects = {
             c.appendChild(s);
         }
 
-        // 2. Create Planets (Existing)
         const createPlanet = (size, x, y, colors, hasRing) => {
             const wrap = document.createElement('div');
             wrap.className = 'space-planet-wrap';
@@ -926,59 +919,50 @@ const Effects = {
         createPlanet(40, '20%', '80%', ['#fee440', '#f15bb5'], false);
         createPlanet(200, '-5%', '60%', ['#1b1b1b', '#3a3a3a'], true);
 
-        // 3. Spawn Rare Item Logic (Updated for Clickability)
         const spawnRock = () => {
             if (!DOM.theme.effects.space.checkVisibility()) return; 
             
-            // Create the wrapper (The clickable moving box)
             const wrap = document.createElement('div');
             wrap.className = 'space-rock-wrap';
             
-            // Create the inner content (The visual spinning emoji)
             const inner = document.createElement('div');
             inner.textContent = '🤘';
             inner.className = 'space-rock-inner';
             
             wrap.appendChild(inner);
             
-            // Setup Movement
             const startLeft = Math.random() > 0.5;
             const duration = Math.random() * 10 + 10; 
             
             wrap.style.transition = `left ${duration}s linear, top ${duration}s ease-in-out`;
             wrap.style.top = Math.random() * 80 + 10 + 'vh'; 
-            wrap.style.left = startLeft ? '-150px' : '110vw'; // Start further out to avoid popping in
+            wrap.style.left = startLeft ? '-150px' : '110vw'; 
             
-            // Click Handler (On the stable wrapper, not the spinning emoji)
             wrap.onclick = (e) => {
                 e.stopPropagation(); 
-                e.preventDefault(); // Stop any other browser behaviors
+                e.preventDefault();
                 State.unlockBadge('rock');
                 UIManager.showPostVoteMessage("SPACE ROCK! 🤘");
-                wrap.style.display = 'none'; // Poof!
+                wrap.style.display = 'none'; 
             };
 
             c.appendChild(wrap);
 
-            // Trigger movement
             requestAnimationFrame(() => {
                 wrap.style.left = startLeft ? '110vw' : '-150px';
                 wrap.style.top = Math.random() * 80 + 10 + 'vh'; 
             });
 
-            // Cleanup
             setTimeout(() => { if(wrap.parentNode) wrap.remove(); }, duration * 1000);
 
-            // Schedule next
             this.spaceRareTimeout = setTimeout(spawnRock, Math.random() * 12000 + 8000);
         };
 
-        // Start the loop
         this.spaceRareTimeout = setTimeout(spawnRock, 3000);
     }
 };
 
-// --- UI AND MODAL MANAGERS ---
+// --- MODAL MANAGER ---
 const ModalManager = {
     toggle(id, show) {
         const e = DOM.modals[id];
@@ -1068,7 +1052,6 @@ const ModalManager = {
             const file = e.target.files[0];
             if (!file) return;
 
-            // Limit to 2MB raw file size check
             if (file.size > 2 * 1024 * 1024) {
                 alert("File too large. Please choose an image under 2MB.");
                 return;
@@ -1078,9 +1061,8 @@ const ModalManager = {
             reader.onload = (readerEvent) => {
                 const img = new Image();
                 img.onload = () => {
-                    // Resize Logic
                     const canvas = document.createElement('canvas');
-                    const MAX_SIZE = 150; // Keep it small for LocalStorage
+                    const MAX_SIZE = 150; 
                     let width = img.width;
                     let height = img.height;
 
@@ -1101,7 +1083,6 @@ const ModalManager = {
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
 
-                    // Convert to base64 string and save
                     const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
                     State.save('profilePhoto', dataUrl);
                     UIManager.updateProfileDisplay();
@@ -1121,7 +1102,8 @@ const ModalManager = {
         })
     }
 };
-// --- SHARE MANAGER (Generates Social Image) ---
+
+// --- SHARE MANAGER ---
 const ShareManager = {
     async generateImage() {
         const canvas = document.createElement('canvas');
@@ -1141,9 +1123,8 @@ const ShareManager = {
         // 2. White Card Container
         const margin = 60;
         const cardY = 150;
-        const cardH = height - 280; // Made slightly shorter to fit footer better
+        const cardH = height - 280; 
         ctx.fillStyle = '#ffffff';
-        // Rounded corners fallback
         if (ctx.roundRect) {
             ctx.beginPath();
             ctx.roundRect(margin, cardY, width - (margin * 2), cardH, 40);
@@ -1154,12 +1135,12 @@ const ShareManager = {
 
         // 3. Header Text
         const name = State.data.username || "Player";
-        ctx.fillStyle = '#1f2937'; // Gray-800
+        ctx.fillStyle = '#1f2937'; 
         ctx.font = 'bold 60px Inter, sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText(`${name.toUpperCase()}'S STATS`, width / 2, cardY + 100);
 
-        ctx.fillStyle = '#6b7280'; // Gray-500
+        ctx.fillStyle = '#6b7280'; 
         ctx.font = '30px Inter, sans-serif';
         ctx.fillText("GOOD WORD / BAD WORD", width / 2, cardY + 150);
 
@@ -1183,25 +1164,20 @@ const ShareManager = {
             const x = startX + (col * (boxW + gap));
             const y = gridY + (row * (boxH + gap));
 
-            // Box bg
             ctx.fillStyle = stat.color;
             ctx.fillRect(x, y, boxW, boxH);
-            // Border
-            ctx.strokeStyle = stat.text + '40'; // Low opacity border
+            ctx.strokeStyle = stat.text + '40'; 
             ctx.lineWidth = 2;
             ctx.strokeRect(x, y, boxW, boxH);
 
-            // Icon
             ctx.font = '60px serif';
             ctx.textAlign = 'center';
             ctx.fillText(stat.icon, x + boxW / 2, y + 70);
 
-            // Value
             ctx.fillStyle = stat.text;
             ctx.font = 'bold 50px Inter, sans-serif';
             ctx.fillText(stat.val, x + boxW / 2, y + 130);
 
-            // Label
             ctx.fillStyle = '#6b7280';
             ctx.font = 'bold 20px Inter, sans-serif';
             ctx.fillText(stat.label.toUpperCase(), x + boxW / 2, y + 160);
@@ -1213,7 +1189,6 @@ const ShareManager = {
         ctx.font = 'bold 30px Inter, sans-serif';
         ctx.fillText("BADGES UNLOCKED", width / 2, badgeY);
 
-        // Draw Badges
         const allBadges = [
             { k: 'cake', i: '🎂' }, { k: 'llama', i: '🦙' }, { k: 'potato', i: '🥔' },
             { k: 'squirrel', i: '🐿️' }, { k: 'spider', i: '🕷️' }, { k: 'germ', i: '🦠' },
@@ -1222,9 +1197,8 @@ const ShareManager = {
             { k: 'diamond', i: '💎' }, { k: 'rock', i: '🤘' }
         ];
 
-        let bx = (width - (7 * 80)) / 2 + 40; // Center roughly
+        let bx = (width - (7 * 80)) / 2 + 40; 
         let by = badgeY + 80;
-        let bCount = 0;
 
         allBadges.forEach((b, i) => {
             const unlocked = State.data.badges[b.k];
@@ -1239,20 +1213,18 @@ const ShareManager = {
                 ctx.filter = 'grayscale(100%)';
             }
             
-            // Wrap to next line if needed
             if (i === 7) { bx = (width - (7 * 80)) / 2 + 40; by += 100; }
             
             ctx.fillText(b.i, bx, by);
             bx += 80;
         });
 
-        // Reset filter
         ctx.globalAlpha = 1.0;
         ctx.filter = 'none';
 
-        // 6. Footer (UPDATED FOR CLARITY)
+        // 6. Footer
         ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 50px Inter, sans-serif'; // Larger and Bold
+        ctx.font = 'bold 50px Inter, sans-serif'; 
         ctx.fillText("GBword.com", width / 2, height - 90);
         
         ctx.font = '30px Inter, sans-serif';
@@ -1277,13 +1249,11 @@ const ShareManager = {
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
                 await navigator.share(shareData);
             } else {
-                // Fallback for desktop: Download the image
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(blob);
                 a.download = 'gbword-stats.png';
                 a.click();
                 
-                // Also copy link to clipboard since we can't native share
                 try {
                     await navigator.clipboard.writeText('http://good-word.onrender.com/');
                     UIManager.showPostVoteMessage("Image saved & Link copied!");
@@ -1297,6 +1267,7 @@ const ShareManager = {
         }
     }
 };
+
 const UIManager = {
     msgTimeout: null,
     showMessage(t, err = false) {
@@ -1328,7 +1299,7 @@ const UIManager = {
             }, 5000)
         }, 150)
     },
-	updateStats() {
+    updateStats() {
         const w = State.runtime.allWords;
         if (!w.length) return;
         
@@ -1346,29 +1317,25 @@ const UIManager = {
 
         // --- GRAPH LOGIC ---
         if (globalTotal > 0) {
-            // Calculate percentage (e.g., 65.4%)
             const goodPct = (totalGood / globalTotal) * 100;
-            const badPct = 100 - goodPct; // Ensure they perfectly equal 100%
+            const badPct = 100 - goodPct; 
 
-            // Apply widths
             DOM.header.barGood.style.width = `${goodPct}%`;
             DOM.header.barBad.style.width = `${badPct}%`;
         } else {
-            // Default 50/50 if no votes yet
             DOM.header.barGood.style.width = '50%';
             DOM.header.barBad.style.width = '50%';
         }
-		this.renderMiniRankings();
+        this.renderMiniRankings();
     },
     updateProfileDisplay() {
         const n = State.data.username;
-        const p = State.data.profilePhoto; // Get photo
+        const p = State.data.profilePhoto; 
         
         DOM.header.profileLabel.textContent = n ? `${n}'s Profile` : 'My Profile';
         DOM.profile.statsTitle.textContent = n ? `${n}'s Stats` : 'Your Stats';
         if (n) DOM.inputs.username.value = n;
 
-        // Handle Header Image
         if (p) {
             DOM.header.profileEmoji.classList.add('hidden');
             DOM.header.profileImage.src = p;
@@ -1378,7 +1345,6 @@ const UIManager = {
             DOM.header.profileImage.classList.add('hidden');
         }
 
-        // Handle Modal Image
         if (p) {
             DOM.profile.modalEmoji.classList.add('hidden');
             DOM.profile.modalImage.src = p;
@@ -1394,9 +1360,7 @@ const UIManager = {
         DOM.profile.streak.textContent = d.daily.streak;
         DOM.profile.totalVotes.textContent = d.voteCount.toLocaleString();
         DOM.profile.contributions.textContent = d.contributorCount.toLocaleString();
-        // Calculate totals (Secrets + 1 for Default theme)
         const totalAvailable = Object.keys(CONFIG.THEME_SECRETS).length + 1;
-        // Calculate user count (Unlocked list + 1 for Default)
         const userCount = d.unlockedThemes.length + 1;
         
         DOM.profile.themes.textContent = `${userCount} / ${totalAvailable}`;
