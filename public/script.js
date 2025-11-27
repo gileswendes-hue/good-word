@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.5.11',
+    APP_VERSION: '5.5.12',
 
     // Special words with custom effects and probabilities
     SPECIAL: {
@@ -456,9 +456,7 @@ const ThemeManager = {
         if (t === 'winter') Effects.snow();
         else e.snow.innerHTML = '';
         if (t === 'submarine') Effects.bubbles(true);
-        else Effects.bubbles(false); // FIXED LOGIC HERE
-        
-        if (t !== 'submarine') e.bubble.innerHTML = ''; // Clean up bubbles if not active
+        else Effects.bubbles(false);
         
         if (t === 'fire') Effects.fire();
         else e.fire.innerHTML = '';
