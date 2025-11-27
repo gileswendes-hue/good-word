@@ -1349,19 +1349,57 @@ const Game = {
     },
     activateDailyMode() {
         if (State.runtime.isDailyMode) return;
-        const t = new Date().toISOString().split('T')[0];
+        
+        const t = new Date().toISOString().split('T')[0]; // Current Date (YYYY-MM-DD)
+        
+        // Check if we already played today
         if (t === State.data.daily.lastDate) return;
+
         State.runtime.isDailyMode = true;
         DOM.game.dailyBanner.classList.add('daily-locked-mode');
+        
+        // Hide standard buttons
         DOM.game.buttons.notWord.style.display = 'none';
         DOM.game.buttons.custom.style.display = 'none';
+        
         UIManager.showMessage('Loading Daily Word...');
-        let h = 0;
-        for (let i = 0; i < t.length; i++) h = ((h << 5) - h) + t.charCodeAt(i);
-        h = Math.abs(h | 0);
-        const idx = h % State.runtime.allWords.length;
-        State.runtime.currentWordIndex = idx;
-        UIManager.displayWord(State.runtime.allWords[idx])
+
+        // --- NEW SELECTION ALGORITHM (Stable) ---
+        // This calculates a score for every word based on the date.
+        // The word with the highest score wins.
+        // Adding new words won't change the winner unless the new word happens to beat the high score.
+        
+        let winningWord = null;
+        let highestScore = -1;
+
+        State.runtime.allWords.forEach(word => {
+            // Combine Word Text + Date String
+            const key = word.text.toUpperCase() + t;
+            
+            // Generate a unique hash score for this combination
+            let hash = 0;
+            for (let i = 0; i < key.length; i++) {
+                hash = ((hash << 5) - hash) + key.charCodeAt(i);
+                hash |= 0; // Convert to 32bit integer
+            }
+            hash = Math.abs(hash);
+
+            // Check if this is the new "King of the Hill"
+            if (hash > highestScore) {
+                highestScore = hash;
+                winningWord = word;
+            }
+        });
+
+        if (winningWord) {
+            // Find the index of the winner for the game logic to use
+            const idx = State.runtime.allWords.indexOf(winningWord);
+            State.runtime.currentWordIndex = idx;
+            UIManager.displayWord(winningWord);
+        } else {
+            // Fallback just in case list is empty
+            UIManager.showMessage("No Daily Word Found");
+        }
     },
     disableDailyMode() {
         State.runtime.isDailyMode = false;
