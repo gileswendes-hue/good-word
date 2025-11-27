@@ -534,9 +534,10 @@ body.theme-space { background: radial-gradient(circle at center, #1b2735 0%, #09
     z-index: 100;
     cursor: pointer;
     filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.5));
-    animation: tumble-rock 3s linear infinite;
+    animation: tumble-rock 6s linear infinite;
     user-select: none;
     transition: transform 0.1s;
+    pointer-events: auto;
 }
 .space-rock-hand:active { transform: scale(1.5) rotate(15deg) !important; filter: drop-shadow(0 0 20px #a855f7); }
 @keyframes tumble-rock { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
