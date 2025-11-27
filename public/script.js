@@ -65,7 +65,7 @@ const CONFIG = {
         "Tip: Cake or death?",
         "Tip: GOOD BOY, MASON! 🦴",
         "Tip: Knock, knock, Neo. 🐇",
-		"Tip: ❤️💎"
+        "Tip: ❤️💎"
     ]
 };
 
@@ -77,10 +77,10 @@ const DOM = {
         streak: document.getElementById('headerStreak'),
         userVotes: document.getElementById('headerUserVotes'),
         globalVotes: document.getElementById('headerGlobalVotes'),
-        totalWords: document.getElementById('headerTotalWords'), 
+        totalWords: document.getElementById('headerTotalWords'),
         good: document.getElementById('headerGood'),
         bad: document.getElementById('headerBad'),
-		barGood: document.getElementById('headerBarGood'), 
+        barGood: document.getElementById('headerBarGood'), 
         barBad: document.getElementById('headerBarBad'),
         profileLabel: document.getElementById('headerProfileLabel')
     },
@@ -456,8 +456,10 @@ const ThemeManager = {
         if (t === 'winter') Effects.snow();
         else e.snow.innerHTML = '';
         if (t === 'submarine') Effects.bubbles(true);
-		else Effects.bubbles(false);
-        else e.bubble.innerHTML = '';
+        else Effects.bubbles(false); // FIXED LOGIC HERE
+        
+        if (t !== 'submarine') e.bubble.innerHTML = ''; // Clean up bubbles if not active
+        
         if (t === 'fire') Effects.fire();
         else e.fire.innerHTML = '';
         if (t === 'summer') Effects.summer();
@@ -508,6 +510,8 @@ const Effects = {
     spiderTimeout: null,
     webRaf: null,
     ballLoop: null,
+    fishTimeout: null,
+    
     plymouth(a) {
         const c = DOM.theme.effects.plymouth;
         if (!a) {
@@ -550,7 +554,7 @@ const Effects = {
             c.appendChild(s)
         }
     },
-bubbles(active) {
+    bubbles(active) {
         const c = DOM.theme.effects.bubble;
         
         // Clear any existing fish timer
@@ -597,8 +601,6 @@ bubbles(active) {
             const duration = Math.random() * 15 + 10; // 10-25 seconds speed
             
             // Face the correct direction
-            // If starting left, moving right: ScaleX(-1) to face right (standard emojis face left)
-            // If starting right, moving left: ScaleX(1) to face left
             if (startLeft) {
                 inner.style.transform = "scaleX(-1)"; 
             }
@@ -874,7 +876,7 @@ bubbles(active) {
         Physics.run()
     },
 
-space(active) {
+    space(active) {
         const c = DOM.theme.effects.space;
         
         // Cleanup function for the timeout
@@ -926,7 +928,7 @@ space(active) {
         createPlanet(40, '20%', '80%', ['#fee440', '#f15bb5'], false);
         createPlanet(200, '-5%', '60%', ['#1b1b1b', '#3a3a3a'], true);
 
-     // 3. Spawn Rare Item Logic (Updated for Clickability)
+        // 3. Spawn Rare Item Logic (Updated for Clickability)
         const spawnRock = () => {
             if (!DOM.theme.effects.space.checkVisibility()) return; 
             
@@ -1062,6 +1064,57 @@ const ModalManager = {
         DOM.daily.closeBtn.onclick = () => {
             this.toggle('dailyResult', false);
             Game.disableDailyMode()
+        };
+        // Handle Photo Upload
+        DOM.profile.photoInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // Limit to 2MB raw file size check
+            if (file.size > 2 * 1024 * 1024) {
+                alert("File too large. Please choose an image under 2MB.");
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (readerEvent) => {
+                const img = new Image();
+                img.onload = () => {
+                    // Resize Logic
+                    const canvas = document.createElement('canvas');
+                    const MAX_SIZE = 150; // Keep it small for LocalStorage
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > MAX_SIZE) {
+                            height *= MAX_SIZE / width;
+                            width = MAX_SIZE;
+                        }
+                    } else {
+                        if (height > MAX_SIZE) {
+                            width *= MAX_SIZE / height;
+                            height = MAX_SIZE;
+                        }
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    // Convert to base64 string and save
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                    State.save('profilePhoto', dataUrl);
+                    UIManager.updateProfileDisplay();
+                    
+                    DOM.profile.saveMsg.textContent = "Photo Updated!";
+                    DOM.profile.saveMsg.className = "text-xs text-green-500 mt-1 font-bold";
+                    setTimeout(() => DOM.profile.saveMsg.textContent = '', 2000);
+                };
+                img.src = readerEvent.target.result;
+            };
+            reader.readAsDataURL(file);
         };
         Object.keys(DOM.modals).forEach(k => {
             DOM.modals[k].addEventListener('click', e => {
@@ -1311,9 +1364,31 @@ const UIManager = {
     },
     updateProfileDisplay() {
         const n = State.data.username;
+        const p = State.data.profilePhoto; // Get photo
+        
         DOM.header.profileLabel.textContent = n ? `${n}'s Profile` : 'My Profile';
         DOM.profile.statsTitle.textContent = n ? `${n}'s Stats` : 'Your Stats';
-        if (n) DOM.inputs.username.value = n
+        if (n) DOM.inputs.username.value = n;
+
+        // Handle Header Image
+        if (p) {
+            DOM.header.profileEmoji.classList.add('hidden');
+            DOM.header.profileImage.src = p;
+            DOM.header.profileImage.classList.remove('hidden');
+        } else {
+            DOM.header.profileEmoji.classList.remove('hidden');
+            DOM.header.profileImage.classList.add('hidden');
+        }
+
+        // Handle Modal Image
+        if (p) {
+            DOM.profile.modalEmoji.classList.add('hidden');
+            DOM.profile.modalImage.src = p;
+            DOM.profile.modalImage.classList.remove('hidden');
+        } else {
+            DOM.profile.modalEmoji.classList.remove('hidden');
+            DOM.profile.modalImage.classList.add('hidden');
+        }
     },
     openProfile() {
         this.updateProfileDisplay();
