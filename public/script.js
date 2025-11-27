@@ -854,43 +854,51 @@ space(active) {
         createPlanet(40, '20%', '80%', ['#fee440', '#f15bb5'], false);
         createPlanet(200, '-5%', '60%', ['#1b1b1b', '#3a3a3a'], true);
 
-        // 3. Spawn Rare Item Logic (NEW)
+     // 3. Spawn Rare Item Logic (Updated for Clickability)
         const spawnRock = () => {
-            if (!DOM.theme.effects.space.checkVisibility()) return; // Stop if theme changed
+            if (!DOM.theme.effects.space.checkVisibility()) return; 
             
-            const el = document.createElement('div');
-            el.textContent = '🤘';
-            el.className = 'space-rock-hand';
+            // Create the wrapper (The clickable moving box)
+            const wrap = document.createElement('div');
+            wrap.className = 'space-rock-wrap';
             
-            // Randomize start position (left or right side)
+            // Create the inner content (The visual spinning emoji)
+            const inner = document.createElement('div');
+            inner.textContent = '🤘';
+            inner.className = 'space-rock-inner';
+            
+            wrap.appendChild(inner);
+            
+            // Setup Movement
             const startLeft = Math.random() > 0.5;
-            const duration = Math.random() * 10 + 10; // 10-20 seconds travel time
+            const duration = Math.random() * 10 + 10; 
             
-            el.style.transition = `left ${duration}s linear, top ${duration}s ease-in-out`;
-            el.style.top = Math.random() * 80 + 10 + 'vh'; // Random vertical position
-            el.style.left = startLeft ? '-100px' : '110vw';
+            wrap.style.transition = `left ${duration}s linear, top ${duration}s ease-in-out`;
+            wrap.style.top = Math.random() * 80 + 10 + 'vh'; 
+            wrap.style.left = startLeft ? '-150px' : '110vw'; // Start further out to avoid popping in
             
-            // Click Handler
-            el.onclick = (e) => {
-                e.stopPropagation(); // Prevent swiping
+            // Click Handler (On the stable wrapper, not the spinning emoji)
+            wrap.onclick = (e) => {
+                e.stopPropagation(); 
+                e.preventDefault(); // Stop any other browser behaviors
                 State.unlockBadge('rock');
                 UIManager.showPostVoteMessage("SPACE ROCK! 🤘");
-                el.style.display = 'none';
+                wrap.style.display = 'none'; // Poof!
             };
 
-            c.appendChild(el);
+            c.appendChild(wrap);
 
-            // Trigger movement in next frame
+            // Trigger movement
             requestAnimationFrame(() => {
-                el.style.left = startLeft ? '110vw' : '-100px';
-                el.style.top = Math.random() * 80 + 10 + 'vh'; // Drift vertically too
+                wrap.style.left = startLeft ? '110vw' : '-150px';
+                wrap.style.top = Math.random() * 80 + 10 + 'vh'; 
             });
 
-            // Remove after animation completes
-            setTimeout(() => { if(el.parentNode) el.remove(); }, duration * 1000);
+            // Cleanup
+            setTimeout(() => { if(wrap.parentNode) wrap.remove(); }, duration * 1000);
 
-            // Schedule next spawn (between 8 and 20 seconds)
-            this.spaceRareTimeout = setTimeout(spawnRock, Math.random() * 120000 + 60000);
+            // Schedule next
+            this.spaceRareTimeout = setTimeout(spawnRock, Math.random() * 12000 + 8000);
         };
 
         // Start the loop
