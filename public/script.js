@@ -1,14 +1,14 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.5.5',
+    APP_VERSION: '5.5.6',
 
     // Special words with custom effects and probabilities
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
-        LLAMA: { text: 'LLAMA', prob: 0.005, fade: 8000, msg: "what llama?", dur: 2000 },
-        POTATO: { text: 'POTATO', prob: 0.005, fade: 300, msg: "Potatoes gonna potate.", dur: 2000 },
-        SQUIRREL: { text: 'SQUIRREL', prob: 0.005, fade: 300, msg: "🌰", dur: 1500 },
-        MASON: { text: 'MASON', prob: 0.005, fade: 300, msg: "🦴", dur: 2000 }
+        LLAMA: { text: 'LLAMA', prob: 0.005, fade: 8000, msg: "what llama?", dur: 3000 },
+        POTATO: { text: 'POTATO', prob: 0.005, fade: 300, msg: "Potatoes gonna potate.", dur: 3000 },
+        SQUIRREL: { text: 'SQUIRREL', prob: 0.005, fade: 300, msg: "🌰", dur: 3000 },
+        MASON: { text: 'MASON', prob: 0.005, fade: 300, msg: "🦴", dur: 3000 }
     },
     CONTRIBUTION_THRESHOLD: 5,
     BOOST_FACTOR: 2,
@@ -1023,7 +1023,7 @@ const UIManager = {
         const wd = DOM.game.wordDisplay;
         wd.textContent = t;
         wd.className = `text-4xl font-bold text-center min-h-[72px] ${err?'text-red-500':'text-gray-500'}`;
-        wd.style.fontSize = '1.0rem';
+        wd.style.fontSize = '3.0rem';
         wd.style.cursor = 'default';
         DOM.game.wordFrame.style.padding = '0';
         this.disableButtons(true)
