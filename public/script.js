@@ -1024,7 +1024,7 @@ const UIManager = {
         const wd = DOM.game.wordDisplay;
         wd.textContent = t;
         wd.className = `text-4xl font-bold text-center min-h-[72px] ${err?'text-red-500':'text-gray-500'}`;
-        wd.style.fontSize = '3.0rem';
+        wd.style.fontSize = '2.0rem';
         wd.style.cursor = 'default';
         DOM.game.wordFrame.style.padding = '0';
         this.disableButtons(true)
