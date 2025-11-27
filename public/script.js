@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.5.10',
+    APP_VERSION: '5.5.11',
 
     // Special words with custom effects and probabilities
     SPECIAL: {
@@ -1239,6 +1239,7 @@ const UIManager = {
             DOM.header.barGood.style.width = '50%';
             DOM.header.barBad.style.width = '50%';
         }
+		this.renderMiniRankings();
     },
     updateProfileDisplay() {
         const n = State.data.username;
