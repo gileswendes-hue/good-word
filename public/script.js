@@ -1,7 +1,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.5.2',
-    // Special words with custom effects and probabilities
+    APP_VERSION: '5.5.3',
+
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
         LLAMA: { text: 'LLAMA', prob: 0.005, fade: 8000, msg: "what llama?", dur: 2000 },
@@ -19,7 +19,7 @@ const CONFIG = {
         STREAK_WINDOW: 1500,
         SWIPE_THRESHOLD: 100
     },
-    // Base64 encoded theme keywords to prevent spoilers in code
+
     THEME_SECRETS: {
         rainbow: 'UkFJTkJPV3xHQVl8U1BBUktMRXxDT0xPVVJ8UFJJREV8VU5JQ09STnxQUk9VRHxRVUVFUnxHTElUVEVSfExFU0JJQU58VElOU0VM',
         dark: 'TUlETklHSFR8QkxBQ0t8U0hBREV8R09USHxTSEFET1d8TklOSkF8REFSS3xOSUdIVHxTVEVBTFRI',
