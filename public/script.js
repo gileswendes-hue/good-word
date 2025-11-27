@@ -455,7 +455,8 @@ const ThemeManager = {
         
         if (t === 'winter') Effects.snow();
         else e.snow.innerHTML = '';
-        if (t === 'submarine') Effects.bubbles();
+        if (t === 'submarine') Effects.bubbles(true);
+		else Effects.bubbles(false);
         else e.bubble.innerHTML = '';
         if (t === 'fire') Effects.fire();
         else e.fire.innerHTML = '';
@@ -549,9 +550,19 @@ const Effects = {
             c.appendChild(s)
         }
     },
-    bubbles() {
+bubbles(active) {
         const c = DOM.theme.effects.bubble;
+        
+        // Clear any existing fish timer
+        if (this.fishTimeout) clearTimeout(this.fishTimeout);
+
+        if (!active) {
+            c.innerHTML = '';
+            return;
+        }
         c.innerHTML = '';
+
+        // 1. Create Static Bubbles (Existing Logic)
         const cl = [10, 30, 70, 90];
         for (let i = 0; i < 40; i++) {
             const p = document.createElement('div');
@@ -561,8 +572,65 @@ const Effects = {
             p.style.left = `${cl[Math.floor(Math.random()*cl.length)]+(Math.random()-.5)*20}%`;
             p.style.animationDuration = `${Math.random()*10+10}s`;
             p.style.animationDelay = `-${Math.random()*15}s`;
-            c.appendChild(p)
+            c.appendChild(p);
         }
+
+        // 2. Spawn Swimming Fish Logic (New)
+        const spawnFish = () => {
+            if (!DOM.theme.effects.bubble.checkVisibility()) return;
+
+            const fishTypes = ['🐟', '🐠', '🐡', '🦈'];
+            const fishEmoji = fishTypes[Math.floor(Math.random() * fishTypes.length)];
+            
+            // Create Wrapper
+            const wrap = document.createElement('div');
+            wrap.className = 'submarine-fish-wrap';
+            
+            // Create Inner (for wiggle)
+            const inner = document.createElement('div');
+            inner.className = 'submarine-fish-inner';
+            inner.textContent = fishEmoji;
+            wrap.appendChild(inner);
+
+            // Setup Movement
+            const startLeft = Math.random() > 0.5; // True = Start from Left
+            const duration = Math.random() * 15 + 10; // 10-25 seconds speed
+            
+            // Face the correct direction
+            // If starting left, moving right: ScaleX(-1) to face right (standard emojis face left)
+            // If starting right, moving left: ScaleX(1) to face left
+            if (startLeft) {
+                inner.style.transform = "scaleX(-1)"; 
+            }
+
+            wrap.style.transition = `left ${duration}s linear`;
+            wrap.style.top = Math.random() * 80 + 10 + 'vh'; // Random height
+            wrap.style.left = startLeft ? '-100px' : '110vw';
+
+            // Interaction
+            wrap.onclick = (e) => {
+                e.stopPropagation();
+                UIManager.showPostVoteMessage("Blub blub! 🫧");
+                wrap.style.opacity = '0';
+                setTimeout(() => wrap.remove(), 200);
+            };
+
+            c.appendChild(wrap);
+
+            // Trigger Move
+            requestAnimationFrame(() => {
+                wrap.style.left = startLeft ? '110vw' : '-100px';
+            });
+
+            // Cleanup
+            setTimeout(() => { if(wrap.parentNode) wrap.remove(); }, duration * 1000);
+
+            // Schedule Next Fish (Every 3-10 seconds)
+            this.fishTimeout = setTimeout(spawnFish, Math.random() * 7000 + 3000);
+        };
+
+        // Start first fish immediately
+        spawnFish();
     },
     snow() {
         const c = DOM.theme.effects.snow;
