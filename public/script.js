@@ -48,7 +48,7 @@ const CONFIG = {
         "Tip: I've got a floor, so what?",
         "Tip: Wear sunscreen.",
         "Tip: How thick is wall?",
-        "Tip: Try saying hello to the spider.",
+        "Tip: Try saying hello to the spider?",
         "Tip: Ask them out for a coffee.",
         "Tip: Can you smell burning toast?",
         "Tip: Some of those who work forces, are the same who burn crosses.",
@@ -63,7 +63,8 @@ const CONFIG = {
         "You don't need a million dollars to do nothin', man!",
         "Tip: You can see the sea, it's over there between the land and the sky",
         "Tip: Cake or death?",
-        "Tip: GOOD BOY, MASON! 🦴"
+        "Tip: GOOD BOY, MASON! 🦴",
+        "Tip: Knock, knock, Neo. 🐇"
     ]
 };
 
