@@ -6,7 +6,7 @@ const CONFIG = {
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
         LLAMA: { text: 'LLAMA', prob: 0.005, fade: 8000, msg: "what llama?", dur: 3000 },
-        POTATO: { text: 'POTATO', prob: 0.005, fade: 300, msg: "Potatoes gonna potate.", dur: 3000 },
+        POTATO: { text: 'POTATO', prob: 0.005, fade: 300, msg: "Spudulica!", dur: 3000 },
         SQUIRREL: { text: 'SQUIRREL', prob: 0.005, fade: 300, msg: "🌰", dur: 3000 },
         MASON: { text: 'MASON', prob: 0.005, fade: 300, msg: "🦴", dur: 3000 }
     },
