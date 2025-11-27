@@ -874,7 +874,7 @@ space(active) {
             el.onclick = (e) => {
                 e.stopPropagation(); // Prevent swiping
                 State.unlockBadge('rock');
-                UIManager.showPostVoteMessage("ROCK! 🤘");
+                UIManager.showPostVoteMessage("SPACE ROCK! 🤘");
                 el.style.display = 'none';
             };
 
@@ -890,7 +890,7 @@ space(active) {
             setTimeout(() => { if(el.parentNode) el.remove(); }, duration * 1000);
 
             // Schedule next spawn (between 8 and 20 seconds)
-            this.spaceRareTimeout = setTimeout(spawnRock, Math.random() * 12000 + 8000);
+            this.spaceRareTimeout = setTimeout(spawnRock, Math.random() * 120000 + 60000);
         };
 
         // Start the loop
@@ -981,7 +981,7 @@ const ModalManager = {
         document.getElementById('shareProfileButton').onclick = async () => {
             const d = State.data,
                 t = `I'm on a ${d.daily.streak} day streak with ${d.voteCount} votes cast on Good Word / Bad Word! 🗳️🔥\n\nCan you beat my score?`,
-                u = 'http://GBword.com/';
+                u = 'http://www.GBword.com/';
             if (navigator.share) {
                 try {
                     await navigator.share({ title: 'Good Word / Bad Word Stats', text: t, url: u })
