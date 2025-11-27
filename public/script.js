@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.5.9',
+    APP_VERSION: '5.5.10',
 
     // Special words with custom effects and probabilities
     SPECIAL: {
@@ -65,6 +65,7 @@ const CONFIG = {
         "Tip: Cake or death?",
         "Tip: GOOD BOY, MASON! 🦴",
         "Tip: Knock, knock, Neo. 🐇"
+		"Tip: ❤️💎"
     ]
 };
 
@@ -1021,7 +1022,7 @@ const ShareManager = {
         // 2. White Card Container
         const margin = 60;
         const cardY = 150;
-        const cardH = height - 250;
+        const cardH = height - 280; // Made slightly shorter to fit footer better
         ctx.fillStyle = '#ffffff';
         // Rounded corners fallback
         if (ctx.roundRect) {
@@ -1130,10 +1131,13 @@ const ShareManager = {
         ctx.globalAlpha = 1.0;
         ctx.filter = 'none';
 
-        // 6. Footer
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        // 6. Footer (UPDATED FOR CLARITY)
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 50px Inter, sans-serif'; // Larger and Bold
+        ctx.fillText("GBword.com", width / 2, height - 90);
+        
         ctx.font = '30px Inter, sans-serif';
-        ctx.fillText("Play at GBword.com", width / 2, height - 80);
+        ctx.fillText("Play Daily & Create Words", width / 2, height - 40);
 
         return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
     },
@@ -1144,19 +1148,29 @@ const ShareManager = {
             const blob = await this.generateImage();
             const file = new File([blob], 'my-gbword-stats.png', { type: 'image/png' });
             
+            const shareData = {
+                title: 'My Stats',
+                text: 'Check out my Good Word / Bad Word stats! 🗳️\n\nPlay now at http://good-word.onrender.com/',
+                url: 'http://good-word.onrender.com/',
+                files: [file]
+            };
+
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                await navigator.share({
-                    title: 'My Stats',
-                    text: 'Check out my Good Word / Bad Word stats! 🗳️',
-                    files: [file]
-                });
+                await navigator.share(shareData);
             } else {
                 // Fallback for desktop: Download the image
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(blob);
                 a.download = 'gbword-stats.png';
                 a.click();
-                UIManager.showPostVoteMessage("Image downloaded!");
+                
+                // Also copy link to clipboard since we can't native share
+                try {
+                    await navigator.clipboard.writeText('http://good-word.onrender.com/');
+                    UIManager.showPostVoteMessage("Image saved & Link copied!");
+                } catch {
+                    UIManager.showPostVoteMessage("Image downloaded!");
+                }
             }
         } catch (e) {
             console.error(e);
