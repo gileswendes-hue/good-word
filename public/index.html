@@ -19,40 +19,49 @@
     <div id="space-effect" class="hidden"></div>
     
     <header class="text-center mb-8 w-full max-w-lg z-20 relative">
-        <div id="logoArea" class="h-32 w-full flex items-center justify-center mb-2 relative">
-            <img src="logo.png" alt="Good Word / Bad Word Logo" class="h-full w-auto max-w-full transform translate-x-4">
-        </div>
-        
-        <div id="userStatsBar" class="w-full bg-white/90 backdrop-blur-sm shadow-md rounded-xl p-2 cursor-pointer hover:bg-white transition-colors flex items-center justify-between mb-4 border border-gray-100">
-            <div class="flex items-center space-x-2 pl-2">
-                <span class="text-2xl">👤</span>
-                <div class="flex flex-col items-start">
-                    <span id="headerProfileLabel" class="text-xs font-bold text-gray-400 uppercase tracking-wider">My Profile</span>
-                    <span class="text-sm font-bold text-indigo-600">View Stats & Badges</span>
-                    <div class="flex items-center space-x-3 text-[10px] text-gray-500 mt-0.5 font-medium">
-                        <div class="flex items-center"><span class="mr-1">🔥</span><span id="headerStreak">0</span></div>
-                        <div class="flex items-center"><span class="mr-1">🗳️</span><span id="headerUserVotes">0</span></div>
-                    </div>
-                </div>
-            </div>
-            <div class="flex flex-col items-end pr-2 justify-center">
-                <div class="text-center relative">
-                    <div class="text-[8px] text-gray-400 font-bold uppercase tracking-widest mb-[-2px]">World Votes</div>
-                    <div id="headerGlobalVotes" class="font-black text-indigo-800 text-3xl leading-none filter drop-shadow-sm">0</div>
-                </div>
-                <div class="flex items-center space-x-3 mt-1">
-                        <div class="text-center">
-                        <div class="text-[8px] text-green-600 font-bold uppercase">Good</div>
-                        <div id="headerGood" class="font-black text-green-600 text-xs leading-none">0</div>
-                    </div>
-                    <div class="text-center">
-                        <div class="text-[8px] text-red-600 font-bold uppercase">Bad</div>
-                        <div id="headerBad" class="font-black text-red-600 text-xs leading-none">0</div>
-                    </div>
+    <div id="logoArea" class="h-32 w-full flex items-center justify-center mb-2 relative">
+        <img src="logo.png" alt="Good Word / Bad Word Logo" class="h-full w-auto max-w-full transform translate-x-4">
+    </div>
+    
+    <div id="userStatsBar" class="w-full bg-white/90 backdrop-blur-sm shadow-md rounded-xl p-2 cursor-pointer hover:bg-white transition-colors flex items-center justify-between mb-4 border border-gray-100">
+        <div class="flex items-center space-x-2 pl-2">
+            <span class="text-2xl">👤</span>
+            <div class="flex flex-col items-start">
+                <span id="headerProfileLabel" class="text-xs font-bold text-gray-400 uppercase tracking-wider">My Profile</span>
+                <span class="text-sm font-bold text-indigo-600">View Stats & Badges</span>
+                <div class="flex items-center space-x-3 text-[10px] text-gray-500 mt-0.5 font-medium">
+                    <div class="flex items-center"><span class="mr-1">🔥</span><span id="headerStreak">0</span></div>
+                    <div class="flex items-center"><span class="mr-1">🗳️</span><span id="headerUserVotes">0</span></div>
                 </div>
             </div>
         </div>
-    </header>
+
+        <div class="flex flex-col items-end pr-3 justify-center">
+            
+            <div class="flex space-x-4 mb-1">
+                <div class="text-center">
+                    <div class="text-[8px] text-gray-400 font-bold uppercase tracking-widest mb-[-2px]">Words</div>
+                    <div id="headerTotalWords" class="font-black text-gray-500 text-lg leading-none">0</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-[8px] text-gray-400 font-bold uppercase tracking-widest mb-[-2px]">Votes</div>
+                    <div id="headerGlobalVotes" class="font-black text-indigo-800 text-2xl leading-none">0</div>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-4 mt-1">
+                 <div class="text-center">
+                    <div class="text-[8px] text-green-600 font-bold uppercase">Good</div>
+                    <div id="headerGood" class="font-black text-green-600 text-xl leading-none">0</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-[8px] text-red-600 font-bold uppercase">Bad</div>
+                    <div id="headerBad" class="font-black text-red-600 text-xl leading-none">0</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
 
     <main id="gameCard" class="card p-8 w-full max-w-sm flex flex-col items-center rounded-2xl relative z-10">
         <div id="dailyBanner" class="daily-banner">
@@ -259,4 +268,5 @@
     <script src="script.js"></script>
 </body>
 </html>
+
 
