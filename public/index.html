@@ -18,7 +18,7 @@
     <div id="ballpit-effect" class="hidden"></div>
     <div id="space-effect" class="hidden"></div>
     
-   <header class="w-full max-w-3xl z-20 relative mb-8">
+<header class="w-full max-w-3xl z-20 relative mb-8">
     <div id="logoArea" class="h-32 w-full flex items-center justify-center mb-4 relative">
         <img src="logo.png" alt="Good Word / Bad Word Logo" class="h-full w-auto max-w-full transform translate-x-4">
     </div>
@@ -26,7 +26,6 @@
     <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
         
         <div id="userStatsBar" class="md:col-span-2 bg-white/90 backdrop-blur-sm shadow-md rounded-xl p-3 cursor-pointer hover:bg-white hover:scale-[1.02] transition-all border border-indigo-100 flex flex-row items-center justify-between">
-            
             <div class="flex items-center gap-3">
                 <div class="w-12 h-12 rounded-full overflow-hidden bg-indigo-50 border border-indigo-100 flex-shrink-0 flex items-center justify-center relative">
                     <span id="headerProfileEmoji" class="text-2xl absolute">👤</span>
@@ -37,7 +36,6 @@
                     <span class="text-sm font-black text-gray-800 leading-tight">View Badges</span>
                 </div>
             </div>
-
             <div class="flex flex-col items-end justify-center space-y-1 pl-3 border-l border-gray-100">
                 <div class="flex items-center text-xs font-bold text-indigo-600">
                     <span class="mr-1">🔥</span><span id="headerStreak">0</span>
@@ -61,9 +59,9 @@
                 </div>
             </div>
 
-            <div class="w-full bg-gray-100 rounded-full h-1.5 mb-1 flex overflow-hidden">
-                <div class="bg-green-500 h-full w-1/2 opacity-50"></div>
-                <div class="bg-red-500 h-full w-1/2 opacity-50"></div>
+            <div class="w-full bg-gray-200 rounded-full h-2 mb-1 flex overflow-hidden shadow-inner">
+                <div id="headerBarGood" class="bg-green-500 h-full transition-all duration-1000 ease-out" style="width: 50%"></div>
+                <div id="headerBarBad" class="bg-red-500 h-full transition-all duration-1000 ease-out" style="width: 50%"></div>
             </div>
 
             <div class="flex justify-between px-1">
@@ -279,6 +277,7 @@
     <script src="script.js"></script>
 </body>
 </html>
+
 
 
 
