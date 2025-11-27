@@ -18,51 +18,63 @@
     <div id="ballpit-effect" class="hidden"></div>
     <div id="space-effect" class="hidden"></div>
     
-    <header class="text-center mb-8 w-full max-w-lg z-20 relative">
-    <div id="logoArea" class="h-32 w-full flex items-center justify-center mb-2 relative">
+    <header class="w-full max-w-2xl z-20 relative mb-8">
+    <div id="logoArea" class="h-32 w-full flex items-center justify-center mb-6 relative">
         <img src="logo.png" alt="Good Word / Bad Word Logo" class="h-full w-auto max-w-full transform translate-x-4">
     </div>
-    
-    <div id="userStatsBar" class="w-full bg-white/90 backdrop-blur-sm shadow-md rounded-xl p-2 cursor-pointer hover:bg-white transition-colors flex items-center justify-between mb-4 border border-gray-100">
-        <div class="flex items-center space-x-2 pl-2">
-            <span class="text-2xl">👤</span>
-            <div class="flex flex-col items-start">
-                <span id="headerProfileLabel" class="text-xs font-bold text-gray-400 uppercase tracking-wider">My Profile</span>
-                <span class="text-sm font-bold text-indigo-600">View Stats & Badges</span>
-                <div class="flex items-center space-x-3 text-[10px] text-gray-500 mt-0.5 font-medium">
-                    <div class="flex items-center"><span class="mr-1">🔥</span><span id="headerStreak">0</span></div>
-                    <div class="flex items-center"><span class="mr-1">🗳️</span><span id="headerUserVotes">0</span></div>
-                </div>
-            </div>
-        </div>
 
-        <div class="flex flex-col items-end pr-3 justify-center">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        
+        <div id="userStatsBar" class="bg-white/90 backdrop-blur-sm shadow-lg rounded-2xl p-4 cursor-pointer hover:scale-[1.02] transition-transform border border-indigo-100 flex flex-col justify-center items-center text-center">
             
-            <div class="flex space-x-4 mb-1">
+            <div class="w-16 h-16 rounded-full overflow-hidden bg-indigo-50 border-2 border-indigo-100 flex items-center justify-center relative mb-2">
+                <span id="headerProfileEmoji" class="text-3xl absolute">👤</span>
+                <img id="headerProfileImage" class="w-full h-full object-cover hidden relative z-10" src="" alt="Profile">
+            </div>
+
+            <div class="flex flex-col">
+                <span id="headerProfileLabel" class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">My Profile</span>
+                <span class="text-lg font-black text-gray-800 leading-none">View Stats & Badges</span>
+            </div>
+
+            <div class="flex items-center space-x-4 mt-3 bg-gray-50 px-4 py-2 rounded-lg">
+                <div class="flex items-center"><span class="text-xl mr-1">🔥</span><span id="headerStreak" class="font-bold text-gray-700">0</span></div>
+                <div class="flex items-center"><span class="text-xl mr-1">🗳️</span><span id="headerUserVotes" class="font-bold text-gray-700">0</span></div>
+            </div>
+        </div>
+
+        <div class="bg-white/90 backdrop-blur-sm shadow-lg rounded-2xl p-4 border border-gray-100 flex flex-col justify-center">
+            
+            <div class="text-center mb-3">
+                <span class="text-xs font-bold text-indigo-400 uppercase tracking-widest">Global Statistics</span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 mb-3">
                 <div class="text-center">
-                    <div class="text-[8px] text-gray-400 font-bold uppercase tracking-widest mb-[-2px]">Dictionary size</div>
-                    <div id="headerTotalWords" class="font-black text-gray-500 text-lg leading-none">0</div>
+                    <div class="text-[10px] text-gray-400 font-bold uppercase">Dictionary</div>
+                    <div id="headerTotalWords" class="text-2xl font-black text-gray-600">0</div>
                 </div>
                 <div class="text-center">
-                    <div class="text-[8px] text-gray-400 font-bold uppercase tracking-widest mb-[-2px]">Global Votes</div>
-                    <div id="headerGlobalVotes" class="font-black text-indigo-800 text-2xl leading-none">0</div>
+                    <div class="text-[10px] text-gray-400 font-bold uppercase">Total Votes</div>
+                    <div id="headerGlobalVotes" class="text-2xl font-black text-indigo-600">0</div>
                 </div>
             </div>
 
-            <div class="flex items-center space-x-4 mt-1">
-                 <div class="text-center">
-                    <div class="text-[8px] text-green-600 font-bold uppercase">👍</div>
-                    <div id="headerGood" class="font-black text-green-600 text-xl leading-none">0</div>
-                </div>
+            <div class="flex items-center justify-between bg-gray-50 rounded-lg p-2 px-4">
                 <div class="text-center">
-                    <div class="text-[8px] text-red-600 font-bold uppercase">👎</div>
-                    <div id="headerBad" class="font-black text-red-600 text-xl leading-none">0</div>
+                    <span class="block text-xs font-bold text-green-600 uppercase">Good</span>
+                    <span id="headerGood" class="text-lg font-black text-green-600">0</span>
+                </div>
+                <div class="h-8 w-px bg-gray-200 mx-2"></div>
+                <div class="text-center">
+                    <span class="block text-xs font-bold text-red-600 uppercase">Bad</span>
+                    <span id="headerBad" class="text-lg font-black text-red-600">0</span>
                 </div>
             </div>
         </div>
+
     </div>
 </header>
-
     <main id="gameCard" class="card p-8 w-full max-w-sm flex flex-col items-center rounded-2xl relative z-10">
         <div id="dailyBanner" class="daily-banner">
             📅 Daily Challenge: <span id="dailyStatusText">Vote Now!</span>
@@ -268,6 +280,7 @@
     <script src="script.js"></script>
 </body>
 </html>
+
 
 
 
