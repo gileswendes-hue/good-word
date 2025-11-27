@@ -617,7 +617,7 @@ const Effects = {
                 body = wrap.querySelector('#spider-body'),
                 bub = wrap.querySelector('#spider-bubble');
             const runDrop = () => {
-                const phrases = ['ouch!', 'hey frend!', "I wouldn't hurt a fly!", "I'm more scared of you...", "I'm a web dev!", "just hanging"];
+                const phrases = ['ouch!', 'hey frend!', "I wouldn't hurt a fly!", "I'm more scared of you...", "I'm a web dev!", "just hanging", "fangs a lot!"];
                 const txt = phrases[Math.floor(Math.random() * phrases.length)];
                 bub.innerText = txt;
                 const dist = Math.random() * 40 + 20;
@@ -1075,7 +1075,12 @@ const UIManager = {
         DOM.profile.streak.textContent = d.daily.streak;
         DOM.profile.totalVotes.textContent = d.voteCount.toLocaleString();
         DOM.profile.contributions.textContent = d.contributorCount.toLocaleString();
-        DOM.profile.themes.textContent = d.unlockedThemes.length;
+        // Calculate totals (Secrets + 1 for Default theme)
+        const totalAvailable = Object.keys(CONFIG.THEME_SECRETS).length + 1;
+        // Calculate user count (Unlocked list + 1 for Default)
+        const userCount = d.unlockedThemes.length + 1;
+        
+        DOM.profile.themes.textContent = `${userCount} / ${totalAvailable}`;
         const b = DOM.profile.badges;
         const row1 = [{ k: 'cake', i: '🎂', w: 'CAKE' }, { k: 'llama', i: '🦙', w: 'LLAMA' }, { k: 'potato', i: '🥔', w: 'POTATO' }, { k: 'squirrel', i: '🐿️', w: 'SQUIRREL' }, { k: 'spider', i: '🕷️', w: 'SPIDER' }, { k: 'germ', i: '🦠', w: 'GERM' }, { k: 'bone', i: '🦴', w: 'MASON' }];
         const row2 = [{ k: 'poop', i: '💩' }, { k: 'penguin', i: '🐧' }, { k: 'scorpion', i: '🦂' }, { k: 'mushroom', i: '🍄' }, { k: 'needle', i: '💉' }, { k: 'diamond', i: '💎' },{ k: 'rock', i: '🤘' }];
