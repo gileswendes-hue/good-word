@@ -64,7 +64,7 @@ const CONFIG = {
         "Tip: You can see the sea, it's over there between the land and the sky",
         "Tip: Cake or death?",
         "Tip: GOOD BOY, MASON! 🦴",
-        "Tip: Knock, knock, Neo. 🐇"
+        "Tip: Knock, knock, Neo. 🐇",
 		"Tip: ❤️💎"
     ]
 };
