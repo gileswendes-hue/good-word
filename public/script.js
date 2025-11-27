@@ -1,10 +1,3 @@
-/**
- * GOOD WORD / BAD WORD
- * Version: 5.5.0
- * Un-minified and Formatted for Development
- */
-
-// --- CONFIGURATION ---
 const CONFIG = {
     API_BASE_URL: '/api/words',
     APP_VERSION: '5.5.0',
