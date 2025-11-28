@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.9.1',
+    APP_VERSION: '5.9.2',
 
     // Special words with custom effects and probabilities
     SPECIAL: {
@@ -522,10 +522,10 @@ const MosquitoManager = {
     el: null, svg: null, path: null, checkInterval: null,
     
     // Physics State
-    x: 50, y: 50, angle: 0, speed: 0.35, 
-    turnCycle: 0, loopTimer: 0,
+    x: 50, y: 50, angle: 0, speed: 0.15, turnSpeed: 0, 
     
-    trailPoints: [], MAX_TRAIL: 50,
+    // Trail State
+    trailPoints: [], MAX_TRAIL: 40,
 
     state: 'hidden', raf: null,
     COOLDOWN: 5 * 60 * 1000, 
@@ -594,7 +594,6 @@ const MosquitoManager = {
         
         this.state = 'flying';
         this.trailPoints = [];
-        this.loopTimer = 0;
         SoundManager.startBuzz();
         this.loop();
     },
@@ -622,7 +621,7 @@ const MosquitoManager = {
             this.state = 'leaving';
             SoundManager.startBuzz();
             this.angle = Math.random() * Math.PI * 2;
-            this.speed = 0.6;
+            this.speed = 0.4;
         }, 2000);
     },
 
@@ -630,26 +629,21 @@ const MosquitoManager = {
         if (!document.body.contains(this.el)) return;
 
         if (this.state === 'flying' || this.state === 'leaving') {
-            
-            this.turnCycle += 0.05;
-            
-            // Wavy Line + Loop Logic
-            let turnSpeed = Math.cos(this.turnCycle) * 0.03;
+            const wander = (Math.random() - 0.5) * 0.05;
+            this.turnSpeed += wander;
+            this.turnSpeed = Math.max(Math.min(this.turnSpeed, 0.1), -0.1);
 
-            if (this.state === 'flying') {
-                if (this.loopTimer > 0) {
-                    turnSpeed = 0.25; 
-                    this.loopTimer--;
-                } else if (Math.random() < 0.005) {
-                    this.loopTimer = 60; 
-                }
-            }
+            if (Math.random() < 0.01) this.turnSpeed = (Math.random() < 0.5 ? 1 : -1) * 0.25; 
 
-            this.angle += turnSpeed;
+            if (this.x < 5) this.turnSpeed += 0.02;
+            if (this.x > 95) this.turnSpeed -= 0.02;
+            if (this.y < 5) this.turnSpeed += 0.02;
+            if (this.y > 95) this.turnSpeed -= 0.02;
+
+            this.angle += this.turnSpeed;
             this.x += Math.cos(this.angle) * this.speed;
             this.y += Math.sin(this.angle) * this.speed;
 
-            // Screen Wrapping
             if (this.state === 'flying') {
                 if (this.x > 110) { this.x = -10; this.trailPoints = []; }
                 else if (this.x < -10) { this.x = 110; this.trailPoints = []; }
@@ -679,10 +673,10 @@ const MosquitoManager = {
                 this.path.setAttribute('d', d);
             }
 
-            // Web Check (Pixel Perfect Triangle)
-            const distRight = window.innerWidth - pxX;
-            const distTop = pxY;
-            if (this.state === 'flying' && (distRight + distTop) < 280) {
+            // Web Check (Triangle Check)
+            const distFromRight = window.innerWidth - pxX;
+            const distFromTop = pxY;
+            if (this.state === 'flying' && (distFromRight + distFromTop) < 280) {
                 this.state = 'stuck';
                 SoundManager.stopBuzz(); 
                 UIManager.showPostVoteMessage("It's stuck in the web!");
@@ -791,7 +785,6 @@ const ModalManager = {
                 TiltManager.refresh(); 
             };
             
-            // Safe check for Mirror Mode Toggle
             if (DOM.inputs.settings.mirror) {
                 DOM.inputs.settings.mirror.checked = State.data.settings.mirrorMode;
                 DOM.inputs.settings.mirror.onchange = e => {
@@ -801,16 +794,17 @@ const ModalManager = {
                 };
             }
 
-            // Mute Toggle Logic (Robust Injection)
             if (!document.getElementById('toggleMute')) {
-                // Try to find a container to inject into. Use largeText as anchor since it is always there.
-                const anchor = DOM.inputs.settings.largeText ? DOM.inputs.settings.largeText.closest('.flex') : null;
-                if (anchor && anchor.parentNode) {
-                     const div = document.createElement('div');
-                     div.className = "flex items-center justify-between";
-                     div.innerHTML = `<label for="toggleMute" class="text-lg font-medium text-gray-700">Mute All Sounds</label><input type="checkbox" id="toggleMute" class="h-6 w-6 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">`;
-                     anchor.parentNode.appendChild(div);
-                     DOM.inputs.settings.mute = document.getElementById('toggleMute');
+                const container = DOM.inputs.settings.mirror && DOM.inputs.settings.mirror.parentElement && DOM.inputs.settings.mirror.parentElement.parentElement 
+                    ? DOM.inputs.settings.mirror.parentElement.parentElement 
+                    : document.querySelector('#settingsModalContainer .space-y-4');
+                
+                if (container) {
+                    const div = document.createElement('div');
+                    div.className = "flex items-center justify-between";
+                    div.innerHTML = `<label for="toggleMute" class="text-lg font-medium text-gray-700">Mute All Sounds</label><input type="checkbox" id="toggleMute" class="h-6 w-6 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">`;
+                    container.appendChild(div);
+                    DOM.inputs.settings.mute = document.getElementById('toggleMute');
                 }
             }
             
@@ -823,14 +817,16 @@ const ModalManager = {
                 };
             }
 
-            // Zero Votes Logic (Robust Injection)
             if (!document.getElementById('toggleZeroVotes')) {
-                 const anchor = DOM.inputs.settings.largeText ? DOM.inputs.settings.largeText.closest('.flex') : null;
-                 if (anchor && anchor.parentNode) {
+                 const container = DOM.inputs.settings.mirror && DOM.inputs.settings.mirror.parentElement && DOM.inputs.settings.mirror.parentElement.parentElement 
+                    ? DOM.inputs.settings.mirror.parentElement.parentElement 
+                    : document.querySelector('#settingsModalContainer .space-y-4');
+                 
+                 if (container) {
                      const div = document.createElement('div');
                      div.className = "flex items-center justify-between";
                      div.innerHTML = `<label for="toggleZeroVotes" class="text-lg font-medium text-gray-700">Only 0/0 Words</label><input type="checkbox" id="toggleZeroVotes" class="h-6 w-6 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">`;
-                     anchor.parentNode.appendChild(div);
+                     container.appendChild(div);
                      DOM.inputs.settings.zeroVotes = document.getElementById('toggleZeroVotes');
                  }
             }
@@ -1711,7 +1707,10 @@ const Game = {
             wd.style.color = t === 'good' ? colors.good : colors.bad;
             await new Promise(r => setTimeout(r, 50));
             wd.classList.remove('color-fade');
-            wd.classList.add(t === 'good' ? 'animate-fly-left' : 'animate-fly-right')
+            wd.classList.add(t === 'good' ? 'animate-fly-left' : 'animate-fly-right');
+            
+            if (t === 'good') SoundManager.playGood();
+            else SoundManager.playBad();
         }
         
         // Helper for Special Effects
@@ -1739,8 +1738,10 @@ const Game = {
         if (up === MASON.text) { hSpec(MASON, 'bone'); return }
         
         try {
-            const un = ThemeManager.checkUnlock(up),
-                res = await API.vote(w._id, t);
+            const un = ThemeManager.checkUnlock(up);
+            if (un) SoundManager.playUnlock();
+
+            const res = await API.vote(w._id, t);
             if (res.status !== 403 && !res.ok) throw 0;
             w[`${t}Votes`] = (w[`${t}Votes`] || 0) + 1;
             State.incrementVote();
@@ -1874,6 +1875,7 @@ const InputHandler = {
                 const colors = Accessibility.getColors();
                 wd.style.color = l ? colors.good : colors.bad;
                 
+                SoundManager.playWhoosh();
                 Game.vote(l ? 'good' : 'bad', true)
             } else {
                 // ... existing reset logic ...
