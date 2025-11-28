@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.6.0',
+    APP_VERSION: '5.6.1',
 
     // Special words with custom effects and probabilities
     SPECIAL: {
@@ -475,7 +475,7 @@ const MosquitoManager = {
         const last = State.data.lastMosquitoSpawn;
 
         if (now - last < this.COOLDOWN) return;
-        if (Math.random() > 0.3) return; // 30% chance per check
+        if (Math.random() > 0.3) return; 
 
         this.init();
     },
@@ -485,16 +485,22 @@ const MosquitoManager = {
         this.el = document.createElement('div');
         this.el.innerHTML = '🦟';
         this.el.className = 'mosquito-entity';
+        
+        // Ensure visibility: Spawn ON SCREEN (5% or 95% width)
+        const startRight = Math.random() > 0.5;
+        this.x = startRight ? 95 : 5; 
+        this.y = Math.random() * 50 + 10; // Stay in upper half to encourage web collision
+
         Object.assign(this.el.style, {
             position: 'fixed',
-            fontSize: '2rem',
-            zIndex: '54', 
+            fontSize: '3rem',
+            zIndex: '100', // Above other elements
             pointerEvents: 'auto',
             cursor: 'pointer',
             transition: 'transform 0.1s linear',
             filter: 'drop-shadow(2px 4px 6px rgba(0,0,0,0.5))',
-            left: '-10%', 
-            top: (Math.random() * 80 + 10) + '%'
+            left: this.x + '%', 
+            top: this.y + '%'
         });
         
         this.el.onclick = (e) => {
@@ -502,14 +508,16 @@ const MosquitoManager = {
             if (this.state === 'stuck') {
                 this.startRescue();
             } else if (this.state === 'flying') {
-                UIManager.showPostVoteMessage("Catch it in the web first!");
+                UIManager.showPostVoteMessage("It's too fast! Catch it in the web!");
             }
         };
         
         document.body.appendChild(this.el);
         this.state = 'flying';
-        this.x = -10; 
-        this.y = parseFloat(this.el.style.top);
+        
+        // Initial velocity moves INTO the screen
+        this.vx = startRight ? -0.5 : 0.5; 
+        
         AudioEngine.startBuzz();
         this.loop();
     },
@@ -519,20 +527,23 @@ const MosquitoManager = {
         AudioEngine.stopBuzz();
 
         const bubble = document.createElement('div');
-        bubble.textContent = "Thank you for saving me!";
+        bubble.textContent = "Thank you! 💖";
         Object.assign(bubble.style, {
             position: 'absolute',
             bottom: '100%',
             left: '50%',
             transform: 'translateX(-50%)',
             background: 'white',
-            padding: '5px 10px',
-            borderRadius: '10px',
-            fontSize: '12px',
+            color: 'black',
+            padding: '8px 12px',
+            borderRadius: '12px',
+            fontSize: '14px',
+            fontWeight: 'bold',
             whiteSpace: 'nowrap',
-            border: '1px solid #ccc',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-            pointerEvents: 'none'
+            border: '2px solid #ccc',
+            boxShadow: '0 4px 10px rgba(0,0,0,0.2)',
+            pointerEvents: 'none',
+            zIndex: '101'
         });
         this.el.appendChild(bubble);
 
@@ -553,21 +564,26 @@ const MosquitoManager = {
         } 
         else if (this.state === 'flying' || this.state === 'leaving') {
             if (this.state === 'flying') {
+                // Erratic movement
                 this.vx += (Math.random() - 0.5) * 0.4;
                 this.vy += (Math.random() - 0.5) * 0.4;
                 
-                const max = 1.5;
+                // Speed limit
+                const max = 1.0; // Slowed down slightly for playability
                 this.vx = Math.max(Math.min(this.vx, max), -max);
                 this.vy = Math.max(Math.min(this.vy, max), -max);
                 
-                if (this.x < 0 || this.x > 95) this.vx *= -1.5;
-                if (this.y < 0 || this.y > 95) this.vy *= -1.5;
+                // Screen Bounce (Keep strictly on screen 0-95%)
+                if (this.x < 2) this.vx = Math.abs(this.vx) + 0.1;
+                if (this.x > 93) this.vx = -(Math.abs(this.vx) + 0.1);
+                if (this.y < 2) this.vy = Math.abs(this.vy) + 0.1;
+                if (this.y > 93) this.vy = -(Math.abs(this.vy) + 0.1);
 
-                // Web Trap (Top Right)
+                // Web Trap (Top Right 25% of screen)
                 if (this.x > 75 && this.y < 25) {
                     this.state = 'stuck';
                     AudioEngine.setStuckMode(true);
-                    UIManager.showPostVoteMessage("It's stuck!");
+                    UIManager.showPostVoteMessage("It's stuck in the web!");
                 }
             }
             
@@ -581,12 +597,14 @@ const MosquitoManager = {
             this.el.style.transform = `rotate(${rot}deg)`;
 
             if (this.state === 'leaving') {
+                // Ensure it is fully off screen before finishing
                 if (this.x < -10 || this.x > 110 || this.y < -10 || this.y > 110) {
                     this.finish();
                 }
             }
         
         } else if (this.state === 'stuck') {
+            // Jitter
             const jitterX = (Math.random() - 0.5) * 5;
             const jitterY = (Math.random() - 0.5) * 5;
             this.el.style.transform = `translate(${jitterX}px, ${jitterY}px)`;
@@ -911,6 +929,12 @@ const Effects = {
         if (!document.getElementById('spider-wrap')) {
             const wrap = document.createElement('div');
             wrap.id = 'spider-wrap';
+            
+            // Fix: Spider needs high z-index to appear over fly when eating
+            wrap.style.zIndex = '101'; 
+            wrap.style.position = 'fixed';
+            wrap.style.top = '0';
+
             wrap.style.left = (Math.random() * 80 + 10) + '%';
             const scale = (Math.random() * .6 + .6).toFixed(2);
             wrap.innerHTML = `<div id="spider-anchor" style="transform: scale(${scale})"><div id="spider-thread"></div><div id="spider-body">🕷️<div id="spider-bubble"></div></div></div>`;
