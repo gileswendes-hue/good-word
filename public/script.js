@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.6.8',
+    APP_VERSION: '5.8.0',
 
     // Special words with custom effects and probabilities
     SPECIAL: {
@@ -165,7 +165,8 @@ const DOM = {
             largeText: document.getElementById('toggleLargeText'),
             tilt: document.getElementById('toggleTilt'),
             mirror: document.getElementById('toggleMirror'),
-            mute: document.getElementById('toggleMute')
+            mute: document.getElementById('toggleMute'),
+            zeroVotes: document.getElementById('toggleZeroVotes')
         }
     },
     general: {
@@ -204,7 +205,8 @@ const State = {
             largeText: false,
             enableTilt: false,
             mirrorMode: false,
-            muteSounds: false
+            muteSounds: false,
+            zeroVotesOnly: false
         },
         currentTheme: localStorage.getItem('currentTheme') || 'default',
         unlockedThemes: JSON.parse(localStorage.getItem('unlockedThemes')) || [],
@@ -281,7 +283,6 @@ const Accessibility = {
         b.style.transform = s.mirrorMode ? 'scaleX(-1)' : '';
         b.style.overflowX = 'hidden'; 
 
-        // Fix: Immediately resize text if Large Text is toggled
         if (State.runtime.allWords.length > 0) {
             const currentWord = State.runtime.allWords[State.runtime.currentWordIndex];
             if(currentWord) UIManager.fitText(currentWord.text);
@@ -370,49 +371,158 @@ const Physics = {
     }
 };
 
-// --- AUDIO SYNTHESIS FOR MOSQUITO ---
-const AudioEngine = {
-    ctx: null, osc: null, gain: null,
+// --- SOUND MANAGER ---
+const SoundManager = {
+    ctx: null,
+    masterGain: null,
+    
+    // Mosquito Specific
+    mosquitoOsc: null,
+    mosquitoGain: null,
+
     init() {
         if (!this.ctx) {
             this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-            this.gain = this.ctx.createGain();
-            this.gain.connect(this.ctx.destination);
+            this.masterGain = this.ctx.createGain();
+            this.masterGain.connect(this.ctx.destination);
+            this.updateMute();
         }
     },
-    startBuzz() {
-        if (State.data.settings.muteSounds) return; // Global Mute Check
-        if (!this.ctx) this.init();
-        if (this.osc) this.stopBuzz();
-        
-        this.osc = this.ctx.createOscillator();
-        this.osc.type = 'sawtooth';
-        this.osc.frequency.value = 600; 
-        
-        this.gain.gain.setValueAtTime(0.015, this.ctx.currentTime); // Subtle volume
-        
-        this.osc.connect(this.gain);
-        this.osc.start();
-        this.rampPitch();
+
+    updateMute() {
+        if (this.masterGain) {
+            const isMuted = State.data.settings.muteSounds;
+            this.masterGain.gain.setValueAtTime(isMuted ? 0 : 0.3, this.ctx.currentTime);
+            if (isMuted) this.stopBuzz(); // Ensure ongoing loops stop
+        }
     },
-    rampPitch() {
-        if (!this.osc) return;
+
+    playTone(freq, type, duration, vol = 1) {
+        if (!this.ctx) this.init();
+        // Resume context if suspended (browser autoplay policy)
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        
+        gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+        
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        
+        osc.start();
+        osc.stop(this.ctx.currentTime + duration);
+    },
+
+    playGood() {
+        // High Ding (Sine)
+        this.playTone(880, 'sine', 0.6, 0.4);
+        setTimeout(() => this.playTone(1760, 'sine', 0.4, 0.2), 50);
+    },
+
+    playBad() {
+        // Low Thud (Sawtooth filtered-ish)
+        // We simulate a kick by dropping frequency rapidly
+        if (!this.ctx) this.init();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(40, this.ctx.currentTime + 0.15);
+        
+        gain.gain.setValueAtTime(0.5, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+        
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.2);
+    },
+
+    playWhoosh() {
+        // Simulated wind noise using a low freq sweep
+        if (!this.ctx) this.init();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        
+        osc.type = 'sine'; // Smooth
+        osc.frequency.setValueAtTime(200, this.ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(50, this.ctx.currentTime + 0.3);
+        
+        gain.gain.setValueAtTime(0, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.2, this.ctx.currentTime + 0.1);
+        gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.3);
+        
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.3);
+    },
+
+    playUnlock() {
+        if (!this.ctx) this.init();
+        const now = this.ctx.currentTime;
+        // Major Chord C4, E4, G4, C5
+        [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.value = freq;
+            
+            gain.gain.setValueAtTime(0, now);
+            gain.gain.linearRampToValueAtTime(0.1, now + 0.5 + (i * 0.1));
+            gain.gain.linearRampToValueAtTime(0, now + 3);
+            
+            osc.connect(gain);
+            gain.connect(this.masterGain);
+            osc.start();
+            osc.stop(now + 3.5);
+        });
+    },
+
+    // --- MOSQUITO SPECIFIC ---
+    startBuzz() {
+        if (State.data.settings.muteSounds) return;
+        if (!this.ctx) this.init();
+        if (this.mosquitoOsc) this.stopBuzz();
+        
+        this.mosquitoOsc = this.ctx.createOscillator();
+        this.mosquitoOsc.type = 'sawtooth';
+        this.mosquitoOsc.frequency.value = 600; 
+        
+        this.mosquitoGain = this.ctx.createGain();
+        this.mosquitoGain.gain.setValueAtTime(0.05, this.ctx.currentTime); // Quiet buzz
+        
+        this.mosquitoOsc.connect(this.mosquitoGain);
+        this.mosquitoGain.connect(this.masterGain);
+        this.mosquitoOsc.start();
+        
+        this.rampBuzzPitch();
+    },
+    rampBuzzPitch() {
+        if (!this.mosquitoOsc) return;
         const nextTime = this.ctx.currentTime + (Math.random() * 0.2 + 0.1);
         const nextPitch = 550 + Math.random() * 200;
-        this.osc.frequency.linearRampToValueAtTime(nextPitch, nextTime);
-        setTimeout(() => this.rampPitch(), 150);
+        this.mosquitoOsc.frequency.linearRampToValueAtTime(nextPitch, nextTime);
+        setTimeout(() => this.rampBuzzPitch(), 150);
     },
     setStuckMode(isStuck) {
-        if (!this.osc) return;
+        if (!this.mosquitoOsc) return;
         const pitch = isStuck ? 900 : 600;
-        this.osc.frequency.setValueAtTime(pitch, this.ctx.currentTime);
-        this.gain.gain.linearRampToValueAtTime(isStuck ? 0.05 : 0.02, this.ctx.currentTime + 0.1);
+        this.mosquitoOsc.frequency.setValueAtTime(pitch, this.ctx.currentTime);
+        // If stuck, slight volume bump, else standard
+        this.mosquitoGain.gain.linearRampToValueAtTime(isStuck ? 0.08 : 0.05, this.ctx.currentTime + 0.1);
     },
     stopBuzz() {
-        if (this.osc) {
-            try { this.osc.stop(); } catch(e){}
-            this.osc.disconnect();
-            this.osc = null;
+        if (this.mosquitoOsc) {
+            try { this.mosquitoOsc.stop(); } catch(e){}
+            this.mosquitoOsc.disconnect();
+            this.mosquitoOsc = null;
         }
     }
 };
@@ -494,13 +604,13 @@ const MosquitoManager = {
         
         this.state = 'flying';
         this.trailPoints = [];
-        AudioEngine.startBuzz();
+        SoundManager.startBuzz();
         this.loop();
     },
 
     startRescue() {
         this.state = 'thanking';
-        AudioEngine.stopBuzz(); 
+        SoundManager.stopBuzz(); 
         
         this.path.setAttribute('d', '');
         this.trailPoints = [];
@@ -519,7 +629,7 @@ const MosquitoManager = {
         setTimeout(() => {
             if (bubble) bubble.remove();
             this.state = 'leaving';
-            AudioEngine.startBuzz();
+            SoundManager.startBuzz();
             this.angle = Math.random() * Math.PI * 2;
             this.speed = 0.4;
         }, 2000);
@@ -580,7 +690,7 @@ const MosquitoManager = {
             // Map strictly to 300x300 triangle top-right
             if (this.state === 'flying' && (distFromRight + distFromTop) < 280) {
                 this.state = 'stuck';
-                AudioEngine.stopBuzz(); 
+                SoundManager.stopBuzz(); 
                 UIManager.showPostVoteMessage("It's stuck in the web!");
             }
 
@@ -614,632 +724,13 @@ const MosquitoManager = {
 
     remove() {
         if (this.raf) cancelAnimationFrame(this.raf);
-        AudioEngine.stopBuzz();
+        SoundManager.stopBuzz();
         if (this.el && this.el.parentNode) this.el.remove();
         if (this.svg && this.svg.parentNode) this.svg.remove(); 
         this.el = null;
         this.svg = null;
         this.trailPoints = [];
         this.state = 'hidden';
-    }
-};
-
-// --- API LAYER ---
-const API = {
-    async fetchWords() {
-        try {
-            const r = await fetch(CONFIG.API_BASE_URL);
-            if (!r.ok) throw 0;
-            return await r.json()
-        } catch (e) {
-            return null
-        }
-    },
-    async vote(id, type) {
-        return fetch(`${CONFIG.API_BASE_URL}/${id}/vote`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                voteType: type,
-                userId: State.data.userId
-            })
-        })
-    },
-    async submitWord(text) {
-        return fetch(CONFIG.API_BASE_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text })
-        })
-    },
-    async define(w) {
-        return fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${w.toLowerCase()}`)
-    }
-};
-
-// --- THEME MANAGER ---
-const ThemeManager = {
-    wordMap: {},
-    init() {
-        Object.entries(CONFIG.THEME_SECRETS).forEach(([k, v]) => {
-            try {
-                atob(v).split('|').forEach(w => this.wordMap[w] = k)
-            } catch {}
-        });
-        this.populateChooser();
-        this.apply(State.data.currentTheme)
-    },
-    populateChooser() {
-        const u = State.data.unlockedThemes,
-            a = [...new Set(u)].sort(),
-            c = DOM.theme.chooser;
-        c.innerHTML = '<option value="default">Default</option>';
-        a.forEach(t => {
-            const o = document.createElement('option');
-            o.value = t;
-            o.textContent = t === 'ballpit' ? 'Ball Pit' : t.charAt(0).toUpperCase() + t.slice(1);
-            c.appendChild(o)
-        });
-        c.value = State.data.currentTheme
-    },
-    apply(t, m = false) {
-        if (m) State.save('manualTheme', true);
-        document.body.className = document.body.className.split(' ').filter(c => !c.startsWith('theme-')).join(' ');
-        document.body.classList.add(`theme-${t}`);
-        State.save('currentTheme', t);
-        
-        const e = DOM.theme.effects;
-        e.snow.classList.toggle('hidden', t !== 'winter');
-        e.bubble.classList.toggle('hidden', t !== 'submarine');
-        e.fire.classList.toggle('hidden', t !== 'fire');
-        e.summer.classList.toggle('hidden', t !== 'summer');
-        e.plymouth.classList.toggle('hidden', t !== 'plymouth');
-        e.ballpit.classList.toggle('hidden', t !== 'ballpit');
-        e.space.classList.toggle('hidden', t !== 'space');
-        
-        if (t === 'winter') Effects.snow();
-        else e.snow.innerHTML = '';
-        
-        if (t === 'submarine') Effects.bubbles(true);
-        else Effects.bubbles(false); 
-        
-        if (t === 'fire') Effects.fire();
-        else e.fire.innerHTML = '';
-        if (t === 'summer') Effects.summer();
-        else e.summer.innerHTML = '';
-        if (t === 'plymouth') Effects.plymouth(true);
-        else {
-            e.plymouth.innerHTML = '';
-            Effects.plymouth(false)
-        }
-        if (t === 'ballpit') Effects.ballpit(true);
-        else Effects.ballpit(false);
-        if (t === 'space') Effects.space(true);
-        else Effects.space(false);
-        Effects.halloween(t === 'halloween');
-        
-        const cards = document.querySelectorAll('.card, .ranking-card'),
-            isR = t === 'rainbow';
-        [DOM.game.card, ...cards].forEach(el => {
-            if (!el) return;
-            if (isR) {
-                el.classList.add('thin-rainbow-frame');
-                el.classList.remove('card')
-            } else {
-                el.classList.remove('thin-rainbow-frame');
-                el.classList.add('card')
-            }
-        });
-        const d = document.getElementById('card-snow-drift');
-        d.style.display = t !== 'winter' ? 'none' : 'block';
-        if (State.runtime.allWords.length > 0) UIManager.displayWord(State.runtime.allWords[State.runtime.currentWordIndex]);
-        Accessibility.apply();
-        TiltManager.refresh();
-    },
-    checkUnlock(w) {
-        const t = this.wordMap[w];
-        if (t && !State.data.unlockedThemes.includes(t)) {
-            State.data.unlockedThemes.push(t);
-            State.save('unlockedThemes', State.data.unlockedThemes);
-            this.populateChooser();
-            if (!State.data.manualTheme) this.apply(t);
-            return true
-        }
-        return false
-    }
-};
-
-// --- VISUAL EFFECTS ---
-
-const Effects = {
-    spiderTimeout: null,
-    webRaf: null,
-    ballLoop: null,
-    fishTimeout: null,
-    spaceRareTimeout: null,
-    
-    plymouth(a) {
-        const c = DOM.theme.effects.plymouth;
-        if (!a) {
-            c.innerHTML = '';
-            return
-        }
-        c.innerHTML = '';
-        for (let i = 0; i < 100; i++) {
-            const s = document.createElement('div');
-            s.className = 'star-particle';
-            const z = Math.random() * 2 + 1;
-            s.style.width = s.style.height = `${z}px`;
-            s.style.left = `${Math.random()*100}vw`;
-            s.style.top = `${Math.random()*60}vh`;
-            s.style.animationDuration = `${Math.random()*3+1}s`;
-            s.style.animationDelay = `${Math.random()*2}s`;
-            c.appendChild(s)
-        }
-    },
-    fire() {
-        const c = DOM.theme.effects.fire;
-        c.innerHTML = '';
-        for (let i = 0; i < 80; i++) {
-            const p = document.createElement('div');
-            p.className = 'fire-particle';
-            p.style.animationDuration = `${Math.random()*1.5+0.5}s`;
-            p.style.animationDelay = `${Math.random()}s`;
-            p.style.left = `calc(10% + (80% * ${Math.random()}))`;
-            const size = Math.random() * 3 + 2;
-            p.style.width = p.style.height = `${size}em`;
-            p.style.setProperty('--sway', `${(Math.random()-.5)*20}px`);
-            c.appendChild(p)
-        }
-        for (let i = 0; i < 15; i++) {
-            const s = document.createElement('div');
-            s.className = 'smoke-particle';
-            s.style.animationDelay = `${Math.random()*3}s`;
-            s.style.left = `${Math.random()*90+5}%`;
-            s.style.setProperty('--sway', `${(Math.random()-.5)*150}px`);
-            c.appendChild(s)
-        }
-    },
-    bubbles(active) {
-        const c = DOM.theme.effects.bubble;
-        
-        if (this.fishTimeout) clearTimeout(this.fishTimeout);
-
-        if (!active) {
-            c.innerHTML = '';
-            return;
-        }
-        c.innerHTML = '';
-
-        const cl = [10, 30, 70, 90];
-        for (let i = 0; i < 40; i++) {
-            const p = document.createElement('div');
-            p.className = 'bubble-particle';
-            const s = Math.random() * 30 + 10;
-            p.style.width = p.style.height = `${s}px`;
-            p.style.left = `${cl[Math.floor(Math.random()*cl.length)]+(Math.random()-.5)*20}%`;
-            p.style.animationDuration = `${Math.random()*10+10}s`;
-            p.style.animationDelay = `-${Math.random()*15}s`;
-            c.appendChild(p);
-        }
-
-        const spawnFish = () => {
-            if (!DOM.theme.effects.bubble.checkVisibility()) return;
-
-            const fishTypes = ['🐟', '🐠', '🐡', '🦈'];
-            const fishEmoji = fishTypes[Math.floor(Math.random() * fishTypes.length)];
-            
-            const wrap = document.createElement('div');
-            wrap.className = 'submarine-fish-wrap';
-            
-            const inner = document.createElement('div');
-            inner.className = 'submarine-fish-inner';
-            inner.textContent = fishEmoji;
-            wrap.appendChild(inner);
-
-            const startLeft = Math.random() > 0.5; 
-            const duration = Math.random() * 15 + 10;
-            
-            if (startLeft) {
-                inner.style.transform = "scaleX(-1)"; 
-            }
-
-            wrap.style.transition = `left ${duration}s linear`;
-            wrap.style.top = Math.random() * 80 + 10 + 'vh'; 
-            wrap.style.left = startLeft ? '-100px' : '110vw';
-
-            wrap.onclick = (e) => {
-                e.stopPropagation();
-                UIManager.showPostVoteMessage("Blub blub! 🫧");
-                wrap.style.opacity = '0';
-                setTimeout(() => wrap.remove(), 200);
-            };
-
-            c.appendChild(wrap);
-
-            requestAnimationFrame(() => {
-                wrap.style.left = startLeft ? '110vw' : '-100px';
-            });
-
-            setTimeout(() => { if(wrap.parentNode) wrap.remove(); }, duration * 1000);
-            this.fishTimeout = setTimeout(spawnFish, Math.random() * 7000 + 3000);
-        };
-        spawnFish();
-    },
-    snow() {
-        const c = DOM.theme.effects.snow;
-        c.innerHTML = '';
-        for (let i = 0; i < 60; i++) {
-            const f = document.createElement('div');
-            f.className = 'snow-particle';
-            const s = Math.random() * 12 + 5;
-            f.style.width = f.style.height = `${s}px`;
-            f.style.opacity = Math.random() * .6 + .3;
-            if (s < 4) f.style.filter = `blur(${Math.random()*2}px)`;
-            f.style.left = `${Math.random()*100}vw`;
-            f.style.setProperty('--sway', `${(Math.random()-.5)*100}px`);
-            f.style.animationDuration = `${Math.random()*15+8}s`;
-            f.style.animationDelay = `-${Math.random()*15}s`;
-            c.appendChild(f)
-        }
-    },
-    summer() {
-        const c = DOM.theme.effects.summer;
-        c.innerHTML = '';
-        const g = document.createElement('div');
-        g.className = 'summer-grass';
-        c.appendChild(g);
-        for (let i = 0; i < 8; i++) {
-            const d = document.createElement('div');
-            d.className = `summer-cloud v${Math.floor(Math.random()*3)+1}`;
-            const w = Math.random() * 100 + 100;
-            d.style.width = `${w}px`;
-            d.style.height = `${w*.35}px`;
-            d.style.top = `${Math.random()*60}%`;
-            d.style.animationDuration = `${Math.random()*60+60}s`;
-            d.style.animationDelay = `-${Math.random()*100}s`;
-            c.appendChild(d)
-        }
-    },
-    halloween(active) {
-        if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
-        if (this.webRaf) cancelAnimationFrame(this.webRaf);
-        
-        if (active) MosquitoManager.startMonitoring(); 
-        else MosquitoManager.stopMonitoring();
-
-        if (!active) {
-            const old = document.getElementById('spider-wrap');
-            if (old) old.remove();
-            const oldWeb = document.getElementById('spider-web-corner');
-            if (oldWeb) oldWeb.remove();
-            return
-        }
-        
-        if (!document.getElementById('spider-wrap')) {
-            const wrap = document.createElement('div');
-            wrap.id = 'spider-wrap';
-            
-            // Fix: Spider needs high z-index to appear over fly when eating
-            wrap.style.zIndex = '101'; 
-            // Fix: Start wrapper off-screen so retracting thread completely hides the spider
-            wrap.style.position = 'fixed';
-            wrap.style.top = '-10vh'; 
-
-            wrap.style.left = (Math.random() * 80 + 10) + '%';
-            const scale = (Math.random() * .6 + .6).toFixed(2);
-            wrap.innerHTML = `<div id="spider-anchor" style="transform: scale(${scale})"><div id="spider-thread"></div><div id="spider-body">🕷️<div id="spider-bubble"></div></div></div>`;
-            document.body.appendChild(wrap);
-            
-            const thread = wrap.querySelector('#spider-thread'),
-                body = wrap.querySelector('#spider-body'),
-                bub = wrap.querySelector('#spider-bubble');
-                
-            const runDrop = () => {
-                const phrases = ['ouch!', 'hey frend!', "I wouldn't hurt a fly!", "I'm more scared of you...", "I'm a web dev!", "just hanging", "fangs a lot!"];
-                let txt = phrases[Math.floor(Math.random() * phrases.length)];
-                
-                // Add +10vh to target heights because wrapper is at -10vh
-                let targetHeight = (Math.random() * 40 + 30); 
-                let isHunting = false;
-
-                if (MosquitoManager.state === 'stuck') {
-                    isHunting = true;
-                    txt = "Lunch time!";
-                    wrap.style.left = (MosquitoManager.x - 2) + '%'; 
-                    // Add 15vh (10 offset + 5 buffer)
-                    targetHeight = MosquitoManager.y + 15; 
-                } else {
-                    wrap.style.left = (Math.random() * 80 + 10) + '%';
-                }
-
-                bub.innerText = txt;
-                void thread.offsetWidth;
-                
-                // Straight down drop, no swaying
-                thread.style.transition = 'height 2s ease-in-out';
-                thread.style.height = targetHeight + 'vh';
-                
-                body.onclick = () => {
-                    State.unlockBadge('spider');
-                    bub.style.opacity = '1';
-                    setTimeout(() => bub.style.opacity = '0', 2000)
-                };
-
-                // HUNT LOGIC: Drop (2s) -> Wait (2s) -> Eat
-                if (isHunting) {
-                    setTimeout(() => {
-                        // After 2s drop + 2s wait = 4s total
-                        if (MosquitoManager.state === 'stuck') {
-                            MosquitoManager.eat();
-                        }
-                    }, 4000); 
-                }
-
-                this.spiderTimeout = setTimeout(() => {
-                    thread.style.height = '0';
-                    setTimeout(() => {
-                        this.spiderTimeout = setTimeout(runDrop, Math.random() * 15000 + 10000)
-                    }, 20000)
-                }, 20000 + (Math.random() * 3000 + 5000))
-            };
-            setTimeout(runDrop, Math.random() * 5000 + 2000)
-        }
-        
-        if (!document.getElementById('spider-web-corner')) {
-            const web = document.createElement('div');
-            web.id = 'spider-web-corner';
-            web.innerHTML = `<svg id="web-svg" viewBox="0 0 300 300" style="width:300px;height:300px;position:fixed;top:0;right:0;z-index:55;pointer-events:none;opacity:0.7;filter:drop-shadow(1px 1px 2px rgba(0,0,0,0.5))"></svg>`;
-            document.body.appendChild(web);
-            const svg = document.getElementById('web-svg');
-            const cx = 300,
-                cy = 0;
-            const baseAnchors = [{ x: 0, y: 0 }, { x: 60, y: 100 }, { x: 140, y: 200 }, { x: 220, y: 270 }, { x: 300, y: 300 }];
-            const animateWeb = () => {
-                const time = Date.now();
-                let pathStr = '';
-                const curAnchors = baseAnchors.map((a, i) => {
-                    if (i === 0 || i === baseAnchors.length - 1) return a;
-                    const sway = Math.sin((time / 2000) + i) * 5;
-                    return { x: a.x + sway, y: a.y + sway }
-                });
-                curAnchors.forEach(p => {
-                    pathStr += `<line x1="${cx}" y1="${cy}" x2="${p.x}" y2="${p.y}" stroke="rgba(255,255,255,0.4)" stroke-width="2.5"/>`
-                });
-                const levels = 7;
-                for (let i = 1; i <= levels; i++) {
-                    const t = i / levels;
-                    let d = '';
-                    for (let j = 0; j < curAnchors.length; j++) {
-                        const ax = cx + (curAnchors[j].x - cx) * t,
-                            ay = cy + (curAnchors[j].y - cy) * t;
-                        if (j === 0) d += `M ${ax} ${ay}`;
-                        else {
-                            const px = cx + (curAnchors[j - 1].x - cx) * t,
-                                py = cy + (curAnchors[j - 1].y - cy) * t;
-                            const midX = (px + ax) / 2,
-                                midY = (py + ay) / 2,
-                                sag = 15 * t * (1 - t * 0.5),
-                                dx = midX - cx,
-                                dy = midY - cy,
-                                len = Math.sqrt(dx * dx + dy * dy),
-                                nx = dx / len,
-                                ny = dy / len,
-                                qx = midX - nx * sag,
-                                qy = midY - ny * sag;
-                            d += ` Q ${qx} ${qy} ${ax} ${ay}`
-                        }
-                    }
-                    pathStr += `<path d="${d}" stroke="rgba(255,255,255,0.3)" stroke-width="2.5" fill="none"/>`
-                }
-                svg.innerHTML = pathStr;
-                this.webRaf = requestAnimationFrame(animateWeb)
-            };
-            animateWeb()
-        }
-    },
-    ballpit(active) {
-        const c = DOM.theme.effects.ballpit;
-        if (this.ballLoop) cancelAnimationFrame(this.ballLoop);
-        if (!active) {
-            c.innerHTML = '';
-            window.removeEventListener('deviceorientation', Physics.handleOrientation);
-            return
-        }
-        window.addEventListener('deviceorientation', Physics.handleOrientation);
-        c.innerHTML = '';
-        Physics.balls = [];
-        const colors = ['#ef4444', '#3b82f6', '#eab308', '#22c55e', '#a855f7'];
-        const rareItems = ['💩', '🐧', '🦂', '🍄', '💉', '💎'];
-        const rareMap = { '💩': 'poop', '🐧': 'penguin', '🦂': 'scorpion', '🍄': 'mushroom', '💉': 'needle', '💎': 'diamond' };
-        const r = 30;
-        const W = window.innerWidth,
-            H = window.innerHeight;
-        const cylW = Math.min(W, 500);
-        const minX = (W - cylW) / 2,
-            maxX = minX + cylW - r * 2;
-        const showThought = (ballObj, cont) => {
-            const b = document.createElement('div');
-            b.className = 'thought-bubble';
-            b.innerHTML = cont || "Because we're grown-ups now, and it's our turn to decide what that means.";
-            b.innerHTML += '<div class="dot-1"></div><div class="dot-2"></div>';
-            document.body.appendChild(b);
-            ballObj.bubble = b;
-            requestAnimationFrame(() => b.style.opacity = '1');
-            setTimeout(() => {
-                b.style.opacity = '0';
-                setTimeout(() => {
-                    b.remove();
-                    ballObj.bubble = null
-                }, 300)
-            }, 4000)
-        };
-        const addBall = (type) => {
-            const el = document.createElement('div');
-            el.className = 'ball-particle';
-            el.style.width = el.style.height = `${r*2}px`;
-            let content = '';
-            if (type === 'germ') {
-                content = '🦠';
-                el.title = "Click me!";
-                el.classList.add('interactable-ball');
-                el.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)]
-            } else if (type === 'rare') {
-                content = rareItems[Math.floor(Math.random() * rareItems.length)];
-                el.classList.add('interactable-ball');
-                el.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)]
-            } else {
-                el.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)]
-            }
-            if (content) el.innerHTML = `<span class="ball-content">${content}</span>`;
-            c.appendChild(el);
-            const b = {
-                el,
-                x: minX + Math.random() * (maxX - minX),
-                y: Math.random() * (H / 2),
-                vx: (Math.random() - 0.5) * 10,
-                vy: (Math.random() - 0.5) * 10,
-                r,
-                drag: false,
-                lastX: 0,
-                lastY: 0,
-                bubble: null,
-                type,
-                content
-            };
-            Physics.balls.push(b);
-            let sx = 0,
-                sy = 0;
-            el.onmousedown = el.ontouchstart = (e) => {
-                b.drag = true;
-                b.vx = b.vy = 0;
-                const p = e.touches ? e.touches[0] : e;
-                b.lastX = p.clientX;
-                b.lastY = p.clientY;
-                sx = p.clientX;
-                sy = p.clientY;
-                e.preventDefault()
-            };
-            el.onmouseup = el.ontouchend = (e) => {
-                b.drag = false;
-                const p = e.changedTouches ? e.changedTouches[0] : e;
-                if ((type === 'germ' || type === 'rare') && Math.abs(p.clientX - sx) < 50 && Math.abs(p.clientY - sy) < 50) {
-                    if (type === 'germ') State.unlockBadge('germ');
-                    if (type === 'rare' && rareMap[content]) State.unlockBadge(rareMap[content]);
-                    showThought(b, type === 'rare' ? `<span style="font-size:2em">${content}</span>` : null)
-                }
-            }
-        };
-        for (let i = 0; i < 80; i++) addBall(Math.random() < 0.005 ? 'rare' : 'normal');
-        for (let i = 0; i < 5; i++) addBall('germ');
-        window.onmouseup = window.ontouchend = () => {
-            Physics.balls.forEach(b => b.drag = false)
-        };
-        window.onmousemove = window.ontouchmove = (e) => {
-            const p = e.touches ? e.touches[0] : e;
-            Physics.balls.forEach(b => {
-                if (b.drag) {
-                    b.vx = (p.clientX - b.lastX) * 0.5;
-                    b.vy = (p.clientY - b.lastY) * 0.5;
-                    b.x = p.clientX - b.r;
-                    b.y = p.clientY - b.r;
-                    b.lastX = p.clientX;
-                    b.lastY = p.clientY
-                }
-            })
-        };
-        Physics.run()
-    },
-
-    space(active) {
-        const c = DOM.theme.effects.space;
-        
-        if (this.spaceRareTimeout) clearTimeout(this.spaceRareTimeout);
-
-        if (!active) {
-            c.innerHTML = '';
-            return;
-        }
-        c.innerHTML = '';
-        
-        for (let i = 0; i < 150; i++) {
-            const s = document.createElement('div');
-            s.className = 'space-star';
-            const size = Math.random() * 2 + 1;
-            s.style.width = s.style.height = `${size}px`;
-            s.style.left = `${Math.random() * 100}vw`;
-            s.style.top = `${Math.random() * 100}vh`;
-            s.style.opacity = Math.random() * 0.8 + 0.2;
-            s.style.animationDelay = `${Math.random() * 3}s`;
-            c.appendChild(s);
-        }
-
-        const createPlanet = (size, x, y, colors, hasRing) => {
-            const wrap = document.createElement('div');
-            wrap.className = 'space-planet-wrap';
-            wrap.style.width = wrap.style.height = `${size}px`;
-            wrap.style.left = x;
-            wrap.style.top = y;
-            wrap.style.animationDuration = `${Math.random() * 10 + 15}s`;
-            
-            const p = document.createElement('div');
-            p.className = 'space-planet';
-            p.style.background = `linear-gradient(135deg, ${colors[0]}, ${colors[1]})`;
-            wrap.appendChild(p);
-
-            if (hasRing) {
-                const r = document.createElement('div');
-                r.className = 'space-ring';
-                wrap.appendChild(r);
-            }
-            c.appendChild(wrap);
-        };
-
-        createPlanet(120, '10%', '15%', ['#ff6b6b', '#7209b7'], true);
-        createPlanet(80, '85%', '60%', ['#4cc9f0', '#4361ee'], false);
-        createPlanet(40, '20%', '80%', ['#fee440', '#f15bb5'], false);
-        createPlanet(200, '-5%', '60%', ['#1b1b1b', '#3a3a3a'], true);
-
-        const spawnRock = () => {
-            if (!DOM.theme.effects.space.checkVisibility()) return; 
-            
-            const wrap = document.createElement('div');
-            wrap.className = 'space-rock-wrap';
-            
-            const inner = document.createElement('div');
-            inner.textContent = '🤘';
-            inner.className = 'space-rock-inner';
-            
-            wrap.appendChild(inner);
-            
-            const startLeft = Math.random() > 0.5;
-            const duration = Math.random() * 10 + 10; 
-            
-            wrap.style.transition = `left ${duration}s linear, top ${duration}s ease-in-out`;
-            wrap.style.top = Math.random() * 80 + 10 + 'vh'; 
-            wrap.style.left = startLeft ? '-150px' : '110vw'; 
-            
-            wrap.onclick = (e) => {
-                e.stopPropagation(); 
-                e.preventDefault();
-                State.unlockBadge('rock');
-                UIManager.showPostVoteMessage("SPACE ROCK! 🤘");
-                wrap.style.display = 'none'; 
-            };
-
-            c.appendChild(wrap);
-
-            requestAnimationFrame(() => {
-                wrap.style.left = startLeft ? '110vw' : '-150px';
-                wrap.style.top = Math.random() * 80 + 10 + 'vh'; 
-            });
-
-            setTimeout(() => { if(wrap.parentNode) wrap.remove(); }, duration * 1000);
-
-            this.spaceRareTimeout = setTimeout(spawnRock, Math.random() * 12000 + 8000);
-        };
-
-        this.spaceRareTimeout = setTimeout(spawnRock, 3000);
     }
 };
 
@@ -1315,7 +806,6 @@ const ModalManager = {
 
             // Mute Toggle Logic
             if (!document.getElementById('toggleMute')) {
-                // Inject HTML if missing (Optional safeguard)
                 const container = DOM.inputs.settings.mirror.closest('.space-y-4') || DOM.inputs.settings.mirror.parentElement.parentElement;
                 const div = document.createElement('div');
                 div.className = "flex items-center justify-between";
@@ -1328,7 +818,24 @@ const ModalManager = {
             DOM.inputs.settings.mute.onchange = e => {
                 const v = e.target.checked;
                 State.save('settings', { ...State.data.settings, muteSounds: v });
-                if (v) AudioEngine.stopBuzz();
+                SoundManager.updateMute();
+            };
+
+            // Zero Votes Logic
+            if (!document.getElementById('toggleZeroVotes')) {
+                const container = DOM.inputs.settings.mirror.closest('.space-y-4') || DOM.inputs.settings.mirror.parentElement.parentElement;
+                const div = document.createElement('div');
+                div.className = "flex items-center justify-between";
+                div.innerHTML = `<label for="toggleZeroVotes" class="text-lg font-medium text-gray-700">Only 0/0 Words</label><input type="checkbox" id="toggleZeroVotes" class="h-6 w-6 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">`;
+                container.appendChild(div);
+                DOM.inputs.settings.zeroVotes = document.getElementById('toggleZeroVotes');
+            }
+
+            DOM.inputs.settings.zeroVotes.checked = State.data.settings.zeroVotesOnly;
+            DOM.inputs.settings.zeroVotes.onchange = e => {
+                const v = e.target.checked;
+                State.save('settings', { ...State.data.settings, zeroVotesOnly: v });
+                Game.refreshData(true); // Force reload list
             };
 
             this.toggle('settings', true)
@@ -2064,7 +1571,14 @@ const Game = {
         if (u) UIManager.showMessage("Loading...");
         const d = await API.fetchWords();
         if (d) {
-            State.runtime.allWords = d.filter(w => (w.notWordVotes || 0) < 3);
+            let words = d.filter(w => (w.notWordVotes || 0) < 3);
+            
+            // Filter for "Zero Votes Only"
+            if (State.data.settings.zeroVotesOnly) {
+                words = words.filter(w => (w.goodVotes || 0) === 0 && (w.badVotes || 0) === 0);
+            }
+            
+            State.runtime.allWords = words;
             UIManager.updateStats();
             if (u && !State.runtime.isDailyMode) this.nextWord()
         } else UIManager.showMessage("Connection Error", true)
@@ -2191,7 +1705,10 @@ const Game = {
             wd.style.color = t === 'good' ? colors.good : colors.bad;
             await new Promise(r => setTimeout(r, 50));
             wd.classList.remove('color-fade');
-            wd.classList.add(t === 'good' ? 'animate-fly-left' : 'animate-fly-right')
+            wd.classList.add(t === 'good' ? 'animate-fly-left' : 'animate-fly-right');
+            
+            if (t === 'good') SoundManager.playGood();
+            else SoundManager.playBad();
         }
         
         // Helper for Special Effects
@@ -2219,8 +1736,10 @@ const Game = {
         if (up === MASON.text) { hSpec(MASON, 'bone'); return }
         
         try {
-            const un = ThemeManager.checkUnlock(up),
-                res = await API.vote(w._id, t);
+            const un = ThemeManager.checkUnlock(up);
+            if (un) SoundManager.playUnlock();
+
+            const res = await API.vote(w._id, t);
             if (res.status !== 403 && !res.ok) throw 0;
             w[`${t}Votes`] = (w[`${t}Votes`] || 0) + 1;
             State.incrementVote();
@@ -2354,6 +1873,7 @@ const InputHandler = {
                 const colors = Accessibility.getColors();
                 wd.style.color = l ? colors.good : colors.bad;
                 
+                SoundManager.playWhoosh();
                 Game.vote(l ? 'good' : 'bad', true)
             } else {
                 // ... existing reset logic ...
