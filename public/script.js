@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.6.7',
+    APP_VERSION: '5.6.8',
 
     // Special words with custom effects and probabilities
     SPECIAL: {
@@ -280,6 +280,12 @@ const Accessibility = {
         
         b.style.transform = s.mirrorMode ? 'scaleX(-1)' : '';
         b.style.overflowX = 'hidden'; 
+
+        // Fix: Immediately resize text if Large Text is toggled
+        if (State.runtime.allWords.length > 0) {
+            const currentWord = State.runtime.allWords[State.runtime.currentWordIndex];
+            if(currentWord) UIManager.fitText(currentWord.text);
+        }
     },
     getColors() {
         const cb = State.data.settings.colorblindMode;
@@ -383,7 +389,7 @@ const AudioEngine = {
         this.osc.type = 'sawtooth';
         this.osc.frequency.value = 600; 
         
-        this.gain.gain.setValueAtTime(0.015, this.ctx.currentTime); 
+        this.gain.gain.setValueAtTime(0.015, this.ctx.currentTime); // Subtle volume
         
         this.osc.connect(this.gain);
         this.osc.start();
@@ -453,7 +459,7 @@ const MosquitoManager = {
         
         const startRight = Math.random() > 0.5;
         this.x = startRight ? 105 : -5; 
-        this.y = Math.random() * 50 + 10;
+        this.y = Math.random() * 60 + 10;
         this.angle = startRight ? Math.PI : 0; 
 
         Object.assign(this.el.style, {
@@ -1795,15 +1801,21 @@ const UIManager = {
         wd.style.cursor = 'grab'
     },
     fitText(t) {
-        const wd = DOM.game.wordDisplay,
-            cW = DOM.game.card.clientWidth - parseFloat(getComputedStyle(DOM.game.card).paddingLeft) * 2;
-        wd.style.fontSize = '96px';
+        const isLarge = State.data.settings.largeText;
+        const baseSize = isLarge ? 140 : 96; 
+        const minSize = isLarge ? 32 : 24;
+
+        const wd = DOM.game.wordDisplay;
+        const cW = DOM.game.card.clientWidth - parseFloat(getComputedStyle(DOM.game.card).paddingLeft) * 2;
+
+        wd.style.fontSize = `${baseSize}px`;
         wd.style.whiteSpace = 'nowrap';
+
         if (wd.scrollWidth > cW) {
             const s = cW / wd.scrollWidth;
-            wd.style.fontSize = Math.max(24, Math.floor(96 * s)) + 'px'
+            wd.style.fontSize = Math.max(minSize, Math.floor(baseSize * s)) + 'px';
         }
-        wd.style.whiteSpace = 'normal'
+        wd.style.whiteSpace = 'normal';
     },
     renderRankingsImpl(c, l, type, isF) {
         c.innerHTML = '';
