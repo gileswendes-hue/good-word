@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.9.3',
+    APP_VERSION: '5.9.4',
 
     // Special words with custom effects and probabilities
     SPECIAL: {
@@ -629,38 +629,31 @@ const MosquitoManager = {
         if (!document.body.contains(this.el)) return;
 
         if (this.state === 'flying' || this.state === 'leaving') {
-            // Physics: Straight lines with occasional loops
-            if (Math.abs(this.turnSpeed) < 0.01) {
-                // Currently flying straight-ish, slight wobble
-                this.turnSpeed = (Math.random() - 0.5) * 0.02;
-                
-                // 1% chance to start a loop-the-loop
-                if (Math.random() < 0.01) {
-                    this.turnSpeed = (Math.random() < 0.5 ? 1 : -1) * 0.2; // Start loop
-                }
-            } else {
-                // Currently looping, decay turn speed slowly to return to straight
-                this.turnSpeed *= 0.98;
-                if (Math.abs(this.turnSpeed) < 0.05) this.turnSpeed = 0; // Snap back to straight
-            }
+            const wander = (Math.random() - 0.5) * 0.05;
+            this.turnSpeed += wander;
+            this.turnSpeed = Math.max(Math.min(this.turnSpeed, 0.1), -0.1);
+
+            if (Math.random() < 0.01) this.turnSpeed = (Math.random() < 0.5 ? 1 : -1) * 0.25; 
+
+            if (this.x < 5) this.turnSpeed += 0.02;
+            if (this.x > 95) this.turnSpeed -= 0.02;
+            if (this.y < 5) this.turnSpeed += 0.02;
+            if (this.y > 95) this.turnSpeed -= 0.02;
 
             this.angle += this.turnSpeed;
             this.x += Math.cos(this.angle) * this.speed;
             this.y += Math.sin(this.angle) * this.speed;
 
-            // Screen Wrap (Pac-man style) - Allow flying off-screen
             if (this.state === 'flying') {
-                if (this.x > 110) this.x = -10;
-                else if (this.x < -10) this.x = 110;
+                if (this.x > 110) { this.x = -10; this.trailPoints = []; }
+                else if (this.x < -10) { this.x = 110; this.trailPoints = []; }
             }
             
-            // Bounce Y (Floor/Ceiling)
             if (this.y < 5 || this.y > 95) {
                 this.angle = -this.angle; 
                 this.y = Math.max(5, Math.min(95, this.y));
             }
 
-            // Render Fly
             this.el.style.left = this.x + '%';
             this.el.style.top = this.y + '%';
             
@@ -668,16 +661,11 @@ const MosquitoManager = {
             const facingRight = Math.cos(this.angle) > 0;
             this.el.style.transform = facingRight ? 'scaleX(-1)' : 'scaleX(1)';
 
-            // Render Trail
             const pxX = (this.x / 100) * window.innerWidth;
             const pxY = (this.y / 100) * window.innerHeight;
             
-            // Only draw trail if inside screen bounds to avoid lines across screen on wrap
-            if (pxX > 0 && pxX < window.innerWidth) {
-                this.trailPoints.push({x: pxX, y: pxY});
-            } else {
-                this.trailPoints = []; // Break trail on wrap
-            }
+            if (pxX > 0 && pxX < window.innerWidth) this.trailPoints.push({x: pxX, y: pxY});
+            else this.trailPoints = [];
             
             if (this.trailPoints.length > this.MAX_TRAIL) this.trailPoints.shift();
 
@@ -778,7 +766,7 @@ const TiltManager = {
     }
 };
 
-// --- MODAL MANAGER ---
+// --- MODAL MANAGER (FIXED NULL-SAFETY) ---
 const ModalManager = {
     toggle(id, show) {
         const e = DOM.modals[id];
@@ -786,84 +774,63 @@ const ModalManager = {
         e.classList.toggle('flex', show)
     },
     init() {
-        document.getElementById('showSettingsButton').onclick = () => {
-            DOM.inputs.settings.tips.checked = State.data.settings.showTips;
-            DOM.inputs.settings.percentages.checked = State.data.settings.showPercentages;
-            DOM.inputs.settings.colorblind.checked = State.data.settings.colorblindMode;
-            DOM.inputs.settings.largeText.checked = State.data.settings.largeText;
-			DOM.inputs.settings.tilt.checked = State.data.settings.enableTilt;
-			DOM.inputs.settings.tilt.onchange = e => {
-                const v = e.target.checked;
-                State.save('settings', { ...State.data.settings, enableTilt: v });
-                TiltManager.refresh(); 
-            };
+        // Helper to safely attach listeners to settings checkboxes
+        const safeAttach = (key, stateKey, callback) => {
+            let el = DOM.inputs.settings[key];
             
-            if (DOM.inputs.settings.mirror) {
-                DOM.inputs.settings.mirror.checked = State.data.settings.mirrorMode;
-                DOM.inputs.settings.mirror.onchange = e => {
-                    const v = e.target.checked;
-                    State.save('settings', { ...State.data.settings, mirrorMode: v });
-                    Accessibility.apply();
-                };
+            // 1. Try to find it if reference is missing
+            if (!el) {
+                el = document.getElementById('toggle' + key.charAt(0).toUpperCase() + key.slice(1));
+                DOM.inputs.settings[key] = el;
             }
-
-            // Defensive Injection: Mute
-            if (!document.getElementById('toggleMute')) {
-                const anchor = document.querySelector('#settingsModalContainer .space-y-4');
-                if (anchor) {
+            
+            // 2. If still missing (because it's one of the injected ones), try to inject
+            if (!el && (key === 'mute' || key === 'zeroVotes')) {
+                const anchor = DOM.inputs.settings.largeText ? DOM.inputs.settings.largeText.closest('.flex') : null;
+                if (anchor && anchor.parentNode) {
                     const div = document.createElement('div');
                     div.className = "flex items-center justify-between";
-                    div.innerHTML = `<label for="toggleMute" class="text-lg font-medium text-gray-700">Mute All Sounds</label><input type="checkbox" id="toggleMute" class="h-6 w-6 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">`;
-                    anchor.appendChild(div);
-                    DOM.inputs.settings.mute = document.getElementById('toggleMute');
+                    const label = key === 'mute' ? 'Mute All Sounds' : 'Only 0/0 Words';
+                    const id = 'toggle' + key.charAt(0).toUpperCase() + key.slice(1);
+                    div.innerHTML = `<label for="${id}" class="text-lg font-medium text-gray-700">${label}</label><input type="checkbox" id="${id}" class="h-6 w-6 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">`;
+                    anchor.parentNode.appendChild(div);
+                    el = document.getElementById(id);
+                    DOM.inputs.settings[key] = el;
                 }
             }
-            
-            if (DOM.inputs.settings.mute) {
-                DOM.inputs.settings.mute.checked = State.data.settings.muteSounds;
-                DOM.inputs.settings.mute.onchange = e => {
+
+            // 3. If element exists, attach state and listener
+            if (el) {
+                el.checked = State.data.settings[stateKey];
+                el.onchange = (e) => {
                     const v = e.target.checked;
-                    State.save('settings', { ...State.data.settings, muteSounds: v });
-                    SoundManager.updateMute();
+                    State.save('settings', { ...State.data.settings, [stateKey]: v });
+                    if (callback) callback(v);
                 };
             }
-
-            // Defensive Injection: Zero Votes
-            if (!document.getElementById('toggleZeroVotes')) {
-                 const anchor = document.querySelector('#settingsModalContainer .space-y-4');
-                 if (anchor) {
-                     const div = document.createElement('div');
-                     div.className = "flex items-center justify-between";
-                     div.innerHTML = `<label for="toggleZeroVotes" class="text-lg font-medium text-gray-700">Only 0/0 Words</label><input type="checkbox" id="toggleZeroVotes" class="h-6 w-6 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">`;
-                     anchor.appendChild(div);
-                     DOM.inputs.settings.zeroVotes = document.getElementById('toggleZeroVotes');
-                 }
-            }
-
-            if (DOM.inputs.settings.zeroVotes) {
-                DOM.inputs.settings.zeroVotes.checked = State.data.settings.zeroVotesOnly;
-                DOM.inputs.settings.zeroVotes.onchange = e => {
-                    const v = e.target.checked;
-                    State.save('settings', { ...State.data.settings, zeroVotesOnly: v });
-                    Game.refreshData(true); 
-                };
-            }
-
-            this.toggle('settings', true)
         };
+
+        document.getElementById('showSettingsButton').onclick = () => {
+            // Safe attach for all settings
+            safeAttach('tips', 'showTips');
+            safeAttach('percentages', 'showPercentages');
+            safeAttach('colorblind', 'colorblindMode', () => Accessibility.apply());
+            safeAttach('largeText', 'largeText', () => Accessibility.apply());
+            safeAttach('tilt', 'enableTilt', () => TiltManager.refresh());
+            safeAttach('mirror', 'mirrorMode', () => Accessibility.apply());
+            safeAttach('mute', 'muteSounds', () => SoundManager.updateMute());
+            safeAttach('zeroVotes', 'zeroVotesOnly', () => Game.refreshData(true));
+
+            this.toggle('settings', true);
+        };
+
         document.getElementById('closeSettingsModal').onclick = () => this.toggle('settings', false);
-        DOM.inputs.settings.tips.onchange = e => State.save('settings', { ...State.data.settings, showTips: e.target.checked });
-        DOM.inputs.settings.percentages.onchange = e => State.save('settings', { ...State.data.settings, showPercentages: e.target.checked });
-        DOM.inputs.settings.colorblind.onchange = e => {
-            const v = e.target.checked;
-            State.save('settings', { ...State.data.settings, colorblindMode: v });
-            Accessibility.apply()
-        };
-        DOM.inputs.settings.largeText.onchange = e => {
-            const v = e.target.checked;
-            State.save('settings', { ...State.data.settings, largeText: v });
-            Accessibility.apply()
-        };
+        
+        // Safe Initial Attach (so settings work without opening modal first)
+        // We wrap these in checks because the modal might not be open yet
+        if (DOM.inputs.settings.tips) DOM.inputs.settings.tips.onchange = e => State.save('settings', { ...State.data.settings, showTips: e.target.checked });
+        if (DOM.inputs.settings.percentages) DOM.inputs.settings.percentages.onchange = e => State.save('settings', { ...State.data.settings, showPercentages: e.target.checked });
+        
         DOM.game.buttons.custom.onclick = () => {
             DOM.inputs.newWord.value = '';
             DOM.inputs.modalMsg.textContent = '';
