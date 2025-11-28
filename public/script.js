@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.9.12',
+    APP_VERSION: '5.9.13', // Haptics & Non-Destructive Filtering
 
     // Special words with custom effects and probabilities
     SPECIAL: {
@@ -310,6 +310,19 @@ const Utils = {
             b = parseInt(hex.substring(5, 7), 16)
         }
         return `rgba(${r}, ${g}, ${b}, ${alpha})`
+    }
+};
+
+// --- HAPTICS MANAGER (NEW) ---
+const Haptics = {
+    light() {
+        if (navigator.vibrate) navigator.vibrate(10);
+    },
+    medium() {
+        if (navigator.vibrate) navigator.vibrate(50);
+    },
+    heavy() {
+        if (navigator.vibrate) navigator.vibrate(200);
     }
 };
 
@@ -1242,7 +1255,7 @@ const Effects = {
     }
 };
 
-// --- SHARE MANAGER (MISSING) ---
+// --- SHARE MANAGER ---
 const ShareManager = {
     async generateImage() {
         const canvas = document.createElement('canvas');
@@ -1407,7 +1420,7 @@ const ShareManager = {
     }
 };
 
-// --- UI MANAGER (MISSING) ---
+// --- UI MANAGER ---
 const UIManager = {
     msgTimeout: null,
     showMessage(t, err = false) {
@@ -2110,6 +2123,7 @@ const Game = {
         const t = CONFIG.VOTE.COOLDOWN_TIERS;
         let r = t[Math.min(State.runtime.mashLevel, t.length - 1)];
         UIManager.showMessage(`Mashing detected. Wait ${r}s...`, true);
+        Haptics.heavy(); // Haptic Feedback
         State.runtime.cooldownTimer = setInterval(() => {
             r--;
             if (r > 0) UIManager.showMessage(`Wait ${r}s...`, true);
@@ -2132,6 +2146,13 @@ const Game = {
             this.handleCooldown();
             return
         }
+        
+        // Haptic Feedback for Button Click (Not Swipe)
+        if (!s) {
+            if (t === 'notWord') Haptics.heavy();
+            else Haptics.medium();
+        }
+
         const w = State.runtime.allWords[State.runtime.currentWordIndex],
             up = w.text.toUpperCase(),
             { CAKE, LLAMA, POTATO, SQUIRREL, MASON } = CONFIG.SPECIAL;
@@ -2217,6 +2238,10 @@ const Game = {
                 if (State.data.voteCounterForTips % CONFIG.TIP_COOLDOWN === 0) m = CONFIG.TIPS[Math.floor(Math.random() * CONFIG.TIPS.length)]
             }
             UIManager.showPostVoteMessage(m);
+            
+            // Haptic Feedback for Vote Success (Medium)
+            if (t === 'good' || t === 'bad') Haptics.medium();
+
             UIManager.updateStats();
             setTimeout(() => {
                 wd.classList.remove('animate-fly-left', 'animate-fly-right', 'swipe-good-color', 'swipe-bad-color', 'override-theme-color');
@@ -2268,6 +2293,7 @@ const InputHandler = {
                     return
                 }
                 this.drag = true;
+                Haptics.light(); // Light haptic on drag start
                 Game.cleanStyles(wd);
                 wd.style.background = 'none';
                 wd.style.webkitTextFillColor = 'initial'
