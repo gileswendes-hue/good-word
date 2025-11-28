@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.6.4',
+    APP_VERSION: '5.6.5',
 
     // Special words with custom effects and probabilities
     SPECIAL: {
@@ -277,6 +277,7 @@ const Accessibility = {
             b = document.body;
         b.classList.toggle('mode-colorblind', s.colorblindMode);
         b.classList.toggle('mode-large-text', s.largeText);
+        
         b.style.transform = s.mirrorMode ? 'scaleX(-1)' : '';
         b.style.overflowX = 'hidden'; 
     },
@@ -354,6 +355,7 @@ const Physics = {
                 }
             }
         }
+        
         Physics.balls.forEach(b => {
             b.el.style.transform = `translate(${b.x}px,${b.y}px)`;
             if (b.bubble) b.bubble.style.transform = `translate(${b.x+b.r}px,${b.y-20}px) translate(-50%,-100%)`
@@ -393,6 +395,12 @@ const AudioEngine = {
         const nextPitch = 550 + Math.random() * 200;
         this.osc.frequency.linearRampToValueAtTime(nextPitch, nextTime);
         setTimeout(() => this.rampPitch(), 150);
+    },
+    setStuckMode(isStuck) {
+        if (!this.osc) return;
+        const pitch = isStuck ? 900 : 600;
+        this.osc.frequency.setValueAtTime(pitch, this.ctx.currentTime);
+        this.gain.gain.linearRampToValueAtTime(isStuck ? 0.05 : 0.02, this.ctx.currentTime + 0.1);
     },
     stopBuzz() {
         if (this.osc) {
@@ -911,8 +919,9 @@ const Effects = {
             
             // Fix: Spider needs high z-index to appear over fly when eating
             wrap.style.zIndex = '101'; 
+            // Fix: Start wrapper off-screen so retracting thread completely hides the spider
             wrap.style.position = 'fixed';
-            wrap.style.top = '0';
+            wrap.style.top = '-10vh'; 
 
             wrap.style.left = (Math.random() * 80 + 10) + '%';
             const scale = (Math.random() * .6 + .6).toFixed(2);
@@ -927,14 +936,16 @@ const Effects = {
                 const phrases = ['ouch!', 'hey frend!', "I wouldn't hurt a fly!", "I'm more scared of you...", "I'm a web dev!", "just hanging", "fangs a lot!"];
                 let txt = phrases[Math.floor(Math.random() * phrases.length)];
                 
-                let targetHeight = Math.random() * 40 + 20; 
+                // Add +10vh to target heights because wrapper is at -10vh
+                let targetHeight = (Math.random() * 40 + 30); 
                 let isHunting = false;
 
                 if (MosquitoManager.state === 'stuck') {
                     isHunting = true;
                     txt = "Lunch time!";
                     wrap.style.left = (MosquitoManager.x - 2) + '%'; 
-                    targetHeight = MosquitoManager.y + 5; 
+                    // Add 15vh (10 offset + 5 buffer)
+                    targetHeight = MosquitoManager.y + 15; 
                 } else {
                     wrap.style.left = (Math.random() * 80 + 10) + '%';
                 }
