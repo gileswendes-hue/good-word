@@ -1,8 +1,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     APP_VERSION: '5.5.12',
-
-    // Special words with custom effects and probabilities
+	
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
         LLAMA: { text: 'LLAMA', prob: 0.005, fade: 8000, msg: "what llama?", dur: 3000 },
@@ -21,7 +20,6 @@ const CONFIG = {
         SWIPE_THRESHOLD: 100
     },
 
-    // Base64 encoded theme keywords to prevent spoilers in code
     THEME_SECRETS: {
         rainbow: 'UkFJTkJPV3xHQVl8U1BBUktMRXxDT0xPVVJ8UFJJREV8VU5JQ09STnxQUk9VRHxRVUVFUnxHTElUVEVSfExFU0JJQU58VElOU0VM',
         dark: 'TUlETklHSFR8QkxBQ0t8U0hBREV8R09USHxTSEFET1d8TklOSkF8REFSS3xOSUdIVHxTVEVBTFRI',
@@ -69,7 +67,6 @@ const CONFIG = {
     ]
 };
 
-// --- DOM ELEMENT REFERENCES ---
 const DOM = {
     header: {
         logoArea: document.getElementById('logoArea'),
@@ -163,7 +160,8 @@ const DOM = {
             tips: document.getElementById('toggleTips'),
             percentages: document.getElementById('togglePercentages'),
             colorblind: document.getElementById('toggleColorblind'),
-            largeText: document.getElementById('toggleLargeText')
+            largeText: document.getElementById('toggleLargeText'),
+			tilt: document.getElementById('toggleTilt')
         }
     },
     general: {
@@ -199,7 +197,8 @@ const State = {
             showTips: true,
             showPercentages: true,
             colorblindMode: false,
-            largeText: false
+            largeText: false,
+			enableTilt: false
         },
         currentTheme: localStorage.getItem('currentTheme') || 'default',
         unlockedThemes: JSON.parse(localStorage.getItem('unlockedThemes')) || [],
@@ -497,7 +496,8 @@ const ThemeManager = {
         const d = document.getElementById('card-snow-drift');
         d.style.display = t !== 'winter' ? 'none' : 'block';
         if (State.runtime.allWords.length > 0) UIManager.displayWord(State.runtime.allWords[State.runtime.currentWordIndex]);
-        Accessibility.apply()
+        Accessibility.apply();
+        TiltManager.refresh();
     },
     checkUnlock(w) {
         const t = this.wordMap[w];
@@ -513,6 +513,7 @@ const ThemeManager = {
 };
 
 // --- VISUAL EFFECTS ---
+
 const Effects = {
     spiderTimeout: null,
     webRaf: null,
@@ -962,6 +963,49 @@ const Effects = {
     }
 };
 
+// --- GRAVITY TILT EFFECT ---
+const TiltManager = {
+    active: false,
+    
+    handle(e) {
+        if (!TiltManager.active) return;
+
+        // Gamma: Left/Right tilt (-90 to 90)
+        // Beta: Front/Back tilt (-180 to 180)
+        const x = e.gamma || 0; 
+        const y = e.beta || 0;
+
+        // Calibration: Assume phone is held at 45 degree angle
+        const moveX = Math.min(Math.max(x, -25), 25);
+        const moveY = Math.min(Math.max(y - 45, -25), 25);
+
+        // Apply to wordFrame (the container) to avoid conflict with swipe logic
+        DOM.game.wordFrame.style.transition = 'transform 0.1s ease-out';
+        DOM.game.wordFrame.style.transform = `translate3d(${moveX * 1.5}px, ${moveY * 1.5}px, 0)`;
+    },
+
+    start() {
+        if (this.active) return;
+        // Only run if Setting is ON and Theme is DEFAULT
+        if (State.data.settings.enableTilt && State.data.currentTheme === 'default') {
+            this.active = true;
+            window.addEventListener('deviceorientation', this.handle, true);
+        }
+    },
+
+    stop() {
+        if (!this.active) return;
+        this.active = false;
+        window.removeEventListener('deviceorientation', this.handle, true);
+        DOM.game.wordFrame.style.transform = ''; // Reset position
+    },
+    
+    refresh() {
+        this.stop();
+        this.start();
+    }
+};
+
 // --- MODAL MANAGER ---
 const ModalManager = {
     toggle(id, show) {
@@ -975,6 +1019,12 @@ const ModalManager = {
             DOM.inputs.settings.percentages.checked = State.data.settings.showPercentages;
             DOM.inputs.settings.colorblind.checked = State.data.settings.colorblindMode;
             DOM.inputs.settings.largeText.checked = State.data.settings.largeText;
+			DOM.inputs.settings.tilt.checked = State.data.settings.enableTilt;
+			DOM.inputs.settings.tilt.onchange = e => {
+                const v = e.target.checked;
+                State.save('settings', { ...State.data.settings, enableTilt: v });
+                TiltManager.refresh(); 
+            };
             this.toggle('settings', true)
         };
         document.getElementById('closeSettingsModal').onclick = () => this.toggle('settings', false);
@@ -1637,7 +1687,7 @@ const Game = {
             DOM.game.dailyBanner.style.display = 'block'
         }
     },
-activateDailyMode() {
+    activateDailyMode() {
         if (State.runtime.isDailyMode) return;
         
         // FIX 1: Use Local Time instead of UTC (toISOString)
