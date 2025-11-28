@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.9.2',
+    APP_VERSION: '5.9.3',
 
     // Special words with custom effects and probabilities
     SPECIAL: {
@@ -629,42 +629,55 @@ const MosquitoManager = {
         if (!document.body.contains(this.el)) return;
 
         if (this.state === 'flying' || this.state === 'leaving') {
-            const wander = (Math.random() - 0.5) * 0.05;
-            this.turnSpeed += wander;
-            this.turnSpeed = Math.max(Math.min(this.turnSpeed, 0.1), -0.1);
-
-            if (Math.random() < 0.01) this.turnSpeed = (Math.random() < 0.5 ? 1 : -1) * 0.25; 
-
-            if (this.x < 5) this.turnSpeed += 0.02;
-            if (this.x > 95) this.turnSpeed -= 0.02;
-            if (this.y < 5) this.turnSpeed += 0.02;
-            if (this.y > 95) this.turnSpeed -= 0.02;
+            // Physics: Straight lines with occasional loops
+            if (Math.abs(this.turnSpeed) < 0.01) {
+                // Currently flying straight-ish, slight wobble
+                this.turnSpeed = (Math.random() - 0.5) * 0.02;
+                
+                // 1% chance to start a loop-the-loop
+                if (Math.random() < 0.01) {
+                    this.turnSpeed = (Math.random() < 0.5 ? 1 : -1) * 0.2; // Start loop
+                }
+            } else {
+                // Currently looping, decay turn speed slowly to return to straight
+                this.turnSpeed *= 0.98;
+                if (Math.abs(this.turnSpeed) < 0.05) this.turnSpeed = 0; // Snap back to straight
+            }
 
             this.angle += this.turnSpeed;
             this.x += Math.cos(this.angle) * this.speed;
             this.y += Math.sin(this.angle) * this.speed;
 
+            // Screen Wrap (Pac-man style) - Allow flying off-screen
             if (this.state === 'flying') {
-                if (this.x > 110) { this.x = -10; this.trailPoints = []; }
-                else if (this.x < -10) { this.x = 110; this.trailPoints = []; }
+                if (this.x > 110) this.x = -10;
+                else if (this.x < -10) this.x = 110;
             }
             
+            // Bounce Y (Floor/Ceiling)
             if (this.y < 5 || this.y > 95) {
                 this.angle = -this.angle; 
                 this.y = Math.max(5, Math.min(95, this.y));
             }
 
+            // Render Fly
             this.el.style.left = this.x + '%';
             this.el.style.top = this.y + '%';
             
+            // Flip X based on direction (No spinning)
             const facingRight = Math.cos(this.angle) > 0;
             this.el.style.transform = facingRight ? 'scaleX(-1)' : 'scaleX(1)';
 
+            // Render Trail
             const pxX = (this.x / 100) * window.innerWidth;
             const pxY = (this.y / 100) * window.innerHeight;
             
-            if (pxX > 0 && pxX < window.innerWidth) this.trailPoints.push({x: pxX, y: pxY});
-            else this.trailPoints = [];
+            // Only draw trail if inside screen bounds to avoid lines across screen on wrap
+            if (pxX > 0 && pxX < window.innerWidth) {
+                this.trailPoints.push({x: pxX, y: pxY});
+            } else {
+                this.trailPoints = []; // Break trail on wrap
+            }
             
             if (this.trailPoints.length > this.MAX_TRAIL) this.trailPoints.shift();
 
@@ -673,7 +686,7 @@ const MosquitoManager = {
                 this.path.setAttribute('d', d);
             }
 
-            // Web Check (Triangle Check)
+            // Web Check (Pixel Perfect Triangle)
             const distFromRight = window.innerWidth - pxX;
             const distFromTop = pxY;
             if (this.state === 'flying' && (distFromRight + distFromTop) < 280) {
@@ -794,16 +807,14 @@ const ModalManager = {
                 };
             }
 
+            // Defensive Injection: Mute
             if (!document.getElementById('toggleMute')) {
-                const container = DOM.inputs.settings.mirror && DOM.inputs.settings.mirror.parentElement && DOM.inputs.settings.mirror.parentElement.parentElement 
-                    ? DOM.inputs.settings.mirror.parentElement.parentElement 
-                    : document.querySelector('#settingsModalContainer .space-y-4');
-                
-                if (container) {
+                const anchor = document.querySelector('#settingsModalContainer .space-y-4');
+                if (anchor) {
                     const div = document.createElement('div');
                     div.className = "flex items-center justify-between";
                     div.innerHTML = `<label for="toggleMute" class="text-lg font-medium text-gray-700">Mute All Sounds</label><input type="checkbox" id="toggleMute" class="h-6 w-6 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">`;
-                    container.appendChild(div);
+                    anchor.appendChild(div);
                     DOM.inputs.settings.mute = document.getElementById('toggleMute');
                 }
             }
@@ -817,16 +828,14 @@ const ModalManager = {
                 };
             }
 
+            // Defensive Injection: Zero Votes
             if (!document.getElementById('toggleZeroVotes')) {
-                 const container = DOM.inputs.settings.mirror && DOM.inputs.settings.mirror.parentElement && DOM.inputs.settings.mirror.parentElement.parentElement 
-                    ? DOM.inputs.settings.mirror.parentElement.parentElement 
-                    : document.querySelector('#settingsModalContainer .space-y-4');
-                 
-                 if (container) {
+                 const anchor = document.querySelector('#settingsModalContainer .space-y-4');
+                 if (anchor) {
                      const div = document.createElement('div');
                      div.className = "flex items-center justify-between";
                      div.innerHTML = `<label for="toggleZeroVotes" class="text-lg font-medium text-gray-700">Only 0/0 Words</label><input type="checkbox" id="toggleZeroVotes" class="h-6 w-6 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">`;
-                     container.appendChild(div);
+                     anchor.appendChild(div);
                      DOM.inputs.settings.zeroVotes = document.getElementById('toggleZeroVotes');
                  }
             }
