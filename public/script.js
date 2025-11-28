@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.10.0', // Added Desktop Drag Support
+    APP_VERSION: '5.9.12',
 
     // Special words with custom effects and probabilities
     SPECIAL: {
@@ -310,19 +310,6 @@ const Utils = {
             b = parseInt(hex.substring(5, 7), 16)
         }
         return `rgba(${r}, ${g}, ${b}, ${alpha})`
-    }
-};
-
-// --- HAPTICS MANAGER ---
-const Haptics = {
-    light() {
-        if (navigator.vibrate) navigator.vibrate(10);
-    },
-    medium() {
-        if (navigator.vibrate) navigator.vibrate(50);
-    },
-    heavy() {
-        if (navigator.vibrate) navigator.vibrate(200);
     }
 };
 
@@ -1255,7 +1242,7 @@ const Effects = {
     }
 };
 
-// --- SHARE MANAGER ---
+// --- SHARE MANAGER (MISSING) ---
 const ShareManager = {
     async generateImage() {
         const canvas = document.createElement('canvas');
@@ -1420,7 +1407,7 @@ const ShareManager = {
     }
 };
 
-// --- UI MANAGER ---
+// --- UI MANAGER (MISSING) ---
 const UIManager = {
     msgTimeout: null,
     showMessage(t, err = false) {
@@ -1669,6 +1656,198 @@ const UIManager = {
     }
 };
 
+// --- MODAL MANAGER (FIXED) ---
+const ModalManager = {
+    toggle(id, show) {
+        const e = DOM.modals[id];
+        e.classList.toggle('hidden', !show);
+        e.classList.toggle('flex', show)
+    },
+    init() {
+        document.getElementById('showSettingsButton').onclick = () => {
+            // Update UI
+            DOM.inputs.settings.tips.checked = State.data.settings.showTips;
+            DOM.inputs.settings.percentages.checked = State.data.settings.showPercentages;
+            DOM.inputs.settings.colorblind.checked = State.data.settings.colorblindMode;
+            DOM.inputs.settings.largeText.checked = State.data.settings.largeText;
+            if (DOM.inputs.settings.tilt) DOM.inputs.settings.tilt.checked = State.data.settings.enableTilt;
+            if (DOM.inputs.settings.mirror) DOM.inputs.settings.mirror.checked = State.data.settings.mirrorMode;
+
+            // Inject Mute
+            if (!document.getElementById('toggleMute')) {
+                const container = DOM.inputs.settings.mirror ? (DOM.inputs.settings.mirror.closest('.space-y-4') || DOM.inputs.settings.mirror.parentElement.parentElement) : document.getElementById('settingsModalContainer').querySelector('.space-y-4');
+                if (container) {
+                    const div = document.createElement('div');
+                    div.className = "flex items-center justify-between";
+                    div.innerHTML = `<label for="toggleMute" class="text-lg font-medium text-gray-700">Mute All Sounds</label><input type="checkbox" id="toggleMute" class="h-6 w-6 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">`;
+                    container.appendChild(div);
+                    DOM.inputs.settings.mute = document.getElementById('toggleMute');
+                }
+            }
+            if (DOM.inputs.settings.mute) {
+                DOM.inputs.settings.mute.checked = State.data.settings.muteSounds;
+                DOM.inputs.settings.mute.onchange = e => {
+                    State.save('settings', { ...State.data.settings, muteSounds: e.target.checked });
+                    SoundManager.updateMute();
+                };
+            }
+
+            // Inject Zero Votes
+            if (!document.getElementById('toggleZeroVotes')) {
+                const container = DOM.inputs.settings.mirror ? (DOM.inputs.settings.mirror.closest('.space-y-4') || DOM.inputs.settings.mirror.parentElement.parentElement) : document.getElementById('settingsModalContainer').querySelector('.space-y-4');
+                if (container) {
+                    const div = document.createElement('div');
+                    div.className = "flex items-center justify-between";
+                    div.innerHTML = `<label for="toggleZeroVotes" class="text-lg font-medium text-gray-700">Only 0/0 Words</label><input type="checkbox" id="toggleZeroVotes" class="h-6 w-6 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">`;
+                    container.appendChild(div);
+                    DOM.inputs.settings.zeroVotes = document.getElementById('toggleZeroVotes');
+                }
+            }
+            if (DOM.inputs.settings.zeroVotes) {
+                DOM.inputs.settings.zeroVotes.checked = State.data.settings.zeroVotesOnly;
+                DOM.inputs.settings.zeroVotes.onchange = e => {
+                    State.save('settings', { ...State.data.settings, zeroVotesOnly: e.target.checked });
+                    Game.refreshData(true);
+                };
+            }
+
+            this.toggle('settings', true)
+        };
+
+        document.getElementById('closeSettingsModal').onclick = () => this.toggle('settings', false);
+        
+        DOM.inputs.settings.tips.onchange = e => State.save('settings', { ...State.data.settings, showTips: e.target.checked });
+        DOM.inputs.settings.percentages.onchange = e => State.save('settings', { ...State.data.settings, showPercentages: e.target.checked });
+        
+        DOM.inputs.settings.colorblind.onchange = e => {
+            const v = e.target.checked;
+            State.save('settings', { ...State.data.settings, colorblindMode: v });
+            Accessibility.apply()
+        };
+        DOM.inputs.settings.largeText.onchange = e => {
+            const v = e.target.checked;
+            State.save('settings', { ...State.data.settings, largeText: v });
+            Accessibility.apply()
+        };
+        if (DOM.inputs.settings.tilt) {
+            DOM.inputs.settings.tilt.onchange = e => {
+                State.save('settings', { ...State.data.settings, enableTilt: e.target.checked });
+                TiltManager.refresh(); 
+            };
+        }
+        if (DOM.inputs.settings.mirror) {
+            DOM.inputs.settings.mirror.onchange = e => {
+                State.save('settings', { ...State.data.settings, mirrorMode: e.target.checked });
+                Accessibility.apply();
+            };
+        }
+
+        DOM.game.buttons.custom.onclick = () => {
+            DOM.inputs.newWord.value = '';
+            DOM.inputs.modalMsg.textContent = '';
+            this.toggle('submission', true)
+        };
+        document.getElementById('cancelSubmitButton').onclick = () => this.toggle('submission', false);
+        DOM.rankings.btnShow.onclick = () => {
+            UIManager.renderFullRankings();
+            this.toggle('fullRankings', true)
+        };
+        document.getElementById('closeFullRankingsModal').onclick = () => this.toggle('fullRankings', false);
+        document.getElementById('compareWordsButton').onclick = () => {
+            DOM.inputs.wordOne.value = '';
+            DOM.inputs.wordTwo.value = '';
+            DOM.inputs.compareResults.innerHTML = 'Type words above to see who wins!';
+            this.toggle('compare', true)
+        };
+        document.getElementById('closeCompareModal').onclick = () => this.toggle('compare', false);
+        DOM.game.wordDisplay.onclick = () => Game.showDefinition();
+        document.getElementById('closeDefinitionModal').onclick = () => this.toggle('definition', false);
+        DOM.rankings.searchBtn.onclick = () => UIManager.handleRankSearch();
+        DOM.rankings.clearSearch.onclick = () => {
+            DOM.rankings.searchInput.value = '';
+            DOM.rankings.searchContainer.classList.add('hidden');
+            DOM.rankings.listsContainer.classList.remove('hidden')
+        };
+        DOM.header.userStatsBar.onclick = () => UIManager.openProfile();
+        document.getElementById('closeProfileModal').onclick = () => this.toggle('profile', false);
+        document.getElementById('saveUsernameBtn').onclick = async () => {
+            const n = DOM.inputs.username.value.trim(),
+                m = DOM.profile.saveMsg;
+            if (!n || n.includes(' ') || n.length > 45) {
+                m.textContent = "Invalid name (no spaces).";
+                m.className = "text-xs text-red-500 mt-1 font-bold";
+                return
+            }
+            State.save('username', n);
+            UIManager.updateProfileDisplay();
+            m.textContent = "Saved!";
+            m.className = "text-xs text-green-500 mt-1 font-bold";
+            const e = State.runtime.allWords.some(w => w.text.toUpperCase() === n.toUpperCase());
+            if (!e) {
+                m.textContent = "Saved & submitted as new word!";
+                try {
+                    await API.submitWord(n);
+                    State.incrementContributor()
+                } catch {
+                    console.error("Failed to auto-submit")
+                }
+            }
+            setTimeout(() => m.textContent = '', 2000)
+        };
+        document.getElementById('shareProfileButton').onclick = () => ShareManager.share();
+        DOM.daily.closeBtn.onclick = () => {
+            this.toggle('dailyResult', false);
+            Game.disableDailyMode()
+        };
+        DOM.profile.photoInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            if (file.size > 2 * 1024 * 1024) {
+                alert("File too large. Please choose an image under 2MB.");
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (readerEvent) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const MAX_SIZE = 150; 
+                    let width = img.width;
+                    let height = img.height;
+                    if (width > height) {
+                        if (width > MAX_SIZE) {
+                            height *= MAX_SIZE / width;
+                            width = MAX_SIZE;
+                        }
+                    } else {
+                        if (height > MAX_SIZE) {
+                            width *= MAX_SIZE / height;
+                            height = MAX_SIZE;
+                        }
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                    State.save('profilePhoto', dataUrl);
+                    UIManager.updateProfileDisplay();
+                    DOM.profile.saveMsg.textContent = "Photo Updated!";
+                    DOM.profile.saveMsg.className = "text-xs text-green-500 mt-1 font-bold";
+                    setTimeout(() => DOM.profile.saveMsg.textContent = '', 2000);
+                };
+                img.src = readerEvent.target.result;
+            };
+            reader.readAsDataURL(file);
+        };
+        Object.keys(DOM.modals).forEach(k => {
+            DOM.modals[k].addEventListener('click', e => {
+                if (e.target === DOM.modals[k]) this.toggle(k, false)
+            })
+        })
+    }
+};
+
 // --- MAIN GAME LOGIC ---
 const Game = {
     cleanStyles(e) {
@@ -1838,27 +2017,18 @@ const Game = {
         if (u) UIManager.showMessage("Loading...");
         const d = await API.fetchWords();
         if (d) {
-            // Non-Destructive Data Load
-            // We load ALL words into state, but `nextWord` will filter them
-            State.runtime.allWords = d.filter(w => (w.notWordVotes || 0) < 3);
-            
+            let words = d.filter(w => (w.notWordVotes || 0) < 3);
+            if (State.data.settings.zeroVotesOnly) {
+                words = words.filter(w => (w.goodVotes || 0) === 0 && (w.badVotes || 0) === 0);
+            }
+            State.runtime.allWords = words;
             UIManager.updateStats();
             if (u && !State.runtime.isDailyMode) this.nextWord()
         } else UIManager.showMessage("Connection Error", true)
     },
     nextWord() {
-        let p = State.runtime.allWords;
+        const p = State.runtime.allWords;
         if (!p.length) return;
-
-        // --- SMART FILTERING LOGIC ---
-        // If "Only 0/0" mode is on, we filter the list *temporarily* for selection
-        if (State.data.settings.zeroVotesOnly) {
-            const unvoted = p.filter(w => (w.goodVotes || 0) === 0 && (w.badVotes || 0) === 0);
-            // If there are unvoted words, use them. Otherwise, fallback to all words.
-            if (unvoted.length > 0) p = unvoted;
-            else UIManager.showPostVoteMessage("No more new words! Showing random.");
-        }
-
         const r = Math.random(),
             { CAKE, LLAMA, POTATO, SQUIRREL, MASON } = CONFIG.SPECIAL,
             b = State.data.badges;
@@ -1868,39 +2038,23 @@ const Game = {
         else if (!b.potato && r < CAKE.prob + LLAMA.prob + POTATO.prob) sp = POTATO.text;
         else if (!b.squirrel && r < CAKE.prob + LLAMA.prob + POTATO.prob + SQUIRREL.prob) sp = SQUIRREL.text;
         else if (!b.bone && r < CAKE.prob + LLAMA.prob + POTATO.prob + SQUIRREL.prob + MASON.prob) sp = MASON.text;
-        
         if (sp) {
-            // Special words are always selected from the FULL list
-            const i = State.runtime.allWords.findIndex(w => w.text.toUpperCase() === sp);
+            const i = p.findIndex(w => w.text.toUpperCase() === sp);
             if (i !== -1 && i !== State.runtime.currentWordIndex) {
                 State.runtime.currentWordIndex = i;
-                UIManager.displayWord(State.runtime.allWords[i]);
+                UIManager.displayWord(p[i]);
                 return
             }
         }
-        
-        // Selection Algorithm (Weighted Random)
         let av = p.reduce((acc, w, i) => {
-            // Note: We need the index relative to the FULL list, not the filtered `p`
-            const trueIndex = State.runtime.allWords.indexOf(w);
-            if (!State.data.seenHistory.includes(trueIndex) && trueIndex !== State.runtime.currentWordIndex) {
-                 acc.push({ i: trueIndex, v: (w.goodVotes || 0) + (w.badVotes || 0) });
-            }
+            if (!State.data.seenHistory.includes(i) && i !== State.runtime.currentWordIndex) acc.push({ i, v: (w.goodVotes || 0) + (w.badVotes || 0) });
             return acc
         }, []);
-        
-        if (!av.length) {
-             // Fallback if history is full
-             av = p.map(w => {
-                 const trueIndex = State.runtime.allWords.indexOf(w);
-                 return { i: trueIndex, v: (w.goodVotes || 0) + (w.badVotes || 0) }
-             }).filter(x => x.i !== State.runtime.currentWordIndex);
-        }
-
+        if (!av.length) av = p.map((w, i) => ({ i, v: (w.goodVotes || 0) + (w.badVotes || 0) })).filter(x => x.i !== State.runtime.currentWordIndex);
         let tw = 0;
         av = av.map(c => {
             let w = 1.0 / (c.v + 1);
-            if (State.runtime.allWords[c.i].text.toUpperCase() === CAKE.text) w *= CONFIG.BOOST_FACTOR;
+            if (p[c.i].text.toUpperCase() === CAKE.text) w *= CONFIG.BOOST_FACTOR;
             tw += w;
             return { i: c.i, w }
         });
@@ -1917,7 +2071,7 @@ const Game = {
         State.data.seenHistory.push(sel);
         if (State.data.seenHistory.length > CONFIG.HISTORY_SIZE) State.data.seenHistory.shift();
         State.save('seenHistory', State.data.seenHistory);
-        UIManager.displayWord(State.runtime.allWords[sel])
+        UIManager.displayWord(p[sel])
     },
     loadSpecial(t) {
         const i = State.runtime.allWords.findIndex(w => w.text.toUpperCase() === t);
@@ -1956,7 +2110,6 @@ const Game = {
         const t = CONFIG.VOTE.COOLDOWN_TIERS;
         let r = t[Math.min(State.runtime.mashLevel, t.length - 1)];
         UIManager.showMessage(`Mashing detected. Wait ${r}s...`, true);
-        Haptics.heavy(); // Haptic Feedback
         State.runtime.cooldownTimer = setInterval(() => {
             r--;
             if (r > 0) UIManager.showMessage(`Wait ${r}s...`, true);
@@ -1979,13 +2132,6 @@ const Game = {
             this.handleCooldown();
             return
         }
-        
-        // Haptic Feedback for Button Click (Not Swipe)
-        if (!s) {
-            if (t === 'notWord') Haptics.heavy();
-            else Haptics.medium();
-        }
-
         const w = State.runtime.allWords[State.runtime.currentWordIndex],
             up = w.text.toUpperCase(),
             { CAKE, LLAMA, POTATO, SQUIRREL, MASON } = CONFIG.SPECIAL;
@@ -2071,10 +2217,6 @@ const Game = {
                 if (State.data.voteCounterForTips % CONFIG.TIP_COOLDOWN === 0) m = CONFIG.TIPS[Math.floor(Math.random() * CONFIG.TIPS.length)]
             }
             UIManager.showPostVoteMessage(m);
-            
-            // Haptic Feedback for Vote Success (Medium)
-            if (t === 'good' || t === 'bad') Haptics.medium();
-
             UIManager.updateStats();
             setTimeout(() => {
                 wd.classList.remove('animate-fly-left', 'animate-fly-right', 'swipe-good-color', 'swipe-bad-color', 'override-theme-color');
@@ -2126,7 +2268,6 @@ const InputHandler = {
                     return
                 }
                 this.drag = true;
-                Haptics.light(); // Light haptic on drag start
                 Game.cleanStyles(wd);
                 wd.style.background = 'none';
                 wd.style.webkitTextFillColor = 'initial'
