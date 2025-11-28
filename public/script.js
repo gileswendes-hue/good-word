@@ -1622,6 +1622,7 @@ const Game = {
         InputHandler.init();
         ThemeManager.init();
         ModalManager.init();
+		UIManager.updateProfileDisplay();
         this.checkDailyStatus();
         await this.refreshData()
     },
