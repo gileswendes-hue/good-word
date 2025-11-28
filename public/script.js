@@ -68,14 +68,12 @@ const CONFIG = {
     ]
 };
 
-// --- RESTORED DEPENDENCIES ---
+// --- RESTORED DEPENDENCIES (These were missing) ---
 
-// 1. Effects State Container
 const Effects = {
     ballLoop: null
 };
 
-// 2. API Handler
 const API = {
     async fetchWords() {
         try {
@@ -102,7 +100,6 @@ const API = {
     }
 };
 
-// 3. Theme Manager
 const ThemeManager = {
     secrets: {},
     init() {
