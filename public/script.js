@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.5.12',
+    APP_VERSION: '5.5.13',
 	
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -162,6 +162,7 @@ const DOM = {
             colorblind: document.getElementById('toggleColorblind'),
             largeText: document.getElementById('toggleLargeText'),
 			tilt: document.getElementById('toggleTilt')
+			mirror: document.getElementById('toggleMirror')
         }
     },
     general: {
@@ -198,7 +199,8 @@ const State = {
             showPercentages: true,
             colorblindMode: false,
             largeText: false,
-			enableTilt: false
+			enableTilt: false,
+			mirrorMode: false
         },
         currentTheme: localStorage.getItem('currentTheme') || 'default',
         unlockedThemes: JSON.parse(localStorage.getItem('unlockedThemes')) || [],
@@ -267,7 +269,11 @@ const Accessibility = {
         const s = State.data.settings,
             b = document.body;
         b.classList.toggle('mode-colorblind', s.colorblindMode);
-        b.classList.toggle('mode-large-text', s.largeText)
+        b.classList.toggle('mode-large-text', s.largeText);
+        
+
+        b.style.transform = s.mirrorMode ? 'scaleX(-1)' : '';
+        b.style.overflowX = 'hidden'; 
     },
     getColors() {
         const cb = State.data.settings.colorblindMode;
@@ -1034,6 +1040,15 @@ const ModalManager = {
             const v = e.target.checked;
             State.save('settings', { ...State.data.settings, colorblindMode: v });
             Accessibility.apply()
+        };
+		DOM.inputs.settings.mirror.checked = State.data.settings.mirrorMode;
+            DOM.inputs.settings.mirror.onchange = e => {
+                const v = e.target.checked;
+                State.save('settings', { ...State.data.settings, mirrorMode: v });
+                Accessibility.apply();
+            };
+            
+            this.toggle('settings', true)
         };
         DOM.inputs.settings.largeText.onchange = e => {
             const v = e.target.checked;
@@ -2022,15 +2037,30 @@ const InputHandler = {
             const dX = e.changedTouches[0].clientX - this.sX;
             wd.classList.remove('override-theme-color');
             if (this.raf) cancelAnimationFrame(this.raf);
+            
             if (Math.abs(dX) > CONFIG.VOTE.SWIPE_THRESHOLD) {
-                const l = dX < 0;
+                // Determine direction
+                let l = dX < 0;
+                
+                // INVERT if Mirror Mode is on so controls match visual buttons
+                if (State.data.settings.mirrorMode) l = !l; 
+
                 wd.style.transition = 'transform .4s ease-out, opacity .4s ease-out';
-                wd.style.transform = `translate(${l?-window.innerWidth:window.innerWidth}px, 0px) rotate(${l?-20:20}deg)`;
+                // We also flip the exit animation direction so it looks natural
+                const exitX = l ? -window.innerWidth : window.innerWidth;
+                
+                // If mirrored, we visually flip the rotation too
+                const rot = l ? -20 : 20; 
+                
+                wd.style.transform = `translate(${exitX}px, 0px) rotate(${rot}deg)`;
                 wd.style.opacity = '0';
+                
                 const colors = Accessibility.getColors();
                 wd.style.color = l ? colors.good : colors.bad;
+                
                 Game.vote(l ? 'good' : 'bad', true)
             } else {
+                // ... existing reset logic ...
                 wd.classList.add('word-reset');
                 wd.style.transform = 'translate(0,0) rotate(0)';
                 wd.style.color = '';
