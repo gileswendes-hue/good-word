@@ -165,8 +165,8 @@ const DOM = {
             largeText: document.getElementById('toggleLargeText'),
             tilt: document.getElementById('toggleTilt'),
             mirror: document.getElementById('toggleMirror'),
-            mute: document.getElementById('toggleMute'),
-            zeroVotes: document.getElementById('toggleZeroVotes')
+            mute: null, // Will be injected
+            zeroVotes: null // Will be injected
         }
     },
     general: {
