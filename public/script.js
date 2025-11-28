@@ -161,7 +161,7 @@ const DOM = {
             percentages: document.getElementById('togglePercentages'),
             colorblind: document.getElementById('toggleColorblind'),
             largeText: document.getElementById('toggleLargeText'),
-			tilt: document.getElementById('toggleTilt')
+			tilt: document.getElementById('toggleTilt'), // Fixed: Added comma
 			mirror: document.getElementById('toggleMirror')
         }
     },
@@ -1031,6 +1031,15 @@ const ModalManager = {
                 State.save('settings', { ...State.data.settings, enableTilt: v });
                 TiltManager.refresh(); 
             };
+            
+            // Fixed: Moved Mirror Mode logic inside onclick properly
+            DOM.inputs.settings.mirror.checked = State.data.settings.mirrorMode;
+            DOM.inputs.settings.mirror.onchange = e => {
+                const v = e.target.checked;
+                State.save('settings', { ...State.data.settings, mirrorMode: v });
+                Accessibility.apply();
+            };
+
             this.toggle('settings', true)
         };
         document.getElementById('closeSettingsModal').onclick = () => this.toggle('settings', false);
@@ -1040,15 +1049,6 @@ const ModalManager = {
             const v = e.target.checked;
             State.save('settings', { ...State.data.settings, colorblindMode: v });
             Accessibility.apply()
-        };
-		DOM.inputs.settings.mirror.checked = State.data.settings.mirrorMode;
-            DOM.inputs.settings.mirror.onchange = e => {
-                const v = e.target.checked;
-                State.save('settings', { ...State.data.settings, mirrorMode: v });
-                Accessibility.apply();
-            };
-            
-            this.toggle('settings', true)
         };
         DOM.inputs.settings.largeText.onchange = e => {
             const v = e.target.checked;
