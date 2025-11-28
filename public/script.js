@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.6.1',
+    APP_VERSION: '5.6.3',
 
     // Special words with custom effects and probabilities
     SPECIAL: {
@@ -21,7 +21,6 @@ const CONFIG = {
         SWIPE_THRESHOLD: 100
     },
 
-    // Base64 encoded theme keywords to prevent spoilers in code
     THEME_SECRETS: {
         rainbow: 'UkFJTkJPV3xHQVl8U1BBUktMRXxDT0xPVVJ8UFJJREV8VU5JQ09STnxQUk9VRHxRVUVFUnxHTElUVEVSfExFU0JJQU58VElOU0VM',
         dark: 'TUlETklHSFR8QkxBQ0t8U0hBREV8R09USHxTSEFET1d8TklOSkF8REFSS3xOSUdIVHxTVEVBTFRI',
@@ -69,7 +68,6 @@ const CONFIG = {
     ]
 };
 
-// --- DOM ELEMENT REFERENCES ---
 const DOM = {
     header: {
         logoArea: document.getElementById('logoArea'),
@@ -165,7 +163,8 @@ const DOM = {
             colorblind: document.getElementById('toggleColorblind'),
             largeText: document.getElementById('toggleLargeText'),
             tilt: document.getElementById('toggleTilt'),
-            mirror: document.getElementById('toggleMirror')
+            mirror: document.getElementById('toggleMirror'),
+            mute: document.getElementById('toggleMute')
         }
     },
     general: {
@@ -203,7 +202,8 @@ const State = {
             colorblindMode: false,
             largeText: false,
             enableTilt: false,
-            mirrorMode: false
+            mirrorMode: false,
+            muteSounds: false
         },
         currentTheme: localStorage.getItem('currentTheme') || 'default',
         unlockedThemes: JSON.parse(localStorage.getItem('unlockedThemes')) || [],
@@ -277,7 +277,6 @@ const Accessibility = {
         b.classList.toggle('mode-colorblind', s.colorblindMode);
         b.classList.toggle('mode-large-text', s.largeText);
         
-        // Mirror Mode Logic
         b.style.transform = s.mirrorMode ? 'scaleX(-1)' : '';
         b.style.overflowX = 'hidden'; 
     },
@@ -329,7 +328,6 @@ const Physics = {
             minX = (W - cylW) / 2,
             maxX = minX + cylW;
         
-        // Physics update loop
         for (let s = 0; s < 8; s++) {
             Physics.balls.forEach(b => {
                 if (!b.drag) {
@@ -357,7 +355,6 @@ const Physics = {
                     }
                 }
             });
-            // Collision detection
             for (let i = 0; i < Physics.balls.length; i++) {
                 for (let j = i + 1; j < Physics.balls.length; j++) {
                     const b1 = Physics.balls[i],
@@ -388,7 +385,6 @@ const Physics = {
             }
         }
         
-        // Render
         Physics.balls.forEach(b => {
             b.el.style.transform = `translate(${b.x}px,${b.y}px)`;
             if (b.bubble) {
@@ -412,6 +408,8 @@ const AudioEngine = {
         }
     },
     startBuzz() {
+        if (State.data.settings.muteSounds) return; // Mute Check
+        
         if (!this.ctx) this.init();
         if (this.osc) this.stopBuzz();
         
@@ -432,12 +430,6 @@ const AudioEngine = {
         this.osc.frequency.linearRampToValueAtTime(nextPitch, nextTime);
         setTimeout(() => this.rampPitch(), 150);
     },
-    setStuckMode(isStuck) {
-        if (!this.osc) return;
-        const pitch = isStuck ? 900 : 600;
-        this.osc.frequency.setValueAtTime(pitch, this.ctx.currentTime);
-        this.gain.gain.linearRampToValueAtTime(isStuck ? 0.05 : 0.02, this.ctx.currentTime + 0.1);
-    },
     stopBuzz() {
         if (this.osc) {
             try { this.osc.stop(); } catch(e){}
@@ -447,15 +439,24 @@ const AudioEngine = {
     }
 };
 
-// --- MOSQUITO LOGIC ---
+// --- MOSQUITO LOGIC (CARTOON STYLE) ---
 const MosquitoManager = {
     el: null,
+    svg: null,
+    path: null,
     checkInterval: null,
+    
     x: 50, y: 50, 
-    vx: 0, vy: 0,
-    state: 'hidden', // hidden, flying, stuck, thanking, leaving
+    angle: 0,     
+    speed: 0.2,   
+    turnSpeed: 0, 
+    
+    trailPoints: [],
+    MAX_TRAIL: 40,
+
+    state: 'hidden', 
     raf: null,
-    COOLDOWN: 5 * 60 * 1000, // 5 Minutes in milliseconds
+    COOLDOWN: 5 * 60 * 1000, 
 
     startMonitoring() {
         if (this.checkInterval) clearInterval(this.checkInterval);
@@ -470,54 +471,63 @@ const MosquitoManager = {
 
     attemptSpawn() {
         if (this.el) return;
-
         const now = Date.now();
         const last = State.data.lastMosquitoSpawn;
-
         if (now - last < this.COOLDOWN) return;
         if (Math.random() > 0.3) return; 
-
         this.init();
     },
 
     init() {
         if (this.el) this.remove();
+        
         this.el = document.createElement('div');
         this.el.innerHTML = '🦟';
         this.el.className = 'mosquito-entity';
         
-        // Ensure visibility: Spawn ON SCREEN (5% or 95% width)
         const startRight = Math.random() > 0.5;
         this.x = startRight ? 95 : 5; 
-        this.y = Math.random() * 50 + 10; // Stay in upper half to encourage web collision
+        this.y = Math.random() * 50 + 10;
+        this.angle = startRight ? Math.PI : 0;
 
         Object.assign(this.el.style, {
             position: 'fixed',
             fontSize: '3rem',
-            zIndex: '100', // Above other elements
+            zIndex: '100',
             pointerEvents: 'auto',
             cursor: 'pointer',
-            transition: 'transform 0.1s linear',
+            transition: 'none', 
             filter: 'drop-shadow(2px 4px 6px rgba(0,0,0,0.5))',
             left: this.x + '%', 
-            top: this.y + '%'
+            top: this.y + '%',
+            willChange: 'transform, left, top'
         });
+
+        this.svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        Object.assign(this.svg.style, {
+            position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+            pointerEvents: 'none', zIndex: '99'
+        });
+        
+        this.path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        this.path.setAttribute("fill", "none");
+        this.path.setAttribute("stroke", "rgba(0,0,0,0.3)"); 
+        this.path.setAttribute("stroke-width", "2");
+        this.path.setAttribute("stroke-dasharray", "5, 5");
+        this.path.setAttribute("stroke-linecap", "round");
+        
+        this.svg.appendChild(this.path);
+        document.body.appendChild(this.svg);
+        document.body.appendChild(this.el);
         
         this.el.onclick = (e) => {
             e.stopPropagation();
-            if (this.state === 'stuck') {
-                this.startRescue();
-            } else if (this.state === 'flying') {
-                UIManager.showPostVoteMessage("It's too fast! Catch it in the web!");
-            }
+            if (this.state === 'stuck') this.startRescue();
+            else if (this.state === 'flying') UIManager.showPostVoteMessage("Too fast! Wait for the web!");
         };
         
-        document.body.appendChild(this.el);
         this.state = 'flying';
-        
-        // Initial velocity moves INTO the screen
-        this.vx = startRight ? -0.5 : 0.5; 
-        
+        this.trailPoints = [];
         AudioEngine.startBuzz();
         this.loop();
     },
@@ -525,25 +535,18 @@ const MosquitoManager = {
     startRescue() {
         this.state = 'thanking';
         AudioEngine.stopBuzz();
+        
+        this.path.setAttribute('d', '');
+        this.trailPoints = [];
 
         const bubble = document.createElement('div');
         bubble.textContent = "Thank you! 💖";
         Object.assign(bubble.style, {
-            position: 'absolute',
-            bottom: '100%',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: 'white',
-            color: 'black',
-            padding: '8px 12px',
-            borderRadius: '12px',
-            fontSize: '14px',
-            fontWeight: 'bold',
-            whiteSpace: 'nowrap',
-            border: '2px solid #ccc',
-            boxShadow: '0 4px 10px rgba(0,0,0,0.2)',
-            pointerEvents: 'none',
-            zIndex: '101'
+            position: 'absolute', bottom: '100%', left: '50%',
+            transform: 'translateX(-50%)', background: 'white', color: 'black',
+            padding: '8px 12px', borderRadius: '12px', fontSize: '14px',
+            fontWeight: 'bold', whiteSpace: 'nowrap', border: '2px solid #ccc',
+            boxShadow: '0 4px 10px rgba(0,0,0,0.2)', pointerEvents: 'none', zIndex: '101'
         });
         this.el.appendChild(bubble);
 
@@ -551,65 +554,72 @@ const MosquitoManager = {
             if (bubble) bubble.remove();
             this.state = 'leaving';
             AudioEngine.startBuzz();
-            this.vx = (Math.random() < 0.5 ? -1 : 1) * 3; 
-            this.vy = (Math.random() - 0.5) * 3;
+            this.angle = Math.random() * Math.PI * 2;
+            this.speed = 0.5;
         }, 2000);
     },
 
     loop() {
         if (!document.body.contains(this.el)) return;
-        
-        if (this.state === 'thanking') {
-            this.el.style.transform = `scale(1.2)`; 
-        } 
-        else if (this.state === 'flying' || this.state === 'leaving') {
-            if (this.state === 'flying') {
-                // Erratic movement
-                this.vx += (Math.random() - 0.5) * 0.4;
-                this.vy += (Math.random() - 0.5) * 0.4;
-                
-                // Speed limit
-                const max = 1.0; // Slowed down slightly for playability
-                this.vx = Math.max(Math.min(this.vx, max), -max);
-                this.vy = Math.max(Math.min(this.vy, max), -max);
-                
-                // Screen Bounce (Keep strictly on screen 0-95%)
-                if (this.x < 2) this.vx = Math.abs(this.vx) + 0.1;
-                if (this.x > 93) this.vx = -(Math.abs(this.vx) + 0.1);
-                if (this.y < 2) this.vy = Math.abs(this.vy) + 0.1;
-                if (this.y > 93) this.vy = -(Math.abs(this.vy) + 0.1);
 
-                // Web Trap (Top Right 25% of screen)
-                if (this.x > 75 && this.y < 25) {
-                    this.state = 'stuck';
-                    AudioEngine.setStuckMode(true);
-                    UIManager.showPostVoteMessage("It's stuck in the web!");
-                }
+        if (this.state === 'flying' || this.state === 'leaving') {
+            const wander = (Math.random() - 0.5) * 0.05;
+            this.turnSpeed += wander;
+            
+            this.turnSpeed = Math.max(Math.min(this.turnSpeed, 0.1), -0.1);
+
+            if (Math.random() < 0.01) {
+                this.turnSpeed = (Math.random() < 0.5 ? 1 : -1) * 0.25; 
             }
-            
-            this.x += this.vx;
-            this.y += this.vy;
-            
+
+            if (this.x < 5) this.turnSpeed += 0.02;
+            if (this.x > 95) this.turnSpeed -= 0.02;
+            if (this.y < 5) this.turnSpeed += 0.02;
+            if (this.y > 95) this.turnSpeed -= 0.02;
+
+            this.angle += this.turnSpeed;
+            this.x += Math.cos(this.angle) * this.speed;
+            this.y += Math.sin(this.angle) * this.speed;
+
+            this.x = Math.max(0, Math.min(100, this.x));
+            this.y = Math.max(0, Math.min(100, this.y));
+
             this.el.style.left = this.x + '%';
             this.el.style.top = this.y + '%';
+            this.el.style.transform = `rotate(${this.angle * (180/Math.PI) + 90}deg)`;
+
+            const pxX = (this.x / 100) * window.innerWidth;
+            const pxY = (this.y / 100) * window.innerHeight;
             
-            const rot = Math.atan2(this.vy, this.vx) * (180/Math.PI) + 90;
-            this.el.style.transform = `rotate(${rot}deg)`;
+            this.trailPoints.push({x: pxX, y: pxY});
+            if (this.trailPoints.length > this.MAX_TRAIL) this.trailPoints.shift();
+
+            if (this.trailPoints.length > 1) {
+                const d = `M ${this.trailPoints.map(p => `${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' L ')}`;
+                this.path.setAttribute('d', d);
+            }
+
+            // Web Check (Top Right 25%)
+            if (this.state === 'flying' && this.x > 75 && this.y < 25) {
+                this.state = 'stuck';
+                AudioEngine.stopBuzz(); // Mute when stuck
+                UIManager.showPostVoteMessage("It's stuck in the web!");
+            }
 
             if (this.state === 'leaving') {
-                // Ensure it is fully off screen before finishing
-                if (this.x < -10 || this.x > 110 || this.y < -10 || this.y > 110) {
+                if (this.x < 0 || this.x > 100 || this.y < 0 || this.y > 100) {
                     this.finish();
                 }
             }
-        
+
         } else if (this.state === 'stuck') {
-            // Jitter
-            const jitterX = (Math.random() - 0.5) * 5;
-            const jitterY = (Math.random() - 0.5) * 5;
+            const jitterX = (Math.random() - 0.5) * 4;
+            const jitterY = (Math.random() - 0.5) * 4;
             this.el.style.transform = `translate(${jitterX}px, ${jitterY}px)`;
+        } else if (this.state === 'thanking') {
+            this.el.style.transform = `scale(1.2)`;
         }
-        
+
         this.raf = requestAnimationFrame(() => this.loop());
     },
 
@@ -628,7 +638,10 @@ const MosquitoManager = {
         if (this.raf) cancelAnimationFrame(this.raf);
         AudioEngine.stopBuzz();
         if (this.el && this.el.parentNode) this.el.remove();
+        if (this.svg && this.svg.parentNode) this.svg.remove(); 
         this.el = null;
+        this.svg = null;
+        this.trailPoints = [];
         this.state = 'hidden';
     }
 };
@@ -925,12 +938,10 @@ const Effects = {
             return
         }
         
-        // --- SPIDER LOGIC ---
         if (!document.getElementById('spider-wrap')) {
             const wrap = document.createElement('div');
             wrap.id = 'spider-wrap';
             
-            // Fix: Spider needs high z-index to appear over fly when eating
             wrap.style.zIndex = '101'; 
             wrap.style.position = 'fixed';
             wrap.style.top = '0';
@@ -948,7 +959,6 @@ const Effects = {
                 const phrases = ['ouch!', 'hey frend!', "I wouldn't hurt a fly!", "I'm more scared of you...", "I'm a web dev!", "just hanging", "fangs a lot!"];
                 let txt = phrases[Math.floor(Math.random() * phrases.length)];
                 
-                // SPIDER EATING LOGIC
                 let targetHeight = Math.random() * 40 + 20; 
                 let isHunting = false;
 
@@ -964,6 +974,7 @@ const Effects = {
                 bub.innerText = txt;
                 void thread.offsetWidth;
                 
+                thread.style.transition = 'height 2s ease-in-out';
                 thread.style.height = targetHeight + 'vh';
                 
                 body.onclick = () => {
@@ -972,11 +983,14 @@ const Effects = {
                     setTimeout(() => bub.style.opacity = '0', 2000)
                 };
 
-                setTimeout(() => {
-                    if (isHunting && MosquitoManager.state === 'stuck') {
-                        MosquitoManager.eat();
-                    }
-                }, 1000); 
+                // Wait 2s for drop to finish, then another 2s before eating = 4s total
+                if (isHunting) {
+                    setTimeout(() => {
+                        if (MosquitoManager.state === 'stuck') {
+                            MosquitoManager.eat();
+                        }
+                    }, 4000); 
+                }
 
                 this.spiderTimeout = setTimeout(() => {
                     thread.style.height = '0';
@@ -1313,6 +1327,24 @@ const ModalManager = {
                 const v = e.target.checked;
                 State.save('settings', { ...State.data.settings, mirrorMode: v });
                 Accessibility.apply();
+            };
+
+            // Mute Toggle Logic
+            if (!document.getElementById('toggleMute')) {
+                // Inject HTML if missing (Optional safeguard)
+                const container = DOM.inputs.settings.mirror.closest('.space-y-4') || DOM.inputs.settings.mirror.parentElement.parentElement;
+                const div = document.createElement('div');
+                div.className = "flex items-center justify-between";
+                div.innerHTML = `<label for="toggleMute" class="text-lg font-medium text-gray-700">Mute All Sounds</label><input type="checkbox" id="toggleMute" class="h-6 w-6 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">`;
+                container.appendChild(div);
+                DOM.inputs.settings.mute = document.getElementById('toggleMute');
+            }
+            
+            DOM.inputs.settings.mute.checked = State.data.settings.muteSounds;
+            DOM.inputs.settings.mute.onchange = e => {
+                const v = e.target.checked;
+                State.save('settings', { ...State.data.settings, muteSounds: v });
+                if (v) AudioEngine.stopBuzz();
             };
 
             this.toggle('settings', true)
@@ -1980,33 +2012,45 @@ const Game = {
     activateDailyMode() {
         if (State.runtime.isDailyMode) return;
         
+        // FIX 1: Use Local Time instead of UTC (toISOString)
+        // This ensures the word changes when the user's actual day changes
         const now = new Date();
         const t = now.getFullYear() + '-' + (now.getMonth() + 1) + '-' + now.getDate();
         
+        // Check if we already played today
         if (t === State.data.daily.lastDate) return;
 
         State.runtime.isDailyMode = true;
         DOM.game.dailyBanner.classList.add('daily-locked-mode');
         
+        // Hide standard buttons
         DOM.game.buttons.notWord.style.display = 'none';
         DOM.game.buttons.custom.style.display = 'none';
         
         UIManager.showMessage('Loading Daily Word...');
 
+        // --- NEW SELECTION ALGORITHM (Seeded Index) ---
+        // 1. Create a sorted copy of the words. This ensures that even if the API 
+        // returns words in a different order, every user gets the same daily word.
         const sortedWords = [...State.runtime.allWords].sort((a, b) => 
             a.text.localeCompare(b.text)
         );
 
+        // 2. Turn the Date String into a numeric seed
         let seed = 0;
         for (let i = 0; i < t.length; i++) {
             seed = ((seed << 5) - seed) + t.charCodeAt(i);
-            seed |= 0; 
+            seed |= 0; // Convert to 32bit integer
         }
         seed = Math.abs(seed);
 
+        // 3. Pick the word using the Modulo operator (%)
+        // This guarantees a uniform distribution through the list over time
         const winningWordRef = sortedWords[seed % sortedWords.length];
 
         if (winningWordRef) {
+            // Find the index of the winner in the ORIGINAL State list
+            // (We need the original index for the game logic to work)
             const idx = State.runtime.allWords.findIndex(w => w.text === winningWordRef.text);
             
             if (idx !== -1) {
@@ -2149,6 +2193,7 @@ const Game = {
         const wd = DOM.game.wordDisplay;
         const colors = Accessibility.getColors();
         
+        // Handle visual feedback
         if (!s && (t === 'good' || t === 'bad')) {
             this.cleanStyles(wd);
             wd.style.setProperty('--dynamic-swipe-color', t === 'good' ? colors.good : colors.bad);
@@ -2159,6 +2204,7 @@ const Game = {
             wd.classList.add(t === 'good' ? 'animate-fly-left' : 'animate-fly-right')
         }
         
+        // Helper for Special Effects
         const hSpec = (c, k) => {
             State.unlockBadge(k);
             this.cleanStyles(wd);
@@ -2306,8 +2352,10 @@ const InputHandler = {
                 if (State.data.settings.mirrorMode) l = !l; 
 
                 wd.style.transition = 'transform .4s ease-out, opacity .4s ease-out';
-                // Flip animation direction if mirror mode is on
+                // We also flip the exit animation direction so it looks natural
                 const exitX = l ? -window.innerWidth : window.innerWidth;
+                
+                // If mirrored, we visually flip the rotation too
                 const rot = l ? -20 : 20; 
                 
                 wd.style.transform = `translate(${exitX}px, 0px) rotate(${rot}deg)`;
@@ -2318,6 +2366,7 @@ const InputHandler = {
                 
                 Game.vote(l ? 'good' : 'bad', true)
             } else {
+                // ... existing reset logic ...
                 wd.classList.add('word-reset');
                 wd.style.transform = 'translate(0,0) rotate(0)';
                 wd.style.color = '';
