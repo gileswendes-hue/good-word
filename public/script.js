@@ -1636,10 +1636,13 @@ const Game = {
             DOM.game.dailyBanner.style.display = 'block'
         }
     },
-    activateDailyMode() {
+activateDailyMode() {
         if (State.runtime.isDailyMode) return;
         
-        const t = new Date().toISOString().split('T')[0]; // Current Date (YYYY-MM-DD)
+        // FIX 1: Use Local Time instead of UTC (toISOString)
+        // This ensures the word changes when the user's actual day changes
+        const now = new Date();
+        const t = now.getFullYear() + '-' + (now.getMonth() + 1) + '-' + now.getDate();
         
         // Check if we already played today
         if (t === State.data.daily.lastDate) return;
@@ -1653,40 +1656,37 @@ const Game = {
         
         UIManager.showMessage('Loading Daily Word...');
 
-        // --- NEW SELECTION ALGORITHM (Stable) ---
-        // This calculates a score for every word based on the date.
-        // The word with the highest score wins.
-        // Adding new words won't change the winner unless the new word happens to beat the high score.
-        
-        let winningWord = null;
-        let highestScore = -1;
+        // --- NEW SELECTION ALGORITHM (Seeded Index) ---
+        // 1. Create a sorted copy of the words. This ensures that even if the API 
+        // returns words in a different order, every user gets the same daily word.
+        const sortedWords = [...State.runtime.allWords].sort((a, b) => 
+            a.text.localeCompare(b.text)
+        );
 
-        State.runtime.allWords.forEach(word => {
-            // Combine Word Text + Date String
-            const key = word.text.toUpperCase() + t;
+        // 2. Turn the Date String into a numeric seed
+        let seed = 0;
+        for (let i = 0; i < t.length; i++) {
+            seed = ((seed << 5) - seed) + t.charCodeAt(i);
+            seed |= 0; // Convert to 32bit integer
+        }
+        seed = Math.abs(seed);
+
+        // 3. Pick the word using the Modulo operator (%)
+        // This guarantees a uniform distribution through the list over time
+        const winningWordRef = sortedWords[seed % sortedWords.length];
+
+        if (winningWordRef) {
+            // Find the index of the winner in the ORIGINAL State list
+            // (We need the original index for the game logic to work)
+            const idx = State.runtime.allWords.findIndex(w => w.text === winningWordRef.text);
             
-            // Generate a unique hash score for this combination
-            let hash = 0;
-            for (let i = 0; i < key.length; i++) {
-                hash = ((hash << 5) - hash) + key.charCodeAt(i);
-                hash |= 0; // Convert to 32bit integer
+            if (idx !== -1) {
+                State.runtime.currentWordIndex = idx;
+                UIManager.displayWord(State.runtime.allWords[idx]);
+            } else {
+                UIManager.showMessage("Error finding word");
             }
-            hash = Math.abs(hash);
-
-            // Check if this is the new "King of the Hill"
-            if (hash > highestScore) {
-                highestScore = hash;
-                winningWord = word;
-            }
-        });
-
-        if (winningWord) {
-            // Find the index of the winner for the game logic to use
-            const idx = State.runtime.allWords.indexOf(winningWord);
-            State.runtime.currentWordIndex = idx;
-            UIManager.displayWord(winningWord);
         } else {
-            // Fallback just in case list is empty
             UIManager.showMessage("No Daily Word Found");
         }
     },
