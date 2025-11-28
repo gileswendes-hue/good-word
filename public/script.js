@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.6.3',
+    APP_VERSION: '5.6.4',
 
     // Special words with custom effects and probabilities
     SPECIAL: {
@@ -68,6 +68,7 @@ const CONFIG = {
     ]
 };
 
+// --- DOM ELEMENT REFERENCES ---
 const DOM = {
     header: {
         logoArea: document.getElementById('logoArea'),
@@ -276,7 +277,6 @@ const Accessibility = {
             b = document.body;
         b.classList.toggle('mode-colorblind', s.colorblindMode);
         b.classList.toggle('mode-large-text', s.largeText);
-        
         b.style.transform = s.mirrorMode ? 'scaleX(-1)' : '';
         b.style.overflowX = 'hidden'; 
     },
@@ -292,9 +292,7 @@ const Accessibility = {
 // --- UTILITIES ---
 const Utils = {
     hexToRgba(hex, alpha) {
-        let r = 0,
-            g = 0,
-            b = 0;
+        let r = 0, g = 0, b = 0;
         if (hex.length === 4) {
             r = parseInt(hex[1] + hex[1], 16);
             g = parseInt(hex[2] + hex[2], 16);
@@ -311,22 +309,17 @@ const Utils = {
 // --- PHYSICS ENGINE (BALL PIT) ---
 const Physics = {
     balls: [],
-    gx: 0,
-    gy: 0.8,
+    gx: 0, gy: 0.8,
     handleOrientation(e) {
-        const x = e.gamma || 0,
-            y = e.beta || 0;
+        const x = e.gamma || 0, y = e.beta || 0;
         const tx = Math.min(Math.max(x / 4, -1), 1);
         const ty = Math.min(Math.max(y / 4, -1), 1);
         Physics.gx += (tx - Physics.gx) * 0.1;
         Physics.gy += (ty - Physics.gy) * 0.1
     },
     run() {
-        const W = window.innerWidth,
-            H = window.innerHeight;
-        const cylW = Math.min(W, 500),
-            minX = (W - cylW) / 2,
-            maxX = minX + cylW;
+        const W = window.innerWidth, H = window.innerHeight;
+        const cylW = Math.min(W, 500), minX = (W - cylW) / 2, maxX = minX + cylW;
         
         for (let s = 0; s < 8; s++) {
             Physics.balls.forEach(b => {
@@ -337,59 +330,33 @@ const Physics = {
                     b.y += b.vy;
                     b.vx *= 0.92;
                     b.vy *= 0.92;
-                    if (b.x < minX) {
-                        b.x = minX;
-                        b.vx *= -0.2
-                    }
-                    if (b.x > maxX - b.r * 2) {
-                        b.x = maxX - b.r * 2;
-                        b.vx *= -0.2
-                    }
-                    if (b.y < 0) {
-                        b.y = 0;
-                        b.vy *= -0.2
-                    }
-                    if (b.y > H - b.r * 2) {
-                        b.y = H - b.r * 2;
-                        b.vy *= -0.2
-                    }
+                    if (b.x < minX) { b.x = minX; b.vx *= -0.2 }
+                    if (b.x > maxX - b.r * 2) { b.x = maxX - b.r * 2; b.vx *= -0.2 }
+                    if (b.y < 0) { b.y = 0; b.vy *= -0.2 }
+                    if (b.y > H - b.r * 2) { b.y = H - b.r * 2; b.vy *= -0.2 }
                 }
             });
             for (let i = 0; i < Physics.balls.length; i++) {
                 for (let j = i + 1; j < Physics.balls.length; j++) {
-                    const b1 = Physics.balls[i],
-                        b2 = Physics.balls[j];
-                    const dx = (b2.x + b2.r) - (b1.x + b1.r),
-                        dy = (b2.y + b2.r) - (b1.y + b1.r);
-                    const dist = Math.sqrt(dx * dx + dy * dy),
-                        minDist = b1.r + b2.r + 0.5;
+                    const b1 = Physics.balls[i], b2 = Physics.balls[j];
+                    const dx = (b2.x + b2.r) - (b1.x + b1.r), dy = (b2.y + b2.r) - (b1.y + b1.r);
+                    const dist = Math.sqrt(dx * dx + dy * dy), minDist = b1.r + b2.r + 0.5;
                     if (dist < minDist && dist > 0) {
-                        const angle = Math.atan2(dy, dx),
-                            tx = (Math.cos(angle) * (minDist - dist)) / 2,
-                            ty = (Math.sin(angle) * (minDist - dist)) / 2;
-                        b1.x -= tx;
-                        b1.y -= ty;
-                        b2.x += tx;
-                        b2.y += ty;
+                        const angle = Math.atan2(dy, dx), tx = (Math.cos(angle) * (minDist - dist)) / 2, ty = (Math.sin(angle) * (minDist - dist)) / 2;
+                        b1.x -= tx; b1.y -= ty; b2.x += tx; b2.y += ty;
                         if (!b1.drag && !b2.drag) {
-                            const nx = dx / dist,
-                                ny = dy / dist;
+                            const nx = dx / dist, ny = dy / dist;
                             const p = 2 * (b1.vx * nx + b1.vy * ny - b2.vx * nx - b2.vy * ny) / 2;
-                            b1.vx -= p * nx * 0.15;
-                            b1.vy -= p * ny * 0.15;
-                            b2.vx += p * nx * 0.15;
-                            b2.vy += p * ny * 0.15
+                            b1.vx -= p * nx * 0.15; b1.vy -= p * ny * 0.15;
+                            b2.vx += p * nx * 0.15; b2.vy += p * ny * 0.15
                         }
                     }
                 }
             }
         }
-        
         Physics.balls.forEach(b => {
             b.el.style.transform = `translate(${b.x}px,${b.y}px)`;
-            if (b.bubble) {
-                b.bubble.style.transform = `translate(${b.x+b.r}px,${b.y-20}px) translate(-50%,-100%)`
-            }
+            if (b.bubble) b.bubble.style.transform = `translate(${b.x+b.r}px,${b.y-20}px) translate(-50%,-100%)`
         });
         Effects.ballLoop = requestAnimationFrame(Physics.run)
     }
@@ -397,9 +364,7 @@ const Physics = {
 
 // --- AUDIO SYNTHESIS FOR MOSQUITO ---
 const AudioEngine = {
-    ctx: null,
-    osc: null,
-    gain: null,
+    ctx: null, osc: null, gain: null,
     init() {
         if (!this.ctx) {
             this.ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -408,8 +373,7 @@ const AudioEngine = {
         }
     },
     startBuzz() {
-        if (State.data.settings.muteSounds) return; // Mute Check
-        
+        if (State.data.settings.muteSounds) return; // Global Mute Check
         if (!this.ctx) this.init();
         if (this.osc) this.stopBuzz();
         
@@ -417,7 +381,7 @@ const AudioEngine = {
         this.osc.type = 'sawtooth';
         this.osc.frequency.value = 600; 
         
-        this.gain.gain.setValueAtTime(0.02, this.ctx.currentTime);
+        this.gain.gain.setValueAtTime(0.015, this.ctx.currentTime); // Subtle volume
         
         this.osc.connect(this.gain);
         this.osc.start();
@@ -441,21 +405,15 @@ const AudioEngine = {
 
 // --- MOSQUITO LOGIC (CARTOON STYLE) ---
 const MosquitoManager = {
-    el: null,
-    svg: null,
-    path: null,
-    checkInterval: null,
+    el: null, svg: null, path: null, checkInterval: null,
     
-    x: 50, y: 50, 
-    angle: 0,     
-    speed: 0.2,   
-    turnSpeed: 0, 
+    // Physics State
+    x: 50, y: 50, angle: 0, speed: 0.15, turnSpeed: 0, 
     
-    trailPoints: [],
-    MAX_TRAIL: 40,
+    // Trail State
+    trailPoints: [], MAX_TRAIL: 40,
 
-    state: 'hidden', 
-    raf: null,
+    state: 'hidden', raf: null,
     COOLDOWN: 5 * 60 * 1000, 
 
     startMonitoring() {
@@ -486,21 +444,15 @@ const MosquitoManager = {
         this.el.className = 'mosquito-entity';
         
         const startRight = Math.random() > 0.5;
-        this.x = startRight ? 95 : 5; 
-        this.y = Math.random() * 50 + 10;
-        this.angle = startRight ? Math.PI : 0;
+        this.x = startRight ? 105 : -5; 
+        this.y = Math.random() * 60 + 10;
+        this.angle = startRight ? Math.PI : 0; 
 
         Object.assign(this.el.style, {
-            position: 'fixed',
-            fontSize: '3rem',
-            zIndex: '100',
-            pointerEvents: 'auto',
-            cursor: 'pointer',
-            transition: 'none', 
+            position: 'fixed', fontSize: '3rem', zIndex: '100',
+            pointerEvents: 'auto', cursor: 'pointer', transition: 'none', 
             filter: 'drop-shadow(2px 4px 6px rgba(0,0,0,0.5))',
-            left: this.x + '%', 
-            top: this.y + '%',
-            willChange: 'transform, left, top'
+            left: this.x + '%', top: this.y + '%', willChange: 'transform, left, top'
         });
 
         this.svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -511,7 +463,7 @@ const MosquitoManager = {
         
         this.path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         this.path.setAttribute("fill", "none");
-        this.path.setAttribute("stroke", "rgba(0,0,0,0.3)"); 
+        this.path.setAttribute("stroke", "rgba(0,0,0,0.2)"); 
         this.path.setAttribute("stroke-width", "2");
         this.path.setAttribute("stroke-dasharray", "5, 5");
         this.path.setAttribute("stroke-linecap", "round");
@@ -534,7 +486,7 @@ const MosquitoManager = {
 
     startRescue() {
         this.state = 'thanking';
-        AudioEngine.stopBuzz();
+        AudioEngine.startBuzz(); // Restart buzz if rescued (unless muted)
         
         this.path.setAttribute('d', '');
         this.trailPoints = [];
@@ -553,9 +505,8 @@ const MosquitoManager = {
         setTimeout(() => {
             if (bubble) bubble.remove();
             this.state = 'leaving';
-            AudioEngine.startBuzz();
             this.angle = Math.random() * Math.PI * 2;
-            this.speed = 0.5;
+            this.speed = 0.4;
         }, 2000);
     },
 
@@ -563,35 +514,51 @@ const MosquitoManager = {
         if (!document.body.contains(this.el)) return;
 
         if (this.state === 'flying' || this.state === 'leaving') {
-            const wander = (Math.random() - 0.5) * 0.05;
-            this.turnSpeed += wander;
-            
-            this.turnSpeed = Math.max(Math.min(this.turnSpeed, 0.1), -0.1);
-
-            if (Math.random() < 0.01) {
-                this.turnSpeed = (Math.random() < 0.5 ? 1 : -1) * 0.25; 
+            // Physics: Straight lines with occasional loops
+            if (Math.abs(this.turnSpeed) < 0.01) {
+                // Currently flying straight-ish, slight wobble
+                this.turnSpeed = (Math.random() - 0.5) * 0.02;
+                
+                // 1% chance to start a loop-the-loop
+                if (Math.random() < 0.01) {
+                    this.turnSpeed = (Math.random() < 0.5 ? 1 : -1) * 0.2; // Start loop
+                }
+            } else {
+                // Currently looping, decay turn speed slowly to return to straight
+                this.turnSpeed *= 0.98;
+                if (Math.abs(this.turnSpeed) < 0.05) this.turnSpeed = 0; // Snap back to straight
             }
-
-            if (this.x < 5) this.turnSpeed += 0.02;
-            if (this.x > 95) this.turnSpeed -= 0.02;
-            if (this.y < 5) this.turnSpeed += 0.02;
-            if (this.y > 95) this.turnSpeed -= 0.02;
 
             this.angle += this.turnSpeed;
             this.x += Math.cos(this.angle) * this.speed;
             this.y += Math.sin(this.angle) * this.speed;
 
-            this.x = Math.max(0, Math.min(100, this.x));
-            this.y = Math.max(0, Math.min(100, this.y));
+            // Screen Wrap (Pac-man style) - Allow flying off-screen
+            if (this.x > 110) this.x = -10;
+            else if (this.x < -10) this.x = 110;
+            
+            // Bounce Y (Floor/Ceiling)
+            if (this.y < 5 || this.y > 95) {
+                this.angle = -this.angle; 
+                this.y = Math.max(5, Math.min(95, this.y));
+            }
 
+            // Render Fly
             this.el.style.left = this.x + '%';
             this.el.style.top = this.y + '%';
             this.el.style.transform = `rotate(${this.angle * (180/Math.PI) + 90}deg)`;
 
+            // Render Trail
             const pxX = (this.x / 100) * window.innerWidth;
             const pxY = (this.y / 100) * window.innerHeight;
             
-            this.trailPoints.push({x: pxX, y: pxY});
+            // Only draw trail if inside screen bounds to avoid lines across screen on wrap
+            if (pxX > 0 && pxX < window.innerWidth) {
+                this.trailPoints.push({x: pxX, y: pxY});
+            } else {
+                this.trailPoints = []; // Break trail on wrap
+            }
+            
             if (this.trailPoints.length > this.MAX_TRAIL) this.trailPoints.shift();
 
             if (this.trailPoints.length > 1) {
@@ -599,22 +566,22 @@ const MosquitoManager = {
                 this.path.setAttribute('d', d);
             }
 
-            // Web Check (Top Right 25%)
-            if (this.state === 'flying' && this.x > 75 && this.y < 25) {
+            // Web Check (Top Right 20%)
+            if (this.state === 'flying' && this.x > 80 && this.y < 20) {
                 this.state = 'stuck';
-                AudioEngine.stopBuzz(); // Mute when stuck
+                AudioEngine.stopBuzz(); // Stop sound immediately
                 UIManager.showPostVoteMessage("It's stuck in the web!");
             }
 
             if (this.state === 'leaving') {
-                if (this.x < 0 || this.x > 100 || this.y < 0 || this.y > 100) {
+                if (this.x < -10 || this.x > 110 || this.y < -10 || this.y > 110) {
                     this.finish();
                 }
             }
 
         } else if (this.state === 'stuck') {
-            const jitterX = (Math.random() - 0.5) * 4;
-            const jitterY = (Math.random() - 0.5) * 4;
+            const jitterX = (Math.random() - 0.5) * 3;
+            const jitterY = (Math.random() - 0.5) * 3;
             this.el.style.transform = `translate(${jitterX}px, ${jitterY}px)`;
         } else if (this.state === 'thanking') {
             this.el.style.transform = `scale(1.2)`;
@@ -942,6 +909,7 @@ const Effects = {
             const wrap = document.createElement('div');
             wrap.id = 'spider-wrap';
             
+            // Fix: Spider needs high z-index to appear over fly when eating
             wrap.style.zIndex = '101'; 
             wrap.style.position = 'fixed';
             wrap.style.top = '0';
@@ -974,6 +942,7 @@ const Effects = {
                 bub.innerText = txt;
                 void thread.offsetWidth;
                 
+                // Straight down drop, no swaying
                 thread.style.transition = 'height 2s ease-in-out';
                 thread.style.height = targetHeight + 'vh';
                 
@@ -983,9 +952,10 @@ const Effects = {
                     setTimeout(() => bub.style.opacity = '0', 2000)
                 };
 
-                // Wait 2s for drop to finish, then another 2s before eating = 4s total
+                // HUNT LOGIC: Drop (2s) -> Wait (2s) -> Eat
                 if (isHunting) {
                     setTimeout(() => {
+                        // After 2s drop + 2s wait = 4s total
                         if (MosquitoManager.state === 'stuck') {
                             MosquitoManager.eat();
                         }
