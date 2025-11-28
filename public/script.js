@@ -1,7 +1,8 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.5.13',
-	
+    APP_VERSION: '5.6.0',
+
+    // Special words with custom effects and probabilities
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
         LLAMA: { text: 'LLAMA', prob: 0.005, fade: 8000, msg: "what llama?", dur: 3000 },
@@ -20,6 +21,7 @@ const CONFIG = {
         SWIPE_THRESHOLD: 100
     },
 
+    // Base64 encoded theme keywords to prevent spoilers in code
     THEME_SECRETS: {
         rainbow: 'UkFJTkJPV3xHQVl8U1BBUktMRXxDT0xPVVJ8UFJJREV8VU5JQ09STnxQUk9VRHxRVUVFUnxHTElUVEVSfExFU0JJQU58VElOU0VM',
         dark: 'TUlETklHSFR8QkxBQ0t8U0hBREV8R09USHxTSEFET1d8TklOSkF8REFSS3xOSUdIVHxTVEVBTFRI',
@@ -67,6 +69,7 @@ const CONFIG = {
     ]
 };
 
+// --- DOM ELEMENT REFERENCES ---
 const DOM = {
     header: {
         logoArea: document.getElementById('logoArea'),
@@ -161,8 +164,8 @@ const DOM = {
             percentages: document.getElementById('togglePercentages'),
             colorblind: document.getElementById('toggleColorblind'),
             largeText: document.getElementById('toggleLargeText'),
-			tilt: document.getElementById('toggleTilt'), // Fixed: Added comma
-			mirror: document.getElementById('toggleMirror')
+            tilt: document.getElementById('toggleTilt'),
+            mirror: document.getElementById('toggleMirror')
         }
     },
     general: {
@@ -199,14 +202,15 @@ const State = {
             showPercentages: true,
             colorblindMode: false,
             largeText: false,
-			enableTilt: false,
-			mirrorMode: false
+            enableTilt: false,
+            mirrorMode: false
         },
         currentTheme: localStorage.getItem('currentTheme') || 'default',
         unlockedThemes: JSON.parse(localStorage.getItem('unlockedThemes')) || [],
         voteCounterForTips: parseInt(localStorage.getItem('voteCounterForTips')) || 0,
         manualTheme: localStorage.getItem('manualTheme') === 'true',
         seenHistory: JSON.parse(localStorage.getItem('seenHistory')) || [],
+        lastMosquitoSpawn: parseInt(localStorage.getItem('lastMosquitoSpawn') || 0),
         daily: {
             streak: parseInt(localStorage.getItem('dailyStreak') || 0),
             lastDate: localStorage.getItem('dailyLastDate') || ''
@@ -233,6 +237,8 @@ const State = {
             s.setItem('dailyLastDate', v.lastDate);
         } else if (k === 'profilePhoto') {
             s.setItem('profilePhoto', v);
+        } else if (k === 'lastMosquitoSpawn') {
+            s.setItem(k, v);
         } else if (k.startsWith('badge_')) s.setItem(k, v);
         else s.setItem(k, v)
     },
@@ -271,7 +277,7 @@ const Accessibility = {
         b.classList.toggle('mode-colorblind', s.colorblindMode);
         b.classList.toggle('mode-large-text', s.largeText);
         
-
+        // Mirror Mode Logic
         b.style.transform = s.mirrorMode ? 'scaleX(-1)' : '';
         b.style.overflowX = 'hidden'; 
     },
@@ -390,6 +396,222 @@ const Physics = {
             }
         });
         Effects.ballLoop = requestAnimationFrame(Physics.run)
+    }
+};
+
+// --- AUDIO SYNTHESIS FOR MOSQUITO ---
+const AudioEngine = {
+    ctx: null,
+    osc: null,
+    gain: null,
+    init() {
+        if (!this.ctx) {
+            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+            this.gain = this.ctx.createGain();
+            this.gain.connect(this.ctx.destination);
+        }
+    },
+    startBuzz() {
+        if (!this.ctx) this.init();
+        if (this.osc) this.stopBuzz();
+        
+        this.osc = this.ctx.createOscillator();
+        this.osc.type = 'sawtooth';
+        this.osc.frequency.value = 600; 
+        
+        this.gain.gain.setValueAtTime(0.02, this.ctx.currentTime);
+        
+        this.osc.connect(this.gain);
+        this.osc.start();
+        this.rampPitch();
+    },
+    rampPitch() {
+        if (!this.osc) return;
+        const nextTime = this.ctx.currentTime + (Math.random() * 0.2 + 0.1);
+        const nextPitch = 550 + Math.random() * 200;
+        this.osc.frequency.linearRampToValueAtTime(nextPitch, nextTime);
+        setTimeout(() => this.rampPitch(), 150);
+    },
+    setStuckMode(isStuck) {
+        if (!this.osc) return;
+        const pitch = isStuck ? 900 : 600;
+        this.osc.frequency.setValueAtTime(pitch, this.ctx.currentTime);
+        this.gain.gain.linearRampToValueAtTime(isStuck ? 0.05 : 0.02, this.ctx.currentTime + 0.1);
+    },
+    stopBuzz() {
+        if (this.osc) {
+            try { this.osc.stop(); } catch(e){}
+            this.osc.disconnect();
+            this.osc = null;
+        }
+    }
+};
+
+// --- MOSQUITO LOGIC ---
+const MosquitoManager = {
+    el: null,
+    checkInterval: null,
+    x: 50, y: 50, 
+    vx: 0, vy: 0,
+    state: 'hidden', // hidden, flying, stuck, thanking, leaving
+    raf: null,
+    COOLDOWN: 5 * 60 * 1000, // 5 Minutes in milliseconds
+
+    startMonitoring() {
+        if (this.checkInterval) clearInterval(this.checkInterval);
+        this.attemptSpawn();
+        this.checkInterval = setInterval(() => this.attemptSpawn(), 10000);
+    },
+
+    stopMonitoring() {
+        if (this.checkInterval) clearInterval(this.checkInterval);
+        this.remove();
+    },
+
+    attemptSpawn() {
+        if (this.el) return;
+
+        const now = Date.now();
+        const last = State.data.lastMosquitoSpawn;
+
+        if (now - last < this.COOLDOWN) return;
+        if (Math.random() > 0.3) return; // 30% chance per check
+
+        this.init();
+    },
+
+    init() {
+        if (this.el) this.remove();
+        this.el = document.createElement('div');
+        this.el.innerHTML = '🦟';
+        this.el.className = 'mosquito-entity';
+        Object.assign(this.el.style, {
+            position: 'fixed',
+            fontSize: '2rem',
+            zIndex: '54', 
+            pointerEvents: 'auto',
+            cursor: 'pointer',
+            transition: 'transform 0.1s linear',
+            filter: 'drop-shadow(2px 4px 6px rgba(0,0,0,0.5))',
+            left: '-10%', 
+            top: (Math.random() * 80 + 10) + '%'
+        });
+        
+        this.el.onclick = (e) => {
+            e.stopPropagation();
+            if (this.state === 'stuck') {
+                this.startRescue();
+            } else if (this.state === 'flying') {
+                UIManager.showPostVoteMessage("Catch it in the web first!");
+            }
+        };
+        
+        document.body.appendChild(this.el);
+        this.state = 'flying';
+        this.x = -10; 
+        this.y = parseFloat(this.el.style.top);
+        AudioEngine.startBuzz();
+        this.loop();
+    },
+
+    startRescue() {
+        this.state = 'thanking';
+        AudioEngine.stopBuzz();
+
+        const bubble = document.createElement('div');
+        bubble.textContent = "Thank you for saving me!";
+        Object.assign(bubble.style, {
+            position: 'absolute',
+            bottom: '100%',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'white',
+            padding: '5px 10px',
+            borderRadius: '10px',
+            fontSize: '12px',
+            whiteSpace: 'nowrap',
+            border: '1px solid #ccc',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+            pointerEvents: 'none'
+        });
+        this.el.appendChild(bubble);
+
+        setTimeout(() => {
+            if (bubble) bubble.remove();
+            this.state = 'leaving';
+            AudioEngine.startBuzz();
+            this.vx = (Math.random() < 0.5 ? -1 : 1) * 3; 
+            this.vy = (Math.random() - 0.5) * 3;
+        }, 2000);
+    },
+
+    loop() {
+        if (!document.body.contains(this.el)) return;
+        
+        if (this.state === 'thanking') {
+            this.el.style.transform = `scale(1.2)`; 
+        } 
+        else if (this.state === 'flying' || this.state === 'leaving') {
+            if (this.state === 'flying') {
+                this.vx += (Math.random() - 0.5) * 0.4;
+                this.vy += (Math.random() - 0.5) * 0.4;
+                
+                const max = 1.5;
+                this.vx = Math.max(Math.min(this.vx, max), -max);
+                this.vy = Math.max(Math.min(this.vy, max), -max);
+                
+                if (this.x < 0 || this.x > 95) this.vx *= -1.5;
+                if (this.y < 0 || this.y > 95) this.vy *= -1.5;
+
+                // Web Trap (Top Right)
+                if (this.x > 75 && this.y < 25) {
+                    this.state = 'stuck';
+                    AudioEngine.setStuckMode(true);
+                    UIManager.showPostVoteMessage("It's stuck!");
+                }
+            }
+            
+            this.x += this.vx;
+            this.y += this.vy;
+            
+            this.el.style.left = this.x + '%';
+            this.el.style.top = this.y + '%';
+            
+            const rot = Math.atan2(this.vy, this.vx) * (180/Math.PI) + 90;
+            this.el.style.transform = `rotate(${rot}deg)`;
+
+            if (this.state === 'leaving') {
+                if (this.x < -10 || this.x > 110 || this.y < -10 || this.y > 110) {
+                    this.finish();
+                }
+            }
+        
+        } else if (this.state === 'stuck') {
+            const jitterX = (Math.random() - 0.5) * 5;
+            const jitterY = (Math.random() - 0.5) * 5;
+            this.el.style.transform = `translate(${jitterX}px, ${jitterY}px)`;
+        }
+        
+        this.raf = requestAnimationFrame(() => this.loop());
+    },
+
+    eat() {
+        if (this.state !== 'stuck') return;
+        UIManager.showPostVoteMessage("Chomp! 🕷️");
+        this.finish();
+    },
+
+    finish() {
+        State.save('lastMosquitoSpawn', Date.now());
+        this.remove();
+    },
+
+    remove() {
+        if (this.raf) cancelAnimationFrame(this.raf);
+        AudioEngine.stopBuzz();
+        if (this.el && this.el.parentNode) this.el.remove();
+        this.el = null;
+        this.state = 'hidden';
     }
 };
 
@@ -673,6 +895,10 @@ const Effects = {
     halloween(active) {
         if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
         if (this.webRaf) cancelAnimationFrame(this.webRaf);
+        
+        if (active) MosquitoManager.startMonitoring(); 
+        else MosquitoManager.stopMonitoring();
+
         if (!active) {
             const old = document.getElementById('spider-wrap');
             if (old) old.remove();
@@ -680,6 +906,8 @@ const Effects = {
             if (oldWeb) oldWeb.remove();
             return
         }
+        
+        // --- SPIDER LOGIC ---
         if (!document.getElementById('spider-wrap')) {
             const wrap = document.createElement('div');
             wrap.id = 'spider-wrap';
@@ -687,31 +915,55 @@ const Effects = {
             const scale = (Math.random() * .6 + .6).toFixed(2);
             wrap.innerHTML = `<div id="spider-anchor" style="transform: scale(${scale})"><div id="spider-thread"></div><div id="spider-body">🕷️<div id="spider-bubble"></div></div></div>`;
             document.body.appendChild(wrap);
+            
             const thread = wrap.querySelector('#spider-thread'),
                 body = wrap.querySelector('#spider-body'),
                 bub = wrap.querySelector('#spider-bubble');
+                
             const runDrop = () => {
                 const phrases = ['ouch!', 'hey frend!', "I wouldn't hurt a fly!", "I'm more scared of you...", "I'm a web dev!", "just hanging", "fangs a lot!"];
-                const txt = phrases[Math.floor(Math.random() * phrases.length)];
+                let txt = phrases[Math.floor(Math.random() * phrases.length)];
+                
+                // SPIDER EATING LOGIC
+                let targetHeight = Math.random() * 40 + 20; 
+                let isHunting = false;
+
+                if (MosquitoManager.state === 'stuck') {
+                    isHunting = true;
+                    txt = "Lunch time!";
+                    wrap.style.left = (MosquitoManager.x - 2) + '%'; 
+                    targetHeight = MosquitoManager.y + 5; 
+                } else {
+                    wrap.style.left = (Math.random() * 80 + 10) + '%';
+                }
+
                 bub.innerText = txt;
-                const dist = Math.random() * 40 + 20;
                 void thread.offsetWidth;
-                thread.style.height = (dist + 20) + 'vh';
+                
+                thread.style.height = targetHeight + 'vh';
+                
                 body.onclick = () => {
                     State.unlockBadge('spider');
                     bub.style.opacity = '1';
                     setTimeout(() => bub.style.opacity = '0', 2000)
                 };
+
+                setTimeout(() => {
+                    if (isHunting && MosquitoManager.state === 'stuck') {
+                        MosquitoManager.eat();
+                    }
+                }, 1000); 
+
                 this.spiderTimeout = setTimeout(() => {
                     thread.style.height = '0';
                     setTimeout(() => {
-                        if (wrap.parentNode) wrap.style.left = (Math.random() * 80 + 10) + '%';
                         this.spiderTimeout = setTimeout(runDrop, Math.random() * 15000 + 10000)
                     }, 20000)
                 }, 20000 + (Math.random() * 3000 + 5000))
             };
             setTimeout(runDrop, Math.random() * 5000 + 2000)
         }
+        
         if (!document.getElementById('spider-web-corner')) {
             const web = document.createElement('div');
             web.id = 'spider-web-corner';
@@ -1032,7 +1284,6 @@ const ModalManager = {
                 TiltManager.refresh(); 
             };
             
-            // Fixed: Moved Mirror Mode logic inside onclick properly
             DOM.inputs.settings.mirror.checked = State.data.settings.mirrorMode;
             DOM.inputs.settings.mirror.onchange = e => {
                 const v = e.target.checked;
@@ -1705,45 +1956,33 @@ const Game = {
     activateDailyMode() {
         if (State.runtime.isDailyMode) return;
         
-        // FIX 1: Use Local Time instead of UTC (toISOString)
-        // This ensures the word changes when the user's actual day changes
         const now = new Date();
         const t = now.getFullYear() + '-' + (now.getMonth() + 1) + '-' + now.getDate();
         
-        // Check if we already played today
         if (t === State.data.daily.lastDate) return;
 
         State.runtime.isDailyMode = true;
         DOM.game.dailyBanner.classList.add('daily-locked-mode');
         
-        // Hide standard buttons
         DOM.game.buttons.notWord.style.display = 'none';
         DOM.game.buttons.custom.style.display = 'none';
         
         UIManager.showMessage('Loading Daily Word...');
 
-        // --- NEW SELECTION ALGORITHM (Seeded Index) ---
-        // 1. Create a sorted copy of the words. This ensures that even if the API 
-        // returns words in a different order, every user gets the same daily word.
         const sortedWords = [...State.runtime.allWords].sort((a, b) => 
             a.text.localeCompare(b.text)
         );
 
-        // 2. Turn the Date String into a numeric seed
         let seed = 0;
         for (let i = 0; i < t.length; i++) {
             seed = ((seed << 5) - seed) + t.charCodeAt(i);
-            seed |= 0; // Convert to 32bit integer
+            seed |= 0; 
         }
         seed = Math.abs(seed);
 
-        // 3. Pick the word using the Modulo operator (%)
-        // This guarantees a uniform distribution through the list over time
         const winningWordRef = sortedWords[seed % sortedWords.length];
 
         if (winningWordRef) {
-            // Find the index of the winner in the ORIGINAL State list
-            // (We need the original index for the game logic to work)
             const idx = State.runtime.allWords.findIndex(w => w.text === winningWordRef.text);
             
             if (idx !== -1) {
@@ -1886,7 +2125,6 @@ const Game = {
         const wd = DOM.game.wordDisplay;
         const colors = Accessibility.getColors();
         
-        // Handle visual feedback
         if (!s && (t === 'good' || t === 'bad')) {
             this.cleanStyles(wd);
             wd.style.setProperty('--dynamic-swipe-color', t === 'good' ? colors.good : colors.bad);
@@ -1897,7 +2135,6 @@ const Game = {
             wd.classList.add(t === 'good' ? 'animate-fly-left' : 'animate-fly-right')
         }
         
-        // Helper for Special Effects
         const hSpec = (c, k) => {
             State.unlockBadge(k);
             this.cleanStyles(wd);
@@ -2039,17 +2276,14 @@ const InputHandler = {
             if (this.raf) cancelAnimationFrame(this.raf);
             
             if (Math.abs(dX) > CONFIG.VOTE.SWIPE_THRESHOLD) {
-                // Determine direction
                 let l = dX < 0;
                 
                 // INVERT if Mirror Mode is on so controls match visual buttons
                 if (State.data.settings.mirrorMode) l = !l; 
 
                 wd.style.transition = 'transform .4s ease-out, opacity .4s ease-out';
-                // We also flip the exit animation direction so it looks natural
+                // Flip animation direction if mirror mode is on
                 const exitX = l ? -window.innerWidth : window.innerWidth;
-                
-                // If mirrored, we visually flip the rotation too
                 const rot = l ? -20 : 20; 
                 
                 wd.style.transform = `translate(${exitX}px, 0px) rotate(${rot}deg)`;
@@ -2060,7 +2294,6 @@ const InputHandler = {
                 
                 Game.vote(l ? 'good' : 'bad', true)
             } else {
-                // ... existing reset logic ...
                 wd.classList.add('word-reset');
                 wd.style.transform = 'translate(0,0) rotate(0)';
                 wd.style.color = '';
