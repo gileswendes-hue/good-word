@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.9.9', // Fixed Syntax & Merged Features
+    APP_VERSION: '5.9.10', // Final Clean Version
 
     // Special words with custom effects and probabilities
     SPECIAL: {
@@ -158,15 +158,15 @@ const DOM = {
         modalMsg: document.getElementById('modalMessage'),
         compareResults: document.getElementById('compareResults'),
         username: document.getElementById('usernameInput'),
-	settings: {
+        settings: {
             tips: document.getElementById('toggleTips'),
             percentages: document.getElementById('togglePercentages'),
             colorblind: document.getElementById('toggleColorblind'),
             largeText: document.getElementById('toggleLargeText'),
-            tilt: document.getElementById('toggleTilt'), 
+            tilt: document.getElementById('toggleTilt'),
             mirror: document.getElementById('toggleMirror'),
-            mute: document.getElementById('toggleMute'), 
-            zeroVotes: document.getElementById('toggleZeroVotes') 
+            mute: document.getElementById('toggleMute'),
+            zeroVotes: document.getElementById('toggleZeroVotes')
         }
     },
     general: {
@@ -1315,21 +1315,6 @@ const ModalManager = {
             State.save('settings', { ...State.data.settings, largeText: v });
             Accessibility.apply()
         };
-		if (DOM.inputs.settings.tilt) {
-            DOM.inputs.settings.tilt.onchange = e => {
-                const v = e.target.checked;
-                State.save('settings', { ...State.data.settings, enableTilt: v });
-                TiltManager.refresh();
-            };
-        }
-
-        if (DOM.inputs.settings.mirror) {
-            DOM.inputs.settings.mirror.onchange = e => {
-                const v = e.target.checked;
-                State.save('settings', { ...State.data.settings, mirrorMode: v });
-                Accessibility.apply();
-            };
-        }
         if (DOM.inputs.settings.tilt) {
             DOM.inputs.settings.tilt.onchange = e => {
                 State.save('settings', { ...State.data.settings, enableTilt: e.target.checked });
