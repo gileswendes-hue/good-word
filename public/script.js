@@ -1,7 +1,8 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.9.8', // Merged Version
+    APP_VERSION: '5.9.9', // Fixed Syntax & Merged Features
 
+    // Special words with custom effects and probabilities
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
         LLAMA: { text: 'LLAMA', prob: 0.005, fade: 8000, msg: "what llama?", dur: 3000 },
@@ -67,6 +68,7 @@ const CONFIG = {
     ]
 };
 
+// --- DOM ELEMENT REFERENCES ---
 const DOM = {
     header: {
         logoArea: document.getElementById('logoArea'),
@@ -163,8 +165,8 @@ const DOM = {
             largeText: document.getElementById('toggleLargeText'),
             tilt: document.getElementById('toggleTilt'),
             mirror: document.getElementById('toggleMirror'),
-            mute: null, // Will be injected
-            zeroVotes: null // Will be injected
+            mute: null, 
+            zeroVotes: null
         }
     },
     general: {
@@ -311,7 +313,7 @@ const Utils = {
     }
 };
 
-// --- AUDIO SYNTHESIS (NEW) ---
+// --- AUDIO SYNTHESIS ---
 const SoundManager = {
     ctx: null,
     masterGain: null,
@@ -457,69 +459,7 @@ const SoundManager = {
     }
 };
 
-// --- PHYSICS ENGINE (BALL PIT) ---
-const Physics = {
-    balls: [],
-    gx: 0,
-    gy: 0.8,
-    handleOrientation(e) {
-        const x = e.gamma || 0,
-            y = e.beta || 0;
-        const tx = Math.min(Math.max(x / 4, -1), 1);
-        const ty = Math.min(Math.max(y / 4, -1), 1);
-        Physics.gx += (tx - Physics.gx) * 0.1;
-        Physics.gy += (ty - Physics.gy) * 0.1
-    },
-    run() {
-        const W = window.innerWidth,
-            H = window.innerHeight;
-        const cylW = Math.min(W, 500),
-            minX = (W - cylW) / 2,
-            maxX = minX + cylW;
-        
-        for (let s = 0; s < 8; s++) {
-            Physics.balls.forEach(b => {
-                if (!b.drag) {
-                    b.vx += Physics.gx / 8;
-                    b.vy += Physics.gy / 8;
-                    b.x += b.vx;
-                    b.y += b.vy;
-                    b.vx *= 0.92;
-                    b.vy *= 0.92;
-                    if (b.x < minX) { b.x = minX; b.vx *= -0.2 }
-                    if (b.x > maxX - b.r * 2) { b.x = maxX - b.r * 2; b.vx *= -0.2 }
-                    if (b.y < 0) { b.y = 0; b.vy *= -0.2 }
-                    if (b.y > H - b.r * 2) { b.y = H - b.r * 2; b.vy *= -0.2 }
-                }
-            });
-            for (let i = 0; i < Physics.balls.length; i++) {
-                for (let j = i + 1; j < Physics.balls.length; j++) {
-                    const b1 = Physics.balls[i], b2 = Physics.balls[j];
-                    const dx = (b2.x + b2.r) - (b1.x + b1.r), dy = (b2.y + b2.r) - (b1.y + b1.r);
-                    const dist = Math.sqrt(dx * dx + dy * dy), minDist = b1.r + b2.r + 0.5;
-                    if (dist < minDist && dist > 0) {
-                        const angle = Math.atan2(dy, dx), tx = (Math.cos(angle) * (minDist - dist)) / 2, ty = (Math.sin(angle) * (minDist - dist)) / 2;
-                        b1.x -= tx; b1.y -= ty; b2.x += tx; b2.y += ty;
-                        if (!b1.drag && !b2.drag) {
-                            const nx = dx / dist, ny = dy / dist;
-                            const p = 2 * (b1.vx * nx + b1.vy * ny - b2.vx * nx - b2.vy * ny) / 2;
-                            b1.vx -= p * nx * 0.15; b1.vy -= p * ny * 0.15;
-                            b2.vx += p * nx * 0.15; b2.vy += p * ny * 0.15
-                        }
-                    }
-                }
-            }
-        }
-        
-        Physics.balls.forEach(b => {
-            b.el.style.transform = `translate(${b.x}px,${b.y}px)`;
-            if (b.bubble) b.bubble.style.transform = `translate(${b.x+b.r}px,${b.y-20}px) translate(-50%,-100%)`
-        });
-        Effects.ballLoop = requestAnimationFrame(Physics.run)
-    }
-};
-
-// --- MOSQUITO LOGIC (NEW) ---
+// --- MOSQUITO LOGIC ---
 const MosquitoManager = {
     el: null, svg: null, path: null, checkInterval: null,
     x: 50, y: 50, angle: 0, speed: 0.35, 
@@ -697,7 +637,7 @@ const MosquitoManager = {
     }
 };
 
-// --- GRAVITY TILT EFFECT (IMPROVED) ---
+// --- GRAVITY TILT EFFECT ---
 const TiltManager = {
     active: false,
     handle(e) {
@@ -728,7 +668,80 @@ const TiltManager = {
     }
 };
 
-// --- API LAYER (RESTORED FROM SCRIPT 1) ---
+// --- PHYSICS ENGINE (BALL PIT) ---
+const Physics = {
+    balls: [],
+    gx: 0,
+    gy: 0.8,
+    handleOrientation(e) {
+        const x = e.gamma || 0,
+            y = e.beta || 0;
+        const tx = Math.min(Math.max(x / 4, -1), 1);
+        const ty = Math.min(Math.max(y / 4, -1), 1);
+        Physics.gx += (tx - Physics.gx) * 0.1;
+        Physics.gy += (ty - Physics.gy) * 0.1
+    },
+    run() {
+        const W = window.innerWidth,
+            H = window.innerHeight;
+        const cylW = Math.min(W, 500),
+            minX = (W - cylW) / 2,
+            maxX = minX + cylW;
+        for (let s = 0; s < 8; s++) {
+            Physics.balls.forEach(b => {
+                if (!b.drag) {
+                    b.vx += Physics.gx / 8;
+                    b.vy += Physics.gy / 8;
+                    b.x += b.vx;
+                    b.y += b.vy;
+                    b.vx *= 0.92;
+                    b.vy *= 0.92;
+                    if (b.x < minX) { b.x = minX; b.vx *= -0.2 }
+                    if (b.x > maxX - b.r * 2) { b.x = maxX - b.r * 2; b.vx *= -0.2 }
+                    if (b.y < 0) { b.y = 0; b.vy *= -0.2 }
+                    if (b.y > H - b.r * 2) { b.y = H - b.r * 2; b.vy *= -0.2 }
+                }
+            });
+            for (let i = 0; i < Physics.balls.length; i++) {
+                for (let j = i + 1; j < Physics.balls.length; j++) {
+                    const b1 = Physics.balls[i],
+                        b2 = Physics.balls[j];
+                    const dx = (b2.x + b2.r) - (b1.x + b1.r),
+                        dy = (b2.y + b2.r) - (b1.y + b1.r);
+                    const dist = Math.sqrt(dx * dx + dy * dy),
+                        minDist = b1.r + b2.r + 0.5;
+                    if (dist < minDist && dist > 0) {
+                        const angle = Math.atan2(dy, dx),
+                            tx = (Math.cos(angle) * (minDist - dist)) / 2,
+                            ty = (Math.sin(angle) * (minDist - dist)) / 2;
+                        b1.x -= tx;
+                        b1.y -= ty;
+                        b2.x += tx;
+                        b2.y += ty;
+                        if (!b1.drag && !b2.drag) {
+                            const nx = dx / dist,
+                                ny = dy / dist;
+                            const p = 2 * (b1.vx * nx + b1.vy * ny - b2.vx * nx - b2.vy * ny) / 2;
+                            b1.vx -= p * nx * 0.15;
+                            b1.vy -= p * ny * 0.15;
+                            b2.vx += p * nx * 0.15;
+                            b2.vy += p * ny * 0.15
+                        }
+                    }
+                }
+            }
+        }
+        Physics.balls.forEach(b => {
+            b.el.style.transform = `translate(${b.x}px,${b.y}px)`;
+            if (b.bubble) {
+                b.bubble.style.transform = `translate(${b.x+b.r}px,${b.y-20}px) translate(-50%,-100%)`
+            }
+        });
+        Effects.ballLoop = requestAnimationFrame(Physics.run)
+    }
+};
+
+// --- API LAYER ---
 const API = {
     async fetchWords() {
         try {
@@ -761,7 +774,7 @@ const API = {
     }
 };
 
-// --- THEME MANAGER (RESTORED FROM SCRIPT 1) ---
+// --- THEME MANAGER ---
 const ThemeManager = {
     wordMap: {},
     init() {
@@ -853,7 +866,7 @@ const ThemeManager = {
     }
 };
 
-// --- VISUAL EFFECTS (RESTORED FROM SCRIPT 1) ---
+// --- VISUAL EFFECTS ---
 const Effects = {
     spiderTimeout: null,
     webRaf: null,
@@ -863,10 +876,7 @@ const Effects = {
     
     plymouth(a) {
         const c = DOM.theme.effects.plymouth;
-        if (!a) {
-            c.innerHTML = '';
-            return
-        }
+        if (!a) { c.innerHTML = ''; return }
         c.innerHTML = '';
         for (let i = 0; i < 100; i++) {
             const s = document.createElement('div');
@@ -1232,7 +1242,199 @@ const Effects = {
     }
 };
 
-// --- MAIN GAME LOGIC (UPDATED WITH SOUNDS) ---
+// --- MODAL MANAGER (FIXED) ---
+const ModalManager = {
+    toggle(id, show) {
+        const e = DOM.modals[id];
+        e.classList.toggle('hidden', !show);
+        e.classList.toggle('flex', show)
+    },
+    init() {
+        document.getElementById('showSettingsButton').onclick = () => {
+            // Update UI
+            DOM.inputs.settings.tips.checked = State.data.settings.showTips;
+            DOM.inputs.settings.percentages.checked = State.data.settings.showPercentages;
+            DOM.inputs.settings.colorblind.checked = State.data.settings.colorblindMode;
+            DOM.inputs.settings.largeText.checked = State.data.settings.largeText;
+            if (DOM.inputs.settings.tilt) DOM.inputs.settings.tilt.checked = State.data.settings.enableTilt;
+            if (DOM.inputs.settings.mirror) DOM.inputs.settings.mirror.checked = State.data.settings.mirrorMode;
+
+            // Inject Mute
+            if (!document.getElementById('toggleMute')) {
+                const container = DOM.inputs.settings.mirror ? (DOM.inputs.settings.mirror.closest('.space-y-4') || DOM.inputs.settings.mirror.parentElement.parentElement) : document.getElementById('settingsModalContainer').querySelector('.space-y-4');
+                if (container) {
+                    const div = document.createElement('div');
+                    div.className = "flex items-center justify-between";
+                    div.innerHTML = `<label for="toggleMute" class="text-lg font-medium text-gray-700">Mute All Sounds</label><input type="checkbox" id="toggleMute" class="h-6 w-6 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">`;
+                    container.appendChild(div);
+                    DOM.inputs.settings.mute = document.getElementById('toggleMute');
+                }
+            }
+            if (DOM.inputs.settings.mute) {
+                DOM.inputs.settings.mute.checked = State.data.settings.muteSounds;
+                DOM.inputs.settings.mute.onchange = e => {
+                    State.save('settings', { ...State.data.settings, muteSounds: e.target.checked });
+                    SoundManager.updateMute();
+                };
+            }
+
+            // Inject Zero Votes
+            if (!document.getElementById('toggleZeroVotes')) {
+                const container = DOM.inputs.settings.mirror ? (DOM.inputs.settings.mirror.closest('.space-y-4') || DOM.inputs.settings.mirror.parentElement.parentElement) : document.getElementById('settingsModalContainer').querySelector('.space-y-4');
+                if (container) {
+                    const div = document.createElement('div');
+                    div.className = "flex items-center justify-between";
+                    div.innerHTML = `<label for="toggleZeroVotes" class="text-lg font-medium text-gray-700">Only 0/0 Words</label><input type="checkbox" id="toggleZeroVotes" class="h-6 w-6 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">`;
+                    container.appendChild(div);
+                    DOM.inputs.settings.zeroVotes = document.getElementById('toggleZeroVotes');
+                }
+            }
+            if (DOM.inputs.settings.zeroVotes) {
+                DOM.inputs.settings.zeroVotes.checked = State.data.settings.zeroVotesOnly;
+                DOM.inputs.settings.zeroVotes.onchange = e => {
+                    State.save('settings', { ...State.data.settings, zeroVotesOnly: e.target.checked });
+                    Game.refreshData(true);
+                };
+            }
+
+            this.toggle('settings', true)
+        };
+
+        document.getElementById('closeSettingsModal').onclick = () => this.toggle('settings', false);
+        
+        DOM.inputs.settings.tips.onchange = e => State.save('settings', { ...State.data.settings, showTips: e.target.checked });
+        DOM.inputs.settings.percentages.onchange = e => State.save('settings', { ...State.data.settings, showPercentages: e.target.checked });
+        
+        DOM.inputs.settings.colorblind.onchange = e => {
+            const v = e.target.checked;
+            State.save('settings', { ...State.data.settings, colorblindMode: v });
+            Accessibility.apply()
+        };
+        DOM.inputs.settings.largeText.onchange = e => {
+            const v = e.target.checked;
+            State.save('settings', { ...State.data.settings, largeText: v });
+            Accessibility.apply()
+        };
+        if (DOM.inputs.settings.tilt) {
+            DOM.inputs.settings.tilt.onchange = e => {
+                State.save('settings', { ...State.data.settings, enableTilt: e.target.checked });
+                TiltManager.refresh(); 
+            };
+        }
+        if (DOM.inputs.settings.mirror) {
+            DOM.inputs.settings.mirror.onchange = e => {
+                State.save('settings', { ...State.data.settings, mirrorMode: e.target.checked });
+                Accessibility.apply();
+            };
+        }
+
+        DOM.game.buttons.custom.onclick = () => {
+            DOM.inputs.newWord.value = '';
+            DOM.inputs.modalMsg.textContent = '';
+            this.toggle('submission', true)
+        };
+        document.getElementById('cancelSubmitButton').onclick = () => this.toggle('submission', false);
+        DOM.rankings.btnShow.onclick = () => {
+            UIManager.renderFullRankings();
+            this.toggle('fullRankings', true)
+        };
+        document.getElementById('closeFullRankingsModal').onclick = () => this.toggle('fullRankings', false);
+        document.getElementById('compareWordsButton').onclick = () => {
+            DOM.inputs.wordOne.value = '';
+            DOM.inputs.wordTwo.value = '';
+            DOM.inputs.compareResults.innerHTML = 'Type words above to see who wins!';
+            this.toggle('compare', true)
+        };
+        document.getElementById('closeCompareModal').onclick = () => this.toggle('compare', false);
+        DOM.game.wordDisplay.onclick = () => Game.showDefinition();
+        document.getElementById('closeDefinitionModal').onclick = () => this.toggle('definition', false);
+        DOM.rankings.searchBtn.onclick = () => UIManager.handleRankSearch();
+        DOM.rankings.clearSearch.onclick = () => {
+            DOM.rankings.searchInput.value = '';
+            DOM.rankings.searchContainer.classList.add('hidden');
+            DOM.rankings.listsContainer.classList.remove('hidden')
+        };
+        DOM.header.userStatsBar.onclick = () => UIManager.openProfile();
+        document.getElementById('closeProfileModal').onclick = () => this.toggle('profile', false);
+        document.getElementById('saveUsernameBtn').onclick = async () => {
+            const n = DOM.inputs.username.value.trim(),
+                m = DOM.profile.saveMsg;
+            if (!n || n.includes(' ') || n.length > 45) {
+                m.textContent = "Invalid name (no spaces).";
+                m.className = "text-xs text-red-500 mt-1 font-bold";
+                return
+            }
+            State.save('username', n);
+            UIManager.updateProfileDisplay();
+            m.textContent = "Saved!";
+            m.className = "text-xs text-green-500 mt-1 font-bold";
+            const e = State.runtime.allWords.some(w => w.text.toUpperCase() === n.toUpperCase());
+            if (!e) {
+                m.textContent = "Saved & submitted as new word!";
+                try {
+                    await API.submitWord(n);
+                    State.incrementContributor()
+                } catch {
+                    console.error("Failed to auto-submit")
+                }
+            }
+            setTimeout(() => m.textContent = '', 2000)
+        };
+        document.getElementById('shareProfileButton').onclick = () => ShareManager.share();
+        DOM.daily.closeBtn.onclick = () => {
+            this.toggle('dailyResult', false);
+            Game.disableDailyMode()
+        };
+        DOM.profile.photoInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            if (file.size > 2 * 1024 * 1024) {
+                alert("File too large. Please choose an image under 2MB.");
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (readerEvent) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const MAX_SIZE = 150; 
+                    let width = img.width;
+                    let height = img.height;
+                    if (width > height) {
+                        if (width > MAX_SIZE) {
+                            height *= MAX_SIZE / width;
+                            width = MAX_SIZE;
+                        }
+                    } else {
+                        if (height > MAX_SIZE) {
+                            width *= MAX_SIZE / height;
+                            height = MAX_SIZE;
+                        }
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                    State.save('profilePhoto', dataUrl);
+                    UIManager.updateProfileDisplay();
+                    DOM.profile.saveMsg.textContent = "Photo Updated!";
+                    DOM.profile.saveMsg.className = "text-xs text-green-500 mt-1 font-bold";
+                    setTimeout(() => DOM.profile.saveMsg.textContent = '', 2000);
+                };
+                img.src = readerEvent.target.result;
+            };
+            reader.readAsDataURL(file);
+        };
+        Object.keys(DOM.modals).forEach(k => {
+            DOM.modals[k].addEventListener('click', e => {
+                if (e.target === DOM.modals[k]) this.toggle(k, false)
+            })
+        })
+    }
+};
+
+// --- MAIN GAME LOGIC ---
 const Game = {
     cleanStyles(e) {
         e.style.animation = 'none';
@@ -1522,6 +1724,8 @@ const Game = {
         UIManager.disableButtons(true);
         const wd = DOM.game.wordDisplay;
         const colors = Accessibility.getColors();
+        
+        // Handle visual feedback
         if (!s && (t === 'good' || t === 'bad')) {
             this.cleanStyles(wd);
             wd.style.setProperty('--dynamic-swipe-color', t === 'good' ? colors.good : colors.bad);
@@ -1530,9 +1734,12 @@ const Game = {
             await new Promise(r => setTimeout(r, 50));
             wd.classList.remove('color-fade');
             wd.classList.add(t === 'good' ? 'animate-fly-left' : 'animate-fly-right');
+            
             if (t === 'good') SoundManager.playGood();
             else SoundManager.playBad();
         }
+        
+        // Helper for Special Effects
         const hSpec = (c, k) => {
             State.unlockBadge(k);
             this.cleanStyles(wd);
@@ -1549,18 +1756,22 @@ const Game = {
                 }, c.dur)
             }, c.fade)
         };
+        
         if (up === CAKE.text) { hSpec(CAKE, 'cake'); return }
         if (up === LLAMA.text) { hSpec(LLAMA, 'llama'); return }
         if (up === POTATO.text) { hSpec(POTATO, 'potato'); return }
         if (up === SQUIRREL.text) { hSpec(SQUIRREL, 'squirrel'); return }
         if (up === MASON.text) { hSpec(MASON, 'bone'); return }
+        
         try {
             const un = ThemeManager.checkUnlock(up);
-            if(un) SoundManager.playUnlock();
+            if (un) SoundManager.playUnlock();
+
             const res = await API.vote(w._id, t);
             if (res.status !== 403 && !res.ok) throw 0;
             w[`${t}Votes`] = (w[`${t}Votes`] || 0) + 1;
             State.incrementVote();
+            
             if (State.runtime.isDailyMode) {
                 const tod = new Date(),
                     dStr = tod.toISOString().split('T')[0];
@@ -1611,11 +1822,16 @@ const Game = {
     }
 };
 
-// --- TOUCH INPUT HANDLER (UPDATED WITH SOUNDS/MIRROR) ---
+// --- TOUCH INPUT HANDLER ---
 const InputHandler = {
-    sX: 0, sY: 0, drag: false, scroll: false, raf: null,
+    sX: 0,
+    sY: 0,
+    drag: false,
+    scroll: false,
+    raf: null,
     init() {
-        const c = DOM.game.card, wd = DOM.game.wordDisplay;
+        const c = DOM.game.card,
+            wd = DOM.game.wordDisplay;
         c.addEventListener('touchstart', e => {
             if (State.runtime.isCoolingDown || DOM.game.buttons.good.disabled) return;
             if (e.target.closest('button, input, select')) return;
@@ -1628,10 +1844,15 @@ const InputHandler = {
         }, { passive: false });
         c.addEventListener('touchmove', e => {
             if (State.runtime.isCoolingDown || DOM.game.buttons.good.disabled) return;
-            const x = e.touches[0].clientX, y = e.touches[0].clientY;
-            const dX = x - this.sX, dY = y - this.sY;
+            const x = e.touches[0].clientX,
+                y = e.touches[0].clientY,
+                dX = x - this.sX,
+                dY = y - this.sY;
             if (!this.drag && !this.scroll) {
-                if (Math.abs(dY) > Math.abs(dX)) { this.scroll = true; return }
+                if (Math.abs(dY) > Math.abs(dX)) {
+                    this.scroll = true;
+                    return
+                }
                 this.drag = true;
                 Game.cleanStyles(wd);
                 wd.style.background = 'none';
@@ -1663,17 +1884,27 @@ const InputHandler = {
             
             if (Math.abs(dX) > CONFIG.VOTE.SWIPE_THRESHOLD) {
                 let l = dX < 0;
+                
+                // INVERT if Mirror Mode is on so controls match visual buttons
                 if (State.data.settings.mirrorMode) l = !l; 
+
                 wd.style.transition = 'transform .4s ease-out, opacity .4s ease-out';
+                // We also flip the exit animation direction so it looks natural
                 const exitX = l ? -window.innerWidth : window.innerWidth;
+                
+                // If mirrored, we visually flip the rotation too
                 const rot = l ? -20 : 20; 
+                
                 wd.style.transform = `translate(${exitX}px, 0px) rotate(${rot}deg)`;
                 wd.style.opacity = '0';
+                
                 const colors = Accessibility.getColors();
                 wd.style.color = l ? colors.good : colors.bad;
+                
                 SoundManager.playWhoosh();
                 Game.vote(l ? 'good' : 'bad', true)
             } else {
+                // ... existing reset logic ...
                 wd.classList.add('word-reset');
                 wd.style.transform = 'translate(0,0) rotate(0)';
                 wd.style.color = '';
