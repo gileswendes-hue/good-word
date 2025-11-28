@@ -1280,7 +1280,7 @@ const UIManager = {
             drift.classList.add('animate-snow-drift')
         } else {
             drift.style.height = '0';
-        
+        }
         this.fitText(txt);
         if (!State.runtime.isCoolingDown) this.disableButtons(false);
         wd.style.cursor = 'grab'
