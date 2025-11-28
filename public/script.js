@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.8.0',
+    APP_VERSION: '5.9.1',
 
     // Special words with custom effects and probabilities
     SPECIAL: {
@@ -371,12 +371,10 @@ const Physics = {
     }
 };
 
-// --- SOUND MANAGER ---
+// --- AUDIO SYNTHESIS ---
 const SoundManager = {
     ctx: null,
     masterGain: null,
-    
-    // Mosquito Specific
     mosquitoOsc: null,
     mosquitoGain: null,
 
@@ -393,13 +391,12 @@ const SoundManager = {
         if (this.masterGain) {
             const isMuted = State.data.settings.muteSounds;
             this.masterGain.gain.setValueAtTime(isMuted ? 0 : 0.3, this.ctx.currentTime);
-            if (isMuted) this.stopBuzz(); // Ensure ongoing loops stop
+            if (isMuted) this.stopBuzz(); 
         }
     },
 
     playTone(freq, type, duration, vol = 1) {
         if (!this.ctx) this.init();
-        // Resume context if suspended (browser autoplay policy)
         if (this.ctx.state === 'suspended') this.ctx.resume();
 
         const osc = this.ctx.createOscillator();
@@ -419,14 +416,11 @@ const SoundManager = {
     },
 
     playGood() {
-        // High Ding (Sine)
         this.playTone(880, 'sine', 0.6, 0.4);
         setTimeout(() => this.playTone(1760, 'sine', 0.4, 0.2), 50);
     },
 
     playBad() {
-        // Low Thud (Sawtooth filtered-ish)
-        // We simulate a kick by dropping frequency rapidly
         if (!this.ctx) this.init();
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
@@ -445,12 +439,11 @@ const SoundManager = {
     },
 
     playWhoosh() {
-        // Simulated wind noise using a low freq sweep
         if (!this.ctx) this.init();
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
         
-        osc.type = 'sine'; // Smooth
+        osc.type = 'sine'; 
         osc.frequency.setValueAtTime(200, this.ctx.currentTime);
         osc.frequency.linearRampToValueAtTime(50, this.ctx.currentTime + 0.3);
         
@@ -467,7 +460,6 @@ const SoundManager = {
     playUnlock() {
         if (!this.ctx) this.init();
         const now = this.ctx.currentTime;
-        // Major Chord C4, E4, G4, C5
         [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
             const osc = this.ctx.createOscillator();
             const gain = this.ctx.createGain();
@@ -485,9 +477,9 @@ const SoundManager = {
         });
     },
 
-    // --- MOSQUITO SPECIFIC ---
+    // --- MOSQUITO AUDIO ---
     startBuzz() {
-        if (State.data.settings.muteSounds) return;
+        if (State.data.settings.muteSounds) return; 
         if (!this.ctx) this.init();
         if (this.mosquitoOsc) this.stopBuzz();
         
@@ -496,12 +488,11 @@ const SoundManager = {
         this.mosquitoOsc.frequency.value = 600; 
         
         this.mosquitoGain = this.ctx.createGain();
-        this.mosquitoGain.gain.setValueAtTime(0.05, this.ctx.currentTime); // Quiet buzz
+        this.mosquitoGain.gain.setValueAtTime(0.015, this.ctx.currentTime); 
         
         this.mosquitoOsc.connect(this.mosquitoGain);
         this.mosquitoGain.connect(this.masterGain);
         this.mosquitoOsc.start();
-        
         this.rampBuzzPitch();
     },
     rampBuzzPitch() {
@@ -515,8 +506,7 @@ const SoundManager = {
         if (!this.mosquitoOsc) return;
         const pitch = isStuck ? 900 : 600;
         this.mosquitoOsc.frequency.setValueAtTime(pitch, this.ctx.currentTime);
-        // If stuck, slight volume bump, else standard
-        this.mosquitoGain.gain.linearRampToValueAtTime(isStuck ? 0.08 : 0.05, this.ctx.currentTime + 0.1);
+        this.mosquitoGain.gain.linearRampToValueAtTime(isStuck ? 0.05 : 0.02, this.ctx.currentTime + 0.1);
     },
     stopBuzz() {
         if (this.mosquitoOsc) {
@@ -532,10 +522,10 @@ const MosquitoManager = {
     el: null, svg: null, path: null, checkInterval: null,
     
     // Physics State
-    x: 50, y: 50, angle: 0, speed: 0.15, turnSpeed: 0, 
+    x: 50, y: 50, angle: 0, speed: 0.35, 
+    turnCycle: 0, loopTimer: 0,
     
-    // Trail State
-    trailPoints: [], MAX_TRAIL: 40,
+    trailPoints: [], MAX_TRAIL: 50,
 
     state: 'hidden', raf: null,
     COOLDOWN: 5 * 60 * 1000, 
@@ -569,7 +559,7 @@ const MosquitoManager = {
         
         const startRight = Math.random() > 0.5;
         this.x = startRight ? 105 : -5; 
-        this.y = Math.random() * 60 + 10;
+        this.y = Math.random() * 50 + 10;
         this.angle = startRight ? Math.PI : 0; 
 
         Object.assign(this.el.style, {
@@ -604,6 +594,7 @@ const MosquitoManager = {
         
         this.state = 'flying';
         this.trailPoints = [];
+        this.loopTimer = 0;
         SoundManager.startBuzz();
         this.loop();
     },
@@ -631,7 +622,7 @@ const MosquitoManager = {
             this.state = 'leaving';
             SoundManager.startBuzz();
             this.angle = Math.random() * Math.PI * 2;
-            this.speed = 0.4;
+            this.speed = 0.6;
         }, 2000);
     },
 
@@ -639,24 +630,29 @@ const MosquitoManager = {
         if (!document.body.contains(this.el)) return;
 
         if (this.state === 'flying' || this.state === 'leaving') {
-            const wander = (Math.random() - 0.5) * 0.05;
-            this.turnSpeed += wander;
-            this.turnSpeed = Math.max(Math.min(this.turnSpeed, 0.1), -0.1);
+            
+            this.turnCycle += 0.05;
+            
+            // Wavy Line + Loop Logic
+            let turnSpeed = Math.cos(this.turnCycle) * 0.03;
 
-            if (Math.random() < 0.01) this.turnSpeed = (Math.random() < 0.5 ? 1 : -1) * 0.25; 
+            if (this.state === 'flying') {
+                if (this.loopTimer > 0) {
+                    turnSpeed = 0.25; 
+                    this.loopTimer--;
+                } else if (Math.random() < 0.005) {
+                    this.loopTimer = 60; 
+                }
+            }
 
-            if (this.x < 5) this.turnSpeed += 0.02;
-            if (this.x > 95) this.turnSpeed -= 0.02;
-            if (this.y < 5) this.turnSpeed += 0.02;
-            if (this.y > 95) this.turnSpeed -= 0.02;
-
-            this.angle += this.turnSpeed;
+            this.angle += turnSpeed;
             this.x += Math.cos(this.angle) * this.speed;
             this.y += Math.sin(this.angle) * this.speed;
 
+            // Screen Wrapping
             if (this.state === 'flying') {
-                if (this.x > 110) this.x = -10;
-                else if (this.x < -10) this.x = 110;
+                if (this.x > 110) { this.x = -10; this.trailPoints = []; }
+                else if (this.x < -10) { this.x = 110; this.trailPoints = []; }
             }
             
             if (this.y < 5 || this.y > 95) {
@@ -667,7 +663,6 @@ const MosquitoManager = {
             this.el.style.left = this.x + '%';
             this.el.style.top = this.y + '%';
             
-            // Flip X based on direction (No spinning)
             const facingRight = Math.cos(this.angle) > 0;
             this.el.style.transform = facingRight ? 'scaleX(-1)' : 'scaleX(1)';
 
@@ -684,11 +679,10 @@ const MosquitoManager = {
                 this.path.setAttribute('d', d);
             }
 
-            // Web Collision (Triangle Check)
-            const distFromRight = window.innerWidth - pxX;
-            const distFromTop = pxY;
-            // Map strictly to 300x300 triangle top-right
-            if (this.state === 'flying' && (distFromRight + distFromTop) < 280) {
+            // Web Check (Pixel Perfect Triangle)
+            const distRight = window.innerWidth - pxX;
+            const distTop = pxY;
+            if (this.state === 'flying' && (distRight + distTop) < 280) {
                 this.state = 'stuck';
                 SoundManager.stopBuzz(); 
                 UIManager.showPostVoteMessage("It's stuck in the web!");
@@ -797,46 +791,58 @@ const ModalManager = {
                 TiltManager.refresh(); 
             };
             
-            DOM.inputs.settings.mirror.checked = State.data.settings.mirrorMode;
-            DOM.inputs.settings.mirror.onchange = e => {
-                const v = e.target.checked;
-                State.save('settings', { ...State.data.settings, mirrorMode: v });
-                Accessibility.apply();
-            };
+            // Safe check for Mirror Mode Toggle
+            if (DOM.inputs.settings.mirror) {
+                DOM.inputs.settings.mirror.checked = State.data.settings.mirrorMode;
+                DOM.inputs.settings.mirror.onchange = e => {
+                    const v = e.target.checked;
+                    State.save('settings', { ...State.data.settings, mirrorMode: v });
+                    Accessibility.apply();
+                };
+            }
 
-            // Mute Toggle Logic
+            // Mute Toggle Logic (Robust Injection)
             if (!document.getElementById('toggleMute')) {
-                const container = DOM.inputs.settings.mirror.closest('.space-y-4') || DOM.inputs.settings.mirror.parentElement.parentElement;
-                const div = document.createElement('div');
-                div.className = "flex items-center justify-between";
-                div.innerHTML = `<label for="toggleMute" class="text-lg font-medium text-gray-700">Mute All Sounds</label><input type="checkbox" id="toggleMute" class="h-6 w-6 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">`;
-                container.appendChild(div);
-                DOM.inputs.settings.mute = document.getElementById('toggleMute');
+                // Try to find a container to inject into. Use largeText as anchor since it is always there.
+                const anchor = DOM.inputs.settings.largeText ? DOM.inputs.settings.largeText.closest('.flex') : null;
+                if (anchor && anchor.parentNode) {
+                     const div = document.createElement('div');
+                     div.className = "flex items-center justify-between";
+                     div.innerHTML = `<label for="toggleMute" class="text-lg font-medium text-gray-700">Mute All Sounds</label><input type="checkbox" id="toggleMute" class="h-6 w-6 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">`;
+                     anchor.parentNode.appendChild(div);
+                     DOM.inputs.settings.mute = document.getElementById('toggleMute');
+                }
             }
             
-            DOM.inputs.settings.mute.checked = State.data.settings.muteSounds;
-            DOM.inputs.settings.mute.onchange = e => {
-                const v = e.target.checked;
-                State.save('settings', { ...State.data.settings, muteSounds: v });
-                SoundManager.updateMute();
-            };
-
-            // Zero Votes Logic
-            if (!document.getElementById('toggleZeroVotes')) {
-                const container = DOM.inputs.settings.mirror.closest('.space-y-4') || DOM.inputs.settings.mirror.parentElement.parentElement;
-                const div = document.createElement('div');
-                div.className = "flex items-center justify-between";
-                div.innerHTML = `<label for="toggleZeroVotes" class="text-lg font-medium text-gray-700">Only 0/0 Words</label><input type="checkbox" id="toggleZeroVotes" class="h-6 w-6 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">`;
-                container.appendChild(div);
-                DOM.inputs.settings.zeroVotes = document.getElementById('toggleZeroVotes');
+            if (DOM.inputs.settings.mute) {
+                DOM.inputs.settings.mute.checked = State.data.settings.muteSounds;
+                DOM.inputs.settings.mute.onchange = e => {
+                    const v = e.target.checked;
+                    State.save('settings', { ...State.data.settings, muteSounds: v });
+                    SoundManager.updateMute();
+                };
             }
 
-            DOM.inputs.settings.zeroVotes.checked = State.data.settings.zeroVotesOnly;
-            DOM.inputs.settings.zeroVotes.onchange = e => {
-                const v = e.target.checked;
-                State.save('settings', { ...State.data.settings, zeroVotesOnly: v });
-                Game.refreshData(true); // Force reload list
-            };
+            // Zero Votes Logic (Robust Injection)
+            if (!document.getElementById('toggleZeroVotes')) {
+                 const anchor = DOM.inputs.settings.largeText ? DOM.inputs.settings.largeText.closest('.flex') : null;
+                 if (anchor && anchor.parentNode) {
+                     const div = document.createElement('div');
+                     div.className = "flex items-center justify-between";
+                     div.innerHTML = `<label for="toggleZeroVotes" class="text-lg font-medium text-gray-700">Only 0/0 Words</label><input type="checkbox" id="toggleZeroVotes" class="h-6 w-6 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">`;
+                     anchor.parentNode.appendChild(div);
+                     DOM.inputs.settings.zeroVotes = document.getElementById('toggleZeroVotes');
+                 }
+            }
+
+            if (DOM.inputs.settings.zeroVotes) {
+                DOM.inputs.settings.zeroVotes.checked = State.data.settings.zeroVotesOnly;
+                DOM.inputs.settings.zeroVotes.onchange = e => {
+                    const v = e.target.checked;
+                    State.save('settings', { ...State.data.settings, zeroVotesOnly: v });
+                    Game.refreshData(true); 
+                };
+            }
 
             this.toggle('settings', true)
         };
@@ -1705,10 +1711,7 @@ const Game = {
             wd.style.color = t === 'good' ? colors.good : colors.bad;
             await new Promise(r => setTimeout(r, 50));
             wd.classList.remove('color-fade');
-            wd.classList.add(t === 'good' ? 'animate-fly-left' : 'animate-fly-right');
-            
-            if (t === 'good') SoundManager.playGood();
-            else SoundManager.playBad();
+            wd.classList.add(t === 'good' ? 'animate-fly-left' : 'animate-fly-right')
         }
         
         // Helper for Special Effects
@@ -1736,10 +1739,8 @@ const Game = {
         if (up === MASON.text) { hSpec(MASON, 'bone'); return }
         
         try {
-            const un = ThemeManager.checkUnlock(up);
-            if (un) SoundManager.playUnlock();
-
-            const res = await API.vote(w._id, t);
+            const un = ThemeManager.checkUnlock(up),
+                res = await API.vote(w._id, t);
             if (res.status !== 403 && !res.ok) throw 0;
             w[`${t}Votes`] = (w[`${t}Votes`] || 0) + 1;
             State.incrementVote();
@@ -1873,7 +1874,6 @@ const InputHandler = {
                 const colors = Accessibility.getColors();
                 wd.style.color = l ? colors.good : colors.bad;
                 
-                SoundManager.playWhoosh();
                 Game.vote(l ? 'good' : 'bad', true)
             } else {
                 // ... existing reset logic ...
