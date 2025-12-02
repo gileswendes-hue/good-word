@@ -1,6 +1,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     APP_VERSION: '5.9.17', 
+	KIDS_LIST_FILE: 'kids_words.txt',
 
   
     SPECIAL: {
@@ -174,7 +175,8 @@ const State = {
             enableTilt: false,
             mirrorMode: false,
             muteSounds: false,
-            zeroVotesOnly: false
+            zeroVotesOnly: false,
+			kidsMode: false
         },
         currentTheme: localStorage.getItem('currentTheme') || 'default',
         unlockedThemes: JSON.parse(localStorage.getItem('unlockedThemes')) || [],
@@ -741,6 +743,35 @@ const API = {
             return null
         }
     },
+	async fetchKidsWords() {
+        try {
+            const r = await fetch(CONFIG.KIDS_LIST_FILE);
+            if (!r.ok) throw new Error("Missing file");
+            
+            const text = await r.text();
+            
+            // Convert text lines into Game Objects
+            return text.split('\n')
+                .map(line => line.trim())
+                .filter(line => line.length > 0) // Remove empty lines
+                .map((word, index) => {
+                    // Generate random fake stats so the bar chart looks populated
+                    const isGood = Math.random() > 0.3; 
+                    return {
+                        _id: `kid_${index}`,
+                        text: word,
+                        goodVotes: isGood ? Math.floor(Math.random() * 100) + 20 : Math.floor(Math.random() * 10),
+                        badVotes: isGood ? Math.floor(Math.random() * 10) : Math.floor(Math.random() * 100) + 20
+                    };
+                });
+        } catch (e) {
+            console.error("Could not load kids list:", e);
+            return [{ _id: 'err', text: 'Error Loading List', goodVotes: 0, badVotes: 0 }];
+        }
+    }
+},
+	
+	
     async vote(id, type) {
         return fetch(`${CONFIG.API_BASE_URL}/${id}/vote`, {
             method: 'PUT',
@@ -1809,6 +1840,25 @@ const ModalManager = {
                     Game.refreshData(true);
                 };
             }
+			// Inject Kids Mode Toggle
+            if (!document.getElementById('toggleKidsMode')) {
+                const container = DOM.inputs.settings.mirror ? (DOM.inputs.settings.mirror.closest('.space-y-4') || DOM.inputs.settings.mirror.parentElement.parentElement) : document.getElementById('settingsModalContainer').querySelector('.space-y-4');
+                if (container) {
+                    const div = document.createElement('div');
+                    div.className = "flex items-center justify-between";
+                    div.innerHTML = `<label for="toggleKidsMode" class="text-lg font-bold text-pink-500">🧸 Kids Mode (Safe)</label><input type="checkbox" id="toggleKidsMode" class="h-6 w-6 text-pink-600 border-gray-300 rounded focus:ring-pink-500">`;
+                    container.appendChild(div);
+                }
+            }
+            const kidsToggle = document.getElementById('toggleKidsMode');
+            if (kidsToggle) {
+                kidsToggle.checked = State.data.settings.kidsMode;
+                kidsToggle.onchange = e => {
+                    State.save('settings', { ...State.data.settings, kidsMode: e.target.checked });
+                    // Reload data immediately to switch lists
+                    Game.refreshData(true);
+                };
+            }
 
             this.toggle('settings', true)
         };
@@ -2113,16 +2163,39 @@ const Game = {
         this.nextWord()
     },
     async refreshData(u = true) {
-        if (u) UIManager.showMessage("Loading...");
-        const d = await API.fetchWords();
-        if (d) {
-            // Non-Destructive Data Load
-            // We load ALL words into state, but `nextWord` will filter them
-            State.runtime.allWords = d.filter(w => (w.notWordVotes || 0) < 3);
+        if (u) UIManager.showMessage(State.data.settings.kidsMode ? "Loading Kids Mode..." : "Loading...");
+        
+        let d = [];
+        
+        // --- LOGIC SWITCH ---
+        if (State.data.settings.kidsMode) {
+            // KIDS MODE: Fetch from text file
+            d = await API.fetchKidsWords();
+            
+            // Hide unsafe/complex features
+            DOM.game.buttons.custom.style.display = 'none';
+            DOM.game.buttons.notWord.style.display = 'none';
+            DOM.game.dailyBanner.style.display = 'none';
+            
+        } else {
+            // ADULT MODE: Fetch from API
+            d = await API.fetchWords();
+            
+            // Show features
+            DOM.game.buttons.custom.style.display = 'block';
+            DOM.game.buttons.notWord.style.display = 'block';
+            if(!State.runtime.isDailyMode) this.checkDailyStatus();
+        }
+
+        if (d && d.length > 0) {
+            // Filter out flagged words only if in Adult mode (Kids list is assumed safe)
+            State.runtime.allWords = State.data.settings.kidsMode ? d : d.filter(w => (w.notWordVotes || 0) < 3);
             
             UIManager.updateStats();
-            if (u && !State.runtime.isDailyMode) this.nextWord()
-        } else UIManager.showMessage("Connection Error", true)
+            if (u && !State.runtime.isDailyMode) this.nextWord();
+        } else {
+            UIManager.showMessage("Connection Error", true);
+        }
     },
     nextWord() {
         let p = State.runtime.allWords;
