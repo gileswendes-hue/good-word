@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.9.17', 
+    APP_VERSION: '5.9.18', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1027,8 +1027,7 @@ const Effects = {
             c.appendChild(d)
         }
     },
-    
-halloween(active) {
+    halloween(active) {
         if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
         if (this.webRaf) cancelAnimationFrame(this.webRaf);
         if (!active) {
@@ -1063,6 +1062,8 @@ halloween(active) {
                 wrap.style.transition = 'left 2s ease';
                 wrap.style.left = (Math.random() * 80 + 10) + '%';
                 
+                // For random drops, we also need to account for scale, but random is random
+                // We'll keep it simple for random drops
                 const dist = Math.random() * 40 + 20;
                 thread.style.transition = 'height 2s ease-in-out';
                 thread.style.height = (dist + 20) + 'vh';
@@ -1096,7 +1097,7 @@ halloween(active) {
                 } else {
                     this.spiderHunt(85, 25, false);
                 }
-            }; // <--- Fixed syntax (semicolon)
+            };
 
             const svg = document.getElementById('web-svg');
             const cx = 300, cy = 0;
@@ -1146,11 +1147,12 @@ halloween(active) {
         }
     },
 
-  spiderHunt(targetXPercent, targetYPercent, isFood) {
+    spiderHunt(targetXPercent, targetYPercent, isFood) {
         const wrap = document.getElementById('spider-wrap');
         if (!wrap) return;
         const thread = wrap.querySelector('#spider-thread');
         const bub = wrap.querySelector('#spider-bubble');
+        const anchor = document.getElementById('spider-anchor');
         
         wrap.classList.add('hunting');
         if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
@@ -1167,21 +1169,29 @@ halloween(active) {
         wrap.style.transition = 'none';
         wrap.style.left = targetXPercent + '%';
         
-        // CHANGED: Increased offset to +6 so spider overlaps the fly visually
-        const dropHeightVH = targetYPercent + 6; 
+        // --- SCALE COMPENSATION LOGIC ---
+        // 1. Get current scale of the spider container (e.g., 0.6)
+        let currentScale = 1;
+        if (anchor && anchor.style.transform) {
+            const match = anchor.style.transform.match(/scale\(([^)]+)\)/);
+            if (match && match[1]) currentScale = parseFloat(match[1]);
+        }
+
+        // 2. Calculate how long the thread needs to be visually.
+        // We add a small offset (+2) so the body overlaps the fly slightly.
+        // Then DIVIDE by scale. If scale is 0.5, we need 2x the thread height to reach the same visual point.
+        const dropHeightVH = (targetYPercent + 2) / currentScale; 
 
         requestAnimationFrame(() => {
-            // Drop duration 0.8s
             thread.style.transition = 'height 0.8s cubic-bezier(0.25, 1, 0.5, 1)';
             thread.style.height = dropHeightVH + 'vh';
             
             // Wait for drop to finish (800ms)
             setTimeout(() => {
                 
-                // CHANGED: Longer pause (1000ms) at the bottom before acting
+                // Pause at bottom (1000ms)
                 setTimeout(() => {
                     if (isFood) {
-                        // --- EAT SCENARIO ---
                         if (MosquitoManager.state === 'stuck') {
                             MosquitoManager.eat(); 
                             bub.innerText = "DELICIOUS! 🦟";
@@ -1191,11 +1201,10 @@ halloween(active) {
                         } else {
                             bub.innerText = "It got away! 😠";
                         }
-                        // Retreat speed: 1.5s (visible but quick)
-                        setTimeout(() => this.retreatSpider(thread, wrap, bub, '1.5s'), 1000);
+                        // Retreat speed: 2s (visible but quick)
+                        setTimeout(() => this.retreatSpider(thread, wrap, bub, '2s'), 1000);
 
                     } else {
-                        // --- TRICKED SCENARIO ---
                         const angryPhrases = ["HEY! No food!", "You tricked me!", "Empty?!", "Do not disturb!", "Grrr..."];
                         bub.innerText = angryPhrases[Math.floor(Math.random() * angryPhrases.length)];
                         
@@ -1208,26 +1217,23 @@ halloween(active) {
                             this.retreatSpider(thread, wrap, bub, '3s');
                         }, 1500);
                     }
-                }, 1000); // <--- Pause before chomping/getting angry
+                }, 1000); 
 
             }, 800); 
         });
     },
 
     retreatSpider(thread, wrap, bub, duration) {
-        // Ensure the new transition duration is applied
         thread.style.transition = `height ${duration} ease-in-out`;
-        
         requestAnimationFrame(() => {
             thread.style.height = '0';
         });
-
         setTimeout(() => {
             bub.style.opacity = '0';
             wrap.classList.remove('hunting');
         }, parseFloat(duration) * 1000);
     },
-	
+
     ballpit(active) {
         const c = DOM.theme.effects.ballpit;
         if (this.ballLoop) cancelAnimationFrame(this.ballLoop);
