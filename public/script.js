@@ -576,14 +576,16 @@ loop() {
             
             const distRight = window.innerWidth - pxX;
             const distTop = pxY;
-            // Stick condition
-            if (this.state === 'flying' && (distRight + distTop) < 280 && pxX < window.innerWidth - 50 && pxY > 50) {
+
+            // --- CHANGED: RELAXED STICK CONDITION ---
+            // Increased range to 300, and reduced padding to 10px so it catches easier
+            if (this.state === 'flying' && (distRight + distTop) < 300 && pxX < window.innerWidth - 10 && pxY > 10) {
                 this.state = 'stuck';
                 SoundManager.stopBuzz(); 
                 UIManager.showPostVoteMessage("It's stuck in the web!");
-                // CHANGED: Pass 'true' to indicate real food
                 Effects.spiderHunt(this.x, this.y, true); 
             }
+            // ----------------------------------------
 
             if (this.state === 'leaving') {
                 if (this.x < -10 || this.x > 110 || this.y < -10 || this.y > 110) {
@@ -600,6 +602,7 @@ loop() {
         this.raf = requestAnimationFrame(() => this.loop());
     },
 
+    // ... (Keep eat, finish, remove as is) ...
     eat() {
         if (this.state !== 'stuck') return;
         UIManager.showPostVoteMessage("Chomp! 🕷️");
@@ -981,8 +984,8 @@ const Effects = {
             c.appendChild(d)
         }
     },
-    // --- HALLOWEEN FUNCTION ---
-    halloween(active) {
+    
+halloween(active) {
         if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
         if (this.webRaf) cancelAnimationFrame(this.webRaf);
         if (!active) {
@@ -1044,18 +1047,13 @@ const Effects = {
             web.innerHTML = `<svg id="web-svg" viewBox="0 0 300 300" style="width:300px;height:300px;position:fixed;top:0;right:0;z-index:55;pointer-events:auto;cursor:pointer;opacity:0.7;filter:drop-shadow(1px 1px 2px rgba(0,0,0,0.5))"></svg>`;
             document.body.appendChild(web);
             
-            // --- CHANGED: Web Interaction Logic ---
             web.onclick = () => {
                 if (MosquitoManager.state === 'stuck') {
-                    // There is food! Hunt the fly's exact location
                     this.spiderHunt(MosquitoManager.x, MosquitoManager.y, true);
                 } else {
-                    // No food! Get tricked.
-                    // Hunt near the web (85% right, 25% down)
                     this.spiderHunt(85, 25, false);
                 }
-            };
-
+            }; // <--- Fixed syntax (semicolon)
 
             const svg = document.getElementById('web-svg');
             const cx = 300, cy = 0;
@@ -1105,7 +1103,6 @@ const Effects = {
         }
     },
 
- // --- UPDATED SPIDER HUNT LOGIC ---
     spiderHunt(targetXPercent, targetYPercent, isFood) {
         const wrap = document.getElementById('spider-wrap');
         if (!wrap) return;
@@ -1115,7 +1112,6 @@ const Effects = {
         wrap.classList.add('hunting');
         if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
 
-        // 1. Set text based on Food vs Trick
         bub.style.opacity = '1';
         if (isFood) {
             const successPhrases = ["Lunch time!", "Gotcha!", "Yum yum!", "Snack detected!"];
@@ -1128,62 +1124,52 @@ const Effects = {
         wrap.style.transition = 'none';
         wrap.style.left = targetXPercent + '%';
         
-        // Lowered offset to +2 so spider overlaps the fly exactly
         const dropHeightVH = targetYPercent + 2; 
 
         requestAnimationFrame(() => {
             thread.style.transition = 'height 0.6s cubic-bezier(0.25, 1, 0.5, 1)';
             thread.style.height = dropHeightVH + 'vh';
             
-            // Wait for drop to finish (600ms)
             setTimeout(() => {
-                
-                // --- NEW: PAUSE BEFORE CHOMP (500ms) ---
                 setTimeout(() => {
                     if (isFood) {
-                        // EAT SCENARIO
                         if (MosquitoManager.state === 'stuck') {
-                            MosquitoManager.eat(); // <--- CHOMP HAPPENS HERE
+                            MosquitoManager.eat(); 
                             bub.innerText = "DELICIOUS! 🦟";
-                            
-                            // Little shake effect when eating
                             const body = wrap.querySelector('#spider-body');
                             body.style.animation = 'shake 0.2s ease-in-out';
                             setTimeout(() => body.style.animation = '', 200);
                         } else {
                             bub.innerText = "It got away! 😠";
                         }
-                        // Wait a moment to enjoy the meal, then retreat
-                        setTimeout(() => this.retreatSpider(thread, wrap, bub), 1000);
+                        // FAST RETREAT (0.3s)
+                        setTimeout(() => this.retreatSpider(thread, wrap, bub, '0.3s'), 1000);
 
                     } else {
-                        // TRICKED SCENARIO
                         const angryPhrases = ["HEY! No food!", "You tricked me!", "Empty?!", "Do not disturb!", "Grrr..."];
                         bub.innerText = angryPhrases[Math.floor(Math.random() * angryPhrases.length)];
-                        
-                        // Shake slightly in anger
                         const body = wrap.querySelector('#spider-body');
                         body.style.animation = 'shake 0.3s ease-in-out';
                         
                         setTimeout(() => {
                             body.style.animation = '';
-                            this.retreatSpider(thread, wrap, bub);
+                            // SLOW RETREAT (2s)
+                            this.retreatSpider(thread, wrap, bub, '2s');
                         }, 1500);
                     }
-                }, 500); // <--- PAUSE DURATION
-
+                }, 500); 
             }, 600); 
         });
     },
 
-    retreatSpider(thread, wrap, bub) {
-        thread.style.transition = 'height 0.5s ease-in';
+    retreatSpider(thread, wrap, bub, duration = '0.5s') {
+        thread.style.transition = `height ${duration} ease-in`;
         thread.style.height = '0';
         setTimeout(() => {
             bub.style.opacity = '0';
             wrap.classList.remove('hunting');
-        }, 500);
-    }, // <--- FIXED: Added comma here
+        }, parseFloat(duration) * 1000);
+    }, // <--- Fixed missing comma
 	
     ballpit(active) {
         const c = DOM.theme.effects.ballpit;
