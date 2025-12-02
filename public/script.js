@@ -1192,25 +1192,25 @@ spiderHunt(targetXPercent, targetYPercent, isFood) {
         wrap.style.transition = 'none';
         wrap.style.left = targetXPercent + '%';
         
-        // --- SCALE COMPENSATION & OFFSET LOGIC ---
+        // Scale compensation
         let currentScale = 1;
         if (anchor && anchor.style.transform) {
             const match = anchor.style.transform.match(/scale\(([^)]+)\)/);
             if (match && match[1]) currentScale = parseFloat(match[1]);
         }
 
-        // CHANGED: Increased offset from +6 to +12 to ensure spider drops ON TOP of the fly
+        // Offset +12 ensures it overlaps the fly
         const dropHeightVH = (targetYPercent + 12) / currentScale; 
 
         requestAnimationFrame(() => {
-            // Drop duration 1.5s (Slower, as requested)
-            thread.style.transition = 'height 1.5s cubic-bezier(0.25, 1, 0.5, 1)';
+            // CHANGED: Slowed drop to 3.0s (Very slow descent)
+            thread.style.transition = 'height 3s cubic-bezier(0.25, 1, 0.5, 1)';
             thread.style.height = dropHeightVH + 'vh';
             
-            // Wait for drop to finish (1500ms)
+            // Wait for drop to finish (matches 3s transition)
             setTimeout(() => {
                 
-                // Pause at bottom (2000ms) - ample time to read bubbles
+                // Pause at bottom (2000ms)
                 setTimeout(() => {
                     if (isFood) {
                         if (MosquitoManager.state === 'stuck') {
@@ -1222,8 +1222,8 @@ spiderHunt(targetXPercent, targetYPercent, isFood) {
                         } else {
                             bub.innerText = "It got away! 😠";
                         }
-                        // Retreat speed: 2.5s
-                        setTimeout(() => this.retreatSpider(thread, wrap, bub, '2.5s'), 1000);
+                        // CHANGED: Slower retreat (4s)
+                        setTimeout(() => this.retreatSpider(thread, wrap, bub, '4s'), 1000);
 
                     } else {
                         const angryPhrases = ["HEY! No food!", "You tricked me!", "Empty?!", "Do not disturb!", "Grrr..."];
@@ -1234,13 +1234,13 @@ spiderHunt(targetXPercent, targetYPercent, isFood) {
                         
                         setTimeout(() => {
                             body.style.animation = '';
-                            // Retreat speed: 4s
-                            this.retreatSpider(thread, wrap, bub, '4s');
+                            // CHANGED: Very slow retreat for trick (6s)
+                            this.retreatSpider(thread, wrap, bub, '6s');
                         }, 1500);
                     }
                 }, 2000); 
 
-            }, 1500); 
+            }, 3000); 
         });
     },
     retreatSpider(thread, wrap, bub, duration) {
