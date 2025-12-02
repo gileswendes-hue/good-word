@@ -1054,8 +1054,8 @@ const Effects = {
                     // Hunt near the web (85% right, 25% down)
                     this.spiderHunt(85, 25, false);
                 }
-            };
-            // --------------------------------------
+            },
+
 
             const svg = document.getElementById('web-svg');
             const cx = 300, cy = 0;
