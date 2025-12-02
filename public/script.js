@@ -446,11 +446,12 @@ const SoundManager = {
 // --- MOSQUITO LOGIC ---
 const MosquitoManager = {
     el: null, svg: null, path: null, checkInterval: null,
-    x: 50, y: 50, angle: 0, speed: 0.2, 
+    x: 50, y: 50, angle: 0, 
+    speed: 0.2, 
     turnCycle: 0, loopTimer: 0,
     trailPoints: [], MAX_TRAIL: 50,
     state: 'hidden', raf: null,
-    huntTimer: null, // <--- NEW: Timer for the spider delay
+    huntTimer: null, 
     COOLDOWN: 5 * 60 * 1000, 
 
     startMonitoring() {
@@ -483,7 +484,7 @@ const MosquitoManager = {
 
         Object.assign(this.el.style, {
             position: 'fixed', 
-            fontSize: '1.5rem', // <--- CHANGED: Smaller size (was 3rem)
+            fontSize: '1.5rem', 
             zIndex: '100',
             pointerEvents: 'auto', cursor: 'pointer', transition: 'none', 
             filter: 'drop-shadow(1px 2px 3px rgba(0,0,0,0.5))',
@@ -498,8 +499,10 @@ const MosquitoManager = {
         
         this.path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         this.path.setAttribute("fill", "none");
-        this.path.setAttribute("stroke", "rgba(0,0,0,0.2)"); 
-        this.path.setAttribute("stroke-width", "1"); // Thinner trail for smaller fly
+        
+        // --- CHANGED: White Trail Color ---
+        this.path.setAttribute("stroke", "rgba(255, 255, 255, 0.6)"); 
+        this.path.setAttribute("stroke-width", "1"); 
         this.path.setAttribute("stroke-dasharray", "3, 3");
         this.path.setAttribute("stroke-linecap", "round");
         
@@ -510,7 +513,6 @@ const MosquitoManager = {
         this.el.onclick = (e) => {
             e.stopPropagation();
             if (this.state === 'stuck') {
-                // Rescue! Cancel the spider hunt if it hasn't happened yet
                 if (this.huntTimer) clearTimeout(this.huntTimer);
                 this.startRescue();
             }
@@ -550,8 +552,14 @@ const MosquitoManager = {
     loop() {
         if (!document.body.contains(this.el)) return;
         if (this.state === 'flying' || this.state === 'leaving') {
-            this.turnCycle += 0.05;
-            let turnSpeed = Math.cos(this.turnCycle) * 0.03;
+            
+            // --- CHANGED: Larger Loops ---
+            // Reduced increment from 0.05 to 0.02 for wider turns
+            this.turnCycle += 0.02; 
+            
+            // Reduced multiplier to smooth out the curve
+            let turnSpeed = Math.cos(this.turnCycle) * 0.02; 
+            
             if (this.state === 'flying') {
                 if (this.loopTimer > 0) {
                     turnSpeed = 0.25; 
@@ -563,6 +571,7 @@ const MosquitoManager = {
             this.angle += turnSpeed;
             this.x += Math.cos(this.angle) * this.speed;
             this.y += Math.sin(this.angle) * this.speed;
+            
             if (this.state === 'flying') {
                 if (this.x > 110) { this.x = -10; this.trailPoints = []; }
                 else if (this.x < -10) { this.x = 110; this.trailPoints = []; }
@@ -586,22 +595,18 @@ const MosquitoManager = {
                 this.path.setAttribute('d', d);
             }
             
-            // --- CATCH LOGIC ---
             const distRight = window.innerWidth - pxX;
             const distTop = pxY;
             
-            // 1. Must be in the web zone (Top-Right corner)
+            // Stick Logic
             const inWebZone = (distRight + distTop) < 300;
-            
-            // 2. Must be strictly visible on screen (padding 50px)
             const isVisible = pxX > 50 && pxX < (window.innerWidth - 50) && pxY > 50 && pxY < (window.innerHeight - 50);
 
             if (this.state === 'flying' && inWebZone && isVisible) {
                 this.state = 'stuck';
-                SoundManager.stopBuzz(); // Or switch to a low buzz if you have SoundManager.setStuckMode
+                SoundManager.stopBuzz(); 
                 UIManager.showPostVoteMessage("It's stuck in the web!");
                 
-                // Wait 2.5 seconds vibrating before the spider comes
                 this.huntTimer = setTimeout(() => {
                     if (this.state === 'stuck') {
                         Effects.spiderHunt(this.x, this.y, true);
@@ -615,8 +620,7 @@ const MosquitoManager = {
                 }
             }
         } else if (this.state === 'stuck') {
-            // VIBRATE IN PLACE
-            const jitterX = (Math.random() - 0.5) * 5; // Increased jitter intensity slightly
+            const jitterX = (Math.random() - 0.5) * 5; 
             const jitterY = (Math.random() - 0.5) * 5;
             this.el.style.transform = `translate(${jitterX}px, ${jitterY}px)`;
         } else if (this.state === 'thanking') {
