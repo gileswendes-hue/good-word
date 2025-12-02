@@ -1170,7 +1170,7 @@ const Effects = {
         }
     },
 
-    spiderHunt(targetXPercent, targetYPercent, isFood) {
+spiderHunt(targetXPercent, targetYPercent, isFood) {
         const wrap = document.getElementById('spider-wrap');
         if (!wrap) return;
         const thread = wrap.querySelector('#spider-thread');
@@ -1192,24 +1192,25 @@ const Effects = {
         wrap.style.transition = 'none';
         wrap.style.left = targetXPercent + '%';
         
-        // Scale compensation
+        // --- SCALE COMPENSATION & OFFSET LOGIC ---
         let currentScale = 1;
         if (anchor && anchor.style.transform) {
             const match = anchor.style.transform.match(/scale\(([^)]+)\)/);
             if (match && match[1]) currentScale = parseFloat(match[1]);
         }
 
-        const dropHeightVH = (targetYPercent + 6) / currentScale; 
+        // CHANGED: Increased offset from +6 to +12 to ensure spider drops ON TOP of the fly
+        const dropHeightVH = (targetYPercent + 12) / currentScale; 
 
         requestAnimationFrame(() => {
-            // CHANGED: Slowed drop to 1.5s
+            // Drop duration 1.5s (Slower, as requested)
             thread.style.transition = 'height 1.5s cubic-bezier(0.25, 1, 0.5, 1)';
             thread.style.height = dropHeightVH + 'vh';
             
-            // Wait for drop (1500ms)
+            // Wait for drop to finish (1500ms)
             setTimeout(() => {
                 
-                // CHANGED: Increased pause at bottom to 2000ms
+                // Pause at bottom (2000ms) - ample time to read bubbles
                 setTimeout(() => {
                     if (isFood) {
                         if (MosquitoManager.state === 'stuck') {
@@ -1221,7 +1222,7 @@ const Effects = {
                         } else {
                             bub.innerText = "It got away! 😠";
                         }
-                        // CHANGED: Slower retreat (2.5s)
+                        // Retreat speed: 2.5s
                         setTimeout(() => this.retreatSpider(thread, wrap, bub, '2.5s'), 1000);
 
                     } else {
@@ -1233,7 +1234,7 @@ const Effects = {
                         
                         setTimeout(() => {
                             body.style.animation = '';
-                            // CHANGED: Even slower retreat for trick (4s)
+                            // Retreat speed: 4s
                             this.retreatSpider(thread, wrap, bub, '4s');
                         }, 1500);
                     }
@@ -1242,7 +1243,6 @@ const Effects = {
             }, 1500); 
         });
     },
-
     retreatSpider(thread, wrap, bub, duration) {
         thread.style.transition = `height ${duration} ease-in-out`;
         requestAnimationFrame(() => {
