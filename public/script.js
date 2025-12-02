@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.9.15', 
+    APP_VERSION: '5.9.16', 
 
   
     SPECIAL: {
@@ -537,7 +537,7 @@ const MosquitoManager = {
         }, 2000);
     },
 
-    loop() {
+loop() {
         if (!document.body.contains(this.el)) return;
         if (this.state === 'flying' || this.state === 'leaving') {
             this.turnCycle += 0.05;
@@ -574,18 +574,16 @@ const MosquitoManager = {
                 this.path.setAttribute('d', d);
             }
             
-            // --- FIX 1: BOUNDARY CHECK FOR STICKING ---
             const distRight = window.innerWidth - pxX;
             const distTop = pxY;
-            // Only stick if within the web zone AND actually visible on screen (padding of 50px)
+            // Stick condition
             if (this.state === 'flying' && (distRight + distTop) < 280 && pxX < window.innerWidth - 50 && pxY > 50) {
                 this.state = 'stuck';
                 SoundManager.stopBuzz(); 
                 UIManager.showPostVoteMessage("It's stuck in the web!");
-                // --- FIX 3: TRIGGER SPIDER HUNT ---
-                Effects.spiderHunt(this.x, this.y); 
+                // CHANGED: Pass 'true' to indicate real food
+                Effects.spiderHunt(this.x, this.y, true); 
             }
-            // ------------------------------------------
 
             if (this.state === 'leaving') {
                 if (this.x < -10 || this.x > 110 || this.y < -10 || this.y > 110) {
@@ -983,6 +981,7 @@ const Effects = {
             c.appendChild(d)
         }
     },
+    // --- HALLOWEEN FUNCTION ---
     halloween(active) {
         if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
         if (this.webRaf) cancelAnimationFrame(this.webRaf);
@@ -994,11 +993,9 @@ const Effects = {
             return
         }
 
-        // 1. Create Spider
         if (!document.getElementById('spider-wrap')) {
             const wrap = document.createElement('div');
             wrap.id = 'spider-wrap';
-            // Start roughly in the corner near the web
             wrap.style.left = '85%'; 
             const scale = (Math.random() * .6 + .6).toFixed(2);
             wrap.innerHTML = `<div id="spider-anchor" style="transform: scale(${scale})"><div id="spider-thread" style="transition: height 2s ease-in-out"></div><div id="spider-body">🕷️<div id="spider-bubble"></div></div></div>`;
@@ -1008,24 +1005,19 @@ const Effects = {
                 body = wrap.querySelector('#spider-body'),
                 bub = wrap.querySelector('#spider-bubble');
 
-            // Ambient Drop (Random idle behavior)
             const runDrop = () => {
                 const phrases = ['ouch!', 'hey frend!', "I wouldn't hurt a fly!", "I'm more scared of you...", "I'm a web dev!", "just hanging", "fangs a lot!"];
                 bub.innerText = phrases[Math.floor(Math.random() * phrases.length)];
                 
-                // Don't interrupt a hunt
                 if (wrap.classList.contains('hunting')) {
                      this.spiderTimeout = setTimeout(runDrop, 5000);
                      return;
                 }
 
-                // Random sway location for ambient drops
                 wrap.style.transition = 'left 2s ease';
                 wrap.style.left = (Math.random() * 80 + 10) + '%';
                 
                 const dist = Math.random() * 40 + 20;
-                
-                // Slow down
                 thread.style.transition = 'height 2s ease-in-out';
                 thread.style.height = (dist + 20) + 'vh';
                 
@@ -1036,31 +1028,34 @@ const Effects = {
                 };
 
                 this.spiderTimeout = setTimeout(() => {
-                    // Fast up
                     thread.style.transition = 'height 0.5s ease-in-out';
                     thread.style.height = '0';
                     setTimeout(() => {
                         this.spiderTimeout = setTimeout(runDrop, Math.random() * 15000 + 10000)
-                    }, 600); // wait for climb
+                    }, 600); 
                 }, 4000 + (Math.random() * 3000));
             };
             setTimeout(runDrop, Math.random() * 5000 + 2000)
         }
 
-        // 2. Create Web with INTERACTIVITY
         if (!document.getElementById('spider-web-corner')) {
             const web = document.createElement('div');
             web.id = 'spider-web-corner';
-            // Added pointer-events: auto to make it clickable
             web.innerHTML = `<svg id="web-svg" viewBox="0 0 300 300" style="width:300px;height:300px;position:fixed;top:0;right:0;z-index:55;pointer-events:auto;cursor:pointer;opacity:0.7;filter:drop-shadow(1px 1px 2px rgba(0,0,0,0.5))"></svg>`;
             document.body.appendChild(web);
             
-            // FIX 4: Web Reaction (Clicking web summons spider)
+            // --- CHANGED: Web Interaction Logic ---
             web.onclick = () => {
-                UIManager.showPostVoteMessage("Don't touch the web!");
-                // Hunt near the web (approx 85% left, 20% down)
-                this.spiderHunt(85, 20);
+                if (MosquitoManager.state === 'stuck') {
+                    // There is food! Hunt the fly's exact location
+                    this.spiderHunt(MosquitoManager.x, MosquitoManager.y, true);
+                } else {
+                    // No food! Get tricked.
+                    // Hunt near the web (85% right, 25% down)
+                    this.spiderHunt(85, 25, false);
+                }
             };
+            // --------------------------------------
 
             const svg = document.getElementById('web-svg');
             const cx = 300, cy = 0;
@@ -1071,7 +1066,6 @@ const Effects = {
                 let pathStr = '';
                 const curAnchors = baseAnchors.map((a, i) => {
                     if (i === 0 || i === baseAnchors.length - 1) return a;
-                    // FIX 5: Increased Wind (changed * 5 to * 15)
                     const sway = Math.sin((time / 1500) + i) * 15; 
                     return { x: a.x + sway, y: a.y + sway }
                 });
@@ -1111,53 +1105,77 @@ const Effects = {
         }
     },
 
-    // --- NEW FUNCTION: SPIDER HUNT LOGIC ---
-    spiderHunt(targetXPercent, targetYPercent) {
+    // --- UPDATED SPIDER HUNT LOGIC ---
+    spiderHunt(targetXPercent, targetYPercent, isFood) {
         const wrap = document.getElementById('spider-wrap');
         if (!wrap) return;
         const thread = wrap.querySelector('#spider-thread');
+        const bub = wrap.querySelector('#spider-bubble');
         
-        // Mark as hunting to pause random drops
         wrap.classList.add('hunting');
         if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
 
-        // 1. Teleport horizontal position (disable transition for instant X alignment)
+        // 1. Set text based on Food vs Trick
+        bub.style.opacity = '1';
+        if (isFood) {
+            const successPhrases = ["Lunch time!", "Gotcha!", "Yum yum!", "Snack detected!"];
+            bub.innerText = successPhrases[Math.floor(Math.random() * successPhrases.length)];
+        } else {
+            const trickedPhrases = ["Is that a fly?!", "Who touched my house?", "Food?!", "I felt something!"];
+            bub.innerText = trickedPhrases[Math.floor(Math.random() * trickedPhrases.length)];
+        }
+
         wrap.style.transition = 'none';
         wrap.style.left = targetXPercent + '%';
         
-        // 2. Calculate Drop Height (Convert % to VH roughly)
-        // targetYPercent is % of screen height. 
-        // We add a bit (10) to make sure the spider body overlaps the fly.
         const dropHeightVH = targetYPercent + 5; 
 
-        // 3. Drop Down
         requestAnimationFrame(() => {
-            // Re-enable transition for the drop
-            thread.style.transition = 'height 0.8s cubic-bezier(0.25, 1, 0.5, 1)';
+            thread.style.transition = 'height 0.6s cubic-bezier(0.25, 1, 0.5, 1)';
             thread.style.height = dropHeightVH + 'vh';
             
-            // 4. Eat and Retreat
             setTimeout(() => {
-                if (MosquitoManager.state === 'stuck') {
-                    MosquitoManager.eat();
+                // At the bottom of the thread...
+                if (isFood) {
+                    // EAT SCENARIO
+                    if (MosquitoManager.state === 'stuck') {
+                        MosquitoManager.eat();
+                        bub.innerText = "DELICIOUS! 🦟";
+                    } else {
+                        bub.innerText = "It got away! 😠";
+                    }
+                    // Wait a moment to enjoy the meal
+                    setTimeout(() => this.retreatSpider(thread, wrap, bub), 1000);
+
+                } else {
+                    // TRICKED SCENARIO
+                    // Realize there is no food
+                    const angryPhrases = ["HEY! No food!", "You tricked me!", "Empty?!", "Do not disturb!", "Grrr..."];
+                    bub.innerText = angryPhrases[Math.floor(Math.random() * angryPhrases.length)];
+                    
+                    // Shake slightly in anger
+                    const body = wrap.querySelector('#spider-body');
+                    body.style.animation = 'shake 0.3s ease-in-out';
+                    
+                    // Wait longer to show the angry message
+                    setTimeout(() => {
+                        body.style.animation = '';
+                        this.retreatSpider(thread, wrap, bub);
+                    }, 1500);
                 }
-                
-                // FIX 2: Fast Climb (0.4s)
-                thread.style.transition = 'height 0.4s ease-in';
-                thread.style.height = '0';
-                
-                setTimeout(() => {
-                    wrap.classList.remove('hunting');
-                    // Resume random behavior
-                    this.spiderTimeout = setTimeout(() => {
-                         // Triggers the ambient loop again if needed, 
-                         // though the existing loop usually handles it via timeout.
-                         // We just leave it to the next random cycle.
-                    }, 2000);
-                }, 400); // Wait for climb to finish
-            }, 1000); // Wait at bottom for 1s
+            }, 600); 
         });
     },
+
+    retreatSpider(thread, wrap, bub) {
+        thread.style.transition = 'height 0.5s ease-in';
+        thread.style.height = '0';
+        setTimeout(() => {
+            bub.style.opacity = '0';
+            wrap.classList.remove('hunting');
+        }, 500);
+    }
+};
 	
     ballpit(active) {
         const c = DOM.theme.effects.ballpit;
