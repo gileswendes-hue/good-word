@@ -1,5 +1,5 @@
 export const CONFIG = {
-    API_BASE_URL: '/api/words',
+    API_BASE_URL: 'https://good-word.onrender.com/api/words',
     APP_VERSION: '5.9.12',
 
     SPECIAL: {
@@ -68,4 +68,5 @@ export const CONFIG = {
         "Tip: Knock, knock, Neo. 🐇",
         "Tip: ❤️💎"
     ]
+
 };
