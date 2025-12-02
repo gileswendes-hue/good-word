@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.10.1', 
+    APP_VERSION: '5.10.2', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
