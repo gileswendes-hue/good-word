@@ -768,7 +768,6 @@ const API = {
             console.error("Could not load kids list:", e);
             return [{ _id: 'err', text: 'Error Loading List', goodVotes: 0, badVotes: 0 }];
         }
-    }
 },
 	
 	
