@@ -1103,7 +1103,7 @@ halloween(active) {
         }
     },
 
-    spiderHunt(targetXPercent, targetYPercent, isFood) {
+  spiderHunt(targetXPercent, targetYPercent, isFood) {
         const wrap = document.getElementById('spider-wrap');
         if (!wrap) return;
         const thread = wrap.querySelector('#spider-thread');
@@ -1124,15 +1124,21 @@ halloween(active) {
         wrap.style.transition = 'none';
         wrap.style.left = targetXPercent + '%';
         
-        const dropHeightVH = targetYPercent + 2; 
+        // CHANGED: Increased offset to +6 so spider overlaps the fly visually
+        const dropHeightVH = targetYPercent + 6; 
 
         requestAnimationFrame(() => {
-            thread.style.transition = 'height 0.6s cubic-bezier(0.25, 1, 0.5, 1)';
+            // Drop duration 0.8s
+            thread.style.transition = 'height 0.8s cubic-bezier(0.25, 1, 0.5, 1)';
             thread.style.height = dropHeightVH + 'vh';
             
+            // Wait for drop to finish (800ms)
             setTimeout(() => {
+                
+                // CHANGED: Longer pause (1000ms) at the bottom before acting
                 setTimeout(() => {
                     if (isFood) {
+                        // --- EAT SCENARIO ---
                         if (MosquitoManager.state === 'stuck') {
                             MosquitoManager.eat(); 
                             bub.innerText = "DELICIOUS! 🦟";
@@ -1142,34 +1148,42 @@ halloween(active) {
                         } else {
                             bub.innerText = "It got away! 😠";
                         }
-                        // FAST RETREAT (0.3s)
-                        setTimeout(() => this.retreatSpider(thread, wrap, bub, '0.3s'), 1000);
+                        // Retreat speed: 1.5s (visible but quick)
+                        setTimeout(() => this.retreatSpider(thread, wrap, bub, '1.5s'), 1000);
 
                     } else {
+                        // --- TRICKED SCENARIO ---
                         const angryPhrases = ["HEY! No food!", "You tricked me!", "Empty?!", "Do not disturb!", "Grrr..."];
                         bub.innerText = angryPhrases[Math.floor(Math.random() * angryPhrases.length)];
+                        
                         const body = wrap.querySelector('#spider-body');
                         body.style.animation = 'shake 0.3s ease-in-out';
                         
                         setTimeout(() => {
                             body.style.animation = '';
-                            // SLOW RETREAT (2s)
-                            this.retreatSpider(thread, wrap, bub, '2s');
+                            // Retreat speed: 3s (slow/shameful)
+                            this.retreatSpider(thread, wrap, bub, '3s');
                         }, 1500);
                     }
-                }, 500); 
-            }, 600); 
+                }, 1000); // <--- Pause before chomping/getting angry
+
+            }, 800); 
         });
     },
 
-    retreatSpider(thread, wrap, bub, duration = '0.5s') {
-        thread.style.transition = `height ${duration} ease-in`;
-        thread.style.height = '0';
+    retreatSpider(thread, wrap, bub, duration) {
+        // Ensure the new transition duration is applied
+        thread.style.transition = `height ${duration} ease-in-out`;
+        
+        requestAnimationFrame(() => {
+            thread.style.height = '0';
+        });
+
         setTimeout(() => {
             bub.style.opacity = '0';
             wrap.classList.remove('hunting');
         }, parseFloat(duration) * 1000);
-    }, // <--- Fixed missing comma
+    },<--- Fixed missing comma
 	
     ballpit(active) {
         const c = DOM.theme.effects.ballpit;
