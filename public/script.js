@@ -445,11 +445,12 @@ const SoundManager = {
 // --- MOSQUITO LOGIC ---
 const MosquitoManager = {
     el: null, svg: null, path: null, checkInterval: null,
-    x: 50, y: 50, angle: 0, speed: 0.35, 
+    x: 50, y: 50, angle: 0, 
+    speed: 0.2, 
     turnCycle: 0, loopTimer: 0,
     trailPoints: [], MAX_TRAIL: 50,
     state: 'hidden', raf: null,
-    COOLDOWN: 5 * 60 * 1000, 
+    COOLDOWN: 5 * 60 * 1000,
 
     startMonitoring() {
         if (this.checkInterval) clearInterval(this.checkInterval);
@@ -1027,6 +1028,7 @@ const Effects = {
             c.appendChild(d)
         }
     },
+    
     halloween(active) {
         if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
         if (this.webRaf) cancelAnimationFrame(this.webRaf);
@@ -1062,8 +1064,6 @@ const Effects = {
                 wrap.style.transition = 'left 2s ease';
                 wrap.style.left = (Math.random() * 80 + 10) + '%';
                 
-                // For random drops, we also need to account for scale, but random is random
-                // We'll keep it simple for random drops
                 const dist = Math.random() * 40 + 20;
                 thread.style.transition = 'height 2s ease-in-out';
                 thread.style.height = (dist + 20) + 'vh';
@@ -1093,9 +1093,12 @@ const Effects = {
             
             web.onclick = () => {
                 if (MosquitoManager.state === 'stuck') {
+                    // There is food! Hunt the fly's exact location
                     this.spiderHunt(MosquitoManager.x, MosquitoManager.y, true);
                 } else {
-                    this.spiderHunt(85, 25, false);
+                    // No food! Get tricked.
+                    // CHANGED: Drop to 50% (middle of screen) so we can read text
+                    this.spiderHunt(85, 50, false);
                 }
             };
 
@@ -1169,27 +1172,24 @@ const Effects = {
         wrap.style.transition = 'none';
         wrap.style.left = targetXPercent + '%';
         
-        // --- SCALE COMPENSATION LOGIC ---
-        // 1. Get current scale of the spider container (e.g., 0.6)
+        // Scale compensation
         let currentScale = 1;
         if (anchor && anchor.style.transform) {
             const match = anchor.style.transform.match(/scale\(([^)]+)\)/);
             if (match && match[1]) currentScale = parseFloat(match[1]);
         }
 
-        // 2. Calculate how long the thread needs to be visually.
-        // We add a small offset (+2) so the body overlaps the fly slightly.
-        // Then DIVIDE by scale. If scale is 0.5, we need 2x the thread height to reach the same visual point.
-        const dropHeightVH = (targetYPercent + 2) / currentScale; 
+        const dropHeightVH = (targetYPercent + 6) / currentScale; 
 
         requestAnimationFrame(() => {
-            thread.style.transition = 'height 0.8s cubic-bezier(0.25, 1, 0.5, 1)';
+            // CHANGED: Slowed drop to 1.5s
+            thread.style.transition = 'height 1.5s cubic-bezier(0.25, 1, 0.5, 1)';
             thread.style.height = dropHeightVH + 'vh';
             
-            // Wait for drop to finish (800ms)
+            // Wait for drop (1500ms)
             setTimeout(() => {
                 
-                // Pause at bottom (1000ms)
+                // CHANGED: Increased pause at bottom to 2000ms
                 setTimeout(() => {
                     if (isFood) {
                         if (MosquitoManager.state === 'stuck') {
@@ -1201,8 +1201,8 @@ const Effects = {
                         } else {
                             bub.innerText = "It got away! 😠";
                         }
-                        // Retreat speed: 2s (visible but quick)
-                        setTimeout(() => this.retreatSpider(thread, wrap, bub, '2s'), 1000);
+                        // CHANGED: Slower retreat (2.5s)
+                        setTimeout(() => this.retreatSpider(thread, wrap, bub, '2.5s'), 1000);
 
                     } else {
                         const angryPhrases = ["HEY! No food!", "You tricked me!", "Empty?!", "Do not disturb!", "Grrr..."];
@@ -1213,13 +1213,13 @@ const Effects = {
                         
                         setTimeout(() => {
                             body.style.animation = '';
-                            // Retreat speed: 3s (slow/shameful)
-                            this.retreatSpider(thread, wrap, bub, '3s');
+                            // CHANGED: Even slower retreat for trick (4s)
+                            this.retreatSpider(thread, wrap, bub, '4s');
                         }, 1500);
                     }
-                }, 1000); 
+                }, 2000); 
 
-            }, 800); 
+            }, 1500); 
         });
     },
 
