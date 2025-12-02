@@ -738,40 +738,51 @@ const API = {
         try {
             const r = await fetch(CONFIG.API_BASE_URL);
             if (!r.ok) throw 0;
-            return await r.json()
+            return await r.json();
         } catch (e) {
-            return null
+            return null;
         }
     },
-	async fetchKidsWords() {
+
+    async fetchKidsWords() {
         try {
-            const r = await fetch(CONFIG.KIDS_LIST_FILE);
-            if (!r.ok) throw new Error("Missing file");
+            // 1. Fetch the safe list from the text file
+            const listResponse = await fetch(CONFIG.KIDS_LIST_FILE);
+            if (!listResponse.ok) throw new Error("Missing kids file");
+            const listText = await listResponse.text();
             
-            const text = await r.text();
-            
-            // Convert text lines into Game Objects
-            return text.split('\n')
-                .map(line => line.trim())
-                .filter(line => line.length > 0) // Remove empty lines
-                .map((word, index) => {
-                    // Generate random fake stats so the bar chart looks populated
-                    const isGood = Math.random() > 0.3; 
-                    return {
-                        _id: `kid_${index}`,
-                        text: word,
-                        goodVotes: isGood ? Math.floor(Math.random() * 100) + 20 : Math.floor(Math.random() * 10),
-                        badVotes: isGood ? Math.floor(Math.random() * 10) : Math.floor(Math.random() * 100) + 20
-                    };
-                });
+            // Create a set of uppercase safe words for easy matching
+            const safeList = new Set(
+                listText.split('\n')
+                .map(line => line.trim().toUpperCase())
+                .filter(line => line.length > 0)
+            );
+
+            // 2. Fetch the REAL data from the database
+            const dbResponse = await fetch(CONFIG.API_BASE_URL);
+            if (!dbResponse.ok) throw new Error("Database error");
+            const allWords = await dbResponse.json();
+
+            // 3. Filter the real words: Only keep ones that are in the safe list
+            const safeWords = allWords.filter(w => safeList.has(w.text.toUpperCase()));
+
+            if (safeWords.length === 0) {
+                // Optional: If no words match, return a placeholder so the game doesn't break
+                return [{ _id: 'temp', text: 'No Matching Words', goodVotes: 0, badVotes: 0 }];
+            }
+
+            return safeWords;
+
         } catch (e) {
             console.error("Could not load kids list:", e);
-            return [{ _id: 'err', text: 'Error Loading List', goodVotes: 0, badVotes: 0 }];
+            return [{ _id: 'err', text: 'Error Loading', goodVotes: 0, badVotes: 0 }];
         }
-},
-	
-	
+    },
+
     async vote(id, type) {
+        // Prevent voting on placeholders
+        if (id === 'temp' || id === 'err') return; 
+
         return fetch(`${CONFIG.API_BASE_URL}/${id}/vote`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -779,17 +790,19 @@ const API = {
                 voteType: type,
                 userId: State.data.userId
             })
-        })
+        });
     },
+
     async submitWord(text) {
         return fetch(CONFIG.API_BASE_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text })
-        })
+        });
     },
+
     async define(w) {
-        return fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${w.toLowerCase()}`)
+        return fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${w.toLowerCase()}`);
     }
 };
 
