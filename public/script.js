@@ -1183,7 +1183,7 @@ halloween(active) {
             bub.style.opacity = '0';
             wrap.classList.remove('hunting');
         }, parseFloat(duration) * 1000);
-    },<--- Fixed missing comma
+    },
 	
     ballpit(active) {
         const c = DOM.theme.effects.ballpit;
