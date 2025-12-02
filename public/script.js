@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.9.19', 
+    APP_VERSION: '5.10.1', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -177,6 +177,7 @@ const State = {
             muteSounds: false,
             zeroVotesOnly: false,
 			kidsMode: false
+			kidsModePin: null
         },
         currentTheme: localStorage.getItem('currentTheme') || 'default',
         unlockedThemes: JSON.parse(localStorage.getItem('unlockedThemes')) || [],
@@ -1858,7 +1859,7 @@ const ModalManager = {
                     Game.refreshData(true);
                 };
             }
-			// Inject Kids Mode Toggle
+// Inject Kids Mode Toggle
             if (!document.getElementById('toggleKidsMode')) {
                 const container = DOM.inputs.settings.mirror ? (DOM.inputs.settings.mirror.closest('.space-y-4') || DOM.inputs.settings.mirror.parentElement.parentElement) : document.getElementById('settingsModalContainer').querySelector('.space-y-4');
                 if (container) {
@@ -1868,13 +1869,47 @@ const ModalManager = {
                     container.appendChild(div);
                 }
             }
+            
             const kidsToggle = document.getElementById('toggleKidsMode');
             if (kidsToggle) {
                 kidsToggle.checked = State.data.settings.kidsMode;
+                
+                // --- NEW PIN LOGIC ---
                 kidsToggle.onchange = e => {
-                    State.save('settings', { ...State.data.settings, kidsMode: e.target.checked });
-                    // Reload data immediately to switch lists
-                    Game.refreshData(true);
+                    const turningOn = e.target.checked;
+                    const savedPin = State.data.settings.kidsModePin;
+
+                    if (turningOn) {
+                        // ENABLING KIDS MODE
+                        if (!savedPin) {
+                            // First time setup
+                            const newPin = prompt("Set a PIN to protect Adult Mode:");
+                            if (newPin && newPin.trim().length > 0) {
+                                State.save('settings', { ...State.data.settings, kidsMode: true, kidsModePin: newPin });
+                                alert(`Kids Mode Active! Remember your PIN: ${newPin}`);
+                                Game.refreshData(true);
+                            } else {
+                                // User cancelled or entered empty
+                                e.target.checked = false;
+                            }
+                        } else {
+                            // Already has a pin, just enable
+                            State.save('settings', { ...State.data.settings, kidsMode: true });
+                            Game.refreshData(true);
+                        }
+                    } else {
+                        // DISABLING KIDS MODE (Requires PIN)
+                        const inputPin = prompt("Enter PIN to return to Adult Mode:");
+                        if (inputPin === savedPin) {
+                            // Correct PIN
+                            State.save('settings', { ...State.data.settings, kidsMode: false });
+                            Game.refreshData(true);
+                        } else {
+                            // Wrong PIN
+                            alert("Incorrect PIN! Staying in Kids Mode.");
+                            e.target.checked = true; // Flip toggle back to On
+                        }
+                    }
                 };
             }
 
