@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.10.2', 
+    APP_VERSION: '5.10.3', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -446,12 +446,12 @@ const SoundManager = {
 // --- MOSQUITO LOGIC ---
 const MosquitoManager = {
     el: null, svg: null, path: null, checkInterval: null,
-    x: 50, y: 50, angle: 0, 
-    speed: 0.2, 
+    x: 50, y: 50, angle: 0, speed: 0.2, 
     turnCycle: 0, loopTimer: 0,
     trailPoints: [], MAX_TRAIL: 50,
     state: 'hidden', raf: null,
-    COOLDOWN: 5 * 60 * 1000,
+    huntTimer: null, // <--- NEW: Timer for the spider delay
+    COOLDOWN: 5 * 60 * 1000, 
 
     startMonitoring() {
         if (this.checkInterval) clearInterval(this.checkInterval);
@@ -482,9 +482,11 @@ const MosquitoManager = {
         this.angle = startRight ? Math.PI : 0; 
 
         Object.assign(this.el.style, {
-            position: 'fixed', fontSize: '3rem', zIndex: '100',
+            position: 'fixed', 
+            fontSize: '1.5rem', // <--- CHANGED: Smaller size (was 3rem)
+            zIndex: '100',
             pointerEvents: 'auto', cursor: 'pointer', transition: 'none', 
-            filter: 'drop-shadow(2px 4px 6px rgba(0,0,0,0.5))',
+            filter: 'drop-shadow(1px 2px 3px rgba(0,0,0,0.5))',
             left: this.x + '%', top: this.y + '%', willChange: 'transform, left, top'
         });
 
@@ -497,8 +499,8 @@ const MosquitoManager = {
         this.path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         this.path.setAttribute("fill", "none");
         this.path.setAttribute("stroke", "rgba(0,0,0,0.2)"); 
-        this.path.setAttribute("stroke-width", "2");
-        this.path.setAttribute("stroke-dasharray", "5, 5");
+        this.path.setAttribute("stroke-width", "1"); // Thinner trail for smaller fly
+        this.path.setAttribute("stroke-dasharray", "3, 3");
         this.path.setAttribute("stroke-linecap", "round");
         
         this.svg.appendChild(this.path);
@@ -507,7 +509,11 @@ const MosquitoManager = {
         
         this.el.onclick = (e) => {
             e.stopPropagation();
-            if (this.state === 'stuck') this.startRescue();
+            if (this.state === 'stuck') {
+                // Rescue! Cancel the spider hunt if it hasn't happened yet
+                if (this.huntTimer) clearTimeout(this.huntTimer);
+                this.startRescue();
+            }
             else if (this.state === 'flying') UIManager.showPostVoteMessage("Too fast! Wait for the web!");
         };
         
@@ -527,9 +533,9 @@ const MosquitoManager = {
         Object.assign(bubble.style, {
             position: 'absolute', bottom: '100%', left: '50%',
             transform: 'translateX(-50%)', background: 'white', color: 'black',
-            padding: '8px 12px', borderRadius: '12px', fontSize: '14px',
-            fontWeight: 'bold', whiteSpace: 'nowrap', border: '2px solid #ccc',
-            boxShadow: '0 4px 10px rgba(0,0,0,0.2)', pointerEvents: 'none', zIndex: '101'
+            padding: '4px 8px', borderRadius: '8px', fontSize: '12px',
+            fontWeight: 'bold', whiteSpace: 'nowrap', border: '1px solid #ccc',
+            boxShadow: '0 2px 5px rgba(0,0,0,0.2)', pointerEvents: 'none', zIndex: '101'
         });
         this.el.appendChild(bubble);
         setTimeout(() => {
@@ -541,7 +547,7 @@ const MosquitoManager = {
         }, 2000);
     },
 
-loop() {
+    loop() {
         if (!document.body.contains(this.el)) return;
         if (this.state === 'flying' || this.state === 'leaving') {
             this.turnCycle += 0.05;
@@ -569,8 +575,10 @@ loop() {
             this.el.style.top = this.y + '%';
             const facingRight = Math.cos(this.angle) > 0;
             this.el.style.transform = facingRight ? 'scaleX(-1)' : 'scaleX(1)';
+            
             const pxX = (this.x / 100) * window.innerWidth;
             const pxY = (this.y / 100) * window.innerHeight;
+            
             if (pxX > 0 && pxX < window.innerWidth) this.trailPoints.push({x: pxX, y: pxY});
             if (this.trailPoints.length > this.MAX_TRAIL) this.trailPoints.shift();
             if (this.trailPoints.length > 1) {
@@ -578,18 +586,28 @@ loop() {
                 this.path.setAttribute('d', d);
             }
             
+            // --- CATCH LOGIC ---
             const distRight = window.innerWidth - pxX;
             const distTop = pxY;
+            
+            // 1. Must be in the web zone (Top-Right corner)
+            const inWebZone = (distRight + distTop) < 300;
+            
+            // 2. Must be strictly visible on screen (padding 50px)
+            const isVisible = pxX > 50 && pxX < (window.innerWidth - 50) && pxY > 50 && pxY < (window.innerHeight - 50);
 
-            // --- CHANGED: RELAXED STICK CONDITION ---
-            // Increased range to 300, and reduced padding to 10px so it catches easier
-            if (this.state === 'flying' && (distRight + distTop) < 300 && pxX < window.innerWidth - 10 && pxY > 10) {
+            if (this.state === 'flying' && inWebZone && isVisible) {
                 this.state = 'stuck';
-                SoundManager.stopBuzz(); 
+                SoundManager.stopBuzz(); // Or switch to a low buzz if you have SoundManager.setStuckMode
                 UIManager.showPostVoteMessage("It's stuck in the web!");
-                Effects.spiderHunt(this.x, this.y, true); 
+                
+                // Wait 2.5 seconds vibrating before the spider comes
+                this.huntTimer = setTimeout(() => {
+                    if (this.state === 'stuck') {
+                        Effects.spiderHunt(this.x, this.y, true);
+                    }
+                }, 2500); 
             }
-            // ----------------------------------------
 
             if (this.state === 'leaving') {
                 if (this.x < -10 || this.x > 110 || this.y < -10 || this.y > 110) {
@@ -597,8 +615,9 @@ loop() {
                 }
             }
         } else if (this.state === 'stuck') {
-            const jitterX = (Math.random() - 0.5) * 3;
-            const jitterY = (Math.random() - 0.5) * 3;
+            // VIBRATE IN PLACE
+            const jitterX = (Math.random() - 0.5) * 5; // Increased jitter intensity slightly
+            const jitterY = (Math.random() - 0.5) * 5;
             this.el.style.transform = `translate(${jitterX}px, ${jitterY}px)`;
         } else if (this.state === 'thanking') {
             this.el.style.transform = `scale(1.2)`;
@@ -606,7 +625,6 @@ loop() {
         this.raf = requestAnimationFrame(() => this.loop());
     },
 
-    // ... (Keep eat, finish, remove as is) ...
     eat() {
         if (this.state !== 'stuck') return;
         UIManager.showPostVoteMessage("Chomp! 🕷️");
@@ -620,6 +638,7 @@ loop() {
 
     remove() {
         if (this.raf) cancelAnimationFrame(this.raf);
+        if (this.huntTimer) clearTimeout(this.huntTimer);
         SoundManager.stopBuzz();
         if (this.el && this.el.parentNode) this.el.remove();
         if (this.svg && this.svg.parentNode) this.svg.remove(); 
