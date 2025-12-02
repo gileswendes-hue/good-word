@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.9.16', 
+    APP_VERSION: '5.9.17', 
 
   
     SPECIAL: {
