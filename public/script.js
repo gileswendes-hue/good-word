@@ -1054,7 +1054,7 @@ const Effects = {
                     // Hunt near the web (85% right, 25% down)
                     this.spiderHunt(85, 25, false);
                 }
-            },
+            };
 
 
             const svg = document.getElementById('web-svg');
@@ -1174,7 +1174,7 @@ const Effects = {
             bub.style.opacity = '0';
             wrap.classList.remove('hunting');
         }, 500);
-    }
+    },
 	
     ballpit(active) {
         const c = DOM.theme.effects.ballpit;
