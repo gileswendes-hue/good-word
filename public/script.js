@@ -34,38 +34,6 @@ const CONFIG = {
         ballpit: 'QkFMTHxQSVR8UExBWXxKVU1QfEJPVU5DRXxDT0xPUnxCQUxMUElUfEJBTExSfENPTE9VUg==',
         space: 'U1BBQ0V8R0FMQVhZfFBMQU5FVHxTVEFSfE9SQklU'
     },
-    TIPS: [
-        "Tip: On mobile, try dragging the word left for good and right for bad.",
-        "Tip: Try comparing words!",
-        "Tip: Tap the word for a definition.",
-        "Tip: Check the theme chooser.",
-        "Tip: Turn off messages in Settings.",
-        "Tip: Don't go mistaking your house burning down for the dawn.",
-        "Tip: Go outside for a stomp?",
-        "Tip: Nobody else has a clue either.",
-        "Tip: Have you found the ball pit yet?",
-        "Tip: I've got a floor, so what?",
-        "Tip: Wear sunscreen.",
-        "Tip: How thick is wall?",
-        "Tip: Try saying hello to the spider?",
-        "Tip: Ask them out for a coffee.",
-        "Tip: Can you smell burning toast?",
-        "Tip: Some of those who work forces, are the same who burn crosses.",
-        "Tip: Time is an illusion. Lunchtime doubly so.",
-        "Tip: It is better to keep your mouth closed and let people think you are a fool than to open it and remove all doubt.",
-        "Tip: It's the things that are given, not won, are the things that you earned",
-        "Tip: I'm so glad that you exist.",
-        "Tip: Play with friends! Not this, something classic like Tetris or chess.",
-        "Tip: Move into the country, eat a lot of peaches 🍑",
-        "Tip: I wish there was a way to know you're in the good old days, before you've actually left them.",
-        "Tip: London in summertime is great.",
-        "Tip: You don't need a million dollars to do nothin', man!",
-        "Tip: You can see the sea, it's over there between the land and the sky",
-        "Tip: Cake or death?",
-        "Tip: GOOD BOY, MASON! 🦴",
-        "Tip: Knock, knock, Neo. 🐇",
-        "Tip: ❤️💎"
-    ]
 };
 
 // --- DOM ELEMENT REFERENCES ---
@@ -2263,7 +2231,7 @@ const Game = {
             }
             if (State.data.settings.showTips) {
                 State.save('voteCounterForTips', State.data.voteCounterForTips + 1);
-                if (State.data.voteCounterForTips % CONFIG.TIP_COOLDOWN === 0) m = CONFIG.TIPS[Math.floor(Math.random() * CONFIG.TIPS.length)]
+                if (State.data.voteCounterForTips % CONFIG.TIP_COOLDOWN === 0) m = GAME_TIPS[Math.floor(Math.random() * GAME_TIPS.length)]
             }
             UIManager.showPostVoteMessage(m);
             
