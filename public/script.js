@@ -176,7 +176,7 @@ const State = {
             mirrorMode: false,
             muteSounds: false,
             zeroVotesOnly: false,
-			kidsMode: false
+			kidsMode: false,
 			kidsModePin: null
         },
         currentTheme: localStorage.getItem('currentTheme') || 'default',
