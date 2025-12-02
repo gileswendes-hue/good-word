@@ -1175,7 +1175,6 @@ const Effects = {
             wrap.classList.remove('hunting');
         }, 500);
     }
-};
 	
     ballpit(active) {
         const c = DOM.theme.effects.ballpit;
