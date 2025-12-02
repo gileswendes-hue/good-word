@@ -1105,7 +1105,7 @@ const Effects = {
         }
     },
 
-    // --- UPDATED SPIDER HUNT LOGIC ---
+ // --- UPDATED SPIDER HUNT LOGIC ---
     spiderHunt(targetXPercent, targetYPercent, isFood) {
         const wrap = document.getElementById('spider-wrap');
         if (!wrap) return;
@@ -1128,41 +1128,50 @@ const Effects = {
         wrap.style.transition = 'none';
         wrap.style.left = targetXPercent + '%';
         
-        const dropHeightVH = targetYPercent + 5; 
+        // Lowered offset to +2 so spider overlaps the fly exactly
+        const dropHeightVH = targetYPercent + 2; 
 
         requestAnimationFrame(() => {
             thread.style.transition = 'height 0.6s cubic-bezier(0.25, 1, 0.5, 1)';
             thread.style.height = dropHeightVH + 'vh';
             
+            // Wait for drop to finish (600ms)
             setTimeout(() => {
-                // At the bottom of the thread...
-                if (isFood) {
-                    // EAT SCENARIO
-                    if (MosquitoManager.state === 'stuck') {
-                        MosquitoManager.eat();
-                        bub.innerText = "DELICIOUS! 🦟";
-                    } else {
-                        bub.innerText = "It got away! 😠";
-                    }
-                    // Wait a moment to enjoy the meal
-                    setTimeout(() => this.retreatSpider(thread, wrap, bub), 1000);
+                
+                // --- NEW: PAUSE BEFORE CHOMP (500ms) ---
+                setTimeout(() => {
+                    if (isFood) {
+                        // EAT SCENARIO
+                        if (MosquitoManager.state === 'stuck') {
+                            MosquitoManager.eat(); // <--- CHOMP HAPPENS HERE
+                            bub.innerText = "DELICIOUS! 🦟";
+                            
+                            // Little shake effect when eating
+                            const body = wrap.querySelector('#spider-body');
+                            body.style.animation = 'shake 0.2s ease-in-out';
+                            setTimeout(() => body.style.animation = '', 200);
+                        } else {
+                            bub.innerText = "It got away! 😠";
+                        }
+                        // Wait a moment to enjoy the meal, then retreat
+                        setTimeout(() => this.retreatSpider(thread, wrap, bub), 1000);
 
-                } else {
-                    // TRICKED SCENARIO
-                    // Realize there is no food
-                    const angryPhrases = ["HEY! No food!", "You tricked me!", "Empty?!", "Do not disturb!", "Grrr..."];
-                    bub.innerText = angryPhrases[Math.floor(Math.random() * angryPhrases.length)];
-                    
-                    // Shake slightly in anger
-                    const body = wrap.querySelector('#spider-body');
-                    body.style.animation = 'shake 0.3s ease-in-out';
-                    
-                    // Wait longer to show the angry message
-                    setTimeout(() => {
-                        body.style.animation = '';
-                        this.retreatSpider(thread, wrap, bub);
-                    }, 1500);
-                }
+                    } else {
+                        // TRICKED SCENARIO
+                        const angryPhrases = ["HEY! No food!", "You tricked me!", "Empty?!", "Do not disturb!", "Grrr..."];
+                        bub.innerText = angryPhrases[Math.floor(Math.random() * angryPhrases.length)];
+                        
+                        // Shake slightly in anger
+                        const body = wrap.querySelector('#spider-body');
+                        body.style.animation = 'shake 0.3s ease-in-out';
+                        
+                        setTimeout(() => {
+                            body.style.animation = '';
+                            this.retreatSpider(thread, wrap, bub);
+                        }, 1500);
+                    }
+                }, 500); // <--- PAUSE DURATION
+
             }, 600); 
         });
     },
@@ -1174,7 +1183,7 @@ const Effects = {
             bub.style.opacity = '0';
             wrap.classList.remove('hunting');
         }, 500);
-    },
+    }, // <--- FIXED: Added comma here
 	
     ballpit(active) {
         const c = DOM.theme.effects.ballpit;
