@@ -4,29 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Good Word / Bad Word</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        /* Custom Animations and Effects needed by the JS */
-        body { font-family: 'Inter', sans-serif; overflow-x: hidden; transition: background 0.5s; }
-        .card { box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); }
-        .hidden { display: none !important; }
-        
-        /* Animations */
-        @keyframes fly-left { 0% { transform: translateX(0) rotate(0); opacity: 1; } 100% { transform: translateX(-150%) rotate(-20deg); opacity: 0; } }
-        @keyframes fly-right { 0% { transform: translateX(0) rotate(0); opacity: 1; } 100% { transform: translateX(150%) rotate(20deg); opacity: 0; } }
-        .animate-fly-left { animation: fly-left 0.6s ease-out forwards; }
-        .animate-fly-right { animation: fly-right 0.6s ease-out forwards; }
-        
-        /* Effect Layers */
-        #snow-effect, #bubble-effect, #fire-effect, #summer-effect, #plymouth-effect, #ballpit-effect, #space-effect {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0;
-        }
-        /* Theme Basics */
-        .theme-dark { background-color: #1f2937; color: white; }
-        .theme-rainbow { background: linear-gradient(45deg, #ff9a9e, #fad0c4, #fad0c4); }
-    </style>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="style.css">
 </head>
-<body class="bg-gray-50 min-h-screen flex flex-col items-center select-none touch-manipulation">
+<body class="bg-gray-50 min-h-screen flex flex-col items-center select-none touch-manipulation theme-default">
 
     <div id="snow-effect"></div>
     <div id="bubble-effect"></div>
@@ -39,10 +26,10 @@
     <header class="w-full max-w-md px-4 py-4 flex justify-between items-center z-10 relative">
         <div id="logoArea" class="flex flex-col">
             <h1 class="text-2xl font-black text-gray-800 tracking-tighter">GB<span class="text-indigo-600">word</span></h1>
-            <span class="version-indicator text-[10px] text-gray-400 font-mono"></span>
+            <span class="version-indicator"></span>
         </div>
         
-        <div id="userStatsBar" class="flex items-center space-x-3 bg-white px-3 py-1.5 rounded-full shadow-sm cursor-pointer hover:bg-gray-50 transition">
+        <div id="userStatsBar" class="flex items-center space-x-3 bg-white px-3 py-1.5 rounded-full shadow-sm cursor-pointer hover:bg-gray-50 transition border border-gray-100">
             <div class="flex items-center text-orange-500 font-bold text-sm">
                 <span>🔥</span>
                 <span id="headerStreak" class="ml-1">0</span>
@@ -75,18 +62,18 @@
 
     <main class="flex-1 w-full max-w-md px-4 flex flex-col justify-center items-center z-10 relative pb-20">
         
-        <div id="dailyBanner" class="hidden w-full mb-4 bg-gradient-to-r from-orange-400 to-pink-500 text-white p-3 rounded-xl shadow-lg cursor-pointer transform hover:scale-105 transition">
+        <div id="dailyBanner" class="hidden daily-banner">
             <div class="flex justify-between items-center">
                 <div class="font-bold">📅 Daily Word</div>
                 <div id="dailyStatusText" class="text-xs bg-white/20 px-2 py-1 rounded">Play Now</div>
             </div>
         </div>
 
-        <div id="gameCard" class="card bg-white w-full rounded-3xl p-8 relative min-h-[300px] flex flex-col items-center justify-center mb-6 cursor-grab active:cursor-grabbing">
-            <div id="card-snow-drift" class="hidden absolute top-0 w-full bg-white h-4 rounded-t-3xl"></div>
+        <div id="gameCard" class="card w-full rounded-3xl p-8 relative min-h-[300px] flex flex-col items-center justify-center mb-6 cursor-grab active:cursor-grabbing">
+            <div id="card-snow-drift" class="absolute top-0 w-full bg-white h-4 rounded-t-3xl" style="display:none;"></div>
             
             <div id="wordFrame" class="w-full flex items-center justify-center perspective-1000">
-                <h2 id="wordDisplay" class="text-4xl font-extrabold text-gray-900 text-center break-words select-none">
+                <h2 id="wordDisplay" class="font-extrabold text-gray-900 text-center break-words select-none">
                     Loading...
                 </h2>
             </div>
@@ -97,21 +84,21 @@
         </div>
 
         <div class="w-full grid grid-cols-2 gap-4 mb-4">
-            <button id="goodButton" class="bg-green-100 hover:bg-green-200 text-green-700 font-bold py-4 rounded-2xl text-xl shadow-sm transition active:scale-95 flex flex-col items-center">
+            <button id="goodButton" class="good-button text-white font-bold py-4 rounded-2xl text-xl shadow-lg transition active:scale-95 flex flex-col items-center">
                 <span>👍</span>
                 <span class="text-xs mt-1">GOOD</span>
             </button>
-            <button id="badButton" class="bg-red-100 hover:bg-red-200 text-red-700 font-bold py-4 rounded-2xl text-xl shadow-sm transition active:scale-95 flex flex-col items-center">
+            <button id="badButton" class="bad-button text-white font-bold py-4 rounded-2xl text-xl shadow-lg transition active:scale-95 flex flex-col items-center">
                 <span>👎</span>
                 <span class="text-xs mt-1">BAD</span>
             </button>
         </div>
 
         <div class="w-full grid grid-cols-2 gap-4">
-            <button id="notWordButton" class="bg-gray-100 hover:bg-gray-200 text-gray-500 font-bold py-3 rounded-xl text-sm transition">
+            <button id="notWordButton" class="not-word-button text-white font-bold py-3 rounded-xl text-sm transition shadow-md">
                 Not a Word?
             </button>
-            <button id="customWordButton" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-bold py-3 rounded-xl text-sm transition">
+            <button id="customWordButton" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-bold py-3 rounded-xl text-sm transition shadow-sm">
                 + Add Word
             </button>
         </div>
@@ -175,7 +162,9 @@
                 </div>
             </div>
 
-            <div id="profileStatsTitle" class="hidden"></div> <div id="badgeContainer" class="bg-gray-50 rounded-xl p-4 mb-6"></div>
+            <div id="profileStatsTitle" class="hidden"></div> 
+
+            <div id="badgeContainer" class="bg-gray-50 rounded-xl p-4 mb-6"></div>
 
             <button id="shareProfileButton" class="w-full bg-gray-900 text-white font-bold py-3 rounded-xl hover:bg-gray-800 transition">
                 Share Stats Image 📸
