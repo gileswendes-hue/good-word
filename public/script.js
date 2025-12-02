@@ -5,9 +5,9 @@
 // --- CONFIGURATION ---
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.9.13', // Bumped version
+    APP_VERSION: '5.9.14', 
 
-    // Special words with custom effects and probabilities
+
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
         LLAMA: { text: 'LLAMA', prob: 0.005, fade: 8000, msg: "what llama?", dur: 3000 },
@@ -39,9 +39,7 @@ const CONFIG = {
         ballpit: 'QkFMTHxQSVR8UExBWXxKVU1QfEJPVU5DRXxDT0xPUnxCQUxMUElUfEJBTExSfENPTE9VUg==',
         space: 'U1BBQ0V8R0FMQVhZfFBMQU5FVHxTVEFSfE9SQklU'
     },
-    
-    // REFERENCE THE EXTERNAL TIPS FILE
-    // If tips.js isn't loaded, fallback to a default message
+
     TIPS: (typeof GAME_TIPS !== 'undefined') ? GAME_TIPS : ["Welcome to Good Word / Bad Word!"]
 };
 
