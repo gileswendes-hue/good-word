@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Good Word / Bad Word</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -13,7 +13,7 @@
 
     <link rel="stylesheet" href="style.css">
 </head>
-<body class="bg-gray-50 min-h-screen flex flex-col items-center select-none touch-manipulation theme-default">
+<body class="bg-gray-50 min-h-screen flex flex-col items-center select-none touch-manipulation theme-default overflow-x-hidden">
 
     <div id="snow-effect"></div>
     <div id="bubble-effect"></div>
@@ -26,7 +26,7 @@
     <header class="w-full max-w-md px-4 py-4 flex justify-between items-center z-10 relative">
         <div id="logoArea" class="flex flex-col">
             <h1 class="text-2xl font-black text-gray-800 tracking-tighter">GB<span class="text-indigo-600">word</span></h1>
-            <span class="version-indicator text-[10px] text-gray-400 font-mono"></span>
+            <span class="version-indicator"></span>
         </div>
         
         <div id="userStatsBar" class="flex items-center space-x-3 bg-white px-3 py-1.5 rounded-full shadow-sm cursor-pointer hover:bg-gray-50 transition border border-gray-100">
@@ -62,7 +62,7 @@
 
     <main class="flex-1 w-full max-w-md px-4 flex flex-col justify-center items-center z-10 relative pb-20">
         
-        <div id="dailyBanner" class="hidden daily-banner">
+        <div id="dailyBanner" class="hidden daily-banner w-full">
             <div class="flex justify-between items-center">
                 <div class="font-bold">📅 Daily Word</div>
                 <div id="dailyStatusText" class="text-xs bg-white/20 px-2 py-1 rounded">Play Now</div>
@@ -163,12 +163,8 @@
             </div>
 
             <div id="profileStatsTitle" class="hidden"></div> 
-
             <div id="badgeContainer" class="bg-gray-50 rounded-xl p-4 mb-6"></div>
-
-            <button id="shareProfileButton" class="w-full bg-gray-900 text-white font-bold py-3 rounded-xl hover:bg-gray-800 transition">
-                Share Stats Image 📸
-            </button>
+            <button id="shareProfileButton" class="w-full bg-gray-900 text-white font-bold py-3 rounded-xl hover:bg-gray-800 transition">Share Stats Image 📸</button>
         </div>
     </div>
 
@@ -178,17 +174,14 @@
                 <h3 class="text-2xl font-black">Top 100</h3>
                 <button id="closeFullRankingsModal" class="p-2 bg-gray-100 rounded-full hover:bg-gray-200">✕</button>
             </div>
-            
             <div class="mb-4 flex gap-2">
                 <input id="rankSearchInput" type="text" placeholder="Find a word..." class="flex-1 bg-gray-100 px-4 py-2 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
                 <button id="rankSearchBtn" class="bg-indigo-600 text-white px-4 py-2 rounded-xl font-bold">🔍</button>
             </div>
-
             <div id="rankSearchContainer" class="hidden mb-6 text-center">
                 <div id="rankSearchResult"></div>
                 <button id="clearRankSearch" class="mt-4 text-indigo-600 font-bold text-sm">Clear Search</button>
             </div>
-
             <div id="rankingListsContainer" class="grid grid-cols-2 gap-4">
                 <div>
                     <h4 class="text-green-600 font-black mb-3 text-center">😇 BEST</h4>
