@@ -207,21 +207,31 @@ const State = {
     save(k, v) {
         this.data[k] = v;
         const s = localStorage;
-		if (k === 'insectStats') {
+
+        if (k === 'insectStats') {
             s.setItem('insectSaved', v.saved);
             s.setItem('insectEaten', v.eaten);
+        } 
+        else if (k.startsWith('badge_')) {
+            s.setItem(k, v);
         }
-        else if (k.startsWith('badge_')) s.setItem(k, v);
-        else s.setItem(k, v);
-        if (k === 'settings') s.setItem('userSettings', JSON.stringify(v));
-        else if (k === 'unlockedThemes') s.setItem('unlockedThemes', JSON.stringify(v));
-        else if (k === 'seenHistory') s.setItem('seenHistory', JSON.stringify(v));
+        else if (k === 'settings') {
+            s.setItem('userSettings', JSON.stringify(v));
+        }
+        else if (k === 'unlockedThemes') {
+            s.setItem('unlockedThemes', JSON.stringify(v));
+        }
+        else if (k === 'seenHistory') {
+            s.setItem('seenHistory', JSON.stringify(v));
+        }
         else if (k === 'daily') {
             s.setItem('dailyStreak', v.streak);
             s.setItem('dailyLastDate', v.lastDate);
-        } else if (k === 'profilePhoto') {
+        }
+        else if (k === 'profilePhoto') {
             s.setItem('profilePhoto', v);
-        } else if (k === 'lastMosquitoSpawn') {
+        }
+        else { if (k === 'lastMosquitoSpawn') {
             s.setItem(k, v);
         } else if (k.startsWith('badge_')) s.setItem(k, v);
         else s.setItem(k, v)
@@ -2029,9 +2039,11 @@ const ModalManager = {
             reader.readAsDataURL(file);
         };
         Object.keys(DOM.modals).forEach(k => {
+            // FIX: Apply Z-Index immediately, not just on click
+            DOM.modals[k].style.zIndex = '150'; 
+            
             DOM.modals[k].addEventListener('click', e => {
-			DOM.modals[k].style.zIndex = '150';
-                if (e.target === DOM.modals[k]) this.toggle(k, false)
+                if (e.target === DOM.modals[k]) this.toggle(k, false);
             })
         })
     }
