@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.15.1', 
+    APP_VERSION: '5.15.2', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1164,7 +1164,7 @@ snow() {
     summer() { const c = DOM.theme.effects.summer; c.innerHTML = ''; const g = document.createElement('div'); g.className = 'summer-grass'; c.appendChild(g); for (let i = 0; i < 8; i++) { const d = document.createElement('div'); d.className = `summer-cloud v${Math.floor(Math.random()*3)+1}`; const w = Math.random() * 100 + 100; d.style.width = `${w}px`; d.style.height = `${w*.35}px`; d.style.top = `${Math.random()*60}%`; d.style.animationDuration = `${Math.random()*60+60}s`; d.style.animationDelay = `-${Math.random()*100}s`; c.appendChild(d) } },
     
 halloween(active) {
-        // --- CLEANUP ---
+        // --- 1. CLEANUP ---
         if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
         if (this.webRaf) cancelAnimationFrame(this.webRaf);
         
@@ -1176,16 +1176,18 @@ halloween(active) {
             return;
         }
 
-        // --- SPIDER SETUP ---
-        if (!document.getElementById('spider-wrap')) {
-            const wrap = document.createElement('div');
+        // --- 2. CREATE SPIDER (IF MISSING) ---
+        let wrap = document.getElementById('spider-wrap');
+        
+        if (!wrap) {
+            wrap = document.createElement('div');
             wrap.id = 'spider-wrap';
             
             // Initial State: Hidden at top center
             Object.assign(wrap.style, {
                 position: 'fixed', 
                 left: '50%', 
-                top: '-10vh', 
+                top: '-15vh', 
                 zIndex: '102',
                 transition: 'left 4s ease-in-out', 
                 pointerEvents: 'none' 
@@ -1194,7 +1196,10 @@ halloween(active) {
             const eaten = State.data.insectStats.eaten || 0;
             const scale = Math.min(0.6 + (eaten * 0.005), 1.3).toFixed(2);
             
-            // BUBBLE CSS: Forces single line and fits text exactly
+            // BUBBLE FIX: 
+            // 1. white-space: nowrap !important (Strictly forbids wrapping)
+            // 2. width: auto !important (Let content dictate width)
+            // 3. min-width: 0 (Prevents flex/grid constraints)
             wrap.innerHTML = `
                 <div id="spider-anchor" style="transform: scale(${scale}); transform-origin: top center;">
                     <div id="spider-thread" style="width: 2px; background: rgba(255,255,255,0.6); margin: 0 auto; height: 0; transition: height 4s ease-in-out;"></div>
@@ -1214,8 +1219,9 @@ halloween(active) {
                             font-size: 14px; 
                             font-weight: bold; 
                             font-family: sans-serif;
-                            white-space: pre !important; 
-                            width: max-content !important;
+                            white-space: nowrap !important;
+                            width: auto !important;
+                            min-width: 0 !important;
                             max-width: none !important;
                             pointer-events: none; 
                             transition: opacity 0.3s; 
@@ -1226,16 +1232,16 @@ halloween(active) {
                 </div>`;
             document.body.appendChild(wrap);
             
+            // Event Listeners (One time setup)
             const body = wrap.querySelector('#spider-body');
             const bub = wrap.querySelector('#spider-bubble');
             const thread = wrap.querySelector('#spider-thread');
 
-            // --- CLICK INTERACTION (POKE) ---
             body.onclick = (e) => {
                 e.stopPropagation();
                 State.unlockBadge('spider');
                 
-                const willFall = Math.random() < 0.2; // 20% Fall Chance
+                const willFall = Math.random() < 0.2; 
                 const lines = willFall ? GAME_DIALOGUE.spider.pokeGrumpy : GAME_DIALOGUE.spider.pokeHappy;
                 
                 bub.innerText = lines[Math.floor(Math.random() * lines.length)];
@@ -1254,93 +1260,98 @@ halloween(active) {
                     }, 2000);
                 }
             };
-
-            // --- IDLE LOOP ---
-            const runDrop = () => {
-                if (wrap.classList.contains('hunting')) return;
-
-                const actionRoll = Math.random();
-                body.style.transform = 'rotate(0deg)'; 
-
-                // OPTION A: WALL CLIMB (20%)
-                if (actionRoll < 0.2) {
-                    const isLeft = Math.random() > 0.5;
-                    const wallX = isLeft ? 5 : 85; // Strict bounds to keep on screen
-                    wrap.style.transition = 'left 5s ease-in-out';
-                    wrap.style.left = wallX + '%';
-
-                    this.spiderTimeout = setTimeout(() => {
-                        if (wrap.classList.contains('hunting')) return;
-                        body.style.transform = `rotate(${isLeft ? 90 : -90}deg)`;
-                        
-                        const climbDepth = Math.random() * 40 + 30; 
-                        thread.style.transition = 'height 5s ease-in-out';
-                        thread.style.height = climbDepth + 'vh';
-
-                        setTimeout(() => {
-                             if (wrap.classList.contains('hunting')) return;
-                             thread.style.height = '0'; 
-                             setTimeout(() => {
-                                 body.style.transform = 'rotate(0deg)';
-                                 this.spiderTimeout = setTimeout(runDrop, Math.random() * 10000 + 5000);
-                             }, 5000);
-                        }, 5000);
-                    }, 5000);
-                    return;
-                }
-
-                // OPTION B: GREETING DROP (40%)
-                if (actionRoll < 0.6) {
-                    // Safe Zone 25% to 75%
-                    const safeLeft = Math.random() * 50 + 25;
-                    wrap.style.transition = 'left 4s ease-in-out'; 
-                    wrap.style.left = safeLeft + '%';
-                    
-                    this.spiderTimeout = setTimeout(() => {
-                        if (wrap.classList.contains('hunting')) return;
-
-                        // Drop
-                        const peekHeight = Math.random() * 30 + 20; 
-                        thread.style.transition = 'height 2.5s ease-in-out'; 
-                        thread.style.height = peekHeight + 'vh';
-
-                        // Say Hello!
-                        setTimeout(() => {
-                             if (wrap.classList.contains('hunting')) return;
-                             
-                             // --- CHANGE: Use External Dialogue ---
-                             // Falls back to generic list if GAME_DIALOGUE isn't loaded
-                             const phrases = (typeof GAME_DIALOGUE !== 'undefined' && GAME_DIALOGUE.spider && GAME_DIALOGUE.spider.idle) 
-                                ? GAME_DIALOGUE.spider.idle 
-                                : ['...'];
-                             
-                             bub.innerText = phrases[Math.floor(Math.random() * phrases.length)];
-                             bub.style.opacity = '1';
-
-                             // Hang for 10 seconds
-                             setTimeout(() => {
-                                 if (wrap.classList.contains('hunting')) return;
-                                 bub.style.opacity = '0';
-                                 thread.style.height = '0';
-                                 this.spiderTimeout = setTimeout(runDrop, Math.random() * 10000 + 5000);
-                             }, 10000);
-                        }, 2500);
-                    }, 4000);
-                    return;
-                }
-
-                // OPTION C: JUST SHIFT (40%)
-                const safeLeft = Math.random() * 50 + 25; 
-                wrap.style.transition = 'left 4s ease-in-out'; 
-                wrap.style.left = safeLeft + '%';
-                this.spiderTimeout = setTimeout(runDrop, Math.random() * 5000 + 5000);
-            };
-
-            // Start loop immediately
-            setTimeout(runDrop, 1000);
         }
 
-        // --- WEB CLICK ---
+        // --- 3. THE BRAIN (Loop Logic) ---
+        const body = wrap.querySelector('#spider-body');
+        const bub = wrap.querySelector('#spider-bubble');
+        const thread = wrap.querySelector('#spider-thread');
+
+        const runDrop = () => {
+            if (!document.body.contains(wrap)) return;
+            if (wrap.classList.contains('hunting')) return;
+
+            const actionRoll = Math.random();
+            body.style.transform = 'rotate(0deg)'; 
+
+            // --- PRIORITY 1: CENTER DROP (70% Chance) ---
+            if (actionRoll < 0.7) {
+                // Move to a visible area (20% to 80%)
+                const safeLeft = Math.random() * 60 + 20;
+                wrap.style.transition = 'left 3s ease-in-out'; 
+                wrap.style.left = safeLeft + '%';
+                
+                this.spiderTimeout = setTimeout(() => {
+                    if (wrap.classList.contains('hunting')) return;
+
+                    // DEEP DROP: 40vh to 70vh
+                    const peekHeight = Math.random() * 30 + 40; 
+                    thread.style.transition = 'height 2.5s ease-in-out'; 
+                    thread.style.height = peekHeight + 'vh';
+
+                    // Say Hello
+                    setTimeout(() => {
+                         if (wrap.classList.contains('hunting')) return;
+                         
+                         const phrases = (typeof GAME_DIALOGUE !== 'undefined' && GAME_DIALOGUE.spider && GAME_DIALOGUE.spider.idle) 
+                            ? GAME_DIALOGUE.spider.idle 
+                            : ['Boo!', 'Hi!', '🕷️'];
+                         
+                         bub.innerText = phrases[Math.floor(Math.random() * phrases.length)];
+                         bub.style.opacity = '1';
+
+                         // HANG FOR 10 SECONDS
+                         setTimeout(() => {
+                             if (wrap.classList.contains('hunting')) return;
+                             bub.style.opacity = '0';
+                             thread.style.height = '0'; // Climb up
+                             
+                             // Restart loop in 5-10s
+                             this.spiderTimeout = setTimeout(runDrop, Math.random() * 5000 + 5000);
+                         }, 10000);
+                    }, 2500);
+                }, 3000);
+                return;
+            }
+
+            // --- PRIORITY 2: WALL CLIMB (20% Chance) ---
+            if (actionRoll < 0.9) {
+                const isLeft = Math.random() > 0.5;
+                const wallX = isLeft ? 5 : 85; 
+                wrap.style.transition = 'left 4s ease-in-out';
+                wrap.style.left = wallX + '%';
+
+                this.spiderTimeout = setTimeout(() => {
+                    if (wrap.classList.contains('hunting')) return;
+                    body.style.transform = `rotate(${isLeft ? 90 : -90}deg)`;
+                    
+                    const climbDepth = Math.random() * 40 + 30; 
+                    thread.style.transition = 'height 4s ease-in-out';
+                    thread.style.height = climbDepth + 'vh';
+
+                    setTimeout(() => {
+                         if (wrap.classList.contains('hunting')) return;
+                         thread.style.height = '0'; 
+                         setTimeout(() => {
+                             body.style.transform = 'rotate(0deg)';
+                             this.spiderTimeout = setTimeout(runDrop, Math.random() * 5000 + 5000);
+                         }, 4000);
+                    }, 5000); // Hang on wall for 5s
+                }, 4000);
+                return;
+            }
+
+            // --- PRIORITY 3: QUICK SHIFT (10% Chance) ---
+            const safeLeft = Math.random() * 60 + 20; 
+            wrap.style.transition = 'left 4s ease-in-out'; 
+            wrap.style.left = safeLeft + '%';
+            this.spiderTimeout = setTimeout(runDrop, 2000);
+        };
+
+        // --- 4. START LOOP ---
+        this.spiderTimeout = setTimeout(runDrop, 1000);
+
+        // --- 5. WEB SETUP ---
         if (!document.getElementById('spider-web-corner')) {
             const web = document.createElement('div');
             web.id = 'spider-web-corner';
@@ -1357,6 +1368,7 @@ halloween(active) {
                 }
             };
             
+            // Web Animation Logic
             const svg = document.getElementById('web-svg');
             const cx = 300, cy = 0;
             const baseAnchors = [{ x: 0, y: 0 }, { x: 60, y: 100 }, { x: 140, y: 200 }, { x: 220, y: 270 }, { x: 300, y: 300 }];
