@@ -2030,6 +2030,7 @@ const ModalManager = {
         };
         Object.keys(DOM.modals).forEach(k => {
             DOM.modals[k].addEventListener('click', e => {
+			DOM.modals[k].style.zIndex = '150';
                 if (e.target === DOM.modals[k]) this.toggle(k, false)
             })
         })
