@@ -87,8 +87,8 @@ class ChristmasLights extends HTMLElement {
           animation-timing-function: linear, ease-in-out, cubic-bezier(0.25, 0.6, 0.3, 1);
           animation-iteration-count: infinite, infinite, 1;
           
-          /* Use the element's 'color' property for the shadow so they always match */
-          box-shadow: 0px 4px 24px 3px currentColor;
+          /* Glass reflection effect */
+          background-image: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.8) 0%, transparent 40%);
         }
 
         /* Animation Timings */
@@ -99,50 +99,18 @@ class ChristmasLights extends HTMLElement {
         .bulbs li:nth-child(6n+4) .bulb { animation-duration: 5.0s, 4.9s, 2.6s; animation-delay: 0s, 0s, 0.2s; }
         .bulbs li:nth-child(6n+5) .bulb { animation-duration: 4.8s, 5.1s, 3.0s; animation-delay: 0s, 0s, 0.0s; }
 
-        /* UNIFIED COLORS 
-           We set 'background' for the bulb itself, and 'color' which drives the shadow/glow.
-        */
+        /* UNIFIED COLORS */
+        /* We set 'color' to match the background so box-shadow can use currentColor */
+        .bulbs li:nth-child(6n+0) .bulb { background: #FFD700; color: #FFD700; } /* Gold */
+        .bulbs li:nth-child(6n+1) .bulb { background: #00E5FF; color: #00E5FF; } /* Cyan */
+        .bulbs li:nth-child(6n+2) .bulb { background: #FF3D00; color: #FF3D00; } /* Red */
+        .bulbs li:nth-child(6n+3) .bulb { background: #FF9100; color: #FF9100; } /* Orange */
+        .bulbs li:nth-child(6n+4) .bulb { background: #EA00FF; color: #EA00FF; } /* Purple */
+        .bulbs li:nth-child(6n+5) .bulb { background: #00E676; color: #00E676; } /* Green */
 
-        /* Yellow/Gold */
-        .bulbs li:nth-child(6n+0) .bulb { 
-            background: #FFD700; 
-            color: #FFD700; 
-        }
-        
-        /* Cyan/Blue */
-        .bulbs li:nth-child(6n+1) .bulb { 
-            background: #00E5FF; 
-            color: #00E5FF; 
-        }
-        
-        /* Red */
-        .bulbs li:nth-child(6n+2) .bulb { 
-            background: #FF3D00; 
-            color: #FF3D00; 
-        }
-        
-        /* Orange */
-        .bulbs li:nth-child(6n+3) .bulb { 
-            background: #FF9100; 
-            color: #FF9100; 
-        }
-        
-        /* Purple/Magenta */
-        .bulbs li:nth-child(6n+4) .bulb { 
-            background: #EA00FF; 
-            color: #EA00FF; 
-        }
-        
-        /* Green */
-        .bulbs li:nth-child(6n+5) .bulb { 
-            background: #00E676; 
-            color: #00E676; 
-        }
-
-        /* Hover Effect */
         .bulbs li .bulb:hover {
           animation: flash-all 0.8s infinite linear;
-          filter: brightness(1.3);
+          filter: brightness(1.5);
         }
 
         .bulbs li::before {
@@ -173,17 +141,19 @@ class ChristmasLights extends HTMLElement {
           100% { transform: rotate(  0deg); }
         }
 
-        /* The keyframe uses 'currentColor' for the shadow.
-           Since we set 'color' on the specific bulb, this will always match perfectly.
-        */
         @keyframes flash-all {
+          /* ON STATE: Bright, wide shadows */
           0%, 37.5%, 62.5%, 100% { 
               opacity: 1; 
-              box-shadow: 0px 4px 35px 8px currentColor; 
+              box-shadow: 
+                  0px 0px 10px 2px #fff,           /* Hot Center */
+                  0px 4px 20px 5px currentColor,   /* Bulb Glow */
+                  0px 0px 50px 15px currentColor;  /* Wall Reflection */
           }
+          /* OFF STATE: Dim, small shadow */
           50% { 
-              opacity: .5; 
-              box-shadow: 0px 2px 10px 0px currentColor; 
+              opacity: 0.3; 
+              box-shadow: 0px 2px 5px 0px currentColor; 
           }
         }
 
