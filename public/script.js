@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.14.6', 
+    APP_VERSION: '5.14.7', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1181,7 +1181,6 @@ halloween(active) {
             const wrap = document.createElement('div');
             wrap.id = 'spider-wrap';
             
-            // Initial State: Hidden at top center
             Object.assign(wrap.style, {
                 position: 'fixed', 
                 left: '50%', 
@@ -1199,7 +1198,7 @@ halloween(active) {
                     <div id="spider-thread" style="width: 2px; background: rgba(255,255,255,0.6); margin: 0 auto; height: 0; transition: height 4s ease-in-out;"></div>
                     <div id="spider-body" style="font-size: 3rem; margin-top: -10px; cursor: pointer; position: relative; z-index: 2; pointer-events: auto; transition: transform 1s ease;">
                         🕷️
-                        <div id="spider-bubble" style="opacity: 0; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 5px; background: white; color: black; padding: 5px 10px; border-radius: 12px; font-size: 14px; font-weight: bold; white-space: nowrap; width: auto; pointer-events: none; transition: opacity 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>
+                        <div id="spider-bubble" style="opacity: 0; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 5px; background: white; color: black; padding: 5px 10px; border-radius: 12px; font-size: 14px; font-weight: bold; white-space: nowrap; width: max-content; max-width: none; pointer-events: none; transition: opacity 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>
                     </div>
                 </div>`;
             document.body.appendChild(wrap);
@@ -1233,18 +1232,18 @@ halloween(active) {
                 }
             };
 
-            // --- IDLE LOOP (More Active) ---
+            // --- IDLE LOOP ---
             const runDrop = () => {
                 if (wrap.classList.contains('hunting')) return;
 
                 const actionRoll = Math.random();
                 body.style.transform = 'rotate(0deg)'; 
 
-                // OPTION A: WALL CLIMB (25%)
-                if (actionRoll < 0.25) {
+                // OPTION A: WALL CLIMB (20%)
+                if (actionRoll < 0.2) {
                     const isLeft = Math.random() > 0.5;
-                    const wallX = isLeft ? 1 : 94;
-                    wrap.style.transition = 'left 4s ease-in-out';
+                    const wallX = isLeft ? 2 : 90; // Strictly inside bounds
+                    wrap.style.transition = 'left 5s ease-in-out';
                     wrap.style.left = wallX + '%';
 
                     this.spiderTimeout = setTimeout(() => {
@@ -1252,7 +1251,7 @@ halloween(active) {
                         body.style.transform = `rotate(${isLeft ? 90 : -90}deg)`;
                         
                         const climbDepth = Math.random() * 40 + 30; 
-                        thread.style.transition = 'height 4s ease-in-out';
+                        thread.style.transition = 'height 5s ease-in-out';
                         thread.style.height = climbDepth + 'vh';
 
                         setTimeout(() => {
@@ -1260,25 +1259,26 @@ halloween(active) {
                              thread.style.height = '0'; 
                              setTimeout(() => {
                                  body.style.transform = 'rotate(0deg)';
-                                 this.spiderTimeout = setTimeout(runDrop, Math.random() * 3000 + 2000);
-                             }, 4000);
-                        }, 4000);
-                    }, 4000);
+                                 // Wait 30-60s
+                                 this.spiderTimeout = setTimeout(runDrop, Math.random() * 30000 + 30000);
+                             }, 5000);
+                        }, 5000);
+                    }, 5000);
                     return;
                 }
 
-                // OPTION B: CENTER DROP & GREET (50% - More Frequent!)
-                if (actionRoll < 0.75) {
-                    // Go somewhere random
+                // OPTION B: GREETING DROP (40%)
+                if (actionRoll < 0.6) {
+                    // Safe Zone: 20% to 80% (Prevents swaying off screen)
                     const safeLeft = Math.random() * 60 + 20;
-                    wrap.style.transition = 'left 3s ease-in-out'; 
+                    wrap.style.transition = 'left 4s ease-in-out'; 
                     wrap.style.left = safeLeft + '%';
                     
                     this.spiderTimeout = setTimeout(() => {
                         if (wrap.classList.contains('hunting')) return;
 
                         // Drop
-                        const peekHeight = Math.random() * 30 + 20; // 20-50vh
+                        const peekHeight = Math.random() * 30 + 20; 
                         thread.style.transition = 'height 2.5s ease-in-out'; 
                         thread.style.height = peekHeight + 'vh';
 
@@ -1289,29 +1289,29 @@ halloween(active) {
                              bub.innerText = hellos[Math.floor(Math.random() * hellos.length)];
                              bub.style.opacity = '1';
 
-                             // Hang out for 4 seconds
+                             // HANG FOR 10 SECONDS
                              setTimeout(() => {
                                  if (wrap.classList.contains('hunting')) return;
                                  bub.style.opacity = '0';
                                  thread.style.height = '0';
-                                 // Restart loop faster (2-4s)
-                                 this.spiderTimeout = setTimeout(runDrop, Math.random() * 2000 + 2000);
-                             }, 4000);
+                                 // Wait 30-60s
+                                 this.spiderTimeout = setTimeout(runDrop, Math.random() * 30000 + 30000);
+                             }, 10000);
                         }, 2500);
-                    }, 3000);
+                    }, 4000);
                     return;
                 }
 
-                // OPTION C: JUST SHIFT (25%)
-                const safeLeft = Math.random() * 70 + 15;
+                // OPTION C: JUST SHIFT (40%)
+                const safeLeft = Math.random() * 60 + 20; // STRICT BOUNDS
                 wrap.style.transition = 'left 4s ease-in-out'; 
                 wrap.style.left = safeLeft + '%';
-                // Wait less time before trying again
-                this.spiderTimeout = setTimeout(runDrop, 3000);
+                // Wait 30-60s
+                this.spiderTimeout = setTimeout(runDrop, Math.random() * 30000 + 30000);
             };
 
-            // Start almost immediately
-            setTimeout(runDrop, 1000);
+            // Start loop (Initial delay 5s)
+            setTimeout(runDrop, 5000);
         }
 
         // --- WEB CLICK ---
@@ -1390,24 +1390,26 @@ halloween(active) {
         wrap.classList.add('hunting');
         bub.style.opacity = '1';
 
-        // Dialogue
         let phrases = isFood ? GAME_DIALOGUE.spider.hunting : GAME_DIALOGUE.spider.trickedStart;
         bub.innerText = phrases[Math.floor(Math.random() * phrases.length)];
 
-        // 1. POSITION X (Lateral Move - FASTER)
+        // --- BOUNDS LOGIC ---
+        // If Food: Go to Food. 
+        // If Tease: Force WEB Coordinates (88, 20)
+        const destX = isFood ? targetXPercent : 88;
+        const destY = isFood ? targetYPercent : 20;
+
+        // 1. POSITION X (Fast scuttle)
         const currentX = parseFloat(wrap.style.left) || 50;
-        const dist = Math.abs(currentX - targetXPercent);
-        
-        // SPEED UP: dist * 8 (Was 30)
-        // This makes him scuttle over quickly to investigate
+        const dist = Math.abs(currentX - destX);
         const moveTime = Math.max(dist * 8, 500); 
         
         wrap.style.transition = `left ${moveTime}ms ease-in-out`;
-        wrap.style.left = targetXPercent + '%';
+        wrap.style.left = destX + '%';
         
         body.style.transform = 'rotate(0deg)';
 
-        // 2. DROP Y (Vertical Move - SLOW)
+        // 2. DROP Y
         this.spiderTimeout = setTimeout(() => {
             
             let scale = 1;
@@ -1416,16 +1418,16 @@ halloween(active) {
                 if (match) scale = parseFloat(match[1]);
             }
 
-            const dropVH = (targetYPercent + 10) / scale; 
+            const dropVH = (destY + 10) / scale; 
             
-            // SLOW DROP: 3 Seconds
+            // SLOW DROP
             thread.style.transition = 'height 3s cubic-bezier(0.45, 0, 0.55, 1)'; 
             thread.style.height = dropVH + 'vh';
 
             // 3. LAND & WAIT
             setTimeout(() => {
                 
-                // 4. THE 2-SECOND PAUSE
+                // 4. ACTION
                 setTimeout(() => {
                     
                     if (isFood && MosquitoManager.state === 'stuck') {
@@ -1441,7 +1443,6 @@ halloween(active) {
                     else {
                         const angryPhrases = GAME_DIALOGUE.spider.trickedEnd;
                         bub.innerText = angryPhrases[Math.floor(Math.random() * angryPhrases.length)];
-                        
                         body.style.animation = 'shake 0.3s ease-in-out';
                         
                         setTimeout(() => {
@@ -1470,23 +1471,34 @@ spiderFall(wrap, thread, body, bub) {
             thread.style.height = '120vh'; // Fly off bottom
         });
 
-        // 3. Reset
+        // 3. CLIMB BACK UP SEQUENCE
         setTimeout(() => {
             thread.style.transition = 'none';
             wrap.style.transition = 'none';
             
-            // Reset to Top (Hidden)
-            wrap.style.top = '-10vh'; 
-            wrap.style.left = Math.random() > 0.5 ? '5%' : '95%';
+            // Move anchor to WEB POSITION
+            wrap.style.left = '88%'; 
             
-            thread.style.height = '0'; 
-            void wrap.offsetWidth; // Reflow
+            // Thread is fully extended (so body is at floor)
+            thread.style.height = '120vh'; 
+            
+            // Force Reflow
+            void wrap.offsetWidth; 
+
+            // Reattach thread
             thread.style.opacity = '1';
+            
+            // 4. ANIMATE CLIMB (Reel in)
+            requestAnimationFrame(() => {
+                thread.style.transition = 'height 5s ease-in-out';
+                thread.style.height = '0'; // Pull body up to top
+            });
             
             wrap.classList.remove('hunting');
             
-            setTimeout(() => this.halloween(true), 2000);
-        }, 1000);
+            // Resume Idle
+            setTimeout(() => this.halloween(true), 6000);
+        }, 1500);
     },
 
     retreatSpider(thread, wrap, bub, duration) {
