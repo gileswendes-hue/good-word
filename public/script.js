@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.12.6', 
+    APP_VERSION: '5.13.1', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1105,8 +1105,8 @@ bubbles(active) {
                 return;
             }
 
-            // 1% Chance every 2 seconds to spawn a falling snowman
-            if (Math.random() < 0.01) {
+            // 2% Chance every 2 seconds to spawn a falling snowman
+            if (Math.random() < 0.02) {
                 const sm = document.createElement('div');
                 sm.className = 'snow-particle'; 
                 sm.textContent = '⛄';
