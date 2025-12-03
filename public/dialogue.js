@@ -11,6 +11,7 @@ const GAME_DIALOGUE = {
     spider: {
         // Random idle phrases when dropping down
         idle: [
+            '# Hunting spiders...', 
             'just hanging', 
             'looking for snacks', 
             'nice web right?', 
@@ -25,8 +26,9 @@ const GAME_DIALOGUE = {
             "Ticklish!", 
             "Happy Halloween!", 
             "Boo!", 
-            "Hi friend!", 
-            "Nice poke!"
+            "Hi frend!", 
+            "Nice poke!",
+            "MWAH!"
         ],
 
         // When clicked (50% chance Grumpy)
@@ -35,7 +37,8 @@ const GAME_DIALOGUE = {
             "I bite!", 
             "Grrr...", 
             "Busy hunting!", 
-            "Hiss!"
+            "Hiss!",
+            "woof, I'm a dog."
         ],
 
         // When hunting real food
@@ -43,7 +46,8 @@ const GAME_DIALOGUE = {
             "Dinner time!", 
             "Gotcha!", 
             "Snack detected!", 
-            "Incoming!"
+            "Incoming!",
+            "NOM"
         ],
 
         // When dropped on an empty web (Tricked)
