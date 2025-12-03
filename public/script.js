@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.14.2', 
+    APP_VERSION: '5.14.3', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1155,7 +1155,7 @@ snow() {
 	
     summer() { const c = DOM.theme.effects.summer; c.innerHTML = ''; const g = document.createElement('div'); g.className = 'summer-grass'; c.appendChild(g); for (let i = 0; i < 8; i++) { const d = document.createElement('div'); d.className = `summer-cloud v${Math.floor(Math.random()*3)+1}`; const w = Math.random() * 100 + 100; d.style.width = `${w}px`; d.style.height = `${w*.35}px`; d.style.top = `${Math.random()*60}%`; d.style.animationDuration = `${Math.random()*60+60}s`; d.style.animationDelay = `-${Math.random()*100}s`; c.appendChild(d) } },
     
-    halloween(active) {
+ halloween(active) {
         // --- CLEANUP ---
         if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
         if (this.webRaf) cancelAnimationFrame(this.webRaf);
@@ -1190,92 +1190,97 @@ snow() {
                     <div id="spider-thread" style="width: 2px; background: rgba(255,255,255,0.6); margin: 0 auto; height: 0; transition: height 4s ease-in-out;"></div>
                     <div id="spider-body" style="font-size: 3rem; margin-top: -10px; cursor: pointer; position: relative; z-index: 2; pointer-events: auto; transition: transform 1s ease;">
                         🕷️
-                        <div id="spider-bubble" style="opacity: 0; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 5px; background: white; color: black; padding: 4px 8px; border-radius: 8px; font-size: 12px; font-weight: bold; white-space: nowrap; pointer-events: none; transition: opacity 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>
+                        <div id="spider-bubble" style="opacity: 0; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 5px; background: white; color: black; padding: 4px 8px; border-radius: 8px; font-size: 12px; font-weight: bold; white-space: nowrap; min-width: max-content; pointer-events: none; transition: opacity 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>
                     </div>
                 </div>`;
             document.body.appendChild(wrap);
             
             const body = wrap.querySelector('#spider-body');
             const bub = wrap.querySelector('#spider-bubble');
+            const thread = wrap.querySelector('#spider-thread');
 
-            // Click Interaction
+            // --- CLICK INTERACTION (UPDATED: Occasional Fall) ---
             body.onclick = (e) => {
                 e.stopPropagation();
                 State.unlockBadge('spider');
-                const isHappy = Math.random() > 0.5;
-                const lines = isHappy ? GAME_DIALOGUE.spider.pokeHappy : GAME_DIALOGUE.spider.pokeGrumpy;
+                
+                // 1. Decide Fate: 20% Chance to Fall
+                const willFall = Math.random() < 0.2;
+
+                // 2. Select Dialogue based on fate
+                // If falling, use grumpy lines. If staying, use a mix.
+                const lines = willFall ? GAME_DIALOGUE.spider.pokeGrumpy : GAME_DIALOGUE.spider.pokeHappy;
                 bub.innerText = lines[Math.floor(Math.random() * lines.length)];
+                
                 bub.style.opacity = '1';
                 body.style.animation = 'shake 0.3s ease-in-out';
-                setTimeout(() => { body.style.animation = ''; bub.style.opacity = '0'; }, 2000);
+
+                if (willFall) {
+                    // FALL LOGIC
+                    if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
+                    setTimeout(() => {
+                        this.spiderFall(wrap, thread, body, bub);
+                    }, 400); 
+                } else {
+                    // SPEAK LOGIC (Stay put)
+                    setTimeout(() => {
+                        body.style.animation = '';
+                        bub.style.opacity = '0';
+                    }, 2000);
+                }
             };
 
-            // --- IDLE BEHAVIOR (With Wall Climbing) ---
+            // --- IDLE BEHAVIOR ---
             const runDrop = () => {
                 if (wrap.classList.contains('hunting')) return;
 
                 const actionRoll = Math.random();
-                
-                // Ensure rotation is reset if he was just on a wall
-                body.style.transform = 'rotate(0deg)';
+                body.style.transform = 'rotate(0deg)'; // Reset rotation
 
-                // --- OPTION A: WALL CLIMB (30% Chance) ---
+                // --- OPTION A: WALL CLIMB (30%) ---
                 if (actionRoll < 0.3) {
                     const isLeft = Math.random() > 0.5;
-                    const wallX = isLeft ? 1 : 94; // Stick to edge
+                    const wallX = isLeft ? 1 : 94;
                     
-                    // 1. Move to Wall
-                    wrap.style.transition = 'left 4s ease-in-out';
+                    wrap.style.transition = 'left 5s ease-in-out';
                     wrap.style.left = wallX + '%';
 
                     this.spiderTimeout = setTimeout(() => {
                         if (wrap.classList.contains('hunting')) return;
 
-                        // 2. Rotate to "Grip" Wall
-                        // Left wall = 90deg, Right wall = -90deg
+                        // Rotate to grip wall
                         body.style.transform = `rotate(${isLeft ? 90 : -90}deg)`;
 
-                        // 3. Climb Down
-                        const thread = wrap.querySelector('#spider-thread');
-                        const climbDepth = Math.random() * 40 + 30; // 30vh to 70vh
-                        
-                        thread.style.transition = 'height 4s ease-in-out';
+                        // Climb Down
+                        const climbDepth = Math.random() * 40 + 30; 
+                        thread.style.transition = 'height 5s ease-in-out';
                         thread.style.height = climbDepth + 'vh';
 
-                        // 4. Wait & Return
+                        // Wait & Return
                         setTimeout(() => {
                              if (wrap.classList.contains('hunting')) return;
                              thread.style.height = '0'; // Climb Up
-                             
                              setTimeout(() => {
-                                 body.style.transform = 'rotate(0deg)'; // Reset Rotation
+                                 body.style.transform = 'rotate(0deg)';
                                  this.spiderTimeout = setTimeout(runDrop, Math.random() * 4000 + 2000);
-                             }, 4000); // Wait for climb up
-                        }, 4000); // Wait at bottom
+                             }, 5000);
+                        }, 5000);
 
-                    }, 4000); // Wait for move to wall
+                    }, 5000);
                     return;
                 }
 
-                // --- OPTION B: CENTER PATROL (70% Chance) ---
-                const safeLeft = Math.random() * 70 + 15; // 15% to 85%
-                wrap.style.transition = 'left 5s ease-in-out';
+                // --- OPTION B: CENTER PATROL (70%) ---
+                const safeLeft = Math.random() * 70 + 15;
+                wrap.style.transition = 'left 6s ease-in-out'; // Slow
                 wrap.style.left = safeLeft + '%';
 
                 this.spiderTimeout = setTimeout(() => {
                     if (wrap.classList.contains('hunting')) return;
 
-                    // Sometimes just stay hidden
-                    if (Math.random() > 0.6) {
-                        this.spiderTimeout = setTimeout(runDrop, 3000);
-                        return;
-                    }
-
-                    // Peek down
-                    const thread = wrap.querySelector('#spider-thread');
-                    const peekHeight = Math.random() * 20 + 15; 
-                    
-                    thread.style.transition = 'height 3s ease-in-out';
+                    // Peek down slightly
+                    const peekHeight = Math.random() * 20 + 10; 
+                    thread.style.transition = 'height 4s ease-in-out'; // Slow
                     thread.style.height = peekHeight + 'vh';
 
                     setTimeout(() => {
@@ -1284,10 +1289,9 @@ snow() {
                          this.spiderTimeout = setTimeout(runDrop, Math.random() * 5000 + 3000);
                     }, 4000);
 
-                }, 5000);
+                }, 6000);
             };
 
-            // Start Loop
             setTimeout(runDrop, 2000);
         }
 
@@ -1304,11 +1308,10 @@ snow() {
                 } else {
                     State.data.insectStats.teased = (State.data.insectStats.teased || 0) + 1;
                     State.save('insectStats', State.data.insectStats);
-                    this.spiderHunt(85, 50, false);
+                    this.spiderHunt(0, 0, false); 
                 }
             };
             
-            // Basic Web Animation
             const svg = document.getElementById('web-svg');
             const cx = 300, cy = 0;
             const baseAnchors = [{ x: 0, y: 0 }, { x: 60, y: 100 }, { x: 140, y: 200 }, { x: 220, y: 270 }, { x: 300, y: 300 }];
@@ -1355,7 +1358,6 @@ snow() {
             animateWeb()
         }
     },
-
     // --- NEW HUNTING LOGIC ---
     spiderHunt(targetXPercent, targetYPercent, isFood) {
         const wrap = document.getElementById('spider-wrap');
