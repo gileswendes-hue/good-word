@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.12.1', 
+    APP_VERSION: '5.12.2', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -488,11 +488,12 @@ const MosquitoManager = {
     config: {}, 
     COOLDOWN: 5 * 60 * 1000, 
 
+    // UPDATED: Pulls messages from GAME_DIALOGUE
     TYPES: {
-        '🐞': { name: 'Ladybug', speed: 0.1, turnRate: 0.005, wobble: 0.01, msg: "Lucky escape!", badge: null },
-        '🐝': { name: 'Bee', speed: 0.35, turnRate: 0.1, wobble: 0.05, msg: "Buzz off!", badge: null },
-        '🦟': { name: 'Mosquito', speed: 0.2, turnRate: 0.02, wobble: 0.02, msg: "Phew!", badge: null },
-        '🚁': { name: 'Chopper', speed: 0.15, turnRate: 0.001, wobble: 0.0, msg: "GET TO THE CHOPPA!", badge: 'chopper' }
+        '🐞': { name: 'Ladybug', speed: 0.1, turnRate: 0.005, wobble: 0.01, badge: null },
+        '🐝': { name: 'Bee', speed: 0.35, turnRate: 0.1, wobble: 0.05, badge: null },
+        '🦟': { name: 'Mosquito', speed: 0.2, turnRate: 0.02, wobble: 0.02, badge: null },
+        '🚁': { name: 'Chopper', speed: 0.15, turnRate: 0.001, wobble: 0.0, badge: 'chopper' }
     },
 
     startMonitoring() {
@@ -514,11 +515,9 @@ const MosquitoManager = {
     init() {
         if (this.el) this.remove();
         
-        // --- RARE SPAWN LOGIC ---
-        // Base rare chance 2%. Increases if you save bugs.
         let rareChance = 0.02;
         if (State.data.insectStats.saved > 20) rareChance = 0.05;
-        if (State.data.insectStats.saved > 50) rareChance = 0.10; // 10% chance for Chopper if you are 'Good'
+        if (State.data.insectStats.saved > 50) rareChance = 0.10; 
 
         const keys = ['🐞', '🐝', '🦟'];
         const isRare = Math.random() < rareChance; 
@@ -587,11 +586,11 @@ const MosquitoManager = {
         State.save('insectStats', State.data.insectStats);
         
         if (this.config.badge) State.unlockBadge(this.config.badge);
-        
-        // CHECK FOR SAINT BADGE
         if (State.data.insectStats.saved >= 100) State.unlockBadge('saint');
         
-        UIManager.showPostVoteMessage(this.config.msg);
+        // UPDATED: Get message from external file
+        const msg = GAME_DIALOGUE.insects[this.type] || "Saved!";
+        UIManager.showPostVoteMessage(msg);
 
         const bubble = document.createElement('div');
         bubble.textContent = "Thank you! 💖";
@@ -679,7 +678,6 @@ const MosquitoManager = {
         UIManager.showPostVoteMessage("Chomp! 🕷️");
         State.data.insectStats.eaten++;
         State.save('insectStats', State.data.insectStats);
-        // CHECK FOR EXTERMINATOR BADGE
         if (State.data.insectStats.eaten >= 100) State.unlockBadge('exterminator');
         this.finish();
     },
@@ -701,7 +699,6 @@ const MosquitoManager = {
         this.state = 'hidden';
     }
 };
-
 // --- GRAVITY TILT EFFECT ---
 const TiltManager = {
     active: false,
@@ -990,7 +987,7 @@ const Effects = {
     snow() { const c = DOM.theme.effects.snow; c.innerHTML = ''; for (let i = 0; i < 60; i++) { const f = document.createElement('div'); f.className = 'snow-particle'; const s = Math.random() * 12 + 5; f.style.width = f.style.height = `${s}px`; f.style.opacity = Math.random() * .6 + .3; if (s < 4) f.style.filter = `blur(${Math.random()*2}px)`; f.style.left = `${Math.random()*100}vw`; f.style.setProperty('--sway', `${(Math.random()-.5)*100}px`); f.style.animationDuration = `${Math.random()*15+8}s`; f.style.animationDelay = `-${Math.random()*15}s`; c.appendChild(f) } },
     summer() { const c = DOM.theme.effects.summer; c.innerHTML = ''; const g = document.createElement('div'); g.className = 'summer-grass'; c.appendChild(g); for (let i = 0; i < 8; i++) { const d = document.createElement('div'); d.className = `summer-cloud v${Math.floor(Math.random()*3)+1}`; const w = Math.random() * 100 + 100; d.style.width = `${w}px`; d.style.height = `${w*.35}px`; d.style.top = `${Math.random()*60}%`; d.style.animationDuration = `${Math.random()*60+60}s`; d.style.animationDelay = `-${Math.random()*100}s`; c.appendChild(d) } },
     
-    // --- UPDATED HALLOWEEN (SPIDER) ---
+// --- UPDATED HALLOWEEN (SPIDER) ---
     halloween(active) {
         if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
         if (this.webRaf) cancelAnimationFrame(this.webRaf);
@@ -1007,8 +1004,6 @@ const Effects = {
             wrap.id = 'spider-wrap';
             wrap.style.left = '85%'; 
             
-            // --- DYNAMIC SCALE LOGIC ---
-            // Base 0.6, +0.005 per bug eaten, Max 1.3
             const eaten = State.data.insectStats.eaten || 0;
             const scale = Math.min(0.6 + (eaten * 0.005), 1.3).toFixed(2);
             
@@ -1019,16 +1014,18 @@ const Effects = {
                 body = wrap.querySelector('#spider-body'),
                 bub = wrap.querySelector('#spider-bubble');
 
+            // --- SPIDER PROD (CLICK) LOGIC ---
             body.onclick = (e) => {
                 e.stopPropagation();
                 State.unlockBadge('spider');
+                
+                // UPDATED: Uses external dialogue
                 const isHappy = Math.random() > 0.5;
-                const happyLines = ["Ticklish!", "Happy Halloween!", "Boo!", "Hi friend!", "Nice poke!"];
-                const grumpyLines = ["Do not touch!", "I bite!", "Grrr...", "Busy hunting!", "Hiss!"];
-                bub.innerText = isHappy 
-                    ? happyLines[Math.floor(Math.random() * happyLines.length)]
-                    : grumpyLines[Math.floor(Math.random() * grumpyLines.length)];
+                const lines = isHappy ? GAME_DIALOGUE.spider.pokeHappy : GAME_DIALOGUE.spider.pokeGrumpy;
+                
+                bub.innerText = lines[Math.floor(Math.random() * lines.length)];
                 bub.style.opacity = '1';
+                
                 body.style.animation = 'shake 0.3s ease-in-out';
                 setTimeout(() => {
                     body.style.animation = '';
@@ -1037,8 +1034,10 @@ const Effects = {
             };
 
             const runDrop = () => {
-                // --- HUNGER MOOD LOGIC ---
-                let phrases = ['just hanging', 'looking for snacks', 'nice web right?', 'quiet night...'];
+                // UPDATED: Uses external dialogue
+                let phrases = GAME_DIALOGUE.spider.idle;
+                
+                // Hunger overrides
                 if (eaten < 5) phrases = ['so hungry...', 'empty tummy...', 'need food...', 'starving...'];
                 else if (eaten > 50) phrases = ['getting chubby...', 'good hunting lately', 'burp!', 'stuffed...'];
                 
@@ -1077,7 +1076,6 @@ const Effects = {
                 if (MosquitoManager.state === 'stuck') {
                     this.spiderHunt(MosquitoManager.x, MosquitoManager.y, true);
                 } else {
-                    // --- PRANKSTER BADGE LOGIC ---
                     State.data.insectStats.teased = (State.data.insectStats.teased || 0) + 1;
                     State.save('insectStats', State.data.insectStats);
                     if (State.data.insectStats.teased >= 50) State.unlockBadge('prankster');
@@ -1144,13 +1142,13 @@ const Effects = {
         if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
 
         bub.style.opacity = '1';
-        if (isFood) {
-            const successPhrases = ["Dinner time!", "Gotcha!", "Snack detected!", "Incoming!"];
-            bub.innerText = successPhrases[Math.floor(Math.random() * successPhrases.length)];
-        } else {
-            const trickedPhrases = ["Is that a fly?!", "Who touched my house?", "Food?!", "I felt something!"];
-            bub.innerText = trickedPhrases[Math.floor(Math.random() * trickedPhrases.length)];
-        }
+        
+        // Initial Drop Dialogue
+        let phrases = [];
+        if (isFood) phrases = GAME_DIALOGUE.spider.hunting;
+        else phrases = GAME_DIALOGUE.spider.trickedStart;
+        
+        bub.innerText = phrases[Math.floor(Math.random() * phrases.length)];
 
         wrap.style.transition = 'none';
         wrap.style.left = targetXPercent + '%';
@@ -1165,37 +1163,36 @@ const Effects = {
         const dropHeightVH = (targetYPercent + 12) / currentScale; 
 
         requestAnimationFrame(() => {
-            // Drop 3s
-            thread.style.transition = 'height 3s cubic-bezier(0.25, 1, 0.5, 1)';
+            // CHANGED: Slower Drop (5 seconds)
+            thread.style.transition = 'height 5s cubic-bezier(0.25, 1, 0.5, 1)';
             thread.style.height = dropHeightVH + 'vh';
             
+            // Wait for drop to finish (5000ms)
             setTimeout(() => {
+                
+                // CHANGED: Longer pause at bottom (3000ms) to read text
                 setTimeout(() => {
                     if (isFood) {
                         if (MosquitoManager.state === 'stuck') {
                             MosquitoManager.eat(); 
                             
-                            // --- PERSONALIZED EATING DIALOGUE ---
+                            // Eating Dialogue
                             const type = MosquitoManager.type;
-                            let msg = "Yummy!";
-                            if (type === '🐞') msg = "Crunchy shell!";
-                            else if (type === '🐝') msg = "Spicy snack!";
-                            else if (type === '🦟') msg = "Finally, quiet.";
-                            else if (type === '🚁') msg = "Tastes like metal!";
-                            
+                            const msg = GAME_DIALOGUE.spider.eating[type] || GAME_DIALOGUE.spider.eating.default;
                             bub.innerText = msg;
 
                             const body = wrap.querySelector('#spider-body');
                             body.style.animation = 'shake 0.2s ease-in-out';
                             setTimeout(() => body.style.animation = '', 200);
                         } else {
-                            bub.innerText = "Too slow! 😠";
+                            bub.innerText = GAME_DIALOGUE.spider.missed;
                         }
-                        setTimeout(() => this.retreatSpider(thread, wrap, bub, '4s'), 1000);
+                        // CHANGED: Slower climb with food (6s)
+                        setTimeout(() => this.retreatSpider(thread, wrap, bub, '6s'), 1000);
 
                     } else {
-                        // --- TRICKED DIALOGUE ---
-                        const angryPhrases = ["HEY! No food!", "Stop pranking me!", "Empty?!", "Grrr...", "My web!"];
+                        // Tricked Dialogue
+                        const angryPhrases = GAME_DIALOGUE.spider.trickedEnd;
                         bub.innerText = angryPhrases[Math.floor(Math.random() * angryPhrases.length)];
                         
                         const body = wrap.querySelector('#spider-body');
@@ -1203,12 +1200,13 @@ const Effects = {
                         
                         setTimeout(() => {
                             body.style.animation = '';
-                            this.retreatSpider(thread, wrap, bub, '6s');
+                            // CHANGED: Very slow shame climb (8s)
+                            this.retreatSpider(thread, wrap, bub, '8s');
                         }, 1500);
                     }
-                }, 2000); 
+                }, 3000); 
 
-            }, 3000); 
+            }, 5000); 
         });
     },
 
