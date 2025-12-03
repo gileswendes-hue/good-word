@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.12.4', 
+    APP_VERSION: '5.12.5', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -225,7 +225,8 @@ const State = {
             s.setItem('insectSaved', v.saved);
             s.setItem('insectEaten', v.eaten);
             s.setItem('insectTeased', v.teased);
-		}	else if (k === 'fishStats') {
+		}	
+			else if (k === 'fishStats') {
             s.setItem('fishCaught', v.caught);
         } 
         else if (k.startsWith('badge_')) {
@@ -1804,7 +1805,8 @@ openProfile() {
         
         const b = DOM.profile.badges;
         const row1 = [{ k: 'cake', i: '🎂', w: 'CAKE' }, { k: 'llama', i: '🦙', w: 'LLAMA' }, { k: 'potato', i: '🥔', w: 'POTATO' }, { k: 'squirrel', i: '🐿️', w: 'SQUIRREL' }, { k: 'spider', i: '🕷️', w: 'SPIDER' }, { k: 'germ', i: '🦠', w: 'GERM' }, { k: 'bone', i: '🦴', w: 'MASON' }];
-        const row2 = [{ k: 'poop', i: '💩' }, { k: 'penguin', i: '🐧' }, { k: 'scorpion', i: '🦂' }, { k: 'mushroom', i: '🍄' }, { k: 'needle', i: '💉' }, { k: 'diamond', i: '💎' },{ k: 'rock', i: '🤘' }, { k: 'chopper', i: '🚁' }];,{ k: 'snowman', i: '⛄' }
+        const row2 = [{ k: 'poop', i: '💩' }, { k: 'penguin', i: '🐧' }, { k: 'scorpion', i: '🦂' }, { k: 'mushroom', i: '🍄' }, { k: 'needle', i: '💉' }, { k: 'diamond', i: '💎' },{ k: 'rock', i: '🤘' }, { k: 'chopper', i: '🚁' }, { k: 'snowman', i: '⛄' }
+					 ];
         
         // --- 2. NEW BADGES ---
         const row3 = [
