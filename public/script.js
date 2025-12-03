@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.11.4', 
+    APP_VERSION: '5.12.1', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -151,10 +151,14 @@ const State = {
         voteCount: parseInt(localStorage.getItem('voteCount') || 0),
         contributorCount: parseInt(localStorage.getItem('contributorCount') || 0),
         profilePhoto: localStorage.getItem('profilePhoto') || null,
-		insectStats: {
+        
+        // UPDATED: Track Teased count
+        insectStats: {
             saved: parseInt(localStorage.getItem('insectSaved') || 0),
-            eaten: parseInt(localStorage.getItem('insectEaten') || 0)
+            eaten: parseInt(localStorage.getItem('insectEaten') || 0),
+            teased: parseInt(localStorage.getItem('insectTeased') || 0)
         },
+        
         badges: {
             cake: localStorage.getItem('cakeBadgeUnlocked') === 'true',
             llama: localStorage.getItem('llamaBadgeUnlocked') === 'true',
@@ -170,7 +174,11 @@ const State = {
             needle: localStorage.getItem('needleBadgeUnlocked') === 'true',
             diamond: localStorage.getItem('diamondBadgeUnlocked') === 'true',
             rock: localStorage.getItem('rockBadgeUnlocked') === 'true',
-			chopper: localStorage.getItem('chopperBadgeUnlocked') === 'true'
+            chopper: localStorage.getItem('chopperBadgeUnlocked') === 'true',
+            // NEW BADGES
+            exterminator: localStorage.getItem('exterminatorBadgeUnlocked') === 'true',
+            saint: localStorage.getItem('saintBadgeUnlocked') === 'true',
+            prankster: localStorage.getItem('pranksterBadgeUnlocked') === 'true'
         },
         settings: JSON.parse(localStorage.getItem('userSettings')) || {
             showTips: true,
@@ -181,8 +189,8 @@ const State = {
             mirrorMode: false,
             muteSounds: false,
             zeroVotesOnly: false,
-			kidsMode: false,
-			kidsModePin: null
+            kidsMode: false,
+            kidsModePin: null
         },
         currentTheme: localStorage.getItem('currentTheme') || 'default',
         unlockedThemes: JSON.parse(localStorage.getItem('unlockedThemes')) || [],
@@ -205,13 +213,14 @@ const State = {
         mashLevel: 0,
         isDailyMode: false
     },
-   save(k, v) {
+    save(k, v) {
         this.data[k] = v;
         const s = localStorage;
 
         if (k === 'insectStats') {
             s.setItem('insectSaved', v.saved);
             s.setItem('insectEaten', v.eaten);
+            s.setItem('insectTeased', v.teased); // Save teased count
         } 
         else if (k.startsWith('badge_')) {
             s.setItem(k, v);
@@ -238,26 +247,26 @@ const State = {
         else {
             s.setItem(k, v);
         }
-    }, // <--- This comma is now correct because the function is closed above
+    },
     unlockBadge(n) {
         if (this.data.badges[n]) return;
         this.data.badges[n] = true;
         localStorage.setItem(`${n}BadgeUnlocked`, 'true');
-        UIManager.showPostVoteMessage(`Unlocked ${n} badge!`)
+        UIManager.showPostVoteMessage(`Unlocked ${n} badge!`);
     },
     incrementVote() {
         this.data.voteCount++;
-        localStorage.setItem('voteCount', this.data.voteCount)
+        localStorage.setItem('voteCount', this.data.voteCount);
     },
     incrementContributor() {
         this.data.contributorCount++;
-        localStorage.setItem('contributorCount', this.data.contributorCount)
+        localStorage.setItem('contributorCount', this.data.contributorCount);
     },
     clearAll() {
         if (confirm("Clear all local data? Irreversible. I don't back up.")) {
             if (confirm("Are you really sure? All progress, badges, and stats will be lost forever.")) {
                 localStorage.clear();
-                window.location.reload()
+                window.location.reload();
             }
         }
     }
@@ -476,10 +485,9 @@ const MosquitoManager = {
     state: 'hidden', raf: null,
     huntTimer: null, 
     type: '🦟',
-    config: {}, // Stores current insect stats
+    config: {}, 
     COOLDOWN: 5 * 60 * 1000, 
 
-    // DEFINITIONS OF PERSONALITIES
     TYPES: {
         '🐞': { name: 'Ladybug', speed: 0.1, turnRate: 0.005, wobble: 0.01, msg: "Lucky escape!", badge: null },
         '🐝': { name: 'Bee', speed: 0.35, turnRate: 0.1, wobble: 0.05, msg: "Buzz off!", badge: null },
@@ -506,13 +514,17 @@ const MosquitoManager = {
     init() {
         if (this.el) this.remove();
         
-        // Random Selection
+        // --- RARE SPAWN LOGIC ---
+        // Base rare chance 2%. Increases if you save bugs.
+        let rareChance = 0.02;
+        if (State.data.insectStats.saved > 20) rareChance = 0.05;
+        if (State.data.insectStats.saved > 50) rareChance = 0.10; // 10% chance for Chopper if you are 'Good'
+
         const keys = ['🐞', '🐝', '🦟'];
-        const isRare = Math.random() < 0.02; 
+        const isRare = Math.random() < rareChance; 
         this.type = isRare ? '🚁' : keys[Math.floor(Math.random() * keys.length)];
         this.config = this.TYPES[this.type];
 
-        // Apply Speed
         this.speed = this.config.speed;
 
         this.el = document.createElement('div');
@@ -562,10 +574,7 @@ const MosquitoManager = {
         this.state = 'flying';
         this.trailPoints = [];
         this.turnCycle = Math.random() * 100; 
-        
-        // Pitch shift based on bug size (Chopper = low pitch)
         SoundManager.startBuzz(); 
-        
         this.loop();
     },
 
@@ -579,7 +588,9 @@ const MosquitoManager = {
         
         if (this.config.badge) State.unlockBadge(this.config.badge);
         
-        // Use personality message
+        // CHECK FOR SAINT BADGE
+        if (State.data.insectStats.saved >= 100) State.unlockBadge('saint');
+        
         UIManager.showPostVoteMessage(this.config.msg);
 
         const bubble = document.createElement('div');
@@ -604,47 +615,32 @@ const MosquitoManager = {
 
     loop() {
         if (!document.body.contains(this.el)) return;
-        
         if (this.state === 'flying' || this.state === 'leaving') {
-            
-            // --- FLIGHT PERSONALITY LOGIC ---
-            // 1. Cycle increment (How fast the wave oscillates)
             this.turnCycle += this.config.turnRate; 
-            
-            // 2. Turn Amount (How sharp the turn is)
             let turnAmount = Math.sin(this.turnCycle) * this.config.wobble;
-            
-            // 3. Chopper Logic (Heavy, straight flight)
             if (this.type === '🚁') {
-                turnAmount = 0; // Flies straight
-                // Slight vertical bobbing for helicopter
+                turnAmount = 0; 
                 this.y += Math.sin(Date.now() / 200) * 0.05;
             }
-
             this.angle += turnAmount;
             this.x += Math.cos(this.angle) * this.speed;
             this.y += Math.sin(this.angle) * this.speed;
             
-            // Screen Wrapping
             if (this.state === 'flying') {
                 if (this.x > 110) { this.x = -10; this.trailPoints = []; }
                 else if (this.x < -10) { this.x = 110; this.trailPoints = []; }
-                
                 if (this.y < 5 || this.y > 95) {
                     this.angle = -this.angle;
                     this.y = Math.max(5, Math.min(95, this.y));
                 }
             }
-
             this.el.style.left = this.x + '%';
             this.el.style.top = this.y + '%';
-            
             const facingRight = Math.cos(this.angle) > 0;
             this.el.style.transform = facingRight ? 'scaleX(-1)' : 'scaleX(1)';
             
             const pxX = (this.x / 100) * window.innerWidth;
             const pxY = (this.y / 100) * window.innerHeight;
-            
             if (pxX > 0 && pxX < window.innerWidth) this.trailPoints.push({x: pxX, y: pxY});
             if (this.trailPoints.length > this.MAX_TRAIL) this.trailPoints.shift();
             if (this.trailPoints.length > 1) {
@@ -661,18 +657,12 @@ const MosquitoManager = {
                 this.state = 'stuck';
                 SoundManager.stopBuzz(); 
                 UIManager.showPostVoteMessage(`The ${this.config.name} is stuck!`);
-                
                 this.huntTimer = setTimeout(() => {
-                    if (this.state === 'stuck') {
-                        Effects.spiderHunt(this.x, this.y, true);
-                    }
+                    if (this.state === 'stuck') Effects.spiderHunt(this.x, this.y, true);
                 }, 2500); 
             }
-
             if (this.state === 'leaving') {
-                if (this.x < -10 || this.x > 110 || this.y < -10 || this.y > 110) {
-                    this.finish();
-                }
+                if (this.x < -10 || this.x > 110 || this.y < -10 || this.y > 110) this.finish();
             }
         } else if (this.state === 'stuck') {
             const jitterX = (Math.random() - 0.5) * 5; 
@@ -687,10 +677,10 @@ const MosquitoManager = {
     eat() {
         if (this.state !== 'stuck') return;
         UIManager.showPostVoteMessage("Chomp! 🕷️");
-        
         State.data.insectStats.eaten++;
         State.save('insectStats', State.data.insectStats);
-        
+        // CHECK FOR EXTERMINATOR BADGE
+        if (State.data.insectStats.eaten >= 100) State.unlockBadge('exterminator');
         this.finish();
     },
 
@@ -1016,7 +1006,12 @@ const Effects = {
             const wrap = document.createElement('div');
             wrap.id = 'spider-wrap';
             wrap.style.left = '85%'; 
-            const scale = (Math.random() * .6 + .6).toFixed(2);
+            
+            // --- DYNAMIC SCALE LOGIC ---
+            // Base 0.6, +0.005 per bug eaten, Max 1.3
+            const eaten = State.data.insectStats.eaten || 0;
+            const scale = Math.min(0.6 + (eaten * 0.005), 1.3).toFixed(2);
+            
             wrap.innerHTML = `<div id="spider-anchor" style="transform: scale(${scale})"><div id="spider-thread" style="transition: height 2s ease-in-out"></div><div id="spider-body">🕷️<div id="spider-bubble"></div></div></div>`;
             document.body.appendChild(wrap);
             
@@ -1024,23 +1019,16 @@ const Effects = {
                 body = wrap.querySelector('#spider-body'),
                 bub = wrap.querySelector('#spider-bubble');
 
-            // --- SPIDER PROD (CLICK) LOGIC ---
             body.onclick = (e) => {
                 e.stopPropagation();
                 State.unlockBadge('spider');
-                
-                // Random Mood: 50% Cheery, 50% Grumpy
                 const isHappy = Math.random() > 0.5;
                 const happyLines = ["Ticklish!", "Happy Halloween!", "Boo!", "Hi friend!", "Nice poke!"];
                 const grumpyLines = ["Do not touch!", "I bite!", "Grrr...", "Busy hunting!", "Hiss!"];
-                
                 bub.innerText = isHappy 
                     ? happyLines[Math.floor(Math.random() * happyLines.length)]
                     : grumpyLines[Math.floor(Math.random() * grumpyLines.length)];
-                
                 bub.style.opacity = '1';
-                
-                // Shake
                 body.style.animation = 'shake 0.3s ease-in-out';
                 setTimeout(() => {
                     body.style.animation = '';
@@ -1049,8 +1037,11 @@ const Effects = {
             };
 
             const runDrop = () => {
-                // Idle phrases
-                const phrases = ['just hanging', 'looking for snacks', 'nice web right?', 'quiet night...', '...'];
+                // --- HUNGER MOOD LOGIC ---
+                let phrases = ['just hanging', 'looking for snacks', 'nice web right?', 'quiet night...'];
+                if (eaten < 5) phrases = ['so hungry...', 'empty tummy...', 'need food...', 'starving...'];
+                else if (eaten > 50) phrases = ['getting chubby...', 'good hunting lately', 'burp!', 'stuffed...'];
+                
                 bub.innerText = phrases[Math.floor(Math.random() * phrases.length)];
                 
                 if (wrap.classList.contains('hunting')) {
@@ -1086,6 +1077,11 @@ const Effects = {
                 if (MosquitoManager.state === 'stuck') {
                     this.spiderHunt(MosquitoManager.x, MosquitoManager.y, true);
                 } else {
+                    // --- PRANKSTER BADGE LOGIC ---
+                    State.data.insectStats.teased = (State.data.insectStats.teased || 0) + 1;
+                    State.save('insectStats', State.data.insectStats);
+                    if (State.data.insectStats.teased >= 50) State.unlockBadge('prankster');
+                    
                     this.spiderHunt(85, 50, false);
                 }
             };
@@ -1093,7 +1089,6 @@ const Effects = {
             const svg = document.getElementById('web-svg');
             const cx = 300, cy = 0;
             const baseAnchors = [{ x: 0, y: 0 }, { x: 60, y: 100 }, { x: 140, y: 200 }, { x: 220, y: 270 }, { x: 300, y: 300 }];
-            
             const animateWeb = () => {
                 const time = Date.now();
                 let pathStr = '';
@@ -1639,24 +1634,64 @@ const UIManager = {
             DOM.profile.modalImage.classList.add('hidden');
         }
     },
-    openProfile() {
+openProfile() {
         this.updateProfileDisplay();
         const d = State.data;
         DOM.profile.streak.textContent = d.daily.streak;
         DOM.profile.totalVotes.textContent = d.voteCount.toLocaleString();
         DOM.profile.contributions.textContent = d.contributorCount.toLocaleString();
+        
+        // --- 1. KARMA TITLE LOGIC ---
+        const saved = d.insectStats.saved;
+        const eaten = d.insectStats.eaten;
+        let karmaTitle = "Garden Observer";
+        
+        if (saved > 20 && saved > eaten) karmaTitle = "Friend of Bugs 🐞";
+        if (saved > 50 && saved > eaten) karmaTitle = "Guardian of the Garden 🌿";
+        if (eaten > 20 && eaten > saved) karmaTitle = "Spider Feeder 🕸️";
+        if (eaten > 50 && eaten > saved) karmaTitle = "Spider Sympathizer 🕷️";
+        if (saved > 50 && eaten > 50) karmaTitle = "Lord of the Flies 👑";
+        if (d.badges.chopper) karmaTitle = "Air Traffic Controller 🚁";
+
+        DOM.profile.statsTitle.innerHTML = `${d.username ? d.username + "'s" : "Your"} Stats<br><span class="text-xs text-indigo-500 font-bold uppercase tracking-widest mt-1 block">${karmaTitle}</span>`;
+        // ----------------------------
+
         const totalAvailable = Object.keys(CONFIG.THEME_SECRETS).length + 1;
         const userCount = d.unlockedThemes.length + 1;
-        
         DOM.profile.themes.textContent = `${userCount} / ${totalAvailable}`;
+        
         const b = DOM.profile.badges;
         const row1 = [{ k: 'cake', i: '🎂', w: 'CAKE' }, { k: 'llama', i: '🦙', w: 'LLAMA' }, { k: 'potato', i: '🥔', w: 'POTATO' }, { k: 'squirrel', i: '🐿️', w: 'SQUIRREL' }, { k: 'spider', i: '🕷️', w: 'SPIDER' }, { k: 'germ', i: '🦠', w: 'GERM' }, { k: 'bone', i: '🦴', w: 'MASON' }];
-        const row2 = [{ k: 'poop', i: '💩' }, { k: 'penguin', i: '🐧' }, { k: 'scorpion', i: '🦂' }, { k: 'mushroom', i: '🍄' }, { k: 'needle', i: '💉' }, { k: 'diamond', i: '💎' },{ k: 'rock', i: '🤘' }],{ k: 'chopper', i: '🚁' }];
+        const row2 = [{ k: 'poop', i: '💩' }, { k: 'penguin', i: '🐧' }, { k: 'scorpion', i: '🦂' }, { k: 'mushroom', i: '🍄' }, { k: 'needle', i: '💉' }, { k: 'diamond', i: '💎' },{ k: 'rock', i: '🤘' }, { k: 'chopper', i: '🚁' }];
+        
+        // --- 2. NEW BADGES ---
+        const row3 = [
+            { k: 'exterminator', i: '☠️' }, // 100 eaten
+            { k: 'saint', i: '😇' },       // 100 saved
+            { k: 'prankster', i: '🃏' }    // 50 teases
+        ];
+
+        // --- 3. THE BUG JAR ---
+        let bugJarHTML = '';
+        if (saved > 0) {
+            const bugCount = Math.min(saved, 40); // Cap visual icons at 40
+            bugJarHTML = `<div class="w-full text-center my-4 p-3 bg-green-50 rounded-xl border border-green-100 relative overflow-hidden">
+                <div class="text-[10px] font-bold text-green-600 mb-1 uppercase tracking-wider">The Bug Jar (${saved})</div>
+                <div class="text-sm leading-4 break-all opacity-80" style="letter-spacing: 2px;">${'🐞'.repeat(bugCount)}</div>
+            </div>`;
+        }
+        
         const renderRow = (list) => `<div class="flex flex-wrap justify-center gap-3 text-3xl w-full">` + list.map(x => {
             const un = d.badges[x.k];
             return `<span class="${un?'':'opacity-25 grayscale'} transition-all duration-300 transform ${un?'hover:scale-125 cursor-pointer badge-item':''}" title="${un?'Unlocked':'Locked'}" ${x.w?`data-word="${x.w}"`:''}>${x.i}</span>`
         }).join('') + `</div>`;
-        b.innerHTML = `<div class="text-xs font-bold text-gray-500 uppercase mb-2 mt-2">🏆 Word Badges</div>` + renderRow(row1) + `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🧸 Found Items</div>` + renderRow(row2);
+
+        b.innerHTML = 
+            `<div class="text-xs font-bold text-gray-500 uppercase mb-2 mt-2">🏆 Word Badges</div>` + renderRow(row1) + 
+            `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🧸 Found Items</div>` + renderRow(row2) + 
+            `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🎖️ Achievements</div>` + renderRow(row3) +
+            bugJarHTML; // Add bug jar at bottom
+
         b.querySelectorAll('.badge-item').forEach(el => {
             el.onclick = () => {
                 if (el.dataset.word) {
