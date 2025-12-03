@@ -175,10 +175,13 @@ const State = {
             diamond: localStorage.getItem('diamondBadgeUnlocked') === 'true',
             rock: localStorage.getItem('rockBadgeUnlocked') === 'true',
             chopper: localStorage.getItem('chopperBadgeUnlocked') === 'true',
-            // NEW BADGES
             exterminator: localStorage.getItem('exterminatorBadgeUnlocked') === 'true',
             saint: localStorage.getItem('saintBadgeUnlocked') === 'true',
-            prankster: localStorage.getItem('pranksterBadgeUnlocked') === 'true'
+            prankster: localStorage.getItem('pranksterBadgeUnlocked') === 'true',
+			fish: localStorage.getItem('fishBadgeUnlocked') === 'true',     // 🐟
+            tropical: localStorage.getItem('tropicalBadgeUnlocked') === 'true', // 🐠
+            puffer: localStorage.getItem('pufferBadgeUnlocked') === 'true',   // 🐡
+            shark: localStorage.getItem('sharkBadgeUnlocked') === 'true'      // 🦈
         },
         settings: JSON.parse(localStorage.getItem('userSettings')) || {
             showTips: true,
@@ -220,7 +223,9 @@ const State = {
         if (k === 'insectStats') {
             s.setItem('insectSaved', v.saved);
             s.setItem('insectEaten', v.eaten);
-            s.setItem('insectTeased', v.teased); // Save teased count
+            s.setItem('insectTeased', v.teased);
+			else if (k === 'fishStats') {
+            s.setItem('fishCaught', v.caught);
         } 
         else if (k.startsWith('badge_')) {
             s.setItem(k, v);
@@ -983,7 +988,91 @@ const Effects = {
     
     plymouth(a) { const c = DOM.theme.effects.plymouth; if (!a) { c.innerHTML = ''; return } c.innerHTML = ''; for (let i = 0; i < 100; i++) { const s = document.createElement('div'); s.className = 'star-particle'; const z = Math.random() * 2 + 1; s.style.width = s.style.height = `${z}px`; s.style.left = `${Math.random()*100}vw`; s.style.top = `${Math.random()*60}vh`; s.style.animationDuration = `${Math.random()*3+1}s`; s.style.animationDelay = `${Math.random()*2}s`; c.appendChild(s) } },
     fire() { const c = DOM.theme.effects.fire; c.innerHTML = ''; for (let i = 0; i < 80; i++) { const p = document.createElement('div'); p.className = 'fire-particle'; p.style.animationDuration = `${Math.random()*1.5+0.5}s`; p.style.animationDelay = `${Math.random()}s`; p.style.left = `calc(10% + (80% * ${Math.random()}))`; const size = Math.random() * 3 + 2; p.style.width = p.style.height = `${size}em`; p.style.setProperty('--sway', `${(Math.random()-.5)*20}px`); c.appendChild(p) } for (let i = 0; i < 15; i++) { const s = document.createElement('div'); s.className = 'smoke-particle'; s.style.animationDelay = `${Math.random()*3}s`; s.style.left = `${Math.random()*90+5}%`; s.style.setProperty('--sway', `${(Math.random()-.5)*150}px`); c.appendChild(s) } },
-    bubbles(active) { const c = DOM.theme.effects.bubble; if (this.fishTimeout) clearTimeout(this.fishTimeout); if (!active) { c.innerHTML = ''; return; } c.innerHTML = ''; const cl = [10, 30, 70, 90]; for (let i = 0; i < 40; i++) { const p = document.createElement('div'); p.className = 'bubble-particle'; const s = Math.random() * 30 + 10; p.style.width = p.style.height = `${s}px`; p.style.left = `${cl[Math.floor(Math.random()*cl.length)]+(Math.random()-.5)*20}%`; p.style.animationDuration = `${Math.random()*10+10}s`; p.style.animationDelay = `-${Math.random()*15}s`; c.appendChild(p); } const spawnFish = () => { if (!DOM.theme.effects.bubble.checkVisibility()) return; const fishTypes = ['🐟', '🐠', '🐡', '🦈']; const fishEmoji = fishTypes[Math.floor(Math.random() * fishTypes.length)]; const wrap = document.createElement('div'); wrap.className = 'submarine-fish-wrap'; const inner = document.createElement('div'); inner.className = 'submarine-fish-inner'; inner.textContent = fishEmoji; wrap.appendChild(inner); const startLeft = Math.random() > 0.5; const duration = Math.random() * 15 + 10; if (startLeft) inner.style.transform = "scaleX(-1)"; wrap.style.transition = `left ${duration}s linear`; wrap.style.top = Math.random() * 80 + 10 + 'vh'; wrap.style.left = startLeft ? '-100px' : '110vw'; wrap.onclick = (e) => { e.stopPropagation(); UIManager.showPostVoteMessage("Blub blub! 🫧"); wrap.style.opacity = '0'; setTimeout(() => wrap.remove(), 200); }; c.appendChild(wrap); requestAnimationFrame(() => { wrap.style.left = startLeft ? '110vw' : '-100px'; }); setTimeout(() => { if(wrap.parentNode) wrap.remove(); }, duration * 1000); this.fishTimeout = setTimeout(spawnFish, Math.random() * 7000 + 3000); }; spawnFish(); },
+bubbles(active) {
+        const c = DOM.theme.effects.bubble;
+        if (this.fishTimeout) clearTimeout(this.fishTimeout);
+        if (!active) { c.innerHTML = ''; return; }
+        c.innerHTML = '';
+        
+        // Create Bubbles
+        const cl = [10, 30, 70, 90];
+        for (let i = 0; i < 40; i++) {
+            const p = document.createElement('div');
+            p.className = 'bubble-particle';
+            const s = Math.random() * 30 + 10;
+            p.style.width = p.style.height = `${s}px`;
+            p.style.left = `${cl[Math.floor(Math.random()*cl.length)]+(Math.random()-.5)*20}%`;
+            p.style.animationDuration = `${Math.random()*10+10}s`;
+            p.style.animationDelay = `-${Math.random()*15}s`;
+            c.appendChild(p);
+        }
+
+        // Spawn Fish Logic
+        const spawnFish = () => {
+            if (!DOM.theme.effects.bubble.checkVisibility()) return;
+            
+            // Define Fish Data
+            const fishData = {
+                '🐟': { k: 'fish', msg: "Gotcha! 🐟" },
+                '🐠': { k: 'tropical', msg: "So colorful! 🐠" },
+                '🐡': { k: 'puffer', msg: "Spiky! 🐡" },
+                '🦈': { k: 'shark', msg: "You're gonna need a bigger boat! 🦈" }
+            };
+            
+            const keys = Object.keys(fishData);
+            const fishEmoji = keys[Math.floor(Math.random() * keys.length)];
+            
+            const wrap = document.createElement('div');
+            wrap.className = 'submarine-fish-wrap';
+            
+            const inner = document.createElement('div');
+            inner.className = 'submarine-fish-inner';
+            inner.textContent = fishEmoji;
+            wrap.appendChild(inner);
+            
+            const startLeft = Math.random() > 0.5; 
+            const duration = Math.random() * 15 + 10;
+            
+            if (startLeft) inner.style.transform = "scaleX(-1)"; 
+            
+            wrap.style.transition = `left ${duration}s linear`;
+            wrap.style.top = Math.random() * 80 + 10 + 'vh'; 
+            wrap.style.left = startLeft ? '-100px' : '110vw';
+            
+            // --- CLICK HANDLER (CATCH) ---
+            wrap.onclick = (e) => {
+                e.stopPropagation();
+                
+                // 1. Award Badge
+                const data = fishData[fishEmoji];
+                State.unlockBadge(data.k);
+                
+                // 2. Update Stats
+                State.data.fishStats.caught++;
+                State.save('fishStats', State.data.fishStats);
+                
+                // 3. Feedback
+                UIManager.showPostVoteMessage(data.msg);
+                
+                // 4. Remove
+                wrap.style.transition = 'opacity 0.2s, transform 0.2s';
+                wrap.style.opacity = '0';
+                wrap.style.transform = 'scale(1.5)'; // Pop effect
+                setTimeout(() => wrap.remove(), 200);
+            };
+            // -----------------------------
+
+            c.appendChild(wrap);
+            
+            requestAnimationFrame(() => { 
+                wrap.style.left = startLeft ? '110vw' : '-100px'; 
+            });
+            
+            setTimeout(() => { if(wrap.parentNode) wrap.remove(); }, duration * 1000);
+            this.fishTimeout = setTimeout(spawnFish, Math.random() * 7000 + 3000);
+        };
+        spawnFish();
+    },
     snow() { const c = DOM.theme.effects.snow; c.innerHTML = ''; for (let i = 0; i < 60; i++) { const f = document.createElement('div'); f.className = 'snow-particle'; const s = Math.random() * 12 + 5; f.style.width = f.style.height = `${s}px`; f.style.opacity = Math.random() * .6 + .3; if (s < 4) f.style.filter = `blur(${Math.random()*2}px)`; f.style.left = `${Math.random()*100}vw`; f.style.setProperty('--sway', `${(Math.random()-.5)*100}px`); f.style.animationDuration = `${Math.random()*15+8}s`; f.style.animationDelay = `-${Math.random()*15}s`; c.appendChild(f) } },
     summer() { const c = DOM.theme.effects.summer; c.innerHTML = ''; const g = document.createElement('div'); g.className = 'summer-grass'; c.appendChild(g); for (let i = 0; i < 8; i++) { const d = document.createElement('div'); d.className = `summer-cloud v${Math.floor(Math.random()*3)+1}`; const w = Math.random() * 100 + 100; d.style.width = `${w}px`; d.style.height = `${w*.35}px`; d.style.top = `${Math.random()*60}%`; d.style.animationDuration = `${Math.random()*60+60}s`; d.style.animationDelay = `-${Math.random()*100}s`; c.appendChild(d) } },
     
@@ -1666,6 +1755,13 @@ openProfile() {
             { k: 'saint', i: '😇' },       // 100 saved
             { k: 'prankster', i: '🃏' }    // 50 teases
         ];
+		
+		const row_fish = [
+            { k: 'fish', i: '🐟' },
+            { k: 'tropical', i: '🐠' },
+            { k: 'puffer', i: '🐡' },
+            { k: 'shark', i: '🦈' }
+        ];
 
         // --- 3. THE BUG JAR ---
         let bugJarHTML = '';
@@ -1682,11 +1778,12 @@ openProfile() {
             return `<span class="${un?'':'opacity-25 grayscale'} transition-all duration-300 transform ${un?'hover:scale-125 cursor-pointer badge-item':''}" title="${un?'Unlocked':'Locked'}" ${x.w?`data-word="${x.w}"`:''}>${x.i}</span>`
         }).join('') + `</div>`;
 
-        b.innerHTML = 
+		b.innerHTML = 
             `<div class="text-xs font-bold text-gray-500 uppercase mb-2 mt-2">🏆 Word Badges</div>` + renderRow(row1) + 
             `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🧸 Found Items</div>` + renderRow(row2) + 
+            `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🌊 Aquarium</div>` + renderRow(row_fish) + 
             `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🎖️ Achievements</div>` + renderRow(row3) +
-            bugJarHTML; // Add bug jar at bottom
+            bugJarHTML;
 
         b.querySelectorAll('.badge-item').forEach(el => {
             el.onclick = () => {
