@@ -1105,7 +1105,7 @@ snow() {
             }
 
             // 1% Chance every 2 seconds (Increase to 0.1 or 0.2 to test easier!)
-            if (Math.random() < 0.01) {
+            if (Math.random() < 0.02) {
                 const sm = document.createElement('div');
                 sm.className = 'snow-particle'; 
                 sm.textContent = '⛄';
@@ -1119,7 +1119,8 @@ snow() {
                     top: '-10vh', 
                     filter: 'drop-shadow(1px 1px 2px rgba(0,0,0,0.3))',
                     cursor: 'pointer',
-                    zIndex: '100', // <--- CHANGED: Was 20, now 100 (Visible above card)
+                    zIndex: '101',
+					pointerEvents: 'auto',
                     animation: 'none', 
                     transition: 'top 8s linear, transform 8s ease-in-out'
                 });
