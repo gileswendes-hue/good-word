@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.13.5', 
+    APP_VERSION: '5.13.6', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1199,11 +1199,10 @@ snow() {
                 }, 2000);
             };
 
-            const runDrop = () => {
-                // UPDATED: Uses external dialogue
+	const runDrop = () => {
+                // Dialogue setup
+                const eaten = State.data.insectStats.eaten || 0;
                 let phrases = GAME_DIALOGUE.spider.idle;
-                
-                // Hunger overrides
                 if (eaten < 5) phrases = ['so hungry...', 'empty tummy...', 'need food...', 'starving...'];
                 else if (eaten > 50) phrases = ['getting chubby...', 'good hunting lately', 'burp!', 'stuffed...'];
                 
@@ -1214,21 +1213,43 @@ snow() {
                      return;
                 }
 
-                wrap.style.transition = 'left 2s ease';
-                wrap.style.left = (Math.random() * 80 + 10) + '%';
+                // --- NEW MOVEMENT LOGIC ---
                 
-                const dist = Math.random() * 40 + 20;
-                thread.style.transition = 'height 2s ease-in-out';
-                thread.style.height = (dist + 20) + 'vh';
+                // 1. Mobile Safe Zone: Keep between 20% and 80%
+                const newLeft = Math.random() * 60 + 20;
+                
+                // 2. Decide Action: Scuttle (Move sideways) OR Drop
+                const action = Math.random();
 
-                this.spiderTimeout = setTimeout(() => {
-                    thread.style.transition = 'height 0.5s ease-in-out';
-                    thread.style.height = '0';
-                    setTimeout(() => {
-                        this.spiderTimeout = setTimeout(runDrop, Math.random() * 15000 + 10000)
-                    }, 600); 
-                }, 4000 + (Math.random() * 3000));
+                if (action > 0.6) {
+                    // SCUTTLE MODE (Move sideways along the top, don't drop)
+                    // This satisfies "move around on the web"
+                    wrap.style.transition = 'left 3s ease-in-out';
+                    wrap.style.left = newLeft + '%';
+                    
+                    // Call loop again sooner (since we didn't drop)
+                    this.spiderTimeout = setTimeout(runDrop, Math.random() * 4000 + 4000);
+                } 
+                else {
+                    // DROP MODE (Standard behavior)
+                    wrap.style.transition = 'left 2s ease';
+                    wrap.style.left = newLeft + '%';
+                    
+                    const dist = Math.random() * 40 + 20; // Random drop height
+                    thread.style.transition = 'height 2s ease-in-out';
+                    thread.style.height = (dist + 20) + 'vh';
+
+                    this.spiderTimeout = setTimeout(() => {
+                        thread.style.transition = 'height 0.5s ease-in-out';
+                        thread.style.height = '0';
+                        setTimeout(() => {
+                            this.spiderTimeout = setTimeout(runDrop, Math.random() * 10000 + 5000)
+                        }, 600); 
+                    }, 4000 + (Math.random() * 3000));
+                }
             };
+            
+            // Initial call
             setTimeout(runDrop, Math.random() * 5000 + 2000)
         }
 
@@ -1297,7 +1318,7 @@ snow() {
         }
     },
 
-    spiderHunt(targetXPercent, targetYPercent, isFood) {
+spiderHunt(targetXPercent, targetYPercent, isFood) {
         const wrap = document.getElementById('spider-wrap');
         if (!wrap) return;
         const thread = wrap.querySelector('#spider-thread');
@@ -1316,28 +1337,35 @@ snow() {
         
         bub.innerText = phrases[Math.floor(Math.random() * phrases.length)];
 
-        wrap.style.transition = 'none';
+        // --- 1. HORIZONTAL PRECISION ---
+        // Move spider directly above the target
+        wrap.style.transition = 'left 1s ease-in-out';
         wrap.style.left = targetXPercent + '%';
         
+        // Handle Scaling (if spider grows from eating)
         let currentScale = 1;
         if (anchor && anchor.style.transform) {
             const match = anchor.style.transform.match(/scale\(([^)]+)\)/);
             if (match && match[1]) currentScale = parseFloat(match[1]);
         }
 
-        // Offset +12 for overlap
-        const dropHeightVH = (targetYPercent + 12) / currentScale; 
+        // --- 2. VERTICAL PRECISION ---
+        // Calculate drop. +5 aligns the spider's mouth/body center with the prey
+        const dropHeightVH = (targetYPercent + 5) / currentScale; 
 
+        // Start the Drop
         requestAnimationFrame(() => {
-            // CHANGED: Slower Drop (5 seconds)
-            thread.style.transition = 'height 5s cubic-bezier(0.25, 1, 0.5, 1)';
+            // Drop takes 1.5 seconds (Fast hunt)
+            thread.style.transition = 'height 1.5s cubic-bezier(0.25, 1, 0.5, 1)';
             thread.style.height = dropHeightVH + 'vh';
             
-            // Wait for drop to finish (5000ms)
+            // WAIT FOR LANDING (1.5s)
             setTimeout(() => {
                 
-                // CHANGED: Longer pause at bottom (3000ms) to read text
+                // --- 3. THE 2-SECOND PAUSE ---
+                // He has landed. Now he waits 2 seconds before acting.
                 setTimeout(() => {
+                    
                     if (isFood) {
                         if (MosquitoManager.state === 'stuck') {
                             MosquitoManager.eat(); 
@@ -1353,8 +1381,8 @@ snow() {
                         } else {
                             bub.innerText = GAME_DIALOGUE.spider.missed;
                         }
-                        // CHANGED: Slower climb with food (6s)
-                        setTimeout(() => this.retreatSpider(thread, wrap, bub, '6s'), 1000);
+                        // Slower climb with food
+                        setTimeout(() => this.retreatSpider(thread, wrap, bub, '4s'), 2000);
 
                     } else {
                         // Tricked Dialogue
@@ -1366,13 +1394,13 @@ snow() {
                         
                         setTimeout(() => {
                             body.style.animation = '';
-                            // CHANGED: Very slow shame climb (8s)
-                            this.retreatSpider(thread, wrap, bub, '8s');
+                            this.retreatSpider(thread, wrap, bub, '3s');
                         }, 1500);
                     }
-                }, 3000); 
 
-            }, 5000); 
+                }, 2000); // <--- THIS IS THE 2 SECOND DELAY BEFORE EATING
+
+            }, 1500); // Matches the drop transition time
         });
     },
 
