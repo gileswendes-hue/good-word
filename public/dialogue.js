@@ -24,7 +24,7 @@ const GAME_DIALOGUE = {
         // When clicked (50% chance Happy)
         pokeHappy: [
             "Ticklish!", 
-            "Happy Halloween!", 
+            "Seen any good bugs lately?", 
             "Boo!", 
             "Hi frend!", 
             "Nice poke!",
@@ -38,7 +38,8 @@ const GAME_DIALOGUE = {
             "Grrr...", 
             "Busy hunting!", 
             "Hiss!",
-            "woof, I'm a dog."
+            "woof, I'm a dog.",
+            "I'll catch you."
         ],
 
         // When hunting real food
