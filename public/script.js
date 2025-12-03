@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.10.4', 
+    APP_VERSION: '5.11.1', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -203,6 +203,12 @@ const State = {
     save(k, v) {
         this.data[k] = v;
         const s = localStorage;
+		if (k === 'insectStats') {
+            s.setItem('insectSaved', v.saved);
+            s.setItem('insectEaten', v.eaten);
+        }
+        else if (k.startsWith('badge_')) s.setItem(k, v);
+        else s.setItem(k, v);
         if (k === 'settings') s.setItem('userSettings', JSON.stringify(v));
         else if (k === 'unlockedThemes') s.setItem('unlockedThemes', JSON.stringify(v));
         else if (k === 'seenHistory') s.setItem('seenHistory', JSON.stringify(v));
@@ -443,15 +449,16 @@ const SoundManager = {
     }
 };
 
-// --- MOSQUITO LOGIC ---
+// --- MOSQUITO/INSECT LOGIC ---
 const MosquitoManager = {
     el: null, svg: null, path: null, checkInterval: null,
     x: 50, y: 50, angle: 0, 
-    speed: 0.2, 
+    speed: 0.15, // Slowed down further
     turnCycle: 0, loopTimer: 0,
-    trailPoints: [], MAX_TRAIL: 50,
+    trailPoints: [], MAX_TRAIL: 80, // Longer trail for big loops
     state: 'hidden', raf: null,
     huntTimer: null, 
+    type: '🦟', // Current insect type
     COOLDOWN: 5 * 60 * 1000, 
 
     startMonitoring() {
@@ -473,10 +480,16 @@ const MosquitoManager = {
     init() {
         if (this.el) this.remove();
         
+        // --- GOAL 2: Random Spawning ---
+        const common = ['🐞', '🐝', '🦟'];
+        const isRare = Math.random() < 0.02; // 2% chance for helicopter
+        this.type = isRare ? '🚁' : common[Math.floor(Math.random() * common.length)];
+
         this.el = document.createElement('div');
-        this.el.innerHTML = '🦟';
+        this.el.textContent = this.type;
         this.el.className = 'mosquito-entity';
         
+        // Randomize start side
         const startRight = Math.random() > 0.5;
         this.x = startRight ? 105 : -5; 
         this.y = Math.random() * 50 + 10;
@@ -484,13 +497,14 @@ const MosquitoManager = {
 
         Object.assign(this.el.style, {
             position: 'fixed', 
-            fontSize: '1.5rem', 
+            fontSize: '1.8rem', 
             zIndex: '100',
             pointerEvents: 'auto', cursor: 'pointer', transition: 'none', 
             filter: 'drop-shadow(1px 2px 3px rgba(0,0,0,0.5))',
             left: this.x + '%', top: this.y + '%', willChange: 'transform, left, top'
         });
 
+        // Setup Trail SVG
         this.svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         Object.assign(this.svg.style, {
             position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
@@ -499,11 +513,9 @@ const MosquitoManager = {
         
         this.path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         this.path.setAttribute("fill", "none");
-        
-        // --- CHANGED: White Trail Color ---
         this.path.setAttribute("stroke", "rgba(255, 255, 255, 0.6)"); 
-        this.path.setAttribute("stroke-width", "1"); 
-        this.path.setAttribute("stroke-dasharray", "3, 3");
+        this.path.setAttribute("stroke-width", "1.5"); 
+        this.path.setAttribute("stroke-dasharray", "5, 5");
         this.path.setAttribute("stroke-linecap", "round");
         
         this.svg.appendChild(this.path);
@@ -521,7 +533,7 @@ const MosquitoManager = {
         
         this.state = 'flying';
         this.trailPoints = [];
-        this.loopTimer = 0;
+        this.turnCycle = Math.random() * 100; // Random start phase
         SoundManager.startBuzz();
         this.loop();
     },
@@ -530,6 +542,23 @@ const MosquitoManager = {
         this.state = 'thanking';
         SoundManager.stopBuzz(); 
         this.path.setAttribute('d', '');
+        
+        // --- GOAL 2 & 3: Badge & Save Stats ---
+        // 1. Save Stat
+        State.data.insectStats.saved++;
+        State.save('insectStats', State.data.insectStats);
+        
+        // 2. Check Badge
+        if (this.type === '🚁') {
+            State.unlockBadge('chopper');
+            UIManager.showPostVoteMessage("GET TO THE CHOPPA! 🚁 (Badge Unlocked)");
+        } else {
+            UIManager.showPostVoteMessage("Saved: " + this.type);
+        }
+
+        // Mock Database Call (Since we only have frontend access here)
+        console.log(`DB Update: Saved ${this.type} | Total Saved: ${State.data.insectStats.saved}`);
+
         const bubble = document.createElement('div');
         bubble.textContent = "Thank you! 💖";
         Object.assign(bubble.style, {
@@ -540,51 +569,55 @@ const MosquitoManager = {
             boxShadow: '0 2px 5px rgba(0,0,0,0.2)', pointerEvents: 'none', zIndex: '101'
         });
         this.el.appendChild(bubble);
+        
         setTimeout(() => {
             if (bubble) bubble.remove();
             this.state = 'leaving';
             SoundManager.startBuzz();
             this.angle = Math.random() * Math.PI * 2;
-            this.speed = 0.6; 
+            this.speed = 0.6; // Fly away fast
         }, 2000);
     },
 
     loop() {
         if (!document.body.contains(this.el)) return;
+        
         if (this.state === 'flying' || this.state === 'leaving') {
             
-            // --- CHANGED: Larger Loops ---
-            // Reduced increment from 0.05 to 0.02 for wider turns
-            this.turnCycle += 0.02; 
+            // --- GOAL 4: Much Larger Loops ---
+            // We use a very slow increment for the cycle (0.005) to make the wave period long
+            this.turnCycle += 0.005; 
             
-            // Reduced multiplier to smooth out the curve
-            let turnSpeed = Math.cos(this.turnCycle) * 0.02; 
+            // We apply a sine wave to the angle. 
+            // The 0.015 multiplier determines how "sharp" the turn is.
+            let turnAmount = Math.sin(this.turnCycle) * 0.015;
             
-            if (this.state === 'flying') {
-                if (this.loopTimer > 0) {
-                    turnSpeed = 0.25; 
-                    this.loopTimer--;
-                } else if (Math.random() < 0.005) {
-                    this.loopTimer = 60;
-                }
-            }
-            this.angle += turnSpeed;
+            this.angle += turnAmount;
+            
             this.x += Math.cos(this.angle) * this.speed;
             this.y += Math.sin(this.angle) * this.speed;
             
+            // Screen Wrapping
             if (this.state === 'flying') {
                 if (this.x > 110) { this.x = -10; this.trailPoints = []; }
                 else if (this.x < -10) { this.x = 110; this.trailPoints = []; }
+                
+                // Bounce off top/bottom
+                if (this.y < 5 || this.y > 95) {
+                    this.angle = -this.angle;
+                    this.y = Math.max(5, Math.min(95, this.y));
+                }
             }
-            if (this.y < 5 || this.y > 95) {
-                this.angle = -this.angle; 
-                this.y = Math.max(5, Math.min(95, this.y));
-            }
+
+            // Update DOM
             this.el.style.left = this.x + '%';
             this.el.style.top = this.y + '%';
+            
+            // Face direction of travel
             const facingRight = Math.cos(this.angle) > 0;
             this.el.style.transform = facingRight ? 'scaleX(-1)' : 'scaleX(1)';
             
+            // Trail Logic
             const pxX = (this.x / 100) * window.innerWidth;
             const pxY = (this.y / 100) * window.innerHeight;
             
@@ -595,17 +628,16 @@ const MosquitoManager = {
                 this.path.setAttribute('d', d);
             }
             
+            // Stick Logic
             const distRight = window.innerWidth - pxX;
             const distTop = pxY;
-            
-            // Stick Logic
             const inWebZone = (distRight + distTop) < 300;
             const isVisible = pxX > 50 && pxX < (window.innerWidth - 50) && pxY > 50 && pxY < (window.innerHeight - 50);
 
             if (this.state === 'flying' && inWebZone && isVisible) {
                 this.state = 'stuck';
                 SoundManager.stopBuzz(); 
-                UIManager.showPostVoteMessage("It's stuck in the web!");
+                UIManager.showPostVoteMessage(`The ${this.type} is stuck!`);
                 
                 this.huntTimer = setTimeout(() => {
                     if (this.state === 'stuck') {
@@ -632,6 +664,14 @@ const MosquitoManager = {
     eat() {
         if (this.state !== 'stuck') return;
         UIManager.showPostVoteMessage("Chomp! 🕷️");
+        
+        // --- GOAL 3: Save 'Eaten' Stat ---
+        State.data.insectStats.eaten++;
+        State.save('insectStats', State.data.insectStats);
+        
+        // Mock DB Call
+        console.log(`DB Update: Eaten ${this.type} | Total Eaten: ${State.data.insectStats.eaten}`);
+
         this.finish();
     },
 
@@ -1505,7 +1545,8 @@ const ShareManager = {
             { k: 'squirrel', i: '🐿️' }, { k: 'spider', i: '🕷️' }, { k: 'germ', i: '🦠' },
             { k: 'bone', i: '🦴' }, { k: 'poop', i: '💩' }, { k: 'penguin', i: '🐧' },
             { k: 'scorpion', i: '🦂' }, { k: 'mushroom', i: '🍄' }, { k: 'needle', i: '💉' },
-            { k: 'diamond', i: '💎' }, { k: 'rock', i: '🤘' }
+            { k: 'diamond', i: '💎' }, { k: 'rock', i: '🤘' },
+			{ k: 'chopper', i: '🚁' }
         ];
 
         let bx = (width - (7 * 80)) / 2 + 40; 
@@ -2637,6 +2678,7 @@ const InputHandler = {
         c.addEventListener('mousedown', e => {
             // Ignore clicks on buttons within the card (if any)
             if (e.target.closest('button, input, select')) return;
+			e.preventDefault();
             startDrag(e.clientX, e.clientY);
         });
 
