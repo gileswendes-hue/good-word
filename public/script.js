@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.12.2', 
+    APP_VERSION: '5.12.3', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -378,22 +378,24 @@ const SoundManager = {
         setTimeout(() => this.playTone(1760, 'sine', 0.4, 0.2), 50);
     },
 
-    playBad() {
+playBad() {
         if (!this.ctx) this.init();
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
         
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(150, this.ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(40, this.ctx.currentTime + 0.15);
+
+        osc.type = 'sawtooth'; 
+        osc.frequency.setValueAtTime(300, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(50, this.ctx.currentTime + 0.25);
         
-        gain.gain.setValueAtTime(0.5, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+
+        gain.gain.setValueAtTime(0.8, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
         
         osc.connect(gain);
         gain.connect(this.masterGain);
         osc.start();
-        osc.stop(this.ctx.currentTime + 0.2);
+        osc.stop(this.ctx.currentTime + 0.3);
     },
 
     playWhoosh() {
@@ -979,15 +981,12 @@ const Effects = {
     fishTimeout: null,
     spaceRareTimeout: null,
     
-    // ... (Keep plymouth, fire, bubbles, snow, summer exactly as they were) ...
-    // COPY THE PREVIOUS VERSIONS OF THESE FUNCTIONS HERE
     plymouth(a) { const c = DOM.theme.effects.plymouth; if (!a) { c.innerHTML = ''; return } c.innerHTML = ''; for (let i = 0; i < 100; i++) { const s = document.createElement('div'); s.className = 'star-particle'; const z = Math.random() * 2 + 1; s.style.width = s.style.height = `${z}px`; s.style.left = `${Math.random()*100}vw`; s.style.top = `${Math.random()*60}vh`; s.style.animationDuration = `${Math.random()*3+1}s`; s.style.animationDelay = `${Math.random()*2}s`; c.appendChild(s) } },
     fire() { const c = DOM.theme.effects.fire; c.innerHTML = ''; for (let i = 0; i < 80; i++) { const p = document.createElement('div'); p.className = 'fire-particle'; p.style.animationDuration = `${Math.random()*1.5+0.5}s`; p.style.animationDelay = `${Math.random()}s`; p.style.left = `calc(10% + (80% * ${Math.random()}))`; const size = Math.random() * 3 + 2; p.style.width = p.style.height = `${size}em`; p.style.setProperty('--sway', `${(Math.random()-.5)*20}px`); c.appendChild(p) } for (let i = 0; i < 15; i++) { const s = document.createElement('div'); s.className = 'smoke-particle'; s.style.animationDelay = `${Math.random()*3}s`; s.style.left = `${Math.random()*90+5}%`; s.style.setProperty('--sway', `${(Math.random()-.5)*150}px`); c.appendChild(s) } },
     bubbles(active) { const c = DOM.theme.effects.bubble; if (this.fishTimeout) clearTimeout(this.fishTimeout); if (!active) { c.innerHTML = ''; return; } c.innerHTML = ''; const cl = [10, 30, 70, 90]; for (let i = 0; i < 40; i++) { const p = document.createElement('div'); p.className = 'bubble-particle'; const s = Math.random() * 30 + 10; p.style.width = p.style.height = `${s}px`; p.style.left = `${cl[Math.floor(Math.random()*cl.length)]+(Math.random()-.5)*20}%`; p.style.animationDuration = `${Math.random()*10+10}s`; p.style.animationDelay = `-${Math.random()*15}s`; c.appendChild(p); } const spawnFish = () => { if (!DOM.theme.effects.bubble.checkVisibility()) return; const fishTypes = ['🐟', '🐠', '🐡', '🦈']; const fishEmoji = fishTypes[Math.floor(Math.random() * fishTypes.length)]; const wrap = document.createElement('div'); wrap.className = 'submarine-fish-wrap'; const inner = document.createElement('div'); inner.className = 'submarine-fish-inner'; inner.textContent = fishEmoji; wrap.appendChild(inner); const startLeft = Math.random() > 0.5; const duration = Math.random() * 15 + 10; if (startLeft) inner.style.transform = "scaleX(-1)"; wrap.style.transition = `left ${duration}s linear`; wrap.style.top = Math.random() * 80 + 10 + 'vh'; wrap.style.left = startLeft ? '-100px' : '110vw'; wrap.onclick = (e) => { e.stopPropagation(); UIManager.showPostVoteMessage("Blub blub! 🫧"); wrap.style.opacity = '0'; setTimeout(() => wrap.remove(), 200); }; c.appendChild(wrap); requestAnimationFrame(() => { wrap.style.left = startLeft ? '110vw' : '-100px'; }); setTimeout(() => { if(wrap.parentNode) wrap.remove(); }, duration * 1000); this.fishTimeout = setTimeout(spawnFish, Math.random() * 7000 + 3000); }; spawnFish(); },
     snow() { const c = DOM.theme.effects.snow; c.innerHTML = ''; for (let i = 0; i < 60; i++) { const f = document.createElement('div'); f.className = 'snow-particle'; const s = Math.random() * 12 + 5; f.style.width = f.style.height = `${s}px`; f.style.opacity = Math.random() * .6 + .3; if (s < 4) f.style.filter = `blur(${Math.random()*2}px)`; f.style.left = `${Math.random()*100}vw`; f.style.setProperty('--sway', `${(Math.random()-.5)*100}px`); f.style.animationDuration = `${Math.random()*15+8}s`; f.style.animationDelay = `-${Math.random()*15}s`; c.appendChild(f) } },
     summer() { const c = DOM.theme.effects.summer; c.innerHTML = ''; const g = document.createElement('div'); g.className = 'summer-grass'; c.appendChild(g); for (let i = 0; i < 8; i++) { const d = document.createElement('div'); d.className = `summer-cloud v${Math.floor(Math.random()*3)+1}`; const w = Math.random() * 100 + 100; d.style.width = `${w}px`; d.style.height = `${w*.35}px`; d.style.top = `${Math.random()*60}%`; d.style.animationDuration = `${Math.random()*60+60}s`; d.style.animationDelay = `-${Math.random()*100}s`; c.appendChild(d) } },
     
-// --- UPDATED HALLOWEEN (SPIDER) ---
     halloween(active) {
         if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
         if (this.webRaf) cancelAnimationFrame(this.webRaf);
@@ -1014,7 +1013,6 @@ const Effects = {
                 body = wrap.querySelector('#spider-body'),
                 bub = wrap.querySelector('#spider-bubble');
 
-            // --- SPIDER PROD (CLICK) LOGIC ---
             body.onclick = (e) => {
                 e.stopPropagation();
                 State.unlockBadge('spider');
@@ -2533,7 +2531,6 @@ const Game = {
     }
 };
 
-// --- TOUCH INPUT HANDLER ---
 const InputHandler = {
     sX: 0,
     sY: 0,
@@ -2598,7 +2595,6 @@ const InputHandler = {
             }
         };
 
-        // HELPER: Common Drag End Logic
         const endDrag = (x) => {
             if (!this.drag) return;
             const dX = x - this.sX;
@@ -2642,7 +2638,7 @@ const InputHandler = {
             this.scroll = false;
         };
 
-        // --- MOUSE EVENTS (Desktop) ---
+
         c.addEventListener('mousedown', e => {
             // Ignore clicks on buttons within the card (if any)
             if (e.target.closest('button, input, select')) return;
