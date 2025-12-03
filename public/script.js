@@ -1070,7 +1070,7 @@ snow() {
         const c = DOM.theme.effects.snow;
         c.innerHTML = '';
         
-        // 1. Standard Background Snow (Unchanged)
+        // 1. Standard Background Snow
         for (let i = 0; i < 60; i++) {
             const f = document.createElement('div');
             f.className = 'snow-particle';
@@ -1085,25 +1085,25 @@ snow() {
             c.appendChild(f);
         }
 
-        // 2. Dynamic Snowman Spawner (UPDATED: Guaranteed Loop)
+        // 2. Dynamic Snowman Spawner (Mobile Fixed)
         if (this.snowmanTimeout) clearTimeout(this.snowmanTimeout);
 
         const spawnSnowman = () => {
-            // Stop loop if theme changed
             if (State.data.currentTheme !== 'winter') return;
 
-            // Create Snowman
             const sm = document.createElement('div');
             sm.className = 'snow-particle'; 
             sm.textContent = '⛄';
             
+            // Explicitly set position to ensure mobile rendering
             Object.assign(sm.style, {
+                position: 'absolute', // Ensure it floats correctly
                 fontSize: '2.5rem',
                 width: 'auto',
                 height: 'auto',
                 opacity: '1',
                 left: `${Math.random() * 85 + 5}vw`, 
-                top: '-10vh', 
+                top: '-15vh', // Start slightly higher
                 filter: 'drop-shadow(1px 1px 2px rgba(0,0,0,0.3))',
                 cursor: 'pointer',
                 zIndex: '101',
@@ -1112,38 +1112,47 @@ snow() {
                 transition: 'top 8s linear, transform 8s ease-in-out'
             });
             
-            sm.onclick = (e) => {
+            // Interaction Handler (Handles both Touch and Click)
+            const handleInteract = (e) => {
                 e.stopPropagation();
+                e.preventDefault(); // Prevent double-firing on some devices
                 State.unlockBadge('snowman');
                 UIManager.showPostVoteMessage("Do you want to build a snowman? ⛄");
                 
-                // Poof Effect
                 sm.style.transition = 'transform 0.2s, opacity 0.2s';
                 sm.style.transform = 'scale(1.5)';
                 sm.style.opacity = '0';
                 setTimeout(() => sm.remove(), 200);
             };
+
+            // Attach both listeners for mobile responsiveness
+            sm.addEventListener('mousedown', handleInteract);
+            sm.addEventListener('touchstart', handleInteract, { passive: false });
             
             c.appendChild(sm);
 
-            // Start Animation
+            // --- CRITICAL MOBILE FIX: Force Reflow ---
+            // Reading offsetWidth forces the browser to paint the starting frame (-15vh)
+            // before we apply the ending frame (110vh).
+            void sm.offsetWidth; 
+
+            // Trigger Animation
             requestAnimationFrame(() => {
                 sm.style.top = '110vh'; 
                 sm.style.transform = `rotate(${Math.random() * 360}deg)`; 
             });
 
-            // Cleanup if missed
-            setTimeout(() => {
-                if (sm.parentNode) sm.remove();
-            }, 9000);
+            // Cleanup
+            setTimeout(() => { if (sm.parentNode) sm.remove(); }, 9000);
 
-            // SCHEDULE NEXT SPAWN (Guaranteed between 15s and 45s)
+            // Schedule Next (15s - 45s)
             this.snowmanTimeout = setTimeout(spawnSnowman, Math.random() * 30000 + 15000);
         };
 
-        // Start the loop (First spawn in 5-10s)
+        // Start Loop
         this.snowmanTimeout = setTimeout(spawnSnowman, Math.random() * 5000 + 5000);
     },
+	
     summer() { const c = DOM.theme.effects.summer; c.innerHTML = ''; const g = document.createElement('div'); g.className = 'summer-grass'; c.appendChild(g); for (let i = 0; i < 8; i++) { const d = document.createElement('div'); d.className = `summer-cloud v${Math.floor(Math.random()*3)+1}`; const w = Math.random() * 100 + 100; d.style.width = `${w}px`; d.style.height = `${w*.35}px`; d.style.top = `${Math.random()*60}%`; d.style.animationDuration = `${Math.random()*60+60}s`; d.style.animationDelay = `-${Math.random()*100}s`; c.appendChild(d) } },
     
     halloween(active) {
