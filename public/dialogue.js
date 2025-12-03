@@ -61,10 +61,13 @@ const GAME_DIALOGUE = {
         // When realizing it was a trick (Retreating)
         trickedEnd: [
             "HEY! No food!", 
-            "Stop pranking me!", 
+            "Stop playing with me!", 
             "Empty?!", 
             "Grrr...", 
-            "My web!"
+            "My web!",
+            "MATE!",
+            "mush. Not funny.",
+            "Very hangry."
         ],
 
         // Reactions to specific food
