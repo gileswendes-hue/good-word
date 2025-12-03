@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.13.2', 
+    APP_VERSION: '5.13.3', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -194,7 +194,8 @@ const State = {
             muteSounds: false,
             zeroVotesOnly: false,
             kidsMode: false,
-            kidsModePin: null
+            kidsModePin: null,
+			showLights: false
         },
         currentTheme: localStorage.getItem('currentTheme') || 'default',
         unlockedThemes: JSON.parse(localStorage.getItem('unlockedThemes')) || [],
@@ -2059,7 +2060,7 @@ const ModalManager = {
                     Game.refreshData(true);
                 };
             }
-// Inject Kids Mode Toggle
+			// Inject Kids Mode Toggle
             if (!document.getElementById('toggleKidsMode')) {
                 const container = DOM.inputs.settings.mirror ? (DOM.inputs.settings.mirror.closest('.space-y-4') || DOM.inputs.settings.mirror.parentElement.parentElement) : document.getElementById('settingsModalContainer').querySelector('.space-y-4');
                 if (container) {
@@ -2068,6 +2069,25 @@ const ModalManager = {
                     div.innerHTML = `<label for="toggleKidsMode" class="text-lg font-bold text-pink-500">🧸 Kids Mode (Safe)</label><input type="checkbox" id="toggleKidsMode" class="h-6 w-6 text-pink-600 border-gray-300 rounded focus:ring-pink-500">`;
                     container.appendChild(div);
                 }
+            }
+			// Inject Christmas Lights Toggle
+            if (!document.getElementById('toggleLights')) {
+                const container = DOM.inputs.settings.mirror ? (DOM.inputs.settings.mirror.closest('.space-y-4') || DOM.inputs.settings.mirror.parentElement.parentElement) : document.getElementById('settingsModalContainer').querySelector('.space-y-4');
+                if (container) {
+                    const div = document.createElement('div');
+                    div.className = "flex items-center justify-between";
+                    div.innerHTML = `<label for="toggleLights" class="text-lg font-medium text-green-600">🎄 Christmas Lights</label><input type="checkbox" id="toggleLights" class="h-6 w-6 text-green-600 border-gray-300 rounded focus:ring-green-500">`;
+                    container.appendChild(div);
+                }
+            }
+            
+            const lightsToggle = document.getElementById('toggleLights');
+            if (lightsToggle) {
+                lightsToggle.checked = State.data.settings.showLights;
+                lightsToggle.onchange = e => {
+                    State.save('settings', { ...State.data.settings, showLights: e.target.checked });
+                    Game.updateLights(); // Apply change immediately
+                };
             }
             
             const kidsToggle = document.getElementById('toggleKidsMode');
@@ -2269,6 +2289,7 @@ const Game = {
     },
     async init() {
         Accessibility.apply();
+		this.updateLights();
         DOM.general.version.textContent = `v${CONFIG.APP_VERSION} | Made by Gilxs in 12,025`;
         DOM.game.buttons.good.onclick = () => this.vote('good');
         DOM.game.buttons.bad.onclick = () => this.vote('bad');
@@ -2384,6 +2405,18 @@ const Game = {
             DOM.game.dailyBanner.style.display = 'block'
         }
     },
+	updateLights() {
+        const existing = document.querySelector('christmas-lights');
+        if (State.data.settings.showLights) {
+            if (!existing) {
+                const lights = document.createElement('christmas-lights');
+                document.body.appendChild(lights);
+            }
+        } else {
+            if (existing) existing.remove();
+        }
+    },
+	
     activateDailyMode() {
         if (State.runtime.isDailyMode) return;
         const now = new Date();
