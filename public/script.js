@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.14.5', 
+    APP_VERSION: '5.14.6', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1188,7 +1188,7 @@ halloween(active) {
                 top: '-10vh', 
                 zIndex: '102',
                 transition: 'left 4s ease-in-out', 
-                pointerEvents: 'none' // Click-through wrapper
+                pointerEvents: 'none' 
             });
             
             const eaten = State.data.insectStats.eaten || 0;
@@ -1199,7 +1199,7 @@ halloween(active) {
                     <div id="spider-thread" style="width: 2px; background: rgba(255,255,255,0.6); margin: 0 auto; height: 0; transition: height 4s ease-in-out;"></div>
                     <div id="spider-body" style="font-size: 3rem; margin-top: -10px; cursor: pointer; position: relative; z-index: 2; pointer-events: auto; transition: transform 1s ease;">
                         🕷️
-                        <div id="spider-bubble" style="opacity: 0; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 5px; background: white; color: black; padding: 4px 8px; border-radius: 8px; font-size: 12px; font-weight: bold; white-space: nowrap; width: max-content; pointer-events: none; transition: opacity 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>
+                        <div id="spider-bubble" style="opacity: 0; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 5px; background: white; color: black; padding: 5px 10px; border-radius: 12px; font-size: 14px; font-weight: bold; white-space: nowrap; width: auto; pointer-events: none; transition: opacity 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>
                     </div>
                 </div>`;
             document.body.appendChild(wrap);
@@ -1208,15 +1208,14 @@ halloween(active) {
             const bub = wrap.querySelector('#spider-bubble');
             const thread = wrap.querySelector('#spider-thread');
 
-            // --- CLICK INTERACTION (POKE) ---
+            // --- CLICK INTERACTION ---
             body.onclick = (e) => {
                 e.stopPropagation();
                 State.unlockBadge('spider');
                 
-                // 20% Chance to Fall, 80% Chance to Grumble
-                const willFall = Math.random() < 0.2;
-
+                const willFall = Math.random() < 0.2; // 20% Fall Chance
                 const lines = willFall ? GAME_DIALOGUE.spider.pokeGrumpy : GAME_DIALOGUE.spider.pokeHappy;
+                
                 bub.innerText = lines[Math.floor(Math.random() * lines.length)];
                 bub.style.opacity = '1';
                 body.style.animation = 'shake 0.3s ease-in-out';
@@ -1234,18 +1233,18 @@ halloween(active) {
                 }
             };
 
-            // --- IDLE LOOP (Patrol, Climb, Greet) ---
+            // --- IDLE LOOP (More Active) ---
             const runDrop = () => {
                 if (wrap.classList.contains('hunting')) return;
 
                 const actionRoll = Math.random();
                 body.style.transform = 'rotate(0deg)'; 
 
-                // OPTION A: WALL CLIMB (20%)
-                if (actionRoll < 0.2) {
+                // OPTION A: WALL CLIMB (25%)
+                if (actionRoll < 0.25) {
                     const isLeft = Math.random() > 0.5;
                     const wallX = isLeft ? 1 : 94;
-                    wrap.style.transition = 'left 5s ease-in-out';
+                    wrap.style.transition = 'left 4s ease-in-out';
                     wrap.style.left = wallX + '%';
 
                     this.spiderTimeout = setTimeout(() => {
@@ -1253,7 +1252,7 @@ halloween(active) {
                         body.style.transform = `rotate(${isLeft ? 90 : -90}deg)`;
                         
                         const climbDepth = Math.random() * 40 + 30; 
-                        thread.style.transition = 'height 5s ease-in-out';
+                        thread.style.transition = 'height 4s ease-in-out';
                         thread.style.height = climbDepth + 'vh';
 
                         setTimeout(() => {
@@ -1262,57 +1261,60 @@ halloween(active) {
                              setTimeout(() => {
                                  body.style.transform = 'rotate(0deg)';
                                  this.spiderTimeout = setTimeout(runDrop, Math.random() * 3000 + 2000);
-                             }, 5000);
-                        }, 5000);
-                    }, 5000);
+                             }, 4000);
+                        }, 4000);
+                    }, 4000);
                     return;
                 }
 
-                // OPTION B: CENTER DROP & GREET (40% - Friendly drop)
-                if (actionRoll < 0.6) {
-                    // Go somewhere central
+                // OPTION B: CENTER DROP & GREET (50% - More Frequent!)
+                if (actionRoll < 0.75) {
+                    // Go somewhere random
                     const safeLeft = Math.random() * 60 + 20;
-                    wrap.style.transition = 'left 4s ease-in-out'; 
+                    wrap.style.transition = 'left 3s ease-in-out'; 
                     wrap.style.left = safeLeft + '%';
                     
                     this.spiderTimeout = setTimeout(() => {
                         if (wrap.classList.contains('hunting')) return;
 
-                        // Slow Drop
-                        const peekHeight = Math.random() * 30 + 20; // 20-50vh (Mid screen)
-                        thread.style.transition = 'height 3s ease-in-out'; 
+                        // Drop
+                        const peekHeight = Math.random() * 30 + 20; // 20-50vh
+                        thread.style.transition = 'height 2.5s ease-in-out'; 
                         thread.style.height = peekHeight + 'vh';
 
                         // Say Hello!
                         setTimeout(() => {
                              if (wrap.classList.contains('hunting')) return;
-                             const hellos = ['Hello!', 'Boo!', 'Watching you...', 'Hanging out', 'Hi there'];
+                             const hellos = ['Hello!', 'Boo!', 'Hi!', '🕷️', 'Spudulica?'];
                              bub.innerText = hellos[Math.floor(Math.random() * hellos.length)];
                              bub.style.opacity = '1';
 
-                             // WAIT 4 SECONDS (Chance to tap him)
+                             // Hang out for 4 seconds
                              setTimeout(() => {
                                  if (wrap.classList.contains('hunting')) return;
                                  bub.style.opacity = '0';
                                  thread.style.height = '0';
-                                 this.spiderTimeout = setTimeout(runDrop, Math.random() * 4000 + 3000);
+                                 // Restart loop faster (2-4s)
+                                 this.spiderTimeout = setTimeout(runDrop, Math.random() * 2000 + 2000);
                              }, 4000);
-                        }, 3000);
-                    }, 4000);
+                        }, 2500);
+                    }, 3000);
                     return;
                 }
 
-                // OPTION C: JUST SHIFT POSITION (40%)
+                // OPTION C: JUST SHIFT (25%)
                 const safeLeft = Math.random() * 70 + 15;
-                wrap.style.transition = 'left 5s ease-in-out'; 
+                wrap.style.transition = 'left 4s ease-in-out'; 
                 wrap.style.left = safeLeft + '%';
-                this.spiderTimeout = setTimeout(runDrop, 5000);
+                // Wait less time before trying again
+                this.spiderTimeout = setTimeout(runDrop, 3000);
             };
 
-            setTimeout(runDrop, 2000);
+            // Start almost immediately
+            setTimeout(runDrop, 1000);
         }
 
-        // --- WEB CLICK LISTENER ---
+        // --- WEB CLICK ---
         if (!document.getElementById('spider-web-corner')) {
             const web = document.createElement('div');
             web.id = 'spider-web-corner';
