@@ -181,8 +181,9 @@ const State = {
 			fish: localStorage.getItem('fishBadgeUnlocked') === 'true',     // 🐟
             tropical: localStorage.getItem('tropicalBadgeUnlocked') === 'true', // 🐠
             puffer: localStorage.getItem('pufferBadgeUnlocked') === 'true',   // 🐡
-            shark: localStorage.getItem('sharkBadgeUnlocked') === 'true'      // 🦈
-        },
+            shark: localStorage.getItem('sharkBadgeUnlocked') === 'true',      // 🦈
+			snowman: localStorage.getItem('snowmanBadgeUnlocked') === 'true'
+		},
         settings: JSON.parse(localStorage.getItem('userSettings')) || {
             showTips: true,
             showPercentages: true,
@@ -1073,7 +1074,63 @@ bubbles(active) {
         };
         spawnFish();
     },
-    snow() { const c = DOM.theme.effects.snow; c.innerHTML = ''; for (let i = 0; i < 60; i++) { const f = document.createElement('div'); f.className = 'snow-particle'; const s = Math.random() * 12 + 5; f.style.width = f.style.height = `${s}px`; f.style.opacity = Math.random() * .6 + .3; if (s < 4) f.style.filter = `blur(${Math.random()*2}px)`; f.style.left = `${Math.random()*100}vw`; f.style.setProperty('--sway', `${(Math.random()-.5)*100}px`); f.style.animationDuration = `${Math.random()*15+8}s`; f.style.animationDelay = `-${Math.random()*15}s`; c.appendChild(f) } },
+    snow() {
+        const c = DOM.theme.effects.snow;
+        c.innerHTML = '';
+        
+        // 1. Create Standard Snow
+        for (let i = 0; i < 60; i++) {
+            const f = document.createElement('div');
+            f.className = 'snow-particle';
+            const s = Math.random() * 12 + 5;
+            f.style.width = f.style.height = `${s}px`;
+            f.style.opacity = Math.random() * .6 + .3;
+            if (s < 4) f.style.filter = `blur(${Math.random()*2}px)`;
+            f.style.left = `${Math.random()*100}vw`;
+            f.style.setProperty('--sway', `${(Math.random()-.5)*100}px`);
+            f.style.animationDuration = `${Math.random()*15+8}s`;
+            f.style.animationDelay = `-${Math.random()*15}s`;
+            c.appendChild(f);
+        }
+
+        // 2. Chance for Rare Snowman (5% chance per theme load)
+        if (Math.random() < 0.05) {
+            const sm = document.createElement('div');
+            // Use same class to inherit falling physics
+            sm.className = 'snow-particle'; 
+            sm.textContent = '⛄';
+            
+            // Custom styling for the snowman
+            Object.assign(sm.style, {
+                fontSize: '2.5rem',
+                width: 'auto',
+                height: 'auto',
+                opacity: '1',
+                filter: 'drop-shadow(1px 1px 2px rgba(0,0,0,0.3))',
+                left: `${Math.random() * 80 + 10}vw`, // Keep within bounds
+                animationDuration: '10s', // Fall slightly slower
+                cursor: 'pointer',
+                zIndex: '20'
+            });
+            
+            sm.style.setProperty('--sway', `${(Math.random()-.5)*50}px`);
+
+            // Click Handler
+            sm.onclick = (e) => {
+                e.stopPropagation();
+                State.unlockBadge('snowman');
+                UIManager.showPostVoteMessage("Do you want to build a snowman? ⛄");
+                
+                // Poof effect
+                sm.style.transition = 'transform 0.2s, opacity 0.2s';
+                sm.style.transform = 'scale(1.5)';
+                sm.style.opacity = '0';
+                setTimeout(() => sm.remove(), 200);
+            };
+            
+            c.appendChild(sm);
+        }
+    },
     summer() { const c = DOM.theme.effects.summer; c.innerHTML = ''; const g = document.createElement('div'); g.className = 'summer-grass'; c.appendChild(g); for (let i = 0; i < 8; i++) { const d = document.createElement('div'); d.className = `summer-cloud v${Math.floor(Math.random()*3)+1}`; const w = Math.random() * 100 + 100; d.style.width = `${w}px`; d.style.height = `${w*.35}px`; d.style.top = `${Math.random()*60}%`; d.style.animationDuration = `${Math.random()*60+60}s`; d.style.animationDelay = `-${Math.random()*100}s`; c.appendChild(d) } },
     
     halloween(active) {
@@ -1747,7 +1804,7 @@ openProfile() {
         
         const b = DOM.profile.badges;
         const row1 = [{ k: 'cake', i: '🎂', w: 'CAKE' }, { k: 'llama', i: '🦙', w: 'LLAMA' }, { k: 'potato', i: '🥔', w: 'POTATO' }, { k: 'squirrel', i: '🐿️', w: 'SQUIRREL' }, { k: 'spider', i: '🕷️', w: 'SPIDER' }, { k: 'germ', i: '🦠', w: 'GERM' }, { k: 'bone', i: '🦴', w: 'MASON' }];
-        const row2 = [{ k: 'poop', i: '💩' }, { k: 'penguin', i: '🐧' }, { k: 'scorpion', i: '🦂' }, { k: 'mushroom', i: '🍄' }, { k: 'needle', i: '💉' }, { k: 'diamond', i: '💎' },{ k: 'rock', i: '🤘' }, { k: 'chopper', i: '🚁' }];
+        const row2 = [{ k: 'poop', i: '💩' }, { k: 'penguin', i: '🐧' }, { k: 'scorpion', i: '🦂' }, { k: 'mushroom', i: '🍄' }, { k: 'needle', i: '💉' }, { k: 'diamond', i: '💎' },{ k: 'rock', i: '🤘' }, { k: 'chopper', i: '🚁' }];,{ k: 'snowman', i: '⛄' }
         
         // --- 2. NEW BADGES ---
         const row3 = [
