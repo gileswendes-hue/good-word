@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.13.4', 
+    APP_VERSION: '5.13.5', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -977,7 +977,7 @@ const Effects = {
     ballLoop: null,
     fishTimeout: null,
     spaceRareTimeout: null,
-	snowmanInterval: null,
+	snowmanTimeout: null,
     
     plymouth(a) { const c = DOM.theme.effects.plymouth; if (!a) { c.innerHTML = ''; return } c.innerHTML = ''; for (let i = 0; i < 100; i++) { const s = document.createElement('div'); s.className = 'star-particle'; const z = Math.random() * 2 + 1; s.style.width = s.style.height = `${z}px`; s.style.left = `${Math.random()*100}vw`; s.style.top = `${Math.random()*60}vh`; s.style.animationDuration = `${Math.random()*3+1}s`; s.style.animationDelay = `${Math.random()*2}s`; c.appendChild(s) } },
     fire() { const c = DOM.theme.effects.fire; c.innerHTML = ''; for (let i = 0; i < 80; i++) { const p = document.createElement('div'); p.className = 'fire-particle'; p.style.animationDuration = `${Math.random()*1.5+0.5}s`; p.style.animationDelay = `${Math.random()}s`; p.style.left = `calc(10% + (80% * ${Math.random()}))`; const size = Math.random() * 3 + 2; p.style.width = p.style.height = `${size}em`; p.style.setProperty('--sway', `${(Math.random()-.5)*20}px`); c.appendChild(p) } for (let i = 0; i < 15; i++) { const s = document.createElement('div'); s.className = 'smoke-particle'; s.style.animationDelay = `${Math.random()*3}s`; s.style.left = `${Math.random()*90+5}%`; s.style.setProperty('--sway', `${(Math.random()-.5)*150}px`); c.appendChild(s) } },
@@ -1070,7 +1070,7 @@ snow() {
         const c = DOM.theme.effects.snow;
         c.innerHTML = '';
         
-        // 1. Standard Background Snow
+        // 1. Standard Background Snow (Unchanged)
         for (let i = 0; i < 60; i++) {
             const f = document.createElement('div');
             f.className = 'snow-particle';
@@ -1085,64 +1085,64 @@ snow() {
             c.appendChild(f);
         }
 
-        // 2. Dynamic Snowman Spawner
-        if (this.snowmanInterval) clearInterval(this.snowmanInterval);
+        // 2. Dynamic Snowman Spawner (UPDATED: Guaranteed Loop)
+        if (this.snowmanTimeout) clearTimeout(this.snowmanTimeout);
 
-        this.snowmanInterval = setInterval(() => {
-            if (State.data.currentTheme !== 'winter') {
-                clearInterval(this.snowmanInterval);
-                return;
-            }
+        const spawnSnowman = () => {
+            // Stop loop if theme changed
+            if (State.data.currentTheme !== 'winter') return;
 
-            // 2% Chance every 2 seconds (Set to 0.2 or 0.5 to test quickly!)
-            if (Math.random() < 0.02) { 
-                const sm = document.createElement('div');
-                sm.className = 'snow-particle'; 
-                sm.textContent = '⛄';
+            // Create Snowman
+            const sm = document.createElement('div');
+            sm.className = 'snow-particle'; 
+            sm.textContent = '⛄';
+            
+            Object.assign(sm.style, {
+                fontSize: '2.5rem',
+                width: 'auto',
+                height: 'auto',
+                opacity: '1',
+                left: `${Math.random() * 85 + 5}vw`, 
+                top: '-10vh', 
+                filter: 'drop-shadow(1px 1px 2px rgba(0,0,0,0.3))',
+                cursor: 'pointer',
+                zIndex: '101',
+                pointerEvents: 'auto',
+                animation: 'none', 
+                transition: 'top 8s linear, transform 8s ease-in-out'
+            });
+            
+            sm.onclick = (e) => {
+                e.stopPropagation();
+                State.unlockBadge('snowman');
+                UIManager.showPostVoteMessage("Do you want to build a snowman? ⛄");
                 
-                Object.assign(sm.style, {
-                    fontSize: '2.5rem',
-                    width: 'auto',
-                    height: 'auto',
-                    opacity: '1',
-                    left: `${Math.random() * 85 + 5}vw`, 
-                    top: '-10vh', // Start ABOVE screen
-                    filter: 'drop-shadow(1px 1px 2px rgba(0,0,0,0.3))',
-                    cursor: 'pointer',
-                    zIndex: '101',
-                    pointerEvents: 'auto',
-                    animation: 'none', // Stop default snow animation
-                    transition: 'top 8s linear, transform 8s ease-in-out'
-                });
-                
-                sm.onclick = (e) => {
-                    e.stopPropagation();
-                    State.unlockBadge('snowman');
-                    UIManager.showPostVoteMessage("Do you want to build a snowman? ⛄");
-                    
-                    sm.style.transition = 'transform 0.2s, opacity 0.2s';
-                    sm.style.transform = 'scale(1.5)';
-                    sm.style.opacity = '0';
-                    setTimeout(() => sm.remove(), 200);
-                };
-                
-                c.appendChild(sm);
+                // Poof Effect
+                sm.style.transition = 'transform 0.2s, opacity 0.2s';
+                sm.style.transform = 'scale(1.5)';
+                sm.style.opacity = '0';
+                setTimeout(() => sm.remove(), 200);
+            };
+            
+            c.appendChild(sm);
 
-                // --- ANIMATION FIX ---
-                // Use double RAF to ensure the browser paints the starting position first
-                requestAnimationFrame(() => {
-                    requestAnimationFrame(() => {
-                        sm.style.top = '110vh'; // Fall to bottom
-                        sm.style.transform = `rotate(${Math.random() * 360}deg)`; // Tumble
-                    });
-                });
+            // Start Animation
+            requestAnimationFrame(() => {
+                sm.style.top = '110vh'; 
+                sm.style.transform = `rotate(${Math.random() * 360}deg)`; 
+            });
 
-                // Cleanup
-                setTimeout(() => {
-                    if (sm.parentNode) sm.remove();
-                }, 9000);
-            }
-        }, 2000);
+            // Cleanup if missed
+            setTimeout(() => {
+                if (sm.parentNode) sm.remove();
+            }, 9000);
+
+            // SCHEDULE NEXT SPAWN (Guaranteed between 15s and 45s)
+            this.snowmanTimeout = setTimeout(spawnSnowman, Math.random() * 30000 + 15000);
+        };
+
+        // Start the loop (First spawn in 5-10s)
+        this.snowmanTimeout = setTimeout(spawnSnowman, Math.random() * 5000 + 5000);
     },
     summer() { const c = DOM.theme.effects.summer; c.innerHTML = ''; const g = document.createElement('div'); g.className = 'summer-grass'; c.appendChild(g); for (let i = 0; i < 8; i++) { const d = document.createElement('div'); d.className = `summer-cloud v${Math.floor(Math.random()*3)+1}`; const w = Math.random() * 100 + 100; d.style.width = `${w}px`; d.style.height = `${w*.35}px`; d.style.top = `${Math.random()*60}%`; d.style.animationDuration = `${Math.random()*60+60}s`; d.style.animationDelay = `-${Math.random()*100}s`; c.appendChild(d) } },
     
