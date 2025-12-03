@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.13.1', 
+    APP_VERSION: '5.13.2', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1076,11 +1076,11 @@ bubbles(active) {
         };
         spawnFish();
     },
-    snow() {
+snow() {
         const c = DOM.theme.effects.snow;
         c.innerHTML = '';
         
-        // 1. Standard Background Snow (Static set of looping particles)
+        // 1. Standard Background Snow
         for (let i = 0; i < 60; i++) {
             const f = document.createElement('div');
             f.className = 'snow-particle';
@@ -1095,44 +1095,40 @@ bubbles(active) {
             c.appendChild(f);
         }
 
-        // 2. Dynamic Snowman Spawner (Continuous)
+        // 2. Dynamic Snowman Spawner
         if (this.snowmanInterval) clearInterval(this.snowmanInterval);
 
         this.snowmanInterval = setInterval(() => {
-            // Stop generating if we changed themes
             if (State.data.currentTheme !== 'winter') {
                 clearInterval(this.snowmanInterval);
                 return;
             }
 
-            // 2% Chance every 2 seconds to spawn a falling snowman
-            if (Math.random() < 0.02) {
+            // 1% Chance every 2 seconds (Increase to 0.1 or 0.2 to test easier!)
+            if (Math.random() < 0.01) {
                 const sm = document.createElement('div');
                 sm.className = 'snow-particle'; 
                 sm.textContent = '⛄';
                 
-                // Override CSS animation with a single manual fall
                 Object.assign(sm.style, {
                     fontSize: '2.5rem',
                     width: 'auto',
                     height: 'auto',
                     opacity: '1',
-                    left: `${Math.random() * 85 + 5}vw`, // Keep inside screen width
-                    top: '-10vh', // Start above screen
+                    left: `${Math.random() * 85 + 5}vw`, 
+                    top: '-10vh', 
                     filter: 'drop-shadow(1px 1px 2px rgba(0,0,0,0.3))',
                     cursor: 'pointer',
-                    zIndex: '20',
-                    animation: 'none', // Disable infinite loop
+                    zIndex: '100', // <--- CHANGED: Was 20, now 100 (Visible above card)
+                    animation: 'none', 
                     transition: 'top 8s linear, transform 8s ease-in-out'
                 });
                 
-                // Click Handler
                 sm.onclick = (e) => {
                     e.stopPropagation();
                     State.unlockBadge('snowman');
                     UIManager.showPostVoteMessage("Do you want to build a snowman? ⛄");
                     
-                    // Poof effect
                     sm.style.transition = 'transform 0.2s, opacity 0.2s';
                     sm.style.transform = 'scale(1.5)';
                     sm.style.opacity = '0';
@@ -1141,13 +1137,11 @@ bubbles(active) {
                 
                 c.appendChild(sm);
 
-                // Trigger the fall
                 requestAnimationFrame(() => {
-                    sm.style.top = '110vh'; // Fall to bottom
-                    sm.style.transform = `rotate(${Math.random() * 360}deg)`; // Tumble
+                    sm.style.top = '110vh'; 
+                    sm.style.transform = `rotate(${Math.random() * 360}deg)`; 
                 });
 
-                // Cleanup after fall (8s duration + buffer)
                 setTimeout(() => {
                     if (sm.parentNode) sm.remove();
                 }, 9000);
@@ -1638,7 +1632,7 @@ const ShareManager = {
             { k: 'bone', i: '🦴' }, { k: 'poop', i: '💩' }, { k: 'penguin', i: '🐧' },
             { k: 'scorpion', i: '🦂' }, { k: 'mushroom', i: '🍄' }, { k: 'needle', i: '💉' },
             { k: 'diamond', i: '💎' }, { k: 'rock', i: '🤘' },
-			{ k: 'chopper', i: '🚁' }
+			{ k: 'chopper', i: '🚁' }, { k: 'snowman', i: '⛄' }
         ];
 
         let bx = (width - (7 * 80)) / 2 + 40; 
