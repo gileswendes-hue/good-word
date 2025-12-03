@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.14.8', 
+    APP_VERSION: '5.14.9', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1194,7 +1194,7 @@ halloween(active) {
             const eaten = State.data.insectStats.eaten || 0;
             const scale = Math.min(0.6 + (eaten * 0.005), 1.3).toFixed(2);
             
-            // BUBBLE CSS FIX: display: inline-block + width: auto + whitespace: nowrap
+            // BUBBLE FIX: width: max-content forces the box to fit the text exactly
             wrap.innerHTML = `
                 <div id="spider-anchor" style="transform: scale(${scale}); transform-origin: top center;">
                     <div id="spider-thread" style="width: 2px; background: rgba(255,255,255,0.6); margin: 0 auto; height: 0; transition: height 4s ease-in-out;"></div>
@@ -1215,8 +1215,8 @@ halloween(active) {
                             font-weight: bold; 
                             font-family: sans-serif;
                             white-space: nowrap; 
-                            display: inline-block;
-                            width: auto;
+                            width: max-content;
+                            max-width: none;
                             pointer-events: none; 
                             transition: opacity 0.3s; 
                             box-shadow: 0 4px 8px rgba(0,0,0,0.2);
@@ -1265,7 +1265,8 @@ halloween(active) {
                 // OPTION A: WALL CLIMB (20%)
                 if (actionRoll < 0.2) {
                     const isLeft = Math.random() > 0.5;
-                    const wallX = isLeft ? 2 : 90; // Strictly inside bounds
+                    // Wall targets: 2% or 90% (Strictly on-screen)
+                    const wallX = isLeft ? 2 : 90; 
                     wrap.style.transition = 'left 5s ease-in-out';
                     wrap.style.left = wallX + '%';
 
@@ -1292,7 +1293,7 @@ halloween(active) {
 
                 // OPTION B: GREETING DROP (40%)
                 if (actionRoll < 0.6) {
-                    // Safe Zone: 20% to 80%
+                    // Safe Zone: 20% to 80% (Prevents swaying off screen)
                     const safeLeft = Math.random() * 60 + 20;
                     wrap.style.transition = 'left 4s ease-in-out'; 
                     wrap.style.left = safeLeft + '%';
@@ -1326,7 +1327,8 @@ halloween(active) {
                 }
 
                 // OPTION C: JUST SHIFT (40%)
-                const safeLeft = Math.random() * 60 + 20; // STRICT BOUNDS
+                // Strict Bounds: 20% to 80%
+                const safeLeft = Math.random() * 60 + 20; 
                 wrap.style.transition = 'left 4s ease-in-out'; 
                 wrap.style.left = safeLeft + '%';
                 // Wait 30-60s
