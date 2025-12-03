@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.14.3', 
+    APP_VERSION: '5.14.4', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1155,7 +1155,7 @@ snow() {
 	
     summer() { const c = DOM.theme.effects.summer; c.innerHTML = ''; const g = document.createElement('div'); g.className = 'summer-grass'; c.appendChild(g); for (let i = 0; i < 8; i++) { const d = document.createElement('div'); d.className = `summer-cloud v${Math.floor(Math.random()*3)+1}`; const w = Math.random() * 100 + 100; d.style.width = `${w}px`; d.style.height = `${w*.35}px`; d.style.top = `${Math.random()*60}%`; d.style.animationDuration = `${Math.random()*60+60}s`; d.style.animationDelay = `-${Math.random()*100}s`; c.appendChild(d) } },
     
- halloween(active) {
+halloween(active) {
         // --- CLEANUP ---
         if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
         if (this.webRaf) cancelAnimationFrame(this.webRaf);
@@ -1173,13 +1173,14 @@ snow() {
             const wrap = document.createElement('div');
             wrap.id = 'spider-wrap';
             
+            // Initial State: Hidden at top center
             Object.assign(wrap.style, {
                 position: 'fixed', 
                 left: '50%', 
-                top: '-10vh', // Fully Hidden
+                top: '-10vh', 
                 zIndex: '102',
                 transition: 'left 4s ease-in-out', 
-                pointerEvents: 'none'
+                pointerEvents: 'none' // Click-through wrapper
             });
             
             const eaten = State.data.insectStats.eaten || 0;
@@ -1190,7 +1191,7 @@ snow() {
                     <div id="spider-thread" style="width: 2px; background: rgba(255,255,255,0.6); margin: 0 auto; height: 0; transition: height 4s ease-in-out;"></div>
                     <div id="spider-body" style="font-size: 3rem; margin-top: -10px; cursor: pointer; position: relative; z-index: 2; pointer-events: auto; transition: transform 1s ease;">
                         🕷️
-                        <div id="spider-bubble" style="opacity: 0; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 5px; background: white; color: black; padding: 4px 8px; border-radius: 8px; font-size: 12px; font-weight: bold; white-space: nowrap; min-width: max-content; pointer-events: none; transition: opacity 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>
+                        <div id="spider-bubble" style="opacity: 0; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 5px; background: white; color: black; padding: 4px 8px; border-radius: 8px; font-size: 12px; font-weight: bold; white-space: nowrap; width: max-content; pointer-events: none; transition: opacity 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>
                     </div>
                 </div>`;
             document.body.appendChild(wrap);
@@ -1199,30 +1200,27 @@ snow() {
             const bub = wrap.querySelector('#spider-bubble');
             const thread = wrap.querySelector('#spider-thread');
 
-            // --- CLICK INTERACTION (UPDATED: Occasional Fall) ---
+            // --- CLICK INTERACTION (POKE) ---
             body.onclick = (e) => {
                 e.stopPropagation();
                 State.unlockBadge('spider');
                 
-                // 1. Decide Fate: 20% Chance to Fall
+                // 20% Chance to Fall, 80% Chance to Grumble
                 const willFall = Math.random() < 0.2;
 
-                // 2. Select Dialogue based on fate
-                // If falling, use grumpy lines. If staying, use a mix.
                 const lines = willFall ? GAME_DIALOGUE.spider.pokeGrumpy : GAME_DIALOGUE.spider.pokeHappy;
                 bub.innerText = lines[Math.floor(Math.random() * lines.length)];
-                
                 bub.style.opacity = '1';
                 body.style.animation = 'shake 0.3s ease-in-out';
 
                 if (willFall) {
-                    // FALL LOGIC
                     if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
+                    // Short delay then drop
                     setTimeout(() => {
                         this.spiderFall(wrap, thread, body, bub);
                     }, 400); 
                 } else {
-                    // SPEAK LOGIC (Stay put)
+                    // Just stay put
                     setTimeout(() => {
                         body.style.animation = '';
                         bub.style.opacity = '0';
@@ -1230,57 +1228,59 @@ snow() {
                 }
             };
 
-            // --- IDLE BEHAVIOR ---
+            // --- IDLE LOOP (Patrol & Climb) ---
             const runDrop = () => {
                 if (wrap.classList.contains('hunting')) return;
 
                 const actionRoll = Math.random();
                 body.style.transform = 'rotate(0deg)'; // Reset rotation
 
-                // --- OPTION A: WALL CLIMB (30%) ---
+                // OPTION A: WALL CLIMB (30%)
                 if (actionRoll < 0.3) {
                     const isLeft = Math.random() > 0.5;
-                    const wallX = isLeft ? 1 : 94;
+                    const wallX = isLeft ? 1 : 94; // Target Edge
                     
+                    // 1. Walk to Wall (Slow)
                     wrap.style.transition = 'left 5s ease-in-out';
                     wrap.style.left = wallX + '%';
 
                     this.spiderTimeout = setTimeout(() => {
                         if (wrap.classList.contains('hunting')) return;
 
-                        // Rotate to grip wall
+                        // 2. Rotate 90deg to grip wall
                         body.style.transform = `rotate(${isLeft ? 90 : -90}deg)`;
 
-                        // Climb Down
+                        // 3. Climb Down Side
                         const climbDepth = Math.random() * 40 + 30; 
                         thread.style.transition = 'height 5s ease-in-out';
                         thread.style.height = climbDepth + 'vh';
 
-                        // Wait & Return
+                        // 4. Wait & Return
                         setTimeout(() => {
                              if (wrap.classList.contains('hunting')) return;
                              thread.style.height = '0'; // Climb Up
+                             
                              setTimeout(() => {
-                                 body.style.transform = 'rotate(0deg)';
-                                 this.spiderTimeout = setTimeout(runDrop, Math.random() * 4000 + 2000);
-                             }, 5000);
-                        }, 5000);
+                                 body.style.transform = 'rotate(0deg)'; // Reset
+                                 this.spiderTimeout = setTimeout(runDrop, Math.random() * 4000 + 3000);
+                             }, 5000); // Wait for climb up
+                        }, 5000); // Wait at bottom
 
-                    }, 5000);
+                    }, 5000); // Wait for walk
                     return;
                 }
 
-                // --- OPTION B: CENTER PATROL (70%) ---
-                const safeLeft = Math.random() * 70 + 15;
-                wrap.style.transition = 'left 6s ease-in-out'; // Slow
+                // OPTION B: TOP PATROL (70%)
+                const safeLeft = Math.random() * 70 + 15; // Keep away from edges
+                wrap.style.transition = 'left 6s ease-in-out'; 
                 wrap.style.left = safeLeft + '%';
 
                 this.spiderTimeout = setTimeout(() => {
                     if (wrap.classList.contains('hunting')) return;
 
-                    // Peek down slightly
+                    // Small peek down
                     const peekHeight = Math.random() * 20 + 10; 
-                    thread.style.transition = 'height 4s ease-in-out'; // Slow
+                    thread.style.transition = 'height 4s ease-in-out'; 
                     thread.style.height = peekHeight + 'vh';
 
                     setTimeout(() => {
@@ -1292,10 +1292,11 @@ snow() {
                 }, 6000);
             };
 
+            // Start Loop
             setTimeout(runDrop, 2000);
         }
 
-        // --- WEB VISUALS ---
+        // --- WEB CLICK LISTENER ---
         if (!document.getElementById('spider-web-corner')) {
             const web = document.createElement('div');
             web.id = 'spider-web-corner';
@@ -1304,14 +1305,19 @@ snow() {
             
             web.onclick = () => {
                 if (MosquitoManager.state === 'stuck') {
+                    // Hunt Prey (Use Prey Coordinates)
                     this.spiderHunt(MosquitoManager.x, MosquitoManager.y, true);
                 } else {
                     State.data.insectStats.teased = (State.data.insectStats.teased || 0) + 1;
                     State.save('insectStats', State.data.insectStats);
-                    this.spiderHunt(0, 0, false); 
+                    
+                    // TEASE LOGIC: Force coordinates to Web Center
+                    // Web is Top-Right. 88% Left, 20% Down.
+                    this.spiderHunt(88, 20, false); 
                 }
             };
             
+            // (Web Animation Logic - Kept Standard)
             const svg = document.getElementById('web-svg');
             const cx = 300, cy = 0;
             const baseAnchors = [{ x: 0, y: 0 }, { x: 60, y: 100 }, { x: 140, y: 200 }, { x: 220, y: 270 }, { x: 300, y: 300 }];
@@ -1365,6 +1371,7 @@ snow() {
         const thread = wrap.querySelector('#spider-thread');
         const bub = wrap.querySelector('#spider-bubble');
         const body = wrap.querySelector('#spider-body');
+        const anchor = document.getElementById('spider-anchor');
 
         if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
         wrap.classList.add('hunting');
@@ -1374,97 +1381,106 @@ snow() {
         let phrases = isFood ? GAME_DIALOGUE.spider.hunting : GAME_DIALOGUE.spider.trickedStart;
         bub.innerText = phrases[Math.floor(Math.random() * phrases.length)];
 
-        // 1. POSITION X (No swaying, direct move)
+        // 1. POSITION X (Lateral Move)
         const currentX = parseFloat(wrap.style.left) || 50;
         const dist = Math.abs(currentX - targetXPercent);
-        const moveTime = Math.max(dist * 20, 500); // Minimum 0.5s move
+        
+        // Duration: Minimum 1s, plus distance calculation
+        // Slower lateral move to avoid "jerky" look
+        const moveTime = Math.max(dist * 30, 1000); 
         
         wrap.style.transition = `left ${moveTime}ms ease-in-out`;
         wrap.style.left = targetXPercent + '%';
+        
+        // Ensure rotation is reset (in case he was on a wall)
+        body.style.transform = 'rotate(0deg)';
 
-        // 2. DROP Y (After X alignment is done)
+        // 2. DROP Y (Vertical Move)
         this.spiderTimeout = setTimeout(() => {
-            // Calculate scale to correct drop distance
+            
+            // Calculate visual drop distance
             let scale = 1;
-            const anchor = document.getElementById('spider-anchor');
-            if (anchor) {
+            if (anchor && anchor.style.transform) {
                 const match = anchor.style.transform.match(/scale\(([^)]+)\)/);
                 if (match) scale = parseFloat(match[1]);
             }
 
-            const dropVH = (targetYPercent + 5) / scale; // +5 to align mouth
+            // Target Y + 10vh offset so mouth aligns with target
+            const dropVH = (targetYPercent + 10) / scale; 
             
-            // Fast linear drop
-            thread.style.transition = 'height 0.6s cubic-bezier(0.5, 0, 1, 1)'; 
+            // SLOW DROP: 3 Seconds
+            thread.style.transition = 'height 3s cubic-bezier(0.45, 0, 0.55, 1)'; 
             thread.style.height = dropVH + 'vh';
 
-            // 3. LAND & WAIT 2 SECONDS
+            // 3. LAND & WAIT
             setTimeout(() => {
                 
-                // 4. ACTION
-                if (isFood && MosquitoManager.state === 'stuck') {
-                    MosquitoManager.eat();
-                    bub.innerText = "YUM!"; 
-                    body.style.animation = 'shake 0.2s ease-in-out';
+                // 4. THE 2-SECOND PAUSE (Stare at prey)
+                setTimeout(() => {
                     
-                    // Retreat after eating
-                    setTimeout(() => {
-                        body.style.animation = '';
-                        this.retreatSpider(thread, wrap, bub, '3s');
-                    }, 1000);
-                } 
-                else {
-                    // MISS / TRICK -> FALL TO FLOOR
-                    bub.innerText = isFood ? "Missed..." : "Hey!";
-                    setTimeout(() => {
-                        this.spiderFall(wrap, thread, body, bub);
-                    }, 800);
-                }
+                    if (isFood && MosquitoManager.state === 'stuck') {
+                        MosquitoManager.eat();
+                        bub.innerText = "YUM!"; 
+                        body.style.animation = 'shake 0.2s ease-in-out';
+                        
+                        // Retreat Up
+                        setTimeout(() => {
+                            body.style.animation = '';
+                            this.retreatSpider(thread, wrap, bub, '4s');
+                        }, 1000);
+                    } 
+                    else {
+                        // TEASED / MISSED
+                        const angryPhrases = GAME_DIALOGUE.spider.trickedEnd;
+                        bub.innerText = angryPhrases[Math.floor(Math.random() * angryPhrases.length)];
+                        
+                        body.style.animation = 'shake 0.3s ease-in-out';
+                        
+                        // Just retreat (User requested "drop to floor" only for poking, 
+                        // teasing usually results in retreat to wait for real food)
+                        setTimeout(() => {
+                            body.style.animation = '';
+                            this.retreatSpider(thread, wrap, bub, '4s');
+                        }, 1500);
+                    }
 
-            }, 2000); // <--- The strict 2 second delay
+                }, 2000); // Strict 2s wait
+
+            }, 3000); // Match Drop Time (3s)
 
         }, moveTime);
     },
 
     // --- NEW FALL MECHANIC ---
-    spiderFall(wrap, thread, body, bub) {
+spiderFall(wrap, thread, body, bub) {
         bub.style.opacity = '0';
         
-        // 1. Make thread invisible but lengthen it instantly to simulate freefall
-        thread.style.transition = 'height 0.6s cubic-bezier(0.5, 0, 1, 1), opacity 0.1s';
-        thread.style.opacity = '0'; // Hide the string
-        thread.style.height = '120vh'; // Body flies to bottom
+        // 1. Cut Thread
+        thread.style.transition = 'height 0.8s cubic-bezier(0.55, 0.085, 0.68, 0.53), opacity 0s linear';
+        thread.style.opacity = '0'; 
+        
+        // 2. Gravity Drop
+        requestAnimationFrame(() => {
+            thread.style.height = '120vh'; // Fly off bottom
+        });
 
-        // 2. Wait at bottom
+        // 3. Reset
         setTimeout(() => {
-            // 3. Reset to side for "Climb up"
             thread.style.transition = 'none';
             wrap.style.transition = 'none';
             
-            const side = Math.random() > 0.5 ? '5%' : '95%';
-            wrap.style.left = side;
-            thread.style.height = '120vh'; 
-            thread.style.opacity = '1'; // Show thread again (it's off screen or long)
-
-            // Force Reflow
-            void wrap.offsetWidth;
-
-            // 4. Climb up the side
-            thread.style.transition = 'height 4s ease-in-out';
-            thread.style.height = '0';
+            // Reset to Top (Hidden)
+            wrap.style.top = '-10vh'; 
+            wrap.style.left = Math.random() > 0.5 ? '5%' : '95%';
+            
+            thread.style.height = '0'; 
+            void wrap.offsetWidth; // Reflow
+            thread.style.opacity = '1';
             
             wrap.classList.remove('hunting');
             
-            // Resume idle logic after climb
-            setTimeout(() => {
-                // Manually trigger idle
-                const halloween = Effects.halloween.bind(Effects); 
-                // We don't call halloween() directly to avoid resetting web, 
-                // just let the existing timeout/logic resume or restart strictly:
-                this.halloween(true); 
-            }, 4000);
-
-        }, 2000);
+            setTimeout(() => this.halloween(true), 2000);
+        }, 1000);
     },
 
     retreatSpider(thread, wrap, bub, duration) {
