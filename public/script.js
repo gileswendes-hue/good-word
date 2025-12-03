@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.13.3', 
+    APP_VERSION: '5.13.4', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -226,36 +226,25 @@ const State = {
             s.setItem('insectSaved', v.saved);
             s.setItem('insectEaten', v.eaten);
             s.setItem('insectTeased', v.teased);
-		}	
-			else if (k === 'fishStats') {
-            s.setItem('fishCaught', v.caught);
         } 
+        else if (k === 'fishStats') {
+            s.setItem('fishCaught', v.caught);
+        }
         else if (k.startsWith('badge_')) {
             s.setItem(k, v);
         }
-        else if (k === 'settings') {
-            s.setItem('userSettings', JSON.stringify(v));
-        }
-        else if (k === 'unlockedThemes') {
-            s.setItem('unlockedThemes', JSON.stringify(v));
-        }
-        else if (k === 'seenHistory') {
-            s.setItem('seenHistory', JSON.stringify(v));
-        }
+        else if (k === 'settings') s.setItem('userSettings', JSON.stringify(v));
+        else if (k === 'unlockedThemes') s.setItem('unlockedThemes', JSON.stringify(v));
+        else if (k === 'seenHistory') s.setItem('seenHistory', JSON.stringify(v));
         else if (k === 'daily') {
             s.setItem('dailyStreak', v.streak);
             s.setItem('dailyLastDate', v.lastDate);
         }
-        else if (k === 'profilePhoto') {
-            s.setItem('profilePhoto', v);
-        }
-        else if (k === 'lastMosquitoSpawn') {
-            s.setItem(k, v);
-        } 
-        else {
-            s.setItem(k, v);
-        }
+        else if (k === 'profilePhoto') s.setItem('profilePhoto', v);
+        else if (k === 'lastMosquitoSpawn') s.setItem(k, v);
+        else s.setItem(k, v);
     },
+	
     unlockBadge(n) {
         if (this.data.badges[n]) return;
         this.data.badges[n] = true;
@@ -1105,8 +1094,8 @@ snow() {
                 return;
             }
 
-            // 1% Chance every 2 seconds (Increase to 0.1 or 0.2 to test easier!)
-            if (Math.random() < 0.02) {
+            // 2% Chance every 2 seconds (Set to 0.2 or 0.5 to test quickly!)
+            if (Math.random() < 0.02) { 
                 const sm = document.createElement('div');
                 sm.className = 'snow-particle'; 
                 sm.textContent = '⛄';
@@ -1117,12 +1106,12 @@ snow() {
                     height: 'auto',
                     opacity: '1',
                     left: `${Math.random() * 85 + 5}vw`, 
-                    top: '-10vh', 
+                    top: '-10vh', // Start ABOVE screen
                     filter: 'drop-shadow(1px 1px 2px rgba(0,0,0,0.3))',
                     cursor: 'pointer',
                     zIndex: '101',
-					pointerEvents: 'auto',
-                    animation: 'none', 
+                    pointerEvents: 'auto',
+                    animation: 'none', // Stop default snow animation
                     transition: 'top 8s linear, transform 8s ease-in-out'
                 });
                 
@@ -1139,11 +1128,16 @@ snow() {
                 
                 c.appendChild(sm);
 
+                // --- ANIMATION FIX ---
+                // Use double RAF to ensure the browser paints the starting position first
                 requestAnimationFrame(() => {
-                    sm.style.top = '110vh'; 
-                    sm.style.transform = `rotate(${Math.random() * 360}deg)`; 
+                    requestAnimationFrame(() => {
+                        sm.style.top = '110vh'; // Fall to bottom
+                        sm.style.transform = `rotate(${Math.random() * 360}deg)`; // Tumble
+                    });
                 });
 
+                // Cleanup
                 setTimeout(() => {
                     if (sm.parentNode) sm.remove();
                 }, 9000);
