@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.12.5', 
+    APP_VERSION: '5.12.6', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -987,6 +987,7 @@ const Effects = {
     ballLoop: null,
     fishTimeout: null,
     spaceRareTimeout: null,
+	snowmanInterval: null,
     
     plymouth(a) { const c = DOM.theme.effects.plymouth; if (!a) { c.innerHTML = ''; return } c.innerHTML = ''; for (let i = 0; i < 100; i++) { const s = document.createElement('div'); s.className = 'star-particle'; const z = Math.random() * 2 + 1; s.style.width = s.style.height = `${z}px`; s.style.left = `${Math.random()*100}vw`; s.style.top = `${Math.random()*60}vh`; s.style.animationDuration = `${Math.random()*3+1}s`; s.style.animationDelay = `${Math.random()*2}s`; c.appendChild(s) } },
     fire() { const c = DOM.theme.effects.fire; c.innerHTML = ''; for (let i = 0; i < 80; i++) { const p = document.createElement('div'); p.className = 'fire-particle'; p.style.animationDuration = `${Math.random()*1.5+0.5}s`; p.style.animationDelay = `${Math.random()}s`; p.style.left = `calc(10% + (80% * ${Math.random()}))`; const size = Math.random() * 3 + 2; p.style.width = p.style.height = `${size}em`; p.style.setProperty('--sway', `${(Math.random()-.5)*20}px`); c.appendChild(p) } for (let i = 0; i < 15; i++) { const s = document.createElement('div'); s.className = 'smoke-particle'; s.style.animationDelay = `${Math.random()*3}s`; s.style.left = `${Math.random()*90+5}%`; s.style.setProperty('--sway', `${(Math.random()-.5)*150}px`); c.appendChild(s) } },
@@ -1079,7 +1080,7 @@ bubbles(active) {
         const c = DOM.theme.effects.snow;
         c.innerHTML = '';
         
-        // 1. Create Standard Snow
+        // 1. Standard Background Snow (Static set of looping particles)
         for (let i = 0; i < 60; i++) {
             const f = document.createElement('div');
             f.className = 'snow-particle';
@@ -1094,43 +1095,64 @@ bubbles(active) {
             c.appendChild(f);
         }
 
-        // 2. Chance for Rare Snowman (5% chance per theme load)
-        if (Math.random() < 0.05) {
-            const sm = document.createElement('div');
-            // Use same class to inherit falling physics
-            sm.className = 'snow-particle'; 
-            sm.textContent = '⛄';
-            
-            // Custom styling for the snowman
-            Object.assign(sm.style, {
-                fontSize: '2.5rem',
-                width: 'auto',
-                height: 'auto',
-                opacity: '1',
-                filter: 'drop-shadow(1px 1px 2px rgba(0,0,0,0.3))',
-                left: `${Math.random() * 80 + 10}vw`, // Keep within bounds
-                animationDuration: '10s', // Fall slightly slower
-                cursor: 'pointer',
-                zIndex: '20'
-            });
-            
-            sm.style.setProperty('--sway', `${(Math.random()-.5)*50}px`);
+        // 2. Dynamic Snowman Spawner (Continuous)
+        if (this.snowmanInterval) clearInterval(this.snowmanInterval);
 
-            // Click Handler
-            sm.onclick = (e) => {
-                e.stopPropagation();
-                State.unlockBadge('snowman');
-                UIManager.showPostVoteMessage("Do you want to build a snowman? ⛄");
+        this.snowmanInterval = setInterval(() => {
+            // Stop generating if we changed themes
+            if (State.data.currentTheme !== 'winter') {
+                clearInterval(this.snowmanInterval);
+                return;
+            }
+
+            // 1% Chance every 2 seconds to spawn a falling snowman
+            if (Math.random() < 0.01) {
+                const sm = document.createElement('div');
+                sm.className = 'snow-particle'; 
+                sm.textContent = '⛄';
                 
-                // Poof effect
-                sm.style.transition = 'transform 0.2s, opacity 0.2s';
-                sm.style.transform = 'scale(1.5)';
-                sm.style.opacity = '0';
-                setTimeout(() => sm.remove(), 200);
-            };
-            
-            c.appendChild(sm);
-        }
+                // Override CSS animation with a single manual fall
+                Object.assign(sm.style, {
+                    fontSize: '2.5rem',
+                    width: 'auto',
+                    height: 'auto',
+                    opacity: '1',
+                    left: `${Math.random() * 85 + 5}vw`, // Keep inside screen width
+                    top: '-10vh', // Start above screen
+                    filter: 'drop-shadow(1px 1px 2px rgba(0,0,0,0.3))',
+                    cursor: 'pointer',
+                    zIndex: '20',
+                    animation: 'none', // Disable infinite loop
+                    transition: 'top 8s linear, transform 8s ease-in-out'
+                });
+                
+                // Click Handler
+                sm.onclick = (e) => {
+                    e.stopPropagation();
+                    State.unlockBadge('snowman');
+                    UIManager.showPostVoteMessage("Do you want to build a snowman? ⛄");
+                    
+                    // Poof effect
+                    sm.style.transition = 'transform 0.2s, opacity 0.2s';
+                    sm.style.transform = 'scale(1.5)';
+                    sm.style.opacity = '0';
+                    setTimeout(() => sm.remove(), 200);
+                };
+                
+                c.appendChild(sm);
+
+                // Trigger the fall
+                requestAnimationFrame(() => {
+                    sm.style.top = '110vh'; // Fall to bottom
+                    sm.style.transform = `rotate(${Math.random() * 360}deg)`; // Tumble
+                });
+
+                // Cleanup after fall (8s duration + buffer)
+                setTimeout(() => {
+                    if (sm.parentNode) sm.remove();
+                }, 9000);
+            }
+        }, 2000);
     },
     summer() { const c = DOM.theme.effects.summer; c.innerHTML = ''; const g = document.createElement('div'); g.className = 'summer-grass'; c.appendChild(g); for (let i = 0; i < 8; i++) { const d = document.createElement('div'); d.className = `summer-cloud v${Math.floor(Math.random()*3)+1}`; const w = Math.random() * 100 + 100; d.style.width = `${w}px`; d.style.height = `${w*.35}px`; d.style.top = `${Math.random()*60}%`; d.style.animationDuration = `${Math.random()*60+60}s`; d.style.animationDelay = `-${Math.random()*100}s`; c.appendChild(d) } },
     
