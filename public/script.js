@@ -208,33 +208,42 @@ const State = {
         this.data[k] = v;
         const s = localStorage;
 
+        // 1. Handle Insect Stats
         if (k === 'insectStats') {
             s.setItem('insectSaved', v.saved);
             s.setItem('insectEaten', v.eaten);
         } 
+        // 2. Handle Badges
         else if (k.startsWith('badge_')) {
             s.setItem(k, v);
         }
+        // 3. Handle Settings Object
         else if (k === 'settings') {
             s.setItem('userSettings', JSON.stringify(v));
         }
+        // 4. Handle Arrays
         else if (k === 'unlockedThemes') {
             s.setItem('unlockedThemes', JSON.stringify(v));
         }
         else if (k === 'seenHistory') {
             s.setItem('seenHistory', JSON.stringify(v));
         }
+        // 5. Handle Daily Stats
         else if (k === 'daily') {
             s.setItem('dailyStreak', v.streak);
             s.setItem('dailyLastDate', v.lastDate);
         }
+        // 6. Handle Individual Items
         else if (k === 'profilePhoto') {
             s.setItem('profilePhoto', v);
         }
-        else { if (k === 'lastMosquitoSpawn') {
+        else if (k === 'lastMosquitoSpawn') {
             s.setItem(k, v);
-        } else if (k.startsWith('badge_')) s.setItem(k, v);
-        else s.setItem(k, v)
+        }
+        // 7. Fallback for everything else (like vote counts)
+        else {
+            s.setItem(k, v);
+        }
     },
     unlockBadge(n) {
         if (this.data.badges[n]) return;
@@ -2038,14 +2047,14 @@ const ModalManager = {
             };
             reader.readAsDataURL(file);
         };
-        Object.keys(DOM.modals).forEach(k => {
-            // FIX: Apply Z-Index immediately, not just on click
+     Object.keys(DOM.modals).forEach(k => {
+            // FIX: Force modal above spider web immediately
             DOM.modals[k].style.zIndex = '150'; 
             
             DOM.modals[k].addEventListener('click', e => {
                 if (e.target === DOM.modals[k]) this.toggle(k, false);
-            })
-        })
+            });
+        });
     }
 };
 
