@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.14.7', 
+    APP_VERSION: '5.14.8', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1181,6 +1181,7 @@ halloween(active) {
             const wrap = document.createElement('div');
             wrap.id = 'spider-wrap';
             
+            // Initial State: Hidden at top center
             Object.assign(wrap.style, {
                 position: 'fixed', 
                 left: '50%', 
@@ -1193,12 +1194,34 @@ halloween(active) {
             const eaten = State.data.insectStats.eaten || 0;
             const scale = Math.min(0.6 + (eaten * 0.005), 1.3).toFixed(2);
             
+            // BUBBLE CSS FIX: display: inline-block + width: auto + whitespace: nowrap
             wrap.innerHTML = `
                 <div id="spider-anchor" style="transform: scale(${scale}); transform-origin: top center;">
                     <div id="spider-thread" style="width: 2px; background: rgba(255,255,255,0.6); margin: 0 auto; height: 0; transition: height 4s ease-in-out;"></div>
                     <div id="spider-body" style="font-size: 3rem; margin-top: -10px; cursor: pointer; position: relative; z-index: 2; pointer-events: auto; transition: transform 1s ease;">
                         🕷️
-                        <div id="spider-bubble" style="opacity: 0; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 5px; background: white; color: black; padding: 5px 10px; border-radius: 12px; font-size: 14px; font-weight: bold; white-space: nowrap; width: max-content; max-width: none; pointer-events: none; transition: opacity 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>
+                        <div id="spider-bubble" style="
+                            opacity: 0; 
+                            position: absolute; 
+                            bottom: 100%; 
+                            left: 50%; 
+                            transform: translateX(-50%); 
+                            margin-bottom: 8px; 
+                            background: white; 
+                            color: black; 
+                            padding: 6px 12px; 
+                            border-radius: 12px; 
+                            font-size: 14px; 
+                            font-weight: bold; 
+                            font-family: sans-serif;
+                            white-space: nowrap; 
+                            display: inline-block;
+                            width: auto;
+                            pointer-events: none; 
+                            transition: opacity 0.3s; 
+                            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+                            z-index: 10;
+                        "></div>
                     </div>
                 </div>`;
             document.body.appendChild(wrap);
@@ -1269,7 +1292,7 @@ halloween(active) {
 
                 // OPTION B: GREETING DROP (40%)
                 if (actionRoll < 0.6) {
-                    // Safe Zone: 20% to 80% (Prevents swaying off screen)
+                    // Safe Zone: 20% to 80%
                     const safeLeft = Math.random() * 60 + 20;
                     wrap.style.transition = 'left 4s ease-in-out'; 
                     wrap.style.left = safeLeft + '%';
