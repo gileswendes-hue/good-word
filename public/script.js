@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.15.3', 
+    APP_VERSION: '5.15.4', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -509,19 +509,17 @@ const MosquitoManager = {
         if (Math.random() > 0.3) return; 
         this.init();
     },
-	
-	spawnStuck(typeChar) {
-        if (this.el) this.remove(); // Clear existing active bugs
+
+    spawnStuck(typeChar) {
+        if (this.el) this.remove(); 
 
         this.type = typeChar || '🐞';
         this.config = this.TYPES[this.type] || this.TYPES['🐞'];
         
-        // Create Element
         this.el = document.createElement('div');
         this.el.textContent = this.type;
         this.el.className = 'mosquito-entity';
         
-        // Position directly in the "Web Zone" (Top Right)
         this.x = 88; 
         this.y = 20; 
 
@@ -531,16 +529,13 @@ const MosquitoManager = {
             zIndex: '100',
             left: this.x + '%', 
             top: this.y + '%',
-            transform: 'scale(1)',
+            transform: 'translate(-50%, -50%)', // Center it
             filter: 'drop-shadow(1px 2px 3px rgba(0,0,0,0.5))'
         });
 
         document.body.appendChild(this.el);
-        
-        // Set State to Stuck immediately
         this.state = 'stuck';
         
-        // Trigger Spider Hunt Logic
         setTimeout(() => {
             if (State.data.currentTheme === 'halloween') {
                 Effects.spiderHunt(this.x, this.y, true);
@@ -661,18 +656,16 @@ const MosquitoManager = {
             this.y += Math.sin(this.angle) * this.speed;
             
             if (this.state === 'flying') {
-                // --- FIX: Force Angle Reset on Wrap ---
                 if (this.x > 110) { 
                     this.x = -10; 
-                    this.angle = 0 + (Math.random() * 0.5 - 0.25); // Face Right
+                    this.angle = 0 + (Math.random() * 0.5 - 0.25); 
                     this.trailPoints = []; 
                 }
                 else if (this.x < -10) { 
                     this.x = 110; 
-                    this.angle = Math.PI + (Math.random() * 0.5 - 0.25); // Face Left
+                    this.angle = Math.PI + (Math.random() * 0.5 - 0.25); 
                     this.trailPoints = []; 
                 }
-                
                 if (this.y < 5 || this.y > 95) {
                     this.angle = -this.angle;
                     this.y = Math.max(5, Math.min(95, this.y));
@@ -680,12 +673,18 @@ const MosquitoManager = {
             }
             this.el.style.left = this.x + '%';
             this.el.style.top = this.y + '%';
+            
+            // Handle Rotation and Centering
             const facingRight = Math.cos(this.angle) > 0;
-            this.el.style.transform = facingRight ? 'scaleX(-1)' : 'scaleX(1)';
+            // IMPORTANT: Include translate(-50%, -50%) to keep it centered on coordinates
+            this.el.style.transform = `translate(-50%, -50%) ${facingRight ? 'scaleX(-1)' : 'scaleX(1)'}`;
             
             const pxX = (this.x / 100) * window.innerWidth;
             const pxY = (this.y / 100) * window.innerHeight;
+            
+            // TRAIL FIX: Do not offset manually now that element is centered via CSS
             if (pxX > 0 && pxX < window.innerWidth) this.trailPoints.push({x: pxX, y: pxY});
+            
             if (this.trailPoints.length > this.MAX_TRAIL) this.trailPoints.shift();
             if (this.trailPoints.length > 1) {
                 const d = `M ${this.trailPoints.map(p => `${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' L ')}`;
@@ -711,9 +710,9 @@ const MosquitoManager = {
         } else if (this.state === 'stuck') {
             const jitterX = (Math.random() - 0.5) * 5; 
             const jitterY = (Math.random() - 0.5) * 5;
-            this.el.style.transform = `translate(${jitterX}px, ${jitterY}px)`;
+            this.el.style.transform = `translate(calc(-50% + ${jitterX}px), calc(-50% + ${jitterY}px))`;
         } else if (this.state === 'thanking') {
-            this.el.style.transform = `scale(1.2)`;
+            this.el.style.transform = `translate(-50%, -50%) scale(1.2)`;
         }
         this.raf = requestAnimationFrame(() => this.loop());
     },
@@ -1221,7 +1220,6 @@ halloween(active) {
             wrap = document.createElement('div');
             wrap.id = 'spider-wrap';
             
-            // Initial State: Hidden at top center
             Object.assign(wrap.style, {
                 position: 'fixed', 
                 left: '50%', 
@@ -1234,10 +1232,6 @@ halloween(active) {
             const eaten = State.data.insectStats.eaten || 0;
             const scale = Math.min(0.6 + (eaten * 0.005), 1.3).toFixed(2);
             
-            // BUBBLE FIX: 
-            // 1. white-space: nowrap !important (Strictly forbids wrapping)
-            // 2. width: auto !important (Let content dictate width)
-            // 3. min-width: 0 (Prevents flex/grid constraints)
             wrap.innerHTML = `
                 <div id="spider-anchor" style="transform: scale(${scale}); transform-origin: top center;">
                     <div id="spider-thread" style="width: 2px; background: rgba(255,255,255,0.6); margin: 0 auto; height: 0; transition: height 4s ease-in-out;"></div>
@@ -1270,7 +1264,6 @@ halloween(active) {
                 </div>`;
             document.body.appendChild(wrap);
             
-            // Event Listeners (One time setup)
             const body = wrap.querySelector('#spider-body');
             const bub = wrap.querySelector('#spider-bubble');
             const thread = wrap.querySelector('#spider-thread');
@@ -1311,10 +1304,10 @@ halloween(active) {
 
             const actionRoll = Math.random();
             body.style.transform = 'rotate(0deg)'; 
+            thread.style.opacity = '1'; // Ensure thread is visible by default
 
             // --- PRIORITY 1: CENTER DROP (70% Chance) ---
             if (actionRoll < 0.7) {
-                // Move to a visible area (20% to 80%)
                 const safeLeft = Math.random() * 60 + 20;
                 wrap.style.transition = 'left 3s ease-in-out'; 
                 wrap.style.left = safeLeft + '%';
@@ -1322,7 +1315,6 @@ halloween(active) {
                 this.spiderTimeout = setTimeout(() => {
                     if (wrap.classList.contains('hunting')) return;
 
-                    // DEEP DROP: 40vh to 70vh
                     const peekHeight = Math.random() * 30 + 40; 
                     thread.style.transition = 'height 2.5s ease-in-out'; 
                     thread.style.height = peekHeight + 'vh';
@@ -1338,13 +1330,11 @@ halloween(active) {
                          bub.innerText = phrases[Math.floor(Math.random() * phrases.length)];
                          bub.style.opacity = '1';
 
-                         // HANG FOR 10 SECONDS
                          setTimeout(() => {
                              if (wrap.classList.contains('hunting')) return;
                              bub.style.opacity = '0';
-                             thread.style.height = '0'; // Climb up
+                             thread.style.height = '0'; 
                              
-                             // Restart loop in 5-10s
                              this.spiderTimeout = setTimeout(runDrop, Math.random() * 5000 + 5000);
                          }, 10000);
                     }, 2500);
@@ -1361,6 +1351,9 @@ halloween(active) {
 
                 this.spiderTimeout = setTimeout(() => {
                     if (wrap.classList.contains('hunting')) return;
+                    
+                    // FIX: Hide thread during wall climb so he doesn't look like he's planking
+                    thread.style.opacity = '0'; 
                     body.style.transform = `rotate(${isLeft ? 90 : -90}deg)`;
                     
                     const climbDepth = Math.random() * 40 + 30; 
@@ -1372,9 +1365,10 @@ halloween(active) {
                          thread.style.height = '0'; 
                          setTimeout(() => {
                              body.style.transform = 'rotate(0deg)';
+                             thread.style.opacity = '1'; // Show thread again
                              this.spiderTimeout = setTimeout(runDrop, Math.random() * 5000 + 5000);
                          }, 4000);
-                    }, 5000); // Hang on wall for 5s
+                    }, 5000);
                 }, 4000);
                 return;
             }
@@ -1406,7 +1400,7 @@ halloween(active) {
                 }
             };
             
-            // Web Animation Logic
+            // Web Animation Logic (Standard)
             const svg = document.getElementById('web-svg');
             const cx = 300, cy = 0;
             const baseAnchors = [{ x: 0, y: 0 }, { x: 60, y: 100 }, { x: 140, y: 200 }, { x: 220, y: 270 }, { x: 300, y: 300 }];
