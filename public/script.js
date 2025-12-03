@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.14.1', 
+    APP_VERSION: '5.14.2', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1160,7 +1160,6 @@ snow() {
         if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
         if (this.webRaf) cancelAnimationFrame(this.webRaf);
         
-        // Remove elements if turning off
         if (!active) {
             const old = document.getElementById('spider-wrap');
             if (old) old.remove();
@@ -1173,22 +1172,25 @@ snow() {
         if (!document.getElementById('spider-wrap')) {
             const wrap = document.createElement('div');
             wrap.id = 'spider-wrap';
-            // Start hidden at top-left corner
+            
             Object.assign(wrap.style, {
-                position: 'fixed', left: '10%', top: '0', zIndex: '102',
-                transition: 'left 1s ease-in-out'
+                position: 'fixed', 
+                left: '50%', 
+                top: '-10vh', // Fully Hidden
+                zIndex: '102',
+                transition: 'left 4s ease-in-out', 
+                pointerEvents: 'none'
             });
             
-            // Adjust scale based on stats
             const eaten = State.data.insectStats.eaten || 0;
             const scale = Math.min(0.6 + (eaten * 0.005), 1.3).toFixed(2);
             
             wrap.innerHTML = `
                 <div id="spider-anchor" style="transform: scale(${scale}); transform-origin: top center;">
-                    <div id="spider-thread" style="width: 2px; background: rgba(255,255,255,0.7); margin: 0 auto; height: 0; transition: height 0.5s;"></div>
-                    <div id="spider-body" style="font-size: 3rem; margin-top: -10px; cursor: pointer; position: relative; z-index: 2;">
+                    <div id="spider-thread" style="width: 2px; background: rgba(255,255,255,0.6); margin: 0 auto; height: 0; transition: height 4s ease-in-out;"></div>
+                    <div id="spider-body" style="font-size: 3rem; margin-top: -10px; cursor: pointer; position: relative; z-index: 2; pointer-events: auto; transition: transform 1s ease;">
                         🕷️
-                        <div id="spider-bubble" style="opacity: 0; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); background: white; color: black; padding: 4px 8px; border-radius: 8px; font-size: 12px; font-weight: bold; white-space: nowrap; pointer-events: none; transition: opacity 0.3s;"></div>
+                        <div id="spider-bubble" style="opacity: 0; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 5px; background: white; color: black; padding: 4px 8px; border-radius: 8px; font-size: 12px; font-weight: bold; white-space: nowrap; pointer-events: none; transition: opacity 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>
                     </div>
                 </div>`;
             document.body.appendChild(wrap);
@@ -1208,51 +1210,88 @@ snow() {
                 setTimeout(() => { body.style.animation = ''; bub.style.opacity = '0'; }, 2000);
             };
 
-            // --- IDLE BEHAVIOR (Patrol & Hide) ---
+            // --- IDLE BEHAVIOR (With Wall Climbing) ---
             const runDrop = () => {
                 if (wrap.classList.contains('hunting')) return;
 
-                // 1. "Hide": Sometimes just stay at the top for a while
-                if (Math.random() > 0.7) {
-                    this.spiderTimeout = setTimeout(runDrop, 4000); // Stay hidden for 4s
+                const actionRoll = Math.random();
+                
+                // Ensure rotation is reset if he was just on a wall
+                body.style.transform = 'rotate(0deg)';
+
+                // --- OPTION A: WALL CLIMB (30% Chance) ---
+                if (actionRoll < 0.3) {
+                    const isLeft = Math.random() > 0.5;
+                    const wallX = isLeft ? 1 : 94; // Stick to edge
+                    
+                    // 1. Move to Wall
+                    wrap.style.transition = 'left 4s ease-in-out';
+                    wrap.style.left = wallX + '%';
+
+                    this.spiderTimeout = setTimeout(() => {
+                        if (wrap.classList.contains('hunting')) return;
+
+                        // 2. Rotate to "Grip" Wall
+                        // Left wall = 90deg, Right wall = -90deg
+                        body.style.transform = `rotate(${isLeft ? 90 : -90}deg)`;
+
+                        // 3. Climb Down
+                        const thread = wrap.querySelector('#spider-thread');
+                        const climbDepth = Math.random() * 40 + 30; // 30vh to 70vh
+                        
+                        thread.style.transition = 'height 4s ease-in-out';
+                        thread.style.height = climbDepth + 'vh';
+
+                        // 4. Wait & Return
+                        setTimeout(() => {
+                             if (wrap.classList.contains('hunting')) return;
+                             thread.style.height = '0'; // Climb Up
+                             
+                             setTimeout(() => {
+                                 body.style.transform = 'rotate(0deg)'; // Reset Rotation
+                                 this.spiderTimeout = setTimeout(runDrop, Math.random() * 4000 + 2000);
+                             }, 4000); // Wait for climb up
+                        }, 4000); // Wait at bottom
+
+                    }, 4000); // Wait for move to wall
                     return;
                 }
 
-                // 2. "Climb Sides": Move to edges (Safe zone 5% - 95%)
-                const goToSide = Math.random() > 0.5;
-                const safeLeft = goToSide ? (Math.random() > 0.5 ? 5 : 95) : (Math.random() * 80 + 10);
-                
-                // Move X first (No dropping yet)
-                const moveDuration = Math.abs(parseFloat(wrap.style.left || 0) - safeLeft) * 30; // Speed calc
-                wrap.style.transition = `left ${moveDuration}ms ease-in-out`;
+                // --- OPTION B: CENTER PATROL (70% Chance) ---
+                const safeLeft = Math.random() * 70 + 15; // 15% to 85%
+                wrap.style.transition = 'left 5s ease-in-out';
                 wrap.style.left = safeLeft + '%';
 
                 this.spiderTimeout = setTimeout(() => {
                     if (wrap.classList.contains('hunting')) return;
 
-                    // 3. Drop Down (Small patrol drop)
-                    const thread = wrap.querySelector('#spider-thread');
-                    const dropH = Math.random() * 30 + 10; // 10vh to 40vh
-                    
-                    thread.style.transition = 'height 2s ease-in-out';
-                    thread.style.height = dropH + 'vh';
+                    // Sometimes just stay hidden
+                    if (Math.random() > 0.6) {
+                        this.spiderTimeout = setTimeout(runDrop, 3000);
+                        return;
+                    }
 
-                    // 4. Retract after delay
+                    // Peek down
+                    const thread = wrap.querySelector('#spider-thread');
+                    const peekHeight = Math.random() * 20 + 15; 
+                    
+                    thread.style.transition = 'height 3s ease-in-out';
+                    thread.style.height = peekHeight + 'vh';
+
                     setTimeout(() => {
                          if (wrap.classList.contains('hunting')) return;
-                         thread.style.transition = 'height 2s ease-in-out';
                          thread.style.height = '0';
-                         this.spiderTimeout = setTimeout(runDrop, Math.random() * 5000 + 4000);
-                    }, 3000);
+                         this.spiderTimeout = setTimeout(runDrop, Math.random() * 5000 + 3000);
+                    }, 4000);
 
-                }, moveDuration);
+                }, 5000);
             };
 
-            // Start the loop
-            setTimeout(runDrop, 3000);
+            // Start Loop
+            setTimeout(runDrop, 2000);
         }
 
-        // --- WEB VISUALS (Unchanged) ---
+        // --- WEB VISUALS ---
         if (!document.getElementById('spider-web-corner')) {
             const web = document.createElement('div');
             web.id = 'spider-web-corner';
@@ -1268,8 +1307,9 @@ snow() {
                     this.spiderHunt(85, 50, false);
                 }
             };
-            // (Web animation logic omitted for brevity - keep existing)
-             const svg = document.getElementById('web-svg');
+            
+            // Basic Web Animation
+            const svg = document.getElementById('web-svg');
             const cx = 300, cy = 0;
             const baseAnchors = [{ x: 0, y: 0 }, { x: 60, y: 100 }, { x: 140, y: 200 }, { x: 220, y: 270 }, { x: 300, y: 300 }];
             const animateWeb = () => {
