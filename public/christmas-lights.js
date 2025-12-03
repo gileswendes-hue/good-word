@@ -2,7 +2,6 @@ class ChristmasLights extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
-    // Define how many bulbs you want (originally matched the 30 notes)
     this.bulbCount = 30; 
   }
 
@@ -83,13 +82,13 @@ class ChristmasLights extends HTMLElement {
           border-radius: 50%;
           transform-origin: top center;
           animation-fill-mode: forwards;
-          pointer-events: auto; /* Keeps them hoverable if you want interaction later */
+          pointer-events: auto;
           animation-name: flash-all, sway, flickPendulum;
           animation-timing-function: linear, ease-in-out, cubic-bezier(0.25, 0.6, 0.3, 1);
           animation-iteration-count: infinite, infinite, 1;
-          box-shadow: 0px 1px 18px #FFD7A3;
         }
 
+        /* Animation Timings */
         .bulbs li:nth-child(6n)   .bulb { animation-duration: 4.4s, 4.1s, 3.2s; animation-delay: 0s, 0s, 0.1s; }
         .bulbs li:nth-child(6n+1) .bulb { animation-duration: 7.2s, 4.3s, 2.8s; animation-delay: 0s, 0s, 0.0s; }
         .bulbs li:nth-child(6n+2) .bulb { animation-duration: 3.1s, 4.5s, 3.4s; animation-delay: 0s, 0s, 0.2s; }
@@ -97,15 +96,48 @@ class ChristmasLights extends HTMLElement {
         .bulbs li:nth-child(6n+4) .bulb { animation-duration: 5.0s, 4.9s, 2.6s; animation-delay: 0s, 0s, 0.2s; }
         .bulbs li:nth-child(6n+5) .bulb { animation-duration: 4.8s, 5.1s, 3.0s; animation-delay: 0s, 0s, 0.0s; }
 
-        .bulbs li:nth-child(6n+0) .bulb { background: #FFD7A3; }
-        .bulbs li:nth-child(6n+1) .bulb { background: #1E3A8A; }
-        .bulbs li:nth-child(6n+2) .bulb { background: #C62828; }
-        .bulbs li:nth-child(6n+3) .bulb { background: #FF8F00; }
-        .bulbs li:nth-child(6n+4) .bulb { background: #6A1B9A; }
-        .bulbs li:nth-child(6n+5) .bulb { background: #1B5E20; }
+        /* Colors & Glowing Shadows */
+        
+        /* Yellow/Gold */
+        .bulbs li:nth-child(6n+0) .bulb { 
+            background: #FFD7A3; 
+            box-shadow: 0px 4px 24px 3px rgba(255, 215, 163, 0.8); 
+        }
+        
+        /* Blue */
+        .bulbs li:nth-child(6n+1) .bulb { 
+            background: #00BFFF; 
+            box-shadow: 0px 4px 24px 3px rgba(0, 191, 255, 0.8); 
+        }
+        
+        /* Red */
+        .bulbs li:nth-child(6n+2) .bulb { 
+            background: #FF3D00; 
+            box-shadow: 0px 4px 24px 3px rgba(255, 61, 0, 0.8); 
+        }
+        
+        /* Orange */
+        .bulbs li:nth-child(6n+3) .bulb { 
+            background: #FF9100; 
+            box-shadow: 0px 4px 24px 3px rgba(255, 145, 0, 0.8); 
+        }
+        
+        /* Purple */
+        .bulbs li:nth-child(6n+4) .bulb { 
+            background: #D500F9; 
+            box-shadow: 0px 4px 24px 3px rgba(213, 0, 249, 0.8); 
+        }
+        
+        /* Green */
+        .bulbs li:nth-child(6n+5) .bulb { 
+            background: #00E676; 
+            box-shadow: 0px 4px 24px 3px rgba(0, 230, 118, 0.8); 
+        }
 
+        /* Hover Effect (Brighter Glow) */
         .bulbs li .bulb:hover {
           animation: flash-all 0.8s infinite linear;
+          filter: brightness(1.5);
         }
 
         .bulbs li::before {
@@ -137,8 +169,8 @@ class ChristmasLights extends HTMLElement {
         }
 
         @keyframes flash-all {
-          0%, 37.5%, 62.5%, 100% { opacity: 1; }
-          50% { opacity: .75; }
+          0%, 37.5%, 62.5%, 100% { opacity: 1; box-shadow: 0px 4px 35px 8px currentColor; }
+          50% { opacity: .5; box-shadow: 0px 2px 10px 0px currentColor; }
         }
 
         @keyframes sway {
@@ -154,7 +186,6 @@ class ChristmasLights extends HTMLElement {
       <ul class="bulbs"></ul>
     `;
 
-    // Generate bulbs (Logic moved from initAudio to here)
     const bulbsContainer = this.shadowRoot.querySelector('.bulbs');
     for (let i = 0; i < this.bulbCount; i++) {
       const li = document.createElement('li');
