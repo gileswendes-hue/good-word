@@ -169,7 +169,8 @@ const State = {
             mushroom: localStorage.getItem('mushroomBadgeUnlocked') === 'true',
             needle: localStorage.getItem('needleBadgeUnlocked') === 'true',
             diamond: localStorage.getItem('diamondBadgeUnlocked') === 'true',
-            rock: localStorage.getItem('rockBadgeUnlocked') === 'true'
+            rock: localStorage.getItem('rockBadgeUnlocked') === 'true',
+			chopper: localStorage.getItem('chopperBadgeUnlocked') === 'true'
         },
         settings: JSON.parse(localStorage.getItem('userSettings')) || {
             showTips: true,
@@ -204,38 +205,44 @@ const State = {
         mashLevel: 0,
         isDailyMode: false
     },
-save(k, v) {
+    save(k, v) {
         this.data[k] = v;
         const s = localStorage;
 
+        // 1. Handle Insect Stats
         if (k === 'insectStats') {
             s.setItem('insectSaved', v.saved);
             s.setItem('insectEaten', v.eaten);
         } 
+        // 2. Handle Badges
         else if (k.startsWith('badge_')) {
             s.setItem(k, v);
         }
+        // 3. Handle Settings Object
         else if (k === 'settings') {
             s.setItem('userSettings', JSON.stringify(v));
         }
+        // 4. Handle Arrays
         else if (k === 'unlockedThemes') {
             s.setItem('unlockedThemes', JSON.stringify(v));
         }
         else if (k === 'seenHistory') {
             s.setItem('seenHistory', JSON.stringify(v));
         }
+        // 5. Handle Daily Stats
         else if (k === 'daily') {
             s.setItem('dailyStreak', v.streak);
             s.setItem('dailyLastDate', v.lastDate);
         }
+        // 6. Handle Individual Items
         else if (k === 'profilePhoto') {
             s.setItem('profilePhoto', v);
         }
         else if (k === 'lastMosquitoSpawn') {
             s.setItem(k, v);
-        } 
+        }
+        // 7. Fallback for everything else (like vote counts)
         else {
-            // Generic save for simple values (vote counts, etc)
             s.setItem(k, v);
         }
     },
@@ -1651,7 +1658,7 @@ const UIManager = {
         DOM.profile.themes.textContent = `${userCount} / ${totalAvailable}`;
         const b = DOM.profile.badges;
         const row1 = [{ k: 'cake', i: '🎂', w: 'CAKE' }, { k: 'llama', i: '🦙', w: 'LLAMA' }, { k: 'potato', i: '🥔', w: 'POTATO' }, { k: 'squirrel', i: '🐿️', w: 'SQUIRREL' }, { k: 'spider', i: '🕷️', w: 'SPIDER' }, { k: 'germ', i: '🦠', w: 'GERM' }, { k: 'bone', i: '🦴', w: 'MASON' }];
-        const row2 = [{ k: 'poop', i: '💩' }, { k: 'penguin', i: '🐧' }, { k: 'scorpion', i: '🦂' }, { k: 'mushroom', i: '🍄' }, { k: 'needle', i: '💉' }, { k: 'diamond', i: '💎' },{ k: 'rock', i: '🤘' }];
+        const row2 = [{ k: 'poop', i: '💩' }, { k: 'penguin', i: '🐧' }, { k: 'scorpion', i: '🦂' }, { k: 'mushroom', i: '🍄' }, { k: 'needle', i: '💉' }, { k: 'diamond', i: '💎' },{ k: 'rock', i: '🤘' }],{ k: 'chopper', i: '🚁' }];
         const renderRow = (list) => `<div class="flex flex-wrap justify-center gap-3 text-3xl w-full">` + list.map(x => {
             const un = d.badges[x.k];
             return `<span class="${un?'':'opacity-25 grayscale'} transition-all duration-300 transform ${un?'hover:scale-125 cursor-pointer badge-item':''}" title="${un?'Unlocked':'Locked'}" ${x.w?`data-word="${x.w}"`:''}>${x.i}</span>`
