@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.15.2', 
+    APP_VERSION: '5.15.3', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -508,6 +508,44 @@ const MosquitoManager = {
         if (now - last < this.COOLDOWN) return;
         if (Math.random() > 0.3) return; 
         this.init();
+    },
+	
+	spawnStuck(typeChar) {
+        if (this.el) this.remove(); // Clear existing active bugs
+
+        this.type = typeChar || '🐞';
+        this.config = this.TYPES[this.type] || this.TYPES['🐞'];
+        
+        // Create Element
+        this.el = document.createElement('div');
+        this.el.textContent = this.type;
+        this.el.className = 'mosquito-entity';
+        
+        // Position directly in the "Web Zone" (Top Right)
+        this.x = 88; 
+        this.y = 20; 
+
+        Object.assign(this.el.style, {
+            position: 'fixed', 
+            fontSize: '1.8rem', 
+            zIndex: '100',
+            left: this.x + '%', 
+            top: this.y + '%',
+            transform: 'scale(1)',
+            filter: 'drop-shadow(1px 2px 3px rgba(0,0,0,0.5))'
+        });
+
+        document.body.appendChild(this.el);
+        
+        // Set State to Stuck immediately
+        this.state = 'stuck';
+        
+        // Trigger Spider Hunt Logic
+        setTimeout(() => {
+            if (State.data.currentTheme === 'halloween') {
+                Effects.spiderHunt(this.x, this.y, true);
+            }
+        }, 100);
     },
 
     init() {
@@ -1963,6 +2001,7 @@ const UIManager = {
             DOM.profile.modalImage.classList.add('hidden');
         }
     },
+	
 openProfile() {
         this.updateProfileDisplay();
         const d = State.data;
@@ -1983,62 +2022,95 @@ openProfile() {
         if (d.badges.chopper) karmaTitle = "Air Traffic Controller 🚁";
 
         DOM.profile.statsTitle.innerHTML = `${d.username ? d.username + "'s" : "Your"} Stats<br><span class="text-xs text-indigo-500 font-bold uppercase tracking-widest mt-1 block">${karmaTitle}</span>`;
-        // ----------------------------
 
         const totalAvailable = Object.keys(CONFIG.THEME_SECRETS).length + 1;
         const userCount = d.unlockedThemes.length + 1;
         DOM.profile.themes.textContent = `${userCount} / ${totalAvailable}`;
         
+        // Badge Rows
         const b = DOM.profile.badges;
         const row1 = [{ k: 'cake', i: '🎂', w: 'CAKE' }, { k: 'llama', i: '🦙', w: 'LLAMA' }, { k: 'potato', i: '🥔', w: 'POTATO' }, { k: 'squirrel', i: '🐿️', w: 'SQUIRREL' }, { k: 'spider', i: '🕷️', w: 'SPIDER' }, { k: 'germ', i: '🦠', w: 'GERM' }, { k: 'bone', i: '🦴', w: 'MASON' }];
-        const row2 = [{ k: 'poop', i: '💩' }, { k: 'penguin', i: '🐧' }, { k: 'scorpion', i: '🦂' }, { k: 'mushroom', i: '🍄' }, { k: 'needle', i: '💉' }, { k: 'diamond', i: '💎' },{ k: 'rock', i: '🤘' }, { k: 'chopper', i: '🚁' }, { k: 'snowman', i: '⛄' }
-					 ];
-        
-        // --- 2. NEW BADGES ---
-        const row3 = [
-            { k: 'exterminator', i: '☠️' }, // 100 eaten
-            { k: 'saint', i: '😇' },       // 100 saved
-            { k: 'prankster', i: '🃏' }    // 50 teases
-        ];
-		
-		const row_fish = [
-            { k: 'fish', i: '🐟' },
-            { k: 'tropical', i: '🐠' },
-            { k: 'puffer', i: '🐡' },
-            { k: 'shark', i: '🦈' }
-        ];
+        const row2 = [{ k: 'poop', i: '💩' }, { k: 'penguin', i: '🐧' }, { k: 'scorpion', i: '🦂' }, { k: 'mushroom', i: '🍄' }, { k: 'needle', i: '💉' }, { k: 'diamond', i: '💎' },{ k: 'rock', i: '🤘' }, { k: 'chopper', i: '🚁' }, { k: 'snowman', i: '⛄' }];
+        const row3 = [{ k: 'exterminator', i: '☠️' }, { k: 'saint', i: '😇' }, { k: 'prankster', i: '🃏' }];
+        const row_fish = [{ k: 'fish', i: '🐟' }, { k: 'tropical', i: '🐠' }, { k: 'puffer', i: '🐡' }, { k: 'shark', i: '🦈' }];
 
-        // --- 3. THE BUG JAR ---
-        let bugJarHTML = '';
-        if (saved > 0) {
-            const bugCount = Math.min(saved, 40); // Cap visual icons at 40
-            bugJarHTML = `<div class="w-full text-center my-4 p-3 bg-green-50 rounded-xl border border-green-100 relative overflow-hidden">
-                <div class="text-[10px] font-bold text-green-600 mb-1 uppercase tracking-wider">The Bug Jar (${saved})</div>
-                <div class="text-sm leading-4 break-all opacity-80" style="letter-spacing: 2px;">${'🐞'.repeat(bugCount)}</div>
-            </div>`;
-        }
-        
+        // Helper to render badges
         const renderRow = (list) => `<div class="flex flex-wrap justify-center gap-3 text-3xl w-full">` + list.map(x => {
             const un = d.badges[x.k];
             return `<span class="${un?'':'opacity-25 grayscale'} transition-all duration-300 transform ${un?'hover:scale-125 cursor-pointer badge-item':''}" title="${un?'Unlocked':'Locked'}" ${x.w?`data-word="${x.w}"`:''}>${x.i}</span>`
         }).join('') + `</div>`;
 
-		b.innerHTML = 
+        // --- 3. THE BUG JAR (Interactable) ---
+        let bugJarHTML = '';
+        if (saved > 0) {
+            const bugCount = Math.min(saved, 40); // Cap visual icons
+            
+            // Create interactive bug elements string
+            let bugsStr = '';
+            for(let i=0; i<bugCount; i++) {
+                // Note the class 'jar-bug' which we use later to attach events
+                bugsStr += `<span class="jar-bug" style="cursor: pointer; display: inline-block; padding: 2px; transition: transform 0.1s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">🐞</span>`;
+            }
+
+            bugJarHTML = `<div class="w-full text-center my-4 p-3 bg-green-50 rounded-xl border border-green-100 relative overflow-hidden">
+                <div class="text-[10px] font-bold text-green-600 mb-1 uppercase tracking-wider">The Bug Jar (${saved})</div>
+                <div id="jar-container" class="text-xl leading-6 opacity-90 break-words" style="letter-spacing: 1px;">
+                    ${bugsStr}
+                </div>
+                ${State.data.currentTheme === 'halloween' ? '<div class="text-[9px] text-green-500 mt-1 italic">Tap a bug to feed the spider!</div>' : ''}
+            </div>`;
+        }
+        
+        // --- RENDER ALL SECTIONS ---
+        b.innerHTML = 
             `<div class="text-xs font-bold text-gray-500 uppercase mb-2 mt-2">🏆 Word Badges</div>` + renderRow(row1) + 
             `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🧸 Found Items</div>` + renderRow(row2) + 
             `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🌊 Aquarium</div>` + renderRow(row_fish) + 
             `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🎖️ Achievements</div>` + renderRow(row3) +
             bugJarHTML;
 
+        // --- ATTACH LISTENERS ---
+        
+        // 1. Badge Clicks (Load Special Words)
         b.querySelectorAll('.badge-item').forEach(el => {
             el.onclick = () => {
                 if (el.dataset.word) {
                     Game.loadSpecial(el.dataset.word);
-                    ModalManager.toggle('profile', false)
+                    ModalManager.toggle('profile', false);
                 }
             }
         });
-        ModalManager.toggle('profile', true)
+
+        // 2. Bug Jar Clicks (Feed Spider)
+        const jarBugs = b.querySelectorAll('.jar-bug');
+        jarBugs.forEach(bug => {
+            bug.onclick = (e) => {
+                e.stopPropagation();
+
+                // Check Theme
+                if (State.data.currentTheme !== 'halloween') {
+                    UIManager.showPostVoteMessage("The spider only comes out on Halloween...");
+                    return;
+                }
+
+                // Close Modal
+                ModalManager.toggle('profile', false);
+
+                // Deduct Bug Count
+                State.data.insectStats.saved = Math.max(0, State.data.insectStats.saved - 1);
+                State.save('insectStats', State.data.insectStats);
+
+                // Spawn Bug in Web
+                if (typeof MosquitoManager !== 'undefined') {
+                    MosquitoManager.spawnStuck('🐞');
+                }
+
+                // Feedback
+                UIManager.showPostVoteMessage("Feeding time! 🕷️");
+            };
+        });
+
+        ModalManager.toggle('profile', true);
     },
     displayWord(w) {
         if (!w) {
