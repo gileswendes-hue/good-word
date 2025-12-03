@@ -224,7 +224,7 @@ const State = {
             s.setItem('insectSaved', v.saved);
             s.setItem('insectEaten', v.eaten);
             s.setItem('insectTeased', v.teased);
-			else if (k === 'fishStats') {
+		}	else if (k === 'fishStats') {
             s.setItem('fishCaught', v.caught);
         } 
         else if (k.startsWith('badge_')) {
