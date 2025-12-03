@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.14.9', 
+    APP_VERSION: '5.15.1', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1194,7 +1194,8 @@ halloween(active) {
             const eaten = State.data.insectStats.eaten || 0;
             const scale = Math.min(0.6 + (eaten * 0.005), 1.3).toFixed(2);
             
-            // BUBBLE FIX: width: max-content forces the box to fit the text exactly
+            // BUBBLE FIX: 'white-space: pre' forces single line strictly.
+            // Tightened left/right margins to prevent sway.
             wrap.innerHTML = `
                 <div id="spider-anchor" style="transform: scale(${scale}); transform-origin: top center;">
                     <div id="spider-thread" style="width: 2px; background: rgba(255,255,255,0.6); margin: 0 auto; height: 0; transition: height 4s ease-in-out;"></div>
@@ -1214,9 +1215,9 @@ halloween(active) {
                             font-size: 14px; 
                             font-weight: bold; 
                             font-family: sans-serif;
-                            white-space: nowrap; 
-                            width: max-content;
-                            max-width: none;
+                            white-space: pre !important; 
+                            width: max-content !important;
+                            max-width: none !important;
                             pointer-events: none; 
                             transition: opacity 0.3s; 
                             box-shadow: 0 4px 8px rgba(0,0,0,0.2);
@@ -1265,8 +1266,8 @@ halloween(active) {
                 // OPTION A: WALL CLIMB (20%)
                 if (actionRoll < 0.2) {
                     const isLeft = Math.random() > 0.5;
-                    // Wall targets: 2% or 90% (Strictly on-screen)
-                    const wallX = isLeft ? 2 : 90; 
+                    // FIX: Tightened bounds (5% and 85%) to prevent off-screen sway
+                    const wallX = isLeft ? 5 : 85; 
                     wrap.style.transition = 'left 5s ease-in-out';
                     wrap.style.left = wallX + '%';
 
@@ -1283,8 +1284,8 @@ halloween(active) {
                              thread.style.height = '0'; 
                              setTimeout(() => {
                                  body.style.transform = 'rotate(0deg)';
-                                 // Wait 30-60s
-                                 this.spiderTimeout = setTimeout(runDrop, Math.random() * 30000 + 30000);
+                                 // FREQUENCY FIX: Wait 5-15s (was 30-60s)
+                                 this.spiderTimeout = setTimeout(runDrop, Math.random() * 10000 + 5000);
                              }, 5000);
                         }, 5000);
                     }, 5000);
@@ -1293,8 +1294,8 @@ halloween(active) {
 
                 // OPTION B: GREETING DROP (40%)
                 if (actionRoll < 0.6) {
-                    // Safe Zone: 20% to 80% (Prevents swaying off screen)
-                    const safeLeft = Math.random() * 60 + 20;
+                    // FIX: Safe Zone 25% to 75%
+                    const safeLeft = Math.random() * 50 + 25;
                     wrap.style.transition = 'left 4s ease-in-out'; 
                     wrap.style.left = safeLeft + '%';
                     
@@ -1313,13 +1314,13 @@ halloween(active) {
                              bub.innerText = hellos[Math.floor(Math.random() * hellos.length)];
                              bub.style.opacity = '1';
 
-                             // HANG FOR 10 SECONDS
+                             // Hang for 10 seconds
                              setTimeout(() => {
                                  if (wrap.classList.contains('hunting')) return;
                                  bub.style.opacity = '0';
                                  thread.style.height = '0';
-                                 // Wait 30-60s
-                                 this.spiderTimeout = setTimeout(runDrop, Math.random() * 30000 + 30000);
+                                 // FREQUENCY FIX: Wait 5-15s
+                                 this.spiderTimeout = setTimeout(runDrop, Math.random() * 10000 + 5000);
                              }, 10000);
                         }, 2500);
                     }, 4000);
@@ -1327,16 +1328,15 @@ halloween(active) {
                 }
 
                 // OPTION C: JUST SHIFT (40%)
-                // Strict Bounds: 20% to 80%
-                const safeLeft = Math.random() * 60 + 20; 
+                const safeLeft = Math.random() * 50 + 25; 
                 wrap.style.transition = 'left 4s ease-in-out'; 
                 wrap.style.left = safeLeft + '%';
-                // Wait 30-60s
-                this.spiderTimeout = setTimeout(runDrop, Math.random() * 30000 + 30000);
+                // FREQUENCY FIX: Wait 5-10s
+                this.spiderTimeout = setTimeout(runDrop, Math.random() * 5000 + 5000);
             };
 
-            // Start loop (Initial delay 5s)
-            setTimeout(runDrop, 5000);
+            // Start loop immediately
+            setTimeout(runDrop, 1000);
         }
 
         // --- WEB CLICK ---
