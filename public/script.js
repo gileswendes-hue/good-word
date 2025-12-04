@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.18.4', 
+    APP_VERSION: '5.18.5', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1274,14 +1274,18 @@ const Effects = {
             const inner = document.createElement('div');
             inner.className = 'submarine-fish-inner';
             inner.textContent = fishEmoji;
-            // Track scale for pufferfish
-            inner.dataset.scale = "1";
+            
+            // Track scale/clicks for pufferfish
+            inner.dataset.clicks = "0";
+            
             wrap.appendChild(inner);
             
             const startLeft = Math.random() > 0.5; 
             const duration = Math.random() * 15 + 10;
             
-            if (startLeft) inner.style.transform = "scaleX(-1)"; 
+            // Set initial direction
+            const dirStr = startLeft ? "scaleX(-1)" : "scaleX(1)";
+            inner.style.transform = dirStr;
             
             wrap.style.transition = `left ${duration}s linear`;
             wrap.style.top = Math.random() * 80 + 10 + 'vh'; 
@@ -1293,23 +1297,38 @@ const Effects = {
                 
                 // 1. Special Pufferfish Logic
                 if (fishEmoji === '🐡') {
-                    // Unlock badge if not already (you found it)
-                    State.unlockBadge('puffer');
+                    let clicks = parseInt(inner.dataset.clicks) || 0;
                     
-                    // Grow instead of die
-                    let currentScale = parseFloat(inner.dataset.scale) || 1;
-                    currentScale += 0.5;
-                    inner.dataset.scale = currentScale;
+                    // Logic: 
+                    // 1. If clicks < 5, there is a chance to grow instead of catch.
+                    // 2. If clicks >= 5, it's too big, we catch it.
+                    // 3. Random Chance: 25% catch immediately, 75% grow.
                     
-                    // Maintain direction while scaling
-                    const dir = startLeft ? "scaleX(-1)" : "scaleX(1)";
-                    inner.style.transition = "transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)";
-                    inner.style.transform = `scale(${currentScale}) ${dir}`;
+                    const canGrow = clicks < 5;
+                    const roll = Math.random();
+                    const shouldCatch = !canGrow || (roll < 0.25); // 25% chance to catch early
                     
-                    const puffMsgs = ["Wanna fight?", "I'm bigger than your dad", "I'll spike you!"];
-                    const rMsg = puffMsgs[Math.floor(Math.random() * puffMsgs.length)];
-                    UIManager.showPostVoteMessage(rMsg);
-                    return; // EXIT: Do not remove element, do not count as catch
+                    if (!shouldCatch) {
+                        // --- GROW MODE ---
+                        clicks++;
+                        inner.dataset.clicks = clicks;
+                        State.unlockBadge('puffer'); // Unlock badge on first poke
+                        
+                        // Scale calculation: 1.0 -> 1.6 -> 2.2 -> 2.8 -> 3.4 -> 4.0
+                        const newScale = 1 + (clicks * 0.6);
+                        
+                        // Apply Transform (Scale + Maintain Direction)
+                        inner.style.transition = "transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)";
+                        inner.style.transform = `scale(${newScale}) ${dirStr}`;
+                        
+                        // Custom Puffer Messages
+                        const puffMsgs = ["Wanna fight?", "I'm bigger than your dad", "I'll spike you!"];
+                        const rMsg = puffMsgs[Math.floor(Math.random() * puffMsgs.length)];
+                        UIManager.showPostVoteMessage(rMsg);
+                        
+                        return; // EXIT: Do not remove element, continue floating
+                    }
+                    // If shouldCatch is true, we fall through to the Standard Catch Logic below
                 }
 
                 // 2. Standard Catch Logic
@@ -1328,7 +1347,7 @@ const Effects = {
                 // Feedback
                 UIManager.showPostVoteMessage(data.msg);
                 
-                // Remove
+                // Remove Animation
                 wrap.style.transition = 'opacity 0.2s, transform 0.2s';
                 wrap.style.opacity = '0';
                 wrap.style.transform = 'scale(1.5)'; 
@@ -2283,11 +2302,12 @@ const UIManager = {
             { k: 'snowman', i: '⛄', d: "# We're walking in the air..." }
         ];
         
+        // --- UPDATED FISH ROW WITH DESCRIPTIONS ---
         const row_fish = [
-            { k: 'fish', i: '🐟' }, 
-            { k: 'tropical', i: '🐠' }, 
-            { k: 'puffer', i: '🐡' }, 
-            { k: 'shark', i: '🦈' }
+            { k: 'fish', i: '🐟', t: 'Blue Fish', d: 'A standard catch.' }, 
+            { k: 'tropical', i: '🐠', t: 'Tropical Fish', d: 'Found in the deep.' }, 
+            { k: 'puffer', i: '🐡', t: 'Pufferfish', d: 'Spiky friend.' }, 
+            { k: 'shark', i: '🦈', t: 'Shark', d: 'Gonna need a bigger boat.' }
         ];
         
         const row3 = [
@@ -2297,11 +2317,13 @@ const UIManager = {
             { k: 'judge', i: '⚖️', t: 'The Judge', d: 'Cast 1,000 votes!' },
             { k: 'bard', i: '✍️', t: 'The Bard', d: 'Contributed 5 accepted words' },
             { k: 'traveler', i: '🌍', t: 'The Traveller', d: 'Unlocked 5 different themes' },
-            { k: 'angler', i: '🔱', t: 'The Best in Brixham', d: 'Caught 250 fish' } 
+            { k: 'angler', i: '🔱', t: 'Master Angler', d: 'Caught 250 fish' }
         ];
 
+        // Helper to render badges
         const renderRow = (list) => `<div class="flex flex-wrap justify-center gap-3 text-3xl w-full">` + list.map(x => {
             const un = d.badges[x.k];
+            // Format a default title from the key (e.g., "cake" -> "Cake")
             const defTitle = x.k.charAt(0).toUpperCase() + x.k.slice(1);
             
             return `<span class="badge-item relative ${un?'':'opacity-25 grayscale'} transition-all duration-300 transform ${un?'hover:scale-125 cursor-pointer':''}" 
@@ -2313,6 +2335,7 @@ const UIManager = {
                     >${x.i}</span>`
         }).join('') + `</div>`;
 
+        // Bug Jar Logic
         let bugJarHTML = '';
         if (saved > 0) {
             const bugCount = Math.min(saved, 40);
@@ -2337,7 +2360,7 @@ const UIManager = {
             `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🎖️ Achievements</div>` + renderRow(row3) +
             bugJarHTML;
 
-        // ... (Keep the rest of the tooltip and click listener logic exactly as it was) ...
+        // --- GLOBAL TOOLTIP HELPER ---
         const showTooltip = (targetEl, title, desc) => {
             document.querySelectorAll('.global-badge-tooltip').forEach(t => t.remove());
             const tip = document.createElement('div');
@@ -2375,6 +2398,7 @@ const UIManager = {
             el.onclick = (e) => {
                 e.stopPropagation();
                 const isLocked = el.classList.contains('grayscale');
+                
                 if (isLocked) {
                     let desc = "Keep playing to unlock!";
                     if (el.dataset.word) desc = "Find the hidden word to unlock.";
@@ -2382,6 +2406,7 @@ const UIManager = {
                     showTooltip(el, "Locked: " + el.dataset.title, desc);
                     return;
                 }
+
                 if (el.dataset.word) {
                     Game.loadSpecial(el.dataset.word);
                     ModalManager.toggle('profile', false);
@@ -2407,8 +2432,6 @@ const UIManager = {
         });
         ModalManager.toggle('profile', true);
     },
-	
-	
     displayWord(w) {
         if (!w) {
             this.showMessage("No words available!");
