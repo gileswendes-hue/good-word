@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.19.6', 
+    APP_VERSION: '5.19.7', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1531,9 +1531,10 @@ const Effects = {
 	
     summer() { const c = DOM.theme.effects.summer; c.innerHTML = ''; const g = document.createElement('div'); g.className = 'summer-grass'; c.appendChild(g); for (let i = 0; i < 8; i++) { const d = document.createElement('div'); d.className = `summer-cloud v${Math.floor(Math.random()*3)+1}`; const w = Math.random() * 100 + 100; d.style.width = `${w}px`; d.style.height = `${w*.35}px`; d.style.top = `${Math.random()*60}%`; d.style.animationDuration = `${Math.random()*60+60}s`; d.style.animationDelay = `-${Math.random()*100}s`; c.appendChild(d) } },
     
-    halloween(active) {
+halloween(active) {
         if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
         if (this.webRaf) cancelAnimationFrame(this.webRaf);
+        
         if (!active) {
             const old = document.getElementById('spider-wrap');
             if (old) old.remove();
@@ -1541,7 +1542,8 @@ const Effects = {
             if (oldWeb) oldWeb.remove();
             return;
         }
-let wrap = document.getElementById('spider-wrap');
+
+        let wrap = document.getElementById('spider-wrap');
         if (!wrap) {
             wrap = document.createElement('div');
             wrap.id = 'spider-wrap';
@@ -1549,90 +1551,142 @@ let wrap = document.getElementById('spider-wrap');
                 position: 'fixed', left: '50%', top: '-15vh', zIndex: '102',
                 transition: 'left 4s ease-in-out', pointerEvents: 'none' 
             });
+            
             const eaten = State.data.insectStats.eaten || 0;
             const scale = Math.min(0.6 + (eaten * 0.005), 1.3).toFixed(2);
             
- 
+            // REMOVED static #spider-bubble from HTML
             wrap.innerHTML = `
                 <div id="spider-anchor" style="transform: scale(${scale}); transform-origin: top center;">
                     <div id="spider-thread" style="width: 2px; background: rgba(255,255,255,0.6); margin: 0 auto; height: 0; transition: height 4s ease-in-out;"></div>
                     <div id="spider-body" style="font-size: 3rem; margin-top: -10px; cursor: pointer; position: relative; z-index: 2; pointer-events: auto; transition: transform 1s ease;">
                         🕷️
-                        <div id="spider-bubble" style="
-                            opacity: 0; position: absolute; bottom: 100%; left: 50%; 
-                            transform: translateX(-50%); margin-bottom: 8px; background: white; 
-                            color: #1f2937; padding: 6px 12px; border-radius: 12px; font-size: 14px; 
-                            font-weight: bold; font-family: sans-serif; white-space: nowrap !important;
-                            width: max-content !important; min-width: 0 !important; max-width: none !important;
-                            pointer-events: none; transition: opacity 0.3s; 
-                            box-shadow: 0 2px 5px rgba(0,0,0,0.2); border: 1px solid #e5e7eb; z-index: 10;
-                        "></div>
                     </div>
                 </div>`;
             document.body.appendChild(wrap);
             
             const body = wrap.querySelector('#spider-body');
-            const bub = wrap.querySelector('#spider-bubble');
             const thread = wrap.querySelector('#spider-thread');
-            
+
+            // --- NEW: Dynamic Bubble Helper (Matches Pufferfish Logic) ---
+            const showSpiderBubble = (text) => {
+                // Remove existing
+                const old = body.querySelector('.spider-dynamic-bubble');
+                if (old) old.remove();
+
+                const b = document.createElement('div');
+                b.className = 'spider-dynamic-bubble';
+                Object.assign(b.style, {
+                    position: 'absolute', bottom: '100%', left: '50%', 
+                    transform: 'translateX(-50%)', background: 'white', 
+                    color: '#1f2937', padding: '6px 12px', borderRadius: '12px', fontSize: '14px', 
+                    fontWeight: 'bold', fontFamily: 'sans-serif', whiteSpace: 'nowrap',
+                    width: 'max-content', // Forces tight fit
+                    pointerEvents: 'none', opacity: '0', transition: 'opacity 0.2s', 
+                    boxShadow: '0 2px 5px rgba(0,0,0,0.2)', border: '1px solid #e5e7eb',
+                    marginBottom: '8px', zIndex: '10'
+                });
+                b.textContent = text;
+
+                // Little arrow
+                const arrow = document.createElement('div');
+                Object.assign(arrow.style, {
+                    position: 'absolute', top: '100%', left: '50%', marginLeft: '-6px',
+                    borderWidth: '6px', borderStyle: 'solid', 
+                    borderColor: 'white transparent transparent transparent'
+                });
+                b.appendChild(arrow);
+                
+                body.appendChild(b);
+
+                requestAnimationFrame(() => b.style.opacity = '1');
+                
+                // Auto-hide after 2 seconds (unless hunting)
+                setTimeout(() => {
+                    if (b.parentNode && !wrap.classList.contains('hunting')) {
+                        b.style.opacity = '0';
+                        setTimeout(() => b.remove(), 300);
+                    }
+                }, 2000);
+                
+                return b; // Return reference for manual removal if needed
+            };
+
+            // Attach Helper to the DOM element so other functions can use it
+            wrap.showBubble = showSpiderBubble;
+
             body.onclick = (e) => {
                 e.stopPropagation();
                 State.unlockBadge('spider');
+                
                 const willFall = Math.random() < 0.2; 
                 const lines = willFall ? GAME_DIALOGUE.spider.pokeGrumpy : GAME_DIALOGUE.spider.pokeHappy;
-                bub.innerText = lines[Math.floor(Math.random() * lines.length)];
-                bub.style.opacity = '1';
+                const text = lines[Math.floor(Math.random() * lines.length)];
+                
+                const bubble = showSpiderBubble(text);
+                
                 body.style.animation = 'shake 0.3s ease-in-out';
+                
                 if (willFall) {
                     if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
-                    setTimeout(() => { this.spiderFall(wrap, thread, body, bub); }, 400); 
+                    setTimeout(() => { this.spiderFall(wrap, thread, body, bubble); }, 400); 
                 } else {
                     setTimeout(() => {
                         body.style.animation = '';
-                        bub.style.opacity = '0';
                     }, 2000);
                 }
             };
         }
+
         const body = wrap.querySelector('#spider-body');
-        const bub = wrap.querySelector('#spider-bubble');
         const thread = wrap.querySelector('#spider-thread');
+        
         const runDrop = () => {
             if (!document.body.contains(wrap)) return;
             if (wrap.classList.contains('hunting')) return;
+            
             const actionRoll = Math.random();
             body.style.transform = 'rotate(0deg)'; 
             thread.style.opacity = '1'; 
+            
+            // Action 1: Peek
             if (actionRoll < 0.7) {
                 const safeLeft = Math.random() * 60 + 20;
                 wrap.style.transition = 'left 3s ease-in-out'; 
                 wrap.style.left = safeLeft + '%';
+                
                 this.spiderTimeout = setTimeout(() => {
                     if (wrap.classList.contains('hunting')) return;
                     const peekHeight = Math.random() * 30 + 40; 
                     thread.style.transition = 'height 2.5s ease-in-out'; 
                     thread.style.height = peekHeight + 'vh';
+                    
                     setTimeout(() => {
                          if (wrap.classList.contains('hunting')) return;
+                         
                          const phrases = (typeof GAME_DIALOGUE !== 'undefined' && GAME_DIALOGUE.spider && GAME_DIALOGUE.spider.idle) 
                             ? GAME_DIALOGUE.spider.idle : ['Boo!', 'Hi!', '🕷️'];
-                         bub.innerText = phrases[Math.floor(Math.random() * phrases.length)];
-                         bub.style.opacity = '1';
+                         const text = phrases[Math.floor(Math.random() * phrases.length)];
+                         
+                         if(wrap.showBubble) wrap.showBubble(text); // Use helper
+                         
                          setTimeout(() => {
                              if (wrap.classList.contains('hunting')) return;
-                             bub.style.opacity = '0';
                              thread.style.height = '0'; 
                              this.spiderTimeout = setTimeout(runDrop, Math.random() * 5000 + 5000);
-                         }, 10000);
+                         }, 2500); // Shorter bubble duration
                     }, 2500);
                 }, 3000);
                 return;
             }
+            
+            // Action 2: Wall Climb
             if (actionRoll < 0.9) {
                 const isLeft = Math.random() > 0.5;
                 const wallX = isLeft ? 5 : 85; 
                 wrap.style.transition = 'left 4s ease-in-out';
                 wrap.style.left = wallX + '%';
+                
                 this.spiderTimeout = setTimeout(() => {
                     if (wrap.classList.contains('hunting')) return;
                     thread.style.opacity = '0'; 
@@ -1640,6 +1694,7 @@ let wrap = document.getElementById('spider-wrap');
                     const climbDepth = Math.random() * 40 + 30; 
                     thread.style.transition = 'height 4s ease-in-out';
                     thread.style.height = climbDepth + 'vh';
+                    
                     setTimeout(() => {
                          if (wrap.classList.contains('hunting')) return;
                          thread.style.height = '0'; 
@@ -1652,17 +1707,22 @@ let wrap = document.getElementById('spider-wrap');
                 }, 4000);
                 return;
             }
+            
+            // Action 3: Just Move
             const safeLeft = Math.random() * 60 + 20; 
             wrap.style.transition = 'left 4s ease-in-out'; 
             wrap.style.left = safeLeft + '%';
             this.spiderTimeout = setTimeout(runDrop, 2000);
         };
+        
         this.spiderTimeout = setTimeout(runDrop, 1000);
+        
         if (!document.getElementById('spider-web-corner')) {
             const web = document.createElement('div');
             web.id = 'spider-web-corner';
             web.innerHTML = `<svg id="web-svg" viewBox="0 0 300 300" style="width:300px;height:300px;position:fixed;top:0;right:0;z-index:55;pointer-events:auto;cursor:pointer;opacity:0.7;filter:drop-shadow(1px 1px 2px rgba(0,0,0,0.5))"></svg>`;
             document.body.appendChild(web);
+            
             web.onclick = () => {
                 if (MosquitoManager.state === 'stuck') {
                     this.spiderHunt(MosquitoManager.x, MosquitoManager.y, true);
@@ -1673,9 +1733,11 @@ let wrap = document.getElementById('spider-wrap');
                     this.spiderHunt(88, 20, false); 
                 }
             };
+            
             const svg = document.getElementById('web-svg');
             const cx = 300, cy = 0;
             const baseAnchors = [{ x: 0, y: 0 }, { x: 60, y: 100 }, { x: 140, y: 200 }, { x: 220, y: 270 }, { x: 300, y: 300 }];
+            
             const animateWeb = () => {
                 const time = Date.now();
                 let pathStr = '';
@@ -1724,22 +1786,27 @@ let wrap = document.getElementById('spider-wrap');
         const wrap = document.getElementById('spider-wrap');
         if (!wrap) return;
         const thread = wrap.querySelector('#spider-thread');
-        const bub = wrap.querySelector('#spider-bubble');
         const body = wrap.querySelector('#spider-body');
         const anchor = document.getElementById('spider-anchor');
+        
         if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
         wrap.classList.add('hunting');
-        bub.style.opacity = '1';
+        
+        // Use new bubble helper
         let phrases = isFood ? GAME_DIALOGUE.spider.hunting : GAME_DIALOGUE.spider.trickedStart;
-        bub.innerText = phrases[Math.floor(Math.random() * phrases.length)];
+        const text = phrases[Math.floor(Math.random() * phrases.length)];
+        const bub = wrap.showBubble ? wrap.showBubble(text) : null;
+
         const destX = isFood ? targetXPercent : 88;
         const destY = isFood ? targetYPercent : 20;
         const currentX = parseFloat(wrap.style.left) || 50;
         const dist = Math.abs(currentX - destX);
         const moveTime = Math.max(dist * 8, 500); 
+        
         wrap.style.transition = `left ${moveTime}ms ease-in-out`;
         wrap.style.left = destX + '%';
         body.style.transform = 'rotate(0deg)';
+        
         this.spiderTimeout = setTimeout(() => {
             let scale = 1;
             if (anchor && anchor.style.transform) {
@@ -1749,11 +1816,13 @@ let wrap = document.getElementById('spider-wrap');
             const dropVH = (destY + 10) / scale; 
             thread.style.transition = 'height 3s cubic-bezier(0.45, 0, 0.55, 1)'; 
             thread.style.height = dropVH + 'vh';
+            
             setTimeout(() => {
                 setTimeout(() => {
                     if (isFood && MosquitoManager.state === 'stuck') {
                         MosquitoManager.eat();
-                        bub.innerText = "YUM!"; 
+                        if(wrap.showBubble) wrap.showBubble("YUM!");
+                        
                         body.style.animation = 'shake 0.2s ease-in-out';
                         setTimeout(() => {
                             body.style.animation = '';
@@ -1762,7 +1831,9 @@ let wrap = document.getElementById('spider-wrap');
                     } 
                     else {
                         const angryPhrases = GAME_DIALOGUE.spider.trickedEnd;
-                        bub.innerText = angryPhrases[Math.floor(Math.random() * angryPhrases.length)];
+                        const angryText = angryPhrases[Math.floor(Math.random() * angryPhrases.length)];
+                        if(wrap.showBubble) wrap.showBubble(angryText);
+                        
                         body.style.animation = 'shake 0.3s ease-in-out';
                         setTimeout(() => {
                             body.style.animation = '';
@@ -1775,12 +1846,19 @@ let wrap = document.getElementById('spider-wrap');
     },
 
     spiderFall(wrap, thread, body, bub) {
-        bub.style.opacity = '0';
+        // Bubble fades out
+        if(bub) {
+            bub.style.opacity = '0';
+            setTimeout(() => bub.remove(), 300);
+        }
+
         thread.style.transition = 'height 0.8s cubic-bezier(0.55, 0.085, 0.68, 0.53), opacity 0s linear';
         thread.style.opacity = '0'; 
+        
         requestAnimationFrame(() => {
             thread.style.height = '120vh'; 
         });
+        
         setTimeout(() => {
             thread.style.transition = 'none';
             wrap.style.transition = 'none';
@@ -1788,6 +1866,7 @@ let wrap = document.getElementById('spider-wrap');
             thread.style.height = '120vh'; 
             void wrap.offsetWidth; 
             thread.style.opacity = '1';
+            
             requestAnimationFrame(() => {
                 thread.style.transition = 'height 5s ease-in-out';
                 thread.style.height = '0'; 
@@ -1803,7 +1882,7 @@ let wrap = document.getElementById('spider-wrap');
             thread.style.height = '0';
         });
         setTimeout(() => {
-            bub.style.opacity = '0';
+            if(bub) bub.remove();
             wrap.classList.remove('hunting');
             this.halloween(true);
         }, parseFloat(duration) * 1000);
