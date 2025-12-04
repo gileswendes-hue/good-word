@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.19.2', 
+    APP_VERSION: '5.19.3', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -165,7 +165,8 @@ const State = {
         },
         
         fishStats: {
-            caught: parseInt(localStorage.getItem('fishCaught') || 0)
+            caught: parseInt(localStorage.getItem('fishCaught') || 0),
+			spared: parseInt(localStorage.getItem('fishSpared') || 0)
         },
         
         badges: {
@@ -1316,7 +1317,7 @@ const Effects = {
                         clicks++;
                         inner.dataset.clicks = clicks;
                         State.unlockBadge('puffer');
-                        const newScale = 1 + (clicks * 0.5);
+                        const newScale = 1 + (clicks * 0.8);
                         inner.style.transition = "transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)";
                         inner.style.transformOrigin = "center center"; 
                         inner.style.transform = `scaleX(${baseDir}) scale(${newScale})`;
@@ -1338,10 +1339,8 @@ const Effects = {
                 State.unlockBadge(data.k);
                 
                 State.data.fishStats.caught++;
-               fishStats: {
-    caught: parseInt(localStorage.getItem('fishCaught') || 0),
-    spared: parseInt(localStorage.getItem('fishSpared') || 0) 
-},
+                State.save('fishStats', State.data.fishStats); // <--- Fixed line
+                
                 if (State.data.fishStats.caught >= 250) {
                     State.unlockBadge('angler');
                 }
