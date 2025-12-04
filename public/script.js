@@ -3124,6 +3124,6 @@ const InputHandler = {
 // --- INITIALIZATION ---
 window.onload = Game.init.bind(Game);
 window.onload = Game.init.bind(Game);
-window.~9<d3i4A`:yKjcuNQeFg = API; 
+window.fEhPVHxCRUFDSHxIT0xJREFZfFNVTnxWQU = API; 
 
 })();
