@@ -13,6 +13,7 @@ const GAME_TIPS = [
     "Tip: How thick is wall?",
     "Tip: Try saying hello to the spider?",
     "Tip: Ask them out for a coffee.",
+    "Tip: Don't pick on the pufferfish.",
     "Tip: Can you smell burning toast?",
     "Tip: Some of those who work forces, are the same who burn crosses.",
     "Tip: Time is an illusion. Lunchtime doubly so.",
