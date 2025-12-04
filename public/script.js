@@ -495,10 +495,10 @@ const MosquitoManager = {
     COOLDOWN: 5 * 60 * 1000, 
 
     TYPES: {
-        '🐞': { name: 'Ladybug', speed: 0.1, turnRate: 0.005, wobble: 0.01, badge: null },
+        '🐞': { name: 'Ladybird', speed: 0.2, turnRate: 0.005, wobble: 0.01, badge: null },
         '🐝': { name: 'Bee', speed: 0.35, turnRate: 0.1, wobble: 0.05, badge: null },
         '🦟': { name: 'Mosquito', speed: 0.2, turnRate: 0.02, wobble: 0.02, badge: null },
-        '🚁': { name: 'Chopper', speed: 0.15, turnRate: 0.001, wobble: 0.0, badge: 'chopper' }
+        '🚁': { name: 'Chopper', speed: 0.45, turnRate: 0.001, wobble: 0.0, badge: 'chopper' }
     },
 
     startMonitoring() {
@@ -520,8 +520,8 @@ const MosquitoManager = {
     spawnStuck(typeChar) {
         if (this.el) this.remove(); 
 
-        this.type = typeChar || '🐞';
-        this.config = this.TYPES[this.type] || this.TYPES['🐞'];
+        this.type = typeChar || '🦟';
+        this.config = this.TYPES[this.type] || this.TYPES['🦟'];
         
         this.el = document.createElement('div');
         this.el.textContent = this.type;
@@ -2143,7 +2143,7 @@ openProfile() {
         const bugCount = Math.min(saved, 40);
         let bugsStr = '';
         for(let i=0; i<bugCount; i++) {
-            bugsStr += `<span class="jar-bug" style="cursor: pointer; display: inline-block; padding: 2px; transition: transform 0.1s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">🐞</span>`;
+            bugsStr += `<span class="jar-bug" style="cursor: pointer; display: inline-block; padding: 2px; transition: transform 0.1s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">🦟</span>`;
         }
         bugJarHTML = `<div class="w-full text-center my-4 p-3 bg-green-50 rounded-xl border border-green-100 relative overflow-hidden">
             <div class="text-[10px] font-bold text-green-600 mb-1 uppercase tracking-wider">The Bug Jar (${saved})</div>
@@ -2196,7 +2196,7 @@ openProfile() {
             ModalManager.toggle('profile', false);
             State.data.insectStats.saved = Math.max(0, State.data.insectStats.saved - 1);
             State.save('insectStats', State.data.insectStats);
-            if (typeof MosquitoManager !== 'undefined') MosquitoManager.spawnStuck('🐞');
+            if (typeof MosquitoManager !== 'undefined') MosquitoManager.spawnStuck('🦟');
             UIManager.showPostVoteMessage("Feeding time! 🕷️");
         };
     });
