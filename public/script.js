@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.18.1', 
+    APP_VERSION: '5.18.2', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1049,8 +1049,9 @@ const ThemeManager = {
             } catch {}
         });
         
-        // --- FIX: Retroactive check for traveler badge ---
-        if (State.data.unlockedThemes.length >= 5) {
+        // --- FIX: Count includes Default theme (+1) ---
+        // If you have 4 unlocks + Default = 5 Total.
+        if ((State.data.unlockedThemes.length + 1) >= 5) {
             State.unlockBadge('traveler');
         }
         
@@ -1132,8 +1133,10 @@ const ThemeManager = {
             State.data.unlockedThemes.push(t);
             State.save('unlockedThemes', State.data.unlockedThemes);
             
-            // Check count on unlock
-            if (State.data.unlockedThemes.length >= 5) State.unlockBadge('traveler');
+            // --- FIX: Count includes Default theme (+1) ---
+            if ((State.data.unlockedThemes.length + 1) >= 5) {
+                State.unlockBadge('traveler');
+            }
             
             this.populateChooser();
             if (!State.data.manualTheme) this.apply(t);
