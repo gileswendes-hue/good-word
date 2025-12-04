@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.18.2', 
+    APP_VERSION: '5.18.3', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -2119,7 +2119,6 @@ const ShareManager = {
     }
 };
 
-// --- UI MANAGER ---
 const UIManager = {
     msgTimeout: null,
     showMessage(t, err = false) {
@@ -2243,17 +2242,20 @@ const UIManager = {
             { k: 'germ', i: '🦠', w: 'GERM' }, 
             { k: 'bone', i: '🦴', w: 'MASON' }
         ];
+        
+        // UPDATED: Added custom descriptions
         const row2 = [
-            { k: 'poop', i: '💩' }, 
-            { k: 'penguin', i: '🐧' }, 
-            { k: 'scorpion', i: '🦂' }, 
-            { k: 'mushroom', i: '🍄' }, 
-            { k: 'needle', i: '💉' }, 
-            { k: 'diamond', i: '💎' },
-            { k: 'rock', i: '🤘' }, 
-            { k: 'chopper', i: '🚁' }, 
-            { k: 'snowman', i: '⛄' }
+            { k: 'poop', i: '💩', d: 'squelch.' }, 
+            { k: 'penguin', i: '🐧', d: 'noot noot!' }, 
+            { k: 'scorpion', i: '🦂', d: 'I am in your tent.' }, 
+            { k: 'mushroom', i: '🍄', d: 'edible once.' }, 
+            { k: 'needle', i: '💉', d: 'wheedle, wheedle, pry and needle' }, 
+            { k: 'diamond', i: '💎', d: 'hidden Gem.' },
+            { k: 'rock', i: '🤘', d: 'space rock!' }, 
+            { k: 'chopper', i: '🚁', d: 'Get to the choppa!' }, 
+            { k: 'snowman', i: '⛄', d: "# We're walking in the air..." }
         ];
+        
         const row_fish = [
             { k: 'fish', i: '🐟' }, 
             { k: 'tropical', i: '🐠' }, 
@@ -2348,17 +2350,23 @@ const UIManager = {
             el.onclick = (e) => {
                 e.stopPropagation();
                 const isLocked = el.classList.contains('grayscale');
+                
                 if (isLocked) {
+                    // Show "Locked" message
                     let desc = "Keep playing to unlock!";
                     if (el.dataset.word) desc = "Find the hidden word to unlock.";
-                    else if (['poop','penguin','scorpion'].some(k => el.dataset.key === k)) desc = "Find this item in the Ball Pit!";
-                    showTooltip(el, "Locked: " + el.dataset.title, el.dataset.desc || desc);
+                    else if (['poop','penguin','scorpion','mushroom','needle','diamond'].includes(el.dataset.key)) desc = "Find this item in the Ball Pit!";
+                    
+                    // FIXED: Don't show the "Found" message (el.dataset.desc) if it's locked!
+                    showTooltip(el, "Locked: " + el.dataset.title, desc);
                     return;
                 }
+
                 if (el.dataset.word) {
                     Game.loadSpecial(el.dataset.word);
                     ModalManager.toggle('profile', false);
                 } else {
+                    // It's an unlocked item or achievement -> Show details
                     showTooltip(el, el.dataset.title, el.dataset.desc);
                 }
             }
