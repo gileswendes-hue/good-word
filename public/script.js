@@ -2199,7 +2199,7 @@ const UIManager = {
         }
     },
 	
-openProfile() {
+    openProfile() {
         this.updateProfileDisplay();
         const d = State.data;
         DOM.profile.streak.textContent = d.daily.streak;
@@ -2303,62 +2303,32 @@ openProfile() {
             bugJarHTML;
 
         // --- GLOBAL TOOLTIP HELPER ---
-        // This attaches to BODY to avoid 'overflow:hidden' cutting it off
         const showTooltip = (targetEl, title, desc) => {
-            // 1. Remove any existing global tooltips
             document.querySelectorAll('.global-badge-tooltip').forEach(t => t.remove());
-
-            // 2. Create Tooltip
             const tip = document.createElement('div');
             tip.className = 'global-badge-tooltip';
-            
             Object.assign(tip.style, {
-                position: 'fixed', // Fixed to viewport so it floats over everything
-                backgroundColor: '#1f2937', 
-                color: 'white', 
-                padding: '8px 12px', 
-                borderRadius: '8px',
-                fontSize: '12px', 
-                textAlign: 'center', 
-                width: 'max-content', 
-                maxWidth: '200px',
-                zIndex: '9999', // Higher than any modal
-                boxShadow: '0 4px 6px rgba(0,0,0,0.3)', 
-                pointerEvents: 'none', 
-                lineHeight: '1.4',
-                opacity: '0',
-                transition: 'opacity 0.2s'
+                position: 'fixed', backgroundColor: '#1f2937', color: 'white', padding: '8px 12px', 
+                borderRadius: '8px', fontSize: '12px', textAlign: 'center', width: 'max-content', 
+                maxWidth: '200px', zIndex: '9999', boxShadow: '0 4px 6px rgba(0,0,0,0.3)', 
+                pointerEvents: 'none', lineHeight: '1.4', opacity: '0', transition: 'opacity 0.2s'
             });
-
             tip.innerHTML = `<div class="font-bold text-yellow-300 mb-1 text-sm border-b border-gray-600 pb-1">${title}</div><div class="text-gray-200">${desc}</div>`;
-            
-            // Add Arrow
             const arrow = document.createElement('div');
             Object.assign(arrow.style, {
                 position: 'absolute', top: '100%', left: '50%', marginLeft: '-6px',
                 borderWidth: '6px', borderStyle: 'solid', borderColor: '#1f2937 transparent transparent transparent'
             });
             tip.appendChild(arrow);
-            
             document.body.appendChild(tip);
-
-            // 3. Calculate Position
             const rect = targetEl.getBoundingClientRect();
-            // Position above the element, centered horizontally
-            const tipHeight = tip.offsetHeight || 60; // Approximate if not rendered yet
-            
-            tip.style.top = (rect.top - tipHeight - 12) + 'px'; // 12px gap
+            const tipHeight = tip.offsetHeight || 60; 
+            tip.style.top = (rect.top - tipHeight - 12) + 'px'; 
             tip.style.left = (rect.left + rect.width / 2) + 'px';
             tip.style.transform = 'translateX(-50%)';
-
-            // 4. Reveal
             requestAnimationFrame(() => tip.style.opacity = '1');
-
-            // 5. Visual Bounce on Target
             targetEl.style.transform = "scale(1.2)";
             setTimeout(() => targetEl.style.transform = "", 200);
-
-            // 6. Auto-remove
             setTimeout(() => { 
                 tip.style.opacity = '0';
                 setTimeout(() => { if(tip.parentNode) tip.remove(); }, 200);
@@ -2366,47 +2336,33 @@ openProfile() {
         };
 
         // --- ATTACH LISTENERS ---
-        
-        // 1. Badge Clicks
         b.querySelectorAll('.badge-item').forEach(el => {
             el.onclick = (e) => {
                 e.stopPropagation();
-                
                 const isLocked = el.classList.contains('grayscale');
-                
                 if (isLocked) {
-                    // Show "Locked" message
                     let desc = "Keep playing to unlock!";
-                    // Custom hints based on row/type could go here if desired
                     if (el.dataset.word) desc = "Find the hidden word to unlock.";
                     else if (['poop','penguin','scorpion'].some(k => el.dataset.key === k)) desc = "Find this item in the Ball Pit!";
-                    
                     showTooltip(el, "Locked: " + el.dataset.title, el.dataset.desc || desc);
                     return;
                 }
-
                 if (el.dataset.word) {
                     Game.loadSpecial(el.dataset.word);
                     ModalManager.toggle('profile', false);
                 } else {
-                    // It's an unlocked item or achievement -> Show details
                     showTooltip(el, el.dataset.title, el.dataset.desc);
                 }
             }
         });
-
-        // 2. Bug Jar Clicks
         const jarBugs = b.querySelectorAll('.jar-bug');
         jarBugs.forEach(bug => {
             bug.onclick = (e) => {
                 e.stopPropagation();
-                
                 if (State.data.currentTheme !== 'halloween') {
-                    // NEW: Tooltip for wrong theme
                     showTooltip(bug, "Spider Missing", "Please visit the spider on the Halloween theme to feed");
                     return;
                 }
-                
                 ModalManager.toggle('profile', false);
                 State.data.insectStats.saved = Math.max(0, State.data.insectStats.saved - 1);
                 State.save('insectStats', State.data.insectStats);
@@ -2414,7 +2370,6 @@ openProfile() {
                 UIManager.showPostVoteMessage("Feeding time! 🕷️");
             };
         });
-
         ModalManager.toggle('profile', true);
     },
     displayWord(w) {
@@ -2548,21 +2503,16 @@ openProfile() {
         }
         const w = topGood[gI];
         c.innerHTML = `<div class="p-4 bg-white rounded-xl shadow-sm border border-gray-200 inline-block w-full max-w-sm"><h3 class="text-2xl font-black text-gray-800 mb-4">${w.text.toUpperCase()}</h3><div class="flex justify-around mb-4"><div class="text-center"><div class="text-sm text-gray-500">Good Rank</div><div class="text-3xl font-bold text-green-600">#${gI+1}</div></div><div class="text-center"><div class="text-sm text-gray-500">Bad Rank</div><div class="text-3xl font-bold text-red-600">#${bI+1}</div></div></div><div class="border-t pt-4 flex justify-between text-sm"><span class="font-bold text-green-600">+${w.good} Good</span><span class="font-bold text-red-600">-${w.bad} Bad</span></div></div>`
-    }
+    },
     updateOfflineIndicator() {
         let ind = document.getElementById('offlineIndicator');
-        
-        // 1. Create the element if it doesn't exist yet
         if (!ind) {
             ind = document.createElement('div');
             ind.id = 'offlineIndicator';
-            // Styling: Fixed to bottom left, dark background, white text
             ind.className = 'fixed bottom-4 left-4 bg-gray-900 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg z-50 transition-opacity duration-500 pointer-events-none';
             ind.innerHTML = '🚇 OFFLINE MODE';
             document.body.appendChild(ind);
         }
-        
-        // 2. Update the text and visibility based on status
         if (OfflineManager.isActive()) {
             const pendingCount = State.data.pendingVotes ? State.data.pendingVotes.length : 0;
             ind.style.opacity = '1';
@@ -2570,7 +2520,7 @@ openProfile() {
         } else {
             ind.style.opacity = '0';
         }
-    },
+    }
 };
 
 
