@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.19.4', 
+    APP_VERSION: '5.19.5', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1265,9 +1265,11 @@ const Effects = {
             inner.className = 'submarine-fish-inner';
             inner.textContent = fishEmoji;
             
-            // Force block so transforms work correctly
+            // Base styles for correct scaling
             inner.style.display = 'block'; 
             inner.style.lineHeight = '1';
+            inner.style.fontSize = '3rem'; // Start large
+            inner.style.transition = 'font-size 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), transform 0.2s';
             
             inner.dataset.clicks = "0";
             wrap.appendChild(inner);
@@ -1277,9 +1279,7 @@ const Effects = {
             
             // Set initial direction (Left = -1, Right = 1)
             const baseDir = startLeft ? -1 : 1;
-            
-            // Apply Initial Transform
-            inner.style.transform = `scale(${baseDir}, 1)`;
+            inner.style.transform = `scaleX(${baseDir})`;
             
             wrap.style.transition = `left ${duration}s linear`;
             wrap.style.top = Math.random() * 80 + 10 + 'vh'; 
@@ -1287,18 +1287,23 @@ const Effects = {
             
             // --- HELPER: Speech Bubble ---
             const showBubble = (text) => {
+                // Remove existing bubble if any
+                const old = wrap.querySelector('.fish-bubble');
+                if(old) old.remove();
+
                 const b = document.createElement('div');
+                b.className = 'fish-bubble';
                 Object.assign(b.style, {
-                    position: 'absolute', bottom: '120%', left: '50%', 
+                    position: 'absolute', bottom: '100%', left: '50%', 
                     transform: 'translateX(-50%)', background: 'white', color: '#1f2937', 
-                    padding: '6px 12px', borderRadius: '12px', fontSize: '14px', 
+                    padding: '6px 12px', borderRadius: '12px', fontSize: '16px', 
                     fontWeight: 'bold', whiteSpace: 'nowrap', zIndex: '20',
                     pointerEvents: 'none', opacity: '0', transition: 'opacity 0.2s',
-                    boxShadow: '0 2px 5px rgba(0,0,0,0.2)', border: '1px solid #e5e7eb'
+                    boxShadow: '0 2px 5px rgba(0,0,0,0.2)', border: '1px solid #e5e7eb',
+                    marginBottom: '10px'
                 });
                 b.textContent = text;
                 
-                // Little arrow for the bubble
                 const arrow = document.createElement('div');
                 Object.assign(arrow.style, {
                     position: 'absolute', top: '100%', left: '50%', marginLeft: '-6px',
@@ -1308,16 +1313,21 @@ const Effects = {
                 b.appendChild(arrow);
                 wrap.appendChild(b);
                 
-                // Animate in and out
                 requestAnimationFrame(() => b.style.opacity = '1');
                 setTimeout(() => {
-                    b.style.opacity = '0';
-                    setTimeout(() => b.remove(), 300);
+                    if(b.parentNode) {
+                        b.style.opacity = '0';
+                        setTimeout(() => b.remove(), 300);
+                    }
                 }, 2000);
             };
 
             // --- ESCAPE HANDLER (Sea Shepherd) ---
-            const handleEscape = () => {
+            // Triggered ONLY when the transition finishes (fish leaves screen)
+            const handleEscape = (e) => {
+                // Ensure we are catching the movement transition, not a bubble opacity change
+                if (e.propertyName !== 'left') return;
+
                 if (wrap.parentNode) {
                     State.data.fishStats.spared = (State.data.fishStats.spared || 0) + 1;
                     State.save('fishStats', State.data.fishStats);
@@ -1329,9 +1339,7 @@ const Effects = {
                 }
             };
 
-            // The timer matches the swim duration. 
-            // We ONLY clear this if we catch the fish.
-            let cleanup = setTimeout(handleEscape, duration * 1000);
+            wrap.addEventListener('transitionend', handleEscape);
 
             wrap.onclick = (e) => {
                 e.stopPropagation();
@@ -1350,27 +1358,17 @@ const Effects = {
                         inner.dataset.clicks = clicks;
                         State.unlockBadge('puffer');
                         
-                        // GROWTH FACTOR:
-                        // 1 click = 1.8x, 2 clicks = 2.6x ... 5 clicks = 5.0x
-                        const newScale = 1 + (clicks * 0.8);
-                        
-                        inner.style.transition = "transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)";
-                        inner.style.transformOrigin = "center center"; 
-                        
-                        // FIX: Use single scale() with X and Y.
-                        // X = direction * scale, Y = scale
-                        inner.style.transform = `scale(${baseDir * newScale}, ${newScale})`;
+                        // GROWTH: Use font-size for reliable scaling
+                        // Start: 3rem. Add 1.5rem per click.
+                        const newSize = 3 + (clicks * 1.5);
+                        inner.style.fontSize = `${newSize}rem`;
                         
                         Haptics.light();
 
                         const puffMsgs = ["Wanna fight?", "I'm bigger than your dad.", "I'll spike you!", "Stop it!", "I am big scary bear!", "Why not pick on someone your own size?"];
                         const rMsg = puffMsgs[Math.floor(Math.random() * puffMsgs.length)];
                         
-                        // Show Bubble instead of bottom message
                         showBubble(rMsg);
-                        
-                        // NOTE: We do NOT clear 'cleanup' here. 
-                        // The fish keeps swimming and will exit naturally.
                         
                         return; // Exit: Do not catch yet
                     }
@@ -1388,7 +1386,6 @@ const Effects = {
                 }
                 
                 if (fishEmoji === '🐡') {
-                    // Specific message for catching the puffer
                     UIManager.showPostVoteMessage("Popped!");
                 } else {
                     UIManager.showPostVoteMessage(data.msg);
@@ -1425,8 +1422,6 @@ const Effects = {
                 wrap.style.opacity = '0';
                 wrap.style.transform = 'scale(0)'; 
                 
-                // Clear the escape timer so it's not counted as spared
-                clearTimeout(cleanup);
                 setTimeout(() => wrap.remove(), 100);
             };
 
