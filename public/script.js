@@ -1048,6 +1048,12 @@ const ThemeManager = {
                 atob(v).split('|').forEach(w => this.wordMap[w] = k)
             } catch {}
         });
+        
+        // --- FIX: Retroactive check for traveler badge ---
+        if (State.data.unlockedThemes.length >= 5) {
+            State.unlockBadge('traveler');
+        }
+        
         this.populateChooser();
         this.apply(State.data.currentTheme)
     },
@@ -1120,11 +1126,13 @@ const ThemeManager = {
         Accessibility.apply();
         TiltManager.refresh();
     },
-checkUnlock(w) {
+    checkUnlock(w) {
         const t = this.wordMap[w];
         if (t && !State.data.unlockedThemes.includes(t)) {
             State.data.unlockedThemes.push(t);
             State.save('unlockedThemes', State.data.unlockedThemes);
+            
+            // Check count on unlock
             if (State.data.unlockedThemes.length >= 5) State.unlockBadge('traveler');
             
             this.populateChooser();
