@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.16.3', 
+    APP_VERSION: '5.16.4', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1016,18 +1016,95 @@ const ThemeManager = {
     }
 };
 
-// --- VISUAL EFFECTS ---
 const Effects = {
     spiderTimeout: null,
     webRaf: null,
     ballLoop: null,
     fishTimeout: null,
     spaceRareTimeout: null,
-	snowmanTimeout: null,
+    snowmanTimeout: null,
     
-    plymouth(a) { const c = DOM.theme.effects.plymouth; if (!a) { c.innerHTML = ''; return } c.innerHTML = ''; for (let i = 0; i < 100; i++) { const s = document.createElement('div'); s.className = 'star-particle'; const z = Math.random() * 2 + 1; s.style.width = s.style.height = `${z}px`; s.style.left = `${Math.random()*100}vw`; s.style.top = `${Math.random()*60}vh`; s.style.animationDuration = `${Math.random()*3+1}s`; s.style.animationDelay = `${Math.random()*2}s`; c.appendChild(s) } },
+    // NEW: Track the timer for shooting stars
+    plymouthShooterTimeout: null, 
+    
+    plymouth(a) { 
+        const c = DOM.theme.effects.plymouth; 
+        
+        // CLEAR TIMER if theme is disabled or refreshing
+        if (this.plymouthShooterTimeout) clearTimeout(this.plymouthShooterTimeout);
+        
+        if (!a) { 
+            c.innerHTML = ''; 
+            return 
+        } 
+        
+        c.innerHTML = ''; 
+        
+        // 1. Existing Static Stars
+        for (let i = 0; i < 100; i++) { 
+            const s = document.createElement('div'); 
+            s.className = 'star-particle'; 
+            const z = Math.random() * 2 + 1; 
+            s.style.width = s.style.height = `${z}px`; 
+            s.style.left = `${Math.random()*100}vw`; 
+            s.style.top = `${Math.random()*60}vh`; 
+            s.style.animationDuration = `${Math.random()*3+1}s`; 
+            s.style.animationDelay = `${Math.random()*2}s`; 
+            c.appendChild(s) 
+        }
+        
+        // 2. Start Shooting Star Loop
+        this.spawnPlymouthShooter();
+    },
+
+    spawnPlymouthShooter() {
+        if (State.data.currentTheme !== 'plymouth') return;
+        const c = DOM.theme.effects.plymouth;
+
+        // Create Star Element
+        const s = document.createElement('div');
+        
+        // Style it to look like a glowing streak
+        Object.assign(s.style, {
+            position: 'absolute',
+            width: '100px',
+            height: '2px',
+            background: 'linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,1))', // Fade tail
+            transform: 'rotate(-35deg)',
+            boxShadow: '0 0 8px rgba(255,255,255,0.8)',
+            zIndex: '10',
+            pointerEvents: 'none',
+            borderRadius: '100%',
+            // Random start position (Top half of screen, spread horizontally)
+            top: Math.random() * 40 + '%',      
+            left: Math.random() * 80 + 10 + '%', 
+        });
+
+        c.appendChild(s);
+
+        // Animate using Web Animations API
+        const travelDist = Math.random() * 300 + 200; // Distance
+        const duration = Math.random() * 400 + 600;   // Speed
+
+        const anim = s.animate([
+            { transform: 'translate(0, 0) rotate(-35deg)', opacity: 0 },
+            { transform: 'translate(0, 0) rotate(-35deg)', opacity: 1, offset: 0.1 },
+            { transform: `translate(-${travelDist}px, ${travelDist/2}px) rotate(-35deg)`, opacity: 0 }
+        ], {
+            duration: duration,
+            easing: 'ease-out'
+        });
+
+        // Cleanup DOM after animation
+        anim.onfinish = () => s.remove();
+
+        // Recursively call with random delay (Every 4 to 12 seconds)
+        this.plymouthShooterTimeout = setTimeout(() => this.spawnPlymouthShooter(), Math.random() * 8000 + 4000);
+    },
+
     fire() { const c = DOM.theme.effects.fire; c.innerHTML = ''; for (let i = 0; i < 80; i++) { const p = document.createElement('div'); p.className = 'fire-particle'; p.style.animationDuration = `${Math.random()*1.5+0.5}s`; p.style.animationDelay = `${Math.random()}s`; p.style.left = `calc(10% + (80% * ${Math.random()}))`; const size = Math.random() * 3 + 2; p.style.width = p.style.height = `${size}em`; p.style.setProperty('--sway', `${(Math.random()-.5)*20}px`); c.appendChild(p) } for (let i = 0; i < 15; i++) { const s = document.createElement('div'); s.className = 'smoke-particle'; s.style.animationDelay = `${Math.random()*3}s`; s.style.left = `${Math.random()*90+5}%`; s.style.setProperty('--sway', `${(Math.random()-.5)*150}px`); c.appendChild(s) } },
-bubbles(active) {
+    
+    bubbles(active) {
         const c = DOM.theme.effects.bubble;
         if (this.fishTimeout) clearTimeout(this.fishTimeout);
         if (!active) { c.innerHTML = ''; return; }
