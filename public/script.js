@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.18.7', 
+    APP_VERSION: '5.18.9', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1219,7 +1219,6 @@ const Effects = {
         }
 
         const spawnFish = () => {
-            // FIX: Removed checkVisibility() which causes loop crashes on some browsers
             if (State.data.currentTheme !== 'submarine') return;
             
             const fishData = {
@@ -1239,17 +1238,17 @@ const Effects = {
             inner.className = 'submarine-fish-inner';
             inner.textContent = fishEmoji;
             
-            // FIX: Force block display to ensure transform scaling works
+            // --- FIX 1: Force block display so transforms work ---
             inner.style.display = 'block'; 
             inner.style.lineHeight = '1';
-            inner.dataset.clicks = "0";
             
+            inner.dataset.clicks = "0";
             wrap.appendChild(inner);
             
             const startLeft = Math.random() > 0.5; 
             const duration = Math.random() * 15 + 10;
             
-            // Set initial direction
+            // Set initial direction (Left = -1, Right = 1)
             const baseDir = startLeft ? -1 : 1;
             inner.style.transform = `scaleX(${baseDir})`;
             
@@ -1277,9 +1276,10 @@ const Effects = {
                         inner.dataset.clicks = clicks;
                         State.unlockBadge('puffer');
                         
+                        // Scale increases: 1 -> 1.6 -> 2.2 ...
                         const newScale = 1 + (clicks * 0.6);
                         
-                        // FIX: Simplified scaling math to maintain direction
+                        // --- FIX 2: Apply scale math using baseDir to keep direction ---
                         inner.style.transition = "transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)";
                         inner.style.transform = `scale(${newScale * baseDir}, ${newScale})`;
                         
@@ -1287,11 +1287,11 @@ const Effects = {
                         const rMsg = puffMsgs[Math.floor(Math.random() * puffMsgs.length)];
                         UIManager.showPostVoteMessage(rMsg);
                         
-                        // Prevent premature cleanup while interacting
+                        // Delay cleanup so it doesn't vanish while you are poking it
                         clearTimeout(cleanup);
                         setTimeout(() => { if(wrap.parentNode) wrap.remove(); }, 5000);
                         
-                        return; // Keep fish alive
+                        return; // Exit: Do not catch yet
                     }
                 }
 
