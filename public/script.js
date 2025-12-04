@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.19.7', 
+    APP_VERSION: '5.19.8', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -2050,15 +2050,15 @@ const ShareManager = {
     async generateImage() {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
-        const width = 1080; // Standard social square/portrait width
+        const width = 1080; 
         const height = 1350;
         canvas.width = width;
         canvas.height = height;
 
         // 1. Background (Gradient)
         const grad = ctx.createLinearGradient(0, 0, 0, height);
-        grad.addColorStop(0, '#6366f1'); // Indigo-500
-        grad.addColorStop(1, '#a855f7'); // Purple-500
+        grad.addColorStop(0, '#4f46e5'); // Indigo-600
+        grad.addColorStop(1, '#9333ea'); // Purple-600
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, width, height);
 
@@ -2086,7 +2086,7 @@ const ShareManager = {
         ctx.font = '30px Inter, sans-serif';
         ctx.fillText("GOOD WORD / BAD WORD", width / 2, cardY + 150);
 
-        // 4. Stats Grid
+        // 4. Primary Stats Grid (Top Half)
         const stats = [
             { label: 'Day Streak', val: State.data.daily.streak, icon: '🔥', color: '#fff7ed', text: '#ea580c' },
             { label: 'Total Votes', val: State.data.voteCount.toLocaleString(), icon: '🗳️', color: '#eff6ff', text: '#2563eb' },
@@ -2107,71 +2107,104 @@ const ShareManager = {
             const y = gridY + (row * (boxH + gap));
 
             ctx.fillStyle = stat.color;
-            ctx.fillRect(x, y, boxW, boxH);
-            ctx.strokeStyle = stat.text + '40'; 
-            ctx.lineWidth = 2;
-            ctx.strokeRect(x, y, boxW, boxH);
+            ctx.beginPath();
+            if (ctx.roundRect) ctx.roundRect(x, y, boxW, boxH, 20);
+            else ctx.fillRect(x, y, boxW, boxH);
+            ctx.fill();
 
-            ctx.font = '60px serif';
-            ctx.textAlign = 'center';
-            ctx.fillText(stat.icon, x + boxW / 2, y + 70);
+            // Icon
+            ctx.font = '50px serif';
+            ctx.textAlign = 'left';
+            ctx.fillText(stat.icon, x + 30, y + 105);
 
+            // Value
             ctx.fillStyle = stat.text;
             ctx.font = 'bold 50px Inter, sans-serif';
-            ctx.fillText(stat.val, x + boxW / 2, y + 130);
+            ctx.textAlign = 'right';
+            ctx.fillText(stat.val, x + boxW - 30, y + 90);
 
+            // Label
             ctx.fillStyle = '#6b7280';
             ctx.font = 'bold 20px Inter, sans-serif';
-            ctx.fillText(stat.label.toUpperCase(), x + boxW / 2, y + 160);
+            ctx.fillText(stat.label.toUpperCase(), x + boxW - 30, y + 130);
         });
 
-        // 5. Badges Section
-        const badgeY = gridY + (2 * (boxH + gap)) + 60;
+        // 5. Collection Progress (Bottom Half - Teaser Style)
+        const progressY = gridY + (2 * (boxH + gap)) + 60;
+        
+        // Separator Line
+        ctx.strokeStyle = '#e5e7eb';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(margin + 40, progressY);
+        ctx.lineTo(width - margin - 40, progressY);
+        ctx.stroke();
+
         ctx.fillStyle = '#374151';
         ctx.font = 'bold 30px Inter, sans-serif';
-        ctx.fillText("BADGES UNLOCKED", width / 2, badgeY);
+        ctx.textAlign = 'center';
+        ctx.fillText("COLLECTION PROGRESS", width / 2, progressY + 60);
 
-        const allBadges = [
-            { k: 'cake', i: '🎂' }, { k: 'llama', i: '🦙' }, { k: 'potato', i: '🥔' },
-            { k: 'squirrel', i: '🐿️' }, { k: 'spider', i: '🕷️' }, { k: 'germ', i: '🦠' },
-            { k: 'bone', i: '🦴' }, { k: 'poop', i: '💩' }, { k: 'penguin', i: '🐧' },
-            { k: 'scorpion', i: '🦂' }, { k: 'mushroom', i: '🍄' }, { k: 'needle', i: '💉' },
-            { k: 'diamond', i: '💎' }, { k: 'rock', i: '🤘' },
-			{ k: 'chopper', i: '🚁' }, { k: 'snowman', i: '⛄' }
+        // Define Categories
+        const catKeys = {
+            words: ['cake', 'llama', 'potato', 'squirrel', 'spider', 'germ', 'bone'],
+            items: ['poop', 'penguin', 'scorpion', 'mushroom', 'needle', 'diamond', 'rock', 'chopper', 'snowman', 'fish', 'tropical', 'puffer', 'shark'],
+            achievements: ['exterminator', 'saint', 'prankster', 'judge', 'bard', 'traveler', 'angler', 'shepherd']
+        };
+
+        const getCount = (keys) => keys.filter(k => State.data.badges[k]).length;
+
+        const collections = [
+            { label: 'Hidden Words', count: getCount(catKeys.words), total: catKeys.words.length, color: '#f59e0b' },
+            { label: 'Secret Items', count: getCount(catKeys.items), total: catKeys.items.length, color: '#ec4899' },
+            { label: 'Achievements', count: getCount(catKeys.achievements), total: catKeys.achievements.length, color: '#10b981' }
         ];
 
-        let bx = (width - (7 * 80)) / 2 + 40; 
-        let by = badgeY + 80;
+        let circleX = width / 2 - 300;
+        const circleY = progressY + 180;
 
-        allBadges.forEach((b, i) => {
-            const unlocked = State.data.badges[b.k];
-            ctx.font = '60px serif';
-            ctx.textAlign = 'center';
+        collections.forEach((col, i) => {
+            const x = (width / 4) * (i + 1);
             
-            if (unlocked) {
-                ctx.globalAlpha = 1.0;
-                ctx.filter = 'none';
-            } else {
-                ctx.globalAlpha = 0.2;
-                ctx.filter = 'grayscale(100%)';
-            }
-            
-            if (i === 7) { bx = (width - (7 * 80)) / 2 + 40; by += 100; }
-            
-            ctx.fillText(b.i, bx, by);
-            bx += 80;
+            // Draw Ring Background
+            ctx.beginPath();
+            ctx.arc(x, circleY, 70, 0, 2 * Math.PI);
+            ctx.strokeStyle = '#f3f4f6';
+            ctx.lineWidth = 15;
+            ctx.stroke();
+
+            // Draw Progress Ring
+            const pct = col.count / col.total;
+            ctx.beginPath();
+            ctx.arc(x, circleY, 70, -0.5 * Math.PI, (2 * pct * Math.PI) - 0.5 * Math.PI);
+            ctx.strokeStyle = col.color;
+            ctx.lineWidth = 15;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+
+            // Draw Text
+            ctx.fillStyle = '#1f2937';
+            ctx.font = 'bold 40px Inter, sans-serif';
+            ctx.fillText(`${col.count}/${col.total}`, x, circleY + 15);
+
+            ctx.fillStyle = '#6b7280';
+            ctx.font = 'bold 18px Inter, sans-serif';
+            ctx.fillText(col.label.toUpperCase(), x, circleY + 130);
         });
-
-        ctx.globalAlpha = 1.0;
-        ctx.filter = 'none';
 
         // 6. Footer
         ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 50px Inter, sans-serif'; 
-        ctx.fillText("GBword.com", width / 2, height - 90);
+        ctx.textAlign = 'center';
         
-        ctx.font = '30px Inter, sans-serif';
-        ctx.fillText("Play Daily & Create Words", width / 2, height - 40);
+        // Teaser Text
+        ctx.font = 'italic 30px serif';
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        ctx.fillText("Can you find them all?", width / 2, height - 120);
+
+        // URL
+        ctx.font = 'bold 40px Inter, sans-serif'; 
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText("GBword.com", width / 2, height - 60);
 
         return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
     },
@@ -2180,11 +2213,11 @@ const ShareManager = {
         UIManager.showPostVoteMessage("Generating image...");
         try {
             const blob = await this.generateImage();
-            const file = new File([blob], 'my-gbword-stats.png', { type: 'image/png' });
+            const file = new File([blob], 'gbword-stats.png', { type: 'image/png' });
             
             const shareData = {
-                title: 'My Stats',
-                text: 'Check out my Good Word / Bad Word stats! 🗳️\n\nPlay now at http://good-word.onrender.com/',
+                title: 'My Progress',
+                text: `I've found ${Object.values(State.data.badges).filter(Boolean).length} secrets in Good Word / Bad Word! Can you beat my streak? 🗳️`,
                 url: 'http://good-word.onrender.com/',
                 files: [file]
             };
