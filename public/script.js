@@ -1103,38 +1103,61 @@ const ThemeManager = {
         document.body.classList.add(`theme-${t}`);
         State.save('currentTheme', t);
         
-        // --- BANANA TEXTURE INJECTION (Fixed with !important) ---
+        // --- BANANA TEXTURE INJECTION (Procedural Organic) ---
         if (t === 'banana') {
             if (!document.getElementById('banana-style')) {
                 const s = document.createElement('style');
                 s.id = 'banana-style';
-                // We use !important to force the image over any Tailwind bg colors
+                // We use Prime Numbers for background-size to prevent grid alignment
                 s.innerHTML = `
                     body.theme-banana {
-                        background-color: #f7e98e !important;
-                        background-image: 
-                            radial-gradient(circle, rgba(92, 64, 51, 0.3) 1px, transparent 1.5px),
-                            radial-gradient(circle, rgba(92, 64, 51, 0.3) 1.5px, transparent 2.5px),
-                            repeating-linear-gradient(90deg, transparent, transparent 40px, rgba(139, 69, 19, 0.05) 40px, rgba(139, 69, 19, 0.05) 41px),
-                            radial-gradient(ellipse at center, rgba(101, 67, 33, 0.15) 0%, transparent 60%) !important;
+                        background-color: #e8d776 !important; /* Ripe Banana Yellow */
                         
+                        background-image: 
+                            /* 1. Small Speckles (Sharp, dark brown) */
+                            radial-gradient(circle at 15% 25%, rgba(66, 41, 24, 0.7) 1px, transparent 2px),
+                            radial-gradient(circle at 70% 65%, rgba(66, 41, 24, 0.6) 1.5px, transparent 2.5px),
+                            
+                            /* 2. Medium Spots (Scattered) */
+                            radial-gradient(circle at 30% 80%, rgba(85, 55, 30, 0.5) 2px, transparent 4px),
+                            radial-gradient(circle at 90% 10%, rgba(85, 55, 30, 0.4) 3px, transparent 6px),
+                            
+                            /* 3. Large Soft Bruises (Wide, faint areas) */
+                            radial-gradient(ellipse at 50% 50%, rgba(101, 67, 33, 0.1) 0%, transparent 50%),
+                            
+                            /* 4. Horizontal/Diagonal Fibers (The "Streaky" look) */
+                            repeating-linear-gradient(
+                                175deg, 
+                                transparent, 
+                                transparent 10px, 
+                                rgba(101, 67, 33, 0.05) 12px, 
+                                rgba(101, 67, 33, 0.08) 13px,
+                                transparent 25px
+                            ) !important;
+                        
+                        /* Prime numbers ensure patterns rarely align, destroying the grid look */
                         background-size: 
-                            30px 30px,
-                            170px 170px,
-                            100% 100%,
-                            400px 400px !important;
+                            413px 413px,   /* Speckles A */
+                            311px 311px,   /* Speckles B */
+                            587px 587px,   /* Medium Spots A */
+                            479px 479px,   /* Medium Spots B */
+                            700px 700px,   /* Bruises */
+                            100% 100%      /* Streaks */
+                            !important;
                             
                         background-position: 
                             0 0, 
-                            40px 60px,
-                            0 0, 
-                            100px 200px !important;
+                            40px 60px, 
+                            150px 20px, 
+                            -50px 100px,
+                            0 0,
+                            0 0 !important;
                             
                         background-attachment: fixed !important;
                     }
                     body.theme-banana #wordDisplay {
-                        color: #5c4033 !important;
-                        text-shadow: 1px 1px 0px rgba(255,255,255,0.5);
+                        color: #422918 !important; /* Deep Brown Text */
+                        text-shadow: 1px 1px 0px rgba(255,255,255,0.4);
                     }
                 `;
                 document.head.appendChild(s);
