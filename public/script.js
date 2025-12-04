@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.18.5', 
+    APP_VERSION: '5.18.6', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1154,24 +1154,13 @@ const Effects = {
     fishTimeout: null,
     spaceRareTimeout: null,
     snowmanTimeout: null,
-    
-    // NEW: Track the timer for shooting stars
     plymouthShooterTimeout: null, 
     
     plymouth(a) { 
         const c = DOM.theme.effects.plymouth; 
-        
-        // CLEAR TIMER if theme is disabled or refreshing
         if (this.plymouthShooterTimeout) clearTimeout(this.plymouthShooterTimeout);
-        
-        if (!a) { 
-            c.innerHTML = ''; 
-            return 
-        } 
-        
+        if (!a) { c.innerHTML = ''; return } 
         c.innerHTML = ''; 
-        
-        // 1. Existing Static Stars
         for (let i = 0; i < 100; i++) { 
             const s = document.createElement('div'); 
             s.className = 'star-particle'; 
@@ -1183,53 +1172,29 @@ const Effects = {
             s.style.animationDelay = `${Math.random()*2}s`; 
             c.appendChild(s) 
         }
-        
-        // 2. Start Shooting Star Loop
         this.spawnPlymouthShooter();
     },
 
     spawnPlymouthShooter() {
         if (State.data.currentTheme !== 'plymouth') return;
         const c = DOM.theme.effects.plymouth;
-
-        // Create Star Element
         const s = document.createElement('div');
-        
-        // Style it to look like a glowing streak
         Object.assign(s.style, {
-            position: 'absolute',
-            width: '100px',
-            height: '2px',
-            background: 'linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,1))', // Fade tail
-            transform: 'rotate(-35deg)',
-            boxShadow: '0 0 8px rgba(255,255,255,0.8)',
-            zIndex: '10',
-            pointerEvents: 'none',
-            borderRadius: '100%',
-            // Random start position (Top half of screen, spread horizontally)
-            top: Math.random() * 40 + '%',      
-            left: Math.random() * 80 + 10 + '%', 
+            position: 'absolute', width: '100px', height: '2px',
+            background: 'linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,1))',
+            transform: 'rotate(-35deg)', boxShadow: '0 0 8px rgba(255,255,255,0.8)',
+            zIndex: '10', pointerEvents: 'none', borderRadius: '100%',
+            top: Math.random() * 40 + '%', left: Math.random() * 80 + 10 + '%', 
         });
-
         c.appendChild(s);
-
-        // Animate using Web Animations API
-        const travelDist = Math.random() * 300 + 200; // Distance
-        const duration = Math.random() * 400 + 600;   // Speed
-
+        const travelDist = Math.random() * 300 + 200; 
+        const duration = Math.random() * 400 + 600;
         const anim = s.animate([
             { transform: 'translate(0, 0) rotate(-35deg)', opacity: 0 },
             { transform: 'translate(0, 0) rotate(-35deg)', opacity: 1, offset: 0.1 },
             { transform: `translate(-${travelDist}px, ${travelDist/2}px) rotate(-35deg)`, opacity: 0 }
-        ], {
-            duration: duration,
-            easing: 'ease-out'
-        });
-
-        // Cleanup DOM after animation
+        ], { duration: duration, easing: 'ease-out' });
         anim.onfinish = () => s.remove();
-
-        // Recursively call with random delay (Every 4 to 12 seconds)
         this.plymouthShooterTimeout = setTimeout(() => this.spawnPlymouthShooter(), Math.random() * 8000 + 4000);
     },
 
@@ -1241,7 +1206,6 @@ const Effects = {
         if (!active) { c.innerHTML = ''; return; }
         c.innerHTML = '';
         
-        // Create Bubbles
         const cl = [10, 30, 70, 90];
         for (let i = 0; i < 40; i++) {
             const p = document.createElement('div');
@@ -1254,14 +1218,13 @@ const Effects = {
             c.appendChild(p);
         }
 
-        // Spawn Fish Logic
         const spawnFish = () => {
             if (!DOM.theme.effects.bubble.checkVisibility()) return;
             
             const fishData = {
                 '🐟': { k: 'fish', msg: "Gotcha! 🐟" },
                 '🐠': { k: 'tropical', msg: "So colorful! 🐠" },
-                '🐡': { k: 'puffer', msg: "" }, // Msg handled in click
+                '🐡': { k: 'puffer', msg: "" }, 
                 '🦈': { k: 'shark', msg: "You're gonna need a bigger boat! 🦈" }
             };
             
@@ -1275,102 +1238,90 @@ const Effects = {
             inner.className = 'submarine-fish-inner';
             inner.textContent = fishEmoji;
             
-            // Track scale/clicks for pufferfish
-            inner.dataset.clicks = "0";
+            // --- FIX 1: Force block display to ensure scaling works ---
+            inner.style.display = 'block'; 
+            inner.style.lineHeight = '1';
             
+            inner.dataset.clicks = "0";
             wrap.appendChild(inner);
             
             const startLeft = Math.random() > 0.5; 
             const duration = Math.random() * 15 + 10;
             
             // Set initial direction
-            const dirStr = startLeft ? "scaleX(-1)" : "scaleX(1)";
-            inner.style.transform = dirStr;
+            // If starting left, look right (scaleX(-1)). If starting right, look left (scaleX(1)).
+            const baseDir = startLeft ? -1 : 1;
+            inner.style.transform = `scaleX(${baseDir})`;
             
             wrap.style.transition = `left ${duration}s linear`;
             wrap.style.top = Math.random() * 80 + 10 + 'vh'; 
             wrap.style.left = startLeft ? '-100px' : '110vw';
             
-            // --- CLICK HANDLER (CATCH) ---
             wrap.onclick = (e) => {
                 e.stopPropagation();
                 
-                // 1. Special Pufferfish Logic
+                // --- SPECIAL PUFFERFISH LOGIC ---
                 if (fishEmoji === '🐡') {
                     let clicks = parseInt(inner.dataset.clicks) || 0;
                     
-                    // Logic: 
-                    // 1. If clicks < 5, there is a chance to grow instead of catch.
-                    // 2. If clicks >= 5, it's too big, we catch it.
-                    // 3. Random Chance: 25% catch immediately, 75% grow.
-                    
                     const canGrow = clicks < 5;
                     const roll = Math.random();
-                    const shouldCatch = !canGrow || (roll < 0.25); // 25% chance to catch early
+                    // 25% chance to be caught early, otherwise grow
+                    const shouldCatch = !canGrow || (roll < 0.25); 
                     
                     if (!shouldCatch) {
-                        // --- GROW MODE ---
                         clicks++;
                         inner.dataset.clicks = clicks;
-                        State.unlockBadge('puffer'); // Unlock badge on first poke
+                        State.unlockBadge('puffer');
                         
-                        // Scale calculation: 1.0 -> 1.6 -> 2.2 -> 2.8 -> 3.4 -> 4.0
+                        // Scale increases: 1 -> 1.6 -> 2.2 ...
                         const newScale = 1 + (clicks * 0.6);
                         
-                        // Apply Transform (Scale + Maintain Direction)
+                        // --- FIX 2: Simplified scaling math ---
+                        // Multiply the X-scale by baseDir to keep it facing the right way
                         inner.style.transition = "transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)";
-                        inner.style.transform = `scale(${newScale}) ${dirStr}`;
+                        inner.style.transform = `scale(${newScale * baseDir}, ${newScale})`;
                         
-                        // Custom Puffer Messages
                         const puffMsgs = ["Wanna fight?", "I'm bigger than your dad", "I'll spike you!"];
                         const rMsg = puffMsgs[Math.floor(Math.random() * puffMsgs.length)];
                         UIManager.showPostVoteMessage(rMsg);
                         
-                        return; // EXIT: Do not remove element, continue floating
+                        return; // Keep fish alive
                     }
-                    // If shouldCatch is true, we fall through to the Standard Catch Logic below
                 }
 
-                // 2. Standard Catch Logic
+                // --- STANDARD CATCH LOGIC ---
                 const data = fishData[fishEmoji];
                 State.unlockBadge(data.k);
                 
-                // Update Stats
                 State.data.fishStats.caught++;
                 State.save('fishStats', State.data.fishStats);
                 
-                // CHECK NEW ACHIEVEMENT (250 caught)
                 if (State.data.fishStats.caught >= 250) {
                     State.unlockBadge('angler');
                 }
                 
-                // Feedback
                 UIManager.showPostVoteMessage(data.msg);
                 
-                // Remove Animation
                 wrap.style.transition = 'opacity 0.2s, transform 0.2s';
                 wrap.style.opacity = '0';
                 wrap.style.transform = 'scale(1.5)'; 
                 setTimeout(() => wrap.remove(), 200);
             };
-            // -----------------------------
 
             c.appendChild(wrap);
-            
             requestAnimationFrame(() => { 
                 wrap.style.left = startLeft ? '110vw' : '-100px'; 
             });
-            
             setTimeout(() => { if(wrap.parentNode) wrap.remove(); }, duration * 1000);
             this.fishTimeout = setTimeout(spawnFish, Math.random() * 7000 + 3000);
         };
         spawnFish();
     },
-snow() {
+
+    snow() {
         const c = DOM.theme.effects.snow;
         c.innerHTML = '';
-        
-        // 1. Standard Background Snow
         for (let i = 0; i < 60; i++) {
             const f = document.createElement('div');
             f.className = 'snow-particle';
@@ -1384,82 +1335,47 @@ snow() {
             f.style.animationDelay = `-${Math.random()*15}s`;
             c.appendChild(f);
         }
-
-        // 2. Dynamic Snowman Spawner (Mobile Fixed)
         if (this.snowmanTimeout) clearTimeout(this.snowmanTimeout);
-
         const spawnSnowman = () => {
             if (State.data.currentTheme !== 'winter') return;
-
             const sm = document.createElement('div');
             sm.className = 'snow-particle'; 
             sm.textContent = '⛄';
-            
-            // Explicitly set position to ensure mobile rendering
             Object.assign(sm.style, {
-                position: 'absolute', // Ensure it floats correctly
-                fontSize: '2.5rem',
-                width: 'auto',
-                height: 'auto',
-                opacity: '1',
-                left: `${Math.random() * 85 + 5}vw`, 
-                top: '-15vh', // Start slightly higher
-                filter: 'drop-shadow(1px 1px 2px rgba(0,0,0,0.3))',
-                cursor: 'pointer',
-                zIndex: '101',
-                pointerEvents: 'auto',
-                animation: 'none', 
+                position: 'absolute', fontSize: '2.5rem', width: 'auto', height: 'auto',
+                opacity: '1', left: `${Math.random() * 85 + 5}vw`, top: '-15vh', 
+                filter: 'drop-shadow(1px 1px 2px rgba(0,0,0,0.3))', cursor: 'pointer',
+                zIndex: '101', pointerEvents: 'auto', animation: 'none', 
                 transition: 'top 8s linear, transform 8s ease-in-out'
             });
-            
-            // Interaction Handler (Handles both Touch and Click)
             const handleInteract = (e) => {
-                e.stopPropagation();
-                e.preventDefault(); // Prevent double-firing on some devices
+                e.stopPropagation(); e.preventDefault();
                 State.unlockBadge('snowman');
                 UIManager.showPostVoteMessage("Do you want to build a snowman? ⛄");
-                
                 sm.style.transition = 'transform 0.2s, opacity 0.2s';
                 sm.style.transform = 'scale(1.5)';
                 sm.style.opacity = '0';
                 setTimeout(() => sm.remove(), 200);
             };
-
-            // Attach both listeners for mobile responsiveness
             sm.addEventListener('mousedown', handleInteract);
             sm.addEventListener('touchstart', handleInteract, { passive: false });
-            
             c.appendChild(sm);
-
-            // --- CRITICAL MOBILE FIX: Force Reflow ---
-            // Reading offsetWidth forces the browser to paint the starting frame (-15vh)
-            // before we apply the ending frame (110vh).
             void sm.offsetWidth; 
-
-            // Trigger Animation
             requestAnimationFrame(() => {
                 sm.style.top = '110vh'; 
                 sm.style.transform = `rotate(${Math.random() * 360}deg)`; 
             });
-
-            // Cleanup
             setTimeout(() => { if (sm.parentNode) sm.remove(); }, 9000);
-
-            // Schedule Next (15s - 45s)
             this.snowmanTimeout = setTimeout(spawnSnowman, Math.random() * 30000 + 15000);
         };
-
-        // Start Loop
         this.snowmanTimeout = setTimeout(spawnSnowman, Math.random() * 5000 + 5000);
     },
 	
     summer() { const c = DOM.theme.effects.summer; c.innerHTML = ''; const g = document.createElement('div'); g.className = 'summer-grass'; c.appendChild(g); for (let i = 0; i < 8; i++) { const d = document.createElement('div'); d.className = `summer-cloud v${Math.floor(Math.random()*3)+1}`; const w = Math.random() * 100 + 100; d.style.width = `${w}px`; d.style.height = `${w*.35}px`; d.style.top = `${Math.random()*60}%`; d.style.animationDuration = `${Math.random()*60+60}s`; d.style.animationDelay = `-${Math.random()*100}s`; c.appendChild(d) } },
     
-halloween(active) {
-        // --- 1. CLEANUP ---
+    halloween(active) {
         if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
         if (this.webRaf) cancelAnimationFrame(this.webRaf);
-        
         if (!active) {
             const old = document.getElementById('spider-wrap');
             if (old) old.remove();
@@ -1467,78 +1383,47 @@ halloween(active) {
             if (oldWeb) oldWeb.remove();
             return;
         }
-
-        // --- 2. CREATE SPIDER (IF MISSING) ---
         let wrap = document.getElementById('spider-wrap');
-        
         if (!wrap) {
             wrap = document.createElement('div');
             wrap.id = 'spider-wrap';
-            
             Object.assign(wrap.style, {
-                position: 'fixed', 
-                left: '50%', 
-                top: '-15vh', 
-                zIndex: '102',
-                transition: 'left 4s ease-in-out', 
-                pointerEvents: 'none' 
+                position: 'fixed', left: '50%', top: '-15vh', zIndex: '102',
+                transition: 'left 4s ease-in-out', pointerEvents: 'none' 
             });
-            
             const eaten = State.data.insectStats.eaten || 0;
             const scale = Math.min(0.6 + (eaten * 0.005), 1.3).toFixed(2);
-            
             wrap.innerHTML = `
                 <div id="spider-anchor" style="transform: scale(${scale}); transform-origin: top center;">
                     <div id="spider-thread" style="width: 2px; background: rgba(255,255,255,0.6); margin: 0 auto; height: 0; transition: height 4s ease-in-out;"></div>
                     <div id="spider-body" style="font-size: 3rem; margin-top: -10px; cursor: pointer; position: relative; z-index: 2; pointer-events: auto; transition: transform 1s ease;">
                         🕷️
                         <div id="spider-bubble" style="
-                            opacity: 0; 
-                            position: absolute; 
-                            bottom: 100%; 
-                            left: 50%; 
-                            transform: translateX(-50%); 
-                            margin-bottom: 8px; 
-                            background: white; 
-                            color: black; 
-                            padding: 6px 12px; 
-                            border-radius: 12px; 
-                            font-size: 14px; 
-                            font-weight: bold; 
-                            font-family: sans-serif;
-                            white-space: nowrap !important;
-                            width: auto !important;
-                            min-width: 0 !important;
-                            max-width: none !important;
-                            pointer-events: none; 
-                            transition: opacity 0.3s; 
-                            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-                            z-index: 10;
+                            opacity: 0; position: absolute; bottom: 100%; left: 50%; 
+                            transform: translateX(-50%); margin-bottom: 8px; background: white; 
+                            color: black; padding: 6px 12px; border-radius: 12px; font-size: 14px; 
+                            font-weight: bold; font-family: sans-serif; white-space: nowrap !important;
+                            width: auto !important; min-width: 0 !important; max-width: none !important;
+                            pointer-events: none; transition: opacity 0.3s; 
+                            box-shadow: 0 4px 8px rgba(0,0,0,0.2); z-index: 10;
                         "></div>
                     </div>
                 </div>`;
             document.body.appendChild(wrap);
-            
             const body = wrap.querySelector('#spider-body');
             const bub = wrap.querySelector('#spider-bubble');
             const thread = wrap.querySelector('#spider-thread');
-
             body.onclick = (e) => {
                 e.stopPropagation();
                 State.unlockBadge('spider');
-                
                 const willFall = Math.random() < 0.2; 
                 const lines = willFall ? GAME_DIALOGUE.spider.pokeGrumpy : GAME_DIALOGUE.spider.pokeHappy;
-                
                 bub.innerText = lines[Math.floor(Math.random() * lines.length)];
                 bub.style.opacity = '1';
                 body.style.animation = 'shake 0.3s ease-in-out';
-
                 if (willFall) {
                     if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
-                    setTimeout(() => {
-                        this.spiderFall(wrap, thread, body, bub);
-                    }, 400); 
+                    setTimeout(() => { this.spiderFall(wrap, thread, body, bub); }, 400); 
                 } else {
                     setTimeout(() => {
                         body.style.animation = '';
@@ -1547,118 +1432,85 @@ halloween(active) {
                 }
             };
         }
-
-        // --- 3. THE BRAIN (Loop Logic) ---
         const body = wrap.querySelector('#spider-body');
         const bub = wrap.querySelector('#spider-bubble');
         const thread = wrap.querySelector('#spider-thread');
-
         const runDrop = () => {
             if (!document.body.contains(wrap)) return;
             if (wrap.classList.contains('hunting')) return;
-
             const actionRoll = Math.random();
             body.style.transform = 'rotate(0deg)'; 
-            thread.style.opacity = '1'; // Ensure thread is visible by default
-
-            // --- PRIORITY 1: CENTER DROP (70% Chance) ---
+            thread.style.opacity = '1'; 
             if (actionRoll < 0.7) {
                 const safeLeft = Math.random() * 60 + 20;
                 wrap.style.transition = 'left 3s ease-in-out'; 
                 wrap.style.left = safeLeft + '%';
-                
                 this.spiderTimeout = setTimeout(() => {
                     if (wrap.classList.contains('hunting')) return;
-
                     const peekHeight = Math.random() * 30 + 40; 
                     thread.style.transition = 'height 2.5s ease-in-out'; 
                     thread.style.height = peekHeight + 'vh';
-
-                    // Say Hello
                     setTimeout(() => {
                          if (wrap.classList.contains('hunting')) return;
-                         
                          const phrases = (typeof GAME_DIALOGUE !== 'undefined' && GAME_DIALOGUE.spider && GAME_DIALOGUE.spider.idle) 
-                            ? GAME_DIALOGUE.spider.idle 
-                            : ['Boo!', 'Hi!', '🕷️'];
-                         
+                            ? GAME_DIALOGUE.spider.idle : ['Boo!', 'Hi!', '🕷️'];
                          bub.innerText = phrases[Math.floor(Math.random() * phrases.length)];
                          bub.style.opacity = '1';
-
                          setTimeout(() => {
                              if (wrap.classList.contains('hunting')) return;
                              bub.style.opacity = '0';
                              thread.style.height = '0'; 
-                             
                              this.spiderTimeout = setTimeout(runDrop, Math.random() * 5000 + 5000);
                          }, 10000);
                     }, 2500);
                 }, 3000);
                 return;
             }
-
-            // --- PRIORITY 2: WALL CLIMB (20% Chance) ---
             if (actionRoll < 0.9) {
                 const isLeft = Math.random() > 0.5;
                 const wallX = isLeft ? 5 : 85; 
                 wrap.style.transition = 'left 4s ease-in-out';
                 wrap.style.left = wallX + '%';
-
                 this.spiderTimeout = setTimeout(() => {
                     if (wrap.classList.contains('hunting')) return;
-                    
-                    // FIX: Hide thread during wall climb so he doesn't look like he's planking
                     thread.style.opacity = '0'; 
                     body.style.transform = `rotate(${isLeft ? 90 : -90}deg)`;
-                    
                     const climbDepth = Math.random() * 40 + 30; 
                     thread.style.transition = 'height 4s ease-in-out';
                     thread.style.height = climbDepth + 'vh';
-
                     setTimeout(() => {
                          if (wrap.classList.contains('hunting')) return;
                          thread.style.height = '0'; 
                          setTimeout(() => {
                              body.style.transform = 'rotate(0deg)';
-                             thread.style.opacity = '1'; // Show thread again
+                             thread.style.opacity = '1'; 
                              this.spiderTimeout = setTimeout(runDrop, Math.random() * 5000 + 5000);
                          }, 4000);
                     }, 5000);
                 }, 4000);
                 return;
             }
-
-            // --- PRIORITY 3: QUICK SHIFT (10% Chance) ---
             const safeLeft = Math.random() * 60 + 20; 
             wrap.style.transition = 'left 4s ease-in-out'; 
             wrap.style.left = safeLeft + '%';
             this.spiderTimeout = setTimeout(runDrop, 2000);
         };
-
-        // --- 4. START LOOP ---
         this.spiderTimeout = setTimeout(runDrop, 1000);
-
-        // --- 5. WEB SETUP ---
         if (!document.getElementById('spider-web-corner')) {
             const web = document.createElement('div');
             web.id = 'spider-web-corner';
             web.innerHTML = `<svg id="web-svg" viewBox="0 0 300 300" style="width:300px;height:300px;position:fixed;top:0;right:0;z-index:55;pointer-events:auto;cursor:pointer;opacity:0.7;filter:drop-shadow(1px 1px 2px rgba(0,0,0,0.5))"></svg>`;
             document.body.appendChild(web);
-            
             web.onclick = () => {
                 if (MosquitoManager.state === 'stuck') {
                     this.spiderHunt(MosquitoManager.x, MosquitoManager.y, true);
                 } else {
 					State.data.insectStats.teased = (State.data.insectStats.teased || 0) + 1;
                     State.save('insectStats', State.data.insectStats);
-                   
                     if (State.data.insectStats.teased >= 50) State.unlockBadge('prankster');
-                    
                     this.spiderHunt(88, 20, false); 
                 }
             };
-            
-            // Web Animation Logic (Standard)
             const svg = document.getElementById('web-svg');
             const cx = 300, cy = 0;
             const baseAnchors = [{ x: 0, y: 0 }, { x: 60, y: 100 }, { x: 140, y: 200 }, { x: 220, y: 270 }, { x: 300, y: 300 }];
@@ -1705,64 +1557,42 @@ halloween(active) {
             animateWeb()
         }
     },
-    // --- NEW HUNTING LOGIC ---
-   spiderHunt(targetXPercent, targetYPercent, isFood) {
+    
+    spiderHunt(targetXPercent, targetYPercent, isFood) {
         const wrap = document.getElementById('spider-wrap');
         if (!wrap) return;
         const thread = wrap.querySelector('#spider-thread');
         const bub = wrap.querySelector('#spider-bubble');
         const body = wrap.querySelector('#spider-body');
         const anchor = document.getElementById('spider-anchor');
-
         if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
         wrap.classList.add('hunting');
         bub.style.opacity = '1';
-
         let phrases = isFood ? GAME_DIALOGUE.spider.hunting : GAME_DIALOGUE.spider.trickedStart;
         bub.innerText = phrases[Math.floor(Math.random() * phrases.length)];
-
-        // --- BOUNDS LOGIC ---
-        // If Food: Go to Food. 
-        // If Tease: Force WEB Coordinates (88, 20)
         const destX = isFood ? targetXPercent : 88;
         const destY = isFood ? targetYPercent : 20;
-
-        // 1. POSITION X (Fast scuttle)
         const currentX = parseFloat(wrap.style.left) || 50;
         const dist = Math.abs(currentX - destX);
         const moveTime = Math.max(dist * 8, 500); 
-        
         wrap.style.transition = `left ${moveTime}ms ease-in-out`;
         wrap.style.left = destX + '%';
-        
         body.style.transform = 'rotate(0deg)';
-
-        // 2. DROP Y
         this.spiderTimeout = setTimeout(() => {
-            
             let scale = 1;
             if (anchor && anchor.style.transform) {
                 const match = anchor.style.transform.match(/scale\(([^)]+)\)/);
                 if (match) scale = parseFloat(match[1]);
             }
-
             const dropVH = (destY + 10) / scale; 
-            
-            // SLOW DROP
             thread.style.transition = 'height 3s cubic-bezier(0.45, 0, 0.55, 1)'; 
             thread.style.height = dropVH + 'vh';
-
-            // 3. LAND & WAIT
             setTimeout(() => {
-                
-                // 4. ACTION
                 setTimeout(() => {
-                    
                     if (isFood && MosquitoManager.state === 'stuck') {
                         MosquitoManager.eat();
                         bub.innerText = "YUM!"; 
                         body.style.animation = 'shake 0.2s ease-in-out';
-                        
                         setTimeout(() => {
                             body.style.animation = '';
                             this.retreatSpider(thread, wrap, bub, '4s');
@@ -1772,59 +1602,35 @@ halloween(active) {
                         const angryPhrases = GAME_DIALOGUE.spider.trickedEnd;
                         bub.innerText = angryPhrases[Math.floor(Math.random() * angryPhrases.length)];
                         body.style.animation = 'shake 0.3s ease-in-out';
-                        
                         setTimeout(() => {
                             body.style.animation = '';
                             this.retreatSpider(thread, wrap, bub, '4s');
                         }, 1500);
                     }
-
                 }, 2000); 
-
             }, 3000); 
-
         }, moveTime);
     },
 
-    // --- NEW FALL MECHANIC ---
-spiderFall(wrap, thread, body, bub) {
+    spiderFall(wrap, thread, body, bub) {
         bub.style.opacity = '0';
-        
-        // 1. Cut Thread
         thread.style.transition = 'height 0.8s cubic-bezier(0.55, 0.085, 0.68, 0.53), opacity 0s linear';
         thread.style.opacity = '0'; 
-        
-        // 2. Gravity Drop
         requestAnimationFrame(() => {
-            thread.style.height = '120vh'; // Fly off bottom
+            thread.style.height = '120vh'; 
         });
-
-        // 3. CLIMB BACK UP SEQUENCE
         setTimeout(() => {
             thread.style.transition = 'none';
             wrap.style.transition = 'none';
-            
-            // Move anchor to WEB POSITION
             wrap.style.left = '88%'; 
-            
-            // Thread is fully extended (so body is at floor)
             thread.style.height = '120vh'; 
-            
-            // Force Reflow
             void wrap.offsetWidth; 
-
-            // Reattach thread
             thread.style.opacity = '1';
-            
-            // 4. ANIMATE CLIMB (Reel in)
             requestAnimationFrame(() => {
                 thread.style.transition = 'height 5s ease-in-out';
-                thread.style.height = '0'; // Pull body up to top
+                thread.style.height = '0'; 
             });
-            
             wrap.classList.remove('hunting');
-            
-            // Resume Idle
             setTimeout(() => this.halloween(true), 6000);
         }, 1500);
     },
@@ -1837,12 +1643,9 @@ spiderFall(wrap, thread, body, bub) {
         setTimeout(() => {
             bub.style.opacity = '0';
             wrap.classList.remove('hunting');
-            // Resume patrol
             this.halloween(true);
         }, parseFloat(duration) * 1000);
     },
-
-    
 
     ballpit(active) {
         const c = DOM.theme.effects.ballpit;
@@ -1931,6 +1734,7 @@ spiderFall(wrap, thread, body, bub) {
         };
         Physics.run()
     },
+    
     space(active) {
         const c = DOM.theme.effects.space;
         if (this.spaceRareTimeout) clearTimeout(this.spaceRareTimeout);
@@ -2271,7 +2075,7 @@ const UIManager = {
         if (eaten > 50 && eaten > saved) karmaTitle = "Spider Sympathiser 🕷️";
         if (saved > 50 && eaten > 50) karmaTitle = "Lord of the Flies 👑";
         if (d.badges.chopper) karmaTitle = "Air Traffic Controller 🚁";
-        if (d.badges.angler) karmaTitle = "Master Angler 🎣";
+        if (d.badges.angler) karmaTitle = "The Best in Brixham 🎣";
 
         DOM.profile.statsTitle.innerHTML = `${d.username ? d.username + "'s" : "Your"} Stats<br><span class="text-xs text-indigo-500 font-bold uppercase tracking-widest mt-1 block">${karmaTitle}</span>`;
 
@@ -2317,7 +2121,7 @@ const UIManager = {
             { k: 'judge', i: '⚖️', t: 'The Judge', d: 'Cast 1,000 votes!' },
             { k: 'bard', i: '✍️', t: 'The Bard', d: 'Contributed 5 accepted words' },
             { k: 'traveler', i: '🌍', t: 'The Traveller', d: 'Unlocked 5 different themes' },
-            { k: 'angler', i: '🔱', t: 'Master Angler', d: 'Caught 250 fish' }
+            { k: 'angler', i: '🔱', t: 'The Best in Brixham', d: 'Caught 250 fish' }
         ];
 
         // Helper to render badges
@@ -3446,7 +3250,6 @@ const InputHandler = {
 };
 
 // --- INITIALIZATION ---
-window.onload = Game.init.bind(Game);
 window.onload = Game.init.bind(Game);
 window.fEhPVHxCRUFDSHxIT0xJREFZfFNVTnxWQU = API; 
 
