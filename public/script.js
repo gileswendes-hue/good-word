@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.18.6', 
+    APP_VERSION: '5.18.7', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1219,7 +1219,8 @@ const Effects = {
         }
 
         const spawnFish = () => {
-            if (!DOM.theme.effects.bubble.checkVisibility()) return;
+            // FIX: Removed checkVisibility() which causes loop crashes on some browsers
+            if (State.data.currentTheme !== 'submarine') return;
             
             const fishData = {
                 '🐟': { k: 'fish', msg: "Gotcha! 🐟" },
@@ -1238,18 +1239,17 @@ const Effects = {
             inner.className = 'submarine-fish-inner';
             inner.textContent = fishEmoji;
             
-            // --- FIX 1: Force block display to ensure scaling works ---
+            // FIX: Force block display to ensure transform scaling works
             inner.style.display = 'block'; 
             inner.style.lineHeight = '1';
-            
             inner.dataset.clicks = "0";
+            
             wrap.appendChild(inner);
             
             const startLeft = Math.random() > 0.5; 
             const duration = Math.random() * 15 + 10;
             
             // Set initial direction
-            // If starting left, look right (scaleX(-1)). If starting right, look left (scaleX(1)).
             const baseDir = startLeft ? -1 : 1;
             inner.style.transform = `scaleX(${baseDir})`;
             
@@ -1257,10 +1257,13 @@ const Effects = {
             wrap.style.top = Math.random() * 80 + 10 + 'vh'; 
             wrap.style.left = startLeft ? '-100px' : '110vw';
             
+            // Cleanup timer
+            const cleanup = setTimeout(() => { if(wrap.parentNode) wrap.remove(); }, duration * 1000);
+
             wrap.onclick = (e) => {
                 e.stopPropagation();
                 
-                // --- SPECIAL PUFFERFISH LOGIC ---
+                // PUFFERFISH LOGIC
                 if (fishEmoji === '🐡') {
                     let clicks = parseInt(inner.dataset.clicks) || 0;
                     
@@ -1274,11 +1277,9 @@ const Effects = {
                         inner.dataset.clicks = clicks;
                         State.unlockBadge('puffer');
                         
-                        // Scale increases: 1 -> 1.6 -> 2.2 ...
                         const newScale = 1 + (clicks * 0.6);
                         
-                        // --- FIX 2: Simplified scaling math ---
-                        // Multiply the X-scale by baseDir to keep it facing the right way
+                        // FIX: Simplified scaling math to maintain direction
                         inner.style.transition = "transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)";
                         inner.style.transform = `scale(${newScale * baseDir}, ${newScale})`;
                         
@@ -1286,11 +1287,15 @@ const Effects = {
                         const rMsg = puffMsgs[Math.floor(Math.random() * puffMsgs.length)];
                         UIManager.showPostVoteMessage(rMsg);
                         
+                        // Prevent premature cleanup while interacting
+                        clearTimeout(cleanup);
+                        setTimeout(() => { if(wrap.parentNode) wrap.remove(); }, 5000);
+                        
                         return; // Keep fish alive
                     }
                 }
 
-                // --- STANDARD CATCH LOGIC ---
+                // CATCH LOGIC
                 const data = fishData[fishEmoji];
                 State.unlockBadge(data.k);
                 
@@ -1313,7 +1318,8 @@ const Effects = {
             requestAnimationFrame(() => { 
                 wrap.style.left = startLeft ? '110vw' : '-100px'; 
             });
-            setTimeout(() => { if(wrap.parentNode) wrap.remove(); }, duration * 1000);
+            
+            // Loop next fish
             this.fishTimeout = setTimeout(spawnFish, Math.random() * 7000 + 3000);
         };
         spawnFish();
