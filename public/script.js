@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.18.9', 
+    APP_VERSION: '5.18.7', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1223,7 +1223,7 @@ const Effects = {
             
             const fishData = {
                 '🐟': { k: 'fish', msg: "Gotcha! 🐟" },
-                '🐠': { k: 'tropical', msg: "So colorful! 🐠" },
+                '🐠': { k: 'tropical', msg: "So colourful! 🐠" },
                 '🐡': { k: 'puffer', msg: "" }, 
                 '🦈': { k: 'shark', msg: "You're gonna need a bigger boat! 🦈" }
             };
