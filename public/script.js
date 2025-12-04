@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.16.2', 
+    APP_VERSION: '5.16.3', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -2241,7 +2241,7 @@ openProfile() {
     }
 };
 
-// --- MODAL MANAGER (FIXED) ---
+
 const ModalManager = {
     toggle(id, show) {
         const e = DOM.modals[id];
@@ -2250,92 +2250,86 @@ const ModalManager = {
     },
     init() {
         document.getElementById('showSettingsButton').onclick = () => {
-            // Update UI
-            DOM.inputs.settings.tips.checked = State.data.settings.showTips;
-            DOM.inputs.settings.percentages.checked = State.data.settings.showPercentages;
-            DOM.inputs.settings.colorblind.checked = State.data.settings.colorblindMode;
-            DOM.inputs.settings.largeText.checked = State.data.settings.largeText;
-            if (DOM.inputs.settings.tilt) DOM.inputs.settings.tilt.checked = State.data.settings.enableTilt;
-            if (DOM.inputs.settings.mirror) DOM.inputs.settings.mirror.checked = State.data.settings.mirrorMode;
+            const s = State.data.settings;
+            // Target the container that holds the toggles
+            // (Assuming the HTML structure has a div with class 'space-y-4' inside the modal)
+            const container = document.getElementById('settingsModalContainer').querySelector('.space-y-4');
+            
+            if (container) {
+                // Helper to generate toggle HTML
+                const mkTog = (id, label, checked, color = 'text-indigo-600') => `
+                    <div class="flex items-center justify-between">
+                        <label for="${id}" class="text-lg font-medium text-gray-700">${label}</label>
+                        <input type="checkbox" id="${id}" ${checked ? 'checked' : ''} 
+                               class="h-6 w-6 ${color} border-gray-300 rounded focus:ring-indigo-500">
+                    </div>`;
 
-            // Inject Mute
-            if (!document.getElementById('toggleMute')) {
-                const container = DOM.inputs.settings.mirror ? (DOM.inputs.settings.mirror.closest('.space-y-4') || DOM.inputs.settings.mirror.parentElement.parentElement) : document.getElementById('settingsModalContainer').querySelector('.space-y-4');
-                if (container) {
-                    const div = document.createElement('div');
-                    div.className = "flex items-center justify-between";
-                    div.innerHTML = `<label for="toggleMute" class="text-lg font-medium text-gray-700">Mute All Sounds</label><input type="checkbox" id="toggleMute" class="h-6 w-6 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">`;
-                    container.appendChild(div);
-                    DOM.inputs.settings.mute = document.getElementById('toggleMute');
-                }
-            }
-            if (DOM.inputs.settings.mute) {
-                DOM.inputs.settings.mute.checked = State.data.settings.muteSounds;
-                DOM.inputs.settings.mute.onchange = e => {
-                    State.save('settings', { ...State.data.settings, muteSounds: e.target.checked });
-                    SoundManager.updateMute();
-                };
-            }
+                // Build the new categorized layout
+                let html = '';
 
-            // Inject Zero Votes
-            if (!document.getElementById('toggleZeroVotes')) {
-                const container = DOM.inputs.settings.mirror ? (DOM.inputs.settings.mirror.closest('.space-y-4') || DOM.inputs.settings.mirror.parentElement.parentElement) : document.getElementById('settingsModalContainer').querySelector('.space-y-4');
-                if (container) {
-                    const div = document.createElement('div');
-                    div.className = "flex items-center justify-between";
-                    div.innerHTML = `<label for="toggleZeroVotes" class="text-lg font-medium text-gray-700">Only 0/0 Words</label><input type="checkbox" id="toggleZeroVotes" class="h-6 w-6 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">`;
-                    container.appendChild(div);
-                    DOM.inputs.settings.zeroVotes = document.getElementById('toggleZeroVotes');
-                }
-            }
-            if (DOM.inputs.settings.zeroVotes) {
-                DOM.inputs.settings.zeroVotes.checked = State.data.settings.zeroVotesOnly;
-                DOM.inputs.settings.zeroVotes.onchange = e => {
+                // --- 1. SETTINGS ---
+                html += `<div class="mb-6"><h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 border-b border-gray-100 pb-1">Settings</h3><div class="space-y-4">`;
+                html += mkTog('togglePercentages', 'Show Vote Percentages', s.showPercentages);
+                html += mkTog('toggleTips', 'Show Tips & Hints', s.showTips);
+                html += mkTog('toggleZeroVotes', 'Show Only New Words (0/0)', s.zeroVotesOnly);
+                html += `</div></div>`;
+
+                // --- 2. ACCESSIBILITY ---
+                html += `<div class="mb-6"><h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 border-b border-gray-100 pb-1">Accessibility</h3><div class="space-y-4">`;
+                html += mkTog('toggleColorblind', 'Colourblind Mode', s.colorblindMode);
+                html += mkTog('toggleLargeText', 'Increase Text Size', s.largeText);
+                html += mkTog('toggleMute', 'Mute All Sounds', s.muteSounds);
+                html += mkTog('toggleKidsMode', '🧸 Kids Mode', s.kidsMode, 'text-pink-600');
+                html += `</div></div>`;
+
+                // --- 3. FUN ---
+                html += `<div><h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 border-b border-gray-100 pb-1">Fun</h3><div class="space-y-4">`;
+                html += mkTog('toggleTilt', 'Gravity Tilt (Default Theme)', s.enableTilt);
+                html += mkTog('toggleMirror', 'Mirror Mode', s.mirrorMode);
+                html += mkTog('toggleLights', '🎄 Christmas Lights', s.showLights, 'text-green-600');
+                html += `</div></div>`;
+
+                // Inject content
+                container.innerHTML = html;
+
+                // --- RE-ATTACH LISTENERS ---
+                // We must re-select elements because we just replaced the HTML
+                
+                // Settings Group
+                document.getElementById('togglePercentages').onchange = e => 
+                    State.save('settings', { ...State.data.settings, showPercentages: e.target.checked });
+                
+                document.getElementById('toggleTips').onchange = e => 
+                    State.save('settings', { ...State.data.settings, showTips: e.target.checked });
+                
+                document.getElementById('toggleZeroVotes').onchange = e => {
                     State.save('settings', { ...State.data.settings, zeroVotesOnly: e.target.checked });
                     Game.refreshData(true);
                 };
-            }
-			// Inject Kids Mode Toggle
-            if (!document.getElementById('toggleKidsMode')) {
-                const container = DOM.inputs.settings.mirror ? (DOM.inputs.settings.mirror.closest('.space-y-4') || DOM.inputs.settings.mirror.parentElement.parentElement) : document.getElementById('settingsModalContainer').querySelector('.space-y-4');
-                if (container) {
-                    const div = document.createElement('div');
-                    div.className = "flex items-center justify-between";
-                    div.innerHTML = `<label for="toggleKidsMode" class="text-lg font-bold text-pink-500">🧸 Kids Mode (Safe)</label><input type="checkbox" id="toggleKidsMode" class="h-6 w-6 text-pink-600 border-gray-300 rounded focus:ring-pink-500">`;
-                    container.appendChild(div);
-                }
-            }
-			// Inject Christmas Lights Toggle
-            if (!document.getElementById('toggleLights')) {
-                const container = DOM.inputs.settings.mirror ? (DOM.inputs.settings.mirror.closest('.space-y-4') || DOM.inputs.settings.mirror.parentElement.parentElement) : document.getElementById('settingsModalContainer').querySelector('.space-y-4');
-                if (container) {
-                    const div = document.createElement('div');
-                    div.className = "flex items-center justify-between";
-                    div.innerHTML = `<label for="toggleLights" class="text-lg font-medium text-green-600">🎄 Christmas Lights</label><input type="checkbox" id="toggleLights" class="h-6 w-6 text-green-600 border-gray-300 rounded focus:ring-green-500">`;
-                    container.appendChild(div);
-                }
-            }
-            
-            const lightsToggle = document.getElementById('toggleLights');
-            if (lightsToggle) {
-                lightsToggle.checked = State.data.settings.showLights;
-                lightsToggle.onchange = e => {
-                    State.save('settings', { ...State.data.settings, showLights: e.target.checked });
-                    Game.updateLights(); // Apply change immediately
+
+                // Accessibility Group
+                document.getElementById('toggleColorblind').onchange = e => {
+                    State.save('settings', { ...State.data.settings, colorblindMode: e.target.checked });
+                    Accessibility.apply();
                 };
-            }
-            
-            const kidsToggle = document.getElementById('toggleKidsMode');
-            if (kidsToggle) {
-                kidsToggle.checked = State.data.settings.kidsMode;
                 
-                // --- UPDATED PIN LOGIC (Prevents Lockout) ---
+                document.getElementById('toggleLargeText').onchange = e => {
+                    State.save('settings', { ...State.data.settings, largeText: e.target.checked });
+                    Accessibility.apply();
+                };
+
+                document.getElementById('toggleMute').onchange = e => {
+                    State.save('settings', { ...State.data.settings, muteSounds: e.target.checked });
+                    SoundManager.updateMute();
+                };
+
+                // Kids Mode Logic (with PIN protection)
+                const kidsToggle = document.getElementById('toggleKidsMode');
                 kidsToggle.onchange = e => {
                     const turningOn = e.target.checked;
                     const savedPin = State.data.settings.kidsModePin;
 
                     if (turningOn) {
-                        // ENABLING KIDS MODE
                         if (!savedPin) {
                             const newPin = prompt("Set a PIN to protect Adult Mode:");
                             if (newPin && newPin.trim().length > 0) {
@@ -2343,65 +2337,51 @@ const ModalManager = {
                                 alert(`Kids Mode Active! Remember your PIN: ${newPin}`);
                                 Game.refreshData(true);
                             } else {
-                                e.target.checked = false; // Cancelled
+                                e.target.checked = false; 
                             }
                         } else {
                             State.save('settings', { ...State.data.settings, kidsMode: true });
                             Game.refreshData(true);
                         }
                     } else {
-                        // DISABLING KIDS MODE
-                        
-                        // FAILSAFE: If no PIN is saved, just turn it off (fixes your issue)
                         if (!savedPin) {
                             State.save('settings', { ...State.data.settings, kidsMode: false });
                             Game.refreshData(true);
                             return;
                         }
-
                         const inputPin = prompt("Enter PIN to return to Adult Mode:");
                         if (inputPin === savedPin) {
                             State.save('settings', { ...State.data.settings, kidsMode: false });
                             Game.refreshData(true);
                         } else {
                             alert("Incorrect PIN! Staying in Kids Mode.");
-                            e.target.checked = true; // Flip back
+                            e.target.checked = true; 
                         }
                     }
                 };
-            }
 
+                // Fun Group
+                document.getElementById('toggleTilt').onchange = e => {
+                    State.save('settings', { ...State.data.settings, enableTilt: e.target.checked });
+                    TiltManager.refresh();
+                };
+
+                document.getElementById('toggleMirror').onchange = e => {
+                    State.save('settings', { ...State.data.settings, mirrorMode: e.target.checked });
+                    Accessibility.apply();
+                };
+
+                document.getElementById('toggleLights').onchange = e => {
+                    State.save('settings', { ...State.data.settings, showLights: e.target.checked });
+                    Game.updateLights();
+                };
+            }
+            
             this.toggle('settings', true)
         };
 
+        // --- Standard Modal Listeners ---
         document.getElementById('closeSettingsModal').onclick = () => this.toggle('settings', false);
-        
-        DOM.inputs.settings.tips.onchange = e => State.save('settings', { ...State.data.settings, showTips: e.target.checked });
-        DOM.inputs.settings.percentages.onchange = e => State.save('settings', { ...State.data.settings, showPercentages: e.target.checked });
-        
-        DOM.inputs.settings.colorblind.onchange = e => {
-            const v = e.target.checked;
-            State.save('settings', { ...State.data.settings, colorblindMode: v });
-            Accessibility.apply()
-        };
-        DOM.inputs.settings.largeText.onchange = e => {
-            const v = e.target.checked;
-            State.save('settings', { ...State.data.settings, largeText: v });
-            Accessibility.apply()
-        };
-        if (DOM.inputs.settings.tilt) {
-            DOM.inputs.settings.tilt.onchange = e => {
-                State.save('settings', { ...State.data.settings, enableTilt: e.target.checked });
-                TiltManager.refresh(); 
-            };
-        }
-        if (DOM.inputs.settings.mirror) {
-            DOM.inputs.settings.mirror.onchange = e => {
-                State.save('settings', { ...State.data.settings, mirrorMode: e.target.checked });
-                Accessibility.apply();
-            };
-        }
-
         DOM.game.buttons.custom.onclick = () => {
             DOM.inputs.newWord.value = '';
             DOM.inputs.modalMsg.textContent = '';
@@ -2430,6 +2410,7 @@ const ModalManager = {
         };
         DOM.header.userStatsBar.onclick = () => UIManager.openProfile();
         document.getElementById('closeProfileModal').onclick = () => this.toggle('profile', false);
+        
         document.getElementById('saveUsernameBtn').onclick = async () => {
             const n = DOM.inputs.username.value.trim(),
                 m = DOM.profile.saveMsg;
@@ -2454,6 +2435,7 @@ const ModalManager = {
             }
             setTimeout(() => m.textContent = '', 2000)
         };
+        
         document.getElementById('shareProfileButton').onclick = () => ShareManager.share();
         DOM.daily.closeBtn.onclick = () => {
             this.toggle('dailyResult', false);
@@ -2500,10 +2482,9 @@ const ModalManager = {
             };
             reader.readAsDataURL(file);
         };
-     Object.keys(DOM.modals).forEach(k => {
-            // FIX: Force modal above spider web immediately
+        
+        Object.keys(DOM.modals).forEach(k => {
             DOM.modals[k].style.zIndex = '150'; 
-            
             DOM.modals[k].addEventListener('click', e => {
                 if (e.target === DOM.modals[k]) this.toggle(k, false);
             });
