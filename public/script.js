@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.19.5', 
+    APP_VERSION: '5.19.6', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1233,6 +1233,7 @@ const Effects = {
         if (!active) { c.innerHTML = ''; return; }
         c.innerHTML = '';
         
+        // Background Bubbles
         const cl = [10, 30, 70, 90];
         for (let i = 0; i < 40; i++) {
             const p = document.createElement('div');
@@ -1245,18 +1246,47 @@ const Effects = {
             c.appendChild(p);
         }
 
+        // --- INJECT OCTOPUS ANIMATION ---
+        // We add a dynamic style for the octopus movement
+        if (!document.getElementById('octopus-style')) {
+            const style = document.createElement('style');
+            style.id = 'octopus-style';
+            style.innerHTML = `
+                @keyframes octopus-swim {
+                    0% { transform: translateY(0) scale(1, 1); }
+                    25% { transform: translateY(-30px) scale(0.9, 1.1); }
+                    50% { transform: translateY(0) scale(1, 1); }
+                    75% { transform: translateY(30px) scale(1.1, 0.9); }
+                    100% { transform: translateY(0) scale(1, 1); }
+                }
+                .octopus-motion { animation: octopus-swim 2s ease-in-out infinite; }
+            `;
+            document.head.appendChild(style);
+        }
+
         const spawnFish = () => {
             if (State.data.currentTheme !== 'submarine') return;
             
             const fishData = {
-                '🐟': { k: 'fish', msg: "Gotcha! 🐟" },
-                '🐠': { k: 'tropical', msg: "So colourful! 🐠" },
-                '🐡': { k: 'puffer', msg: "" }, 
-                '🦈': { k: 'shark', msg: "You're gonna need a bigger boat! 🦈" }
+                '🐟': { k: 'fish', msg: "Gotcha! 🐟", speed: [12, 18] },
+                '🐠': { k: 'tropical', msg: "So colourful! 🐠", speed: [15, 25] },
+                '🐡': { k: 'puffer', msg: "", speed: [20, 30] }, 
+                '🦈': { k: 'shark', msg: "You're gonna need a bigger boat! 🦈", speed: [6, 10] },
+                '🐙': { k: 'tropical', msg: "Wiggle wiggle! 🐙", speed: [18, 25] },
+                '🥾': { k: 'prankster', msg: "Keep the ocean clean!", speed: [15, 20] } // Boot uses Prankster or just filler
             };
             
-            const keys = Object.keys(fishData);
-            const fishEmoji = keys[Math.floor(Math.random() * keys.length)];
+            // Weighted Random Selection (Make Boot and Octopus rarer)
+            const roll = Math.random();
+            let fishEmoji = '🐟';
+            if (roll < 0.05) fishEmoji = '🥾';      // 5% Boot
+            else if (roll < 0.15) fishEmoji = '🐙'; // 10% Octopus
+            else if (roll < 0.25) fishEmoji = '🦈'; // 10% Shark
+            else if (roll < 0.40) fishEmoji = '🐡'; // 15% Puffer
+            else if (roll < 0.70) fishEmoji = '🐠'; // 30% Tropical
+            else fishEmoji = '🐟';                  // 30% Standard
+
+            const config = fishData[fishEmoji];
             
             const wrap = document.createElement('div');
             wrap.className = 'submarine-fish-wrap';
@@ -1264,30 +1294,57 @@ const Effects = {
             const inner = document.createElement('div');
             inner.className = 'submarine-fish-inner';
             inner.textContent = fishEmoji;
+            inner.dataset.clicks = "0";
             
-            // Base styles for correct scaling
+            // Base styles
             inner.style.display = 'block'; 
             inner.style.lineHeight = '1';
-            inner.style.fontSize = '3rem'; // Start large
-            inner.style.transition = 'font-size 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), transform 0.2s';
+            inner.style.fontSize = fishEmoji === '🐙' ? '3.5rem' : '3rem';
             
-            inner.dataset.clicks = "0";
+            // Octopus Special Class
+            if (fishEmoji === '🐙') {
+                inner.classList.add('octopus-motion');
+            }
+            
+            // Boot Special Rotation
+            if (fishEmoji === '🥾') {
+                inner.style.animation = 'spin-slow 10s linear infinite';
+                // Add keyframe if missing, but we'll stick to simple rotation
+                inner.style.transition = 'transform 0.5s';
+            } else {
+                inner.style.transition = 'font-size 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), transform 0.2s';
+            }
+
             wrap.appendChild(inner);
             
-            const startLeft = Math.random() > 0.5; 
-            const duration = Math.random() * 15 + 10;
-            
-            // Set initial direction (Left = -1, Right = 1)
+            // --- DIRECTION & SPEED LOGIC ---
+            const isBoot = fishEmoji === '🥾';
+            const duration = Math.random() * (config.speed[1] - config.speed[0]) + config.speed[0];
+            const startLeft = Math.random() > 0.5;
             const baseDir = startLeft ? -1 : 1;
-            inner.style.transform = `scaleX(${baseDir})`;
-            
-            wrap.style.transition = `left ${duration}s linear`;
-            wrap.style.top = Math.random() * 80 + 10 + 'vh'; 
-            wrap.style.left = startLeft ? '-100px' : '110vw';
-            
+
+            if (isBoot) {
+                // BOOT: Moves Bottom -> Top
+                wrap.style.left = (Math.random() * 80 + 10) + '%'; // Random X position
+                wrap.style.top = '110vh'; // Start below screen
+                wrap.style.transition = `top ${duration}s linear`;
+                
+                // Slight random rotation for the boot
+                inner.style.transform = `rotate(${Math.random() * 360}deg)`;
+            } else {
+                // FISH: Moves Left/Right
+                wrap.style.top = Math.random() * 80 + 10 + 'vh'; 
+                wrap.style.left = startLeft ? '-150px' : '110vw';
+                wrap.style.transition = `left ${duration}s linear`;
+                
+                // Octopus doesn't need scaleX usually, but generic fish do
+                if (fishEmoji !== '🥾') {
+                    inner.style.transform = `scaleX(${baseDir})`;
+                }
+            }
+
             // --- HELPER: Speech Bubble ---
             const showBubble = (text) => {
-                // Remove existing bubble if any
                 const old = wrap.querySelector('.fish-bubble');
                 if(old) old.remove();
 
@@ -1303,7 +1360,6 @@ const Effects = {
                     marginBottom: '10px'
                 });
                 b.textContent = text;
-                
                 const arrow = document.createElement('div');
                 Object.assign(arrow.style, {
                     position: 'absolute', top: '100%', left: '50%', marginLeft: '-6px',
@@ -1312,28 +1368,22 @@ const Effects = {
                 });
                 b.appendChild(arrow);
                 wrap.appendChild(b);
-                
                 requestAnimationFrame(() => b.style.opacity = '1');
-                setTimeout(() => {
-                    if(b.parentNode) {
-                        b.style.opacity = '0';
-                        setTimeout(() => b.remove(), 300);
-                    }
-                }, 2000);
+                setTimeout(() => { if(b.parentNode) { b.style.opacity = '0'; setTimeout(() => b.remove(), 300); } }, 2000);
             };
 
             // --- ESCAPE HANDLER (Sea Shepherd) ---
-            // Triggered ONLY when the transition finishes (fish leaves screen)
             const handleEscape = (e) => {
-                // Ensure we are catching the movement transition, not a bubble opacity change
-                if (e.propertyName !== 'left') return;
+                // Check correct property based on type
+                const prop = isBoot ? 'top' : 'left';
+                if (e.propertyName !== prop) return;
 
                 if (wrap.parentNode) {
-                    State.data.fishStats.spared = (State.data.fishStats.spared || 0) + 1;
-                    State.save('fishStats', State.data.fishStats);
-                    
-                    if (State.data.fishStats.spared >= 250) {
-                        State.unlockBadge('shepherd');
+                    // Boots don't count towards Sea Shepherd (they are trash)
+                    if (!isBoot) {
+                        State.data.fishStats.spared = (State.data.fishStats.spared || 0) + 1;
+                        State.save('fishStats', State.data.fishStats);
+                        if (State.data.fishStats.spared >= 250) State.unlockBadge('shepherd');
                     }
                     wrap.remove();
                 }
@@ -1347,10 +1397,8 @@ const Effects = {
                 // --- PUFFERFISH GROW LOGIC ---
                 if (fishEmoji === '🐡') {
                     let clicks = parseInt(inner.dataset.clicks) || 0;
-                    
                     const canGrow = clicks < 5;
                     const roll = Math.random();
-                    // 25% chance to catch early, otherwise grow
                     const shouldCatch = !canGrow || (roll < 0.25); 
                     
                     if (!shouldCatch) {
@@ -1358,38 +1406,30 @@ const Effects = {
                         inner.dataset.clicks = clicks;
                         State.unlockBadge('puffer');
                         
-                        // GROWTH: Use font-size for reliable scaling
-                        // Start: 3rem. Add 1.5rem per click.
                         const newSize = 3 + (clicks * 1.5);
                         inner.style.fontSize = `${newSize}rem`;
-                        
                         Haptics.light();
 
                         const puffMsgs = ["Wanna fight?", "I'm bigger than your dad.", "I'll spike you!", "Stop it!", "I am big scary bear!", "Why not pick on someone your own size?"];
                         const rMsg = puffMsgs[Math.floor(Math.random() * puffMsgs.length)];
-                        
                         showBubble(rMsg);
-                        
-                        return; // Exit: Do not catch yet
+                        return; 
                     }
                 }
 
                 // --- CATCH LOGIC ---
                 const data = fishData[fishEmoji];
-                State.unlockBadge(data.k);
+                if (data.k) State.unlockBadge(data.k);
                 
-                State.data.fishStats.caught++;
-                State.save('fishStats', State.data.fishStats);
-                
-                if (State.data.fishStats.caught >= 250) {
-                    State.unlockBadge('angler');
+                // Boots don't count as "Fish Caught" stats
+                if (!isBoot) {
+                    State.data.fishStats.caught++;
+                    State.save('fishStats', State.data.fishStats);
+                    if (State.data.fishStats.caught >= 250) State.unlockBadge('angler');
                 }
                 
-                if (fishEmoji === '🐡') {
-                    UIManager.showPostVoteMessage("Popped!");
-                } else {
-                    UIManager.showPostVoteMessage(data.msg);
-                }
+                if (fishEmoji === '🐡') UIManager.showPostVoteMessage("Popped!");
+                else UIManager.showPostVoteMessage(data.msg);
                 
                 SoundManager.playPop();
 
@@ -1397,41 +1437,42 @@ const Effects = {
                 const rect = wrap.getBoundingClientRect();
                 const centerX = rect.left + rect.width / 2;
                 const centerY = rect.top + rect.height / 2;
-                const pColor = fishEmoji === '🐡' ? '#eab308' : '#60a5fa';
+                const pColor = fishEmoji === '🐡' ? '#eab308' : (isBoot ? '#78350f' : '#60a5fa');
 
                 for (let i = 0; i < 12; i++) {
                     const p = document.createElement('div');
                     p.style.cssText = `position: fixed; width: 8px; height: 8px; background: ${pColor}; border-radius: 50%; pointer-events: none; z-index: 102; left: ${centerX}px; top: ${centerY}px;`;
                     document.body.appendChild(p);
-
                     const angle = Math.random() * Math.PI * 2;
                     const velocity = Math.random() * 60 + 20;
                     const tx = Math.cos(angle) * velocity;
                     const ty = Math.sin(angle) * velocity;
-
                     const anim = p.animate([
                         { transform: 'translate(0,0) scale(1)', opacity: 1 },
                         { transform: `translate(${tx}px, ${ty}px) scale(0)`, opacity: 0 }
                     ], { duration: 400, easing: 'ease-out' });
-
                     anim.onfinish = () => p.remove();
                 }
 
-                // Remove Fish
                 wrap.style.transition = 'opacity 0.1s, transform 0.1s';
                 wrap.style.opacity = '0';
                 wrap.style.transform = 'scale(0)'; 
-                
                 setTimeout(() => wrap.remove(), 100);
             };
 
             c.appendChild(wrap);
+            
+            // Trigger Movement
             requestAnimationFrame(() => { 
-                wrap.style.left = startLeft ? '110vw' : '-100px'; 
+                if (isBoot) {
+                    wrap.style.top = '-20%'; // Float off top
+                } else {
+                    wrap.style.left = startLeft ? '110vw' : '-150px'; 
+                }
             });
             
-            // Loop next fish
-            this.fishTimeout = setTimeout(spawnFish, Math.random() * 7000 + 3000);
+            // Loop next fish (1-5s delay)
+            this.fishTimeout = setTimeout(spawnFish, Math.random() * 4000 + 1000);
         };
         spawnFish();
     },
@@ -1500,7 +1541,7 @@ const Effects = {
             if (oldWeb) oldWeb.remove();
             return;
         }
-        let wrap = document.getElementById('spider-wrap');
+let wrap = document.getElementById('spider-wrap');
         if (!wrap) {
             wrap = document.createElement('div');
             wrap.id = 'spider-wrap';
@@ -1510,6 +1551,8 @@ const Effects = {
             });
             const eaten = State.data.insectStats.eaten || 0;
             const scale = Math.min(0.6 + (eaten * 0.005), 1.3).toFixed(2);
+            
+ 
             wrap.innerHTML = `
                 <div id="spider-anchor" style="transform: scale(${scale}); transform-origin: top center;">
                     <div id="spider-thread" style="width: 2px; background: rgba(255,255,255,0.6); margin: 0 auto; height: 0; transition: height 4s ease-in-out;"></div>
@@ -1518,18 +1561,20 @@ const Effects = {
                         <div id="spider-bubble" style="
                             opacity: 0; position: absolute; bottom: 100%; left: 50%; 
                             transform: translateX(-50%); margin-bottom: 8px; background: white; 
-                            color: black; padding: 6px 12px; border-radius: 12px; font-size: 14px; 
+                            color: #1f2937; padding: 6px 12px; border-radius: 12px; font-size: 14px; 
                             font-weight: bold; font-family: sans-serif; white-space: nowrap !important;
-                            width: auto !important; min-width: 0 !important; max-width: none !important;
+                            width: max-content !important; min-width: 0 !important; max-width: none !important;
                             pointer-events: none; transition: opacity 0.3s; 
-                            box-shadow: 0 4px 8px rgba(0,0,0,0.2); z-index: 10;
+                            box-shadow: 0 2px 5px rgba(0,0,0,0.2); border: 1px solid #e5e7eb; z-index: 10;
                         "></div>
                     </div>
                 </div>`;
             document.body.appendChild(wrap);
+            
             const body = wrap.querySelector('#spider-body');
             const bub = wrap.querySelector('#spider-bubble');
             const thread = wrap.querySelector('#spider-thread');
+            
             body.onclick = (e) => {
                 e.stopPropagation();
                 State.unlockBadge('spider');
