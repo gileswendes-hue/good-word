@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.18.3', 
+    APP_VERSION: '5.18.4', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -194,7 +194,8 @@ const State = {
             tropical: localStorage.getItem('tropicalBadgeUnlocked') === 'true',
             puffer: localStorage.getItem('pufferBadgeUnlocked') === 'true',
             shark: localStorage.getItem('sharkBadgeUnlocked') === 'true',
-            snowman: localStorage.getItem('snowmanBadgeUnlocked') === 'true'
+            snowman: localStorage.getItem('snowmanBadgeUnlocked') === 'true',
+			angler: localStorage.getItem('anglerBadgeUnlocked') === 'true'
         },
         settings: JSON.parse(localStorage.getItem('userSettings')) || {
             showTips: true,
@@ -1257,11 +1258,10 @@ const Effects = {
         const spawnFish = () => {
             if (!DOM.theme.effects.bubble.checkVisibility()) return;
             
-            // Define Fish Data
             const fishData = {
                 '🐟': { k: 'fish', msg: "Gotcha! 🐟" },
                 '🐠': { k: 'tropical', msg: "So colorful! 🐠" },
-                '🐡': { k: 'puffer', msg: "Spiky! 🐡" },
+                '🐡': { k: 'puffer', msg: "" }, // Msg handled in click
                 '🦈': { k: 'shark', msg: "You're gonna need a bigger boat! 🦈" }
             };
             
@@ -1274,6 +1274,8 @@ const Effects = {
             const inner = document.createElement('div');
             inner.className = 'submarine-fish-inner';
             inner.textContent = fishEmoji;
+            // Track scale for pufferfish
+            inner.dataset.scale = "1";
             wrap.appendChild(inner);
             
             const startLeft = Math.random() > 0.5; 
@@ -1289,21 +1291,47 @@ const Effects = {
             wrap.onclick = (e) => {
                 e.stopPropagation();
                 
-                // 1. Award Badge
+                // 1. Special Pufferfish Logic
+                if (fishEmoji === '🐡') {
+                    // Unlock badge if not already (you found it)
+                    State.unlockBadge('puffer');
+                    
+                    // Grow instead of die
+                    let currentScale = parseFloat(inner.dataset.scale) || 1;
+                    currentScale += 0.5;
+                    inner.dataset.scale = currentScale;
+                    
+                    // Maintain direction while scaling
+                    const dir = startLeft ? "scaleX(-1)" : "scaleX(1)";
+                    inner.style.transition = "transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)";
+                    inner.style.transform = `scale(${currentScale}) ${dir}`;
+                    
+                    const puffMsgs = ["Wanna fight?", "I'm bigger than your dad", "I'll spike you!"];
+                    const rMsg = puffMsgs[Math.floor(Math.random() * puffMsgs.length)];
+                    UIManager.showPostVoteMessage(rMsg);
+                    return; // EXIT: Do not remove element, do not count as catch
+                }
+
+                // 2. Standard Catch Logic
                 const data = fishData[fishEmoji];
                 State.unlockBadge(data.k);
                 
-                // 2. Update Stats
+                // Update Stats
                 State.data.fishStats.caught++;
                 State.save('fishStats', State.data.fishStats);
                 
-                // 3. Feedback
+                // CHECK NEW ACHIEVEMENT (250 caught)
+                if (State.data.fishStats.caught >= 250) {
+                    State.unlockBadge('angler');
+                }
+                
+                // Feedback
                 UIManager.showPostVoteMessage(data.msg);
                 
-                // 4. Remove
+                // Remove
                 wrap.style.transition = 'opacity 0.2s, transform 0.2s';
                 wrap.style.opacity = '0';
-                wrap.style.transform = 'scale(1.5)'; // Pop effect
+                wrap.style.transform = 'scale(1.5)'; 
                 setTimeout(() => wrap.remove(), 200);
             };
             // -----------------------------
@@ -2224,6 +2252,7 @@ const UIManager = {
         if (eaten > 50 && eaten > saved) karmaTitle = "Spider Sympathiser 🕷️";
         if (saved > 50 && eaten > 50) karmaTitle = "Lord of the Flies 👑";
         if (d.badges.chopper) karmaTitle = "Air Traffic Controller 🚁";
+        if (d.badges.angler) karmaTitle = "Master Angler 🎣";
 
         DOM.profile.statsTitle.innerHTML = `${d.username ? d.username + "'s" : "Your"} Stats<br><span class="text-xs text-indigo-500 font-bold uppercase tracking-widest mt-1 block">${karmaTitle}</span>`;
 
@@ -2232,7 +2261,6 @@ const UIManager = {
         DOM.profile.themes.textContent = `${userCount} / ${totalAvailable}`;
         
         // --- BADGE DEFINITIONS ---
-        // Added 't' (Title) and 'd' (Desc) defaults will be handled in the click logic if missing
         const row1 = [
             { k: 'cake', i: '🎂', w: 'CAKE' }, 
             { k: 'llama', i: '🦙', w: 'LLAMA' }, 
@@ -2243,7 +2271,6 @@ const UIManager = {
             { k: 'bone', i: '🦴', w: 'MASON' }
         ];
         
-        // UPDATED: Added custom descriptions
         const row2 = [
             { k: 'poop', i: '💩', d: 'squelch.' }, 
             { k: 'penguin', i: '🐧', d: 'noot noot!' }, 
@@ -2269,13 +2296,12 @@ const UIManager = {
             { k: 'prankster', i: '🃏', t: 'Original Prankster', d: 'Teased the spider 50 times' },
             { k: 'judge', i: '⚖️', t: 'The Judge', d: 'Cast 1,000 votes!' },
             { k: 'bard', i: '✍️', t: 'The Bard', d: 'Contributed 5 accepted words' },
-            { k: 'traveler', i: '🌍', t: 'The Traveller', d: 'Unlocked 5 different themes' }
+            { k: 'traveler', i: '🌍', t: 'The Traveller', d: 'Unlocked 5 different themes' },
+            { k: 'angler', i: '🔱', t: 'The Best in Brixham', d: 'Caught 250 fish' } 
         ];
 
-        // Helper to render badges
         const renderRow = (list) => `<div class="flex flex-wrap justify-center gap-3 text-3xl w-full">` + list.map(x => {
             const un = d.badges[x.k];
-            // Format a default title from the key (e.g., "cake" -> "Cake")
             const defTitle = x.k.charAt(0).toUpperCase() + x.k.slice(1);
             
             return `<span class="badge-item relative ${un?'':'opacity-25 grayscale'} transition-all duration-300 transform ${un?'hover:scale-125 cursor-pointer':''}" 
@@ -2287,7 +2313,6 @@ const UIManager = {
                     >${x.i}</span>`
         }).join('') + `</div>`;
 
-        // Bug Jar Logic
         let bugJarHTML = '';
         if (saved > 0) {
             const bugCount = Math.min(saved, 40);
@@ -2312,7 +2337,7 @@ const UIManager = {
             `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🎖️ Achievements</div>` + renderRow(row3) +
             bugJarHTML;
 
-        // --- GLOBAL TOOLTIP HELPER ---
+        // ... (Keep the rest of the tooltip and click listener logic exactly as it was) ...
         const showTooltip = (targetEl, title, desc) => {
             document.querySelectorAll('.global-badge-tooltip').forEach(t => t.remove());
             const tip = document.createElement('div');
@@ -2350,23 +2375,17 @@ const UIManager = {
             el.onclick = (e) => {
                 e.stopPropagation();
                 const isLocked = el.classList.contains('grayscale');
-                
                 if (isLocked) {
-                    // Show "Locked" message
                     let desc = "Keep playing to unlock!";
                     if (el.dataset.word) desc = "Find the hidden word to unlock.";
                     else if (['poop','penguin','scorpion','mushroom','needle','diamond'].includes(el.dataset.key)) desc = "Find this item in the Ball Pit!";
-                    
-                    // FIXED: Don't show the "Found" message (el.dataset.desc) if it's locked!
                     showTooltip(el, "Locked: " + el.dataset.title, desc);
                     return;
                 }
-
                 if (el.dataset.word) {
                     Game.loadSpecial(el.dataset.word);
                     ModalManager.toggle('profile', false);
                 } else {
-                    // It's an unlocked item or achievement -> Show details
                     showTooltip(el, el.dataset.title, el.dataset.desc);
                 }
             }
@@ -2388,6 +2407,8 @@ const UIManager = {
         });
         ModalManager.toggle('profile', true);
     },
+	
+	
     displayWord(w) {
         if (!w) {
             this.showMessage("No words available!");
