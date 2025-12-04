@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.19.3', 
+    APP_VERSION: '5.19.4', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1265,7 +1265,7 @@ const Effects = {
             inner.className = 'submarine-fish-inner';
             inner.textContent = fishEmoji;
             
-            // --- FIX 1: Force block display so transforms work ---
+            // Force block so transforms work correctly
             inner.style.display = 'block'; 
             inner.style.lineHeight = '1';
             
@@ -1277,28 +1277,60 @@ const Effects = {
             
             // Set initial direction (Left = -1, Right = 1)
             const baseDir = startLeft ? -1 : 1;
-            inner.style.transform = `scaleX(${baseDir})`;
+            
+            // Apply Initial Transform
+            inner.style.transform = `scale(${baseDir}, 1)`;
             
             wrap.style.transition = `left ${duration}s linear`;
             wrap.style.top = Math.random() * 80 + 10 + 'vh'; 
             wrap.style.left = startLeft ? '-100px' : '110vw';
             
-            // --- NEW: Escape Handler ---
+            // --- HELPER: Speech Bubble ---
+            const showBubble = (text) => {
+                const b = document.createElement('div');
+                Object.assign(b.style, {
+                    position: 'absolute', bottom: '120%', left: '50%', 
+                    transform: 'translateX(-50%)', background: 'white', color: '#1f2937', 
+                    padding: '6px 12px', borderRadius: '12px', fontSize: '14px', 
+                    fontWeight: 'bold', whiteSpace: 'nowrap', zIndex: '20',
+                    pointerEvents: 'none', opacity: '0', transition: 'opacity 0.2s',
+                    boxShadow: '0 2px 5px rgba(0,0,0,0.2)', border: '1px solid #e5e7eb'
+                });
+                b.textContent = text;
+                
+                // Little arrow for the bubble
+                const arrow = document.createElement('div');
+                Object.assign(arrow.style, {
+                    position: 'absolute', top: '100%', left: '50%', marginLeft: '-6px',
+                    borderWidth: '6px', borderStyle: 'solid', 
+                    borderColor: 'white transparent transparent transparent'
+                });
+                b.appendChild(arrow);
+                wrap.appendChild(b);
+                
+                // Animate in and out
+                requestAnimationFrame(() => b.style.opacity = '1');
+                setTimeout(() => {
+                    b.style.opacity = '0';
+                    setTimeout(() => b.remove(), 300);
+                }, 2000);
+            };
+
+            // --- ESCAPE HANDLER (Sea Shepherd) ---
             const handleEscape = () => {
                 if (wrap.parentNode) {
-                    // Fish still exists, so it escaped!
                     State.data.fishStats.spared = (State.data.fishStats.spared || 0) + 1;
                     State.save('fishStats', State.data.fishStats);
                     
                     if (State.data.fishStats.spared >= 250) {
                         State.unlockBadge('shepherd');
                     }
-                    
                     wrap.remove();
                 }
             };
 
-            // Initial Cleanup Timer (Triggers when fish leaves screen)
+            // The timer matches the swim duration. 
+            // We ONLY clear this if we catch the fish.
             let cleanup = setTimeout(handleEscape, duration * 1000);
 
             wrap.onclick = (e) => {
@@ -1307,30 +1339,40 @@ const Effects = {
                 // --- PUFFERFISH GROW LOGIC ---
                 if (fishEmoji === '🐡') {
                     let clicks = parseInt(inner.dataset.clicks) || 0;
-                    // ... (existing variable checks) ...
+                    
                     const canGrow = clicks < 5;
                     const roll = Math.random();
+                    // 25% chance to catch early, otherwise grow
                     const shouldCatch = !canGrow || (roll < 0.25); 
                     
                     if (!shouldCatch) {
-                        // ... (existing growth logic) ...
                         clicks++;
                         inner.dataset.clicks = clicks;
                         State.unlockBadge('puffer');
+                        
+                        // GROWTH FACTOR:
+                        // 1 click = 1.8x, 2 clicks = 2.6x ... 5 clicks = 5.0x
                         const newScale = 1 + (clicks * 0.8);
+                        
                         inner.style.transition = "transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)";
                         inner.style.transformOrigin = "center center"; 
-                        inner.style.transform = `scaleX(${baseDir}) scale(${newScale})`;
+                        
+                        // FIX: Use single scale() with X and Y.
+                        // X = direction * scale, Y = scale
+                        inner.style.transform = `scale(${baseDir * newScale}, ${newScale})`;
+                        
                         Haptics.light();
+
                         const puffMsgs = ["Wanna fight?", "I'm bigger than your dad.", "I'll spike you!", "Stop it!", "I am big scary bear!", "Why not pick on someone your own size?"];
                         const rMsg = puffMsgs[Math.floor(Math.random() * puffMsgs.length)];
-                        UIManager.showPostVoteMessage(rMsg);
                         
-                        // FIX: Reset cleanup timer using handleEscape
-                        clearTimeout(cleanup);
-                        cleanup = setTimeout(handleEscape, 5000); 
+                        // Show Bubble instead of bottom message
+                        showBubble(rMsg);
                         
-                        return; 
+                        // NOTE: We do NOT clear 'cleanup' here. 
+                        // The fish keeps swimming and will exit naturally.
+                        
+                        return; // Exit: Do not catch yet
                     }
                 }
 
@@ -1339,22 +1381,26 @@ const Effects = {
                 State.unlockBadge(data.k);
                 
                 State.data.fishStats.caught++;
-                State.save('fishStats', State.data.fishStats); // <--- Fixed line
+                State.save('fishStats', State.data.fishStats);
                 
                 if (State.data.fishStats.caught >= 250) {
                     State.unlockBadge('angler');
                 }
                 
-                UIManager.showPostVoteMessage(data.msg);
-
-                // 1. Play Sound
+                if (fishEmoji === '🐡') {
+                    // Specific message for catching the puffer
+                    UIManager.showPostVoteMessage("Popped!");
+                } else {
+                    UIManager.showPostVoteMessage(data.msg);
+                }
+                
                 SoundManager.playPop();
 
-                // 2. Particle Effect
+                // Particle Effect
                 const rect = wrap.getBoundingClientRect();
                 const centerX = rect.left + rect.width / 2;
                 const centerY = rect.top + rect.height / 2;
-                const pColor = fishEmoji === '🐡' ? '#eab308' : '#60a5fa'; // Yellow or Blue
+                const pColor = fishEmoji === '🐡' ? '#eab308' : '#60a5fa';
 
                 for (let i = 0; i < 12; i++) {
                     const p = document.createElement('div');
@@ -1374,10 +1420,13 @@ const Effects = {
                     anim.onfinish = () => p.remove();
                 }
 
-                // 3. Remove Fish
+                // Remove Fish
                 wrap.style.transition = 'opacity 0.1s, transform 0.1s';
                 wrap.style.opacity = '0';
-                wrap.style.transform = 'scale(0)'; // Shrink away instantly
+                wrap.style.transform = 'scale(0)'; 
+                
+                // Clear the escape timer so it's not counted as spared
+                clearTimeout(cleanup);
                 setTimeout(() => wrap.remove(), 100);
             };
 
