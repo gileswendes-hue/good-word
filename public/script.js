@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.18.11', 
+    APP_VERSION: '5.19.1', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -519,6 +519,30 @@ playBad() {
         gain.connect(this.masterGain);
         osc.start();
         osc.stop(this.ctx.currentTime + 0.3);
+    },
+	
+	playPop() {
+        if (State.data.settings.muteSounds) return;
+        if (!this.ctx) this.init();
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+
+        const t = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        // A quick frequency drop simulates a "pop"
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(800, t);
+        osc.frequency.exponentialRampToValueAtTime(100, t + 0.1);
+
+        gain.gain.setValueAtTime(0.5, t);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        
+        osc.start();
+        osc.stop(t + 0.15);
     },
 
     playUnlock() {
@@ -1259,7 +1283,7 @@ const Effects = {
             // Cleanup timer
             let cleanup = setTimeout(() => { if(wrap.parentNode) wrap.remove(); }, duration * 1000);
 
-          wrap.onclick = (e) => {
+wrap.onclick = (e) => {
                 e.stopPropagation();
                 
                 // --- PUFFERFISH GROW LOGIC ---
@@ -1285,6 +1309,10 @@ const Effects = {
                         // FIX: Separate scaling to prevent overwrite
                         inner.style.transform = `scaleX(${baseDir}) scale(${newScale})`;
                         
+                        // Play a small "inflation" sound (re-using the pop at a lower pitch, or just the pop)
+                        // For now, let's keep it silent or use a light haptic
+                        Haptics.light();
+
                         const puffMsgs = ["Wanna fight?", "I'm bigger than your dad.", "I'll spike you!", "Stop it!", "I am big scary bear!", "Why not pick on someone your own size?"];
                         const rMsg = puffMsgs[Math.floor(Math.random() * puffMsgs.length)];
                         UIManager.showPostVoteMessage(rMsg);
@@ -1310,11 +1338,14 @@ const Effects = {
                 
                 UIManager.showPostVoteMessage(data.msg);
 
-                // --- PARTICLE POP EFFECT ---
+                // 1. Play Sound
+                SoundManager.playPop();
+
+                // 2. Particle Effect
                 const rect = wrap.getBoundingClientRect();
                 const centerX = rect.left + rect.width / 2;
                 const centerY = rect.top + rect.height / 2;
-                const pColor = fishEmoji === '🐡' ? '#eab308' : '#60a5fa'; // Yellow for puffer, Blue for others
+                const pColor = fishEmoji === '🐡' ? '#eab308' : '#60a5fa'; // Yellow or Blue
 
                 for (let i = 0; i < 12; i++) {
                     const p = document.createElement('div');
@@ -1334,7 +1365,7 @@ const Effects = {
                     anim.onfinish = () => p.remove();
                 }
 
-                // Remove the fish
+                // 3. Remove Fish
                 wrap.style.transition = 'opacity 0.1s, transform 0.1s';
                 wrap.style.opacity = '0';
                 wrap.style.transform = 'scale(0)'; // Shrink away instantly
