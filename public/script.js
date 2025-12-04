@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.17.4', 
+    APP_VERSION: '5.17.5', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -2111,9 +2111,33 @@ openProfile() {
         DOM.profile.themes.textContent = `${userCount} / ${totalAvailable}`;
         
         // --- BADGE DEFINITIONS ---
-        const row1 = [{ k: 'cake', i: '🎂', w: 'CAKE' }, { k: 'llama', i: '🦙', w: 'LLAMA' }, { k: 'potato', i: '🥔', w: 'POTATO' }, { k: 'squirrel', i: '🐿️', w: 'SQUIRREL' }, { k: 'spider', i: '🕷️', w: 'SPIDER' }, { k: 'germ', i: '🦠', w: 'GERM' }, { k: 'bone', i: '🦴', w: 'MASON' }];
-        const row2 = [{ k: 'poop', i: '💩' }, { k: 'penguin', i: '🐧' }, { k: 'scorpion', i: '🦂' }, { k: 'mushroom', i: '🍄' }, { k: 'needle', i: '💉' }, { k: 'diamond', i: '💎' },{ k: 'rock', i: '🤘' }, { k: 'chopper', i: '🚁' }, { k: 'snowman', i: '⛄' }];
-        const row_fish = [{ k: 'fish', i: '🐟' }, { k: 'tropical', i: '🐠' }, { k: 'puffer', i: '🐡' }, { k: 'shark', i: '🦈' }];
+        // Added 't' (Title) and 'd' (Desc) defaults will be handled in the click logic if missing
+        const row1 = [
+            { k: 'cake', i: '🎂', w: 'CAKE' }, 
+            { k: 'llama', i: '🦙', w: 'LLAMA' }, 
+            { k: 'potato', i: '🥔', w: 'POTATO' }, 
+            { k: 'squirrel', i: '🐿️', w: 'SQUIRREL' }, 
+            { k: 'spider', i: '🕷️', w: 'SPIDER' }, 
+            { k: 'germ', i: '🦠', w: 'GERM' }, 
+            { k: 'bone', i: '🦴', w: 'MASON' }
+        ];
+        const row2 = [
+            { k: 'poop', i: '💩' }, 
+            { k: 'penguin', i: '🐧' }, 
+            { k: 'scorpion', i: '🦂' }, 
+            { k: 'mushroom', i: '🍄' }, 
+            { k: 'needle', i: '💉' }, 
+            { k: 'diamond', i: '💎' },
+            { k: 'rock', i: '🤘' }, 
+            { k: 'chopper', i: '🚁' }, 
+            { k: 'snowman', i: '⛄' }
+        ];
+        const row_fish = [
+            { k: 'fish', i: '🐟' }, 
+            { k: 'tropical', i: '🐠' }, 
+            { k: 'puffer', i: '🐡' }, 
+            { k: 'shark', i: '🦈' }
+        ];
         
         const row3 = [
             { k: 'exterminator', i: '☠️', t: 'The Exterminator', d: 'Fed 100 bugs to the spider' }, 
@@ -2125,13 +2149,17 @@ openProfile() {
         ];
 
         // Helper to render badges
-        const renderRow = (list, isAchieve = false) => `<div class="flex flex-wrap justify-center gap-3 text-3xl w-full">` + list.map(x => {
+        const renderRow = (list) => `<div class="flex flex-wrap justify-center gap-3 text-3xl w-full">` + list.map(x => {
             const un = d.badges[x.k];
-            return `<span class="relative ${un?'':'opacity-25 grayscale'} transition-all duration-300 transform ${un?'hover:scale-125 cursor-pointer badge-item':''}" 
-                    title="${un? (x.t || 'Unlocked') : 'Locked'}" 
+            // Format a default title from the key (e.g., "cake" -> "Cake")
+            const defTitle = x.k.charAt(0).toUpperCase() + x.k.slice(1);
+            
+            return `<span class="badge-item relative ${un?'':'opacity-25 grayscale'} transition-all duration-300 transform ${un?'hover:scale-125 cursor-pointer':''}" 
+                    title="${un? (x.t || defTitle) : 'Locked'}" 
+                    data-key="${x.k}"
                     ${x.w ? `data-word="${x.w}"` : ''} 
-                    ${x.t ? `data-title="${x.t}"` : ''} 
-                    ${x.d ? `data-desc="${x.d}"` : ''}
+                    data-title="${x.t || defTitle}" 
+                    data-desc="${x.d || 'Keep playing to find this item!'}"
                     >${x.i}</span>`
         }).join('') + `</div>`;
 
@@ -2141,7 +2169,7 @@ openProfile() {
             const bugCount = Math.min(saved, 40);
             let bugsStr = '';
             for(let i=0; i<bugCount; i++) {
-                bugsStr += `<span class="jar-bug" style="cursor: pointer; display: inline-block; padding: 2px; transition: transform 0.1s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">🐞</span>`;
+                bugsStr += `<span class="jar-bug" style="cursor: pointer; display: inline-block; padding: 2px; transition: transform 0.1s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">🦟</span>`;
             }
             bugJarHTML = `<div class="w-full text-center my-4 p-3 bg-green-50 rounded-xl border border-green-100 relative overflow-hidden">
                 <div class="text-[10px] font-bold text-green-600 mb-1 uppercase tracking-wider">The Bug Jar (${saved})</div>
@@ -2157,26 +2185,40 @@ openProfile() {
             `<div class="text-xs font-bold text-gray-500 uppercase mb-2 mt-2">🏆 Word Badges</div>` + renderRow(row1) + 
             `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🧸 Found Items</div>` + renderRow(row2) + 
             `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🌊 Aquarium</div>` + renderRow(row_fish) + 
-            `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🎖️ Achievements</div>` + renderRow(row3, true) +
+            `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🎖️ Achievements</div>` + renderRow(row3) +
             bugJarHTML;
 
-        // --- REUSABLE TOOLTIP HELPER ---
-        const showTooltip = (el, title, desc) => {
-            // Clear existing
-            b.querySelectorAll('.badge-tooltip').forEach(t => t.remove());
+        // --- GLOBAL TOOLTIP HELPER ---
+        // This attaches to BODY to avoid 'overflow:hidden' cutting it off
+        const showTooltip = (targetEl, title, desc) => {
+            // 1. Remove any existing global tooltips
+            document.querySelectorAll('.global-badge-tooltip').forEach(t => t.remove());
 
+            // 2. Create Tooltip
             const tip = document.createElement('div');
-            tip.className = 'badge-tooltip';
+            tip.className = 'global-badge-tooltip';
             
             Object.assign(tip.style, {
-                position: 'absolute', bottom: '120%', left: '50%', transform: 'translateX(-50%)',
-                backgroundColor: '#1f2937', color: 'white', padding: '8px 12px', borderRadius: '8px',
-                fontSize: '12px', textAlign: 'center', width: 'max-content', maxWidth: '200px',
-                zIndex: '200', boxShadow: '0 4px 6px rgba(0,0,0,0.3)', pointerEvents: 'none', lineHeight: '1.4'
+                position: 'fixed', // Fixed to viewport so it floats over everything
+                backgroundColor: '#1f2937', 
+                color: 'white', 
+                padding: '8px 12px', 
+                borderRadius: '8px',
+                fontSize: '12px', 
+                textAlign: 'center', 
+                width: 'max-content', 
+                maxWidth: '200px',
+                zIndex: '9999', // Higher than any modal
+                boxShadow: '0 4px 6px rgba(0,0,0,0.3)', 
+                pointerEvents: 'none', 
+                lineHeight: '1.4',
+                opacity: '0',
+                transition: 'opacity 0.2s'
             });
 
             tip.innerHTML = `<div class="font-bold text-yellow-300 mb-1 text-sm border-b border-gray-600 pb-1">${title}</div><div class="text-gray-200">${desc}</div>`;
             
+            // Add Arrow
             const arrow = document.createElement('div');
             Object.assign(arrow.style, {
                 position: 'absolute', top: '100%', left: '50%', marginLeft: '-6px',
@@ -2184,14 +2226,29 @@ openProfile() {
             });
             tip.appendChild(arrow);
             
-            el.appendChild(tip);
+            document.body.appendChild(tip);
 
-            // Visual Bounce
-            el.style.transform = "scale(1.2)";
-            setTimeout(() => el.style.transform = "", 200);
+            // 3. Calculate Position
+            const rect = targetEl.getBoundingClientRect();
+            // Position above the element, centered horizontally
+            const tipHeight = tip.offsetHeight || 60; // Approximate if not rendered yet
+            
+            tip.style.top = (rect.top - tipHeight - 12) + 'px'; // 12px gap
+            tip.style.left = (rect.left + rect.width / 2) + 'px';
+            tip.style.transform = 'translateX(-50%)';
 
-            // Auto-remove
-            setTimeout(() => { if (tip.parentNode) tip.remove(); }, 3000);
+            // 4. Reveal
+            requestAnimationFrame(() => tip.style.opacity = '1');
+
+            // 5. Visual Bounce on Target
+            targetEl.style.transform = "scale(1.2)";
+            setTimeout(() => targetEl.style.transform = "", 200);
+
+            // 6. Auto-remove
+            setTimeout(() => { 
+                tip.style.opacity = '0';
+                setTimeout(() => { if(tip.parentNode) tip.remove(); }, 200);
+            }, 3000);
         };
 
         // --- ATTACH LISTENERS ---
@@ -2201,21 +2258,24 @@ openProfile() {
             el.onclick = (e) => {
                 e.stopPropagation();
                 
-                // CHECK IF LOCKED
                 const isLocked = el.classList.contains('grayscale');
                 
                 if (isLocked) {
-                    // Show "Locked" message (or specific requirement if known)
-                    const title = el.dataset.title || "Locked";
-                    const desc = el.dataset.desc || "Keep playing to unlock this!";
-                    showTooltip(el, title, desc);
+                    // Show "Locked" message
+                    let desc = "Keep playing to unlock!";
+                    // Custom hints based on row/type could go here if desired
+                    if (el.dataset.word) desc = "Find the hidden word to unlock.";
+                    else if (['poop','penguin','scorpion'].some(k => el.dataset.key === k)) desc = "Find this item in the Ball Pit!";
+                    
+                    showTooltip(el, "Locked: " + el.dataset.title, el.dataset.desc || desc);
                     return;
                 }
 
                 if (el.dataset.word) {
                     Game.loadSpecial(el.dataset.word);
                     ModalManager.toggle('profile', false);
-                } else if (el.dataset.title) {
+                } else {
+                    // It's an unlocked item or achievement -> Show details
                     showTooltip(el, el.dataset.title, el.dataset.desc);
                 }
             }
@@ -2226,8 +2286,9 @@ openProfile() {
         jarBugs.forEach(bug => {
             bug.onclick = (e) => {
                 e.stopPropagation();
-                // NEW: Use tooltip for wrong theme
+                
                 if (State.data.currentTheme !== 'halloween') {
+                    // NEW: Tooltip for wrong theme
                     showTooltip(bug, "Spider Missing", "Please visit the spider on the Halloween theme to feed");
                     return;
                 }
@@ -2235,7 +2296,7 @@ openProfile() {
                 ModalManager.toggle('profile', false);
                 State.data.insectStats.saved = Math.max(0, State.data.insectStats.saved - 1);
                 State.save('insectStats', State.data.insectStats);
-                if (typeof MosquitoManager !== 'undefined') MosquitoManager.spawnStuck('🐞');
+                if (typeof MosquitoManager !== 'undefined') MosquitoManager.spawnStuck('🦟');
                 UIManager.showPostVoteMessage("Feeding time! 🕷️");
             };
         });
