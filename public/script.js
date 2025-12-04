@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.18.10', 
+    APP_VERSION: '5.18.11', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1259,42 +1259,45 @@ const Effects = {
             // Cleanup timer
             let cleanup = setTimeout(() => { if(wrap.parentNode) wrap.remove(); }, duration * 1000);
 
-            wrap.onclick = (e) => {
+          wrap.onclick = (e) => {
                 e.stopPropagation();
                 
-                // PUFFERFISH LOGIC
-    if (fishEmoji === '🐡') {
-        let clicks = parseInt(inner.dataset.clicks) || 0;
-        
-        const canGrow = clicks < 5;
-        const roll = Math.random();
-        // 25% chance to be caught early, otherwise grow
-        const shouldCatch = !canGrow || (roll < 0.25); 
-        
-        if (!shouldCatch) {
-            clicks++;
-            inner.dataset.clicks = clicks;
-            State.unlockBadge('puffer');
-            
-            // Scale increases: 1 -> 1.6 -> 2.2 ...
-            const newScale = 1 + (clicks * 0.6);
-            
-            inner.style.transition = "transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)";
-            inner.style.transform = `scale(${newScale * baseDir}, ${newScale})`;
-            
-            const puffMsgs = ["Wanna fight?", "I'm bigger than your dad.", "I'll spike you!", "Stop it!", "I am big scary bear!", "Why not pick on someone your own size?"];
-            const rMsg = puffMsgs[Math.floor(Math.random() * puffMsgs.length)];
-            UIManager.showPostVoteMessage(rMsg);
-            
-            // 2. CLEAR THE OLD TIMER AND ASSIGN THE NEW ONE TO 'cleanup'
-            clearTimeout(cleanup);
-            cleanup = setTimeout(() => { if(wrap.parentNode) wrap.remove(); }, 5000);
-            
-            return; // Exit: Do not catch yet
-        }
-    }
+                // --- PUFFERFISH GROW LOGIC ---
+                if (fishEmoji === '🐡') {
+                    let clicks = parseInt(inner.dataset.clicks) || 0;
+                    
+                    const canGrow = clicks < 5;
+                    const roll = Math.random();
+                    // 25% chance to be caught early, otherwise grow
+                    const shouldCatch = !canGrow || (roll < 0.25); 
+                    
+                    if (!shouldCatch) {
+                        clicks++;
+                        inner.dataset.clicks = clicks;
+                        State.unlockBadge('puffer');
+                        
+                        // Scale increases: 1 -> 1.5 -> 2.0 ...
+                        const newScale = 1 + (clicks * 0.5);
+                        
+                        inner.style.transition = "transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)";
+                        inner.style.transformOrigin = "center center"; 
+                        
+                        // FIX: Separate scaling to prevent overwrite
+                        inner.style.transform = `scaleX(${baseDir}) scale(${newScale})`;
+                        
+                        const puffMsgs = ["Wanna fight?", "I'm bigger than your dad.", "I'll spike you!", "Stop it!", "I am big scary bear!", "Why not pick on someone your own size?"];
+                        const rMsg = puffMsgs[Math.floor(Math.random() * puffMsgs.length)];
+                        UIManager.showPostVoteMessage(rMsg);
+                        
+                        // Reset cleanup timer
+                        clearTimeout(cleanup);
+                        cleanup = setTimeout(() => { if(wrap.parentNode) wrap.remove(); }, 5000);
+                        
+                        return; // Exit: Do not catch yet
+                    }
+                }
 
-                // CATCH LOGIC
+                // --- CATCH LOGIC ---
                 const data = fishData[fishEmoji];
                 State.unlockBadge(data.k);
                 
@@ -1306,11 +1309,36 @@ const Effects = {
                 }
                 
                 UIManager.showPostVoteMessage(data.msg);
-                
-                wrap.style.transition = 'opacity 0.2s, transform 0.2s';
+
+                // --- PARTICLE POP EFFECT ---
+                const rect = wrap.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                const pColor = fishEmoji === '🐡' ? '#eab308' : '#60a5fa'; // Yellow for puffer, Blue for others
+
+                for (let i = 0; i < 12; i++) {
+                    const p = document.createElement('div');
+                    p.style.cssText = `position: fixed; width: 8px; height: 8px; background: ${pColor}; border-radius: 50%; pointer-events: none; z-index: 102; left: ${centerX}px; top: ${centerY}px;`;
+                    document.body.appendChild(p);
+
+                    const angle = Math.random() * Math.PI * 2;
+                    const velocity = Math.random() * 60 + 20;
+                    const tx = Math.cos(angle) * velocity;
+                    const ty = Math.sin(angle) * velocity;
+
+                    const anim = p.animate([
+                        { transform: 'translate(0,0) scale(1)', opacity: 1 },
+                        { transform: `translate(${tx}px, ${ty}px) scale(0)`, opacity: 0 }
+                    ], { duration: 400, easing: 'ease-out' });
+
+                    anim.onfinish = () => p.remove();
+                }
+
+                // Remove the fish
+                wrap.style.transition = 'opacity 0.1s, transform 0.1s';
                 wrap.style.opacity = '0';
-                wrap.style.transform = 'scale(1.5)'; 
-                setTimeout(() => wrap.remove(), 200);
+                wrap.style.transform = 'scale(0)'; // Shrink away instantly
+                setTimeout(() => wrap.remove(), 100);
             };
 
             c.appendChild(wrap);
