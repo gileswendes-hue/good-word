@@ -978,16 +978,12 @@ const API = {
     },
 
     async fetchKidsWords() {
-        // Existing logic... (Kids mode usually loads a static file anyway, so it's already semi-offline friendly)
-        // You might want to wrap the fetch(CONFIG.API_BASE_URL) inside here similarly if needed.
-        // For brevity, assuming Kids Mode logic stays same, or you apply similar caching logic.
         try {
             const listResponse = await fetch(CONFIG.KIDS_LIST_FILE);
             if (!listResponse.ok) throw new Error("Missing kids file");
             const listText = await listResponse.text();
             const safeList = new Set(listText.split('\n').map(l => l.trim().toUpperCase()).filter(l => l.length > 0));
             
-            // USE WRAPPED FETCH HERE
             const allWords = await this.fetchWords(); 
             
             const safeWords = allWords.filter(w => safeList.has(w.text.toUpperCase()));
@@ -1007,6 +1003,10 @@ const API = {
             queue.push({ id, type, time: Date.now() });
             State.save('pendingVotes', queue);
             
+            // --- FIX: Update the UI counter immediately ---
+            UIManager.updateOfflineIndicator();
+            // ----------------------------------------------
+            
             // Return a fake "OK" response so the game continues
             return { ok: true, status: 200, json: async () => ({}) };
         }
@@ -1022,13 +1022,11 @@ const API = {
         });
     },
 
-    // submitWord and define remain the same (or disable them in offline mode)
     async submitWord(text) {
         if (OfflineManager.isActive()) {
             UIManager.showPostVoteMessage("Cannot submit new words offline 🚫");
             return { ok: false };
         }
-        // ... existing implementation
         return fetch(CONFIG.API_BASE_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1036,7 +1034,6 @@ const API = {
         });
     },
     
-    // ... define logic ...
     async define(w) {
          return fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${w.toLowerCase()}`);
     }
