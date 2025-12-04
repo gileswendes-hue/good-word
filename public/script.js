@@ -1103,60 +1103,59 @@ const ThemeManager = {
         document.body.classList.add(`theme-${t}`);
         State.save('currentTheme', t);
         
-        // --- BANANA TEXTURE INJECTION (Procedural Organic) ---
+        // --- BANANA TEXTURE INJECTION (Updated: Vertical & Spotty) ---
         if (t === 'banana') {
             if (!document.getElementById('banana-style')) {
                 const s = document.createElement('style');
                 s.id = 'banana-style';
-                // We use Prime Numbers for background-size to prevent grid alignment
+                
                 s.innerHTML = `
                     body.theme-banana {
-                        background-color: #e8d776 !important; /* Ripe Banana Yellow */
+                        background-color: #f3e076 !important; /* Slightly richer yellow */
                         
                         background-image: 
-                            /* 1. Small Speckles (Sharp, dark brown) */
-                            radial-gradient(circle at 15% 25%, rgba(66, 41, 24, 0.7) 1px, transparent 2px),
-                            radial-gradient(circle at 70% 65%, rgba(66, 41, 24, 0.6) 1.5px, transparent 2.5px),
+                            /* 1. Large Dark Spots (The "Ripe" look) */
+                            radial-gradient(circle at 50% 50%, rgba(60, 40, 20, 0.8) 2px, transparent 4px),
+                            radial-gradient(circle at 20% 80%, rgba(60, 40, 20, 0.7) 3px, transparent 6px),
                             
-                            /* 2. Medium Spots (Scattered) */
-                            radial-gradient(circle at 30% 80%, rgba(85, 55, 30, 0.5) 2px, transparent 4px),
-                            radial-gradient(circle at 90% 10%, rgba(85, 55, 30, 0.4) 3px, transparent 6px),
+                            /* 2. Dense Small Speckles (High frequency) */
+                            radial-gradient(circle at 10% 10%, rgba(80, 50, 20, 0.5) 1px, transparent 2px),
+                            radial-gradient(circle at 90% 90%, rgba(80, 50, 20, 0.5) 1.5px, transparent 2.5px),
                             
-                            /* 3. Large Soft Bruises (Wide, faint areas) */
-                            radial-gradient(ellipse at 50% 50%, rgba(101, 67, 33, 0.1) 0%, transparent 50%),
+                            /* 3. Soft Bruises (Background variation) */
+                            radial-gradient(ellipse at center, rgba(101, 67, 33, 0.1) 0%, transparent 70%),
                             
-                            /* 4. Horizontal/Diagonal Fibers (The "Streaky" look) */
+                            /* 4. Vertical Fibers */
                             repeating-linear-gradient(
-                                175deg, 
+                                90deg, 
                                 transparent, 
-                                transparent 10px, 
-                                rgba(101, 67, 33, 0.05) 12px, 
-                                rgba(101, 67, 33, 0.08) 13px,
-                                transparent 25px
+                                transparent 4px, 
+                                rgba(101, 67, 33, 0.08) 4px, 
+                                rgba(101, 67, 33, 0.08) 5px,
+                                transparent 12px
                             ) !important;
                         
-                        /* Prime numbers ensure patterns rarely align, destroying the grid look */
                         background-size: 
-                            413px 413px,   /* Speckles A */
-                            311px 311px,   /* Speckles B */
-                            587px 587px,   /* Medium Spots A */
-                            479px 479px,   /* Medium Spots B */
-                            700px 700px,   /* Bruises */
-                            100% 100%      /* Streaks */
+                            293px 293px,   /* Large Spots A */
+                            317px 317px,   /* Large Spots B */
+                            53px 53px,     /* Small Speckles A (Very dense) */
+                            97px 97px,     /* Small Speckles B */
+                            600px 600px,   /* Bruises */
+                            100% 100%      /* Vertical Streaks */
                             !important;
                             
                         background-position: 
                             0 0, 
-                            40px 60px, 
-                            150px 20px, 
-                            -50px 100px,
+                            100px 50px, 
+                            10px 20px, 
+                            50px 80px,
                             0 0,
                             0 0 !important;
                             
                         background-attachment: fixed !important;
                     }
                     body.theme-banana #wordDisplay {
-                        color: #422918 !important; /* Deep Brown Text */
+                        color: #3e2723 !important; /* Very Dark Brown */
                         text-shadow: 1px 1px 0px rgba(255,255,255,0.4);
                     }
                 `;
