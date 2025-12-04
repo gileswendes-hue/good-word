@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.15.4', 
+    APP_VERSION: '5.16.1', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -14,7 +14,7 @@ const CONFIG = {
     CONTRIBUTION_THRESHOLD: 5,
     BOOST_FACTOR: 2,
     TIP_COOLDOWN: 4,
-    HISTORY_SIZE: 300,
+    HISTORY_SIZE: 500,
     VOTE: {
         MASH_LIMIT: 5,
         COOLDOWN_TIERS: [15, 30],
@@ -2688,28 +2688,38 @@ const Game = {
         DOM.game.buttons.custom.style.display = 'block';
         this.nextWord()
     },
-    async refreshData(u = true) {
+async refreshData(u = true) {
         if (u) UIManager.showMessage(State.data.settings.kidsMode ? "Loading Kids Mode..." : "Loading...");
         
         let d = [];
         
-        // --- LOGIC SWITCH ---
+        // Grab reference to Compare Button
+        const compareBtn = document.getElementById('compareWordsButton');
+
+ 
         if (State.data.settings.kidsMode) {
             // KIDS MODE: Fetch from text file
             d = await API.fetchKidsWords();
             
             // Hide unsafe/complex features
-            DOM.game.buttons.custom.style.display = 'none';
-            DOM.game.buttons.notWord.style.display = 'none';
-            DOM.game.dailyBanner.style.display = 'none';
+            DOM.game.buttons.custom.style.display = 'none';   // Submit
+            DOM.game.buttons.notWord.style.display = 'none';  // Flag
+            DOM.game.dailyBanner.style.display = 'none';      // Daily
+            
+
+            if (compareBtn) compareBtn.style.display = 'none';
             
         } else {
-            // ADULT MODE: Fetch from API
+		
             d = await API.fetchWords();
             
             // Show features
             DOM.game.buttons.custom.style.display = 'block';
             DOM.game.buttons.notWord.style.display = 'block';
+            
+
+            if (compareBtn) compareBtn.style.display = 'block';
+
             if(!State.runtime.isDailyMode) this.checkDailyStatus();
         }
 
