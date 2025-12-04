@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.17.2', 
+    APP_VERSION: '5.17.3', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -2126,10 +2126,10 @@ openProfile() {
         ];
 
         // Helper to render badges
+        // NOTE: Added 'relative' class so tooltips position correctly
         const renderRow = (list, isAchieve = false) => `<div class="flex flex-wrap justify-center gap-3 text-3xl w-full">` + list.map(x => {
             const un = d.badges[x.k];
-            // We add data-title and data-desc for click handling
-            return `<span class="${un?'':'opacity-25 grayscale'} transition-all duration-300 transform ${un?'hover:scale-125 cursor-pointer badge-item':''}" 
+            return `<span class="relative ${un?'':'opacity-25 grayscale'} transition-all duration-300 transform ${un?'hover:scale-125 cursor-pointer badge-item':''}" 
                     title="${un? (x.t || 'Unlocked') : 'Locked'}" 
                     ${x.w ? `data-word="${x.w}"` : ''} 
                     ${x.t ? `data-title="${x.t}"` : ''} 
@@ -2165,32 +2165,67 @@ openProfile() {
 
         // --- ATTACH LISTENERS ---
         
-        // 1. Badge Clicks (Load Special Words OR Show Description)
         b.querySelectorAll('.badge-item').forEach(el => {
-            el.onclick = () => {
+            el.onclick = (e) => {
+                e.stopPropagation();
+
+                // Clear any existing tooltips in the modal to prevent clutter
+                b.querySelectorAll('.badge-tooltip').forEach(t => t.remove());
+
                 if (el.dataset.word) {
                     // Word Badge Logic
                     Game.loadSpecial(el.dataset.word);
                     ModalManager.toggle('profile', false);
                 } else if (el.dataset.title) {
-                    // Achievement Logic: Show INSIDE the modal using the saveMsg element
-                    const msgEl = DOM.profile.saveMsg;
+                    // --- NEW TOOLTIP LOGIC ---
+                    const tip = document.createElement('div');
+                    tip.className = 'badge-tooltip';
                     
-                    // Format the message
-                    msgEl.innerHTML = `<div class="bg-indigo-50 p-2 rounded border border-indigo-100"><span class="block text-sm font-bold text-indigo-700">${el.dataset.title}</span><span class="text-xs text-indigo-600">${el.dataset.desc}</span></div>`;
-                    msgEl.className = "mt-2 transition-opacity duration-300";
-                    msgEl.style.opacity = '1';
-                    
-                    // Visual feedback
-                    el.style.transform = "scale(1.4) rotate(10deg)";
-                    setTimeout(() => el.style.transform = "scale(1)", 300);
+                    // Style the tooltip to float directly above
+                    Object.assign(tip.style, {
+                        position: 'absolute',
+                        bottom: '120%', 
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        backgroundColor: '#1f2937', // Dark gray
+                        color: 'white',
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        textAlign: 'center',
+                        width: 'max-content',
+                        maxWidth: '200px',
+                        zIndex: '200',
+                        boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
+                        pointerEvents: 'none', // Allow clicking through if needed
+                        lineHeight: '1.4'
+                    });
 
-                    // Clear after 4 seconds
-                    if (this._badgeMsgTimeout) clearTimeout(this._badgeMsgTimeout);
-                    this._badgeMsgTimeout = setTimeout(() => {
-                        msgEl.style.opacity = '0';
-                        setTimeout(() => msgEl.innerHTML = '', 300);
-                    }, 4000);
+                    tip.innerHTML = `<div class="font-bold text-yellow-300 mb-1 text-sm border-b border-gray-600 pb-1">${el.dataset.title}</div><div class="text-gray-200">${el.dataset.desc}</div>`;
+                    
+                    // Small Arrow at bottom
+                    const arrow = document.createElement('div');
+                    Object.assign(arrow.style, {
+                        position: 'absolute',
+                        top: '100%',
+                        left: '50%',
+                        marginLeft: '-6px',
+                        borderWidth: '6px',
+                        borderStyle: 'solid',
+                        borderColor: '#1f2937 transparent transparent transparent'
+                    });
+                    tip.appendChild(arrow);
+                    
+                    el.appendChild(tip);
+
+                    // Visual Bounce
+                    el.style.transform = "scale(1.2)";
+                    setTimeout(() => el.style.transform = "", 200);
+
+                    // Remove after 3 seconds
+                    setTimeout(() => {
+                        if (tip.parentNode) tip.remove();
+                    }, 3000);
                 }
             }
         });
