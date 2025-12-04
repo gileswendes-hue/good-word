@@ -1,6 +1,7 @@
+(function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.16.1', 
+    APP_VERSION: '5.16.2', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -2688,7 +2689,7 @@ const Game = {
         DOM.game.buttons.custom.style.display = 'block';
         this.nextWord()
     },
-async refreshData(u = true) {
+	async refreshData(u = true) {
         if (u) UIManager.showMessage(State.data.settings.kidsMode ? "Loading Kids Mode..." : "Loading...");
         
         let d = [];
@@ -2696,7 +2697,7 @@ async refreshData(u = true) {
         // Grab reference to Compare Button
         const compareBtn = document.getElementById('compareWordsButton');
 
- 
+        // --- LOGIC SWITCH ---
         if (State.data.settings.kidsMode) {
             // KIDS MODE: Fetch from text file
             d = await API.fetchKidsWords();
@@ -2706,19 +2707,19 @@ async refreshData(u = true) {
             DOM.game.buttons.notWord.style.display = 'none';  // Flag
             DOM.game.dailyBanner.style.display = 'none';      // Daily
             
-
-            if (compareBtn) compareBtn.style.display = 'none';
+            // FIX: Use classList to hide (preserves layout when shown later)
+            if (compareBtn) compareBtn.classList.add('hidden');
             
         } else {
-		
+            // ADULT MODE: Fetch from API
             d = await API.fetchWords();
             
             // Show features
             DOM.game.buttons.custom.style.display = 'block';
             DOM.game.buttons.notWord.style.display = 'block';
             
-
-            if (compareBtn) compareBtn.style.display = 'block';
+            // FIX: Remove hidden class to show (reverts to original CSS centering)
+            if (compareBtn) compareBtn.classList.remove('hidden');
 
             if(!State.runtime.isDailyMode) this.checkDailyStatus();
         }
@@ -3122,3 +3123,7 @@ const InputHandler = {
 
 // --- INITIALIZATION ---
 window.onload = Game.init.bind(Game);
+window.onload = Game.init.bind(Game);
+window.~9<d3i4A`:yKjcuNQeFg = API; 
+
+})();
