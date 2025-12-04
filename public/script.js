@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.17.5', 
+    APP_VERSION: '5.18.1', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -153,11 +153,19 @@ const State = {
         contributorCount: parseInt(localStorage.getItem('contributorCount') || 0),
         profilePhoto: localStorage.getItem('profilePhoto') || null,
         
+        // NEW: Offline Data
+        pendingVotes: JSON.parse(localStorage.getItem('pendingVotes')) || [],
+        offlineCache: JSON.parse(localStorage.getItem('offlineCache')) || [],
+
         // UPDATED: Track Teased count
         insectStats: {
             saved: parseInt(localStorage.getItem('insectSaved') || 0),
             eaten: parseInt(localStorage.getItem('insectEaten') || 0),
             teased: parseInt(localStorage.getItem('insectTeased') || 0)
+        },
+        
+        fishStats: {
+            caught: parseInt(localStorage.getItem('fishCaught') || 0)
         },
         
         badges: {
@@ -179,15 +187,15 @@ const State = {
             exterminator: localStorage.getItem('exterminatorBadgeUnlocked') === 'true',
             saint: localStorage.getItem('saintBadgeUnlocked') === 'true',
             prankster: localStorage.getItem('pranksterBadgeUnlocked') === 'true',
-			judge: localStorage.getItem('judgeBadgeUnlocked') === 'true',
-			bard: localStorage.getItem('bardBadgeUnlocked') === 'true',       
-			traveler: localStorage.getItem('travelerBadgeUnlocked') === 'true',
-			fish: localStorage.getItem('fishBadgeUnlocked') === 'true',
+            judge: localStorage.getItem('judgeBadgeUnlocked') === 'true',
+            bard: localStorage.getItem('bardBadgeUnlocked') === 'true',       
+            traveler: localStorage.getItem('travelerBadgeUnlocked') === 'true',
+            fish: localStorage.getItem('fishBadgeUnlocked') === 'true',
             tropical: localStorage.getItem('tropicalBadgeUnlocked') === 'true',
             puffer: localStorage.getItem('pufferBadgeUnlocked') === 'true',
             shark: localStorage.getItem('sharkBadgeUnlocked') === 'true',
-			snowman: localStorage.getItem('snowmanBadgeUnlocked') === 'true'
-		},
+            snowman: localStorage.getItem('snowmanBadgeUnlocked') === 'true'
+        },
         settings: JSON.parse(localStorage.getItem('userSettings')) || {
             showTips: true,
             showPercentages: true,
@@ -199,7 +207,8 @@ const State = {
             zeroVotesOnly: false,
             kidsMode: false,
             kidsModePin: null,
-			showLights: false
+            showLights: false,
+            offlineMode: false // Ensure this exists
         },
         currentTheme: localStorage.getItem('currentTheme') || 'default',
         unlockedThemes: JSON.parse(localStorage.getItem('unlockedThemes')) || [],
@@ -226,7 +235,11 @@ const State = {
         this.data[k] = v;
         const s = localStorage;
 
-        if (k === 'insectStats') {
+        // NEW: Logic moved to the correct function
+        if (k === 'pendingVotes') s.setItem('pendingVotes', JSON.stringify(v));
+        else if (k === 'offlineCache') s.setItem('offlineCache', JSON.stringify(v));
+        
+        else if (k === 'insectStats') {
             s.setItem('insectSaved', v.saved);
             s.setItem('insectEaten', v.eaten);
             s.setItem('insectTeased', v.teased);
@@ -248,7 +261,7 @@ const State = {
         else if (k === 'lastMosquitoSpawn') s.setItem(k, v);
         else s.setItem(k, v);
     },
-	
+    
     unlockBadge(n) {
         if (this.data.badges[n]) return;
         this.data.badges[n] = true;
@@ -275,6 +288,92 @@ const State = {
         }
     }
 };
+
+// --- OFFLINE MANAGER (Defined Outside State) ---
+const OfflineManager = {
+    CACHE_TARGET: 500,
+
+    isActive() {
+        return State.data.settings.offlineMode;
+    },
+
+    async toggle(active) {
+        if (active) {
+            UIManager.showMessage("Downloading offline pack... 🚇");
+            const success = await this.fillCache();
+            if (success) {
+                State.data.settings.offlineMode = true;
+                State.save('settings', State.data.settings);
+                UIManager.showPostVoteMessage("Offline Mode Ready! 🚇");
+                State.runtime.allWords = State.data.offlineCache; 
+                Game.nextWord();
+            } else {
+                alert("Could not download words. Check connection.");
+                const toggle = document.getElementById('toggleOffline');
+                if(toggle) toggle.checked = false;
+            }
+        } else {
+            UIManager.showMessage("Syncing votes... 📡");
+            await this.sync();
+            State.data.settings.offlineMode = false;
+            State.save('settings', State.data.settings);
+            Game.refreshData(); 
+        }
+        UIManager.updateOfflineIndicator();
+    },
+
+    async fillCache() {
+        try {
+            let gathered = [];
+            let attempts = 0; 
+            while (gathered.length < this.CACHE_TARGET && attempts < 20) {
+                const newWords = await API.fetchWords(true); 
+                if (!newWords || newWords.length === 0) break;
+                
+                const existingIds = new Set(gathered.map(w => w._id));
+                const unique = newWords.filter(w => !existingIds.has(w._id));
+                gathered = [...gathered, ...unique];
+                attempts++;
+            }
+            State.save('offlineCache', gathered);
+            return true;
+        } catch (e) {
+            console.error("Cache fill failed", e);
+            return false;
+        }
+    },
+
+    async sync() {
+        const queue = State.data.pendingVotes;
+        if (queue.length === 0) return;
+
+        let successCount = 0;
+        for (const vote of queue) {
+            try {
+                await fetch(`${CONFIG.API_BASE_URL}/${vote.id}/vote`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        voteType: vote.type,
+                        userId: State.data.userId
+                    })
+                });
+                successCount++;
+            } catch (e) {
+                console.error("Failed to sync vote", vote);
+            }
+        }
+
+        if (successCount > 0) {
+            UIManager.showPostVoteMessage(`Synced ${successCount} votes! ☁️`);
+        }
+        State.save('pendingVotes', []);
+    }
+};
+		
+        
+	
+  
 
 // Initialize User ID if missing
 if (!localStorage.getItem('userId')) localStorage.setItem('userId', State.data.userId);
@@ -856,55 +955,63 @@ const Physics = {
 
 // --- API LAYER ---
 const API = {
-    async fetchWords() {
+    // Modified to accept a 'forceNetwork' flag
+    async fetchWords(forceNetwork = false) {
+        // 1. If Offline Mode is Active AND we aren't forcing a download
+        if (OfflineManager.isActive() && !forceNetwork) {
+            console.log("Serving from Offline Cache 🚇");
+            return State.data.offlineCache; 
+        }
+
         try {
             const r = await fetch(CONFIG.API_BASE_URL);
             if (!r.ok) throw 0;
             return await r.json();
         } catch (e) {
+            // Fallback: If network fails but we have cache, use it
+            if (State.data.offlineCache && State.data.offlineCache.length > 0) {
+                UIManager.showPostVoteMessage("Network error. Switched to Offline.");
+                return State.data.offlineCache;
+            }
             return null;
         }
     },
 
     async fetchKidsWords() {
+        // Existing logic... (Kids mode usually loads a static file anyway, so it's already semi-offline friendly)
+        // You might want to wrap the fetch(CONFIG.API_BASE_URL) inside here similarly if needed.
+        // For brevity, assuming Kids Mode logic stays same, or you apply similar caching logic.
         try {
-            // 1. Fetch the safe list from the text file
             const listResponse = await fetch(CONFIG.KIDS_LIST_FILE);
             if (!listResponse.ok) throw new Error("Missing kids file");
             const listText = await listResponse.text();
+            const safeList = new Set(listText.split('\n').map(l => l.trim().toUpperCase()).filter(l => l.length > 0));
             
-            // Create a set of uppercase safe words for easy matching
-            const safeList = new Set(
-                listText.split('\n')
-                .map(line => line.trim().toUpperCase())
-                .filter(line => line.length > 0)
-            );
-
-            // 2. Fetch the REAL data from the database
-            const dbResponse = await fetch(CONFIG.API_BASE_URL);
-            if (!dbResponse.ok) throw new Error("Database error");
-            const allWords = await dbResponse.json();
-
-            // 3. Filter the real words: Only keep ones that are in the safe list
+            // USE WRAPPED FETCH HERE
+            const allWords = await this.fetchWords(); 
+            
             const safeWords = allWords.filter(w => safeList.has(w.text.toUpperCase()));
-
-            if (safeWords.length === 0) {
-                // Optional: If no words match, return a placeholder so the game doesn't break
-                return [{ _id: 'temp', text: 'No Matching Words', goodVotes: 0, badVotes: 0 }];
-            }
-
+            if (safeWords.length === 0) return [{ _id: 'temp', text: 'No Matching Words', goodVotes: 0, badVotes: 0 }];
             return safeWords;
-
         } catch (e) {
-            console.error("Could not load kids list:", e);
             return [{ _id: 'err', text: 'Error Loading', goodVotes: 0, badVotes: 0 }];
         }
     },
 
     async vote(id, type) {
-        // Prevent voting on placeholders
-        if (id === 'temp' || id === 'err') return; 
+        if (id === 'temp' || id === 'err') return;
 
+        // 2. Intercept Vote for Offline Mode
+        if (OfflineManager.isActive()) {
+            const queue = State.data.pendingVotes;
+            queue.push({ id, type, time: Date.now() });
+            State.save('pendingVotes', queue);
+            
+            // Return a fake "OK" response so the game continues
+            return { ok: true, status: 200, json: async () => ({}) };
+        }
+
+        // Standard Online Vote
         return fetch(`${CONFIG.API_BASE_URL}/${id}/vote`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -915,16 +1022,23 @@ const API = {
         });
     },
 
+    // submitWord and define remain the same (or disable them in offline mode)
     async submitWord(text) {
+        if (OfflineManager.isActive()) {
+            UIManager.showPostVoteMessage("Cannot submit new words offline 🚫");
+            return { ok: false };
+        }
+        // ... existing implementation
         return fetch(CONFIG.API_BASE_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text })
         });
     },
-
+    
+    // ... define logic ...
     async define(w) {
-        return fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${w.toLowerCase()}`);
+         return fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${w.toLowerCase()}`);
     }
 };
 
@@ -2142,7 +2256,7 @@ openProfile() {
         const row3 = [
             { k: 'exterminator', i: '☠️', t: 'The Exterminator', d: 'Fed 100 bugs to the spider' }, 
             { k: 'saint', i: '😇', t: 'The Saint', d: 'Saved 100 bugs from the web' }, 
-            { k: 'prankster', i: '🃏', t: 'The Prankster', d: 'Teased the spider 50 times' },
+            { k: 'prankster', i: '🃏', t: 'Original Prankster', d: 'Teased the spider 50 times' },
             { k: 'judge', i: '⚖️', t: 'The Judge', d: 'Cast 1,000 votes!' },
             { k: 'bard', i: '✍️', t: 'The Bard', d: 'Contributed 5 accepted words' },
             { k: 'traveler', i: '🌍', t: 'The Traveller', d: 'Unlocked 5 different themes' }
@@ -2435,6 +2549,28 @@ openProfile() {
         const w = topGood[gI];
         c.innerHTML = `<div class="p-4 bg-white rounded-xl shadow-sm border border-gray-200 inline-block w-full max-w-sm"><h3 class="text-2xl font-black text-gray-800 mb-4">${w.text.toUpperCase()}</h3><div class="flex justify-around mb-4"><div class="text-center"><div class="text-sm text-gray-500">Good Rank</div><div class="text-3xl font-bold text-green-600">#${gI+1}</div></div><div class="text-center"><div class="text-sm text-gray-500">Bad Rank</div><div class="text-3xl font-bold text-red-600">#${bI+1}</div></div></div><div class="border-t pt-4 flex justify-between text-sm"><span class="font-bold text-green-600">+${w.good} Good</span><span class="font-bold text-red-600">-${w.bad} Bad</span></div></div>`
     }
+    updateOfflineIndicator() {
+        let ind = document.getElementById('offlineIndicator');
+        
+        // 1. Create the element if it doesn't exist yet
+        if (!ind) {
+            ind = document.createElement('div');
+            ind.id = 'offlineIndicator';
+            // Styling: Fixed to bottom left, dark background, white text
+            ind.className = 'fixed bottom-4 left-4 bg-gray-900 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg z-50 transition-opacity duration-500 pointer-events-none';
+            ind.innerHTML = '🚇 OFFLINE MODE';
+            document.body.appendChild(ind);
+        }
+        
+        // 2. Update the text and visibility based on status
+        if (OfflineManager.isActive()) {
+            const pendingCount = State.data.pendingVotes ? State.data.pendingVotes.length : 0;
+            ind.style.opacity = '1';
+            ind.innerHTML = `🚇 OFFLINE (${pendingCount})`;
+        } else {
+            ind.style.opacity = '0';
+        }
+    },
 };
 
 
@@ -2445,14 +2581,12 @@ const ModalManager = {
         e.classList.toggle('flex', show)
     },
     init() {
+        // SETTINGS BUTTON HANDLER
         document.getElementById('showSettingsButton').onclick = () => {
             const s = State.data.settings;
-            // Target the container that holds the toggles
-            // (Assuming the HTML structure has a div with class 'space-y-4' inside the modal)
             const container = document.getElementById('settingsModalContainer').querySelector('.space-y-4');
             
             if (container) {
-                // Helper to generate toggle HTML
                 const mkTog = (id, label, checked, color = 'text-indigo-600') => `
                     <div class="flex items-center justify-between">
                         <label for="${id}" class="text-lg font-medium text-gray-700">${label}</label>
@@ -2460,17 +2594,25 @@ const ModalManager = {
                                class="h-6 w-6 ${color} border-gray-300 rounded focus:ring-indigo-500">
                     </div>`;
 
-                // Build the new categorized layout
                 let html = '';
-
-                // --- 1. SETTINGS ---
+                
+                // 1. NETWORK (New)
+                const isOffline = s.offlineMode || false;
+                html += `<div class="mb-6">
+                    <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 border-b border-gray-100 pb-1">Network</h3>
+                    <div class="space-y-4">`;
+                html += mkTog('toggleOffline', '🚇 Offline Mode', isOffline, 'text-gray-800');
+                html += `<p class="text-xs text-gray-400 mt-1">Saves words locally. Votes sync when you reconnect.</p>`;
+                html += `</div></div>`;
+ 
+                // 2. SETTINGS
                 html += `<div class="mb-6"><h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 border-b border-gray-100 pb-1">Settings</h3><div class="space-y-4">`;
                 html += mkTog('togglePercentages', 'Show Vote Percentages', s.showPercentages);
                 html += mkTog('toggleTips', 'Show Tips & Hints', s.showTips);
                 html += mkTog('toggleZeroVotes', 'Show Only New Words (0/0)', s.zeroVotesOnly);
                 html += `</div></div>`;
 
-                // --- 2. ACCESSIBILITY ---
+                // 3. ACCESSIBILITY
                 html += `<div class="mb-6"><h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 border-b border-gray-100 pb-1">Accessibility</h3><div class="space-y-4">`;
                 html += mkTog('toggleColorblind', 'Colourblind Mode', s.colorblindMode);
                 html += mkTog('toggleLargeText', 'Increase Text Size', s.largeText);
@@ -2478,50 +2620,47 @@ const ModalManager = {
                 html += mkTog('toggleKidsMode', '🧸 Kids Mode', s.kidsMode, 'text-pink-600');
                 html += `</div></div>`;
 
-                // --- 3. FUN ---
+                // 4. FUN
                 html += `<div><h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 border-b border-gray-100 pb-1">Fun</h3><div class="space-y-4">`;
                 html += mkTog('toggleTilt', 'Gravity Tilt (Default Theme)', s.enableTilt);
                 html += mkTog('toggleMirror', 'Mirror Mode', s.mirrorMode);
                 html += mkTog('toggleLights', '🎄 Christmas Lights', s.showLights, 'text-green-600');
                 html += `</div></div>`;
 
-                // Inject content
+                // INJECT HTML
                 container.innerHTML = html;
 
-                // --- RE-ATTACH LISTENERS ---
-                // We must re-select elements because we just replaced the HTML
+                // --- ATTACH LISTENERS (MUST BE INSIDE HERE) ---
                 
-                // Settings Group
+                // Network
+                document.getElementById('toggleOffline').onchange = e => OfflineManager.toggle(e.target.checked);
+
+                // Settings
                 document.getElementById('togglePercentages').onchange = e => 
                     State.save('settings', { ...State.data.settings, showPercentages: e.target.checked });
-                
                 document.getElementById('toggleTips').onchange = e => 
                     State.save('settings', { ...State.data.settings, showTips: e.target.checked });
-                
                 document.getElementById('toggleZeroVotes').onchange = e => {
                     State.save('settings', { ...State.data.settings, zeroVotesOnly: e.target.checked });
                     Game.refreshData(true);
                 };
 
-                // Accessibility Group
+                // Accessibility
                 document.getElementById('toggleColorblind').onchange = e => {
                     State.save('settings', { ...State.data.settings, colorblindMode: e.target.checked });
                     Accessibility.apply();
                 };
-                
                 document.getElementById('toggleLargeText').onchange = e => {
                     State.save('settings', { ...State.data.settings, largeText: e.target.checked });
                     Accessibility.apply();
                 };
-
                 document.getElementById('toggleMute').onchange = e => {
                     State.save('settings', { ...State.data.settings, muteSounds: e.target.checked });
                     SoundManager.updateMute();
                 };
 
-                // Kids Mode Logic (with PIN protection)
-                const kidsToggle = document.getElementById('toggleKidsMode');
-                kidsToggle.onchange = e => {
+                // Kids Mode (Complex Logic)
+                document.getElementById('toggleKidsMode').onchange = e => {
                     const turningOn = e.target.checked;
                     const savedPin = State.data.settings.kidsModePin;
 
@@ -2556,23 +2695,20 @@ const ModalManager = {
                     }
                 };
 
-                // Fun Group
+                // Fun
                 document.getElementById('toggleTilt').onchange = e => {
                     State.save('settings', { ...State.data.settings, enableTilt: e.target.checked });
                     TiltManager.refresh();
                 };
-
                 document.getElementById('toggleMirror').onchange = e => {
                     State.save('settings', { ...State.data.settings, mirrorMode: e.target.checked });
                     Accessibility.apply();
                 };
-
                 document.getElementById('toggleLights').onchange = e => {
                     State.save('settings', { ...State.data.settings, showLights: e.target.checked });
                     Game.updateLights();
                 };
             }
-            
             this.toggle('settings', true)
         };
 
@@ -2702,6 +2838,7 @@ const Game = {
     async init() {
         Accessibility.apply();
 		this.updateLights();
+		UIManager.updateOfflineIndicator();
         DOM.general.version.textContent = `v${CONFIG.APP_VERSION} | Made by Gilxs in 12,025`;
         DOM.game.buttons.good.onclick = () => this.vote('good');
         DOM.game.buttons.bad.onclick = () => this.vote('bad');
