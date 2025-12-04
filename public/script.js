@@ -2202,7 +2202,7 @@ openProfile() {
     });
 
     ModalManager.toggle('profile', true);
-}
+},
     displayWord(w) {
         if (!w) {
             this.showMessage("No words available!");
