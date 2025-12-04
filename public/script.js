@@ -1077,8 +1077,6 @@ const ThemeManager = {
             } catch {}
         });
         
-        // --- FIX: Count includes Default theme (+1) ---
-        // If you have 4 unlocks + Default = 5 Total.
         if ((State.data.unlockedThemes.length + 1) >= 5) {
             State.unlockBadge('traveler');
         }
@@ -1104,57 +1102,49 @@ const ThemeManager = {
         document.body.className = document.body.className.split(' ').filter(c => !c.startsWith('theme-')).join(' ');
         document.body.classList.add(`theme-${t}`);
         State.save('currentTheme', t);
-
+        
+        // --- BANANA TEXTURE INJECTION (Fixed with !important) ---
         if (t === 'banana') {
             if (!document.getElementById('banana-style')) {
                 const s = document.createElement('style');
                 s.id = 'banana-style';
+                // We use !important to force the image over any Tailwind bg colors
                 s.innerHTML = `
                     body.theme-banana {
                         background-color: #f7e98e !important;
                         background-image: 
-                            /* 1. Subtle Fibrous Streaks (Vertical) */
-                            repeating-linear-gradient(
-                                90deg,
-                                transparent,
-                                transparent 40px,
-                                rgba(139, 69, 19, 0.03) 40px,
-                                rgba(139, 69, 19, 0.03) 41px
-                            ),
-                            /* 2. Tiny Brown Speckles (High density) */
-                            radial-gradient(circle, rgba(92, 64, 51, 0.2) 1px, transparent 1.5px),
-                            /* 3. Medium Spots (Scattered) */
-                            radial-gradient(circle, rgba(92, 64, 51, 0.4) 1.5px, transparent 2.5px),
-                            /* 4. Large Bruises (Soft) */
-                            radial-gradient(ellipse at center, rgba(101, 67, 33, 0.15) 0%, transparent 60%);
+                            radial-gradient(circle, rgba(92, 64, 51, 0.3) 1px, transparent 1.5px),
+                            radial-gradient(circle, rgba(92, 64, 51, 0.3) 1.5px, transparent 2.5px),
+                            repeating-linear-gradient(90deg, transparent, transparent 40px, rgba(139, 69, 19, 0.05) 40px, rgba(139, 69, 19, 0.05) 41px),
+                            radial-gradient(ellipse at center, rgba(101, 67, 33, 0.15) 0%, transparent 60%) !important;
                         
-                        /* Randomize the repeat patterns so it looks organic */
                         background-size: 
-                            100% 100%,      /* Streaks */
-                            30px 30px,      /* Speckles (repeats often) */
-                            170px 170px,    /* Medium spots */
-                            400px 400px;    /* Large bruises */
+                            30px 30px,
+                            170px 170px,
+                            100% 100%,
+                            400px 400px !important;
                             
                         background-position: 
                             0 0, 
+                            40px 60px,
                             0 0, 
-                            40px 60px, 
-                            100px 200px;
+                            100px 200px !important;
+                            
+                        background-attachment: fixed !important;
                     }
-                    /* Make text readable on the yellow */
                     body.theme-banana #wordDisplay {
-                        color: #5c4033 !important; /* Dark Brown Text */
+                        color: #5c4033 !important;
                         text-shadow: 1px 1px 0px rgba(255,255,255,0.5);
                     }
                 `;
                 document.head.appendChild(s);
             }
         } else {
-            // Cleanup banana style if switching away
             const old = document.getElementById('banana-style');
             if (old) old.remove();
         }
-        
+        // -------------------------------
+
         const e = DOM.theme.effects;
         e.snow.classList.toggle('hidden', t !== 'winter');
         e.bubble.classList.toggle('hidden', t !== 'submarine');
