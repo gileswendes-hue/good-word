@@ -1103,7 +1103,7 @@ const ThemeManager = {
         document.body.classList.add(`theme-${t}`);
         State.save('currentTheme', t);
         
-        // --- BANANA TEXTURE INJECTION (Updated: Vertical & Spotty) ---
+        // --- BANANA TEXTURE INJECTION (Version 3: Sparse & Organic) ---
         if (t === 'banana') {
             if (!document.getElementById('banana-style')) {
                 const s = document.createElement('style');
@@ -1111,51 +1111,53 @@ const ThemeManager = {
                 
                 s.innerHTML = `
                     body.theme-banana {
-                        background-color: #f3e076 !important; /* Slightly richer yellow */
+                        background-color: #f7e98e !important;
                         
                         background-image: 
-                            /* 1. Large Dark Spots (The "Ripe" look) */
-                            radial-gradient(circle at 50% 50%, rgba(60, 40, 20, 0.8) 2px, transparent 4px),
-                            radial-gradient(circle at 20% 80%, rgba(60, 40, 20, 0.7) 3px, transparent 6px),
+                            /* 1. The "Sugar Spots" (Tiny, sharp, high density but scattered) */
+                            radial-gradient(circle at 15% 50%, rgba(92, 64, 51, 0.6) 1px, transparent 1.5px),
+                            radial-gradient(circle at 85% 30%, rgba(92, 64, 51, 0.5) 1.5px, transparent 2.5px),
                             
-                            /* 2. Dense Small Speckles (High frequency) */
-                            radial-gradient(circle at 10% 10%, rgba(80, 50, 20, 0.5) 1px, transparent 2px),
-                            radial-gradient(circle at 90% 90%, rgba(80, 50, 20, 0.5) 1.5px, transparent 2.5px),
+                            /* 2. Large Irregular Blotches (The "Ripe" look) */
+                            radial-gradient(ellipse at 70% 20%, rgba(70, 45, 30, 0.3) 2px, transparent 10px),
+                            radial-gradient(ellipse at 20% 80%, rgba(70, 45, 30, 0.4) 4px, transparent 15px),
                             
-                            /* 3. Soft Bruises (Background variation) */
-                            radial-gradient(ellipse at center, rgba(101, 67, 33, 0.1) 0%, transparent 70%),
-                            
-                            /* 4. Vertical Fibers */
+                            /* 3. Sparse Fibers (Widely spaced vertical lines) */
                             repeating-linear-gradient(
                                 90deg, 
                                 transparent, 
-                                transparent 4px, 
-                                rgba(101, 67, 33, 0.08) 4px, 
-                                rgba(101, 67, 33, 0.08) 5px,
-                                transparent 12px
-                            ) !important;
+                                transparent 59px, 
+                                rgba(139, 69, 19, 0.06) 60px, /* Thin line */
+                                rgba(139, 69, 19, 0.03) 62px, /* Feather edge */
+                                transparent 62px,
+                                transparent 140px /* Large gap */
+                            ),
+                            
+                            /* 4. Subtle background noise */
+                            radial-gradient(circle at 50% 50%, rgba(139, 69, 19, 0.02) 0%, transparent 50%) !important;
                         
+                        /* Prime numbers for background-size prevent grid alignment */
                         background-size: 
-                            293px 293px,   /* Large Spots A */
-                            317px 317px,   /* Large Spots B */
-                            53px 53px,     /* Small Speckles A (Very dense) */
-                            97px 97px,     /* Small Speckles B */
-                            600px 600px,   /* Bruises */
-                            100% 100%      /* Vertical Streaks */
+                            103px 103px,    /* Tiny spots A */
+                            263px 263px,    /* Tiny spots B */
+                            499px 499px,    /* Large Blotches A */
+                            379px 379px,    /* Large Blotches B */
+                            100% 100%,      /* Fibers (Fill screen) */
+                            800px 800px     /* Noise */
                             !important;
                             
                         background-position: 
                             0 0, 
-                            100px 50px, 
-                            10px 20px, 
-                            50px 80px,
+                            30px 50px, 
+                            100px 20px, 
+                            -50px 150px,
                             0 0,
                             0 0 !important;
                             
                         background-attachment: fixed !important;
                     }
                     body.theme-banana #wordDisplay {
-                        color: #3e2723 !important; /* Very Dark Brown */
+                        color: #4b3621 !important; /* Dark Coffee Brown */
                         text-shadow: 1px 1px 0px rgba(255,255,255,0.4);
                     }
                 `;
