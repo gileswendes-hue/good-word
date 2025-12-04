@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.19.1', 
+    APP_VERSION: '5.19.2', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -195,7 +195,8 @@ const State = {
             puffer: localStorage.getItem('pufferBadgeUnlocked') === 'true',
             shark: localStorage.getItem('sharkBadgeUnlocked') === 'true',
             snowman: localStorage.getItem('snowmanBadgeUnlocked') === 'true',
-			angler: localStorage.getItem('anglerBadgeUnlocked') === 'true'
+			angler: localStorage.getItem('anglerBadgeUnlocked') === 'true',
+			shepherd: localStorage.getItem('shepherdBadgeUnlocked') === 'true'
         },
         settings: JSON.parse(localStorage.getItem('userSettings')) || {
             showTips: true,
@@ -245,9 +246,10 @@ const State = {
             s.setItem('insectEaten', v.eaten);
             s.setItem('insectTeased', v.teased);
         } 
-        else if (k === 'fishStats') {
-            s.setItem('fishCaught', v.caught);
-        }
+       else if (k === 'fishStats') {
+    s.setItem('fishCaught', v.caught);
+    s.setItem('fishSpared', v.spared); 
+}
         else if (k.startsWith('badge_')) {
             s.setItem(k, v);
         }
@@ -1280,48 +1282,54 @@ const Effects = {
             wrap.style.top = Math.random() * 80 + 10 + 'vh'; 
             wrap.style.left = startLeft ? '-100px' : '110vw';
             
-            // Cleanup timer
-            let cleanup = setTimeout(() => { if(wrap.parentNode) wrap.remove(); }, duration * 1000);
+            // --- NEW: Escape Handler ---
+            const handleEscape = () => {
+                if (wrap.parentNode) {
+                    // Fish still exists, so it escaped!
+                    State.data.fishStats.spared = (State.data.fishStats.spared || 0) + 1;
+                    State.save('fishStats', State.data.fishStats);
+                    
+                    if (State.data.fishStats.spared >= 250) {
+                        State.unlockBadge('shepherd');
+                    }
+                    
+                    wrap.remove();
+                }
+            };
 
-wrap.onclick = (e) => {
+            // Initial Cleanup Timer (Triggers when fish leaves screen)
+            let cleanup = setTimeout(handleEscape, duration * 1000);
+
+            wrap.onclick = (e) => {
                 e.stopPropagation();
                 
                 // --- PUFFERFISH GROW LOGIC ---
                 if (fishEmoji === '🐡') {
                     let clicks = parseInt(inner.dataset.clicks) || 0;
-                    
+                    // ... (existing variable checks) ...
                     const canGrow = clicks < 5;
                     const roll = Math.random();
-                    // 25% chance to be caught early, otherwise grow
                     const shouldCatch = !canGrow || (roll < 0.25); 
                     
                     if (!shouldCatch) {
+                        // ... (existing growth logic) ...
                         clicks++;
                         inner.dataset.clicks = clicks;
                         State.unlockBadge('puffer');
-                        
-                        // Scale increases: 1 -> 1.5 -> 2.0 ...
                         const newScale = 1 + (clicks * 0.5);
-                        
                         inner.style.transition = "transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)";
                         inner.style.transformOrigin = "center center"; 
-                        
-                        // FIX: Separate scaling to prevent overwrite
                         inner.style.transform = `scaleX(${baseDir}) scale(${newScale})`;
-                        
-                        // Play a small "inflation" sound (re-using the pop at a lower pitch, or just the pop)
-                        // For now, let's keep it silent or use a light haptic
                         Haptics.light();
-
                         const puffMsgs = ["Wanna fight?", "I'm bigger than your dad.", "I'll spike you!", "Stop it!", "I am big scary bear!", "Why not pick on someone your own size?"];
                         const rMsg = puffMsgs[Math.floor(Math.random() * puffMsgs.length)];
                         UIManager.showPostVoteMessage(rMsg);
                         
-                        // Reset cleanup timer
+                        // FIX: Reset cleanup timer using handleEscape
                         clearTimeout(cleanup);
-                        cleanup = setTimeout(() => { if(wrap.parentNode) wrap.remove(); }, 5000);
+                        cleanup = setTimeout(handleEscape, 5000); 
                         
-                        return; // Exit: Do not catch yet
+                        return; 
                     }
                 }
 
@@ -1330,8 +1338,10 @@ wrap.onclick = (e) => {
                 State.unlockBadge(data.k);
                 
                 State.data.fishStats.caught++;
-                State.save('fishStats', State.data.fishStats);
-                
+               fishStats: {
+    caught: parseInt(localStorage.getItem('fishCaught') || 0),
+    spared: parseInt(localStorage.getItem('fishSpared') || 0) 
+},
                 if (State.data.fishStats.caught >= 250) {
                     State.unlockBadge('angler');
                 }
@@ -2185,7 +2195,8 @@ const UIManager = {
             { k: 'judge', i: '⚖️', t: 'The Judge', d: 'Cast 1,000 votes!' },
             { k: 'bard', i: '✍️', t: 'The Bard', d: 'Contributed 5 accepted words' },
             { k: 'traveler', i: '🌍', t: 'The Traveller', d: 'Unlocked 5 different themes' },
-            { k: 'angler', i: '🔱', t: 'The Best in Brixham', d: 'Caught 250 fish' }
+            { k: 'angler', i: '🔱', t: 'The Best in Brixham', d: 'Caught 250 fish' },
+			{ k: 'shepherd', i: '🛟', t: 'Sea Shepherd', d: 'Chose to let 250 fish swim away safely' }
         ];
 
         // Helper to render badges
