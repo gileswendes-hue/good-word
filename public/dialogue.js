@@ -28,7 +28,8 @@ const GAME_DIALOGUE = {
             "Boo!", 
             "Hi frend!", 
             "Nice poke!",
-            "MWAH!"
+            "MWAH!",
+            "Buy me dinner first!"
         ],
 
         // When clicked (50% chance Grumpy)
@@ -56,7 +57,10 @@ const GAME_DIALOGUE = {
             "Is that a fly?!", 
             "Who touched my house?", 
             "Food?!", 
-            "I felt something!"
+            "I felt something!",
+            "I really need a video doorbell.",
+            "Bloody kids!",
+            "Didn't even leave a note."
         ],
 
         // When realizing it was a trick (Retreating)
