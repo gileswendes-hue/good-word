@@ -1334,6 +1334,23 @@ document.head.appendChild(style);
 }
 
 spawnFish() {
+      // --- FIX: CSS Injection moved INSIDE the function ---
+      if (!document.getElementById('octopus-style')) {
+        const style = document.createElement('style');
+        style.id = 'octopus-style';
+        style.innerHTML = `
+          @keyframes octopus-swim {
+            0% { transform: translateY(0) scale(1, 1); }
+            25% { transform: translateY(-30px) scale(0.9, 1.1); }
+            50% { transform: translateY(0) scale(1, 1); }
+            75% { transform: translateY(30px) scale(1.1, 0.9); }
+            100% { transform: translateY(0) scale(1, 1); }
+          }
+          .octopus-motion { animation: octopus-swim 2s ease-in-out infinite; }
+        `;
+        document.head.appendChild(style);
+      }
+
       if (State.data.currentTheme !== 'submarine') return;
 
       const fishData = {
@@ -1382,13 +1399,11 @@ spawnFish() {
       if (isBoot) {
          inner.style.animation = 'spin-slow 10s linear infinite';
          inner.style.transition = 'transform 0.5s';
-         // Initial Boot Position
          wrap.style.left = (Math.random() * 80 + 10) + '%'; 
          wrap.style.top = '110vh'; 
          inner.style.transform = `rotate(${Math.random() * 360}deg)`;
       } else {
          inner.style.transition = 'font-size 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), transform 0.2s';
-         // Initial Fish Position
          wrap.style.top = Math.random() * 80 + 10 + 'vh';
          if (!isBoot) inner.style.transform = `scaleX(${baseDir})`;
       }
@@ -1578,7 +1593,7 @@ spawnFish() {
         if (wrap.parentNode) wrap.remove();
       }, duration * 1000 + 2000);
 
-      // Next Fish (Recursive call fixed)
+      // Next Fish (Recursive call)
       this.fishTimeout = setTimeout(() => this.spawnFish(), Math.random() * 4000 + 1000);
   },
 
