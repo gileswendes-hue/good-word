@@ -1581,7 +1581,7 @@ bubbles(active) {
 
       // Next Fish (Recursive call)
       this.fishTimeout = setTimeout(() => this.spawnFish(), Math.random() * 4000 + 1000);
-    },
+    };
 
 snow() {
 const c = DOM.theme.effects.snow;
