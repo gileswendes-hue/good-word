@@ -1297,44 +1297,30 @@ this.plymouthShooterTimeout = setTimeout(() => this.spawnPlymouthShooter(), Math
 fire() { const c = DOM.theme.effects.fire; c.innerHTML = ''; for (let i = 0; i < 80; i++) { const p = document.createElement('div'); p.className = 'fire-particle'; p.style.animationDuration = `${Math.random()*1.5+0.5}s`; p.style.animationDelay = `${Math.random()}s`; p.style.left = `calc(10% + (80% * ${Math.random()}))`; const size = Math.random() * 3 + 2; p.style.width = p.style.height = `${size}em`; p.style.setProperty('--sway', `${(Math.random()-.5)*20}px`); c.appendChild(p) } for (let i = 0; i < 15; i++) { const s = document.createElement('div'); s.className = 'smoke-particle'; s.style.animationDelay = `${Math.random()*3}s`; s.style.left = `${Math.random()*90+5}%`; s.style.setProperty('--sway', `${(Math.random()-.5)*150}px`); c.appendChild(s) } },
 
 bubbles(active) {
-const c = DOM.theme.effects.bubble;
-if (this.fishTimeout) clearTimeout(this.fishTimeout);
-if (!active) { c.innerHTML = ''; return; }
-c.innerHTML = '';
+      const c = DOM.theme.effects.bubble;
+      if (this.fishTimeout) clearTimeout(this.fishTimeout);
+      if (!active) { c.innerHTML = ''; return; }
+      c.innerHTML = '';
 
-// Background Bubbles
-const cl = [10, 30, 70, 90];
-for (let i = 0; i < 40; i++) {
-const p = document.createElement('div');
-p.className = 'bubble-particle';
-const s = Math.random() * 30 + 10;
-p.style.width = p.style.height = `${s}px`;
-p.style.left = `${cl[Math.floor(Math.random()*cl.length)]+(Math.random()-.5)*20}%`;
-p.style.animationDuration = `${Math.random()*10+10}s`;
-p.style.animationDelay = `-${Math.random()*15}s`;
-c.appendChild(p);
-}
+      // Background Bubbles
+      const cl = [10, 30, 70, 90];
+      for (let i = 0; i < 40; i++) {
+        const p = document.createElement('div');
+        p.className = 'bubble-particle';
+        const s = Math.random() * 30 + 10;
+        p.style.width = p.style.height = `${s}px`;
+        p.style.left = `${cl[Math.floor(Math.random()*cl.length)]+(Math.random()-.5)*20}%`;
+        p.style.animationDuration = `${Math.random()*10+10}s`;
+        p.style.animationDelay = `-${Math.random()*15}s`;
+        c.appendChild(p);
+      }
+      
+      // Start the fish loop
+      this.spawnFish();
+    },
 
-// --- INJECT OCTOPUS ANIMATION ---
-// We add a dynamic style for the octopus movement
-if (!document.getElementById('octopus-style')) {
-const style = document.createElement('style');
-style.id = 'octopus-style';
-style.innerHTML = `
-@keyframes octopus-swim {
-0% { transform: translateY(0) scale(1, 1); }
-25% { transform: translateY(-30px) scale(0.9, 1.1); }
-50% { transform: translateY(0) scale(1, 1); }
-75% { transform: translateY(30px) scale(1.1, 0.9); }
-100% { transform: translateY(0) scale(1, 1); }
-}
-.octopus-motion { animation: octopus-swim 2s ease-in-out infinite; }
-`;
-document.head.appendChild(style);
-}
-
-const spawnFish = () => {
-      // --- FIX: CSS Injection ---
+    spawnFish() {
+      // --- OCTOPUS ANIMATION STYLE ---
       if (!document.getElementById('octopus-style')) {
         const style = document.createElement('style');
         style.id = 'octopus-style';
@@ -1594,8 +1580,8 @@ const spawnFish = () => {
       }, duration * 1000 + 2000);
 
       // Next Fish (Recursive call)
-      this.fishTimeout = setTimeout(spawnFish, Math.random() * 4000 + 1000);
-  };
+      this.fishTimeout = setTimeout(() => this.spawnFish(), Math.random() * 4000 + 1000);
+    },
 
 snow() {
 const c = DOM.theme.effects.snow;
