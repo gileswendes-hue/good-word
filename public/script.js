@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
 API_BASE_URL: '/api/words',
-APP_VERSION: '5.21',
+APP_VERSION: '5.30',
 KIDS_LIST_FILE: 'kids_words.txt',
 
 
@@ -1333,8 +1333,8 @@ style.innerHTML = `
 document.head.appendChild(style);
 }
 
-spawnFish() {
-      // --- FIX: CSS Injection moved INSIDE the function ---
+const spawnFish = () => {
+      // --- FIX: CSS Injection ---
       if (!document.getElementById('octopus-style')) {
         const style = document.createElement('style');
         style.id = 'octopus-style';
@@ -1594,8 +1594,8 @@ spawnFish() {
       }, duration * 1000 + 2000);
 
       // Next Fish (Recursive call)
-      this.fishTimeout = setTimeout(() => this.spawnFish(), Math.random() * 4000 + 1000);
-  },
+      this.fishTimeout = setTimeout(spawnFish, Math.random() * 4000 + 1000);
+  };
 
 snow() {
 const c = DOM.theme.effects.snow;
