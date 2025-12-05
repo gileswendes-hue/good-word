@@ -25,6 +25,7 @@ const GAME_DIALOGUE = {
         pokeHappy: [
             "Ticklish!", 
             "Seen any good bugs lately?", 
+            "It's a cob.",
             "Boo!", 
             "Hi frend!", 
             "Nice poke!",
