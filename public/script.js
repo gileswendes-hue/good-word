@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.20', 
+    APP_VERSION: '5.21', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1071,6 +1071,11 @@ const API = {
 const ThemeManager = {
     wordMap: {},
     init() {
+
+        const s = document.createElement("style");
+        s.innerText = `@keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }`;
+        document.head.appendChild(s);
+    
         Object.entries(CONFIG.THEME_SECRETS).forEach(([k, v]) => {
             try {
                 atob(v).split('|').forEach(w => this.wordMap[w] = k)
@@ -2725,7 +2730,142 @@ const UIManager = {
         }
     }
 };
+// --- PIN PAD MANAGER (NEW) ---
+const PinPad = {
+    input: '',
+    mode: 'set', // 'set' or 'verify'
+    onSuccess: null,
+    onCancel: null,
 
+    init() {
+        if (document.getElementById('pinPadModal')) return;
+
+        const el = document.createElement('div');
+        el.id = 'pinPadModal';
+        el.className = 'fixed inset-0 bg-gray-900 bg-opacity-95 z-[200] hidden flex items-center justify-center backdrop-blur-sm';
+        
+        // Dynamic HTML for the Pad
+        let padHTML = `
+            <div class="bg-white rounded-3xl p-6 w-80 shadow-2xl transform transition-all scale-100">
+                <div class="text-center mb-6">
+                    <div id="pinTitle" class="text-xl font-black text-gray-800 uppercase tracking-widest mb-2">ENTER PIN</div>
+                    <div id="pinSubtitle" class="text-xs font-bold text-gray-400">To access settings</div>
+                </div>
+                
+                <div class="flex justify-center gap-4 mb-8" id="pinDots">
+                    <div class="w-4 h-4 rounded-full bg-gray-200 transition-colors duration-200 border-2 border-gray-100"></div>
+                    <div class="w-4 h-4 rounded-full bg-gray-200 transition-colors duration-200 border-2 border-gray-100"></div>
+                    <div class="w-4 h-4 rounded-full bg-gray-200 transition-colors duration-200 border-2 border-gray-100"></div>
+                    <div class="w-4 h-4 rounded-full bg-gray-200 transition-colors duration-200 border-2 border-gray-100"></div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-3 mb-6">
+                    ${[1,2,3,4,5,6,7,8,9].map(n => 
+                        `<button class="pin-btn h-16 w-full rounded-2xl bg-gray-50 text-2xl font-bold text-gray-700 hover:bg-indigo-50 active:bg-indigo-100 transition-colors border-b-4 border-gray-200 active:border-b-0 active:translate-y-1" data-val="${n}">${n}</button>`
+                    ).join('')}
+                    <button class="h-16 w-full rounded-2xl flex items-center justify-center bg-red-50 text-red-500 font-bold hover:bg-red-100 transition-colors" id="pinCancelBtn">✕</button>
+                    <button class="pin-btn h-16 w-full rounded-2xl bg-gray-50 text-2xl font-bold text-gray-700 hover:bg-indigo-50 active:bg-indigo-100 border-b-4 border-gray-200 active:border-b-0 active:translate-y-1" data-val="0">0</button>
+                    <button class="h-16 w-full rounded-2xl flex items-center justify-center bg-yellow-50 text-yellow-600 font-bold hover:bg-yellow-100 transition-colors" id="pinBackspaceBtn">⌫</button>
+                </div>
+            </div>
+        `;
+        el.innerHTML = padHTML;
+        document.body.appendChild(el);
+
+        // Listeners
+        el.querySelectorAll('.pin-btn').forEach(b => {
+            b.onclick = (e) => this.handleInput(e.target.dataset.val);
+        });
+        document.getElementById('pinCancelBtn').onclick = () => this.close(false);
+        document.getElementById('pinBackspaceBtn').onclick = () => this.handleInput('back');
+    },
+
+    open(mode, onSuccess, onCancel) {
+        this.init(); // Ensure DOM exists
+        this.input = '';
+        this.mode = mode;
+        this.onSuccess = onSuccess;
+        this.onCancel = onCancel;
+        this.updateDisplay();
+        
+        const m = document.getElementById('pinPadModal');
+        const t = document.getElementById('pinTitle');
+        const s = document.getElementById('pinSubtitle');
+
+        if (mode === 'set') {
+            t.textContent = "Create PIN";
+            s.textContent = "Set a 4-digit code for parents";
+        } else {
+            t.textContent = "Parent Lock";
+            s.textContent = "Enter PIN to unlock settings";
+        }
+        
+        m.classList.remove('hidden');
+    },
+
+    close(success = false) {
+        document.getElementById('pinPadModal').classList.add('hidden');
+        if (!success && this.onCancel) this.onCancel();
+    },
+
+    handleInput(val) {
+        Haptics.light();
+        
+        if (val === 'back') {
+            this.input = this.input.slice(0, -1);
+        } else if (this.input.length < 4) {
+            this.input += val;
+        }
+
+        this.updateDisplay();
+
+        if (this.input.length === 4) {
+            setTimeout(() => this.submit(), 300);
+        }
+    },
+
+    updateDisplay() {
+        const dots = document.querySelectorAll('#pinDots div');
+        dots.forEach((d, i) => {
+            if (i < this.input.length) {
+                d.className = 'w-4 h-4 rounded-full bg-indigo-600 shadow-[0_0_10px_rgba(79,70,229,0.5)] transform scale-110 transition-all duration-200';
+            } else {
+                d.className = 'w-4 h-4 rounded-full bg-gray-200 border-2 border-gray-100 transition-all duration-200';
+            }
+        });
+    },
+
+    submit() {
+        if (this.mode === 'set') {
+            if (this.onSuccess) this.onSuccess(this.input);
+            this.close(true);
+        } else {
+            // Verify Logic
+            const savedPin = State.data.settings.kidsModePin;
+            if (this.input === savedPin) {
+                Haptics.medium();
+                if (this.onSuccess) this.onSuccess();
+                this.close(true);
+            } else {
+                // Shake Effect
+                Haptics.heavy();
+                const box = document.querySelector('#pinPadModal > div');
+                box.classList.add('animate-shake'); // Assuming standard Tailwind shake or define custom
+                box.style.animation = 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both';
+                
+                // Red Dots
+                const dots = document.querySelectorAll('#pinDots div');
+                dots.forEach(d => d.className = 'w-4 h-4 rounded-full bg-red-500 shadow-lg');
+
+                setTimeout(() => {
+                    box.style.animation = '';
+                    this.input = '';
+                    this.updateDisplay();
+                }, 500);
+            }
+        }
+    }
+};
 
 const ModalManager = {
     toggle(id, show) {
@@ -2812,39 +2952,49 @@ const ModalManager = {
                     SoundManager.updateMute();
                 };
 
-                // Kids Mode (Complex Logic)
+				// Kids Mode (Complex Logic)
                 document.getElementById('toggleKidsMode').onchange = e => {
                     const turningOn = e.target.checked;
                     const savedPin = State.data.settings.kidsModePin;
 
+                    e.preventDefault(); // Stop checkbox from changing visually until logic runs
+
                     if (turningOn) {
+                        // Turning ON: If no PIN set, ask to set one.
                         if (!savedPin) {
-                            const newPin = prompt("Set a PIN to protect Adult Mode:");
-                            if (newPin && newPin.trim().length > 0) {
+                            e.target.checked = false; // Reset first
+                            PinPad.open('set', (newPin) => {
                                 State.save('settings', { ...State.data.settings, kidsMode: true, kidsModePin: newPin });
-                                alert(`Kids Mode Active! Remember your PIN: ${newPin}`);
+                                UIManager.showPostVoteMessage(`Kids Mode Active! 🧸`);
                                 Game.refreshData(true);
-                            } else {
-                                e.target.checked = false; 
-                            }
+                                this.toggle('settings', false); // Close settings to prevent immediate toggle back
+                            }, () => {
+                                // Cancelled
+                                document.getElementById('toggleKidsMode').checked = false;
+                            });
                         } else {
+                            // PIN already exists, just enable
                             State.save('settings', { ...State.data.settings, kidsMode: true });
                             Game.refreshData(true);
                         }
                     } else {
+                        // Turning OFF: Require PIN
+                        e.target.checked = true; // Keep checked until verified
                         if (!savedPin) {
                             State.save('settings', { ...State.data.settings, kidsMode: false });
                             Game.refreshData(true);
                             return;
                         }
-                        const inputPin = prompt("Enter PIN to return to Adult Mode:");
-                        if (inputPin === savedPin) {
+                        
+                        PinPad.open('verify', () => {
                             State.save('settings', { ...State.data.settings, kidsMode: false });
                             Game.refreshData(true);
-                        } else {
-                            alert("Incorrect PIN! Staying in Kids Mode.");
-                            e.target.checked = true; 
-                        }
+                            // Visual update handled by refresh or modal close
+                            document.getElementById('toggleKidsMode').checked = false;
+                        }, () => {
+                            // Cancelled
+                            document.getElementById('toggleKidsMode').checked = true; 
+                        });
                     }
                 };
 
