@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
 API_BASE_URL: '/api/words',
-APP_VERSION: '5.21',
+APP_VERSION: '5.26',
 KIDS_LIST_FILE: 'kids_words.txt',
 
 
