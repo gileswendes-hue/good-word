@@ -5,12 +5,12 @@ const CONFIG = {
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
-    SPECIAL: {
-        CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
-        LLAMA: { text: 'LLAMA', prob: 0.005, fade: 8000, msg: "what llama?", dur: 3000 },
-        POTATO: { text: 'POTATO', prob: 0.005, fade: 300, msg: "Spudulica!", dur: 3000 },
-        SQUIRREL: { text: 'SQUIRREL', prob: 0.005, fade: 300, msg: "🌰", dur: 3000 },
-        MASON: { text: 'MASON', prob: 0.005, fade: 300, msg: "🦴", dur: 3000 }
+SPECIAL: {
+        CAKE: { text: 'CAKE', badge: 'cake', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
+        LLAMA: { text: 'LLAMA', badge: 'llama', prob: 0.005, fade: 8000, msg: "what llama?", dur: 3000 },
+        POTATO: { text: 'POTATO', badge: 'potato', prob: 0.005, fade: 300, msg: "Spudulica!", dur: 3000 },
+        SQUIRREL: { text: 'SQUIRREL', badge: 'squirrel', prob: 0.005, fade: 300, msg: "🌰", dur: 3000 },
+        MASON: { text: 'MASON', badge: 'bone', prob: 0.005, fade: 300, msg: "🦴", dur: 3000 }
     },
     CONTRIBUTION_THRESHOLD: 5,
     BOOST_FACTOR: 2,
@@ -1066,16 +1066,56 @@ const API = {
          return fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${w.toLowerCase()}`);
     }
 };
+// --- STYLE MANAGER ---
+const StyleManager = {
+    init() {
+        const id = 'gb-global-styles';
+        if (document.getElementById(id)) return;
+        
+        const s = document.createElement('style');
+        s.id = id;
+        s.textContent = `
+            @keyframes shake { 
+                10%, 90% { transform: translate3d(-1px, 0, 0); } 
+                20%, 80% { transform: translate3d(2px, 0, 0); } 
+                30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 
+                40%, 60% { transform: translate3d(4px, 0, 0); } 
+            }
+            @keyframes octopus-swim {
+                0% { transform: translateY(0) scale(1, 1); }
+                25% { transform: translateY(-30px) scale(0.9, 1.1); }
+                50% { transform: translateY(0) scale(1, 1); }
+                75% { transform: translateY(30px) scale(1.1, 0.9); }
+                100% { transform: translateY(0) scale(1, 1); }
+            }
+            .octopus-motion { animation: octopus-swim 2s ease-in-out infinite; }
 
+            /* Banana Theme Styles */
+            body.theme-banana {
+                background-color: #f7e98e !important;
+                background-image: 
+                    radial-gradient(circle at 15% 50%, rgba(92, 64, 51, 0.6) 1px, transparent 1.5px),
+                    radial-gradient(circle at 85% 30%, rgba(92, 64, 51, 0.5) 1.5px, transparent 2.5px),
+                    radial-gradient(ellipse at 70% 20%, rgba(70, 45, 30, 0.3) 2px, transparent 10px),
+                    radial-gradient(ellipse at 20% 80%, rgba(70, 45, 30, 0.4) 4px, transparent 15px),
+                    repeating-linear-gradient(90deg, transparent, transparent 59px, rgba(139, 69, 19, 0.06) 60px, rgba(139, 69, 19, 0.03) 62px, transparent 62px, transparent 140px),
+                    radial-gradient(circle at 50% 50%, rgba(139, 69, 19, 0.02) 0%, transparent 50%) !important;
+                background-size: 103px 103px, 263px 263px, 499px 499px, 379px 379px, 100% 100%, 800px 800px !important;
+                background-position: 0 0, 30px 50px, 100px 20px, -50px 150px, 0 0, 0 0 !important;
+                background-attachment: fixed !important;
+            }
+            body.theme-banana #wordDisplay {
+                color: #4b3621 !important;
+                text-shadow: 1px 1px 0px rgba(255,255,255,0.4);
+            }
+        `;
+        document.head.appendChild(s);
+    }
+};
 // --- THEME MANAGER ---
 const ThemeManager = {
     wordMap: {},
     init() {
-
-        const s = document.createElement("style");
-        s.innerText = `@keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }`;
-        document.head.appendChild(s);
-    
         Object.entries(CONFIG.THEME_SECRETS).forEach(([k, v]) => {
             try {
                 atob(v).split('|').forEach(w => this.wordMap[w] = k)
@@ -1102,110 +1142,42 @@ const ThemeManager = {
         });
         c.value = State.data.currentTheme
     },
-    apply(t, m = false) {
+ apply(t, m = false) {
         if (m) State.save('manualTheme', true);
         document.body.className = document.body.className.split(' ').filter(c => !c.startsWith('theme-')).join(' ');
         document.body.classList.add(`theme-${t}`);
         State.save('currentTheme', t);
         
-        // --- BANANA TEXTURE INJECTION (Version 3: Sparse & Organic) ---
-        if (t === 'banana') {
-            if (!document.getElementById('banana-style')) {
-                const s = document.createElement('style');
-                s.id = 'banana-style';
-                
-                s.innerHTML = `
-                    body.theme-banana {
-                        background-color: #f7e98e !important;
-                        
-                        background-image: 
-                            /* 1. The "Sugar Spots" (Tiny, sharp, high density but scattered) */
-                            radial-gradient(circle at 15% 50%, rgba(92, 64, 51, 0.6) 1px, transparent 1.5px),
-                            radial-gradient(circle at 85% 30%, rgba(92, 64, 51, 0.5) 1.5px, transparent 2.5px),
-                            
-                            /* 2. Large Irregular Blotches (The "Ripe" look) */
-                            radial-gradient(ellipse at 70% 20%, rgba(70, 45, 30, 0.3) 2px, transparent 10px),
-                            radial-gradient(ellipse at 20% 80%, rgba(70, 45, 30, 0.4) 4px, transparent 15px),
-                            
-                            /* 3. Sparse Fibers (Widely spaced vertical lines) */
-                            repeating-linear-gradient(
-                                90deg, 
-                                transparent, 
-                                transparent 59px, 
-                                rgba(139, 69, 19, 0.06) 60px, /* Thin line */
-                                rgba(139, 69, 19, 0.03) 62px, /* Feather edge */
-                                transparent 62px,
-                                transparent 140px /* Large gap */
-                            ),
-                            
-                            /* 4. Subtle background noise */
-                            radial-gradient(circle at 50% 50%, rgba(139, 69, 19, 0.02) 0%, transparent 50%) !important;
-                        
-                        /* Prime numbers for background-size prevent grid alignment */
-                        background-size: 
-                            103px 103px,    /* Tiny spots A */
-                            263px 263px,    /* Tiny spots B */
-                            499px 499px,    /* Large Blotches A */
-                            379px 379px,    /* Large Blotches B */
-                            100% 100%,      /* Fibers (Fill screen) */
-                            800px 800px     /* Noise */
-                            !important;
-                            
-                        background-position: 
-                            0 0, 
-                            30px 50px, 
-                            100px 20px, 
-                            -50px 150px,
-                            0 0,
-                            0 0 !important;
-                            
-                        background-attachment: fixed !important;
-                    }
-                    body.theme-banana #wordDisplay {
-                        color: #4b3621 !important; /* Dark Coffee Brown */
-                        text-shadow: 1px 1px 0px rgba(255,255,255,0.4);
-                    }
-                `;
-                document.head.appendChild(s);
-            }
-        } else {
-            const old = document.getElementById('banana-style');
-            if (old) old.remove();
-        }
-        // -------------------------------
-
         const e = DOM.theme.effects;
-        e.snow.classList.toggle('hidden', t !== 'winter');
-        e.bubble.classList.toggle('hidden', t !== 'submarine');
-        e.fire.classList.toggle('hidden', t !== 'fire');
-        e.summer.classList.toggle('hidden', t !== 'summer');
-        e.plymouth.classList.toggle('hidden', t !== 'plymouth');
-        e.ballpit.classList.toggle('hidden', t !== 'ballpit');
-        e.space.classList.toggle('hidden', t !== 'space');
         
-        if (t === 'winter') Effects.snow();
-        else e.snow.innerHTML = '';
+        // Hide all effect containers by default
+        Object.values(e).forEach(el => el.classList.add('hidden'));
         
-        if (t === 'submarine') Effects.bubbles(true);
-        else Effects.bubbles(false); 
-        
-        if (t === 'fire') Effects.fire();
-        else e.fire.innerHTML = '';
-        if (t === 'summer') Effects.summer();
-        else e.summer.innerHTML = '';
-        if (t === 'plymouth') Effects.plymouth(true);
-        else {
-            e.plymouth.innerHTML = '';
-            Effects.plymouth(false)
+        // Map themes to effect elements and functions
+        const map = {
+            winter: { el: e.snow, fn: Effects.snow },
+            submarine: { el: e.bubble, fn: Effects.bubbles },
+            fire: { el: e.fire, fn: Effects.fire },
+            summer: { el: e.summer, fn: Effects.summer },
+            plymouth: { el: e.plymouth, fn: Effects.plymouth },
+            ballpit: { el: e.ballpit, fn: Effects.ballpit },
+            space: { el: e.space, fn: Effects.space },
+            halloween: { el: null, fn: Effects.halloween } // Halloween doesn't use a single container
+        };
+
+        // Turn off all effects first
+        Object.keys(map).forEach(k => {
+            if (k !== t) map[k].fn.call(Effects, false);
+        });
+
+        // Activate current theme effect
+        if (map[t]) {
+            if (map[t].el) map[t].el.classList.remove('hidden');
+            map[t].fn.call(Effects, true);
         }
-        if (t === 'ballpit') Effects.ballpit(true);
-        else Effects.ballpit(false);
-        if (t === 'space') Effects.space(true);
-        else Effects.space(false);
-        Effects.halloween(t === 'halloween');
+
         if (t !== 'halloween') MosquitoManager.remove();
 
-        
         const cards = document.querySelectorAll('.card, .ranking-card'),
             isR = t === 'rainbow';
         [DOM.game.card, ...cards].forEach(el => {
@@ -1230,7 +1202,6 @@ const ThemeManager = {
             State.data.unlockedThemes.push(t);
             State.save('unlockedThemes', State.data.unlockedThemes);
             
-            // --- FIX: Count includes Default theme (+1) ---
             if ((State.data.unlockedThemes.length + 1) >= 5) {
                 State.unlockBadge('traveler');
             }
@@ -1252,11 +1223,13 @@ const Effects = {
     snowmanTimeout: null,
     plymouthShooterTimeout: null, 
     
-    plymouth(a) { 
+    // Standardized: All functions now take 'active' boolean
+    plymouth(active) { 
         const c = DOM.theme.effects.plymouth; 
         if (this.plymouthShooterTimeout) clearTimeout(this.plymouthShooterTimeout);
-        if (!a) { c.innerHTML = ''; return } 
         c.innerHTML = ''; 
+        if (!active) return;
+        
         for (let i = 0; i < 100; i++) { 
             const s = document.createElement('div'); 
             s.className = 'star-particle'; 
@@ -1294,13 +1267,20 @@ const Effects = {
         this.plymouthShooterTimeout = setTimeout(() => this.spawnPlymouthShooter(), Math.random() * 8000 + 4000);
     },
 
-    fire() { const c = DOM.theme.effects.fire; c.innerHTML = ''; for (let i = 0; i < 80; i++) { const p = document.createElement('div'); p.className = 'fire-particle'; p.style.animationDuration = `${Math.random()*1.5+0.5}s`; p.style.animationDelay = `${Math.random()}s`; p.style.left = `calc(10% + (80% * ${Math.random()}))`; const size = Math.random() * 3 + 2; p.style.width = p.style.height = `${size}em`; p.style.setProperty('--sway', `${(Math.random()-.5)*20}px`); c.appendChild(p) } for (let i = 0; i < 15; i++) { const s = document.createElement('div'); s.className = 'smoke-particle'; s.style.animationDelay = `${Math.random()*3}s`; s.style.left = `${Math.random()*90+5}%`; s.style.setProperty('--sway', `${(Math.random()-.5)*150}px`); c.appendChild(s) } },
+    fire(active) { 
+        const c = DOM.theme.effects.fire; 
+        c.innerHTML = ''; 
+        if (!active) return;
+
+        for (let i = 0; i < 80; i++) { const p = document.createElement('div'); p.className = 'fire-particle'; p.style.animationDuration = `${Math.random()*1.5+0.5}s`; p.style.animationDelay = `${Math.random()}s`; p.style.left = `calc(10% + (80% * ${Math.random()}))`; const size = Math.random() * 3 + 2; p.style.width = p.style.height = `${size}em`; p.style.setProperty('--sway', `${(Math.random()-.5)*20}px`); c.appendChild(p) } 
+        for (let i = 0; i < 15; i++) { const s = document.createElement('div'); s.className = 'smoke-particle'; s.style.animationDelay = `${Math.random()*3}s`; s.style.left = `${Math.random()*90+5}%`; s.style.setProperty('--sway', `${(Math.random()-.5)*150}px`); c.appendChild(s) } 
+    },
     
     bubbles(active) {
         const c = DOM.theme.effects.bubble;
         if (this.fishTimeout) clearTimeout(this.fishTimeout);
-        if (!active) { c.innerHTML = ''; return; }
         c.innerHTML = '';
+        if (!active) return;
         
         // Background Bubbles
         const cl = [10, 30, 70, 90];
@@ -1315,240 +1295,42 @@ const Effects = {
             c.appendChild(p);
         }
 
-        // --- INJECT OCTOPUS ANIMATION ---
-        // We add a dynamic style for the octopus movement
-        if (!document.getElementById('octopus-style')) {
-            const style = document.createElement('style');
-            style.id = 'octopus-style';
-            style.innerHTML = `
-                @keyframes octopus-swim {
-                    0% { transform: translateY(0) scale(1, 1); }
-                    25% { transform: translateY(-30px) scale(0.9, 1.1); }
-                    50% { transform: translateY(0) scale(1, 1); }
-                    75% { transform: translateY(30px) scale(1.1, 0.9); }
-                    100% { transform: translateY(0) scale(1, 1); }
-                }
-                .octopus-motion { animation: octopus-swim 2s ease-in-out infinite; }
-            `;
-            document.head.appendChild(style);
-        }
-
         const spawnFish = () => {
             if (State.data.currentTheme !== 'submarine') return;
-            
-            const fishData = {
-                '🐟': { k: 'fish', msg: "Gotcha! 🐟", speed: [12, 18] },
-                '🐠': { k: 'tropical', msg: "So colourful! 🐠", speed: [15, 25] },
-                '🐡': { k: 'puffer', msg: "", speed: [20, 30] }, 
-                '🦈': { k: 'shark', msg: "You're gonna need a bigger boat! 🦈", speed: [6, 10] },
-                '🐙': { k: 'tropical', msg: "Wiggle wiggle! 🐙", speed: [18, 25] },
-                '🥾': { k: 'prankster', msg: "Keep the ocean clean!", speed: [15, 20] } // Boot uses Prankster or just filler
-            };
-            
-            // Weighted Random Selection (Make Boot and Octopus rarer)
+             
+             // --- FISH LOGIC START ---
+            const fishData = { '🐟': { k: 'fish', msg: "Gotcha! 🐟", speed: [12, 18] }, '🐠': { k: 'tropical', msg: "So colourful! 🐠", speed: [15, 25] }, '🐡': { k: 'puffer', msg: "", speed: [20, 30] }, '🦈': { k: 'shark', msg: "You're gonna need a bigger boat! 🦈", speed: [6, 10] }, '🐙': { k: 'tropical', msg: "Wiggle wiggle! 🐙", speed: [18, 25] }, '🥾': { k: 'prankster', msg: "Keep the ocean clean!", speed: [15, 20] } };
             const roll = Math.random();
             let fishEmoji = '🐟';
-            if (roll < 0.05) fishEmoji = '🥾';      // 5% Boot
-            else if (roll < 0.15) fishEmoji = '🐙'; // 10% Octopus
-            else if (roll < 0.25) fishEmoji = '🦈'; // 10% Shark
-            else if (roll < 0.40) fishEmoji = '🐡'; // 15% Puffer
-            else if (roll < 0.70) fishEmoji = '🐠'; // 30% Tropical
-            else fishEmoji = '🐟';                  // 30% Standard
-
+            if (roll < 0.05) fishEmoji = '🥾'; else if (roll < 0.15) fishEmoji = '🐙'; else if (roll < 0.25) fishEmoji = '🦈'; else if (roll < 0.40) fishEmoji = '🐡'; else if (roll < 0.70) fishEmoji = '🐠';
             const config = fishData[fishEmoji];
-            
-            const wrap = document.createElement('div');
-            wrap.className = 'submarine-fish-wrap';
-            
-            const inner = document.createElement('div');
-            inner.className = 'submarine-fish-inner';
-            inner.textContent = fishEmoji;
-            inner.dataset.clicks = "0";
-            
-            // Base styles
-            inner.style.display = 'block'; 
-            inner.style.lineHeight = '1';
-            inner.style.fontSize = fishEmoji === '🐙' ? '3.5rem' : '3rem';
-            
-            // Octopus Special Class
-            if (fishEmoji === '🐙') {
-                inner.classList.add('octopus-motion');
-            }
-            
-            // Boot Special Rotation
-            if (fishEmoji === '🥾') {
-                inner.style.animation = 'spin-slow 10s linear infinite';
-                // Add keyframe if missing, but we'll stick to simple rotation
-                inner.style.transition = 'transform 0.5s';
-            } else {
-                inner.style.transition = 'font-size 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), transform 0.2s';
-            }
-
+            const wrap = document.createElement('div'); wrap.className = 'submarine-fish-wrap';
+            const inner = document.createElement('div'); inner.className = 'submarine-fish-inner'; inner.textContent = fishEmoji; inner.dataset.clicks = "0";
+            inner.style.display = 'block'; inner.style.lineHeight = '1'; inner.style.fontSize = fishEmoji === '🐙' ? '3.5rem' : '3rem';
+            if (fishEmoji === '🐙') inner.classList.add('octopus-motion');
+            if (fishEmoji === '🥾') { inner.style.animation = 'spin-slow 10s linear infinite'; inner.style.transition = 'transform 0.5s'; } else { inner.style.transition = 'font-size 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), transform 0.2s'; }
             wrap.appendChild(inner);
-            
-            // --- DIRECTION & SPEED LOGIC ---
-            const isBoot = fishEmoji === '🥾';
-            const duration = Math.random() * (config.speed[1] - config.speed[0]) + config.speed[0];
-            const startLeft = Math.random() > 0.5;
-            const baseDir = startLeft ? -1 : 1;
-
-            if (isBoot) {
-                // BOOT: Moves Bottom -> Top
-                wrap.style.left = (Math.random() * 80 + 10) + '%'; // Random X position
-                wrap.style.top = '110vh'; // Start below screen
-                wrap.style.transition = `top ${duration}s linear`;
-                
-                // Slight random rotation for the boot
-                inner.style.transform = `rotate(${Math.random() * 360}deg)`;
-            } else {
-                // FISH: Moves Left/Right
-                wrap.style.top = Math.random() * 80 + 10 + 'vh'; 
-                wrap.style.left = startLeft ? '-150px' : '110vw';
-                wrap.style.transition = `left ${duration}s linear`;
-                
-                // Octopus doesn't need scaleX usually, but generic fish do
-                if (fishEmoji !== '🥾') {
-                    inner.style.transform = `scaleX(${baseDir})`;
-                }
-            }
-
-            // --- HELPER: Speech Bubble ---
-            const showBubble = (text) => {
-                const old = wrap.querySelector('.fish-bubble');
-                if(old) old.remove();
-
-                const b = document.createElement('div');
-                b.className = 'fish-bubble';
-                Object.assign(b.style, {
-                    position: 'absolute', bottom: '100%', left: '50%', 
-                    transform: 'translateX(-50%)', background: 'white', color: '#1f2937', 
-                    padding: '6px 12px', borderRadius: '12px', fontSize: '16px', 
-                    fontWeight: 'bold', whiteSpace: 'nowrap', zIndex: '20',
-                    pointerEvents: 'none', opacity: '0', transition: 'opacity 0.2s',
-                    boxShadow: '0 2px 5px rgba(0,0,0,0.2)', border: '1px solid #e5e7eb',
-                    marginBottom: '10px'
-                });
-                b.textContent = text;
-                const arrow = document.createElement('div');
-                Object.assign(arrow.style, {
-                    position: 'absolute', top: '100%', left: '50%', marginLeft: '-6px',
-                    borderWidth: '6px', borderStyle: 'solid', 
-                    borderColor: 'white transparent transparent transparent'
-                });
-                b.appendChild(arrow);
-                wrap.appendChild(b);
-                requestAnimationFrame(() => b.style.opacity = '1');
-                setTimeout(() => { if(b.parentNode) { b.style.opacity = '0'; setTimeout(() => b.remove(), 300); } }, 2000);
-            };
-
-            // --- ESCAPE HANDLER (Sea Shepherd) ---
-            const handleEscape = (e) => {
-                // Check correct property based on type
-                const prop = isBoot ? 'top' : 'left';
-                if (e.propertyName !== prop) return;
-
-                if (wrap.parentNode) {
-                    // Boots don't count towards Sea Shepherd (they are trash)
-                    if (!isBoot) {
-                        State.data.fishStats.spared = (State.data.fishStats.spared || 0) + 1;
-                        State.save('fishStats', State.data.fishStats);
-                        if (State.data.fishStats.spared >= 250) State.unlockBadge('shepherd');
-                    }
-                    wrap.remove();
-                }
-            };
-
+            const isBoot = fishEmoji === '🥾'; const duration = Math.random() * (config.speed[1] - config.speed[0]) + config.speed[0]; const startLeft = Math.random() > 0.5; const baseDir = startLeft ? -1 : 1;
+            if (isBoot) { wrap.style.left = (Math.random() * 80 + 10) + '%'; wrap.style.top = '110vh'; wrap.style.transition = `top ${duration}s linear`; inner.style.transform = `rotate(${Math.random() * 360}deg)`; } 
+            else { wrap.style.top = Math.random() * 80 + 10 + 'vh'; wrap.style.left = startLeft ? '-150px' : '110vw'; wrap.style.transition = `left ${duration}s linear`; if (fishEmoji !== '🥾') inner.style.transform = `scaleX(${baseDir})`; }
+            const showBubble = (text) => { const old = wrap.querySelector('.fish-bubble'); if(old) old.remove(); const b = document.createElement('div'); b.className = 'fish-bubble'; Object.assign(b.style, { position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)', background: 'white', color: '#1f2937', padding: '6px 12px', borderRadius: '12px', fontSize: '16px', fontWeight: 'bold', whiteSpace: 'nowrap', zIndex: '20', pointerEvents: 'none', opacity: '0', transition: 'opacity 0.2s', boxShadow: '0 2px 5px rgba(0,0,0,0.2)', border: '1px solid #e5e7eb', marginBottom: '10px' }); b.textContent = text; const arrow = document.createElement('div'); Object.assign(arrow.style, { position: 'absolute', top: '100%', left: '50%', marginLeft: '-6px', borderWidth: '6px', borderStyle: 'solid', borderColor: 'white transparent transparent transparent' }); b.appendChild(arrow); wrap.appendChild(b); requestAnimationFrame(() => b.style.opacity = '1'); setTimeout(() => { if(b.parentNode) { b.style.opacity = '0'; setTimeout(() => b.remove(), 300); } }, 2000); };
+            const handleEscape = (e) => { const prop = isBoot ? 'top' : 'left'; if (e.propertyName !== prop) return; if (wrap.parentNode) { if (!isBoot) { State.data.fishStats.spared = (State.data.fishStats.spared || 0) + 1; State.save('fishStats', State.data.fishStats); if (State.data.fishStats.spared >= 250) State.unlockBadge('shepherd'); } wrap.remove(); } };
             wrap.addEventListener('transitionend', handleEscape);
-
-            wrap.onclick = (e) => {
-                e.stopPropagation();
-                
-                // --- PUFFERFISH GROW LOGIC ---
-                if (fishEmoji === '🐡') {
-                    let clicks = parseInt(inner.dataset.clicks) || 0;
-                    const canGrow = clicks < 5;
-                    const roll = Math.random();
-                    const shouldCatch = !canGrow || (roll < 0.25); 
-                    
-                    if (!shouldCatch) {
-                        clicks++;
-                        inner.dataset.clicks = clicks;
-                        State.unlockBadge('puffer');
-                        
-                        const newSize = 3 + (clicks * 1.5);
-                        inner.style.fontSize = `${newSize}rem`;
-                        Haptics.light();
-
-                        const puffMsgs = ["Wanna fight?", "I'm bigger than your dad.", "I'll spike you!", "Stop it!", "I am big scary bear!", "Why not pick on someone your own size?"];
-                        const rMsg = puffMsgs[Math.floor(Math.random() * puffMsgs.length)];
-                        showBubble(rMsg);
-                        return; 
-                    }
-                }
-
-                // --- CATCH LOGIC ---
-                const data = fishData[fishEmoji];
-                if (data.k) State.unlockBadge(data.k);
-                
-                // Boots don't count as "Fish Caught" stats
-                if (!isBoot) {
-                    State.data.fishStats.caught++;
-                    State.save('fishStats', State.data.fishStats);
-                    if (State.data.fishStats.caught >= 250) State.unlockBadge('angler');
-                }
-                
-                if (fishEmoji === '🐡') UIManager.showPostVoteMessage("Popped!");
-                else UIManager.showPostVoteMessage(data.msg);
-                
-                SoundManager.playPop();
-
-                // Particle Effect
-                const rect = wrap.getBoundingClientRect();
-                const centerX = rect.left + rect.width / 2;
-                const centerY = rect.top + rect.height / 2;
-                const pColor = fishEmoji === '🐡' ? '#eab308' : (isBoot ? '#78350f' : '#60a5fa');
-
-                for (let i = 0; i < 12; i++) {
-                    const p = document.createElement('div');
-                    p.style.cssText = `position: fixed; width: 8px; height: 8px; background: ${pColor}; border-radius: 50%; pointer-events: none; z-index: 102; left: ${centerX}px; top: ${centerY}px;`;
-                    document.body.appendChild(p);
-                    const angle = Math.random() * Math.PI * 2;
-                    const velocity = Math.random() * 60 + 20;
-                    const tx = Math.cos(angle) * velocity;
-                    const ty = Math.sin(angle) * velocity;
-                    const anim = p.animate([
-                        { transform: 'translate(0,0) scale(1)', opacity: 1 },
-                        { transform: `translate(${tx}px, ${ty}px) scale(0)`, opacity: 0 }
-                    ], { duration: 400, easing: 'ease-out' });
-                    anim.onfinish = () => p.remove();
-                }
-
-                wrap.style.transition = 'opacity 0.1s, transform 0.1s';
-                wrap.style.opacity = '0';
-                wrap.style.transform = 'scale(0)'; 
-                setTimeout(() => wrap.remove(), 100);
-            };
-
+            wrap.onclick = (e) => { e.stopPropagation(); if (fishEmoji === '🐡') { let clicks = parseInt(inner.dataset.clicks) || 0; const canGrow = clicks < 5; const roll = Math.random(); const shouldCatch = !canGrow || (roll < 0.25); if (!shouldCatch) { clicks++; inner.dataset.clicks = clicks; State.unlockBadge('puffer'); const newSize = 3 + (clicks * 1.5); inner.style.fontSize = `${newSize}rem`; Haptics.light(); const puffMsgs = ["Wanna fight?", "I'm bigger than your dad.", "I'll spike you!", "Stop it!", "I am big scary bear!", "Why not pick on someone your own size?"]; showBubble(puffMsgs[Math.floor(Math.random() * puffMsgs.length)]); return; } } const data = fishData[fishEmoji]; if (data.k) State.unlockBadge(data.k); if (!isBoot) { State.data.fishStats.caught++; State.save('fishStats', State.data.fishStats); if (State.data.fishStats.caught >= 250) State.unlockBadge('angler'); } if (fishEmoji === '🐡') UIManager.showPostVoteMessage("Popped!"); else UIManager.showPostVoteMessage(data.msg); SoundManager.playPop(); const rect = wrap.getBoundingClientRect(); const centerX = rect.left + rect.width / 2; const centerY = rect.top + rect.height / 2; const pColor = fishEmoji === '🐡' ? '#eab308' : (isBoot ? '#78350f' : '#60a5fa'); for (let i = 0; i < 12; i++) { const p = document.createElement('div'); p.style.cssText = `position: fixed; width: 8px; height: 8px; background: ${pColor}; border-radius: 50%; pointer-events: none; z-index: 102; left: ${centerX}px; top: ${centerY}px;`; document.body.appendChild(p); const angle = Math.random() * Math.PI * 2; const velocity = Math.random() * 60 + 20; const tx = Math.cos(angle) * velocity; const ty = Math.sin(angle) * velocity; const anim = p.animate([ { transform: 'translate(0,0) scale(1)', opacity: 1 }, { transform: `translate(${tx}px, ${ty}px) scale(0)`, opacity: 0 } ], { duration: 400, easing: 'ease-out' }); anim.onfinish = () => p.remove(); } wrap.style.transition = 'opacity 0.1s, transform 0.1s'; wrap.style.opacity = '0'; wrap.style.transform = 'scale(0)'; setTimeout(() => wrap.remove(), 100); };
             c.appendChild(wrap);
-            
-            // Trigger Movement
-            requestAnimationFrame(() => { 
-                if (isBoot) {
-                    wrap.style.top = '-20%'; // Float off top
-                } else {
-                    wrap.style.left = startLeft ? '110vw' : '-150px'; 
-                }
-            });
-            
-            // Loop next fish (1-5s delay)
+            requestAnimationFrame(() => { if (isBoot) { wrap.style.top = '-20%'; } else { wrap.style.left = startLeft ? '110vw' : '-150px'; } });
             this.fishTimeout = setTimeout(spawnFish, Math.random() * 4000 + 1000);
+            // --- FISH LOGIC END ---
         };
         spawnFish();
     },
 
-    snow() {
+    snow(active) {
         const c = DOM.theme.effects.snow;
-        c.innerHTML = '';
+        if (this.snowmanTimeout) clearTimeout(this.snowmanTimeout);
+        c.innerHTML = ''; // Clear previous flakes
+        if (!active) return;
+
         for (let i = 0; i < 60; i++) {
             const f = document.createElement('div');
             f.className = 'snow-particle';
@@ -1562,7 +1344,7 @@ const Effects = {
             f.style.animationDelay = `-${Math.random()*15}s`;
             c.appendChild(f);
         }
-        if (this.snowmanTimeout) clearTimeout(this.snowmanTimeout);
+        
         const spawnSnowman = () => {
             if (State.data.currentTheme !== 'winter') return;
             const sm = document.createElement('div');
@@ -1598,9 +1380,14 @@ const Effects = {
         this.snowmanTimeout = setTimeout(spawnSnowman, Math.random() * 5000 + 5000);
     },
 	
-    summer() { const c = DOM.theme.effects.summer; c.innerHTML = ''; const g = document.createElement('div'); g.className = 'summer-grass'; c.appendChild(g); for (let i = 0; i < 8; i++) { const d = document.createElement('div'); d.className = `summer-cloud v${Math.floor(Math.random()*3)+1}`; const w = Math.random() * 100 + 100; d.style.width = `${w}px`; d.style.height = `${w*.35}px`; d.style.top = `${Math.random()*60}%`; d.style.animationDuration = `${Math.random()*60+60}s`; d.style.animationDelay = `-${Math.random()*100}s`; c.appendChild(d) } },
+    summer(active) { 
+        const c = DOM.theme.effects.summer; 
+        c.innerHTML = ''; 
+        if(!active) return;
+        const g = document.createElement('div'); g.className = 'summer-grass'; c.appendChild(g); for (let i = 0; i < 8; i++) { const d = document.createElement('div'); d.className = `summer-cloud v${Math.floor(Math.random()*3)+1}`; const w = Math.random() * 100 + 100; d.style.width = `${w}px`; d.style.height = `${w*.35}px`; d.style.top = `${Math.random()*60}%`; d.style.animationDuration = `${Math.random()*60+60}s`; d.style.animationDelay = `-${Math.random()*100}s`; c.appendChild(d) } 
+    },
     
-halloween(active) {
+    halloween(active) {
         if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
         if (this.webRaf) cancelAnimationFrame(this.webRaf);
         
@@ -1612,6 +1399,7 @@ halloween(active) {
             return;
         }
 
+        
         let wrap = document.getElementById('spider-wrap');
         if (!wrap) {
             wrap = document.createElement('div');
@@ -1620,497 +1408,36 @@ halloween(active) {
                 position: 'fixed', left: '50%', top: '-15vh', zIndex: '102',
                 transition: 'left 4s ease-in-out', pointerEvents: 'none' 
             });
-            
             const eaten = State.data.insectStats.eaten || 0;
             const scale = Math.min(0.6 + (eaten * 0.005), 1.3).toFixed(2);
-            
-            // REMOVED static #spider-bubble from HTML
-            wrap.innerHTML = `
-                <div id="spider-anchor" style="transform: scale(${scale}); transform-origin: top center;">
-                    <div id="spider-thread" style="width: 2px; background: rgba(255,255,255,0.6); margin: 0 auto; height: 0; transition: height 4s ease-in-out;"></div>
-                    <div id="spider-body" style="font-size: 3rem; margin-top: -10px; cursor: pointer; position: relative; z-index: 2; pointer-events: auto; transition: transform 1s ease;">
-                        🕷️
-                    </div>
-                </div>`;
+            wrap.innerHTML = `<div id="spider-anchor" style="transform: scale(${scale}); transform-origin: top center;"><div id="spider-thread" style="width: 2px; background: rgba(255,255,255,0.6); margin: 0 auto; height: 0; transition: height 4s ease-in-out;"></div><div id="spider-body" style="font-size: 3rem; margin-top: -10px; cursor: pointer; position: relative; z-index: 2; pointer-events: auto; transition: transform 1s ease;">🕷️</div></div>`;
             document.body.appendChild(wrap);
-            
             const body = wrap.querySelector('#spider-body');
             const thread = wrap.querySelector('#spider-thread');
-
-            // --- NEW: Dynamic Bubble Helper (Matches Pufferfish Logic) ---
-            const showSpiderBubble = (text) => {
-                // Remove existing
-                const old = body.querySelector('.spider-dynamic-bubble');
-                if (old) old.remove();
-
-                const b = document.createElement('div');
-                b.className = 'spider-dynamic-bubble';
-                Object.assign(b.style, {
-                    position: 'absolute', bottom: '100%', left: '50%', 
-                    transform: 'translateX(-50%)', background: 'white', 
-                    color: '#1f2937', padding: '6px 12px', borderRadius: '12px', fontSize: '14px', 
-                    fontWeight: 'bold', fontFamily: 'sans-serif', whiteSpace: 'nowrap',
-                    width: 'max-content', // Forces tight fit
-                    pointerEvents: 'none', opacity: '0', transition: 'opacity 0.2s', 
-                    boxShadow: '0 2px 5px rgba(0,0,0,0.2)', border: '1px solid #e5e7eb',
-                    marginBottom: '8px', zIndex: '10'
-                });
-                b.textContent = text;
-
-                // Little arrow
-                const arrow = document.createElement('div');
-                Object.assign(arrow.style, {
-                    position: 'absolute', top: '100%', left: '50%', marginLeft: '-6px',
-                    borderWidth: '6px', borderStyle: 'solid', 
-                    borderColor: 'white transparent transparent transparent'
-                });
-                b.appendChild(arrow);
-                
-                body.appendChild(b);
-
-                requestAnimationFrame(() => b.style.opacity = '1');
-                
-                // Auto-hide after 2 seconds (unless hunting)
-                setTimeout(() => {
-                    if (b.parentNode && !wrap.classList.contains('hunting')) {
-                        b.style.opacity = '0';
-                        setTimeout(() => b.remove(), 300);
-                    }
-                }, 2000);
-                
-                return b; // Return reference for manual removal if needed
-            };
-
-            // Attach Helper to the DOM element so other functions can use it
+            const showSpiderBubble = (text) => { const old = body.querySelector('.spider-dynamic-bubble'); if (old) old.remove(); const b = document.createElement('div'); b.className = 'spider-dynamic-bubble'; Object.assign(b.style, { position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)', background: 'white', color: '#1f2937', padding: '6px 12px', borderRadius: '12px', fontSize: '14px', fontWeight: 'bold', fontFamily: 'sans-serif', whiteSpace: 'nowrap', width: 'max-content', pointerEvents: 'none', opacity: '0', transition: 'opacity 0.2s', boxShadow: '0 2px 5px rgba(0,0,0,0.2)', border: '1px solid #e5e7eb', marginBottom: '8px', zIndex: '10' }); b.textContent = text; const arrow = document.createElement('div'); Object.assign(arrow.style, { position: 'absolute', top: '100%', left: '50%', marginLeft: '-6px', borderWidth: '6px', borderStyle: 'solid', borderColor: 'white transparent transparent transparent' }); b.appendChild(arrow); body.appendChild(b); requestAnimationFrame(() => b.style.opacity = '1'); setTimeout(() => { if (b.parentNode && !wrap.classList.contains('hunting')) { b.style.opacity = '0'; setTimeout(() => b.remove(), 300); } }, 2000); return b; };
             wrap.showBubble = showSpiderBubble;
-
-            body.onclick = (e) => {
-                e.stopPropagation();
-                State.unlockBadge('spider');
-                
-                const willFall = Math.random() < 0.2; 
-                const lines = willFall ? GAME_DIALOGUE.spider.pokeGrumpy : GAME_DIALOGUE.spider.pokeHappy;
-                const text = lines[Math.floor(Math.random() * lines.length)];
-                
-                const bubble = showSpiderBubble(text);
-                
-                body.style.animation = 'shake 0.3s ease-in-out';
-                
-                if (willFall) {
-                    if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
-                    setTimeout(() => { this.spiderFall(wrap, thread, body, bubble); }, 400); 
-                } else {
-                    setTimeout(() => {
-                        body.style.animation = '';
-                    }, 2000);
-                }
-            };
+            body.onclick = (e) => { e.stopPropagation(); State.unlockBadge('spider'); const willFall = Math.random() < 0.2; const lines = willFall ? GAME_DIALOGUE.spider.pokeGrumpy : GAME_DIALOGUE.spider.pokeHappy; const text = lines[Math.floor(Math.random() * lines.length)]; const bubble = showSpiderBubble(text); body.style.animation = 'shake 0.3s ease-in-out'; if (willFall) { if (this.spiderTimeout) clearTimeout(this.spiderTimeout); setTimeout(() => { this.spiderFall(wrap, thread, body, bubble); }, 400); } else { setTimeout(() => { body.style.animation = ''; }, 2000); } };
         }
-
         const body = wrap.querySelector('#spider-body');
         const thread = wrap.querySelector('#spider-thread');
-        
-        const runDrop = () => {
-            if (!document.body.contains(wrap)) return;
-            if (wrap.classList.contains('hunting')) return;
-            
-            const actionRoll = Math.random();
-            body.style.transform = 'rotate(0deg)'; 
-            thread.style.opacity = '1'; 
-            
-            // Action 1: Peek
-            if (actionRoll < 0.7) {
-                const safeLeft = Math.random() * 60 + 20;
-                wrap.style.transition = 'left 3s ease-in-out'; 
-                wrap.style.left = safeLeft + '%';
-                
-                this.spiderTimeout = setTimeout(() => {
-                    if (wrap.classList.contains('hunting')) return;
-                    const peekHeight = Math.random() * 30 + 40; 
-                    thread.style.transition = 'height 2.5s ease-in-out'; 
-                    thread.style.height = peekHeight + 'vh';
-                    
-                    setTimeout(() => {
-                         if (wrap.classList.contains('hunting')) return;
-                         
-                         const phrases = (typeof GAME_DIALOGUE !== 'undefined' && GAME_DIALOGUE.spider && GAME_DIALOGUE.spider.idle) 
-                            ? GAME_DIALOGUE.spider.idle : ['Boo!', 'Hi!', '🕷️'];
-                         const text = phrases[Math.floor(Math.random() * phrases.length)];
-                         
-                         if(wrap.showBubble) wrap.showBubble(text); // Use helper
-                         
-                         setTimeout(() => {
-                             if (wrap.classList.contains('hunting')) return;
-                             thread.style.height = '0'; 
-                             this.spiderTimeout = setTimeout(runDrop, Math.random() * 5000 + 5000);
-                         }, 2500); // Shorter bubble duration
-                    }, 2500);
-                }, 3000);
-                return;
-            }
-            
-            // Action 2: Wall Climb
-            if (actionRoll < 0.9) {
-                const isLeft = Math.random() > 0.5;
-                const wallX = isLeft ? 5 : 85; 
-                wrap.style.transition = 'left 4s ease-in-out';
-                wrap.style.left = wallX + '%';
-                
-                this.spiderTimeout = setTimeout(() => {
-                    if (wrap.classList.contains('hunting')) return;
-                    thread.style.opacity = '0'; 
-                    body.style.transform = `rotate(${isLeft ? 90 : -90}deg)`;
-                    const climbDepth = Math.random() * 40 + 30; 
-                    thread.style.transition = 'height 4s ease-in-out';
-                    thread.style.height = climbDepth + 'vh';
-                    
-                    setTimeout(() => {
-                         if (wrap.classList.contains('hunting')) return;
-                         thread.style.height = '0'; 
-                         setTimeout(() => {
-                             body.style.transform = 'rotate(0deg)';
-                             thread.style.opacity = '1'; 
-                             this.spiderTimeout = setTimeout(runDrop, Math.random() * 5000 + 5000);
-                         }, 4000);
-                    }, 5000);
-                }, 4000);
-                return;
-            }
-            
-            // Action 3: Just Move
-            const safeLeft = Math.random() * 60 + 20; 
-            wrap.style.transition = 'left 4s ease-in-out'; 
-            wrap.style.left = safeLeft + '%';
-            this.spiderTimeout = setTimeout(runDrop, 2000);
-        };
-        
+        const runDrop = () => { if (!document.body.contains(wrap)) return; if (wrap.classList.contains('hunting')) return; const actionRoll = Math.random(); body.style.transform = 'rotate(0deg)'; thread.style.opacity = '1'; if (actionRoll < 0.7) { const safeLeft = Math.random() * 60 + 20; wrap.style.transition = 'left 3s ease-in-out'; wrap.style.left = safeLeft + '%'; this.spiderTimeout = setTimeout(() => { if (wrap.classList.contains('hunting')) return; const peekHeight = Math.random() * 30 + 40; thread.style.transition = 'height 2.5s ease-in-out'; thread.style.height = peekHeight + 'vh'; setTimeout(() => { if (wrap.classList.contains('hunting')) return; const phrases = (typeof GAME_DIALOGUE !== 'undefined' && GAME_DIALOGUE.spider && GAME_DIALOGUE.spider.idle) ? GAME_DIALOGUE.spider.idle : ['Boo!', 'Hi!', '🕷️']; const text = phrases[Math.floor(Math.random() * phrases.length)]; if(wrap.showBubble) wrap.showBubble(text); setTimeout(() => { if (wrap.classList.contains('hunting')) return; thread.style.height = '0'; this.spiderTimeout = setTimeout(runDrop, Math.random() * 5000 + 5000); }, 2500); }, 2500); }, 3000); return; } if (actionRoll < 0.9) { const isLeft = Math.random() > 0.5; const wallX = isLeft ? 5 : 85; wrap.style.transition = 'left 4s ease-in-out'; wrap.style.left = wallX + '%'; this.spiderTimeout = setTimeout(() => { if (wrap.classList.contains('hunting')) return; thread.style.opacity = '0'; body.style.transform = `rotate(${isLeft ? 90 : -90}deg)`; const climbDepth = Math.random() * 40 + 30; thread.style.transition = 'height 4s ease-in-out'; thread.style.height = climbDepth + 'vh'; setTimeout(() => { if (wrap.classList.contains('hunting')) return; thread.style.height = '0'; setTimeout(() => { body.style.transform = 'rotate(0deg)'; thread.style.opacity = '1'; this.spiderTimeout = setTimeout(runDrop, Math.random() * 5000 + 5000); }, 4000); }, 5000); }, 4000); return; } const safeLeft = Math.random() * 60 + 20; wrap.style.transition = 'left 4s ease-in-out'; wrap.style.left = safeLeft + '%'; this.spiderTimeout = setTimeout(runDrop, 2000); };
         this.spiderTimeout = setTimeout(runDrop, 1000);
-        
-        if (!document.getElementById('spider-web-corner')) {
-            const web = document.createElement('div');
-            web.id = 'spider-web-corner';
-            web.innerHTML = `<svg id="web-svg" viewBox="0 0 300 300" style="width:300px;height:300px;position:fixed;top:0;right:0;z-index:55;pointer-events:auto;cursor:pointer;opacity:0.7;filter:drop-shadow(1px 1px 2px rgba(0,0,0,0.5))"></svg>`;
-            document.body.appendChild(web);
-            
-            web.onclick = () => {
-                if (MosquitoManager.state === 'stuck') {
-                    this.spiderHunt(MosquitoManager.x, MosquitoManager.y, true);
-                } else {
-					State.data.insectStats.teased = (State.data.insectStats.teased || 0) + 1;
-                    State.save('insectStats', State.data.insectStats);
-                    if (State.data.insectStats.teased >= 50) State.unlockBadge('prankster');
-                    this.spiderHunt(88, 20, false); 
-                }
-            };
-            
-            const svg = document.getElementById('web-svg');
-            const cx = 300, cy = 0;
-            const baseAnchors = [{ x: 0, y: 0 }, { x: 60, y: 100 }, { x: 140, y: 200 }, { x: 220, y: 270 }, { x: 300, y: 300 }];
-            
-            const animateWeb = () => {
-                const time = Date.now();
-                let pathStr = '';
-                const curAnchors = baseAnchors.map((a, i) => {
-                    if (i === 0 || i === baseAnchors.length - 1) return a;
-                    const sway = Math.sin((time / 1500) + i) * 15; 
-                    return { x: a.x + sway, y: a.y + sway }
-                });
-                curAnchors.forEach(p => {
-                    pathStr += `<line x1="${cx}" y1="${cy}" x2="${p.x}" y2="${p.y}" stroke="rgba(255,255,255,0.4)" stroke-width="2.5"/>`
-                });
-                const levels = 7;
-                for (let i = 1; i <= levels; i++) {
-                    const t = i / levels;
-                    let d = '';
-                    for (let j = 0; j < curAnchors.length; j++) {
-                        const ax = cx + (curAnchors[j].x - cx) * t,
-                            ay = cy + (curAnchors[j].y - cy) * t;
-                        if (j === 0) d += `M ${ax} ${ay}`;
-                        else {
-                            const px = cx + (curAnchors[j - 1].x - cx) * t,
-                                py = cy + (curAnchors[j - 1].y - cy) * t;
-                            const midX = (px + ax) / 2,
-                                midY = (py + ay) / 2,
-                                sag = 15 * t * (1 - t * 0.5),
-                                dx = midX - cx,
-                                dy = midY - cy,
-                                len = Math.sqrt(dx * dx + dy * dy),
-                                nx = dx / len,
-                                ny = dy / len,
-                                qx = midX - nx * sag,
-                                qy = midY - ny * sag;
-                            d += ` Q ${qx} ${qy} ${ax} ${ay}`
-                        }
-                    }
-                    pathStr += `<path d="${d}" stroke="rgba(255,255,255,0.3)" stroke-width="2.5" fill="none"/>`
-                }
-                svg.innerHTML = pathStr;
-                this.webRaf = requestAnimationFrame(animateWeb)
-            };
-            animateWeb()
-        }
+        if (!document.getElementById('spider-web-corner')) { const web = document.createElement('div'); web.id = 'spider-web-corner'; web.innerHTML = `<svg id="web-svg" viewBox="0 0 300 300" style="width:300px;height:300px;position:fixed;top:0;right:0;z-index:55;pointer-events:auto;cursor:pointer;opacity:0.7;filter:drop-shadow(1px 1px 2px rgba(0,0,0,0.5))"></svg>`; document.body.appendChild(web); web.onclick = () => { if (MosquitoManager.state === 'stuck') { this.spiderHunt(MosquitoManager.x, MosquitoManager.y, true); } else { State.data.insectStats.teased = (State.data.insectStats.teased || 0) + 1; State.save('insectStats', State.data.insectStats); if (State.data.insectStats.teased >= 50) State.unlockBadge('prankster'); this.spiderHunt(88, 20, false); } }; const svg = document.getElementById('web-svg'); const cx = 300, cy = 0; const baseAnchors = [{ x: 0, y: 0 }, { x: 60, y: 100 }, { x: 140, y: 200 }, { x: 220, y: 270 }, { x: 300, y: 300 }]; const animateWeb = () => { const time = Date.now(); let pathStr = ''; const curAnchors = baseAnchors.map((a, i) => { if (i === 0 || i === baseAnchors.length - 1) return a; const sway = Math.sin((time / 1500) + i) * 15; return { x: a.x + sway, y: a.y + sway } }); curAnchors.forEach(p => { pathStr += `<line x1="${cx}" y1="${cy}" x2="${p.x}" y2="${p.y}" stroke="rgba(255,255,255,0.4)" stroke-width="2.5"/>` }); const levels = 7; for (let i = 1; i <= levels; i++) { const t = i / levels; let d = ''; for (let j = 0; j < curAnchors.length; j++) { const ax = cx + (curAnchors[j].x - cx) * t, ay = cy + (curAnchors[j].y - cy) * t; if (j === 0) d += `M ${ax} ${ay}`; else { const px = cx + (curAnchors[j - 1].x - cx) * t, py = cy + (curAnchors[j - 1].y - cy) * t; const midX = (px + ax) / 2, midY = (py + ay) / 2, sag = 15 * t * (1 - t * 0.5), dx = midX - cx, dy = midY - cy, len = Math.sqrt(dx * dx + dy * dy), nx = dx / len, ny = dy / len, qx = midX - nx * sag, qy = midY - ny * sag; d += ` Q ${qx} ${qy} ${ax} ${ay}` } } pathStr += `<path d="${d}" stroke="rgba(255,255,255,0.3)" stroke-width="2.5" fill="none"/>` } svg.innerHTML = pathStr; this.webRaf = requestAnimationFrame(animateWeb) }; animateWeb() }
     },
-    
     spiderHunt(targetXPercent, targetYPercent, isFood) {
-        const wrap = document.getElementById('spider-wrap');
-        if (!wrap) return;
-        const thread = wrap.querySelector('#spider-thread');
-        const body = wrap.querySelector('#spider-body');
-        const anchor = document.getElementById('spider-anchor');
-        
-        if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
-        wrap.classList.add('hunting');
-        
-        // Use new bubble helper
-        let phrases = isFood ? GAME_DIALOGUE.spider.hunting : GAME_DIALOGUE.spider.trickedStart;
-        const text = phrases[Math.floor(Math.random() * phrases.length)];
-        const bub = wrap.showBubble ? wrap.showBubble(text) : null;
-
-        const destX = isFood ? targetXPercent : 88;
-        const destY = isFood ? targetYPercent : 20;
-        const currentX = parseFloat(wrap.style.left) || 50;
-        const dist = Math.abs(currentX - destX);
-        const moveTime = Math.max(dist * 8, 500); 
-        
-        wrap.style.transition = `left ${moveTime}ms ease-in-out`;
-        wrap.style.left = destX + '%';
-        body.style.transform = 'rotate(0deg)';
-        
-        this.spiderTimeout = setTimeout(() => {
-            let scale = 1;
-            if (anchor && anchor.style.transform) {
-                const match = anchor.style.transform.match(/scale\(([^)]+)\)/);
-                if (match) scale = parseFloat(match[1]);
-            }
-            const dropVH = (destY + 10) / scale; 
-            thread.style.transition = 'height 3s cubic-bezier(0.45, 0, 0.55, 1)'; 
-            thread.style.height = dropVH + 'vh';
-            
-            setTimeout(() => {
-                setTimeout(() => {
-                    if (isFood && MosquitoManager.state === 'stuck') {
-                        MosquitoManager.eat();
-                        if(wrap.showBubble) wrap.showBubble("YUM!");
-                        
-                        body.style.animation = 'shake 0.2s ease-in-out';
-                        setTimeout(() => {
-                            body.style.animation = '';
-                            this.retreatSpider(thread, wrap, bub, '4s');
-                        }, 1000);
-                    } 
-                    else {
-                        const angryPhrases = GAME_DIALOGUE.spider.trickedEnd;
-                        const angryText = angryPhrases[Math.floor(Math.random() * angryPhrases.length)];
-                        if(wrap.showBubble) wrap.showBubble(angryText);
-                        
-                        body.style.animation = 'shake 0.3s ease-in-out';
-                        setTimeout(() => {
-                            body.style.animation = '';
-                            this.retreatSpider(thread, wrap, bub, '4s');
-                        }, 1500);
-                    }
-                }, 2000); 
-            }, 3000); 
-        }, moveTime);
+        const wrap = document.getElementById('spider-wrap'); if (!wrap) return; const thread = wrap.querySelector('#spider-thread'); const body = wrap.querySelector('#spider-body'); const anchor = document.getElementById('spider-anchor'); if (this.spiderTimeout) clearTimeout(this.spiderTimeout); wrap.classList.add('hunting'); let phrases = isFood ? GAME_DIALOGUE.spider.hunting : GAME_DIALOGUE.spider.trickedStart; const text = phrases[Math.floor(Math.random() * phrases.length)]; const bub = wrap.showBubble ? wrap.showBubble(text) : null; const destX = isFood ? targetXPercent : 88; const destY = isFood ? targetYPercent : 20; const currentX = parseFloat(wrap.style.left) || 50; const dist = Math.abs(currentX - destX); const moveTime = Math.max(dist * 8, 500); wrap.style.transition = `left ${moveTime}ms ease-in-out`; wrap.style.left = destX + '%'; body.style.transform = 'rotate(0deg)'; this.spiderTimeout = setTimeout(() => { let scale = 1; if (anchor && anchor.style.transform) { const match = anchor.style.transform.match(/scale\(([^)]+)\)/); if (match) scale = parseFloat(match[1]); } const dropVH = (destY + 10) / scale; thread.style.transition = 'height 3s cubic-bezier(0.45, 0, 0.55, 1)'; thread.style.height = dropVH + 'vh'; setTimeout(() => { setTimeout(() => { if (isFood && MosquitoManager.state === 'stuck') { MosquitoManager.eat(); if(wrap.showBubble) wrap.showBubble("YUM!"); body.style.animation = 'shake 0.2s ease-in-out'; setTimeout(() => { body.style.animation = ''; this.retreatSpider(thread, wrap, bub, '4s'); }, 1000); } else { const angryPhrases = GAME_DIALOGUE.spider.trickedEnd; const angryText = angryPhrases[Math.floor(Math.random() * angryPhrases.length)]; if(wrap.showBubble) wrap.showBubble(angryText); body.style.animation = 'shake 0.3s ease-in-out'; setTimeout(() => { body.style.animation = ''; this.retreatSpider(thread, wrap, bub, '4s'); }, 1500); } }, 2000); }, 3000); }, moveTime);
     },
-
     spiderFall(wrap, thread, body, bub) {
-        // Bubble fades out
-        if(bub) {
-            bub.style.opacity = '0';
-            setTimeout(() => bub.remove(), 300);
-        }
-
-        thread.style.transition = 'height 0.8s cubic-bezier(0.55, 0.085, 0.68, 0.53), opacity 0s linear';
-        thread.style.opacity = '0'; 
-        
-        requestAnimationFrame(() => {
-            thread.style.height = '120vh'; 
-        });
-        
-        setTimeout(() => {
-            thread.style.transition = 'none';
-            wrap.style.transition = 'none';
-            wrap.style.left = '88%'; 
-            thread.style.height = '120vh'; 
-            void wrap.offsetWidth; 
-            thread.style.opacity = '1';
-            
-            requestAnimationFrame(() => {
-                thread.style.transition = 'height 5s ease-in-out';
-                thread.style.height = '0'; 
-            });
-            wrap.classList.remove('hunting');
-            setTimeout(() => this.halloween(true), 6000);
-        }, 1500);
+        if(bub) { bub.style.opacity = '0'; setTimeout(() => bub.remove(), 300); } thread.style.transition = 'height 0.8s cubic-bezier(0.55, 0.085, 0.68, 0.53), opacity 0s linear'; thread.style.opacity = '0'; requestAnimationFrame(() => { thread.style.height = '120vh'; }); setTimeout(() => { thread.style.transition = 'none'; wrap.style.transition = 'none'; wrap.style.left = '88%'; thread.style.height = '120vh'; void wrap.offsetWidth; thread.style.opacity = '1'; requestAnimationFrame(() => { thread.style.transition = 'height 5s ease-in-out'; thread.style.height = '0'; }); wrap.classList.remove('hunting'); setTimeout(() => this.halloween(true), 6000); }, 1500);
     },
-
     retreatSpider(thread, wrap, bub, duration) {
-        thread.style.transition = `height ${duration} ease-in-out`;
-        requestAnimationFrame(() => {
-            thread.style.height = '0';
-        });
-        setTimeout(() => {
-            if(bub) bub.remove();
-            wrap.classList.remove('hunting');
-            this.halloween(true);
-        }, parseFloat(duration) * 1000);
+        thread.style.transition = `height ${duration} ease-in-out`; requestAnimationFrame(() => { thread.style.height = '0'; }); setTimeout(() => { if(bub) bub.remove(); wrap.classList.remove('hunting'); this.halloween(true); }, parseFloat(duration) * 1000);
     },
-
     ballpit(active) {
-        const c = DOM.theme.effects.ballpit;
-        if (this.ballLoop) cancelAnimationFrame(this.ballLoop);
-        if (!active) { c.innerHTML = ''; window.removeEventListener('deviceorientation', Physics.handleOrientation); return }
-        window.addEventListener('deviceorientation', Physics.handleOrientation);
-        c.innerHTML = '';
-        Physics.balls = [];
-        const colors = ['#ef4444', '#3b82f6', '#eab308', '#22c55e', '#a855f7'];
-        const rareItems = ['💩', '🐧', '🦂', '🍄', '💉', '💎'];
-        const rareMap = { '💩': 'poop', '🐧': 'penguin', '🦂': 'scorpion', '🍄': 'mushroom', '💉': 'needle', '💎': 'diamond' };
-        const r = 30;
-        const W = window.innerWidth, H = window.innerHeight;
-        const cylW = Math.min(W, 500);
-        const minX = (W - cylW) / 2, maxX = minX + cylW - r * 2;
-        const showThought = (ballObj, cont) => {
-            const b = document.createElement('div');
-            b.className = 'thought-bubble';
-            b.innerHTML = cont || "Because we're grown-ups now, and it's our turn to decide what that means.";
-            b.innerHTML += '<div class="dot-1"></div><div class="dot-2"></div>';
-            document.body.appendChild(b);
-            ballObj.bubble = b;
-            requestAnimationFrame(() => b.style.opacity = '1');
-            setTimeout(() => {
-                b.style.opacity = '0';
-                setTimeout(() => { b.remove(); ballObj.bubble = null }, 300)
-            }, 4000)
-        };
-        const addBall = (type) => {
-            const el = document.createElement('div');
-            el.className = 'ball-particle';
-            el.style.width = el.style.height = `${r*2}px`;
-            let content = '';
-            if (type === 'germ') {
-                content = '🦠';
-                el.title = "Click me!";
-                el.classList.add('interactable-ball');
-                el.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)]
-            } else if (type === 'rare') {
-                content = rareItems[Math.floor(Math.random() * rareItems.length)];
-                el.classList.add('interactable-ball');
-                el.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)]
-            } else {
-                el.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)]
-            }
-            if (content) el.innerHTML = `<span class="ball-content">${content}</span>`;
-            c.appendChild(el);
-            const b = { el, x: minX + Math.random() * (maxX - minX), y: Math.random() * (H / 2), vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 0.5) * 10, r, drag: false, lastX: 0, lastY: 0, bubble: null, type, content };
-            Physics.balls.push(b);
-            let sx = 0, sy = 0;
-            el.onmousedown = el.ontouchstart = (e) => {
-                b.drag = true;
-                b.vx = b.vy = 0;
-                const p = e.touches ? e.touches[0] : e;
-                b.lastX = p.clientX;
-                b.lastY = p.clientY;
-                sx = p.clientX;
-                sy = p.clientY;
-                e.preventDefault()
-            };
-            el.onmouseup = el.ontouchend = (e) => {
-                b.drag = false;
-                const p = e.changedTouches ? e.changedTouches[0] : e;
-                if ((type === 'germ' || type === 'rare') && Math.abs(p.clientX - sx) < 50 && Math.abs(p.clientY - sy) < 50) {
-                    if (type === 'germ') State.unlockBadge('germ');
-                    if (type === 'rare' && rareMap[content]) State.unlockBadge(rareMap[content]);
-                    showThought(b, type === 'rare' ? `<span style="font-size:2em">${content}</span>` : null)
-                }
-            }
-        };
-        for (let i = 0; i < 80; i++) addBall(Math.random() < 0.005 ? 'rare' : 'normal');
-        for (let i = 0; i < 5; i++) addBall('germ');
-        window.onmouseup = window.ontouchend = () => { Physics.balls.forEach(b => b.drag = false) };
-        window.onmousemove = window.ontouchmove = (e) => {
-            const p = e.touches ? e.touches[0] : e;
-            Physics.balls.forEach(b => {
-                if (b.drag) {
-                    b.vx = (p.clientX - b.lastX) * 0.5;
-                    b.vy = (p.clientY - b.lastY) * 0.5;
-                    b.x = p.clientX - b.r;
-                    b.y = p.clientY - b.r;
-                    b.lastX = p.clientX;
-                    b.lastY = p.clientY
-                }
-            })
-        };
-        Physics.run()
+        const c = DOM.theme.effects.ballpit; if (this.ballLoop) cancelAnimationFrame(this.ballLoop); if (!active) { c.innerHTML = ''; window.removeEventListener('deviceorientation', Physics.handleOrientation); return } window.addEventListener('deviceorientation', Physics.handleOrientation); c.innerHTML = ''; Physics.balls = []; const colors = ['#ef4444', '#3b82f6', '#eab308', '#22c55e', '#a855f7']; const rareItems = ['💩', '🐧', '🦂', '🍄', '💉', '💎']; const rareMap = { '💩': 'poop', '🐧': 'penguin', '🦂': 'scorpion', '🍄': 'mushroom', '💉': 'needle', '💎': 'diamond' }; const r = 30; const W = window.innerWidth, H = window.innerHeight; const cylW = Math.min(W, 500); const minX = (W - cylW) / 2, maxX = minX + cylW - r * 2; const showThought = (ballObj, cont) => { const b = document.createElement('div'); b.className = 'thought-bubble'; b.innerHTML = cont || "Because we're grown-ups now, and it's our turn to decide what that means."; b.innerHTML += '<div class="dot-1"></div><div class="dot-2"></div>'; document.body.appendChild(b); ballObj.bubble = b; requestAnimationFrame(() => b.style.opacity = '1'); setTimeout(() => { b.style.opacity = '0'; setTimeout(() => { b.remove(); ballObj.bubble = null }, 300) }, 4000) }; const addBall = (type) => { const el = document.createElement('div'); el.className = 'ball-particle'; el.style.width = el.style.height = `${r*2}px`; let content = ''; if (type === 'germ') { content = '🦠'; el.title = "Click me!"; el.classList.add('interactable-ball'); el.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)] } else if (type === 'rare') { content = rareItems[Math.floor(Math.random() * rareItems.length)]; el.classList.add('interactable-ball'); el.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)] } else { el.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)] } if (content) el.innerHTML = `<span class="ball-content">${content}</span>`; c.appendChild(el); const b = { el, x: minX + Math.random() * (maxX - minX), y: Math.random() * (H / 2), vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 0.5) * 10, r, drag: false, lastX: 0, lastY: 0, bubble: null, type, content }; Physics.balls.push(b); let sx = 0, sy = 0; el.onmousedown = el.ontouchstart = (e) => { b.drag = true; b.vx = b.vy = 0; const p = e.touches ? e.touches[0] : e; b.lastX = p.clientX; b.lastY = p.clientY; sx = p.clientX; sy = p.clientY; e.preventDefault() }; el.onmouseup = el.ontouchend = (e) => { b.drag = false; const p = e.changedTouches ? e.changedTouches[0] : e; if ((type === 'germ' || type === 'rare') && Math.abs(p.clientX - sx) < 50 && Math.abs(p.clientY - sy) < 50) { if (type === 'germ') State.unlockBadge('germ'); if (type === 'rare' && rareMap[content]) State.unlockBadge(rareMap[content]); showThought(b, type === 'rare' ? `<span style="font-size:2em">${content}</span>` : null) } } }; for (let i = 0; i < 80; i++) addBall(Math.random() < 0.005 ? 'rare' : 'normal'); for (let i = 0; i < 5; i++) addBall('germ'); window.onmouseup = window.ontouchend = () => { Physics.balls.forEach(b => b.drag = false) }; window.onmousemove = window.ontouchmove = (e) => { const p = e.touches ? e.touches[0] : e; Physics.balls.forEach(b => { if (b.drag) { b.vx = (p.clientX - b.lastX) * 0.5; b.vy = (p.clientY - b.lastY) * 0.5; b.x = p.clientX - b.r; b.y = p.clientY - b.r; b.lastX = p.clientX; b.lastY = p.clientY } }) }; Physics.run()
     },
-    
     space(active) {
-        const c = DOM.theme.effects.space;
-        if (this.spaceRareTimeout) clearTimeout(this.spaceRareTimeout);
-        if (!active) { c.innerHTML = ''; return; }
-        c.innerHTML = '';
-        for (let i = 0; i < 150; i++) {
-            const s = document.createElement('div');
-            s.className = 'space-star';
-            const size = Math.random() * 2 + 1;
-            s.style.width = s.style.height = `${size}px`;
-            s.style.left = `${Math.random() * 100}vw`;
-            s.style.top = `${Math.random() * 100}vh`;
-            s.style.opacity = Math.random() * 0.8 + 0.2;
-            s.style.animationDelay = `${Math.random() * 3}s`;
-            c.appendChild(s);
-        }
-        const createPlanet = (size, x, y, colors, hasRing) => {
-            const wrap = document.createElement('div');
-            wrap.className = 'space-planet-wrap';
-            wrap.style.width = wrap.style.height = `${size}px`;
-            wrap.style.left = x;
-            wrap.style.top = y;
-            wrap.style.animationDuration = `${Math.random() * 10 + 15}s`;
-            const p = document.createElement('div');
-            p.className = 'space-planet';
-            p.style.background = `linear-gradient(135deg, ${colors[0]}, ${colors[1]})`;
-            wrap.appendChild(p);
-            if (hasRing) {
-                const r = document.createElement('div');
-                r.className = 'space-ring';
-                wrap.appendChild(r);
-            }
-            c.appendChild(wrap);
-        };
-        createPlanet(120, '10%', '15%', ['#ff6b6b', '#7209b7'], true);
-        createPlanet(80, '85%', '60%', ['#4cc9f0', '#4361ee'], false);
-        createPlanet(40, '20%', '80%', ['#fee440', '#f15bb5'], false);
-        createPlanet(200, '-5%', '60%', ['#1b1b1b', '#3a3a3a'], true);
-        const spawnRock = () => {
-            if (!DOM.theme.effects.space.checkVisibility()) return; 
-            const wrap = document.createElement('div');
-            wrap.className = 'space-rock-wrap';
-            const inner = document.createElement('div');
-            inner.textContent = '🤘';
-            inner.className = 'space-rock-inner';
-            wrap.appendChild(inner);
-            const startLeft = Math.random() > 0.5;
-            const duration = Math.random() * 10 + 10; 
-            wrap.style.transition = `left ${duration}s linear, top ${duration}s ease-in-out`;
-            wrap.style.top = Math.random() * 80 + 10 + 'vh'; 
-            wrap.style.left = startLeft ? '-150px' : '110vw'; 
-            wrap.onclick = (e) => {
-                e.stopPropagation(); e.preventDefault();
-                State.unlockBadge('rock');
-                UIManager.showPostVoteMessage("SPACE ROCK! 🤘");
-                wrap.style.display = 'none'; 
-            };
-            c.appendChild(wrap);
-            requestAnimationFrame(() => {
-                wrap.style.left = startLeft ? '110vw' : '-150px';
-                wrap.style.top = Math.random() * 80 + 10 + 'vh'; 
-            });
-            setTimeout(() => { if(wrap.parentNode) wrap.remove(); }, duration * 1000);
-            this.spaceRareTimeout = setTimeout(spawnRock, Math.random() * 12000 + 8000);
-        };
-        this.spaceRareTimeout = setTimeout(spawnRock, 3000);
+        const c = DOM.theme.effects.space; if (this.spaceRareTimeout) clearTimeout(this.spaceRareTimeout); if (!active) { c.innerHTML = ''; return; } c.innerHTML = ''; for (let i = 0; i < 150; i++) { const s = document.createElement('div'); s.className = 'space-star'; const size = Math.random() * 2 + 1; s.style.width = s.style.height = `${size}px`; s.style.left = `${Math.random() * 100}vw`; s.style.top = `${Math.random() * 100}vh`; s.style.opacity = Math.random() * 0.8 + 0.2; s.style.animationDelay = `${Math.random() * 3}s`; c.appendChild(s); } const createPlanet = (size, x, y, colors, hasRing) => { const wrap = document.createElement('div'); wrap.className = 'space-planet-wrap'; wrap.style.width = wrap.style.height = `${size}px`; wrap.style.left = x; wrap.style.top = y; wrap.style.animationDuration = `${Math.random() * 10 + 15}s`; const p = document.createElement('div'); p.className = 'space-planet'; p.style.background = `linear-gradient(135deg, ${colors[0]}, ${colors[1]})`; wrap.appendChild(p); if (hasRing) { const r = document.createElement('div'); r.className = 'space-ring'; wrap.appendChild(r); } c.appendChild(wrap); }; createPlanet(120, '10%', '15%', ['#ff6b6b', '#7209b7'], true); createPlanet(80, '85%', '60%', ['#4cc9f0', '#4361ee'], false); createPlanet(40, '20%', '80%', ['#fee440', '#f15bb5'], false); createPlanet(200, '-5%', '60%', ['#1b1b1b', '#3a3a3a'], true); const spawnRock = () => { if (!DOM.theme.effects.space.checkVisibility()) return; const wrap = document.createElement('div'); wrap.className = 'space-rock-wrap'; const inner = document.createElement('div'); inner.textContent = '🤘'; inner.className = 'space-rock-inner'; wrap.appendChild(inner); const startLeft = Math.random() > 0.5; const duration = Math.random() * 10 + 10; wrap.style.transition = `left ${duration}s linear, top ${duration}s ease-in-out`; wrap.style.top = Math.random() * 80 + 10 + 'vh'; wrap.style.left = startLeft ? '-150px' : '110vw'; wrap.onclick = (e) => { e.stopPropagation(); e.preventDefault(); State.unlockBadge('rock'); UIManager.showPostVoteMessage("SPACE ROCK! 🤘"); wrap.style.display = 'none'; }; c.appendChild(wrap); requestAnimationFrame(() => { wrap.style.left = startLeft ? '110vw' : '-150px'; wrap.style.top = Math.random() * 80 + 10 + 'vh'; }); setTimeout(() => { if(wrap.parentNode) wrap.remove(); }, duration * 1000); this.spaceRareTimeout = setTimeout(spawnRock, Math.random() * 12000 + 8000); }; this.spaceRareTimeout = setTimeout(spawnRock, 3000);
     }
 };
 
@@ -2957,7 +2284,7 @@ const ModalManager = {
                     const turningOn = e.target.checked;
                     const savedPin = State.data.settings.kidsModePin;
 
-                    e.preventDefault(); // Stop checkbox from changing visually until logic runs
+                    e.preventDefault(); 
 
                     if (turningOn) {
                         // Turning ON: If no PIN set, ask to set one.
@@ -2967,7 +2294,7 @@ const ModalManager = {
                                 State.save('settings', { ...State.data.settings, kidsMode: true, kidsModePin: newPin });
                                 UIManager.showPostVoteMessage(`Kids Mode Active! 🧸`);
                                 Game.refreshData(true);
-                                this.toggle('settings', false); // Close settings to prevent immediate toggle back
+                                this.toggle('settings', false); 
                             }, () => {
                                 // Cancelled
                                 document.getElementById('toggleKidsMode').checked = false;
@@ -3127,7 +2454,6 @@ const ModalManager = {
     }
 };
 
-// --- MAIN GAME LOGIC ---
 const Game = {
     cleanStyles(e) {
         e.style.animation = 'none';
@@ -3138,7 +2464,7 @@ const Game = {
         e.style.filter = 'none';
         e.style.color = ''
     },
-    async init() {
+async init() {
         Accessibility.apply();
 		this.updateLights();
 		UIManager.updateOfflineIndicator();
@@ -3239,7 +2565,8 @@ const Game = {
         DOM.theme.chooser.onchange = e => ThemeManager.apply(e.target.value, true);
         document.getElementById('clearAllDataButton').onclick = State.clearAll;
         InputHandler.init();
-        ThemeManager.init();
+        StyleManager.init(); 
+        ThemeManager.init(); 
         ModalManager.init();
 		UIManager.updateProfileDisplay();
         MosquitoManager.startMonitoring();
@@ -3316,7 +2643,6 @@ const Game = {
 
         // --- LOGIC SWITCH ---
         if (State.data.settings.kidsMode) {
-            // KIDS MODE: Fetch from text file
             d = await API.fetchKidsWords();
             
             // Hide unsafe/complex features
@@ -3342,7 +2668,6 @@ const Game = {
         }
 
         if (d && d.length > 0) {
-            // Filter out flagged words only if in Adult mode (Kids list is assumed safe)
             State.runtime.allWords = State.data.settings.kidsMode ? d : d.filter(w => (w.notWordVotes || 0) < 3);
             
             UIManager.updateStats();
@@ -3355,24 +2680,25 @@ const Game = {
         let p = State.runtime.allWords;
         if (!p.length) return;
 
-        // --- SMART FILTERING LOGIC ---
-        // If "Only 0/0" mode is on, we filter the list *temporarily* for selection
         if (State.data.settings.zeroVotesOnly) {
             const unvoted = p.filter(w => (w.goodVotes || 0) === 0 && (w.badVotes || 0) === 0);
-            // If there are unvoted words, use them. Otherwise, fallback to all words.
             if (unvoted.length > 0) p = unvoted;
             else UIManager.showPostVoteMessage("No more new words! Showing random.");
         }
 
-        const r = Math.random(),
-            { CAKE, LLAMA, POTATO, SQUIRREL, MASON } = CONFIG.SPECIAL,
-            b = State.data.badges;
+        const r = Math.random();
         let sp = null;
-        if (!b.cake && r < CAKE.prob) sp = CAKE.text;
-        else if (!b.llama && r < CAKE.prob + LLAMA.prob) sp = LLAMA.text;
-        else if (!b.potato && r < CAKE.prob + LLAMA.prob + POTATO.prob) sp = POTATO.text;
-        else if (!b.squirrel && r < CAKE.prob + LLAMA.prob + POTATO.prob + SQUIRREL.prob) sp = SQUIRREL.text;
-        else if (!b.bone && r < CAKE.prob + LLAMA.prob + POTATO.prob + SQUIRREL.prob + MASON.prob) sp = MASON.text;
+        let pSum = 0;
+        
+        for (const v of Object.values(CONFIG.SPECIAL)) {
+            if (!State.data.badges[v.badge]) {
+                pSum += v.prob;
+                if (r < pSum) {
+                    sp = v.text;
+                    break;
+                }
+            }
+        }
         
         if (sp) {
             // Special words are always selected from the FULL list
@@ -3474,8 +2800,10 @@ const Game = {
             }
         }, 1000)
     },
-    async vote(t, s = false) {
+async vote(t, s = false) {
         if (State.runtime.isCoolingDown) return;
+        
+        // 1. Cooldown & Streak Logic
         const n = Date.now();
         if (State.runtime.lastVoteTime > 0 && (n - State.runtime.lastVoteTime) > CONFIG.VOTE.STREAK_WINDOW) State.runtime.streak = 1;
         else State.runtime.streak++;
@@ -3485,20 +2813,21 @@ const Game = {
             return
         }
         
-        // Haptic Feedback for Button Click (Not Swipe)
+        // 2. Haptics
         if (!s) {
             if (t === 'notWord') Haptics.heavy();
             else Haptics.medium();
         }
 
-        const w = State.runtime.allWords[State.runtime.currentWordIndex],
-            up = w.text.toUpperCase(),
-            { CAKE, LLAMA, POTATO, SQUIRREL, MASON } = CONFIG.SPECIAL;
+        // 3. Setup Variables
+        const w = State.runtime.allWords[State.runtime.currentWordIndex];
+        const up = w.text.toUpperCase();
+        
         UIManager.disableButtons(true);
         const wd = DOM.game.wordDisplay;
         const colors = Accessibility.getColors();
         
-        // Handle visual feedback
+        // 4. Visual Feedback (Swipe Animation)
         if (!s && (t === 'good' || t === 'bad')) {
             this.cleanStyles(wd);
             wd.style.setProperty('--dynamic-swipe-color', t === 'good' ? colors.good : colors.bad);
@@ -3512,30 +2841,27 @@ const Game = {
             else SoundManager.playBad();
         }
         
-        // Helper for Special Effects
-        const hSpec = (c, k) => {
-            State.unlockBadge(k);
+        // 5. Special Word Logic (New Data-Driven Approach)
+        const special = Object.values(CONFIG.SPECIAL).find(s => s.text === up);
+        if (special) {
+            State.unlockBadge(special.badge);
             this.cleanStyles(wd);
             wd.className = 'font-extrabold text-gray-900 text-center min-h-[72px]';
-            wd.classList.add(c.text === 'LLAMA' ? 'word-fade-llama' : 'word-fade-quick');
+            wd.classList.add(special.text === 'LLAMA' ? 'word-fade-llama' : 'word-fade-quick');
             setTimeout(() => {
                 wd.className = '';
                 wd.style.opacity = '1';
                 wd.style.transform = 'none';
-                UIManager.showMessage(c.msg, false);
+                UIManager.showMessage(special.msg, false);
                 setTimeout(() => {
                     this.nextWord();
                     this.refreshData(false)
-                }, c.dur)
-            }, c.fade)
-        };
+                }, special.dur)
+            }, special.fade);
+            return;
+        }
         
-        if (up === CAKE.text) { hSpec(CAKE, 'cake'); return }
-        if (up === LLAMA.text) { hSpec(LLAMA, 'llama'); return }
-        if (up === POTATO.text) { hSpec(POTATO, 'potato'); return }
-        if (up === SQUIRREL.text) { hSpec(SQUIRREL, 'squirrel'); return }
-        if (up === MASON.text) { hSpec(MASON, 'bone'); return }
-        
+        // 6. API Submission & Stats
         try {
             const un = ThemeManager.checkUnlock(up);
             if (un) SoundManager.playUnlock();
@@ -3564,6 +2890,7 @@ const Game = {
                 this.checkDailyStatus();
                 setTimeout(() => ModalManager.toggle('dailyResult', true), 600)
             }
+
             let m = '';
             if (un) m = "🎉 New Theme Unlocked!";
             else if (State.data.settings.showPercentages && (t === 'good' || t === 'bad')) {
@@ -3571,13 +2898,18 @@ const Game = {
                     p = Math.round((w[`${t}Votes`] / tot) * 100);
                 m = `${t==='good'?'Good':'Bad'} vote! ${p}% agree.`
             }
-            if (State.data.settings.showTips) {
+            
+            // Note: GAME_TIPS needs to be defined globally for this to work, 
+            // otherwise this line is skipped safely.
+            if (typeof GAME_TIPS !== 'undefined' && State.data.settings.showTips) {
                 State.save('voteCounterForTips', State.data.voteCounterForTips + 1);
-                if (State.data.voteCounterForTips % CONFIG.TIP_COOLDOWN === 0) m = GAME_TIPS[Math.floor(Math.random() * GAME_TIPS.length)]
+                if (State.data.voteCounterForTips % CONFIG.TIP_COOLDOWN === 0) {
+                    m = GAME_TIPS[Math.floor(Math.random() * GAME_TIPS.length)];
+                }
             }
+            
             UIManager.showPostVoteMessage(m);
             
-            // Haptic Feedback for Vote Success (Medium)
             if (t === 'good' || t === 'bad') Haptics.medium();
 
             UIManager.updateStats();
@@ -3738,7 +3070,6 @@ const InputHandler = {
     }
 };
 
-// --- INITIALIZATION ---
 window.onload = Game.init.bind(Game);
 window.fEhPVHxCRUFDSHxIT0xJREFZfFNVTnxWQU = API; 
 
