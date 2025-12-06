@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.30.3', 
+    APP_VERSION: '5.30.4', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1293,20 +1293,32 @@ const Effects = {
 
     fire() { const c = DOM.theme.effects.fire; c.innerHTML = ''; for (let i = 0; i < 80; i++) { const p = document.createElement('div'); p.className = 'fire-particle'; p.style.animationDuration = `${Math.random()*1.5+0.5}s`; p.style.animationDelay = `${Math.random()}s`; p.style.left = `calc(10% + (80% * ${Math.random()}))`; const size = Math.random() * 3 + 2; p.style.width = p.style.height = `${size}em`; p.style.setProperty('--sway', `${(Math.random()-.5)*20}px`); c.appendChild(p) } for (let i = 0; i < 15; i++) { const s = document.createElement('div'); s.className = 'smoke-particle'; s.style.animationDelay = `${Math.random()*3}s`; s.style.left = `${Math.random()*90+5}%`; s.style.setProperty('--sway', `${(Math.random()-.5)*150}px`); c.appendChild(s) } },
     
-    bubbles(active) {
+bubbles(active) {
         const c = DOM.theme.effects.bubble;
         if (this.fishTimeout) clearTimeout(this.fishTimeout);
         if (!active) { c.innerHTML = ''; return; }
         c.innerHTML = '';
 
+        // --- PERFORMANCE OPTIMIZATION ---
+        // Detect mobile or low-thread devices to reduce particle count
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const isLowPower = navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4;
+        
+        // Use 15 bubbles for mobile/old devices, 35 for desktop
+        const particleCount = (isMobile || isLowPower) ? 15 : 35;
+
         // Background Bubbles
         const cl = [10, 30, 70, 90];
-        for (let i = 0; i < 40; i++) {
+        for (let i = 0; i < particleCount; i++) {
             const p = document.createElement('div');
             p.className = 'bubble-particle';
             const s = Math.random() * 30 + 10;
             p.style.width = p.style.height = `${s}px`;
+            
+            // Optimization: Use transform for positioning if possible, but left is okay here
+            // We group them to prevent layout thrashing
             p.style.left = `${cl[Math.floor(Math.random()*cl.length)]+(Math.random()-.5)*20}%`;
+            
             p.style.animationDuration = `${Math.random()*10+10}s`;
             p.style.animationDelay = `-${Math.random()*15}s`;
             c.appendChild(p);
@@ -1316,7 +1328,8 @@ const Effects = {
         this.spawnFish();
     },
 
- spawnFish() {
+spawnFish() {
+        // --- FIX: Define 'c' (The Bubble Container) ---
         const c = DOM.theme.effects.bubble;
 
         // --- OCTOPUS ANIMATION STYLE ---
@@ -1506,15 +1519,35 @@ const Effects = {
                 return;
             }
 
-            // Standard Catch
+            // --- STANDARD CATCH LOGIC ---
             if (data.k) State.unlockBadge(data.k);
             if (!isBoot) {
                 State.data.fishStats.caught++;
                 State.save('fishStats', State.data.fishStats);
                 if (State.data.fishStats.caught >= 250) State.unlockBadge('angler');
             }
+            
+            // FAKE OUT TAP: If this fish was marked as a fake-out fish
+            if (wrap.dataset.isFakeOut === "true") {
+                 showBubble('hey!'); // Show message
+                 SoundManager.playPop();
+                 
+                 // Delay removal so we can see the bubble
+                 setTimeout(() => {
+                    wrap.style.transition = 'opacity 0.2s, transform 0.2s';
+                    wrap.style.opacity = '0';
+                    wrap.style.transform = 'scale(0)';
+                    setTimeout(() => { if(wrap.parentNode) wrap.remove(); }, 200);
+                 }, 1000);
+                 return; // Stop here, don't show particle/instant removal
+            }
+
+            // SILENT MODE: We removed UIManager.showPostVoteMessage() for standard fish.
+            // Only Pufferfish (handled above) and Octopus (handled above) show text.
+            
             if (fishEmoji === '🐡') UIManager.showPostVoteMessage("Popped!");
-            else UIManager.showPostVoteMessage(data.msg);
+            // else UIManager.showPostVoteMessage(data.msg); // <-- DISABLED FOR SILENCE
+            
             SoundManager.playPop();
 
             // Particles
@@ -1553,6 +1586,10 @@ const Effects = {
 
                 // 10% Chance to Retreat (Fake out)
                 if (Math.random() < 0.10 && fishEmoji !== '🐙' && fishEmoji !== '🥾') {
+                    
+                    // Mark this fish as a "Fake Out" fish
+                    wrap.dataset.isFakeOut = "true";
+                    
                     const retreatDelay = (duration * 1000) * 0.4; 
                     setTimeout(() => {
                         if (!wrap.parentNode) return; 
@@ -1560,7 +1597,8 @@ const Effects = {
                         const currentLeft = getComputedStyle(wrap).left;
                         wrap.style.transition = 'none';
                         wrap.style.left = currentLeft;
-                        showBubble('hey!');
+                        
+                        // NOTE: Removed automatic showBubble('hey!') here to keep it silent until tapped.
 
                         setTimeout(() => {
                             if (!wrap.parentNode) return;
