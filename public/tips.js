@@ -6,6 +6,7 @@ const GAME_TIPS = [
     "Tip: Turn off messages in Settings.",
     "Tip: Don't go mistaking your house burning down for the dawn.",
     "Tip: Go outside for a stomp?",
+    "Tip: Bad reception? Faster gameplay in Offline Mode.",
     "Tip: Nobody else has a clue either.",
     "Tip: Have you found the ball pit yet?",
     "Tip: I've got a floor, so what?",
