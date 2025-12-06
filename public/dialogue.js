@@ -41,7 +41,8 @@ const GAME_DIALOGUE = {
             "Busy hunting!", 
             "Hiss!",
             "woof, I'm a dog.",
-            "I'll catch you."
+            "I'll catch you.",
+            "Nobody has fed me for weeks."
         ],
 
         // When hunting real food
