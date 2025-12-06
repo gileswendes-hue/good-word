@@ -37,6 +37,7 @@ const GAME_TIPS = [
     "Tip: Knock, knock, Neo. 🐇",
     "Tip: ❤️💎",
     "Tip: Going Underground? Try Offline Mode!",
+    "Tip: I was alone, I was all by myself.",
     "Tip: Why not turn on the Christmas lights?",
     "Tip: The spider lies."
 ];
