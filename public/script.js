@@ -1438,10 +1438,13 @@ spawnFish() {
 
         const config = fishData[fishEmoji] || fishData['🐟'];
 
-        const wrap = document.createElement('div');
+                const wrap = document.createElement('div');
         wrap.className = 'submarine-fish-wrap';
+        wrap.style.position = 'fixed'; // <--- ADD THIS LINE
+        wrap.style.zIndex = '10';      // <--- OPTIONAL: Ensures fish appear above background bubbles
 
         const inner = document.createElement('div');
+
         inner.className = 'submarine-fish-inner';
         inner.textContent = fishEmoji;
         inner.dataset.clicks = "0";
