@@ -11,6 +11,7 @@ const GAME_TIPS = [
     "Tip: Have you found the ball pit yet?",
     "Tip: I've got a floor, so what?",
     "Tip: Wear sunscreen.",
+    "Tip: Tell Mason he is cute.",
     "Tip: How thick is wall?",
     "Tip: Try saying hello to the spider?",
     "Tip: Ask them out for a coffee.",
