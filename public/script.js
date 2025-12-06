@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.30.2', 
+    APP_VERSION: '5.30.3', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1316,8 +1316,7 @@ const Effects = {
         this.spawnFish();
     },
 
-    spawnFish() {
-        // --- FIX: Define 'c' (The Bubble Container) ---
+ spawnFish() {
         const c = DOM.theme.effects.bubble;
 
         // --- OCTOPUS ANIMATION STYLE ---
@@ -2767,7 +2766,7 @@ const UIManager = {
         }
     }
 };
-// --- PIN PAD MANAGER (UPDATED WITH SECURITY) ---
+// --- PIN PAD MANAGER (UPDATED WITH ON-SCREEN ALERTS) ---
 const PinPad = {
     input: '',
     mode: 'set', // 'set' or 'verify'
@@ -2787,7 +2786,7 @@ const PinPad = {
         el.innerHTML = `
             <div class="bg-white rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl transform transition-all scale-100">
                 <h3 id="pinTitle" class="text-2xl font-bold text-center mb-2 text-gray-800">Parent Lock</h3>
-                <p id="pinSubtitle" class="text-gray-500 text-center mb-6 text-sm">Enter PIN</p>
+                <p id="pinSubtitle" class="text-gray-500 text-center mb-6 text-sm transition-colors duration-200">Enter PIN</p>
                 
                 <div id="pinDots" class="flex justify-center gap-4 mb-8">
                     <div class="w-4 h-4 rounded-full bg-gray-200 border-2 border-gray-100"></div>
@@ -2816,11 +2815,13 @@ const PinPad = {
     open(mode, onSuccess, onCancel) {
         this.init();
         
-        // Security Check on Open
+        // --- VISUAL LOCK CHECK ---
+        // Instead of silently returning, we now open the modal but show the "LOCKED" state
         if (mode === 'verify' && this.isLocked()) {
-            const remaining = Math.ceil((this.getLockoutTime() - Date.now()) / 1000);
-            UIManager.showPostVoteMessage(`Locked! Wait ${remaining}s`);
-            return;
+             const remaining = Math.ceil((this.getLockoutTime() - Date.now()) / 1000);
+             // Ensure the user sees this
+             alert(`System is locked for ${remaining} more seconds.`);
+             return;
         }
 
         this.mode = mode || 'verify';
@@ -2836,9 +2837,11 @@ const PinPad = {
         if (this.mode === 'set') {
             t.textContent = "Create PIN";
             s.textContent = "Set a 4-digit code for parents";
+            s.className = "text-gray-500 text-center mb-6 text-sm";
         } else {
             t.textContent = "Parent Lock";
             s.textContent = "Enter PIN to unlock settings";
+            s.className = "text-gray-500 text-center mb-6 text-sm";
         }
         m.classList.remove('hidden');
     },
@@ -2874,19 +2877,19 @@ const PinPad = {
     },
 
     submit() {
+        const s = document.getElementById('pinSubtitle');
+
         if (this.mode === 'set') {
             if (this.onSuccess) this.onSuccess(this.input);
             this.close(true);
         } else {
             // --- VERIFY MODE ---
             
-            // 1. Check if locked out
+            // Double check lock time
             if (this.isLocked()) {
                 const remaining = Math.ceil((this.getLockoutTime() - Date.now()) / 1000);
-                UIManager.showPostVoteMessage(`Locked! Wait ${remaining}s`);
-                this.shakeBox();
-                this.input = '';
-                this.updateDisplay();
+                alert(`Locked! Wait ${remaining}s`); // Fallback
+                this.close(false);
                 return;
             }
 
@@ -2895,7 +2898,7 @@ const PinPad = {
             if (this.input === savedPin) {
                 // SUCCESS
                 Haptics.medium();
-                this.resetSecurity(); // Clear bad attempts
+                this.resetSecurity();
                 if (this.onSuccess) this.onSuccess();
                 this.close(true);
             } else {
@@ -2905,15 +2908,26 @@ const PinPad = {
                 
                 const attempts = this.recordFailure();
                 if (attempts >= this.MAX_ATTEMPTS) {
-                     UIManager.showPostVoteMessage(`Locked for 60 seconds!`);
-                     this.close(false); // Close modal on lockout
+                     // LOCKOUT TRIGGERED
+                     s.textContent = "LOCKED FOR 60 SECONDS!";
+                     s.className = "text-red-600 font-bold text-center mb-6 text-sm animate-pulse";
+                     
+                     // Force an alert so they definitely see it
+                     setTimeout(() => {
+                        alert("Too many failed attempts. Parental controls locked for 60 seconds.");
+                        this.close(false);
+                     }, 500);
+                     
                 } else {
+                     // WRONG PIN
                      const left = this.MAX_ATTEMPTS - attempts;
-                     UIManager.showPostVoteMessage(`Wrong PIN! ${left} tries left.`);
+                     s.textContent = `Wrong PIN! ${left} attempts remaining`;
+                     s.className = "text-red-500 font-semibold text-center mb-6 text-sm";
+                     
                      setTimeout(() => {
                          this.input = '';
                          this.updateDisplay();
-                     }, 500);
+                     }, 1000);
                 }
             }
         }
@@ -2923,7 +2937,7 @@ const PinPad = {
         const box = document.querySelector('#pinPadModal > div');
         if (box) {
             box.classList.remove('animate-shake');
-            void box.offsetWidth; // Force reflow
+            void box.offsetWidth; 
             box.classList.add('animate-shake');
         }
     },
@@ -2956,13 +2970,13 @@ const PinPad = {
         return newAttempts;
     },
 
-resetSecurity() {
+    resetSecurity() {
         localStorage.removeItem('pin_attempts');
         localStorage.removeItem('pin_lockout_until');
     }
 };
 
-// --- ADD THIS LINE HERE ---
+// Expose to window so HTML buttons can find it
 window.PinPad = PinPad;
 
 const ModalManager = {
@@ -2987,7 +3001,7 @@ const ModalManager = {
 
                 let html = '';
                 
-                // 1. NETWORK (New)
+                // 1. NETWORK
                 const isOffline = s.offlineMode || false;
                 html += `<div class="mb-6">
                     <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 border-b border-gray-100 pb-1">Network</h3>
@@ -3020,8 +3034,6 @@ const ModalManager = {
 
                 // INJECT HTML
                 container.innerHTML = html;
-
-                // --- ATTACH LISTENERS (MUST BE INSIDE HERE) ---
                 
                 // Network
                 document.getElementById('toggleOffline').onchange = e => OfflineManager.toggle(e.target.checked);
@@ -3055,29 +3067,26 @@ const ModalManager = {
                     const turningOn = e.target.checked;
                     const savedPin = State.data.settings.kidsModePin;
 
-                    e.preventDefault(); // Stop checkbox from changing visually until logic runs
+                    e.preventDefault(); 
 
                     if (turningOn) {
-                        // Turning ON: If no PIN set, ask to set one.
                         if (!savedPin) {
-                            e.target.checked = false; // Reset first
+                            e.target.checked = false;
                             PinPad.open('set', (newPin) => {
                                 State.save('settings', { ...State.data.settings, kidsMode: true, kidsModePin: newPin });
                                 UIManager.showPostVoteMessage(`Kids Mode Active! 🧸`);
                                 Game.refreshData(true);
-                                this.toggle('settings', false); // Close settings to prevent immediate toggle back
+                                this.toggle('settings', false); 
                             }, () => {
-                                // Cancelled
+                                
                                 document.getElementById('toggleKidsMode').checked = false;
                             });
                         } else {
-                            // PIN already exists, just enable
                             State.save('settings', { ...State.data.settings, kidsMode: true });
                             Game.refreshData(true);
                         }
                     } else {
-                        // Turning OFF: Require PIN
-                        e.target.checked = true; // Keep checked until verified
+                        e.target.checked = true;
                         if (!savedPin) {
                             State.save('settings', { ...State.data.settings, kidsMode: false });
                             Game.refreshData(true);
@@ -3087,16 +3096,13 @@ const ModalManager = {
                         PinPad.open('verify', () => {
                             State.save('settings', { ...State.data.settings, kidsMode: false });
                             Game.refreshData(true);
-                            // Visual update handled by refresh or modal close
                             document.getElementById('toggleKidsMode').checked = false;
                         }, () => {
-                            // Cancelled
                             document.getElementById('toggleKidsMode').checked = true; 
                         });
                     }
                 };
 
-                // Fun
                 document.getElementById('toggleTilt').onchange = e => {
                     State.save('settings', { ...State.data.settings, enableTilt: e.target.checked });
                     TiltManager.refresh();
