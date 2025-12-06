@@ -2956,11 +2956,14 @@ const PinPad = {
         return newAttempts;
     },
 
-    resetSecurity() {
+resetSecurity() {
         localStorage.removeItem('pin_attempts');
         localStorage.removeItem('pin_lockout_until');
     }
 };
+
+// --- ADD THIS LINE HERE ---
+window.PinPad = PinPad;
 
 const ModalManager = {
     toggle(id, show) {
