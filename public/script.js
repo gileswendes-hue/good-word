@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.30.5', 
+    APP_VERSION: '5.30.6', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1329,7 +1329,6 @@ bubbles(active) {
     },
 
 spawnFish() {
-        // --- FIX: Define 'c' (The Bubble Container) ---
         const c = DOM.theme.effects.bubble;
 
         // --- OCTOPUS ANIMATION STYLE ---
@@ -1394,22 +1393,21 @@ spawnFish() {
         const baseDir = startLeft ? -1 : 1;
         const duration = Math.random() * (config.speed[1] - config.speed[0]) + config.speed[0];
 
+        // --- DETERMINE FAKE OUT STATUS ---
+        // 10% chance to be a 'trick' fish (ignores clicks and swims back)
+        const isFakeOut = !isBoot && fishEmoji !== '🐙' && Math.random() < 0.10;
+
         if (isBoot) {
             inner.style.animation = 'spin-slow 10s linear infinite';
             inner.style.transition = 'transform 0.5s';
-            // Boot start position
             wrap.style.left = (Math.random() * 80 + 10) + '%'; 
             wrap.style.top = '110vh'; 
             inner.style.transform = `rotate(${Math.random() * 360}deg)`;
         } else {
             inner.style.transition = 'font-size 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), transform 0.2s';
             wrap.style.top = Math.random() * 80 + 10 + 'vh';
-            
-            // --- FIX: SET START POSITION EXPLICITLY ---
-            // If startLeft is true, we start at -150px (Left) and go Right.
-            // If startLeft is false, we start at 110vw (Right) and go Left.
+            // Explicit Start Position
             wrap.style.left = startLeft ? '-150px' : '110vw';
-            
             if (!isBoot) inner.style.transform = `scaleX(${baseDir})`;
         }
 
@@ -1518,12 +1516,42 @@ spawnFish() {
                     setTimeout(() => ink.remove(), 1000);
                 }
 
-                // Jet Away
+                // JET TO TOP RIGHT CORNER
+                // We transition Left and Top simultaneously
                 wrap.style.transition = 'left 0.4s cubic-bezier(0.25, 1, 0.5, 1), top 0.4s ease-out';
-                const jetTo = baseDir === 1 ? '120vw' : '-30vw';
-                wrap.style.left = jetTo;
+                wrap.style.left = '120vw'; // Off-screen Right
+                wrap.style.top = '-20vh';  // Off-screen Top
+
                 setTimeout(() => { if(wrap.parentNode) wrap.remove(); }, 400);
                 return;
+            }
+
+            // --- FAKE OUT TAP (SWIM BACK LOGIC) ---
+            if (isFakeOut) {
+                 showBubble('hey!'); 
+                 SoundManager.playPop();
+                 
+                 // 1. Stop current movement
+                 const currentLeft = getComputedStyle(wrap).left;
+                 wrap.style.transition = 'none';
+                 wrap.style.left = currentLeft;
+
+                 // 2. Wait 0.6s, then swim back
+                 setTimeout(() => {
+                     if(!wrap.parentNode) return;
+                     
+                     inner.style.transform = `scaleX(${-baseDir})`; 
+                     
+                     wrap.style.transition = `left ${duration * 0.5}s linear`;
+                     wrap.style.left = startLeft ? '-150px' : '110vw';
+                     
+                     setTimeout(() => { 
+                         if(wrap.parentNode) wrap.remove(); 
+                     }, duration * 500 + 100);
+                     
+                 }, 600);
+                 
+                 return; // Do NOT catch
             }
 
             // --- STANDARD CATCH LOGIC ---
@@ -1534,19 +1562,6 @@ spawnFish() {
                 if (State.data.fishStats.caught >= 250) State.unlockBadge('angler');
             }
             
-            // FAKE OUT TAP
-            if (wrap.dataset.isFakeOut === "true") {
-                 showBubble('hey!'); 
-                 SoundManager.playPop();
-                 setTimeout(() => {
-                    wrap.style.transition = 'opacity 0.2s, transform 0.2s';
-                    wrap.style.opacity = '0';
-                    wrap.style.transform = 'scale(0)';
-                    setTimeout(() => { if(wrap.parentNode) wrap.remove(); }, 200);
-                 }, 1000);
-                 return;
-            }
-
             if (fishEmoji === '🐡') UIManager.showPostVoteMessage("Popped!");
             SoundManager.playPop();
 
@@ -1584,26 +1599,6 @@ spawnFish() {
                 // Set Destination
                 wrap.style.left = startLeft ? '110vw' : '-150px';
                 wrap.style.transition = `left ${duration}s linear`;
-
-                // 10% Chance to Retreat (Fake out)
-                if (Math.random() < 0.10 && fishEmoji !== '🐙' && fishEmoji !== '🥾') {
-                    wrap.dataset.isFakeOut = "true";
-                    const retreatDelay = (duration * 1000) * 0.4; 
-                    setTimeout(() => {
-                        if (!wrap.parentNode) return; 
-
-                        const currentLeft = getComputedStyle(wrap).left;
-                        wrap.style.transition = 'none';
-                        wrap.style.left = currentLeft;
-
-                        setTimeout(() => {
-                            if (!wrap.parentNode) return;
-                            inner.style.transform = `scaleX(${-baseDir})`;
-                            wrap.style.transition = `left ${duration * 0.6}s linear`;
-                            wrap.style.left = startLeft ? '-150px' : '110vw';
-                        }, 800);
-                    }, retreatDelay);
-                }
             }
         });
 
@@ -1612,10 +1607,10 @@ spawnFish() {
             if (wrap.parentNode) wrap.remove();
         }, duration * 1000 + 2000);
 
-        // Next Fish
+        // Next Fish (Recursive call)
         this.fishTimeout = setTimeout(() => this.spawnFish(), Math.random() * 4000 + 1000);
     },
-
+    
     snow() {
         const c = DOM.theme.effects.snow;
         c.innerHTML = '';
