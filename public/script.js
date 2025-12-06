@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.30.6', 
+    APP_VERSION: '5.30.7', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1408,6 +1408,8 @@ spawnFish() {
             wrap.style.top = Math.random() * 80 + 10 + 'vh';
             // Explicit Start Position
             wrap.style.left = startLeft ? '-150px' : '110vw';
+            
+            // Set initial direction
             if (!isBoot) inner.style.transform = `scaleX(${baseDir})`;
         }
 
@@ -1516,13 +1518,12 @@ spawnFish() {
                     setTimeout(() => ink.remove(), 1000);
                 }
 
-                // JET TO TOP RIGHT CORNER
-                // We transition Left and Top simultaneously
-                wrap.style.transition = 'left 0.4s cubic-bezier(0.25, 1, 0.5, 1), top 0.4s ease-out';
-                wrap.style.left = '120vw'; // Off-screen Right
-                wrap.style.top = '-20vh';  // Off-screen Top
+                // JET TO TOP RIGHT CORNER (SLOWER SPEED: 1.5s)
+                wrap.style.transition = 'left 1.5s cubic-bezier(0.25, 1, 0.5, 1), top 1.5s ease-out';
+                wrap.style.left = '120vw'; 
+                wrap.style.top = '-20vh'; 
 
-                setTimeout(() => { if(wrap.parentNode) wrap.remove(); }, 400);
+                setTimeout(() => { if(wrap.parentNode) wrap.remove(); }, 1500);
                 return;
             }
 
@@ -1540,8 +1541,10 @@ spawnFish() {
                  setTimeout(() => {
                      if(!wrap.parentNode) return;
                      
+                     // FLIP THE FISH (Faces opposite direction)
                      inner.style.transform = `scaleX(${-baseDir})`; 
                      
+                     // Swim back to start
                      wrap.style.transition = `left ${duration * 0.5}s linear`;
                      wrap.style.left = startLeft ? '-150px' : '110vw';
                      
@@ -1610,7 +1613,7 @@ spawnFish() {
         // Next Fish (Recursive call)
         this.fishTimeout = setTimeout(() => this.spawnFish(), Math.random() * 4000 + 1000);
     },
-    
+
     snow() {
         const c = DOM.theme.effects.snow;
         c.innerHTML = '';
