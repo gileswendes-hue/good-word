@@ -1491,7 +1491,7 @@ spawnFish() {
             // Face the direction of travel
             if (!isBoot) inner.style.transform = `scaleX(${baseDir})`;
         }
-
+        wrap.appendChild(inner); 
         c.appendChild(wrap);
 
         // --- FORCE REFLOW (Prevents "Disappearing Fish" bug) ---
