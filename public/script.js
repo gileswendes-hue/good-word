@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.31', 
+    APP_VERSION: '5.32', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1394,7 +1394,9 @@ bubbles(active) {
     },
 
 spawnFish() {
+        // 1. Define Container
         const c = DOM.theme.effects.bubble;
+        if (!c) return; // Safety check
 
         // --- OCTOPUS ANIMATION STYLE ---
         if (!document.getElementById('octopus-style')) {
@@ -1434,7 +1436,7 @@ spawnFish() {
         else if (roll < 0.70) fishEmoji = '🐠';
         else fishEmoji = '🐟';
 
-        const config = fishData[fishEmoji];
+        const config = fishData[fishEmoji] || fishData['🐟'];
 
         const wrap = document.createElement('div');
         wrap.className = 'submarine-fish-wrap';
@@ -1454,20 +1456,21 @@ spawnFish() {
             inner.classList.add('octopus-motion');
             // Randomize bobbing speed (1.5s to 2.5s)
             inner.style.animationDuration = (Math.random() * 1 + 1.5) + 's';
-            // Randomize start offset so they don't bob in sync
+            // Randomize start offset
             inner.style.animationDelay = '-' + (Math.random() * 2) + 's';
         }
 
-        // Boot Rotation vs Fish Direction
+        // Config & Direction
         const isBoot = fishEmoji === '🥾';
         const startLeft = Math.random() > 0.5;
-        const baseDir = startLeft ? -1 : 1;
-        const duration = Math.random() * (config.speed[1] - config.speed[0]) + config.speed[0];
+        const baseDir = startLeft ? -1 : 1; 
+        // Ensure duration is a valid number (fallback to 15s)
+        const duration = (Math.random() * (config.speed[1] - config.speed[0]) + config.speed[0]) || 15;
 
-        // 10% chance for Fake Out (Not for Octopus or Boot)
+        // Fake Out Logic (10%)
         const isFakeOut = !isBoot && fishEmoji !== '🐙' && Math.random() < 0.10;
 
-        // --- 1. SETUP INITIAL STATE ---
+        // --- SETUP INITIAL STATE ---
         if (isBoot) {
             inner.style.animation = 'spin-slow 10s linear infinite';
             inner.style.transition = 'transform 0.5s';
@@ -1475,20 +1478,24 @@ spawnFish() {
             wrap.style.top = '110vh'; 
             inner.style.transform = `rotate(${Math.random() * 360}deg)`;
         } else {
+            // Standard Fish Setup
             inner.style.transition = 'font-size 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), transform 0.2s';
             wrap.style.top = (Math.random() * 80 + 10) + 'vh';
-            // Start Position
+            
+            // Set Start Position OFF-SCREEN
             wrap.style.left = startLeft ? '-150px' : '110vw';
-            // Initial Facing
+            
+            // Face the direction of travel
             if (!isBoot) inner.style.transform = `scaleX(${baseDir})`;
         }
 
         c.appendChild(wrap);
 
-        // --- 2. FORCE REFLOW ---
+        // --- FORCE REFLOW (Prevents "Disappearing Fish" bug) ---
+        // This line makes the browser calculate the start position immediately
         void wrap.offsetWidth; 
 
-        // --- 3. HELPER: Speech Bubble ---
+        // --- HELPER: Speech Bubble ---
         const showBubble = (text) => {
             const old = wrap.querySelector('.fish-bubble');
             if(old) old.remove();
@@ -1517,12 +1524,13 @@ spawnFish() {
             setTimeout(() => { if(b.parentNode) { b.style.opacity = '0'; setTimeout(() => b.remove(), 300); } }, 2000);
         };
 
-        // --- 4. ESCAPE HANDLER ---
+        // --- ESCAPE HANDLER ---
         const handleEscape = (e) => {
             const prop = isBoot ? 'top' : 'left';
             if (e.propertyName !== prop) return;
             
             if (wrap.parentNode) {
+                // If it reached the end naturally, count as spared
                 if (!isBoot) {
                     State.data.fishStats.spared = (State.data.fishStats.spared || 0) + 1;
                     State.save('fishStats', State.data.fishStats);
@@ -1533,7 +1541,7 @@ spawnFish() {
         };
         wrap.addEventListener('transitionend', handleEscape);
 
-        // --- 5. CLICK HANDLER ---
+        // --- CLICK HANDLER ---
         wrap.onclick = (e) => {
             e.stopPropagation();
 
@@ -1596,7 +1604,8 @@ spawnFish() {
                 const jetSpeed = Math.random() * 0.8 + 1.2; 
                 wrap.style.transition = `left ${jetSpeed}s cubic-bezier(0.25, 1, 0.5, 1), top ${jetSpeed}s ease-out`;
                 
-                // Random destination
+                // Random destination: Right edge (110vw) to Far Right (140vw)
+                // Random destination: Top edge (-20vh) to High Top (-50vh)
                 wrap.style.left = (110 + Math.random() * 30) + 'vw'; 
                 wrap.style.top = (-20 - Math.random() * 30) + 'vh'; 
 
@@ -1609,17 +1618,20 @@ spawnFish() {
                  showBubble('hey!'); 
                  SoundManager.playPop();
                  
+                 // 1. Stop current movement
                  const currentLeft = getComputedStyle(wrap).left;
                  wrap.style.transition = 'none';
                  wrap.style.left = currentLeft;
 
+                 // 2. Wait, then Flip & Swim Back
                  setTimeout(() => {
                      if(!wrap.parentNode) return;
                      
-                     // FLIP
+                     // INSTANTLY FLIP (Remove transition to make it snappy)
+                     inner.style.transition = 'none'; 
                      inner.style.transform = `scaleX(${-baseDir})`; 
                      
-                     // Swim back
+                     // Swim back to start
                      wrap.style.transition = `left ${duration * 0.5}s linear`;
                      wrap.style.left = startLeft ? '-150px' : '110vw';
                      
@@ -1628,7 +1640,8 @@ spawnFish() {
                      }, duration * 500 + 100);
                      
                  }, 600);
-                 return; 
+                 
+                 return; // Do NOT catch
             }
 
             // --- STANDARD CATCH LOGIC ---
@@ -1665,21 +1678,22 @@ spawnFish() {
             setTimeout(() => wrap.remove(), 100);
         };
 
-        // --- 6. TRIGGER MOVEMENT ---
+        // --- TRIGGER MOVEMENT (ANIMATION START) ---
         requestAnimationFrame(() => {
             if (isBoot) {
                 wrap.style.top = '-20%'; 
                 wrap.style.transition = `top ${duration}s linear`;
             } else {
+                // Set Destination
                 wrap.style.left = startLeft ? '110vw' : '-150px';
                 wrap.style.transition = `left ${duration}s linear`;
             }
         });
 
-        // Cleanup
+        // Cleanup (Safety timer)
         setTimeout(() => {
             if (wrap.parentNode) wrap.remove();
-        }, duration * 1000 + 2000);
+        }, duration * 1000 + 3000);
 
         // Next Fish (Recursive call)
         this.fishTimeout = setTimeout(() => this.spawnFish(), Math.random() * 4000 + 1000);
