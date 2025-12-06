@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.20', 
+    APP_VERSION: '5.30.1', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -3838,3 +3838,4 @@ window.onload = Game.init.bind(Game);
 window.fEhPVHxCRUFDSHxIT0xJREFZfFNVTnxWQU = API; 
 
 })();
+
