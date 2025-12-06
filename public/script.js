@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.30.1', 
+    APP_VERSION: '5.30.2', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -153,11 +153,9 @@ const State = {
         contributorCount: parseInt(localStorage.getItem('contributorCount') || 0),
         profilePhoto: localStorage.getItem('profilePhoto') || null,
         
-        // NEW: Offline Data
         pendingVotes: JSON.parse(localStorage.getItem('pendingVotes')) || [],
         offlineCache: JSON.parse(localStorage.getItem('offlineCache')) || [],
 
-        // UPDATED: Track Teased count
         insectStats: {
             saved: parseInt(localStorage.getItem('insectSaved') || 0),
             eaten: parseInt(localStorage.getItem('insectEaten') || 0),
@@ -211,7 +209,7 @@ const State = {
             kidsMode: false,
             kidsModePin: null,
             showLights: false,
-            offlineMode: false // Ensure this exists
+            offlineMode: false
         },
         currentTheme: localStorage.getItem('currentTheme') || 'default',
         unlockedThemes: JSON.parse(localStorage.getItem('unlockedThemes')) || [],
@@ -238,7 +236,6 @@ const State = {
         this.data[k] = v;
         const s = localStorage;
 
-        // NEW: Logic moved to the correct function
         if (k === 'pendingVotes') s.setItem('pendingVotes', JSON.stringify(v));
         else if (k === 'offlineCache') s.setItem('offlineCache', JSON.stringify(v));
         
@@ -1320,6 +1317,9 @@ const Effects = {
     },
 
     spawnFish() {
+        // --- FIX: Define 'c' (The Bubble Container) ---
+        const c = DOM.theme.effects.bubble;
+
         // --- OCTOPUS ANIMATION STYLE ---
         if (!document.getElementById('octopus-style')) {
             const style = document.createElement('style');
@@ -3838,4 +3838,3 @@ window.onload = Game.init.bind(Game);
 window.fEhPVHxCRUFDSHxIT0xJREFZfFNVTnxWQU = API; 
 
 })();
-
