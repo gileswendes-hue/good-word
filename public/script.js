@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.30.4', 
+    APP_VERSION: '5.30.5', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1397,12 +1397,19 @@ spawnFish() {
         if (isBoot) {
             inner.style.animation = 'spin-slow 10s linear infinite';
             inner.style.transition = 'transform 0.5s';
+            // Boot start position
             wrap.style.left = (Math.random() * 80 + 10) + '%'; 
             wrap.style.top = '110vh'; 
             inner.style.transform = `rotate(${Math.random() * 360}deg)`;
         } else {
             inner.style.transition = 'font-size 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), transform 0.2s';
             wrap.style.top = Math.random() * 80 + 10 + 'vh';
+            
+            // --- FIX: SET START POSITION EXPLICITLY ---
+            // If startLeft is true, we start at -150px (Left) and go Right.
+            // If startLeft is false, we start at 110vw (Right) and go Left.
+            wrap.style.left = startLeft ? '-150px' : '110vw';
+            
             if (!isBoot) inner.style.transform = `scaleX(${baseDir})`;
         }
 
@@ -1527,27 +1534,20 @@ spawnFish() {
                 if (State.data.fishStats.caught >= 250) State.unlockBadge('angler');
             }
             
-            // FAKE OUT TAP: If this fish was marked as a fake-out fish
+            // FAKE OUT TAP
             if (wrap.dataset.isFakeOut === "true") {
-                 showBubble('hey!'); // Show message
+                 showBubble('hey!'); 
                  SoundManager.playPop();
-                 
-                 // Delay removal so we can see the bubble
                  setTimeout(() => {
                     wrap.style.transition = 'opacity 0.2s, transform 0.2s';
                     wrap.style.opacity = '0';
                     wrap.style.transform = 'scale(0)';
                     setTimeout(() => { if(wrap.parentNode) wrap.remove(); }, 200);
                  }, 1000);
-                 return; // Stop here, don't show particle/instant removal
+                 return;
             }
 
-            // SILENT MODE: We removed UIManager.showPostVoteMessage() for standard fish.
-            // Only Pufferfish (handled above) and Octopus (handled above) show text.
-            
             if (fishEmoji === '🐡') UIManager.showPostVoteMessage("Popped!");
-            // else UIManager.showPostVoteMessage(data.msg); // <-- DISABLED FOR SILENCE
-            
             SoundManager.playPop();
 
             // Particles
@@ -1581,15 +1581,13 @@ spawnFish() {
                 wrap.style.top = '-20%'; 
                 wrap.style.transition = `top ${duration}s linear`;
             } else {
+                // Set Destination
                 wrap.style.left = startLeft ? '110vw' : '-150px';
                 wrap.style.transition = `left ${duration}s linear`;
 
                 // 10% Chance to Retreat (Fake out)
                 if (Math.random() < 0.10 && fishEmoji !== '🐙' && fishEmoji !== '🥾') {
-                    
-                    // Mark this fish as a "Fake Out" fish
                     wrap.dataset.isFakeOut = "true";
-                    
                     const retreatDelay = (duration * 1000) * 0.4; 
                     setTimeout(() => {
                         if (!wrap.parentNode) return; 
@@ -1597,8 +1595,6 @@ spawnFish() {
                         const currentLeft = getComputedStyle(wrap).left;
                         wrap.style.transition = 'none';
                         wrap.style.left = currentLeft;
-                        
-                        // NOTE: Removed automatic showBubble('hey!') here to keep it silent until tapped.
 
                         setTimeout(() => {
                             if (!wrap.parentNode) return;
@@ -1616,7 +1612,7 @@ spawnFish() {
             if (wrap.parentNode) wrap.remove();
         }, duration * 1000 + 2000);
 
-        // Next Fish (Recursive call)
+        // Next Fish
         this.fishTimeout = setTimeout(() => this.spawnFish(), Math.random() * 4000 + 1000);
     },
 
