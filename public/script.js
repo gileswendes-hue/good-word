@@ -1449,8 +1449,14 @@ spawnFish() {
         inner.style.lineHeight = '1';
         inner.style.fontSize = fishEmoji === '🐙' ? '3.5rem' : '3rem';
 
-        // Octopus Motion
-        if (fishEmoji === '🐙') inner.classList.add('octopus-motion');
+        // --- OCTOPUS MOVEMENT VARIATION ---
+        if (fishEmoji === '🐙') {
+            inner.classList.add('octopus-motion');
+            // Randomize bobbing speed (1.5s to 2.5s)
+            inner.style.animationDuration = (Math.random() * 1 + 1.5) + 's';
+            // Randomize start offset so they don't bob in sync
+            inner.style.animationDelay = '-' + (Math.random() * 2) + 's';
+        }
 
         // Boot Rotation vs Fish Direction
         const isBoot = fishEmoji === '🥾';
@@ -1458,10 +1464,10 @@ spawnFish() {
         const baseDir = startLeft ? -1 : 1;
         const duration = Math.random() * (config.speed[1] - config.speed[0]) + config.speed[0];
 
-        // --- DETERMINE FAKE OUT STATUS ---
-        // 10% chance to be a 'trick' fish (ignores clicks and swims back)
+        // 10% chance for Fake Out (Not for Octopus or Boot)
         const isFakeOut = !isBoot && fishEmoji !== '🐙' && Math.random() < 0.10;
 
+        // --- 1. SETUP INITIAL STATE ---
         if (isBoot) {
             inner.style.animation = 'spin-slow 10s linear infinite';
             inner.style.transition = 'transform 0.5s';
@@ -1470,17 +1476,19 @@ spawnFish() {
             inner.style.transform = `rotate(${Math.random() * 360}deg)`;
         } else {
             inner.style.transition = 'font-size 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), transform 0.2s';
-            wrap.style.top = Math.random() * 80 + 10 + 'vh';
-            // Explicit Start Position
+            wrap.style.top = (Math.random() * 80 + 10) + 'vh';
+            // Start Position
             wrap.style.left = startLeft ? '-150px' : '110vw';
-            
-            // Set initial direction
+            // Initial Facing
             if (!isBoot) inner.style.transform = `scaleX(${baseDir})`;
         }
 
-        wrap.appendChild(inner);
+        c.appendChild(wrap);
 
-        // --- HELPER: Speech Bubble ---
+        // --- 2. FORCE REFLOW ---
+        void wrap.offsetWidth; 
+
+        // --- 3. HELPER: Speech Bubble ---
         const showBubble = (text) => {
             const old = wrap.querySelector('.fish-bubble');
             if(old) old.remove();
@@ -1509,10 +1517,11 @@ spawnFish() {
             setTimeout(() => { if(b.parentNode) { b.style.opacity = '0'; setTimeout(() => b.remove(), 300); } }, 2000);
         };
 
-        // --- ESCAPE HANDLER ---
+        // --- 4. ESCAPE HANDLER ---
         const handleEscape = (e) => {
             const prop = isBoot ? 'top' : 'left';
             if (e.propertyName !== prop) return;
+            
             if (wrap.parentNode) {
                 if (!isBoot) {
                     State.data.fishStats.spared = (State.data.fishStats.spared || 0) + 1;
@@ -1524,7 +1533,7 @@ spawnFish() {
         };
         wrap.addEventListener('transitionend', handleEscape);
 
-        // --- CLICK HANDLER ---
+        // --- 5. CLICK HANDLER ---
         wrap.onclick = (e) => {
             e.stopPropagation();
 
@@ -1583,12 +1592,15 @@ spawnFish() {
                     setTimeout(() => ink.remove(), 1000);
                 }
 
-                // JET TO TOP RIGHT CORNER (SLOWER SPEED: 1.5s)
-                wrap.style.transition = 'left 1.5s cubic-bezier(0.25, 1, 0.5, 1), top 1.5s ease-out';
-                wrap.style.left = '120vw'; 
-                wrap.style.top = '-20vh'; 
+                // JET TO RANDOM TOP-RIGHT POSITION
+                const jetSpeed = Math.random() * 0.8 + 1.2; 
+                wrap.style.transition = `left ${jetSpeed}s cubic-bezier(0.25, 1, 0.5, 1), top ${jetSpeed}s ease-out`;
+                
+                // Random destination
+                wrap.style.left = (110 + Math.random() * 30) + 'vw'; 
+                wrap.style.top = (-20 - Math.random() * 30) + 'vh'; 
 
-                setTimeout(() => { if(wrap.parentNode) wrap.remove(); }, 1500);
+                setTimeout(() => { if(wrap.parentNode) wrap.remove(); }, jetSpeed * 1000);
                 return;
             }
 
@@ -1597,19 +1609,17 @@ spawnFish() {
                  showBubble('hey!'); 
                  SoundManager.playPop();
                  
-                 // 1. Stop current movement
                  const currentLeft = getComputedStyle(wrap).left;
                  wrap.style.transition = 'none';
                  wrap.style.left = currentLeft;
 
-                 // 2. Wait 0.6s, then swim back
                  setTimeout(() => {
                      if(!wrap.parentNode) return;
                      
-                     // FLIP THE FISH (Faces opposite direction)
+                     // FLIP
                      inner.style.transform = `scaleX(${-baseDir})`; 
                      
-                     // Swim back to start
+                     // Swim back
                      wrap.style.transition = `left ${duration * 0.5}s linear`;
                      wrap.style.left = startLeft ? '-150px' : '110vw';
                      
@@ -1618,8 +1628,7 @@ spawnFish() {
                      }, duration * 500 + 100);
                      
                  }, 600);
-                 
-                 return; // Do NOT catch
+                 return; 
             }
 
             // --- STANDARD CATCH LOGIC ---
@@ -1656,15 +1665,12 @@ spawnFish() {
             setTimeout(() => wrap.remove(), 100);
         };
 
-        c.appendChild(wrap);
-
-        // --- TRIGGER MOVEMENT ---
+        // --- 6. TRIGGER MOVEMENT ---
         requestAnimationFrame(() => {
             if (isBoot) {
                 wrap.style.top = '-20%'; 
                 wrap.style.transition = `top ${duration}s linear`;
             } else {
-                // Set Destination
                 wrap.style.left = startLeft ? '110vw' : '-150px';
                 wrap.style.transition = `left ${duration}s linear`;
             }
