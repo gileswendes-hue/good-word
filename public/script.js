@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.32', 
+    APP_VERSION: '5.33', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1422,7 +1422,7 @@ spawnFish() {
             '🐠': { k: 'tropical', msg: "So colourful! 🐠", speed: [15, 25] },
             '🐡': { k: 'puffer', msg: "", speed: [20, 30] },
             '🦈': { k: 'shark', msg: "You're gonna need a bigger boat! 🦈", speed: [6, 10] },
-            '🐙': { k: 'tropical', msg: "Wiggle wiggle! 🐙", speed: [18, 25] },
+            '🐙': { k: 'octopus', msg: "Wiggle wiggle! 🐙", speed: [18, 25] },
             '🥾': { k: 'prankster', msg: "Keep the ocean clean!", speed: [15, 20] }
         };
 
@@ -1612,7 +1612,7 @@ spawnFish() {
                 wrap.style.left = (110 + Math.random() * 30) + 'vw'; 
                 wrap.style.top = (-20 - Math.random() * 30) + 'vh'; 
 
-                setTimeout(() => { if(wrap.parentNode) wrap.remove(); }, jetSpeed * 1000);
+                setTimeout(() => { if(wrap.parentNode) wrap.remove(); }, jetSpeed * 1000 + 200);
                 return;
             }
 
@@ -1687,8 +1687,7 @@ spawnFish() {
                 wrap.style.top = '-20%'; 
                 wrap.style.transition = `top ${duration}s linear`;
             } else {
-                // Set Destination
-                wrap.style.left = startLeft ? '110vw' : '-150px';
+                wrap.style.left = startLeft ? '125vw' : '-25vw';
                 wrap.style.transition = `left ${duration}s linear`;
             }
         });
@@ -2610,7 +2609,8 @@ const UIManager = {
             { k: 'fish', i: '🐟', t: 'Blue Fish', d: 'A standard catch.' }, 
             { k: 'tropical', i: '🐠', t: 'Tropical Fish', d: 'Found in the deep.' }, 
             { k: 'puffer', i: '🐡', t: 'Pufferfish', d: 'Spiky friend.' }, 
-            { k: 'shark', i: '🦈', t: 'Shark', d: 'Gonna need a bigger boat.' }
+            { k: 'shark', i: '🦈', t: 'Shark', d: 'Gonna need a bigger boat.' },
+            { k: 'octopus', i: '🐙', t: 'The Kraken', d: 'Ink-credible!' }
         ];
         
         const row3 = [
@@ -3967,3 +3967,4 @@ window.onload = Game.init.bind(Game);
 window.fEhPVHxCRUFDSHxIT0xJREFZfFNVTnxWQU = API; 
 
 })();
+
