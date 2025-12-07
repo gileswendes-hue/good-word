@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.41', 
+    APP_VERSION: '5.43', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -3889,15 +3889,13 @@ const Game = {
             UIManager.showMessage("Connection Error", true);
         }
     },
-    nextWord() {
+  nextWord() {
         let p = State.runtime.allWords;
         if (!p.length) return;
 
         // --- SMART FILTERING LOGIC ---
-        // If "Only 0/0" mode is on, we filter the list *temporarily* for selection
         if (State.data.settings.zeroVotesOnly) {
             const unvoted = p.filter(w => (w.goodVotes || 0) === 0 && (w.badVotes || 0) === 0);
-            // If there are unvoted words, use them. Otherwise, fallback to all words.
             if (unvoted.length > 0) p = unvoted;
             else UIManager.showPostVoteMessage("No more new words! Showing random.");
         }
@@ -3913,7 +3911,6 @@ const Game = {
         else if (!b.bone && r < CAKE.prob + LLAMA.prob + POTATO.prob + SQUIRREL.prob + MASON.prob) sp = MASON.text;
         
         if (sp) {
-            // Special words are always selected from the FULL list
             const i = State.runtime.allWords.findIndex(w => w.text.toUpperCase() === sp);
             if (i !== -1 && i !== State.runtime.currentWordIndex) {
                 State.runtime.currentWordIndex = i;
@@ -3924,7 +3921,6 @@ const Game = {
         
         // Selection Algorithm (Weighted Random)
         let av = p.reduce((acc, w, i) => {
-            // Note: We need the index relative to the FULL list, not the filtered `p`
             const trueIndex = State.runtime.allWords.indexOf(w);
             if (!State.data.seenHistory.includes(trueIndex) && trueIndex !== State.runtime.currentWordIndex) {
                  acc.push({ i: trueIndex, v: (w.goodVotes || 0) + (w.badVotes || 0) });
@@ -3932,12 +3928,17 @@ const Game = {
             return acc
         }, []);
         
+        // --- CRITICAL FIX: Handle empty lists or single-item lists ---
         if (!av.length) {
-             // Fallback if history is full
              av = p.map(w => {
                  const trueIndex = State.runtime.allWords.indexOf(w);
                  return { i: trueIndex, v: (w.goodVotes || 0) + (w.badVotes || 0) }
-             }).filter(x => x.i !== State.runtime.currentWordIndex);
+             });
+             
+             // Only filter out the current word if we actually have other options
+             if (av.length > 1) {
+                 av = av.filter(x => x.i !== State.runtime.currentWordIndex);
+             }
         }
 
         let tw = 0;
@@ -3947,8 +3948,16 @@ const Game = {
             tw += w;
             return { i: c.i, w }
         });
+
+        // Safety check to prevent crash if av is somehow still empty
+        if (av.length === 0) {
+            UIManager.displayWord(State.runtime.allWords[0]);
+            return;
+        }
+
         let rnd = Math.random() * tw,
             sel = av[av.length - 1].i;
+            
         for (let it of av) {
             rnd -= it.w;
             if (rnd <= 0) {
