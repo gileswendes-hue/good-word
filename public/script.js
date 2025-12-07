@@ -1,9 +1,10 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.40.6', 
+    APP_VERSION: '5.40.7', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
+  
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
         LLAMA: { text: 'LLAMA', prob: 0.005, fade: 8000, msg: "what llama?", dur: 3000 },
@@ -3274,7 +3275,6 @@ const TipManager = {
         el.id = 'tipModal';
         el.className = 'fixed inset-0 bg-gray-900 bg-opacity-95 z-[200] hidden flex items-center justify-center';
         
-        // ADDED: "tipError" div below the textarea
         el.innerHTML = `
             <div class="bg-white rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl">
                 <h3 class="text-2xl font-bold text-center mb-2 text-gray-800">Submit a Tip</h3>
@@ -3296,7 +3296,6 @@ const TipManager = {
         this.init();
         document.getElementById('tipModal').classList.remove('hidden');
         document.getElementById('tipInput').value = '';
-        // Clear previous errors so the modal looks clean
         document.getElementById('tipError').textContent = ''; 
         document.getElementById('tipInput').focus();
     },
@@ -3317,9 +3316,8 @@ const TipManager = {
 
         if (diff < cooldownMs) {
             const minLeft = Math.ceil((cooldownMs - diff) / 60000);
-            // DISPLAY ERROR INSIDE MODAL (so they see it)
             errDiv.textContent = `⏳ Wait ${minLeft}m before sending again.`;
-            return; // Stop here. Modal stays open.
+            return; 
         }
 
         const input = document.getElementById('tipInput');
@@ -3339,13 +3337,16 @@ const TipManager = {
         // 1. Close Tip Modal
         this.close();
 
-        // 2. FORCE CLOSE SETTINGS MENU (This reveals the main game)
+        // 2. FORCE CLOSE SETTINGS MENU
         ModalManager.toggle('settings', false);
 
-        // 3. Show Success Message on Main Game
+        // 3. SCROLL TO TOP (So they see the message)
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        // 4. Show Success Message
         UIManager.showPostVoteMessage("Tip sent! Thanks! 💌");
 
-        // 4. Set Timestamp & Send
+        // 5. Set Timestamp & Send
         localStorage.setItem('lastTipSent', now);
 
         emailjs.send(this.serviceID, this.templateID, {
