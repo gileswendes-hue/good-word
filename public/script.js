@@ -1104,10 +1104,13 @@ const ThemeManager = {
         this.populateChooser();
         this.apply(State.data.currentTheme)
     },
-    populateChooser() {
+populateChooser() {
+        const c = DOM.theme.chooser;
+        if (!c) return; // <--- ✅ SAFETY CHECK: Stops crash if HTML is missing
+
         const u = State.data.unlockedThemes,
-            a = [...new Set(u)].sort(),
-            c = DOM.theme.chooser;
+            a = [...new Set(u)].sort();
+            
         c.innerHTML = '<option value="default">Default</option>';
         a.forEach(t => {
             const o = document.createElement('option');
@@ -2441,32 +2444,34 @@ const UIManager = {
     updateStats() {
         const w = State.runtime.allWords;
         if (!w.length) return;
-        
-        DOM.header.streak.textContent = State.data.daily.streak;
-        DOM.header.userVotes.textContent = State.data.voteCount.toLocaleString();
+
+        // --- ✅ FIX: Check existence before setting text ---
+        if (DOM.header.streak) DOM.header.streak.textContent = State.data.daily.streak;
+        if (DOM.header.userVotes) DOM.header.userVotes.textContent = State.data.voteCount.toLocaleString();
         
         const totalGood = w.reduce((a, b) => a + (b.goodVotes || 0), 0);
         const totalBad = w.reduce((a, b) => a + (b.badVotes || 0), 0);
         const globalTotal = totalGood + totalBad;
 
-        DOM.header.globalVotes.textContent = globalTotal.toLocaleString();
-        DOM.header.totalWords.textContent = w.length.toLocaleString();
-        DOM.header.good.textContent = totalGood.toLocaleString();
-        DOM.header.bad.textContent = totalBad.toLocaleString();
+        if (DOM.header.globalVotes) DOM.header.globalVotes.textContent = globalTotal.toLocaleString();
+        if (DOM.header.totalWords) DOM.header.totalWords.textContent = w.length.toLocaleString();
+        if (DOM.header.good) DOM.header.good.textContent = totalGood.toLocaleString();
+        if (DOM.header.bad) DOM.header.bad.textContent = totalBad.toLocaleString();
 
         // --- GRAPH LOGIC ---
         if (globalTotal > 0) {
             const goodPct = (totalGood / globalTotal) * 100;
             const badPct = 100 - goodPct; 
 
-            DOM.header.barGood.style.width = `${goodPct}%`;
-            DOM.header.barBad.style.width = `${badPct}%`;
+            if (DOM.header.barGood) DOM.header.barGood.style.width = `${goodPct}%`;
+            if (DOM.header.barBad) DOM.header.barBad.style.width = `${badPct}%`;
         } else {
-            DOM.header.barGood.style.width = '50%';
-            DOM.header.barBad.style.width = '50%';
+            if (DOM.header.barGood) DOM.header.barGood.style.width = '50%';
+            if (DOM.header.barBad) DOM.header.barBad.style.width = '50%';
         }
         this.renderMiniRankings();
     },
+  
     updateProfileDisplay() {
         const n = State.data.username;
         const p = State.data.profilePhoto; 
@@ -4231,6 +4236,10 @@ const InputHandler = {
     init() {
         const c = DOM.game.card,
             wd = DOM.game.wordDisplay;
+        if (!c || !wd) {
+            console.warn("InputHandler: 'gameCard' or 'wordDisplay' ID missing in HTML.");
+            return;
+        }
             
         // HELPER: Common Drag Start Logic
         const startDrag = (x, y) => {
@@ -4243,7 +4252,6 @@ const InputHandler = {
             wd.style.animation = 'none';
         };
 
-        // HELPER: Common Drag Move Logic
         const moveDrag = (x, y, e) => {
             if (State.runtime.isCoolingDown || DOM.game.buttons.good.disabled) return;
             const dX = x - this.sX;
