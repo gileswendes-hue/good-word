@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.42', 
+    APP_VERSION: '5.41', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -2514,48 +2514,44 @@ const UIManager = {
         const userCount = d.unlockedThemes.length + 1;
         DOM.profile.themes.textContent = `${userCount} / ${totalAvailable}`;
         
-        // --- BADGE DEFINITIONS ---
-        const row1 = [
-            { k: 'cake', i: '🎂', w: 'CAKE' }, 
-            { k: 'llama', i: '🦙', w: 'LLAMA' }, 
-            { k: 'potato', i: '🥔', w: 'POTATO' }, 
-            { k: 'squirrel', i: '🐿️', w: 'SQUIRREL' }, 
-            { k: 'spider', i: '🕷️', w: 'SPIDER' }, 
-            { k: 'germ', i: '🦠', w: 'GERM' }, 
-            { k: 'bone', i: '🦴', w: 'MASON' }
-        ];
-        
-        const row2 = [
-            { k: 'poop', i: '💩', d: 'squelch.' }, 
-            { k: 'penguin', i: '🐧', d: 'noot noot!' }, 
-            { k: 'scorpion', i: '🦂', d: 'I am in your tent.' }, 
-            { k: 'mushroom', i: '🍄', d: 'edible once.' }, 
-            { k: 'needle', i: '💉', d: 'wheedle, wheedle, pry and needle' }, 
-            { k: 'diamond', i: '💎', d: 'hidden Gem.' },
-            { k: 'rock', i: '🤘', d: 'space rock!' }, 
-            { k: 'chopper', i: '🚁', d: 'Get to the choppa!' }, 
-            { k: 'snowman', i: '⛄', d: "# We're walking in the air..." }
-        ];
-        
-        // --- UPDATED FISH ROW WITH DESCRIPTIONS ---
-        const row_fish = [
-            { k: 'fish', i: '🐟', t: 'Blue Fish', d: 'A standard catch.' }, 
-            { k: 'tropical', i: '🐠', t: 'Tropical Fish', d: 'Found in the deep.' }, 
-            { k: 'puffer', i: '🐡', t: 'Pufferfish', d: 'Spiky friend.' }, 
-            { k: 'shark', i: '🦈', t: 'Shark', d: 'Gonna need a bigger boat.' },
-            { k: 'octopus', i: '🐙', t: 'The Kraken', d: 'Ink-credible!' }
-        ];
-        
-        const row3 = [
-            { k: 'exterminator', i: '☠️', t: 'The Exterminator', d: 'Fed 100 bugs to the spider' }, 
-            { k: 'saint', i: '😇', t: 'The Saint', d: 'Saved 100 bugs from the web' }, 
-            { k: 'prankster', i: '🃏', t: 'Original Prankster', d: 'Teased the spider 50 times' },
-            { k: 'judge', i: '⚖️', t: 'The Judge', d: 'Cast 1,000 votes!' },
-            { k: 'bard', i: '✍️', t: 'The Bard', d: 'Contributed 5 accepted words' },
-            { k: 'traveler', i: '🌍', t: 'The Traveller', d: 'Unlocked 5 different themes' },
-            { k: 'angler', i: '🔱', t: 'The Best in Brixham', d: 'Caught 250 fish' },
-			{ k: 'shepherd', i: '🛟', t: 'Sea Shepherd', d: 'Chose to let 250 fish swim away safely' }
-        ];
+        badges: {
+            // Row 1
+            cake: localStorage.getItem('cakeBadgeUnlocked') === 'true',
+            llama: localStorage.getItem('llamaBadgeUnlocked') === 'true',
+            potato: localStorage.getItem('potatoBadgeUnlocked') === 'true',
+            squirrel: localStorage.getItem('squirrelBadgeUnlocked') === 'true',
+            spider: localStorage.getItem('spiderBadgeUnlocked') === 'true',
+            germ: localStorage.getItem('germBadgeUnlocked') === 'true',
+            bone: localStorage.getItem('boneBadgeUnlocked') === 'true',
+            
+            // Row 2
+            poop: localStorage.getItem('poopBadgeUnlocked') === 'true',
+            penguin: localStorage.getItem('penguinBadgeUnlocked') === 'true',
+            scorpion: localStorage.getItem('scorpionBadgeUnlocked') === 'true',
+            mushroom: localStorage.getItem('mushroomBadgeUnlocked') === 'true',
+            needle: localStorage.getItem('needleBadgeUnlocked') === 'true',
+            diamond: localStorage.getItem('diamondBadgeUnlocked') === 'true',
+            rock: localStorage.getItem('rockBadgeUnlocked') === 'true',
+            chopper: localStorage.getItem('chopperBadgeUnlocked') === 'true',
+            snowman: localStorage.getItem('snowmanBadgeUnlocked') === 'true',
+            
+            // Fish
+            fish: localStorage.getItem('fishBadgeUnlocked') === 'true',
+            tropical: localStorage.getItem('tropicalBadgeUnlocked') === 'true',
+            puffer: localStorage.getItem('pufferBadgeUnlocked') === 'true',
+            shark: localStorage.getItem('sharkBadgeUnlocked') === 'true',
+            octopus: localStorage.getItem('octopusBadgeUnlocked') === 'true',
+            
+            // Achievements
+            exterminator: localStorage.getItem('exterminatorBadgeUnlocked') === 'true',
+            saint: localStorage.getItem('saintBadgeUnlocked') === 'true',
+            prankster: localStorage.getItem('pranksterBadgeUnlocked') === 'true',
+            judge: localStorage.getItem('judgeBadgeUnlocked') === 'true',
+            bard: localStorage.getItem('bardBadgeUnlocked') === 'true',
+            traveler: localStorage.getItem('travelerBadgeUnlocked') === 'true',
+            angler: localStorage.getItem('anglerBadgeUnlocked') === 'true',
+            shepherd: localStorage.getItem('shepherdBadgeUnlocked') === 'true'
+        },
 
         // Helper to render badges
         const renderRow = (list) => `<div class="flex flex-wrap justify-center gap-3 text-3xl w-full">` + list.map(x => {
@@ -3577,6 +3573,8 @@ const HighScoreManager = {
         document.getElementById('leaderboardModal').classList.remove('hidden');
     }
 };
+
+window.HighScoreManager = HighScoreManager;
 
 // --- MAIN GAME LOGIC ---
 const Game = {
