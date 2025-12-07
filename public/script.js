@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.33', 
+    APP_VERSION: '5.40', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -3134,6 +3134,7 @@ const ModalManager = {
                 html += `<div class="mb-6"><h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 border-b border-gray-100 pb-1">Settings</h3><div class="space-y-4">`;
                 html += mkTog('togglePercentages', 'Show Vote Percentages', s.showPercentages);
                 html += mkTog('toggleTips', 'Show Tips & Hints', s.showTips);
+                html += `<button onclick="TipManager.open()" class="w-full mt-2 py-2 bg-indigo-50 text-indigo-600 font-bold rounded-lg border border-indigo-100 hover:bg-indigo-100 transition">💡 Submit Your Own Tip</button>`;
                 html += mkTog('toggleZeroVotes', 'Show Only New Words (0/0)', s.zeroVotesOnly);
                 html += `</div></div>`;
 
@@ -3350,6 +3351,80 @@ const ModalManager = {
         });
     }
 };
+
+// --- TIP SUBMISSION MANAGER ---
+const TipManager = {
+    serviceID: 'service_b6d75wi',   
+    templateID: 'template_qody7q7', 
+
+    init() {
+        // Create the Modal dynamically (matches your PinPad/Modal style)
+        if (document.getElementById('tipModal')) return;
+        
+        const el = document.createElement('div');
+        el.id = 'tipModal';
+        el.className = 'fixed inset-0 bg-gray-900 bg-opacity-95 z-[200] hidden flex items-center justify-center';
+        
+        el.innerHTML = `
+            <div class="bg-white rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl">
+                <h3 class="text-2xl font-bold text-center mb-2 text-gray-800">Submit a Tip</h3>
+                <p class="text-gray-500 text-center mb-4 text-sm">Got a clever loading tip? Send it in!</p>
+                
+                <textarea id="tipInput" rows="4" class="w-full p-3 border border-gray-300 rounded-lg mb-4 focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none" placeholder="Type your tip here..."></textarea>
+                
+                <div class="flex gap-3">
+                    <button onclick="TipManager.close()" class="flex-1 py-3 text-gray-500 font-semibold hover:bg-gray-100 rounded-lg transition-colors">Cancel</button>
+                    <button onclick="TipManager.send()" class="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition-colors shadow-lg">Send</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(el);
+    },
+
+    open() {
+        this.init();
+        document.getElementById('tipModal').classList.remove('hidden');
+        document.getElementById('tipInput').value = ''; // Clear previous text
+        document.getElementById('tipInput').focus();
+    },
+
+    close() {
+        const el = document.getElementById('tipModal');
+        if (el) el.classList.add('hidden');
+    },
+
+    send() {
+        const input = document.getElementById('tipInput');
+        const text = input.value.trim();
+
+if (!text) {
+    UIManager.showPostVoteMessage("Please write something first!");
+    return;
+}
+
+        if (text.length > 100) {
+            alert("Keep it short! Under 100 characters please.");
+            return;
+        }
+
+        UIManager.showPostVoteMessage("Sending tip...");
+        this.close();
+
+        // Send via EmailJS
+        emailjs.send(this.serviceID, this.templateID, {
+            message: text,
+            username: State.data.username || "Anonymous"
+        }).then(() => {
+            UIManager.showPostVoteMessage("Tip sent! Thanks! 💌");
+        }, (err) => {
+            console.error('Email failed:', err);
+            UIManager.showPostVoteMessage("Failed to send. Try again later.");
+        });
+    }
+};
+
+// Expose to window
+window.TipManager = TipManager;
 
 // --- MAIN GAME LOGIC ---
 const Game = {
