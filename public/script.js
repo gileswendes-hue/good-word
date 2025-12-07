@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.43', 
+    APP_VERSION: '5.41', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -146,7 +146,8 @@ const DOM = {
 
 const State = {
     data: {
-        userId: localStorage.getItem('userId') || crypto.randomUUID(),
+        // Recommended Fix:
+userId: localStorage.getItem('userId') || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'user_' + Math.random().toString(36).substr(2, 9)),
         username: localStorage.getItem('username') || '',
         voteCount: parseInt(localStorage.getItem('voteCount') || 0),
         contributorCount: parseInt(localStorage.getItem('contributorCount') || 0),
@@ -657,39 +658,33 @@ const MosquitoManager = {
         if (Math.random() > 0.3) return; 
         this.init();
     },
+// CORRECT CODE for MosquitoManager
+spawnStuck(typeChar) {
+    if (this.el) this.remove(); 
 
-    spawnStuck(typeChar) {
-        if (this.el) this.remove(); 
+    this.type = typeChar || '🦟';
+    this.config = this.TYPES[this.type] || this.TYPES['🦟'];
+    
+    this.el = document.createElement('div');
+    this.el.textContent = this.type;
+    this.el.className = 'mosquito-entity';
 
-        this.type = typeChar || '🦟';
-        this.config = this.TYPES[this.type] || this.TYPES['🦟'];
-        
-        this.el = document.createElement('div');
-        this.el.textContent = this.type;
-        this.el.className = 'mosquito-entity';
-        
-        this.x = 88; 
-        this.y = 20; 
+    document.body.appendChild(this.el);
 
-        Object.assign(this.el.style, {
-            position: 'fixed', 
-            fontSize: '1.8rem', 
-            zIndex: '100',
-            left: this.x + '%', 
-            top: this.y + '%',
-            transform: 'translate(-50%, -50%)', // Center it
-            filter: 'drop-shadow(1px 2px 3px rgba(0,0,0,0.5))'
-        });
 
-        document.body.appendChild(this.el);
-        this.state = 'stuck';
-        
-        setTimeout(() => {
-            if (State.data.currentTheme === 'halloween') {
-                Effects.spiderHunt(this.x, this.y, true);
-            }
-        }, 100);
-    },
+    this.el.onclick = (e) => {
+        e.stopPropagation();
+        UIManager.showPostVoteMessage("It's stuck in the web!"); 
+    };
+
+    this.state = 'stuck';
+    
+    setTimeout(() => {
+        if (State.data.currentTheme === 'halloween') {
+            Effects.spiderHunt(this.x, this.y, true);
+        }
+    }, 100);
+},
 
     init() {
         if (this.el) this.remove();
@@ -1025,10 +1020,10 @@ const API = {
             if (!listResponse.ok) throw new Error("Missing kids file");
             const listText = await listResponse.text();
             const safeList = new Set(listText.split('\n').map(l => l.trim().toUpperCase()).filter(l => l.length > 0));
-            
             const allWords = await this.fetchWords(); 
-            
+            if (!allWords) return [{ _id: 'err', text: 'Network Error', goodVotes: 0, badVotes: 0 }];
             const safeWords = allWords.filter(w => safeList.has(w.text.toUpperCase()));
+
             if (safeWords.length === 0) return [{ _id: 'temp', text: 'No Matching Words', goodVotes: 0, badVotes: 0 }];
             return safeWords;
         } catch (e) {
@@ -2653,9 +2648,8 @@ const row1 = [
         };
 
         // --- ATTACH LISTENERS ---
-        b.querySelectorAll('.badge-item').forEach(el => {
-            el.onclick = (e) => {
-                e.stopPropagation();
+b.querySelectorAll('.badge-item').forEach(el => {
+    // (The bad code is deleted from here)
                 const isLocked = el.classList.contains('grayscale');
                 
                 if (isLocked) {
@@ -4188,6 +4182,7 @@ const Game = {
             wd.classList.remove('animate-fly-left', 'animate-fly-right', 'swipe-good-color', 'swipe-bad-color', 'override-theme-color');
            UIManager.disableButtons(false)
         }
+    }
 };     
 
 const InputHandler = {
