@@ -172,9 +172,37 @@ const State = {
         },
         
         badges: {
-            // ... (keep your existing badge list here, don't delete them) ...
-            cake: localStorage.getItem('cakeBadgeUnlocked') === 'true',
-            // ... etc ...
+           cake: localStorage.getItem('cakeBadgeUnlocked') === 'true',
+            llama: localStorage.getItem('llamaBadgeUnlocked') === 'true',
+            potato: localStorage.getItem('potatoBadgeUnlocked') === 'true',
+            squirrel: localStorage.getItem('squirrelBadgeUnlocked') === 'true',
+            spider: localStorage.getItem('spiderBadgeUnlocked') === 'true',
+            germ: localStorage.getItem('germBadgeUnlocked') === 'true',
+            bone: localStorage.getItem('boneBadgeUnlocked') === 'true',
+            
+            poop: localStorage.getItem('poopBadgeUnlocked') === 'true',
+            penguin: localStorage.getItem('penguinBadgeUnlocked') === 'true',
+            scorpion: localStorage.getItem('scorpionBadgeUnlocked') === 'true',
+            mushroom: localStorage.getItem('mushroomBadgeUnlocked') === 'true',
+            needle: localStorage.getItem('needleBadgeUnlocked') === 'true',
+            diamond: localStorage.getItem('diamondBadgeUnlocked') === 'true',
+            rock: localStorage.getItem('rockBadgeUnlocked') === 'true',
+            chopper: localStorage.getItem('chopperBadgeUnlocked') === 'true',
+            snowman: localStorage.getItem('snowmanBadgeUnlocked') === 'true',
+            
+            fish: localStorage.getItem('fishBadgeUnlocked') === 'true',
+            tropical: localStorage.getItem('tropicalBadgeUnlocked') === 'true',
+            puffer: localStorage.getItem('pufferBadgeUnlocked') === 'true',
+            shark: localStorage.getItem('sharkBadgeUnlocked') === 'true',
+            octopus: localStorage.getItem('octopusBadgeUnlocked') === 'true',
+            
+            exterminator: localStorage.getItem('exterminatorBadgeUnlocked') === 'true',
+            saint: localStorage.getItem('saintBadgeUnlocked') === 'true',
+            prankster: localStorage.getItem('pranksterBadgeUnlocked') === 'true',
+            judge: localStorage.getItem('judgeBadgeUnlocked') === 'true',
+            bard: localStorage.getItem('bardBadgeUnlocked') === 'true',
+            traveler: localStorage.getItem('travelerBadgeUnlocked') === 'true',
+            angler: localStorage.getItem('anglerBadgeUnlocked') === 'true',
             shepherd: localStorage.getItem('shepherdBadgeUnlocked') === 'true'
         },
         settings: JSON.parse(localStorage.getItem('userSettings')) || {
@@ -2513,47 +2541,45 @@ const UIManager = {
         const totalAvailable = Object.keys(CONFIG.THEME_SECRETS).length + 1;
         const userCount = d.unlockedThemes.length + 1;
         DOM.profile.themes.textContent = `${userCount} / ${totalAvailable}`;
-        
-        badges: {
-            // Row 1
-            cake: localStorage.getItem('cakeBadgeUnlocked') === 'true',
-            llama: localStorage.getItem('llamaBadgeUnlocked') === 'true',
-            potato: localStorage.getItem('potatoBadgeUnlocked') === 'true',
-            squirrel: localStorage.getItem('squirrelBadgeUnlocked') === 'true',
-            spider: localStorage.getItem('spiderBadgeUnlocked') === 'true',
-            germ: localStorage.getItem('germBadgeUnlocked') === 'true',
-            bone: localStorage.getItem('boneBadgeUnlocked') === 'true',
-            
-            // Row 2
-            poop: localStorage.getItem('poopBadgeUnlocked') === 'true',
-            penguin: localStorage.getItem('penguinBadgeUnlocked') === 'true',
-            scorpion: localStorage.getItem('scorpionBadgeUnlocked') === 'true',
-            mushroom: localStorage.getItem('mushroomBadgeUnlocked') === 'true',
-            needle: localStorage.getItem('needleBadgeUnlocked') === 'true',
-            diamond: localStorage.getItem('diamondBadgeUnlocked') === 'true',
-            rock: localStorage.getItem('rockBadgeUnlocked') === 'true',
-            chopper: localStorage.getItem('chopperBadgeUnlocked') === 'true',
-            snowman: localStorage.getItem('snowmanBadgeUnlocked') === 'true',
-            
-            // Fish
-            fish: localStorage.getItem('fishBadgeUnlocked') === 'true',
-            tropical: localStorage.getItem('tropicalBadgeUnlocked') === 'true',
-            puffer: localStorage.getItem('pufferBadgeUnlocked') === 'true',
-            shark: localStorage.getItem('sharkBadgeUnlocked') === 'true',
-            octopus: localStorage.getItem('octopusBadgeUnlocked') === 'true',
-            
-            // Achievements
-            exterminator: localStorage.getItem('exterminatorBadgeUnlocked') === 'true',
-            saint: localStorage.getItem('saintBadgeUnlocked') === 'true',
-            prankster: localStorage.getItem('pranksterBadgeUnlocked') === 'true',
-            judge: localStorage.getItem('judgeBadgeUnlocked') === 'true',
-            bard: localStorage.getItem('bardBadgeUnlocked') === 'true',
-            traveler: localStorage.getItem('travelerBadgeUnlocked') === 'true',
-            angler: localStorage.getItem('anglerBadgeUnlocked') === 'true',
-            shepherd: localStorage.getItem('shepherdBadgeUnlocked') === 'true'
-        },
 
-        // Helper to render badges
+const row1 = [
+            {k:'cake', i:'🍰', t:'The Cake', d:'The cake is a lie!', w:'CAKE'},
+            {k:'llama', i:'🦙', t:'Drama Llama', d:'Found the secret llama', w:'LLAMA'},
+            {k:'potato', i:'🥔', t:'Spud', d:'Found the hidden potato', w:'POTATO'},
+            {k:'squirrel', i:'🐿️', t:'Nutty', d:'Found the squirrel', w:'SQUIRREL'},
+            {k:'spider', i:'🕷️', t:'Web Spinner', d:'Teased the spider', w:'SPIDER'},
+            {k:'germ', i:'🦠', t:'Patient Zero', d:'Found a germ in the ballpit', w:'GERM'},
+            {k:'bone', i:'🦴', t:'Archaeologist', d:'Found the hidden bone', w:'MASON'}
+        ];
+        const row2 = [
+            {k:'poop', i:'💩', t:'Oops', d:'Found this in the ballpit'},
+            {k:'penguin', i:'🐧', t:'Lost Bird', d:'Found a penguin in the ballpit'},
+            {k:'scorpion', i:'🦂', t:'Stinger', d:'Found a scorpion in the ballpit'},
+            {k:'mushroom', i:'🍄', t:'Fungi', d:'Found a mushroom in the ballpit'},
+            {k:'needle', i:'💉', t:'Ouch', d:'Found a needle in the ballpit'},
+            {k:'diamond', i:'💎', t:'Riches', d:'Found a diamond in the ballpit'},
+            {k:'rock', i:'🤘', t:'Space Rock', d:'Found the rock in space'},
+            {k:'chopper', i:'🚁', t:'Get to the Chopper', d:'Spotted the rare helicopter'},
+            {k:'snowman', i:'⛄', t:'Frosty', d:'Built a snowman'}
+        ];
+        const row_fish = [
+            {k:'fish', i:'🐟', t:'Glub Glub', d:'Caught a fish'},
+            {k:'tropical', i:'🐠', t:'Tropical', d:'Caught a tropical fish'},
+            {k:'puffer', i:'🐡', t:'Pokey', d:'Caught a pufferfish'},
+            {k:'shark', i:'🦈', t:'Jaws', d:'Caught a shark'},
+            {k:'octopus', i:'🐙', t:'Ink Master', d:'Caught an octopus'}
+        ];
+        const row3 = [
+            {k:'exterminator', i:'🚫', t:'Exterminator', d:'Fed 100 bugs to the spider'},
+            {k:'saint', i:'😇', t:'Saint', d:'Saved 100 bugs'},
+            {k:'prankster', i:'🃏', t:'Prankster', d:'Teased the spider 50 times'},
+            {k:'judge', i:'⚖️', t:'The Judge', d:'Voted 1,000 times'},
+            {k:'bard', i:'🎭', t:'The Bard', d:'Submitted 5 new words'},
+            {k:'traveler', i:'🌍', t:'Time Traveler', d:'Unlocked 5 themes'},
+            {k:'angler', i:'🎣', t:'Master Angler', d:'Caught 250 fish'},
+            {k:'shepherd', i:'🐑', t:'Fish Shepherd', d:'Let 250 fish go'}
+        ];
+
         const renderRow = (list) => `<div class="flex flex-wrap justify-center gap-3 text-3xl w-full">` + list.map(x => {
             const un = d.badges[x.k];
             // Format a default title from the key (e.g., "cake" -> "Cake")
@@ -2648,21 +2674,26 @@ const UIManager = {
                 }
             }
         });
-        const jarBugs = b.querySelectorAll('.jar-bug');
-        jarBugs.forEach(bug => {
-            bug.onclick = (e) => {
-                e.stopPropagation();
-                if (State.data.currentTheme !== 'halloween') {
-                    showTooltip(bug, "Spider Missing", "Please visit the spider on the Halloween theme to feed");
-                    return;
+// Efficient Delegation
+        const jarContainer = document.getElementById('jar-container');
+        if (jarContainer) {
+            jarContainer.onclick = (e) => {
+                if (e.target.classList.contains('jar-bug')) {
+                    e.stopPropagation();
+                    if (State.data.currentTheme !== 'halloween') {
+
+                        UIManager.showPostVoteMessage("Visit the Halloween theme to feed the spider!");
+                        return;
+                    }
+                    ModalManager.toggle('profile', false);
+                    State.data.insectStats.saved = Math.max(0, State.data.insectStats.saved - 1);
+                    State.save('insectStats', State.data.insectStats);
+                    if (typeof MosquitoManager !== 'undefined') MosquitoManager.spawnStuck('🦟');
+                    UIManager.showPostVoteMessage("Feeding time! 🕷️");
                 }
-                ModalManager.toggle('profile', false);
-                State.data.insectStats.saved = Math.max(0, State.data.insectStats.saved - 1);
-                State.save('insectStats', State.data.insectStats);
-                if (typeof MosquitoManager !== 'undefined') MosquitoManager.spawnStuck('🦟');
-                UIManager.showPostVoteMessage("Feeding time! 🕷️");
             };
-        });
+        }
+
         ModalManager.toggle('profile', true);
     },
     displayWord(w) {
@@ -3192,6 +3223,7 @@ const ModalManager = {
         DOM.game.wordDisplay.onclick = () => Game.showDefinition();
         const shareBtn = document.getElementById('shareWordButton');
         if (shareBtn) {
+            shareBtn.style.marginBottom = "10px";
             shareBtn.onclick = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -3478,11 +3510,25 @@ window.ContactManager = ContactManager;
 const HighScoreManager = {
     STREAK_THRESHOLD: 5, 
     TIME_WINDOW: 5000,   // 5 Seconds
+    
+    // --- NEW: Encouragement Phrases ---
+    phrases: [
+        "On Fire! 🔥", "Unstoppable! 🚀", "Crushing it! 💪", 
+        "In the zone! 🎯", "Don't stop! ⚡", "Great Rhythm! 🎵", 
+        "Speedy! 🏎️", "Perfect! ⭐", "Keep going! 🏃"
+    ],
 
     init() {
         if (document.getElementById('nameEntryModal')) return;
         
-        // 1. Name Entry Modal (Retro Style)
+        // 1. Floating Streak Counter (Visual)
+        const float = document.createElement('div');
+        float.id = 'streakFloater';
+        float.className = 'fixed top-[18%] left-1/2 transform -translate-x-1/2 bg-orange-600 text-white font-black py-1 px-4 rounded-full shadow-[0_0_15px_rgba(234,88,12,0.6)] z-[50] opacity-0 pointer-events-none transition-all duration-300 scale-50 border-2 border-yellow-300';
+        float.innerHTML = '<span class="text-xl mr-2">🔥</span><span id="streakFloatNum" class="text-2xl">0</span>';
+        document.body.appendChild(float);
+
+        // 2. Name Entry Modal (Retro Style)
         const entryEl = document.createElement('div');
         entryEl.id = 'nameEntryModal';
         entryEl.className = 'fixed inset-0 bg-black bg-opacity-90 z-[200] hidden flex items-center justify-center font-mono';
@@ -3496,7 +3542,7 @@ const HighScoreManager = {
             </div>`;
         document.body.appendChild(entryEl);
 
-        // 2. Leaderboard Modal
+        // 3. Leaderboard Modal
         const listEl = document.createElement('div');
         listEl.id = 'leaderboardModal';
         listEl.className = 'fixed inset-0 bg-gray-900 bg-opacity-95 z-[200] hidden flex items-center justify-center';
@@ -3516,12 +3562,50 @@ const HighScoreManager = {
         });
     },
 
+    // --- NEW: Visual Handlers ---
+    updateVisual(n) {
+        const el = document.getElementById('streakFloater');
+        const num = document.getElementById('streakFloatNum');
+        if (!el || !num) return;
+
+        // Show/Update
+        el.classList.remove('opacity-0', 'scale-50');
+        el.classList.add('opacity-100', 'scale-100');
+        num.textContent = n;
+        
+        // Pulse Animation
+        el.style.transform = 'translateX(-50%) scale(1.2)';
+        setTimeout(() => el.style.transform = 'translateX(-50%) scale(1)', 100);
+    },
+
+    hideVisual() {
+        const el = document.getElementById('streakFloater');
+        if (el) {
+            el.classList.add('opacity-0', 'scale-50');
+            el.classList.remove('opacity-100', 'scale-100');
+        }
+    },
+    
+    getEncouragement() {
+        return this.phrases[Math.floor(Math.random() * this.phrases.length)];
+    },
+    // ----------------------------
+
     check(finalScore) {
+        // Always hide visual when check() is called (streak broken)
+        this.hideVisual();
+
         if (finalScore < this.STREAK_THRESHOLD) return;
+        
+        // Notify user streak ended
+        UIManager.showPostVoteMessage(`Streak Ended. Final Score: ${finalScore} 🏁`);
+
         if (finalScore > State.data.bestStreak) {
             State.save('bestStreak', finalScore);
-            UIManager.showPostVoteMessage(`🔥 New Personal Best: ${finalScore}!`);
+            // Delay slightly so it doesn't override the "Streak Ended" message immediately
+            setTimeout(() => UIManager.showPostVoteMessage(`🔥 New Personal Best: ${finalScore}!`), 1500);
         }
+        
         const scores = State.data.highScores;
         const lowestTop = scores.length < 5 ? 0 : scores[scores.length - 1].score;
         if (finalScore > lowestTop) {
@@ -3573,7 +3657,6 @@ const HighScoreManager = {
         document.getElementById('leaderboardModal').classList.remove('hidden');
     }
 };
-
 window.HighScoreManager = HighScoreManager;
 
 // --- MAIN GAME LOGIC ---
@@ -3938,36 +4021,49 @@ const Game = {
     async vote(t, s = false) {
         if (State.runtime.isCoolingDown) return;
 
-        // --- NEW: STREAK LOGIC START ---
         const now = Date.now();
-        // Mash Logic (Existing Protection)
+        let streakMessage = null; // Store streak message to display later
+
+        // 1. Mash Protection
         if (State.runtime.lastVoteTime > 0 && (now - State.runtime.lastVoteTime) > CONFIG.VOTE.STREAK_WINDOW) {
              State.runtime.streak = 1;
         } else {
              State.runtime.streak++;
         }
         
-        // Scoring Streak Logic
+        // 2. High Score Streak Logic
         const timeDiff = now - State.runtime.lastScoreTime;
 
+        // CHECK BREAK
         if (State.runtime.lastScoreTime > 0 && timeDiff > HighScoreManager.TIME_WINDOW) {
-            HighScoreManager.check(State.runtime.scoringStreak);
+            // Streak Broke!
+            HighScoreManager.check(State.runtime.scoringStreak); // Check score & Hide visual
             State.runtime.scoringStreak = 1; 
         } else {
+            // Streak Continues
             State.runtime.scoringStreak++;
+            
+            // Handle Visuals & Messages
+            if (State.runtime.scoringStreak >= HighScoreManager.STREAK_THRESHOLD) {
+                HighScoreManager.updateVisual(State.runtime.scoringStreak);
+                
+                if (State.runtime.scoringStreak === HighScoreManager.STREAK_THRESHOLD) {
+                    streakMessage = "Streak Started! 🔥";
+                } else {
+                    streakMessage = HighScoreManager.getEncouragement();
+                }
+            }
         }
+        
         State.runtime.lastScoreTime = now;
         State.runtime.lastVoteTime = now;
 
-
         if (State.runtime.streak > CONFIG.VOTE.MASH_LIMIT) {
             this.handleCooldown();
-            return
+            return;
         }
         
-        const n = Date.now(); // You can delete this line as we defined 'now' above, or leave it.
-        
-        // Haptic Feedback for Button Click (Not Swipe)
+        // Haptic Feedback
         if (!s) {
             if (t === 'notWord') Haptics.heavy();
             else Haptics.medium();
@@ -3976,11 +4072,12 @@ const Game = {
         const w = State.runtime.allWords[State.runtime.currentWordIndex],
             up = w.text.toUpperCase(),
             { CAKE, LLAMA, POTATO, SQUIRREL, MASON } = CONFIG.SPECIAL;
+            
         UIManager.disableButtons(true);
         const wd = DOM.game.wordDisplay;
         const colors = Accessibility.getColors();
         
-        // Handle visual feedback
+        // Visual Swipe Feedback
         if (!s && (t === 'good' || t === 'bad')) {
             this.cleanStyles(wd);
             wd.style.setProperty('--dynamic-swipe-color', t === 'good' ? colors.good : colors.bad);
@@ -3994,7 +4091,7 @@ const Game = {
             else SoundManager.playBad();
         }
         
-        // Helper for Special Effects
+        // Special Word Handling
         const hSpec = (c, k) => {
             State.unlockBadge(k);
             this.cleanStyles(wd);
@@ -4028,8 +4125,7 @@ const Game = {
             State.incrementVote();
             
             if (State.runtime.isDailyMode) {
-                const tod = new Date(),
-                    dStr = tod.toISOString().split('T')[0];
+                const tod = new Date(), dStr = tod.toISOString().split('T')[0];
                 const last = State.data.daily.lastDate;
                 let s = State.data.daily.streak;
                 if (last) {
@@ -4046,20 +4142,34 @@ const Game = {
                 this.checkDailyStatus();
                 setTimeout(() => ModalManager.toggle('dailyResult', true), 600)
             }
+            
+            // --- MESSAGE PRIORITY SYSTEM ---
             let m = '';
-            if (un) m = "🎉 New Theme Unlocked!";
+            
+            if (un) {
+                m = "🎉 New Theme Unlocked!";
+            }
+            else if (streakMessage) {
+                // Priority 1: Streak Message (Started or Encouragement)
+                m = streakMessage;
+            }
             else if (State.data.settings.showPercentages && (t === 'good' || t === 'bad')) {
+                // Priority 2: Percentages
                 const tot = (w.goodVotes || 0) + (w.badVotes || 0),
                     p = Math.round((w[`${t}Votes`] / tot) * 100);
                 m = `${t==='good'?'Good':'Bad'} vote! ${p}% agree.`
             }
-            if (State.data.settings.showTips) {
+            
+            // Priority 3: Random Tips (Low priority, can overwrite percentages but not streaks)
+            if (State.data.settings.showTips && !streakMessage && !un) {
                 State.save('voteCounterForTips', State.data.voteCounterForTips + 1);
-                if (State.data.voteCounterForTips % CONFIG.TIP_COOLDOWN === 0) m = GAME_TIPS[Math.floor(Math.random() * GAME_TIPS.length)]
+                if (State.data.voteCounterForTips % CONFIG.TIP_COOLDOWN === 0) {
+                    m = GAME_TIPS[Math.floor(Math.random() * GAME_TIPS.length)];
+                }
             }
+            
             UIManager.showPostVoteMessage(m);
             
-            // Haptic Feedback for Vote Success (Medium)
             if (t === 'good' || t === 'bad') Haptics.medium();
 
             UIManager.updateStats();
@@ -4076,10 +4186,10 @@ const Game = {
         } catch (e) {
             UIManager.showMessage("Vote Failed", true);
             wd.classList.remove('animate-fly-left', 'animate-fly-right', 'swipe-good-color', 'swipe-bad-color', 'override-theme-color');
-            UIManager.disableButtons(false)
+           UIManager.disableButtons(false)
         }
-    }
-};
+    }; 
+};     
 
 const InputHandler = {
     sX: 0,
@@ -4220,9 +4330,7 @@ const InputHandler = {
     }
 };
 
-// --- INITIALIZATION ---
 window.onload = Game.init.bind(Game);
 window.fEhPVHxCRUFDSHxIT0xJREFZfFNVTnxWQU = API; 
 
 })();
-
