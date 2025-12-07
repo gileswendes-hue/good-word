@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.40.4', 
+    APP_VERSION: '5.40.5', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -3266,11 +3266,10 @@ const ModalManager = {
 const TipManager = {
     serviceID: 'service_b6d75wi',
     templateID: 'template_qody7q7',
-    COOLDOWN_MINS: 10, // <--- CONFIG: Minutes between messages
+    COOLDOWN_MINS: 10, 
 
     init() {
         if (document.getElementById('tipModal')) return;
-        // ... (Keep existing innerHTML creation code exactly as is) ...
         const el = document.createElement('div');
         el.id = 'tipModal';
         el.className = 'fixed inset-0 bg-gray-900 bg-opacity-95 z-[200] hidden flex items-center justify-center';
@@ -3293,6 +3292,7 @@ const TipManager = {
         document.getElementById('tipInput').value = '';
         document.getElementById('tipInput').focus();
     },
+
     close() {
         const el = document.getElementById('tipModal');
         if (el) el.classList.add('hidden');
@@ -3318,6 +3318,11 @@ const TipManager = {
         if (text.length > 250) { UIManager.showPostVoteMessage("Keep it short! Under 250 chars."); return; }
 
         this.close();
+        
+        // --- ADDED: Close the Settings Menu too ---
+        ModalManager.toggle('settings', false); 
+        // ------------------------------------------
+
         UIManager.showPostVoteMessage("Tip sent! Thanks! 💌");
 
         // 2. SET TIMESTAMP
@@ -3330,7 +3335,6 @@ const TipManager = {
     }
 };
 window.TipManager = TipManager;
-
 // --- CONTACT MANAGER ---
 const ContactManager = {
     serviceID: 'service_b6d75wi',
