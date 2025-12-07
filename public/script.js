@@ -4,7 +4,6 @@ const CONFIG = {
     APP_VERSION: '5.40.6', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
-  
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
         LLAMA: { text: 'LLAMA', prob: 0.005, fade: 8000, msg: "what llama?", dur: 3000 },
