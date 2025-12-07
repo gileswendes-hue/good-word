@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.41', 
+    APP_VERSION: '5.42', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -144,7 +144,6 @@ const DOM = {
     }
 };
 
-// --- STATE MANAGEMENT ---
 const State = {
     data: {
         userId: localStorage.getItem('userId') || crypto.randomUUID(),
@@ -153,6 +152,11 @@ const State = {
         contributorCount: parseInt(localStorage.getItem('contributorCount') || 0),
         profilePhoto: localStorage.getItem('profilePhoto') || null,
         
+        // --- NEW: High Score Data ---
+        bestStreak: parseInt(localStorage.getItem('bestStreak') || 0),
+        highScores: JSON.parse(localStorage.getItem('highScores')) || [], 
+        // ---------------------------
+
         pendingVotes: JSON.parse(localStorage.getItem('pendingVotes')) || [],
         offlineCache: JSON.parse(localStorage.getItem('offlineCache')) || [],
 
@@ -168,34 +172,10 @@ const State = {
         },
         
         badges: {
+            // ... (keep your existing badge list here, don't delete them) ...
             cake: localStorage.getItem('cakeBadgeUnlocked') === 'true',
-            llama: localStorage.getItem('llamaBadgeUnlocked') === 'true',
-            potato: localStorage.getItem('potatoBadgeUnlocked') === 'true',
-            squirrel: localStorage.getItem('squirrelBadgeUnlocked') === 'true',
-            spider: localStorage.getItem('spiderBadgeUnlocked') === 'true',
-            germ: localStorage.getItem('germBadgeUnlocked') === 'true',
-            bone: localStorage.getItem('boneBadgeUnlocked') === 'true',
-            poop: localStorage.getItem('poopBadgeUnlocked') === 'true',
-            penguin: localStorage.getItem('penguinBadgeUnlocked') === 'true',
-            scorpion: localStorage.getItem('scorpionBadgeUnlocked') === 'true',
-            mushroom: localStorage.getItem('mushroomBadgeUnlocked') === 'true',
-            needle: localStorage.getItem('needleBadgeUnlocked') === 'true',
-            diamond: localStorage.getItem('diamondBadgeUnlocked') === 'true',
-            rock: localStorage.getItem('rockBadgeUnlocked') === 'true',
-            chopper: localStorage.getItem('chopperBadgeUnlocked') === 'true',
-            exterminator: localStorage.getItem('exterminatorBadgeUnlocked') === 'true',
-            saint: localStorage.getItem('saintBadgeUnlocked') === 'true',
-            prankster: localStorage.getItem('pranksterBadgeUnlocked') === 'true',
-            judge: localStorage.getItem('judgeBadgeUnlocked') === 'true',
-            bard: localStorage.getItem('bardBadgeUnlocked') === 'true',       
-            traveler: localStorage.getItem('travelerBadgeUnlocked') === 'true',
-            fish: localStorage.getItem('fishBadgeUnlocked') === 'true',
-            tropical: localStorage.getItem('tropicalBadgeUnlocked') === 'true',
-            puffer: localStorage.getItem('pufferBadgeUnlocked') === 'true',
-            shark: localStorage.getItem('sharkBadgeUnlocked') === 'true',
-            snowman: localStorage.getItem('snowmanBadgeUnlocked') === 'true',
-			angler: localStorage.getItem('anglerBadgeUnlocked') === 'true',
-			shepherd: localStorage.getItem('shepherdBadgeUnlocked') === 'true'
+            // ... etc ...
+            shepherd: localStorage.getItem('shepherdBadgeUnlocked') === 'true'
         },
         settings: JSON.parse(localStorage.getItem('userSettings')) || {
             showTips: true,
@@ -230,7 +210,12 @@ const State = {
         isCoolingDown: false,
         cooldownTimer: null,
         mashLevel: 0,
-        isDailyMode: false
+        isDailyMode: false,
+        
+        // --- NEW: Runtime Streak Logic ---
+        scoringStreak: 0,
+        lastScoreTime: 0
+        // ---------------------------------
     },
     save(k, v) {
         this.data[k] = v;
@@ -239,15 +224,20 @@ const State = {
         if (k === 'pendingVotes') s.setItem('pendingVotes', JSON.stringify(v));
         else if (k === 'offlineCache') s.setItem('offlineCache', JSON.stringify(v));
         
+        // --- NEW: Save Handlers ---
+        else if (k === 'highScores') s.setItem('highScores', JSON.stringify(v));
+        else if (k === 'bestStreak') s.setItem('bestStreak', v);
+        // --------------------------
+
         else if (k === 'insectStats') {
             s.setItem('insectSaved', v.saved);
             s.setItem('insectEaten', v.eaten);
             s.setItem('insectTeased', v.teased);
         } 
        else if (k === 'fishStats') {
-    s.setItem('fishCaught', v.caught);
-    s.setItem('fishSpared', v.spared); 
-}
+            s.setItem('fishCaught', v.caught);
+            s.setItem('fishSpared', v.spared); 
+        }
         else if (k.startsWith('badge_')) {
             s.setItem(k, v);
         }
@@ -262,7 +252,7 @@ const State = {
         else if (k === 'lastMosquitoSpawn') s.setItem(k, v);
         else s.setItem(k, v);
     },
-    
+    // ... keep unlockBadge, incrementVote, etc. as they were ...
     unlockBadge(n) {
         if (this.data.badges[n]) return;
         this.data.badges[n] = true;
@@ -290,7 +280,6 @@ const State = {
     }
 };
 
-// --- OFFLINE MANAGER (Defined Outside State) ---
 const OfflineManager = {
     CACHE_TARGET: 500,
 
@@ -2485,6 +2474,26 @@ const UIManager = {
         DOM.profile.streak.textContent = d.daily.streak;
         DOM.profile.totalVotes.textContent = d.voteCount.toLocaleString();
         DOM.profile.contributions.textContent = d.contributorCount.toLocaleString();
+
+        let streakBtn = document.getElementById('highScoreBtn');
+        if (!streakBtn && DOM.profile.badges) {
+            const wrapper = document.createElement('div');
+            wrapper.className = "w-full flex justify-center mt-4 mb-2";
+            wrapper.innerHTML = `
+                <div id="highScoreBtn" class="bg-indigo-50 border border-indigo-100 rounded-xl p-3 px-6 flex items-center gap-3 cursor-pointer hover:bg-indigo-100 transition shadow-sm">
+                    <span class="text-2xl">⚡</span>
+                    <div class="text-left">
+                        <div class="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Longest Streak</div>
+                        <div class="text-xl font-black text-indigo-700" id="profileBestStreak">0</div>
+                    </div>
+                </div>
+            `;
+            // Insert before Badges section
+            DOM.profile.badges.before(wrapper);
+            document.getElementById('highScoreBtn').onclick = () => HighScoreManager.showLeaderboard();
+        }
+        const bs = document.getElementById('profileBestStreak');
+        if (bs) bs.textContent = (d.bestStreak || 0).toLocaleString();
         
         // --- KARMA TITLE LOGIC ---
         const saved = d.insectStats.saved;
@@ -3470,6 +3479,105 @@ const ContactManager = {
 };
 window.ContactManager = ContactManager;
 
+const HighScoreManager = {
+    STREAK_THRESHOLD: 5, 
+    TIME_WINDOW: 5000,   // 5 Seconds
+
+    init() {
+        if (document.getElementById('nameEntryModal')) return;
+        
+        // 1. Name Entry Modal (Retro Style)
+        const entryEl = document.createElement('div');
+        entryEl.id = 'nameEntryModal';
+        entryEl.className = 'fixed inset-0 bg-black bg-opacity-90 z-[200] hidden flex items-center justify-center font-mono';
+        entryEl.innerHTML = `
+            <div class="bg-gray-900 border-4 border-green-500 rounded-lg p-8 w-full max-w-sm mx-4 text-center shadow-[0_0_20px_rgba(34,197,94,0.6)]">
+                <h3 class="text-3xl font-bold text-green-500 mb-2 uppercase tracking-widest animate-pulse">New High Score!</h3>
+                <div class="text-white text-xl mb-6">SCORE: <span id="newScoreDisplay" class="text-yellow-400 font-bold">0</span></div>
+                <p class="text-green-400 text-xs mb-4 uppercase">Enter Initials</p>
+                <input type="text" id="initialsInput" maxlength="3" class="bg-black text-white text-4xl font-bold text-center w-32 border-b-4 border-green-500 focus:outline-none focus:border-yellow-400 uppercase tracking-[0.5em] mb-8" autocomplete="off">
+                <button onclick="HighScoreManager.submitScore()" class="w-full py-3 bg-green-600 text-black font-bold uppercase hover:bg-green-500 transition-colors">Enter</button>
+            </div>`;
+        document.body.appendChild(entryEl);
+
+        // 2. Leaderboard Modal
+        const listEl = document.createElement('div');
+        listEl.id = 'leaderboardModal';
+        listEl.className = 'fixed inset-0 bg-gray-900 bg-opacity-95 z-[200] hidden flex items-center justify-center';
+        listEl.innerHTML = `
+            <div class="bg-white rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-2xl font-bold text-gray-800">🏆 Top Streaks</h3>
+                    <button onclick="document.getElementById('leaderboardModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600">✕</button>
+                </div>
+                <div id="highScoreList" class="space-y-2 mb-6"></div>
+                <div class="text-center text-xs text-gray-400">Keep the rhythm. Don't stop voting.</div>
+            </div>`;
+        document.body.appendChild(listEl);
+
+        document.getElementById('initialsInput').addEventListener('input', function() {
+            this.value = this.value.toUpperCase();
+        });
+    },
+
+    check(finalScore) {
+        if (finalScore < this.STREAK_THRESHOLD) return;
+        if (finalScore > State.data.bestStreak) {
+            State.save('bestStreak', finalScore);
+            UIManager.showPostVoteMessage(`🔥 New Personal Best: ${finalScore}!`);
+        }
+        const scores = State.data.highScores;
+        const lowestTop = scores.length < 5 ? 0 : scores[scores.length - 1].score;
+        if (finalScore > lowestTop) {
+            this.promptName(finalScore);
+        }
+    },
+
+    promptName(score) {
+        this.pendingScore = score;
+        document.getElementById('newScoreDisplay').textContent = score;
+        document.getElementById('initialsInput').value = '';
+        document.getElementById('nameEntryModal').classList.remove('hidden');
+        document.getElementById('initialsInput').focus();
+    },
+
+    submitScore() {
+        const initials = document.getElementById('initialsInput').value.trim().substring(0, 3) || 'AAA';
+        const newEntry = { name: initials, score: this.pendingScore, date: Date.now() };
+        let scores = [...State.data.highScores, newEntry];
+        scores.sort((a, b) => b.score - a.score);
+        scores = scores.slice(0, 5);
+        State.save('highScores', scores);
+        document.getElementById('nameEntryModal').classList.add('hidden');
+        UIManager.showPostVoteMessage("High Score Saved! 💾");
+        this.showLeaderboard();
+    },
+
+    showLeaderboard() {
+        const container = document.getElementById('highScoreList');
+        const scores = State.data.highScores;
+        if (scores.length === 0) {
+            container.innerHTML = '<div class="text-center text-gray-500 py-4">No high scores yet.<br>Vote fast to start a streak!</div>';
+        } else {
+            let html = '';
+            scores.forEach((s, i) => {
+                const medal = i === 0 ? '🥇' : (i === 1 ? '🥈' : (i === 2 ? '🥉' : `${i+1}.`));
+                const bg = i === 0 ? 'bg-yellow-50 border-yellow-200' : 'bg-gray-50 border-gray-100';
+                html += `
+                    <div class="flex justify-between items-center p-3 rounded-lg border ${bg}">
+                        <div class="flex items-center gap-3">
+                            <span class="font-bold text-lg w-6 text-center">${medal}</span>
+                            <span class="font-mono font-bold text-xl tracking-wider text-gray-800">${s.name}</span>
+                        </div>
+                        <div class="font-black text-indigo-600 text-xl">${s.score}</div>
+                    </div>`;
+            });
+            container.innerHTML = html;
+        }
+        document.getElementById('leaderboardModal').classList.remove('hidden');
+    }
+};
+
 // --- MAIN GAME LOGIC ---
 const Game = {
     cleanStyles(e) {
@@ -3584,6 +3692,7 @@ const Game = {
         InputHandler.init();
         ThemeManager.init();
         ModalManager.init();
+        HighScoreManager.init();
 		UIManager.updateProfileDisplay();
         MosquitoManager.startMonitoring();
         this.checkDailyStatus();
@@ -3830,14 +3939,35 @@ const Game = {
     },
     async vote(t, s = false) {
         if (State.runtime.isCoolingDown) return;
-        const n = Date.now();
-        if (State.runtime.lastVoteTime > 0 && (n - State.runtime.lastVoteTime) > CONFIG.VOTE.STREAK_WINDOW) State.runtime.streak = 1;
-        else State.runtime.streak++;
-        State.runtime.lastVoteTime = n;
+
+        // --- NEW: STREAK LOGIC START ---
+        const now = Date.now();
+        // Mash Logic (Existing Protection)
+        if (State.runtime.lastVoteTime > 0 && (now - State.runtime.lastVoteTime) > CONFIG.VOTE.STREAK_WINDOW) {
+             State.runtime.streak = 1;
+        } else {
+             State.runtime.streak++;
+        }
+        
+        // Scoring Streak Logic
+        const timeDiff = now - State.runtime.lastScoreTime;
+
+        if (State.runtime.lastScoreTime > 0 && timeDiff > HighScoreManager.TIME_WINDOW) {
+            HighScoreManager.check(State.runtime.scoringStreak);
+            State.runtime.scoringStreak = 1; 
+        } else {
+            State.runtime.scoringStreak++;
+        }
+        State.runtime.lastScoreTime = now;
+        State.runtime.lastVoteTime = now;
+
+
         if (State.runtime.streak > CONFIG.VOTE.MASH_LIMIT) {
             this.handleCooldown();
             return
         }
+        
+        const n = Date.now(); // You can delete this line as we defined 'now' above, or leave it.
         
         // Haptic Feedback for Button Click (Not Swipe)
         if (!s) {
