@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.41', 
+    APP_VERSION: '5.43', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4188,7 +4188,6 @@ const Game = {
             wd.classList.remove('animate-fly-left', 'animate-fly-right', 'swipe-good-color', 'swipe-bad-color', 'override-theme-color');
            UIManager.disableButtons(false)
         }
-    }; 
 };     
 
 const InputHandler = {
