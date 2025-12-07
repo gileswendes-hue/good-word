@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.40.3', 
+    APP_VERSION: '5.40.4', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1070,7 +1070,10 @@ const ThemeManager = {
     init() {
 
         const s = document.createElement("style");
-        s.innerText = `@keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }`;
+        s.innerText = `
+            @keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }
+            @keyframes twinkle { 0%, 100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); } }
+        `;
         document.head.appendChild(s);
     
         Object.entries(CONFIG.THEME_SECRETS).forEach(([k, v]) => {
@@ -1261,7 +1264,7 @@ const Effects = {
         
         c.innerHTML = '';
 
-        // 3. Static Background Stars
+ // 3. Static Background Stars
         for (let i = 0; i < 50; i++) {
             const s = document.createElement('div');
             s.className = 'star-particle';
@@ -1270,6 +1273,8 @@ const Effects = {
                 top: Math.random() * 100 + '%',
                 width: Math.random() * 3 + 'px',
                 height: Math.random() * 3 + 'px',
+                // NEW: Explicitly tell them to twinkle
+                animation: `twinkle ${Math.random() * 4 + 2}s infinite ease-in-out alternate`, 
                 animationDelay: Math.random() * 5 + 's',
                 opacity: Math.random()
             });
