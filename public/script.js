@@ -38,8 +38,7 @@ const CONFIG = {
     },
 };
 
-// --- DOM ELEMENT REFERENCES ---
-const DOM = {
+const getDOM = () => ({
     header: {
         logoArea: document.getElementById('logoArea'),
         userStatsBar: document.getElementById('userStatsBar'),
@@ -142,7 +141,8 @@ const DOM = {
     general: {
         version: document.querySelector('.version-indicator')
     }
-};
+});
+let DOM = {}; // Will be populated in Game.init
 
 const State = {
     data: {
@@ -762,8 +762,11 @@ spawnStuck(typeChar) {
         if (this.config.badge) State.unlockBadge(this.config.badge);
         if (State.data.insectStats.saved >= 100) State.unlockBadge('saint');
         
-        const msg = GAME_DIALOGUE.insects[this.type] || "Saved!";
-        UIManager.showPostVoteMessage(msg);
+   // Safe access to dialogue
+const msg = (typeof GAME_DIALOGUE !== 'undefined' && GAME_DIALOGUE.insects && GAME_DIALOGUE.insects[this.type]) 
+    ? GAME_DIALOGUE.insects[this.type] 
+    : "Saved!";
+UIManager.showPostVoteMessage(msg);
 
         const bubble = document.createElement('div');
         bubble.textContent = "Thank you! 💖";
@@ -3665,6 +3668,7 @@ const Game = {
         e.style.color = ''
     },
     async init() {
+        DOM = getDOM();
         Accessibility.apply();
 		this.updateLights();
 		UIManager.updateOfflineIndicator();
@@ -4163,13 +4167,14 @@ const Game = {
                 m = `${t==='good'?'Good':'Bad'} vote! ${p}% agree.`
             }
             
-            // Priority 3: Random Tips (Low priority, can overwrite percentages but not streaks)
-            if (State.data.settings.showTips && !streakMessage && !un) {
-                State.save('voteCounterForTips', State.data.voteCounterForTips + 1);
-                if (State.data.voteCounterForTips % CONFIG.TIP_COOLDOWN === 0) {
-                    m = GAME_TIPS[Math.floor(Math.random() * GAME_TIPS.length)];
-                }
-            }
+            // Priority 3: Random Tips
+if (State.data.settings.showTips && !streakMessage && !un) {
+    State.save('voteCounterForTips', State.data.voteCounterForTips + 1);
+    // Check if GAME_TIPS exists before accessing it
+    if (typeof GAME_TIPS !== 'undefined' && State.data.voteCounterForTips % CONFIG.TIP_COOLDOWN === 0) {
+        m = GAME_TIPS[Math.floor(Math.random() * GAME_TIPS.length)];
+    }
+}
             
             UIManager.showPostVoteMessage(m);
             
@@ -4335,5 +4340,4 @@ const InputHandler = {
 
 window.onload = Game.init.bind(Game);
 window.fEhPVHxCRUFDSHxIT0xJREFZfFNVTnxWQU = API; 
-
 })();
