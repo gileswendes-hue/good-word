@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.40.8', 
+    APP_VERSION: '5.41', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -3416,7 +3416,7 @@ const ContactManager = {
         this.init();
         document.getElementById('contactModal').classList.remove('hidden');
         document.getElementById('contactInput').value = '';
-        document.getElementById('contactError').textContent = ''; // Clear errors
+        document.getElementById('contactError').textContent = ''; 
         document.getElementById('contactInput').focus();
     },
 
@@ -3436,7 +3436,6 @@ const ContactManager = {
 
         if (diff < cooldownMs) {
             const minLeft = Math.ceil((cooldownMs - diff) / 60000);
-            // Show error INSIDE modal
             errDiv.textContent = `⏳ Wait ${minLeft}m before sending again.`;
             return;
         }
@@ -3449,10 +3448,18 @@ const ContactManager = {
             return; 
         }
 
+        // --- SUCCESS PATH ---
+
+        // 1. Close Modal
         this.close();
+
+        // 2. SCROLL TO TOP (Added this line)
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        // 3. Show Success Message
         UIManager.showPostVoteMessage("Message sent! I'll read it soon. 📨");
         
-        // 2. SET TIMESTAMP
+        // 4. Set Timestamp & Send
         localStorage.setItem('lastContactSent', now);
 
         emailjs.send(this.serviceID, this.templateID, {
