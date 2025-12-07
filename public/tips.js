@@ -41,5 +41,6 @@ const GAME_TIPS = [
     "Tip: Going Underground? Try Offline Mode!",
     "Tip: I was alone, I was all by myself.",
     "Tip: Why not turn on the Christmas lights?",
-    "Tip: The spider lies."
+    "Tip: The spider lies.",
+    "Tip: Try using the word share button!'
 ];
