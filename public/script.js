@@ -3311,12 +3311,15 @@ const ModalManager = {
             };
             reader.readAsDataURL(file);
         };
-        
+   
         Object.keys(DOM.modals).forEach(k => {
-            DOM.modals[k].style.zIndex = '150'; 
-            DOM.modals[k].addEventListener('click', e => {
-                if (e.target === DOM.modals[k]) this.toggle(k, false);
-            });
+            const el = DOM.modals[k];
+            if (el) { 
+                el.style.zIndex = '150'; 
+                el.addEventListener('click', e => {
+                    if (e.target === el) this.toggle(k, false);
+                });
+            }
         });
     }
 };
@@ -3667,115 +3670,135 @@ const Game = {
         e.style.filter = 'none';
         e.style.color = ''
     },
-    async init() {
+async init() {
         DOM = getDOM();
         Accessibility.apply();
-		this.updateLights();
-		UIManager.updateOfflineIndicator();
-        DOM.general.version.textContent = `v${CONFIG.APP_VERSION} | Made by Gilxs in 12,025`;
-        DOM.game.buttons.good.onclick = () => this.vote('good');
-        DOM.game.buttons.bad.onclick = () => this.vote('bad');
-        DOM.game.buttons.notWord.onclick = () => this.vote('notWord');
-        DOM.game.dailyBanner.onclick = () => this.activateDailyMode();
-        document.getElementById('submitWordButton').onclick = async () => {
-            const t = DOM.inputs.newWord.value.trim();
-            if (!t || t.includes(' ') || t.length > 45) {
-                DOM.inputs.modalMsg.textContent = "Invalid word.";
-                return
-            }
-            const btn = document.getElementById('submitWordButton');
-            btn.disabled = true;
-            try {
-                const r = await API.submitWord(t);
-                if (r.status === 201) {
-                    State.incrementContributor();
-                    DOM.inputs.modalMsg.textContent = "Success! Your new word has been added!";
-                    setTimeout(() => {
-                        ModalManager.toggle('submission', false);
-                        this.refreshData()
-                    }, 1000)
-                } else {
-                    const d = await r.json();
-                    DOM.inputs.modalMsg.textContent = d.message || "Error"
+        this.updateLights();
+        UIManager.updateOfflineIndicator();
+        
+        // 1. Safe Version Check
+        if (DOM.general.version) {
+            DOM.general.version.textContent = `v${CONFIG.APP_VERSION} | Made by Gilxs in 12,025`;
+        }
+
+        // 2. Safe Button Attachments
+        if (DOM.game.buttons.good) DOM.game.buttons.good.onclick = () => this.vote('good');
+        if (DOM.game.buttons.bad) DOM.game.buttons.bad.onclick = () => this.vote('bad');
+        if (DOM.game.buttons.notWord) DOM.game.buttons.notWord.onclick = () => this.vote('notWord');
+        if (DOM.game.dailyBanner) DOM.game.dailyBanner.onclick = () => this.activateDailyMode();
+        
+        // 3. Submit Word Listener
+        const submitBtn = document.getElementById('submitWordButton');
+        if (submitBtn) {
+            submitBtn.onclick = async () => {
+                const t = DOM.inputs.newWord.value.trim();
+                if (!t || t.includes(' ') || t.length > 45) {
+                    DOM.inputs.modalMsg.textContent = "Invalid word.";
+                    return;
                 }
-            } catch (e) {
-                DOM.inputs.modalMsg.textContent = "Network Error"
-            }
-            btn.disabled = false
-        };
-        document.getElementById('runComparisonButton').onclick = async () => {
-            const w1 = DOM.inputs.wordOne.value.trim(),
-                w2 = DOM.inputs.wordTwo.value.trim();
-            if (!w1 && !w2) {
-                DOM.inputs.compareResults.innerHTML = '<span class="text-red-500">Please enter at least one word.</span>';
-                return
-            }
-            DOM.inputs.compareResults.innerHTML = '<span class="text-gray-500 animate-pulse">Analyzing words...</span>';
-            const gd = async w => {
-                if (w.includes(' ') || w.length > 45) return { t: w, valid: false, err: 'Invalid word.' };
-                const e = State.runtime.allWords.find(x => x.text.toUpperCase() === w.toUpperCase());
-                if (e) return { t: e.text, valid: true, exists: true, d: e };
-                const r = await API.submitWord(w);
-                if (r.status === 201) {
-                    State.incrementContributor();
-                    return { t: w.toUpperCase(), valid: true, exists: false, isNew: true }
+                submitBtn.disabled = true;
+                try {
+                    const r = await API.submitWord(t);
+                    if (r.status === 201) {
+                        State.incrementContributor();
+                        DOM.inputs.modalMsg.textContent = "Success! Your new word has been added!";
+                        setTimeout(() => {
+                            ModalManager.toggle('submission', false);
+                            this.refreshData();
+                        }, 1000);
+                    } else {
+                        const d = await r.json();
+                        DOM.inputs.modalMsg.textContent = d.message || "Error";
+                    }
+                } catch (e) {
+                    DOM.inputs.modalMsg.textContent = "Network Error";
                 }
-                return { t: w, valid: false, err: 'Could not fetch data.' }
+                submitBtn.disabled = false;
             };
-            const res = [];
-            if (w1) res.push(await gd(w1));
-            if (w2) res.push(await gd(w2));
-            if (res.some(r => r.isNew)) this.refreshData(false);
-            if (res.some(r => !r.valid)) {
-                DOM.inputs.compareResults.innerHTML = res.map(r => !r.valid ? `<p class="text-red-500 mb-2"><strong>${r.t}</strong>: ${r.err}</p>` : '').join('');
-                return
-            }
-            const st = res.map(r => {
-                if (r.isNew) return { text: r.t.toUpperCase(), score: 0, good: 0, bad: 0, total: 0, approval: 0, isNew: true };
-                const g = r.d.goodVotes || 0,
-                    b = r.d.badVotes || 0,
-                    t = g + b;
-                return {
-                    text: r.t.toUpperCase(),
-                    score: g - b,
-                    good: g,
-                    bad: b,
-                    total: t,
-                    approval: t > 0 ? Math.round((g / t) * 100) : 0,
-                    isNew: false
+        }
+
+        // 4. Comparison Listener
+        const compareBtn = document.getElementById('runComparisonButton');
+        if (compareBtn) {
+            compareBtn.onclick = async () => {
+                const w1 = DOM.inputs.wordOne.value.trim(),
+                    w2 = DOM.inputs.wordTwo.value.trim();
+                if (!w1 && !w2) {
+                    DOM.inputs.compareResults.innerHTML = '<span class="text-red-500">Please enter at least one word.</span>';
+                    return;
                 }
-            });
-            let h = '';
-            if (st.length === 2) {
-                const [s1, s2] = st;
-                let wi = -1;
-                if (s1.score !== s2.score) wi = s1.score > s2.score? 0 : 1;
-                h = `<div class="flex flex-col md:flex-row gap-4 w-full justify-center items-stretch">`;
-                st.forEach((s, i) => {
-                    const iw = i === wi,
-                        il = wi !== -1 && !iw,
-                        bc = iw ? 'border-yellow-400 bg-yellow-50 shadow-xl scale-105 z-10' : 'border-gray-200 bg-white',
-                        oc = il ? 'opacity-70 grayscale-[0.3]' : '';
-                    h += `<div class="flex-1 p-4 rounded-xl border-2 ${bc} ${oc} flex flex-col items-center transition-all duration-300">${iw?'<div class="text-2xl mb-2">🏆</div>':'<div class="h-8 mb-2"></div>'}<h3 class="text-xl font-black text-gray-800 mb-1">${s.text}</h3>${iw?'<span class="bg-yellow-400 text-white text-[10px] font-bold px-2 py-0.5 rounded-full mb-2">WINNER</span>':''}${s.isNew?'<span class="bg-purple-100 text-purple-600 text-xs px-2 py-1 rounded mb-2">New!</span>':''}<div class="text-3xl font-bold ${s.score>=0?'text-green-600':'text-red-600'} mb-4">${s.score}</div><div class="w-full space-y-2"><div class="flex justify-between text-xs text-gray-500"><span>Approval</span><span>${s.approval}%</span></div><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-blue-500 h-2.5 rounded-full" style="width: ${s.approval}%"></div></div><div class="flex justify-between text-xs pt-1"><span class="text-green-600 font-bold">+${s.good}</span><span class="text-red-600 font-bold">-${s.bad}</span></div></div></div>`;
-                    if (i === 0) h += `<div class="flex items-center justify-center font-black text-gray-300 md:px-2">VS</div>`
+                DOM.inputs.compareResults.innerHTML = '<span class="text-gray-500 animate-pulse">Analyzing words...</span>';
+                const gd = async w => {
+                    if (w.includes(' ') || w.length > 45) return { t: w, valid: false, err: 'Invalid word.' };
+                    const e = State.runtime.allWords.find(x => x.text.toUpperCase() === w.toUpperCase());
+                    if (e) return { t: e.text, valid: true, exists: true, d: e };
+                    const r = await API.submitWord(w);
+                    if (r.status === 201) {
+                        State.incrementContributor();
+                        return { t: w.toUpperCase(), valid: true, exists: false, isNew: true };
+                    }
+                    return { t: w, valid: false, err: 'Could not fetch data.' };
+                };
+                const res = [];
+                if (w1) res.push(await gd(w1));
+                if (w2) res.push(await gd(w2));
+                if (res.some(r => r.isNew)) this.refreshData(false);
+                if (res.some(r => !r.valid)) {
+                    DOM.inputs.compareResults.innerHTML = res.map(r => !r.valid ? `<p class="text-red-500 mb-2"><strong>${r.t}</strong>: ${r.err}</p>` : '').join('');
+                    return;
+                }
+                const st = res.map(r => {
+                    if (r.isNew) return { text: r.t.toUpperCase(), score: 0, good: 0, bad: 0, total: 0, approval: 0, isNew: true };
+                    const g = r.d.goodVotes || 0,
+                        b = r.d.badVotes || 0,
+                        t = g + b;
+                    return {
+                        text: r.t.toUpperCase(),
+                        score: g - b,
+                        good: g,
+                        bad: b,
+                        total: t,
+                        approval: t > 0 ? Math.round((g / t) * 100) : 0,
+                        isNew: false
+                    };
                 });
-                h += '</div>'
-            } else {
-                const s = st[0];
-                h = `<div class="p-4 rounded-xl border border-gray-200 bg-white flex flex-col items-center w-full max-w-xs mx-auto"><h3 class="text-xl font-black text-gray-800 mb-2">${s.text}</h3>${s.isNew?'<span class="bg-purple-100 text-purple-600 text-xs px-2 py-1 rounded mb-2">Newly Added!</span>':''}<div class="text-4xl font-bold ${s.score>=0?'text-green-600':'text-red-600'} mb-4">${s.score}</div><div class="w-full space-y-2"><div class="flex justify-between text-xs text-gray-500"><span>Approval Rating</span><span>${s.approval}%</span></div><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-blue-500 h-2.5 rounded-full" style="width: ${s.approval}%"></div></div><div class="flex justify-between text-xs pt-1"><span class="text-green-600 font-bold">+${s.good} Votes</span><span class="text-red-600 font-bold">-${s.bad} Votes</span></div></div></div>`
-            }
-            DOM.inputs.compareResults.innerHTML = h
-        };
-        DOM.theme.chooser.onchange = e => ThemeManager.apply(e.target.value, true);
-        document.getElementById('clearAllDataButton').onclick = State.clearAll;
+                let h = '';
+                if (st.length === 2) {
+                    const [s1, s2] = st;
+                    let wi = -1;
+                    if (s1.score !== s2.score) wi = s1.score > s2.score? 0 : 1;
+                    h = `<div class="flex flex-col md:flex-row gap-4 w-full justify-center items-stretch">`;
+                    st.forEach((s, i) => {
+                        const iw = i === wi,
+                            il = wi !== -1 && !iw,
+                            bc = iw ? 'border-yellow-400 bg-yellow-50 shadow-xl scale-105 z-10' : 'border-gray-200 bg-white',
+                            oc = il ? 'opacity-70 grayscale-[0.3]' : '';
+                        h += `<div class="flex-1 p-4 rounded-xl border-2 ${bc} ${oc} flex flex-col items-center transition-all duration-300">${iw?'<div class="text-2xl mb-2">🏆</div>':'<div class="h-8 mb-2"></div>'}<h3 class="text-xl font-black text-gray-800 mb-1">${s.text}</h3>${iw?'<span class="bg-yellow-400 text-white text-[10px] font-bold px-2 py-0.5 rounded-full mb-2">WINNER</span>':''}${s.isNew?'<span class="bg-purple-100 text-purple-600 text-xs px-2 py-1 rounded mb-2">New!</span>':''}<div class="text-3xl font-bold ${s.score>=0?'text-green-600':'text-red-600'} mb-4">${s.score}</div><div class="w-full space-y-2"><div class="flex justify-between text-xs text-gray-500"><span>Approval</span><span>${s.approval}%</span></div><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-blue-500 h-2.5 rounded-full" style="width: ${s.approval}%"></div></div><div class="flex justify-between text-xs pt-1"><span class="text-green-600 font-bold">+${s.good}</span><span class="text-red-600 font-bold">-${s.bad}</span></div></div></div>`;
+                        if (i === 0) h += `<div class="flex items-center justify-center font-black text-gray-300 md:px-2">VS</div>`;
+                    });
+                    h += '</div>';
+                } else {
+                    const s = st[0];
+                    h = `<div class="p-4 rounded-xl border border-gray-200 bg-white flex flex-col items-center w-full max-w-xs mx-auto"><h3 class="text-xl font-black text-gray-800 mb-2">${s.text}</h3>${s.isNew?'<span class="bg-purple-100 text-purple-600 text-xs px-2 py-1 rounded mb-2">Newly Added!</span>':''}<div class="text-4xl font-bold ${s.score>=0?'text-green-600':'text-red-600'} mb-4">${s.score}</div><div class="w-full space-y-2"><div class="flex justify-between text-xs text-gray-500"><span>Approval Rating</span><span>${s.approval}%</span></div><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-blue-500 h-2.5 rounded-full" style="width: ${s.approval}%"></div></div><div class="flex justify-between text-xs pt-1"><span class="text-green-600 font-bold">+${s.good} Votes</span><span class="text-red-600 font-bold">-${s.bad} Votes</span></div></div></div>`;
+                }
+                DOM.inputs.compareResults.innerHTML = h;
+            };
+        }
+
+        // 5. Theme Chooser & Other Listeners
+        if (DOM.theme.chooser) DOM.theme.chooser.onchange = e => ThemeManager.apply(e.target.value, true);
+        
+        const clearDataBtn = document.getElementById('clearAllDataButton');
+        if (clearDataBtn) clearDataBtn.onclick = State.clearAll;
+
         InputHandler.init();
         ThemeManager.init();
         ModalManager.init();
         HighScoreManager.init();
-		UIManager.updateProfileDisplay();
+        UIManager.updateProfileDisplay();
         MosquitoManager.startMonitoring();
         this.checkDailyStatus();
-        await this.refreshData()
+        await this.refreshData();
     },
     checkDailyStatus() {
         const t = new Date().toISOString().split('T')[0];
