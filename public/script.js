@@ -3834,29 +3834,36 @@ const Game = {
         try {
             // 1. Force Version Display (High Z-Index)
             const vEl = document.querySelector('.version-indicator');
-            if(vEl) {
+            if (vEl) {
                 vEl.textContent = `v${CONFIG.APP_VERSION} | Made by Gilxs in 12,025`;
-               Object.assign(vEl.style, {
-                position: 'fixed', 
-                bottom: '10px', 
-                left: '50%',                
-                transform: 'translateX(-50%)', 
-                width: 'auto',              
-                whiteSpace: 'nowrap',       
-                zIndex: '9999', 
-                pointerEvents: 'none',
                 
-                // --- SMART VISIBILITY ---
-                opacity: '1',               
-                fontSize: '12px',           
-                fontWeight: '900',          
-                
-                // The Magic Trick:
-                color: '#ffffff',           // Base color MUST be White
-                mixBlendMode: 'difference', // Inverts based on background
-                
-                textShadow: 'none'          // No shadows
-            });
+                // --- CLEAN PILL STYLE ---
+                Object.assign(vEl.style, {
+                    position: 'fixed', 
+                    bottom: '15px', 
+                    left: '50%',                
+                    transform: 'translateX(-50%)', 
+                    zIndex: '9999', 
+                    pointerEvents: 'none',
+                    
+                    // Typography
+                    fontFamily: 'system-ui, -apple-system, sans-serif',
+                    fontSize: '11px',           
+                    fontWeight: '600',          
+                    color: '#374151',           // Dark Gray (Easy on eyes)
+                    letterSpacing: '0.05em',    // Slightly spaced for clarity
+
+                    // The "Clean" Container
+                    backgroundColor: 'rgba(255, 255, 255, 0.92)', // Solid off-white
+                    padding: '6px 14px',        // Breathing room
+                    borderRadius: '9999px',     // Fully rounded ends
+                    border: '1px solid rgba(0,0,0,0.1)', // Very subtle border definition
+                    
+                    // Resetting previous effects
+                    textShadow: 'none',
+                    opacity: '1',
+                    mixBlendMode: 'normal'
+                });
             }
 
             Accessibility.apply();
