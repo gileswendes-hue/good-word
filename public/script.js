@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.47.2', 
+    APP_VERSION: '5.47.4', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -3510,7 +3510,7 @@ const TipManager = {
         if (el) el.classList.add('hidden');
     },
 
-    send() {
+send() {
         // 1. CHECK COOLDOWN
         const lastSent = parseInt(localStorage.getItem('lastTipSent') || 0);
         const now = Date.now();
@@ -3529,7 +3529,12 @@ const TipManager = {
         if (!text) { UIManager.showPostVoteMessage("Please write something first!"); return; }
         if (text.length > 250) { UIManager.showPostVoteMessage("Keep it short! Under 250 chars."); return; }
 
+        // --- NEW: Close Modals & Scroll Up ---
         this.close();
+        if (typeof ModalManager !== 'undefined') ModalManager.toggle('settings', false); // Close settings too
+        window.scrollTo({ top: 0, behavior: 'smooth' }); // Scroll to top
+        // -------------------------------------
+
         UIManager.showPostVoteMessage("Tip sent! Thanks! 💌");
 
         // 2. SET TIMESTAMP
@@ -3597,7 +3602,6 @@ const ContactManager = {
 
         if (diff < cooldownMs) {
             const minLeft = Math.ceil((cooldownMs - diff) / 60000);
-            // Show error INSIDE modal
             errDiv.textContent = `⏳ Wait ${minLeft}m before sending again.`;
             return;
         }
@@ -3610,7 +3614,11 @@ const ContactManager = {
             return; 
         }
 
+        // --- NEW: Close Modal & Scroll Up ---
         this.close();
+        window.scrollTo({ top: 0, behavior: 'smooth' }); // Scroll to top
+        // ------------------------------------
+
         UIManager.showPostVoteMessage("Message sent! I'll read it soon. 📨");
         
         // 2. SET TIMESTAMP
