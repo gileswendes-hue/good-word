@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.59.2', 
+    APP_VERSION: '5.59.3', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -3336,7 +3336,9 @@ const ModalManager = {
                 html += mkTog('toggleColorblind', 'Colourblind Mode', s.colorblindMode);
                 html += mkTog('toggleLargeText', 'Increase Text Size', s.largeText);
                 html += mkTog('toggleMute', 'Mute All Sounds', s.muteSounds);
-				html += mkTog('toggleArachnophobia', '🚫 Arachnophobia Mode', s.arachnophobiaMode);
+				if (State.data.unlockedThemes.includes('halloween')) {
+                    html += mkTog('toggleArachnophobia', '🚫 Arachnophobia Mode', s.arachnophobiaMode);
+                }
                 html += mkTog('toggleKidsMode', '🧸 Kids Mode', s.kidsMode, 'text-pink-600');
                 html += `</div></div>`;
 
@@ -3376,12 +3378,17 @@ const ModalManager = {
                     State.save('settings', { ...State.data.settings, muteSounds: e.target.checked });
                     SoundManager.updateMute();
 					
-                };
-						document.getElementById('toggleArachnophobia').onchange = e => {
-                    State.save('settings', { ...State.data.settings, arachnophobiaMode: e.target.checked });
-                    if (State.data.currentTheme === 'halloween') {
-                        Effects.halloween(true);
-                    }
+					const arachBtn = document.getElementById('toggleArachnophobia');
+                if (arachBtn) {
+                    arachBtn.onchange = e => {
+                        State.save('settings', { ...State.data.settings, arachnophobiaMode: e.target.checked });
+                        if (State.data.currentTheme === 'halloween') {
+                            Effects.halloween(true);
+                        }
+                    };
+                }
+					
+             
                 };
 
                 document.getElementById('toggleKidsMode').onchange = e => {
@@ -3837,29 +3844,25 @@ const Game = {
             if (vEl) {
                 vEl.textContent = `v${CONFIG.APP_VERSION} | Made by Gilxs in 12,025`;
                 
-                // --- CLEAN PILL STYLE ---
                 Object.assign(vEl.style, {
                     position: 'fixed', 
                     bottom: '15px', 
                     left: '50%',                
                     transform: 'translateX(-50%)', 
-                    zIndex: '9999', 
-                    pointerEvents: 'none',
                     
-                    // Typography
+                    // --- CHANGED: Lower Z-Index so cards scroll OVER it ---
+                    zIndex: '0', 
+                    
+                    pointerEvents: 'none',
                     fontFamily: 'system-ui, -apple-system, sans-serif',
                     fontSize: '11px',           
                     fontWeight: '600',          
-                    color: '#374151',           // Dark Gray (Easy on eyes)
-                    letterSpacing: '0.05em',    // Slightly spaced for clarity
-
-                    // The "Clean" Container
-                    backgroundColor: 'rgba(255, 255, 255, 0.92)', // Solid off-white
-                    padding: '6px 14px',        // Breathing room
-                    borderRadius: '9999px',     // Fully rounded ends
-                    border: '1px solid rgba(0,0,0,0.1)', // Very subtle border definition
-                    
-                    // Resetting previous effects
+                    color: '#374151',
+                    letterSpacing: '0.05em',
+                    backgroundColor: 'rgba(255, 255, 255, 0.92)', 
+                    padding: '6px 14px',
+                    borderRadius: '9999px',
+                    border: '1px solid rgba(0,0,0,0.1)',
                     textShadow: 'none',
                     opacity: '1',
                     mixBlendMode: 'normal'
