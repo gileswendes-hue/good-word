@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.48.1', 
+    APP_VERSION: '5.48.2', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4320,41 +4320,44 @@ async showLeaderboard() {
         const displayScores = [...scores];
         while(displayScores.length < 5) displayScores.push({name: '---', score: 0});
 
-        // --- RETRO ARCADE STYLING ---
+        // --- MODERN BOLD STYLING ---
         const listHtml = displayScores.map((s, i) => {
-            // Colors: Top rank = Yellow, others = Neon Green
-            const rankColor = i === 0 ? '#ffff00' : '#00ff00';
-            const name = s.name.padEnd(3, ' '); // Ensure name alignment
-            const score = s.score.toString().padStart(6, '0'); // Retro "000100" format
-
+            const isTop = i === 0;
+            // Rank Colors: Gold for 1st, Silver 2nd, Bronze 3rd
+            const rankColor = isTop ? 'text-yellow-400' : (i===1 ? 'text-gray-300' : (i===2 ? 'text-orange-400' : 'text-gray-600'));
+            const rowBg = i % 2 === 0 ? 'bg-white/5' : 'bg-transparent';
+            
             return `
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 15px; border-bottom:1px dashed #333; font-family:'Courier New', monospace; letter-spacing:1px;">
-                <div style="display:flex; align-items:center;">
-                    <span style="color:#ff00ff; margin-right:15px; width:40px; text-align:right;">${(i+1) < 10 ? '0'+(i+1) : i+1}</span> 
-                    <span style="font-weight:bold; color:${rankColor}; text-transform:uppercase;">${name}</span>
+            <div class="flex items-center justify-between p-3 mb-2 rounded-xl border border-white/10 ${rowBg}">
+                <div class="flex items-center gap-4">
+                    <span class="font-black text-2xl w-8 text-center ${rankColor} drop-shadow-sm italic">#${i+1}</span>
+                    <span class="font-bold text-white text-lg tracking-wide">${s.name}</span>
                 </div>
-                <span style="font-weight:bold; color:#00ffff; font-size:1.1rem; text-shadow: 0 0 5px rgba(0,255,255,0.5);">${score}</span>
+                <span class="font-black text-xl text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 font-mono tracking-tight">${s.score.toLocaleString()}</span>
              </div>`;
         }).join('');
 
         const html = `
-            <div id="highScoreModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:10000; display:flex; align-items:center; justify-content:center;" onclick="this.remove()">
-                <div style="background:#111; border:4px solid #ff00ff; border-radius:4px; width:380px; max-width:95%; overflow:hidden; box-shadow:0 0 20px rgba(255,0,255,0.4), inset 0 0 20px rgba(0,0,0,0.8);" onclick="event.stopPropagation()">
+            <div id="highScoreModal" class="fixed inset-0 bg-gray-900/95 z-[100] flex items-center justify-center p-4 backdrop-blur-sm" onclick="this.remove()">
+                <div class="bg-gray-900 border border-gray-700 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden relative transform transition-all scale-100" onclick="event.stopPropagation()">
                     
-                    <div style="background:#000; padding:1.5rem; text-align:center; border-bottom:4px solid #ff00ff; position:relative;">
-                        <h2 style="color:#ffff00; font-family:'Courier New', monospace; font-weight:900; font-size:2rem; margin:0; letter-spacing:0.1em; text-shadow:3px 3px #ff0000;">${title}</h2>
-                        <div style="font-size:0.7rem; color:#00ff00; font-family:'Courier New', monospace; margin-top:5px; opacity:0.8;">TOP 5 PLAYERS</div>
+                    <div class="bg-gradient-to-r from-indigo-900 to-purple-900 p-6 text-center shadow-lg relative overflow-hidden">
+                        <div class="absolute inset-0 bg-white/5 opacity-50"></div>
+                        <h2 class="text-3xl font-black text-white uppercase tracking-widest italic relative z-10 drop-shadow-md">
+                            ${title}
+                        </h2>
                     </div>
                     
-                    <div style="max-height:60vh; overflow-y:auto; background:black;">
+                    <div class="p-5 overflow-y-auto max-h-[60vh]">
                         ${listHtml}
                     </div>
                     
-                    <button onclick="document.getElementById('highScoreModal').remove()" 
-                        style="width:100%; padding:1rem; background:#ff00ff; color:white; border:none; font-family:'Courier New', monospace; font-weight:bold; cursor:pointer; font-size:1.2rem; text-transform:uppercase; transition:background 0.2s;"
-                        onmouseover="this.style.background='#d900d9'" onmouseout="this.style.background='#ff00ff'">
-                        CLOSE
-                    </button>
+                    <div class="p-4 bg-gray-900/50 border-t border-gray-800">
+                        <button onclick="document.getElementById('highScoreModal').remove()" 
+                            class="w-full py-4 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-black uppercase tracking-widest shadow-lg transform transition active:scale-95 text-lg">
+                            Close
+                        </button>
+                    </div>
                 </div>
             </div>`;
         
