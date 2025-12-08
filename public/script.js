@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.40.10', 
+    APP_VERSION: '5.44', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -3445,9 +3445,10 @@ const Game = {
         e.style.filter = 'none';
         e.style.color = ''
     },
-    async init() {
-		const vEl = document.querySelector('.version-indicator');
+async init() {
+        const vEl = document.querySelector('.version-indicator');
         if(vEl) vEl.textContent = `v${CONFIG.APP_VERSION} | Made by Gilxs in 12,025`;
+     
         Accessibility.apply();
 		this.updateLights();
 		UIManager.updateOfflineIndicator();
