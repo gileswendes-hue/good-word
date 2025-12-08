@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.48.9', 
+    APP_VERSION: '5.59.0', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -232,7 +232,8 @@ const State = {
             kidsMode: false,
             kidsModePin: null,
             showLights: false,
-            offlineMode: false
+            offlineMode: false,
+			arachnophobiaMode: false
         },
         currentTheme: localStorage.getItem('currentTheme') || 'default',
         voteCounterForTips: parseInt(localStorage.getItem('voteCounterForTips')) || 0,
@@ -681,24 +682,17 @@ const MosquitoManager = {
         this.x = 88; 
         this.y = 20; 
 
-Object.assign(vEl.style, {
-                position: 'fixed', 
-                bottom: '10px',             // Lifted slightly up
-                left: '50%',                
-                transform: 'translateX(-50%)', 
-                width: 'auto',              
-                whiteSpace: 'nowrap',       
-                zIndex: '9999', 
-                pointerEvents: 'none',
-                
-                // --- VISIBILITY UPDATES ---
-                opacity: '1',               // Fully visible (was 0.6)
-                fontSize: '12px',           // Larger text (was 10px)
-                fontWeight: 'bold',         // Bold text
-                color: '#111827',           // Dark Gray/Black (was slate-400)
-                textShadow: '0 1px 0 rgba(255,255,255,0.6)', // White shadow for contrast
-                mixBlendMode: 'normal'      // Prevents it from blending into backgrounds
-            });
+Object.assign(this.el.style, {
+            position: 'fixed', 
+            fontSize: '1.8rem', 
+            zIndex: '100',
+            left: this.x + '%', 
+            top: this.y + '%',
+            transform: 'translate(-50%, -50%)', 
+            filter: 'drop-shadow(1px 2px 3px rgba(0,0,0,0.5))',
+            cursor: 'pointer',       
+            pointerEvents: 'auto'   
+        });
 
         this.el.onclick = (e) => {
             e.stopPropagation();
@@ -764,13 +758,16 @@ Object.assign(vEl.style, {
         document.body.appendChild(this.svg);
         document.body.appendChild(this.el);
         
+        // --- CORRECTED CLICK HANDLER ---
         this.el.onclick = (e) => {
             e.stopPropagation();
             if (this.state === 'stuck') {
                 if (this.huntTimer) clearTimeout(this.huntTimer);
                 this.startRescue();
             }
-            else if (this.state === 'flying') UIManager.showPostVoteMessage("Too fast! Wait for the web!");
+            else if (this.state === 'flying') {
+                UIManager.showPostVoteMessage("Too fast! Wait for the web!");
+            }
         };
         
         this.state = 'flying';
@@ -850,13 +847,11 @@ Object.assign(vEl.style, {
             
             // Handle Rotation and Centering
             const facingRight = Math.cos(this.angle) > 0;
-            // IMPORTANT: Include translate(-50%, -50%) to keep it centered on coordinates
             this.el.style.transform = `translate(-50%, -50%) ${facingRight ? 'scaleX(-1)' : 'scaleX(1)'}`;
             
             const pxX = (this.x / 100) * window.innerWidth;
             const pxY = (this.y / 100) * window.innerHeight;
             
-            // TRAIL FIX: Do not offset manually now that element is centered via CSS
             if (pxX > 0 && pxX < window.innerWidth) this.trailPoints.push({x: pxX, y: pxY});
             
             if (this.trailPoints.length > this.MAX_TRAIL) this.trailPoints.shift();
@@ -870,7 +865,8 @@ Object.assign(vEl.style, {
             const inWebZone = (distRight + distTop) < 300;
             const isVisible = pxX > 50 && pxX < (window.innerWidth - 50) && pxY > 50 && pxY < (window.innerHeight - 50);
 
-            if (this.state === 'flying' && inWebZone && isVisible) {
+            // --- CORRECTED LOGIC: Only get stuck if Arachnophobia Mode is OFF ---
+            if (this.state === 'flying' && inWebZone && isVisible && !State.data.settings.arachnophobiaMode) {
                 this.state = 'stuck';
                 SoundManager.stopBuzz(); 
                 UIManager.showPostVoteMessage(`The ${this.config.name} is stuck!`);
@@ -1864,7 +1860,11 @@ halloween(active) {
         if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
         if (this.webRaf) cancelAnimationFrame(this.webRaf);
         
-        if (!active) {
+        // --- ARACHNOPHOBIA CHECK ---
+        const isSafeMode = State.data.settings.arachnophobiaMode;
+        
+        // If inactive OR safe mode is on, clean up and return
+        if (!active || isSafeMode) {
             const old = document.getElementById('spider-wrap');
             if (old) old.remove();
             const oldWeb = document.getElementById('spider-web-corner');
@@ -1896,7 +1896,6 @@ halloween(active) {
             const body = wrap.querySelector('#spider-body');
             const thread = wrap.querySelector('#spider-thread');
 
-            // --- Dynamic Bubble Helper ---
             const showSpiderBubble = (text) => {
                 const old = body.querySelector('.spider-dynamic-bubble');
                 if (old) old.remove();
@@ -1904,17 +1903,15 @@ halloween(active) {
                 const b = document.createElement('div');
                 b.className = 'spider-dynamic-bubble';
                 Object.assign(b.style, {
-                    position: 'absolute', bottom: '100%', left: '50%', 
-                    transform: 'translateX(-50%)', background: 'white', 
-                    color: '#1f2937', padding: '6px 12px', borderRadius: '12px', fontSize: '14px', 
-                    fontWeight: 'bold', fontFamily: 'sans-serif', whiteSpace: 'nowrap',
-                    width: 'max-content',
+                    position: 'absolute', left: '50%', 
+                    background: 'white', color: '#1f2937', padding: '6px 12px', 
+                    borderRadius: '12px', fontSize: '14px', fontWeight: 'bold', 
+                    fontFamily: 'sans-serif', whiteSpace: 'nowrap', width: 'max-content',
                     pointerEvents: 'none', opacity: '0', transition: 'opacity 0.2s', 
                     boxShadow: '0 2px 5px rgba(0,0,0,0.2)', border: '1px solid #e5e7eb',
                     marginBottom: '8px', zIndex: '10'
                 });
                 b.textContent = text;
-
                 const arrow = document.createElement('div');
                 Object.assign(arrow.style, {
                     position: 'absolute', top: '100%', left: '50%', marginLeft: '-6px',
@@ -1923,15 +1920,22 @@ halloween(active) {
                 });
                 b.appendChild(arrow);
                 body.appendChild(b);
+
+                // Auto-Orientation
+                if (body.style.transform.includes('180deg')) {
+                    b.style.transform = 'translateX(-50%) rotate(180deg)';
+                    b.style.bottom = 'auto'; b.style.top = '120%';
+                } else {
+                    b.style.transform = 'translateX(-50%)';
+                    b.style.bottom = '100%'; b.style.top = 'auto';
+                }
+
                 requestAnimationFrame(() => b.style.opacity = '1');
-                
                 setTimeout(() => {
                     if (b.parentNode && !wrap.classList.contains('hunting')) {
-                        b.style.opacity = '0';
-                        setTimeout(() => b.remove(), 300);
+                        b.style.opacity = '0'; setTimeout(() => b.remove(), 300);
                     }
                 }, 2000);
-                
                 return b; 
             };
             wrap.showBubble = showSpiderBubble;
@@ -1939,21 +1943,11 @@ halloween(active) {
             body.onclick = (e) => {
                 e.stopPropagation();
                 State.unlockBadge('spider');
-                
                 const willFall = Math.random() < 0.2; 
                 const lines = willFall ? GAME_DIALOGUE.spider.pokeGrumpy : GAME_DIALOGUE.spider.pokeHappy;
                 const text = lines[Math.floor(Math.random() * lines.length)];
                 
                 const bubble = showSpiderBubble(text);
-                
-                // FIX: Check if spider is upside down (Action 1)
-                // If so, flip the bubble 180deg so it is readable to the user
-                if (body.style.transform.includes('180deg')) {
-                    bubble.style.transform = 'translateX(-50%) rotate(180deg)';
-                    bubble.style.bottom = 'auto'; // Reset bottom
-                    bubble.style.top = '110%';    // Move to visual bottom
-                }
-
                 body.style.animation = 'shake 0.3s ease-in-out';
                 
                 if (willFall) {
@@ -1976,7 +1970,6 @@ halloween(active) {
             body.style.transform = 'rotate(0deg)'; 
             thread.style.opacity = '1'; 
             
-            // --- ACTION 1: POKE HEAD OUT (UPSIDE DOWN) ---
             if (actionRoll < 0.7) {
                 const safeLeft = Math.random() * 60 + 20;
                 wrap.style.transition = 'left 3s ease-in-out'; 
@@ -1984,30 +1977,15 @@ halloween(active) {
                 
                 this.spiderTimeout = setTimeout(() => {
                     if (wrap.classList.contains('hunting')) return;
-                    
-                    // 1. ROTATE UPSIDE DOWN
                     body.style.transform = 'rotate(180deg)'; 
-                    
-                    // 2. SHORT DROP (POKE HEAD OUT)
                     thread.style.transition = 'height 2.5s ease-in-out'; 
-                    thread.style.height = '18vh'; // Short drop
+                    thread.style.height = '18vh'; 
                     
                     setTimeout(() => {
                          if (wrap.classList.contains('hunting')) return;
-                         
-                         const phrases = (typeof GAME_DIALOGUE !== 'undefined' && GAME_DIALOGUE.spider && GAME_DIALOGUE.spider.idle) 
-                            ? GAME_DIALOGUE.spider.idle : ['Boo!', 'Hi!', '🕷️'];
+                         const phrases = (typeof GAME_DIALOGUE !== 'undefined' && GAME_DIALOGUE.spider && GAME_DIALOGUE.spider.idle) ? GAME_DIALOGUE.spider.idle : ['Boo!', 'Hi!', '🕷️'];
                          const text = phrases[Math.floor(Math.random() * phrases.length)];
-                         
-                         // 3. SHOW BUBBLE & FIX ORIENTATION
-                         if(wrap.showBubble) {
-                             const b = wrap.showBubble(text);
-                             // FIX: Flip text 180 degrees so it is upright for the user
-                             b.style.transform = 'translateX(-50%) rotate(180deg)';
-                             // Position visually below the head
-                             b.style.bottom = 'auto';
-                             b.style.top = '110%';
-                         }
+                         if(wrap.showBubble) wrap.showBubble(text);
                          
                          setTimeout(() => {
                              if (wrap.classList.contains('hunting')) return;
@@ -2018,14 +1996,11 @@ halloween(active) {
                 }, 3000);
                 return;
             }
-            
-            // --- ACTION 2: WALL CLIMB ---
             if (actionRoll < 0.9) {
                 const isLeft = Math.random() > 0.5;
                 const wallX = isLeft ? 5 : 85; 
                 wrap.style.transition = 'left 4s ease-in-out';
                 wrap.style.left = wallX + '%';
-                
                 this.spiderTimeout = setTimeout(() => {
                     if (wrap.classList.contains('hunting')) return;
                     thread.style.opacity = '0'; 
@@ -2033,7 +2008,6 @@ halloween(active) {
                     const climbDepth = Math.random() * 40 + 30; 
                     thread.style.transition = 'height 4s ease-in-out';
                     thread.style.height = climbDepth + 'vh';
-                    
                     setTimeout(() => {
                          if (wrap.classList.contains('hunting')) return;
                          thread.style.height = '0'; 
@@ -2046,8 +2020,6 @@ halloween(active) {
                 }, 4000);
                 return;
             }
-            
-            // --- ACTION 3: JUST MOVE ---
             const safeLeft = Math.random() * 60 + 20; 
             wrap.style.transition = 'left 4s ease-in-out'; 
             wrap.style.left = safeLeft + '%';
@@ -3281,6 +3253,7 @@ const ModalManager = {
                 html += mkTog('toggleColorblind', 'Colourblind Mode', s.colorblindMode);
                 html += mkTog('toggleLargeText', 'Increase Text Size', s.largeText);
                 html += mkTog('toggleMute', 'Mute All Sounds', s.muteSounds);
+				html += mkTog('toggleArachnophobia', '🚫 Arachnophobia Mode', s.arachnophobiaMode);
                 html += mkTog('toggleKidsMode', '🧸 Kids Mode', s.kidsMode, 'text-pink-600');
                 html += `</div></div>`;
 
@@ -3379,6 +3352,14 @@ const ModalManager = {
         };
 
         // --- Standard Modal Listeners ---
+		document.getElementById('toggleArachnophobia').onchange = e => {
+                    State.save('settings', { ...State.data.settings, arachnophobiaMode: e.target.checked });
+                    // Refresh effects immediately to hide/show spider without reloading
+                    if (State.data.currentTheme === 'halloween') {
+                        Effects.halloween(true);
+                    }
+                };
+		
         document.getElementById('closeSettingsModal').onclick = () => this.toggle('settings', false);
         DOM.game.buttons.custom.onclick = () => {
             DOM.inputs.newWord.value = '';
@@ -3757,19 +3738,22 @@ const Game = {
             const vEl = document.querySelector('.version-indicator');
             if(vEl) {
                 vEl.textContent = `v${CONFIG.APP_VERSION} | Made by Gilxs in 12,025`;
-                Object.assign(vEl.style, {
-            position: 'fixed', 
-            bottom: '5px', 
-            left: '50%',                // Move to middle of screen
-            transform: 'translateX(-50%)', // Center align the text block itself
-            width: 'auto',              // Let text define the width
-            whiteSpace: 'nowrap',       // Prevent weird wrapping
-            zIndex: '9999', 
-            pointerEvents: 'none',
-            opacity: '0.6', 
-            fontSize: '10px', 
-            color: '#64748b'
-        });
+               Object.assign(vEl.style, {
+                    position: 'fixed', 
+                    bottom: '10px', 
+                    left: '50%',                
+                    transform: 'translateX(-50%)', 
+                    width: 'auto',              
+                    whiteSpace: 'nowrap',       
+                    zIndex: '9999', 
+                    pointerEvents: 'none',
+                    opacity: '1',               // Fully visible
+                    fontSize: '12px',           // Larger
+                    fontWeight: 'bold',         // Bold
+                    color: '#111827',           // Dark Black
+                    textShadow: '0 1px 0 rgba(255,255,255,0.6)', 
+                    mixBlendMode: 'normal'
+                });
             }
 
             Accessibility.apply();
@@ -4338,41 +4322,49 @@ async showLeaderboard() {
         const displayScores = [...scores];
         while(displayScores.length < 5) displayScores.push({name: '---', score: 0});
 
-        // --- MODERN BOLD STYLING ---
+        // --- 1980s ARCADE STYLING ---
         const listHtml = displayScores.map((s, i) => {
-            const isTop = i === 0;
-            // Rank Colors: Gold for 1st, Silver 2nd, Bronze 3rd
-            const rankColor = isTop ? 'text-yellow-400' : (i===1 ? 'text-gray-300' : (i===2 ? 'text-orange-400' : 'text-gray-600'));
-            const rowBg = i % 2 === 0 ? 'bg-white/5' : 'bg-transparent';
+            // Colors: 1st=Yellow, 2nd=Cyan, 3rd=Green, Others=Red
+            const rankColor = i === 0 ? 'text-yellow-400' : (i===1 ? 'text-cyan-400' : (i===2 ? 'text-green-400' : 'text-red-500'));
+            const scoreColor = 'text-white';
             
+            // Pad score with zeros (e.g. 001500) for retro feel
+            const retroScore = s.score.toString().padStart(7, '0');
+            const retroName = s.name.toUpperCase().substring(0, 3); // Force 3 letter initials
+
             return `
-            <div class="flex items-center justify-between p-3 mb-2 rounded-xl border border-white/10 ${rowBg}">
+            <div class="flex items-center justify-between border-b-2 border-gray-800/50 pb-2 mb-2 font-mono tracking-widest group hover:bg-white/5 transition-colors p-1">
                 <div class="flex items-center gap-4">
-                    <span class="font-black text-2xl w-8 text-center ${rankColor} drop-shadow-sm italic">#${i+1}</span>
-                    <span class="font-bold text-white text-lg tracking-wide">${s.name}</span>
+                    <span class="text-2xl font-black ${rankColor} drop-shadow-[2px_2px_0_rgba(0,0,0,1)]">${i+1}</span>
+                    <span class="text-xl font-bold text-purple-400 drop-shadow-[1px_1px_0_rgba(0,0,0,1)]">${retroName}</span>
                 </div>
-                <span class="font-black text-xl text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 font-mono tracking-tight">${s.score.toLocaleString()}</span>
+                <div class="flex-grow mx-2 border-b-2 border-dotted border-gray-700 h-4 opacity-30"></div>
+                <span class="text-xl font-black ${scoreColor} drop-shadow-[2px_2px_0_rgba(0,0,0,1)]">${retroScore}</span>
              </div>`;
         }).join('');
 
         const html = `
-            <div id="highScoreModal" class="fixed inset-0 bg-gray-900/95 z-[100] flex items-center justify-center p-4 backdrop-blur-sm" onclick="this.remove()">
-                <div class="bg-gray-900 border border-gray-700 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden relative transform transition-all scale-100" onclick="event.stopPropagation()">
+            <div id="highScoreModal" class="fixed inset-0 bg-black/95 z-[200] flex items-center justify-center p-4 backdrop-blur-sm" onclick="this.remove()">
+                
+                <div class="bg-gray-900 border-4 border-indigo-600 w-full max-w-md p-1 shadow-[0_0_50px_rgba(79,70,229,0.6)] relative rounded-lg transform transition-all scale-100" onclick="event.stopPropagation()">
                     
-                    <div class="bg-gradient-to-r from-indigo-900 to-purple-900 p-6 text-center shadow-lg relative overflow-hidden">
-                        <div class="absolute inset-0 bg-white/5 opacity-50"></div>
-                        <h2 class="text-3xl font-black text-white uppercase tracking-widest italic relative z-10 drop-shadow-md">
-                            ${title}
-                        </h2>
-                    </div>
-                    
-                    <div class="p-5 overflow-y-auto max-h-[60vh]">
-                        ${listHtml}
-                    </div>
-                    
-                    <div class="p-4 bg-gray-900/50 border-t border-gray-800">
+                    <div class="bg-black border-2 border-black p-6 rounded relative overflow-hidden">
+                        
+                        <div class="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-0 bg-[length:100%_4px,3px_100%] pointer-events-none"></div>
+
+                        <div class="text-center mb-8 relative z-10">
+                            <h2 class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 to-yellow-600 tracking-[0.2em] drop-shadow-[4px_4px_0_rgba(180,83,9,0.5)] animate-pulse" style="font-family: 'Courier New', monospace;">
+                                ${title}
+                            </h2>
+                            <div class="text-[10px] text-indigo-400 mt-2 font-mono font-bold tracking-[0.5em] uppercase">--- Insert Coin ---</div>
+                        </div>
+
+                        <div class="space-y-2 mb-8 relative z-10">
+                            ${listHtml}
+                        </div>
+
                         <button onclick="document.getElementById('highScoreModal').remove()" 
-                            class="w-full py-4 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-black uppercase tracking-widest shadow-lg transform transition active:scale-95 text-lg">
+                            class="relative z-10 w-full py-4 bg-indigo-700 hover:bg-indigo-600 text-white font-black tracking-[0.2em] border-b-4 border-indigo-900 active:border-b-0 active:translate-y-1 uppercase text-lg transition-all font-mono shadow-[0_0_15px_rgba(79,70,229,0.5)]">
                             Close
                         </button>
                     </div>
