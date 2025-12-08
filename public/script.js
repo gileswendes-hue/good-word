@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.48.3', 
+    APP_VERSION: '5.48.4', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -680,17 +680,24 @@ const MosquitoManager = {
         this.x = 88; 
         this.y = 20; 
 
-        Object.assign(this.el.style, {
-            position: 'fixed', 
-            fontSize: '1.8rem', 
-            zIndex: '100',
-            left: this.x + '%', 
-            top: this.y + '%',
-            transform: 'translate(-50%, -50%)', 
-            filter: 'drop-shadow(1px 2px 3px rgba(0,0,0,0.5))',
-			cursor: 'pointer',       
-            pointerEvents: 'auto'   
-        });
+Object.assign(vEl.style, {
+                position: 'fixed', 
+                bottom: '10px',             // Lifted slightly up
+                left: '50%',                
+                transform: 'translateX(-50%)', 
+                width: 'auto',              
+                whiteSpace: 'nowrap',       
+                zIndex: '9999', 
+                pointerEvents: 'none',
+                
+                // --- VISIBILITY UPDATES ---
+                opacity: '1',               // Fully visible (was 0.6)
+                fontSize: '12px',           // Larger text (was 10px)
+                fontWeight: 'bold',         // Bold text
+                color: '#111827',           // Dark Gray/Black (was slate-400)
+                textShadow: '0 1px 0 rgba(255,255,255,0.6)', // White shadow for contrast
+                mixBlendMode: 'normal'      // Prevents it from blending into backgrounds
+            });
 
         this.el.onclick = (e) => {
             e.stopPropagation();
