@@ -1,7 +1,8 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.40.8', 
+	SCORE_API_URL: '/api/scores',
+    APP_VERSION: '5.40.9', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -153,10 +154,10 @@ const State = {
         contributorCount: parseInt(localStorage.getItem('contributorCount') || 0),
         profilePhoto: localStorage.getItem('profilePhoto') || null,
 		longestStreak: parseInt(localStorage.getItem('longestStreak') || 0),
-        highScores: JSON.parse(localStorage.getItem('highScores') || "[]"),
-        
+        highScores: JSON.parse(localStorage.getItem('highScores') || "[]"),  
         pendingVotes: JSON.parse(localStorage.getItem('pendingVotes')) || [],
         offlineCache: JSON.parse(localStorage.getItem('offlineCache')) || [],
+		
 
         insectStats: {
             saved: parseInt(localStorage.getItem('insectSaved') || 0),
@@ -1063,8 +1064,28 @@ const API = {
     
     async define(w) {
          return fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${w.toLowerCase()}`);
+    },
+	
+	async getGlobalScores() {
+        try {
+            const r = await fetch(CONFIG.SCORE_API_URL);
+            if (!r.ok) return [];
+            return await r.json();
+        } catch (e) { return []; }
+    },
+
+    async submitHighScore(name, score) {
+        try {
+            await fetch(CONFIG.SCORE_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, score, userId: State.data.userId })
+            });
+        } catch (e) { console.error("Score submit failed", e); }
     }
 };
+
+
 
 // --- THEME MANAGER ---
 const ThemeManager = {
@@ -3423,6 +3444,8 @@ const Game = {
         e.style.color = ''
     },
     async init() {
+		const vEl = document.querySelector('.version-indicator');
+        if(vEl) vEl.textContent = `v${CONFIG.APP_VERSION} | Made by Gilxs in 12,025`;
         Accessibility.apply();
 		this.updateLights();
 		UIManager.updateOfflineIndicator();
@@ -3839,7 +3862,6 @@ const Game = {
             if (res.status !== 403 && !res.ok) throw 0;
             w[`${t}Votes`] = (w[`${t}Votes`] || 0) + 1;
             State.incrementVote();
-			
 			StreakManager.handleSuccess();
             
             if (State.runtime.isDailyMode) {
@@ -4041,6 +4063,7 @@ const StreakManager = {
 
     handleSuccess() {
         const now = Date.now();
+        // Reset if too slow or first vote
         if (State.runtime.streak === 0 || (now - State.runtime.lastVoteTime) <= this.LIMIT) {
             State.runtime.streak++;
         } else {
@@ -4050,15 +4073,14 @@ const StreakManager = {
 
         const currentStreak = State.runtime.streak;
         
-        // Update Longest Streak Data
+        // Update Local Best
         if (currentStreak > State.data.longestStreak) {
             State.save('longestStreak', currentStreak);
-            // Live update the profile text if it's open
             const el = document.getElementById('streak-display-value');
             if(el) el.textContent = currentStreak + " Words";
         }
 
-        // Visuals (Only show floating counter after 5 words)
+        // Visuals: Show pop-up if streak >= 5
         if (currentStreak >= 5) {
             if (currentStreak === 5) this.showNotification("🔥 STREAK STARTED!", "success");
             this.updateScreenCounter(true);
@@ -4093,7 +4115,16 @@ const StreakManager = {
         if (!el) {
             el = document.createElement('div');
             el.id = 'streak-floating-counter';
-            el.style.cssText = `position: fixed; top: 15%; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #FF512F, #DD2476); color: white; padding: 10px 25px; border-radius: 50px; font-weight: 900; font-size: 1.5rem; z-index: 99999; box-shadow: 0 4px 15px rgba(0,0,0,0.3); pointer-events: none; transition: transform 0.1s, opacity 0.2s; opacity: 1; border: 2px solid white;`;
+            // Explicit CSS to ensure it appears
+            el.style.cssText = `
+                position: fixed; top: 15%; left: 50%; transform: translateX(-50%);
+                background: linear-gradient(135deg, #FF512F, #DD2476);
+                color: white; padding: 12px 25px; border-radius: 50px;
+                font-weight: 900; font-size: 1.8rem; z-index: 99999;
+                box-shadow: 0 10px 25px rgba(0,0,0,0.3); pointer-events: none;
+                transition: transform 0.1s, opacity 0.2s; opacity: 1;
+                border: 3px solid white; text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            `;
             document.body.appendChild(el);
         }
         el.style.opacity = '1';
@@ -4109,7 +4140,12 @@ const StreakManager = {
     showNotification(msg, type) {
         const notif = document.createElement('div');
         notif.textContent = msg;
-        notif.style.cssText = `position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: ${type === 'success' ? '#10b981' : '#374151'}; color: white; padding: 10px 20px; border-radius: 8px; font-weight: bold; z-index: 99999; box-shadow: 0 4px 6px rgba(0,0,0,0.2);`;
+        notif.style.cssText = `
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            background: ${type === 'success' ? '#10b981' : '#1f2937'}; 
+            color: white; padding: 10px 20px; border-radius: 8px; font-weight: bold; 
+            z-index: 99999; box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        `;
         document.body.appendChild(notif);
         setTimeout(() => notif.remove(), 2500);
     },
@@ -4117,35 +4153,92 @@ const StreakManager = {
     checkHighScore(score) {
         if (!State.data.highScores) State.data.highScores = [];
         const scores = State.data.highScores;
+        // Check if score qualifies for top 5 OR if list is empty
         const minScore = scores.length < 5 ? 0 : scores[scores.length - 1].score;
-        if (score > minScore || scores.length < 5) setTimeout(() => this.promptName(score), 500);
+        
+        if (score > minScore || scores.length < 5) {
+            setTimeout(() => this.promptName(score), 500);
+        }
     },
 
     promptName(score) {
         if(document.getElementById('nameEntryModal')) return;
-        const html = `<div id="nameEntryModal" class="fixed inset-0 bg-black bg-opacity-90 z-[200] flex items-center justify-center"><div class="bg-white p-8 rounded-2xl text-center max-w-sm w-full shadow-2xl transform scale-100"><h2 class="text-3xl font-black text-indigo-600 mb-2">NEW RECORD!</h2><p class="text-xl font-bold text-gray-700 mb-6">Streak: ${score}</p><input type="text" id="hsNameInput" maxlength="3" placeholder="AAA" class="text-4xl text-center w-40 tracking-[0.5em] border-2 border-gray-300 rounded-lg p-2 mb-6 uppercase focus:ring-4 focus:ring-indigo-200 outline-none"><button id="hsSaveBtn" class="w-full py-4 bg-indigo-600 text-white font-bold rounded-xl text-lg shadow-lg hover:bg-indigo-700 active:scale-95 transition-all">SAVE SCORE</button></div></div>`;
+        const html = `
+            <div id="nameEntryModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:10000; display:flex; align-items:center; justify-content:center;">
+                <div style="background:white; padding:2rem; border-radius:1rem; text-align:center; max-width:90%; width:350px;">
+                    <h2 style="color:#4f46e5; font-size:1.8rem; font-weight:900; margin-bottom:0.5rem;">NEW RECORD!</h2>
+                    <p style="color:#4b5563; font-size:1.2rem; font-weight:bold; margin-bottom:1.5rem;">Streak: ${score}</p>
+                    <input type="text" id="hsNameInput" maxlength="3" placeholder="AAA" 
+                        style="font-size:2.5rem; text-align:center; width:100%; letter-spacing:0.5rem; border:2px solid #e5e7eb; border-radius:0.5rem; padding:0.5rem; text-transform:uppercase; margin-bottom:1.5rem;">
+                    <button id="hsSaveBtn" style="width:100%; padding:1rem; background:#4f46e5; color:white; border:none; border-radius:0.5rem; font-weight:bold; font-size:1.1rem; cursor:pointer;">SAVE SCORE</button>
+                </div>
+            </div>`;
+        
         const div = document.createElement('div');
         div.innerHTML = html;
         document.body.appendChild(div.firstElementChild);
-        document.getElementById('hsSaveBtn').onclick = () => {
+
+        const saveFn = async () => {
             const name = (document.getElementById('hsNameInput').value || "AAA").toUpperCase();
+            
+            // 1. Save Local
             const scores = State.data.highScores || [];
             scores.push({ name, score, date: Date.now() });
             scores.sort((a,b) => b.score - a.score);
             if(scores.length > 5) scores.pop();
             State.save('highScores', scores);
+
+            // 2. Save Global (Fire and forget)
+            API.submitHighScore(name, score);
+
             document.getElementById('nameEntryModal').remove();
             this.showLeaderboard();
         };
+
+        document.getElementById('hsSaveBtn').onclick = saveFn;
     },
 
-    showLeaderboard() {
-        const scores = State.data.highScores || [];
+    async showLeaderboard() {
+        // Show local first immediately
+        this.renderLeaderboard(State.data.highScores, "YOUR DEVICE");
+
+        // Try to fetch global
+        const globalScores = await API.getGlobalScores();
+        if (globalScores && globalScores.length > 0) {
+            this.renderLeaderboard(globalScores, "GLOBAL RANKING");
+        }
+    },
+
+    renderLeaderboard(scores, title) {
+        const existing = document.getElementById('highScoreModal');
+        if(existing) existing.remove();
+
         const displayScores = [...scores];
         while(displayScores.length < 5) displayScores.push({name: '---', score: 0});
-        const listHtml = displayScores.map((s, i) => `<div class="flex justify-between items-center p-3 ${i===0?'bg-yellow-50 border-l-4 border-yellow-400':'bg-gray-50 border-b border-gray-100'}"><span class="font-bold text-gray-600 flex items-center gap-2"><span class="text-xs w-4 text-gray-400">#${i+1}</span> ${s.name}</span> <span class="font-black text-indigo-600 text-xl">${s.score}</span></div>`).join('');
-        const html = `<div id="highScoreModal" class="fixed inset-0 bg-black bg-opacity-80 z-[200] flex items-center justify-center" onclick="this.remove()"><div class="bg-white rounded-xl overflow-hidden w-80 shadow-2xl" onclick="event.stopPropagation()"><div class="bg-indigo-600 p-4 text-center"><h2 class="text-white font-black text-xl tracking-wider">🏆 HALL OF FAME</h2></div><div class="max-h-96 overflow-y-auto">${listHtml}</div><button onclick="document.getElementById('highScoreModal').remove()" class="w-full py-3 bg-gray-100 text-gray-500 font-bold hover:bg-gray-200">CLOSE</button></div></div>`;
-        if(document.getElementById('highScoreModal')) document.getElementById('highScoreModal').remove();
+
+        const listHtml = displayScores.map((s, i) => 
+            `<div style="display:flex; justify-content:space-between; padding:12px; background:${i===0?'#fffbeb':'#f9fafb'}; border-bottom:1px solid #e5e7eb;">
+                <span style="font-weight:bold; color:#374151; display:flex; align-items:center;">
+                    <span style="color:#9ca3af; font-size:0.8em; margin-right:8px; width:20px;">#${i+1}</span> 
+                    ${s.name}
+                </span> 
+                <span style="font-weight:900; color:#4f46e5; font-size:1.2rem;">${s.score}</span>
+             </div>`
+        ).join('');
+
+        const html = `
+            <div id="highScoreModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:10000; display:flex; align-items:center; justify-content:center;" onclick="this.remove()">
+                <div style="background:white; border-radius:1rem; width:350px; max-width:90%; overflow:hidden; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);" onclick="event.stopPropagation()">
+                    <div style="background:#4f46e5; padding:1.5rem; text-align:center;">
+                        <h2 style="color:white; font-weight:900; font-size:1.5rem; margin:0; letter-spacing:0.05em;">${title}</h2>
+                    </div>
+                    <div style="max-height:60vh; overflow-y:auto;">
+                        ${listHtml}
+                    </div>
+                    <button onclick="document.getElementById('highScoreModal').remove()" style="width:100%; padding:1rem; background:#f3f4f6; color:#6b7280; border:none; font-weight:bold; cursor:pointer; border-top:1px solid #e5e7eb;">CLOSE</button>
+                </div>
+            </div>`;
+        
         const div = document.createElement('div');
         div.innerHTML = html;
         document.body.appendChild(div.firstElementChild);
