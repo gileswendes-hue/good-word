@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.46', 
+    APP_VERSION: '5.47', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -3546,127 +3546,87 @@ const Game = {
         e.style.filter = 'none';
         e.style.color = ''
     },
-async init() {
-        // --- 1. Version Fix (Robust) ---
-        const vEl = document.querySelector('.version-indicator');
-        if(vEl) {
-            vEl.textContent = `v${CONFIG.APP_VERSION} | Made by Gilxs in 12,025`;
-            // Force Center Styling
-            Object.assign(vEl.style, {
-                position: 'fixed', bottom: '5px', left: '0', width: '100%',
-                textAlign: 'center', zIndex: '1000', pointerEvents: 'none',
-                opacity: '0.6', fontSize: '10px', color: '#64748b'
-            });
-        }
-        
-        Accessibility.apply();
-        SoundManager.init();
-		this.updateLights();
-		UIManager.updateOfflineIndicator();
-		
-        DOM.game.buttons.good.onclick = () => this.vote('good');
-        DOM.game.buttons.bad.onclick = () => this.vote('bad');
-        DOM.game.buttons.notWord.onclick = () => this.vote('notWord');
-        DOM.game.dailyBanner.onclick = () => this.activateDailyMode();
-        document.getElementById('submitWordButton').onclick = async () => {
-            const t = DOM.inputs.newWord.value.trim();
-            if (!t || t.includes(' ') || t.length > 45) {
-                DOM.inputs.modalMsg.textContent = "Invalid word.";
-                return
-            }
-            const btn = document.getElementById('submitWordButton');
-            btn.disabled = true;
-            try {
-                const r = await API.submitWord(t);
-                if (r.status === 201) {
-                    State.incrementContributor();
-                    DOM.inputs.modalMsg.textContent = "Success! Your new word has been added!";
-                    setTimeout(() => {
-                        ModalManager.toggle('submission', false);
-                        this.refreshData()
-                    }, 1000)
-                } else {
-                    const d = await r.json();
-                    DOM.inputs.modalMsg.textContent = d.message || "Error"
-                }
-            } catch (e) {
-                DOM.inputs.modalMsg.textContent = "Network Error"
-            }
-            btn.disabled = false
-        };
-        document.getElementById('runComparisonButton').onclick = async () => {
-            const w1 = DOM.inputs.wordOne.value.trim(),
-                w2 = DOM.inputs.wordTwo.value.trim();
-            if (!w1 && !w2) {
-                DOM.inputs.compareResults.innerHTML = '<span class="text-red-500">Please enter at least one word.</span>';
-                return
-            }
-            DOM.inputs.compareResults.innerHTML = '<span class="text-gray-500 animate-pulse">Analyzing words...</span>';
-            const gd = async w => {
-                if (w.includes(' ') || w.length > 45) return { t: w, valid: false, err: 'Invalid word.' };
-                const e = State.runtime.allWords.find(x => x.text.toUpperCase() === w.toUpperCase());
-                if (e) return { t: e.text, valid: true, exists: true, d: e };
-                const r = await API.submitWord(w);
-                if (r.status === 201) {
-                    State.incrementContributor();
-                    return { t: w.toUpperCase(), valid: true, exists: false, isNew: true }
-                }
-                return { t: w, valid: false, err: 'Could not fetch data.' }
-            };
-            const res = [];
-            if (w1) res.push(await gd(w1));
-            if (w2) res.push(await gd(w2));
-            if (res.some(r => r.isNew)) this.refreshData(false);
-            if (res.some(r => !r.valid)) {
-                DOM.inputs.compareResults.innerHTML = res.map(r => !r.valid ? `<p class="text-red-500 mb-2"><strong>${r.t}</strong>: ${r.err}</p>` : '').join('');
-                return
-            }
-            const st = res.map(r => {
-                if (r.isNew) return { text: r.t.toUpperCase(), score: 0, good: 0, bad: 0, total: 0, approval: 0, isNew: true };
-                const g = r.d.goodVotes || 0,
-                    b = r.d.badVotes || 0,
-                    t = g + b;
-                return {
-                    text: r.t.toUpperCase(),
-                    score: g - b,
-                    good: g,
-                    bad: b,
-                    total: t,
-                    approval: t > 0 ? Math.round((g / t) * 100) : 0,
-                    isNew: false
-                }
-            });
-            let h = '';
-            if (st.length === 2) {
-                const [s1, s2] = st;
-                let wi = -1;
-                if (s1.score !== s2.score) wi = s1.score > s2.score? 0 : 1;
-                h = `<div class="flex flex-col md:flex-row gap-4 w-full justify-center items-stretch">`;
-                st.forEach((s, i) => {
-                    const iw = i === wi,
-                        il = wi !== -1 && !iw,
-                        bc = iw ? 'border-yellow-400 bg-yellow-50 shadow-xl scale-105 z-10' : 'border-gray-200 bg-white',
-                        oc = il ? 'opacity-70 grayscale-[0.3]' : '';
-                    h += `<div class="flex-1 p-4 rounded-xl border-2 ${bc} ${oc} flex flex-col items-center transition-all duration-300">${iw?'<div class="text-2xl mb-2">🏆</div>':'<div class="h-8 mb-2"></div>'}<h3 class="text-xl font-black text-gray-800 mb-1">${s.text}</h3>${iw?'<span class="bg-yellow-400 text-white text-[10px] font-bold px-2 py-0.5 rounded-full mb-2">WINNER</span>':''}${s.isNew?'<span class="bg-purple-100 text-purple-600 text-xs px-2 py-1 rounded mb-2">New!</span>':''}<div class="text-3xl font-bold ${s.score>=0?'text-green-600':'text-red-600'} mb-4">${s.score}</div><div class="w-full space-y-2"><div class="flex justify-between text-xs text-gray-500"><span>Approval</span><span>${s.approval}%</span></div><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-blue-500 h-2.5 rounded-full" style="width: ${s.approval}%"></div></div><div class="flex justify-between text-xs pt-1"><span class="text-green-600 font-bold">+${s.good}</span><span class="text-red-600 font-bold">-${s.bad}</span></div></div></div>`;
-                    if (i === 0) h += `<div class="flex items-center justify-center font-black text-gray-300 md:px-2">VS</div>`
+    async init() {
+        try {
+            // 1. Force Version Display (High Z-Index)
+            const vEl = document.querySelector('.version-indicator');
+            if(vEl) {
+                vEl.textContent = `v${CONFIG.APP_VERSION} | Made by Gilxs in 12,025`;
+                Object.assign(vEl.style, {
+                    position: 'fixed', bottom: '5px', left: '0', width: '100%',
+                    textAlign: 'center', zIndex: '9999', pointerEvents: 'none',
+                    opacity: '0.6', fontSize: '10px', color: '#64748b'
                 });
-                h += '</div>'
-            } else {
-                const s = st[0];
-                h = `<div class="p-4 rounded-xl border border-gray-200 bg-white flex flex-col items-center w-full max-w-xs mx-auto"><h3 class="text-xl font-black text-gray-800 mb-2">${s.text}</h3>${s.isNew?'<span class="bg-purple-100 text-purple-600 text-xs px-2 py-1 rounded mb-2">Newly Added!</span>':''}<div class="text-4xl font-bold ${s.score>=0?'text-green-600':'text-red-600'} mb-4">${s.score}</div><div class="w-full space-y-2"><div class="flex justify-between text-xs text-gray-500"><span>Approval Rating</span><span>${s.approval}%</span></div><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-blue-500 h-2.5 rounded-full" style="width: ${s.approval}%"></div></div><div class="flex justify-between text-xs pt-1"><span class="text-green-600 font-bold">+${s.good} Votes</span><span class="text-red-600 font-bold">-${s.bad} Votes</span></div></div></div>`
             }
-            DOM.inputs.compareResults.innerHTML = h
-        };
-        DOM.theme.chooser.onchange = e => ThemeManager.apply(e.target.value, true);
-        document.getElementById('clearAllDataButton').onclick = State.clearAll;
-        InputHandler.init();
-        ThemeManager.init();
-        ModalManager.init();
-		UIManager.updateProfileDisplay();
-        MosquitoManager.startMonitoring();
-        this.checkDailyStatus();
-        await this.refreshData()
+
+            Accessibility.apply();
+            
+            // 2. Safe Audio Init
+            try { SoundManager.init(); } catch(e) { console.warn("Audio init deferred"); }
+            
+            if (typeof this.updateLights === 'function') this.updateLights();
+            UIManager.updateOfflineIndicator();
+            
+            // 3. Expose Managers
+            window.StreakManager = StreakManager;
+            window.ContactManager = ContactManager;
+            window.PinPad = PinPad;
+            window.TipManager = TipManager;
+
+            // 4. Bind Buttons
+            if (DOM.game.buttons.good) DOM.game.buttons.good.onclick = () => this.vote('good');
+            if (DOM.game.buttons.bad) DOM.game.buttons.bad.onclick = () => this.vote('bad');
+            if (DOM.game.buttons.notWord) DOM.game.buttons.notWord.onclick = () => this.vote('notWord');
+            if (DOM.game.dailyBanner) DOM.game.dailyBanner.onclick = () => this.activateDailyMode();
+            
+            // 5. Initialize Submit & Compare Buttons
+            document.getElementById('submitWordButton').onclick = async () => {
+                const t = DOM.inputs.newWord.value.trim();
+                if (!t || t.includes(' ') || t.length > 45) { DOM.inputs.modalMsg.textContent = "Invalid word."; return }
+                const btn = document.getElementById('submitWordButton'); btn.disabled = true;
+                try { const r = await API.submitWord(t); if (r.status === 201) { State.incrementContributor(); DOM.inputs.modalMsg.textContent = "Success! Your new word has been added!"; setTimeout(() => { ModalManager.toggle('submission', false); this.refreshData() }, 1000) } else { const d = await r.json(); DOM.inputs.modalMsg.textContent = d.message || "Error" } } catch (e) { DOM.inputs.modalMsg.textContent = "Network Error" }
+                btn.disabled = false
+            };
+
+            document.getElementById('runComparisonButton').onclick = async () => {
+                const w1 = DOM.inputs.wordOne.value.trim(), w2 = DOM.inputs.wordTwo.value.trim();
+                if (!w1 && !w2) { DOM.inputs.compareResults.innerHTML = '<span class="text-red-500">Please enter at least one word.</span>'; return }
+                DOM.inputs.compareResults.innerHTML = '<span class="text-gray-500 animate-pulse">Analyzing words...</span>';
+                const gd = async w => { if (w.includes(' ') || w.length > 45) return { t: w, valid: false, err: 'Invalid word.' }; const e = State.runtime.allWords.find(x => x.text.toUpperCase() === w.toUpperCase()); if (e) return { t: e.text, valid: true, exists: true, d: e }; const r = await API.submitWord(w); if (r.status === 201) { State.incrementContributor(); return { t: w.toUpperCase(), valid: true, exists: false, isNew: true } } return { t: w, valid: false, err: 'Could not fetch data.' } };
+                const res = []; if (w1) res.push(await gd(w1)); if (w2) res.push(await gd(w2)); if (res.some(r => r.isNew)) this.refreshData(false);
+                if (res.some(r => !r.valid)) { DOM.inputs.compareResults.innerHTML = res.map(r => !r.valid ? `<p class="text-red-500 mb-2"><strong>${r.t}</strong>: ${r.err}</p>` : '').join(''); return }
+                const st = res.map(r => { if (r.isNew) return { text: r.t.toUpperCase(), score: 0, good: 0, bad: 0, total: 0, approval: 0, isNew: true }; const g = r.d.goodVotes || 0, b = r.d.badVotes || 0, t = g + b; return { text: r.t.toUpperCase(), score: g - b, good: g, bad: b, total: t, approval: t > 0 ? Math.round((g / t) * 100) : 0, isNew: false } });
+                let h = '';
+                if (st.length === 2) {
+                    const [s1, s2] = st; let wi = -1; if (s1.score !== s2.score) wi = s1.score > s2.score? 0 : 1;
+                    h = `<div class="flex flex-col md:flex-row gap-4 w-full justify-center items-stretch">`;
+                    st.forEach((s, i) => { const iw = i === wi, il = wi !== -1 && !iw, bc = iw ? 'border-yellow-400 bg-yellow-50 shadow-xl scale-105 z-10' : 'border-gray-200 bg-white', oc = il ? 'opacity-70 grayscale-[0.3]' : ''; h += `<div class="flex-1 p-4 rounded-xl border-2 ${bc} ${oc} flex flex-col items-center transition-all duration-300">${iw?'<div class="text-2xl mb-2">🏆</div>':'<div class="h-8 mb-2"></div>'}<h3 class="text-xl font-black text-gray-800 mb-1">${s.text}</h3>${iw?'<span class="bg-yellow-400 text-white text-[10px] font-bold px-2 py-0.5 rounded-full mb-2">WINNER</span>':''}${s.isNew?'<span class="bg-purple-100 text-purple-600 text-xs px-2 py-1 rounded mb-2">New!</span>':''}<div class="text-3xl font-bold ${s.score>=0?'text-green-600':'text-red-600'} mb-4">${s.score}</div><div class="w-full space-y-2"><div class="flex justify-between text-xs text-gray-500"><span>Approval</span><span>${s.approval}%</span></div><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-blue-500 h-2.5 rounded-full" style="width: ${s.approval}%"></div></div><div class="flex justify-between text-xs pt-1"><span class="text-green-600 font-bold">+${s.good}</span><span class="text-red-600 font-bold">-${s.bad}</span></div></div></div>`; if (i === 0) h += `<div class="flex items-center justify-center font-black text-gray-300 md:px-2">VS</div>` }); h += '</div>'
+                } else { const s = st[0]; h = `<div class="p-4 rounded-xl border border-gray-200 bg-white flex flex-col items-center w-full max-w-xs mx-auto"><h3 class="text-xl font-black text-gray-800 mb-2">${s.text}</h3>${s.isNew?'<span class="bg-purple-100 text-purple-600 text-xs px-2 py-1 rounded mb-2">Newly Added!</span>':''}<div class="text-4xl font-bold ${s.score>=0?'text-green-600':'text-red-600'} mb-4">${s.score}</div><div class="w-full space-y-2"><div class="flex justify-between text-xs text-gray-500"><span>Approval Rating</span><span>${s.approval}%</span></div><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-blue-500 h-2.5 rounded-full" style="width: ${s.approval}%"></div></div><div class="flex justify-between text-xs pt-1"><span class="text-green-600 font-bold">+${s.good} Votes</span><span class="text-red-600 font-bold">-${s.bad} Votes</span></div></div></div>` }
+                DOM.inputs.compareResults.innerHTML = h
+            };
+
+            // 6. Initialize Managers
+            if (DOM.theme.chooser) DOM.theme.chooser.onchange = e => ThemeManager.apply(e.target.value, true);
+            const clearBtn = document.getElementById('clearAllDataButton');
+            if (clearBtn) clearBtn.onclick = State.clearAll;
+
+            InputHandler.init();
+            ThemeManager.init();
+            ModalManager.init();
+            UIManager.updateProfileDisplay();
+            MosquitoManager.startMonitoring();
+            this.checkDailyStatus();
+            
+            // 7. Load Data
+            await this.refreshData();
+
+        } catch(e) {
+            console.error("Critical Init Error:", e);
+            const vEl = document.querySelector('.version-indicator');
+            if(vEl) vEl.textContent = "Error: " + e.message;
+        }
     },
+
     checkDailyStatus() {
         const t = new Date().toISOString().split('T')[0];
         const l = State.data.daily.lastDate;
@@ -3678,7 +3638,8 @@ async init() {
             DOM.game.dailyBanner.style.display = 'block'
         }
     },
-	updateLights() {
+
+    updateLights() {
         const existing = document.querySelector('christmas-lights');
         if (State.data.settings.showLights) {
             if (!existing) {
@@ -3689,7 +3650,7 @@ async init() {
             if (existing) existing.remove();
         }
     },
-	
+
     activateDailyMode() {
         if (State.runtime.isDailyMode) return;
         const now = new Date();
@@ -3720,6 +3681,7 @@ async init() {
             UIManager.showMessage("No Daily Word Found");
         }
     },
+
     disableDailyMode() {
         State.runtime.isDailyMode = false;
         DOM.game.dailyBanner.classList.remove('daily-locked-mode');
@@ -3727,9 +3689,9 @@ async init() {
         DOM.game.buttons.custom.style.display = 'block';
         this.nextWord()
     },
-	async refreshData(u = true) {
+
+    async refreshData(u = true) {
         if (u) UIManager.showMessage(State.data.settings.kidsMode ? "Loading Kids Mode..." : "Loading...");
-        
         let d = [];
         const compareBtn = document.getElementById('compareWordsButton');
 
@@ -3751,31 +3713,22 @@ async init() {
             State.runtime.allWords = State.data.settings.kidsMode ? d : d.filter(w => (w.notWordVotes || 0) < 3);
             UIManager.updateStats();
 
-            // --- DEEP LINK CHECK ---
-            // Only check on initial load (u = true) and if not in Daily Mode
             if (u && !State.runtime.isDailyMode) {
                 const params = new URLSearchParams(window.location.search);
                 const sharedWord = params.get('word');
 
                 if (sharedWord) {
-                    // Try to find the shared word
                     const idx = State.runtime.allWords.findIndex(w => w.text.toUpperCase() === sharedWord.toUpperCase());
-                    
                     if (idx !== -1) {
-                        // Found it! Display it.
                         State.runtime.currentWordIndex = idx;
                         UIManager.displayWord(State.runtime.allWords[idx]);
-                        
-                        // Clean the URL so refreshing doesn't stick to this word forever
                         window.history.replaceState({}, document.title, "/"); 
                         UIManager.showPostVoteMessage("Shared word loaded! 🔗");
                     } else {
-                        // Word not found (or filtered out)
                         UIManager.showPostVoteMessage("Word not found. Showing random.");
                         this.nextWord();
                     }
                 } else {
-                    // Normal behavior
                     this.nextWord();
                 }
             }
@@ -3783,7 +3736,8 @@ async init() {
             UIManager.showMessage("Connection Error", true);
         }
     },
-   nextWord() {
+
+    nextWord() {
         let p = State.runtime.allWords;
         if (!p || p.length === 0) return;
 
@@ -3794,7 +3748,6 @@ async init() {
             else UIManager.showPostVoteMessage("No more new words! Showing random.");
         }
 
-        // 2. Special Words (Cake, etc)
         const r = Math.random(), { CAKE, LLAMA, POTATO, SQUIRREL, MASON } = CONFIG.SPECIAL, b = State.data.badges;
         let sp = null;
         if (!b.cake && r < CAKE.prob) sp = CAKE.text;
@@ -3815,19 +3768,13 @@ async init() {
         // 3. Selection Algorithm (Safe)
         let av = p.reduce((acc, w, i) => {
             const trueIndex = State.runtime.allWords.indexOf(w);
-            // Allow re-picking current word if it's the ONLY word available
             if ((!State.data.seenHistory.includes(trueIndex) && trueIndex !== State.runtime.currentWordIndex) || p.length === 1) {
                  acc.push({ i: trueIndex, v: (w.goodVotes || 0) + (w.badVotes || 0) });
             }
             return acc;
         }, []);
         
-        // Fallback: If history blocked everything, just pick anything valid
-        if (!av.length) {
-             av = p.map(w => ({ i: State.runtime.allWords.indexOf(w), v: 0 }));
-        }
-
-        // CRITICAL FIX: Ensure 'av' is not empty before accessing it
+        if (!av.length) av = p.map(w => ({ i: State.runtime.allWords.indexOf(w), v: 0 }));
         if (av.length === 0) return; 
 
         let tw = 0;
@@ -3838,7 +3785,7 @@ async init() {
             return { i: c.i, w };
         });
         
-        let rnd = Math.random() * tw, sel = av[0].i; // Default to first
+        let rnd = Math.random() * tw, sel = av[0].i; 
         for (let it of av) {
             rnd -= it.w;
             if (rnd <= 0) { sel = it.i; break; }
@@ -3898,7 +3845,7 @@ async init() {
             else {
                 clearInterval(State.runtime.cooldownTimer);
                 State.runtime.isCoolingDown = false;
-                State.runtime.mashCount = 0; // Reset mash count
+                State.runtime.mashCount = 0; 
                 State.runtime.mashLevel++;
                 UIManager.displayWord(State.runtime.allWords[State.runtime.currentWordIndex]);
             }
@@ -3907,32 +3854,24 @@ async init() {
 
     async vote(t, s = false) {
         if (State.runtime.isCoolingDown) return;
-        
         const n = Date.now();
-
-        // 1. Anti-Cheat Logic (Mash Count)
         if (State.runtime.lastVoteTime > 0 && (n - State.runtime.lastVoteTime) > CONFIG.VOTE.STREAK_WINDOW) {
             State.runtime.mashCount = 1;
         } else {
             State.runtime.mashCount++;
         }
         State.runtime.lastVoteTime = n;
-
         if (State.runtime.mashCount > CONFIG.VOTE.MASH_LIMIT) {
             this.handleCooldown();
             return;
         }
-        
-        // 2. Visuals & Sound
         if (!s) {
             if (t === 'notWord') Haptics.heavy();
             else Haptics.medium();
         }
-
         const w = State.runtime.allWords[State.runtime.currentWordIndex],
             up = w.text.toUpperCase(),
             { CAKE, LLAMA, POTATO, SQUIRREL, MASON } = CONFIG.SPECIAL;
-        
         UIManager.disableButtons(true);
         const wd = DOM.game.wordDisplay;
         const colors = Accessibility.getColors();
@@ -3950,7 +3889,6 @@ async init() {
             else SoundManager.playBad();
         }
         
-        // 3. Special Words Logic
         const hSpec = (c, k) => {
             State.unlockBadge(k);
             this.cleanStyles(wd);
@@ -3963,18 +3901,17 @@ async init() {
                 UIManager.showMessage(c.msg, false);
                 setTimeout(() => {
                     this.nextWord();
-                    this.refreshData(false);
-                }, c.dur);
-            }, c.fade);
+                    this.refreshData(false)
+                }, c.dur)
+            }, c.fade)
         };
         
-        if (up === CAKE.text) { hSpec(CAKE, 'cake'); return; }
-        if (up === LLAMA.text) { hSpec(LLAMA, 'llama'); return; }
-        if (up === POTATO.text) { hSpec(POTATO, 'potato'); return; }
-        if (up === SQUIRREL.text) { hSpec(SQUIRREL, 'squirrel'); return; }
-        if (up === MASON.text) { hSpec(MASON, 'bone'); return; }
+        if (up === CAKE.text) { hSpec(CAKE, 'cake'); return }
+        if (up === LLAMA.text) { hSpec(LLAMA, 'llama'); return }
+        if (up === POTATO.text) { hSpec(POTATO, 'potato'); return }
+        if (up === SQUIRREL.text) { hSpec(SQUIRREL, 'squirrel'); return }
+        if (up === MASON.text) { hSpec(MASON, 'bone'); return }
         
-        // 4. API Vote & Streak Logic
         try {
             const un = ThemeManager.checkUnlock(up);
             if (un) SoundManager.playUnlock();
@@ -3983,21 +3920,19 @@ async init() {
             if (res.status !== 403 && !res.ok) throw 0;
             w[`${t}Votes`] = (w[`${t}Votes`] || 0) + 1;
             State.incrementVote();
+			
+			StreakManager.handleSuccess();
             
-            // --- CORE STREAK LOGIC ---
-            StreakManager.handleSuccess();
-            // -------------------------
-            
-            // Daily Mode Handling
             if (State.runtime.isDailyMode) {
-                const tod = new Date(), dStr = tod.toISOString().split('T')[0];
+                const tod = new Date(),
+                    dStr = tod.toISOString().split('T')[0];
                 const last = State.data.daily.lastDate;
                 let s = State.data.daily.streak;
                 if (last) {
                     const yd = new Date();
                     yd.setDate(yd.getDate() - 1);
                     if (last === yd.toISOString().split('T')[0]) s++;
-                    else s = 1;
+                    else s = 1
                 } else s = 1;
                 State.save('daily', { streak: s, lastDate: dStr });
                 DOM.daily.streakResult.textContent = '🔥 ' + s;
@@ -4005,26 +3940,21 @@ async init() {
                 const rank = topGood.findIndex(x => x.text === w.text) + 1;
                 DOM.daily.worldRank.textContent = rank > 0 ? '#' + rank : 'Unranked';
                 this.checkDailyStatus();
-                setTimeout(() => ModalManager.toggle('dailyResult', true), 600);
+                setTimeout(() => ModalManager.toggle('dailyResult', true), 600)
             }
-
-            // UI Messages
             let m = '';
             if (un) m = "🎉 New Theme Unlocked!";
             else if (State.data.settings.showPercentages && (t === 'good' || t === 'bad')) {
-                const tot = (w.goodVotes || 0) + (w.badVotes || 0);
-                const p = Math.round((w[`${t}Votes`] / tot) * 100);
-                m = `${t==='good'?'Good':'Bad'} vote! ${p}% agree.`;
+                const tot = (w.goodVotes || 0) + (w.badVotes || 0),
+                    p = Math.round((w[`${t}Votes`] / tot) * 100);
+                m = `${t==='good'?'Good':'Bad'} vote! ${p}% agree.`
             }
             if (State.data.settings.showTips) {
                 State.save('voteCounterForTips', State.data.voteCounterForTips + 1);
-                if (State.data.voteCounterForTips % CONFIG.TIP_COOLDOWN === 0) m = GAME_TIPS[Math.floor(Math.random() * GAME_TIPS.length)];
+                if (State.data.voteCounterForTips % CONFIG.TIP_COOLDOWN === 0) m = GAME_TIPS[Math.floor(Math.random() * GAME_TIPS.length)]
             }
             UIManager.showPostVoteMessage(m);
-            
-            // Haptic Feedback for Vote Success (Medium)
             if (t === 'good' || t === 'bad') Haptics.medium();
-
             UIManager.updateStats();
             setTimeout(() => {
                 wd.classList.remove('animate-fly-left', 'animate-fly-right', 'swipe-good-color', 'swipe-bad-color', 'override-theme-color');
@@ -4033,14 +3963,13 @@ async init() {
                 wd.style.color = '';
                 if (!State.runtime.isDailyMode) {
                     this.nextWord();
-                    this.refreshData(false);
+                    this.refreshData(false)
                 }
-            }, (t === 'good' || t === 'bad') ? 600 : 0);
-
+            }, (t === 'good' || t === 'bad') ? 600 : 0)
         } catch (e) {
             UIManager.showMessage("Vote Failed", true);
             wd.classList.remove('animate-fly-left', 'animate-fly-right', 'swipe-good-color', 'swipe-bad-color', 'override-theme-color');
-            UIManager.disableButtons(false);
+            UIManager.disableButtons(false)
         }
     }
 };
