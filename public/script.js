@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.48.2', 
+    APP_VERSION: '5.48.3', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -77,7 +77,7 @@ const loadDOM = () => ({
         bad: document.getElementById('badRankings'),
         fullGood: document.getElementById('fullGoodRankings'),
         fullBad: document.getElementById('fullBadRankings'),
-        btnShow: document.getElementById('showTop100Button'),
+        btnShow: document.getElementById('headerStatsCard'),
         listsContainer: document.getElementById('rankingListsContainer'),
         searchContainer: document.getElementById('rankSearchContainer'),
         searchResult: document.getElementById('rankSearchResult'),
