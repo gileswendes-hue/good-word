@@ -3895,8 +3895,15 @@ const Game = {
             if (DOM.game.buttons.bad) DOM.game.buttons.bad.onclick = () => this.vote('bad');
             if (DOM.game.buttons.notWord) DOM.game.buttons.notWord.onclick = () => this.vote('notWord');
             if (DOM.game.dailyBanner) DOM.game.dailyBanner.onclick = () => this.activateDailyMode();
-			document.getElementById('showHelpButton').onclick = () => UIManager.showPostVoteMessage("What's going on? There aren't really any rules, but if you're really confused then drop me a message and I'll see if I can help!");
-            document.getElementById('showDonateButton').onclick = () => UIManager.showPostVoteMessage("That's very kind, but I'm not accepting any donations at the moment. Have fun!");
+
+			document.getElementById('showHelpButton').onclick = () => {
+			window.scrollTo({ top: 0, behavior: 'smooth' });
+			UIManager.showPostVoteMessage("What's going on? There aren't really any rules, but if you're really confused then drop me a message and I'll see if I can help!");
+	};
+			document.getElementById('showDonateButton').onclick = () => {
+			window.scrollTo({ top: 0, behavior: 'smooth' });
+			UIManager.showPostVoteMessage("That's very kind, but I'm not accepting any donations at the moment. Have fun!");
+	};
             
             // 5. Initialize Submit & Compare Buttons
             document.getElementById('submitWordButton').onclick = async () => {
