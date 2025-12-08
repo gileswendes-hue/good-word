@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.59.1', 
+    APP_VERSION: '5.59.2', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -3812,7 +3812,24 @@ const Game = {
         e.style.filter = 'none';
         e.style.color = ''
     },
+	
+	setRandomFavicon() {
+        const options = ['👍', '👎', '🗳️'];
+        const choice = options[Math.floor(Math.random() * options.length)];
+        
+        // Create an SVG favicon on the fly
+        const svg = `<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>${choice}</text></svg>`;
+        
+        let link = document.querySelector("link[rel~='icon']");
+        if (!link) {
+            link = document.createElement('link');
+            link.rel = 'icon';
+            document.head.appendChild(link);
+        }
+        link.href = `data:image/svg+xml,${svg}`;
+    },
     async init() {
+		this.setRandomFavicon();
 		DOM = loadDOM();
         try {
             // 1. Force Version Display (High Z-Index)
