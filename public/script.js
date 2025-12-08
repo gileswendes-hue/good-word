@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.40.4', 
+    APP_VERSION: '5.40.5', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4030,17 +4030,29 @@ const InputHandler = {
 };
 
 // =========================================================
-// 🧩 STREAK MANAGER & HIGH SCORES (Fixed & Robust)
+// 🧩 STREAK MANAGER & HIGH SCORES (MutationObserver Fix)
 // =========================================================
 
 // 1. SETUP STATE & STORAGE
 State.data.highScores = JSON.parse(localStorage.getItem('highScores') || "[]");
 State.data.longestStreak = parseInt(localStorage.getItem('longestStreak') || 0);
 
+// Default Retro High Scores (so the list isn't empty for new users)
+if (State.data.highScores.length === 0) {
+    State.data.highScores = [
+        { name: "CPU", score: 25, date: Date.now() },
+        { name: "DEV", score: 15, date: Date.now() },
+        { name: "AAA", score: 10, date: Date.now() }
+    ];
+    localStorage.setItem('highScores', JSON.stringify(State.data.highScores));
+}
+
+// Ensure Runtime Variables Exist
 if (!State.runtime) State.runtime = {};
 if (typeof State.runtime.streak === 'undefined') State.runtime.streak = 0;
 if (typeof State.runtime.lastVoteTime === 'undefined') State.runtime.lastVoteTime = 0;
 
+// Patch Save Functionality
 State.save = (function(originalSave) {
     return function(key, value) {
         if (originalSave) originalSave.call(this, key, value);
@@ -4053,11 +4065,10 @@ State.save = (function(originalSave) {
 // 2. STREAK MANAGER LOGIC
 const StreakManager = {
     timer: null,
-    LIMIT: 5000, // 5 seconds window
+    LIMIT: 5000, 
 
     handleSuccess() {
         const now = Date.now();
-        // Logic: Increment Streak or Reset if time passed
         if (State.runtime.streak === 0 || (now - State.runtime.lastVoteTime) <= this.LIMIT) {
             State.runtime.streak++;
         } else {
@@ -4067,8 +4078,7 @@ const StreakManager = {
 
         const currentStreak = State.runtime.streak;
 
-        // --- VISUAL COUNTER LOGIC ---
-        // Only show if streak is > 5 (Start on 6th vote)
+        // Visual Counter (Only shows after 5 votes)
         if (currentStreak > 5) {
             if (currentStreak === 6) {
                 this.showNotification("🔥 STREAK STARTED!", "success");
@@ -4079,6 +4089,7 @@ const StreakManager = {
 
             if (currentStreak > State.data.longestStreak) {
                 State.save('longestStreak', currentStreak);
+                this.refreshProfileIfOpen();
             }
         }
 
@@ -4095,7 +4106,6 @@ const StreakManager = {
             this.checkHighScore(finalScore);
         }
         
-        // Remove counter
         const counter = document.getElementById('streak-floating-counter');
         if (counter) {
             counter.style.opacity = '0';
@@ -4114,16 +4124,13 @@ const StreakManager = {
                 position: fixed; top: 15%; left: 50%; transform: translateX(-50%);
                 background: linear-gradient(135deg, #4f46e5, #7c3aed);
                 color: white; padding: 12px 25px; border-radius: 50px;
-                font-weight: 900; font-size: 1.8rem; z-index: 100000;
+                font-weight: 900; font-size: 1.8rem; z-index: 99999;
                 box-shadow: 0 10px 25px rgba(0,0,0,0.3); pointer-events: none;
                 transition: transform 0.1s;
             `;
             document.body.appendChild(el);
         }
-        
         el.innerHTML = `<span>⚡</span> ${State.runtime.streak}`;
-        
-        // Pulse animation
         requestAnimationFrame(() => {
             el.style.transform = isNew ? 'translateX(-50%) scale(1.5)' : 'translateX(-50%) scale(1.1)';
             setTimeout(() => el.style.transform = 'translateX(-50%) scale(1)', 150);
@@ -4137,7 +4144,7 @@ const StreakManager = {
             position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
             background: ${type === 'success' ? '#10b981' : '#374151'}; 
             color: white; padding: 10px 20px; border-radius: 8px; font-weight: bold; 
-            z-index: 100000; box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            z-index: 99999; box-shadow: 0 4px 6px rgba(0,0,0,0.2);
         `;
         document.body.appendChild(notif);
         setTimeout(() => notif.remove(), 2500);
@@ -4152,7 +4159,6 @@ const StreakManager = {
 
     promptName(score) {
         if(document.getElementById('nameEntryModal')) return;
-        // Simple Name Entry Modal
         const html = `
             <div id="nameEntryModal" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);z-index:100001;display:flex;align-items:center;justify-content:center;">
                 <div style="background:white;padding:2rem;border-radius:1rem;text-align:center;">
@@ -4176,6 +4182,7 @@ const StreakManager = {
             State.save('highScores', scores);
             document.getElementById('nameEntryModal').remove();
             this.showLeaderboard();
+            this.refreshProfileIfOpen();
         };
     },
 
@@ -4191,7 +4198,7 @@ const StreakManager = {
             <div id="highScoreModal" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:100001;display:flex;align-items:center;justify-content:center;">
                 <div style="background:white;padding:20px;border-radius:10px;width:300px;text-align:center;">
                     <h2 style="margin-top:0;">🏆 HALL OF FAME</h2>
-                    <div style="text-align:left;margin:20px 0;border:1px solid #eee;border-radius:5px;">${listHtml || '<p style="padding:10px;text-align:center;">No scores yet</p>'}</div>
+                    <div style="text-align:left;margin:20px 0;border:1px solid #eee;border-radius:5px;">${listHtml}</div>
                     <button onclick="document.getElementById('highScoreModal').remove()" style="padding:10px 20px;background:#333;color:white;border:none;border-radius:5px;cursor:pointer;">CLOSE</button>
                 </div>
             </div>`;
@@ -4200,35 +4207,40 @@ const StreakManager = {
         document.body.appendChild(div.firstElementChild);
     },
 
-    // --- AUTO-DISCOVERY PROFILE INJECTION ---
-    injectProfileStats() {
-        // Look for the streak display to see if we already injected it
-        if (document.getElementById('streak-display-stat')) return;
+    // --- PROFILE INJECTION (Auto-Detect) ---
+    injectProfileStats(container) {
+        if (container.querySelector('#streak-display-stat')) return;
 
-        // Try to find ANY container that looks like the profile stats area
-        const container = 
-            document.querySelector('.profile-stats') || 
-            document.querySelector('.modal-body') || 
-            document.querySelector('.modal-content');
+        const div = document.createElement('div');
+        div.id = 'streak-display-stat';
+        div.style.cssText = "margin-top:15px;padding:10px;background:#eff6ff;border:1px dashed #4f46e5;border-radius:8px;text-align:center;cursor:pointer;position:relative;z-index:10;";
+        div.innerHTML = `
+            <div style="font-size:10px;text-transform:uppercase;color:#666;font-weight:bold;">Longest Streak</div>
+            <div style="font-size:24px;font-weight:900;color:#4f46e5;">${State.data.longestStreak}</div>
+            <div style="font-size:10px;color:#999;">TAP FOR HIGH SCORES</div>
+        `;
+        div.onclick = (e) => { e.stopPropagation(); this.showLeaderboard(); };
 
-        if (container) {
-            const div = document.createElement('div');
-            div.style.cssText = "margin-top:15px;padding:10px;background:#eff6ff;border:1px dashed #4f46e5;border-radius:8px;text-align:center;cursor:pointer;";
-            div.innerHTML = `
-                <div style="font-size:10px;text-transform:uppercase;color:#666;font-weight:bold;">Longest Streak</div>
-                <div style="font-size:24px;font-weight:900;color:#4f46e5;">${State.data.longestStreak}</div>
-                <div style="font-size:10px;color:#999;">TAP FOR HIGH SCORES</div>
-            `;
-            div.onclick = (e) => { e.stopPropagation(); this.showLeaderboard(); };
-            div.id = 'streak-display-stat';
-            
-            // Append at the end of the container
+        // Try to insert before the buttons at the bottom
+        const buttons = container.querySelectorAll('button');
+        if (buttons.length > 0) {
+            container.insertBefore(div, buttons[buttons.length - 1].parentNode); 
+        } else {
             container.appendChild(div);
+        }
+    },
+    
+    refreshProfileIfOpen() {
+        const display = document.getElementById('streak-display-stat');
+        if (display) {
+            // Update the number inside purely via DOM manipulation
+            const num = display.querySelector('div:nth-child(2)');
+            if (num) num.textContent = State.data.longestStreak;
         }
     }
 };
 
-// 3. HOOKS & TIMERS
+// 3. HOOKS & OBSERVERS
 
 // Hook: Vote
 const _originalVote = Game.vote;
@@ -4238,17 +4250,23 @@ Game.vote = async function(type) {
     if (State.runtime.lastVoteTime > prevTime) StreakManager.handleSuccess();
 };
 
-// Hook: Profile Display (if used)
-const _originalUpdateProfile = UIManager.updateProfileDisplay;
-UIManager.updateProfileDisplay = function() {
-    if (_originalUpdateProfile) _originalUpdateProfile.call(this);
-    setTimeout(() => StreakManager.injectProfileStats(), 100);
-};
-
-// ⚠️ AUTO-DISCOVERY LOOP: Checks every 1s if Profile is open
-// This ensures the High Score button appears even if the specific hook fails.
-setInterval(() => StreakManager.injectProfileStats(), 1000);
-
+// Observer: Watch for Profile Modal to appear
+const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => {
+            if (node.nodeType === 1) { // Element
+                // Check if this new element IS the modal or CONTAINS the modal content
+                // We use broad checks to catch any likely container
+                if (node.classList.contains('modal') || node.classList.contains('profile-content') || node.querySelector('.profile-stats')) {
+                    // Find the best place to inject
+                    const target = node.querySelector('.profile-stats') || node.querySelector('.modal-body') || node;
+                    StreakManager.injectProfileStats(target);
+                }
+            }
+        });
+    });
+});
+observer.observe(document.body, { childList: true, subtree: true });
 // --- INITIALIZATION ---
 window.onload = Game.init.bind(Game);
 window.fEhPVHxCRUFDSHxIT0xJREFZfFNVTnxWQU = API; 
