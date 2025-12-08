@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.48.4', 
+    APP_VERSION: '5.48.5', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -215,6 +215,7 @@ const State = {
             tropical: localStorage.getItem('tropicalBadgeUnlocked') === 'true',
             puffer: localStorage.getItem('pufferBadgeUnlocked') === 'true',
             shark: localStorage.getItem('sharkBadgeUnlocked') === 'true',
+			octopus: localStorage.getItem('octopusBadgeUnlocked') === 'true',
             snowman: localStorage.getItem('snowmanBadgeUnlocked') === 'true',
 			angler: localStorage.getItem('anglerBadgeUnlocked') === 'true',
 			shepherd: localStorage.getItem('shepherdBadgeUnlocked') === 'true'
