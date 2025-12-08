@@ -40,10 +40,8 @@ const CONFIG = {
 };
 
 // --- DOM ELEMENT REFERENCES ---
-// Changed from const to let so we can assign it later
-let DOM = {}; 
+let DOM = {}; // Changed to let
 
-// Wrapper function to capture elements ONLY after HTML loads
 const loadDOM = () => ({
     header: {
         logoArea: document.getElementById('logoArea'),
@@ -2343,7 +2341,7 @@ const ShareManager = {
     },
 
     // 2. Existing Image Generation
-    async generateImage() {
+async generateImage() {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         const width = 1080; 
@@ -2351,26 +2349,153 @@ const ShareManager = {
         canvas.width = width;
         canvas.height = height;
 
-        // ... (The rest of your generateImage code remains unchanged) ...
-        // For brevity, I am not pasting the drawing logic again, 
-        // just ensure 'generateImage' is inside these brackets.
-        
-        // RE-PASTE YOUR EXISTING IMAGE DRAWING LOGIC HERE IF YOU DELETED IT
-        // (If you didn't delete the inside of generateImage, just ensure the bracket structure matches this:)
-        
         // 1. Background (Gradient)
         const grad = ctx.createLinearGradient(0, 0, 0, height);
         grad.addColorStop(0, '#4f46e5'); 
         grad.addColorStop(1, '#9333ea'); 
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, width, height);
-        
-        // ... (Keep all your drawing code) ...
 
-        // Footer
+        // 2. White Card Container
+        const margin = 60;
+        const cardY = 150;
+        const cardH = height - 280; 
+        ctx.fillStyle = '#ffffff';
+        if (ctx.roundRect) {
+            ctx.beginPath();
+            ctx.roundRect(margin, cardY, width - (margin * 2), cardH, 40);
+            ctx.fill();
+        } else {
+            ctx.fillRect(margin, cardY, width - (margin * 2), cardH);
+        }
+
+        // 3. Header Text
+        const name = State.data.username || "Player";
+        ctx.fillStyle = '#1f2937'; 
+        ctx.font = 'bold 60px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${name.toUpperCase()}'S STATS`, width / 2, cardY + 100);
+
+        ctx.fillStyle = '#6b7280'; 
+        ctx.font = '30px Inter, sans-serif';
+        ctx.fillText("GOOD WORD / BAD WORD", width / 2, cardY + 150);
+
+        // 4. Primary Stats Grid (Top Half)
+        const stats = [
+            { label: 'Day Streak', val: State.data.daily.streak, icon: '🔥', color: '#fff7ed', text: '#ea580c' },
+            { label: 'Total Votes', val: State.data.voteCount.toLocaleString(), icon: '🗳️', color: '#eff6ff', text: '#2563eb' },
+            { label: 'Words Added', val: State.data.contributorCount.toLocaleString(), icon: '✍️', color: '#f0fdf4', text: '#16a34a' },
+            { label: 'Themes', val: DOM.profile.themes.textContent, icon: '🎨', color: '#faf5ff', text: '#9333ea' }
+        ];
+
+        let gridY = cardY + 220;
+        const boxW = 400;
+        const boxH = 180;
+        const gap = 40;
+        const startX = (width - (boxW * 2 + gap)) / 2;
+
+        stats.forEach((stat, i) => {
+            const col = i % 2;
+            const row = Math.floor(i / 2);
+            const x = startX + (col * (boxW + gap));
+            const y = gridY + (row * (boxH + gap));
+
+            ctx.fillStyle = stat.color;
+            ctx.beginPath();
+            if (ctx.roundRect) ctx.roundRect(x, y, boxW, boxH, 20);
+            else ctx.fillRect(x, y, boxW, boxH);
+            ctx.fill();
+
+            // Icon
+            ctx.font = '50px serif';
+            ctx.textAlign = 'left';
+            ctx.fillText(stat.icon, x + 30, y + 105);
+
+            // Value
+            ctx.fillStyle = stat.text;
+            ctx.font = 'bold 50px Inter, sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText(stat.val, x + boxW - 30, y + 90);
+
+            // Label
+            ctx.fillStyle = '#6b7280';
+            ctx.font = 'bold 20px Inter, sans-serif';
+            ctx.fillText(stat.label.toUpperCase(), x + boxW - 30, y + 130);
+        });
+
+        // 5. Collection Progress (Bottom Half - Teaser Style)
+        const progressY = gridY + (2 * (boxH + gap)) + 60;
+        
+        // Separator Line
+        ctx.strokeStyle = '#e5e7eb';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(margin + 40, progressY);
+        ctx.lineTo(width - margin - 40, progressY);
+        ctx.stroke();
+
+        ctx.fillStyle = '#374151';
+        ctx.font = 'bold 30px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText("COLLECTION PROGRESS", width / 2, progressY + 60);
+
+        // Define Categories
+        const catKeys = {
+            words: ['cake', 'llama', 'potato', 'squirrel', 'spider', 'germ', 'bone'],
+            items: ['poop', 'penguin', 'scorpion', 'mushroom', 'needle', 'diamond', 'rock', 'chopper', 'snowman', 'fish', 'tropical', 'puffer', 'shark'],
+            achievements: ['exterminator', 'saint', 'prankster', 'judge', 'bard', 'traveler', 'angler', 'shepherd']
+        };
+
+        const getCount = (keys) => keys.filter(k => State.data.badges[k]).length;
+
+        const collections = [
+            { label: 'Hidden Words', count: getCount(catKeys.words), total: catKeys.words.length, color: '#f59e0b' },
+            { label: 'Secret Items', count: getCount(catKeys.items), total: catKeys.items.length, color: '#ec4899' },
+            { label: 'Achievements', count: getCount(catKeys.achievements), total: catKeys.achievements.length, color: '#10b981' }
+        ];
+
+        let circleX = width / 2 - 300;
+        const circleY = progressY + 180;
+
+        collections.forEach((col, i) => {
+            const x = (width / 4) * (i + 1);
+            
+            // Draw Ring Background
+            ctx.beginPath();
+            ctx.arc(x, circleY, 70, 0, 2 * Math.PI);
+            ctx.strokeStyle = '#f3f4f6';
+            ctx.lineWidth = 15;
+            ctx.stroke();
+
+            // Draw Progress Ring
+            const pct = col.count / col.total;
+            ctx.beginPath();
+            ctx.arc(x, circleY, 70, -0.5 * Math.PI, (2 * pct * Math.PI) - 0.5 * Math.PI);
+            ctx.strokeStyle = col.color;
+            ctx.lineWidth = 15;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+
+            // Draw Text
+            ctx.fillStyle = '#1f2937';
+            ctx.font = 'bold 40px Inter, sans-serif';
+            ctx.fillText(`${col.count}/${col.total}`, x, circleY + 15);
+
+            ctx.fillStyle = '#6b7280';
+            ctx.font = 'bold 18px Inter, sans-serif';
+            ctx.fillText(col.label.toUpperCase(), x, circleY + 130);
+        });
+
+        // 6. Footer
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        
+        // Teaser Text
         ctx.font = 'italic 30px serif';
         ctx.fillStyle = 'rgba(255,255,255,0.9)';
         ctx.fillText("Can you find them all?", width / 2, height - 120);
+
+        // URL
         ctx.font = 'bold 40px Inter, sans-serif'; 
         ctx.fillStyle = '#ffffff';
         ctx.fillText("GBword.com", width / 2, height - 60);
