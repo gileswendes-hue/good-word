@@ -2901,7 +2901,7 @@ const UIManager = {
                 if (isLocked) {
                     let desc = "Keep playing to unlock!";
                     if (el.dataset.word) desc = "Find the hidden word to unlock.";
-                    else if (['poop','penguin','scorpion','mushroom','needle','diamond'].includes(el.dataset.key)) desc = "Find this item in the Ball Pit!";
+                    else if (['poop','penguin','scorpion','mushroom','needle','diamond'].includes(el.dataset.key)) desc = "Find this item!";
                     showTooltip(el, "Locked: " + el.dataset.title, desc);
                     return;
                 }
