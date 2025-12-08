@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.40.3', 
+    APP_VERSION: '5.40.4', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4030,32 +4030,25 @@ const InputHandler = {
 };
 
 // =========================================================
-// 🧩 STREAK MANAGER & HIGH SCORES (Add-on)
+// 🧩 STREAK MANAGER & HIGH SCORES (Fixed & Robust)
 // =========================================================
 
 // 1. SETUP STATE & STORAGE
-// Ensure the game knows how to save/load our new stats
 State.data.highScores = JSON.parse(localStorage.getItem('highScores') || "[]");
 State.data.longestStreak = parseInt(localStorage.getItem('longestStreak') || 0);
 
-// Initialize runtime variables if they don't exist
 if (!State.runtime) State.runtime = {};
 if (typeof State.runtime.streak === 'undefined') State.runtime.streak = 0;
 if (typeof State.runtime.lastVoteTime === 'undefined') State.runtime.lastVoteTime = 0;
 
-// Patch State.save to ensure our new data persists to localStorage
-if (!State._patchedForStreaks) {
-    const _originalSave = State.save;
-    State.save = function(key, value) {
-        if (_originalSave) _originalSave.call(this, key, value);
-        // Explicitly save our new keys
+State.save = (function(originalSave) {
+    return function(key, value) {
+        if (originalSave) originalSave.call(this, key, value);
         if (key === 'highScores') localStorage.setItem('highScores', JSON.stringify(value));
         if (key === 'longestStreak') localStorage.setItem('longestStreak', value);
-        // Fallback update to memory
         this.data[key] = value;
     };
-    State._patchedForStreaks = true;
-}
+})(State.save);
 
 // 2. STREAK MANAGER LOGIC
 const StreakManager = {
@@ -4064,7 +4057,6 @@ const StreakManager = {
 
     handleSuccess() {
         const now = Date.now();
-        
         // Logic: Increment Streak or Reset if time passed
         if (State.runtime.streak === 0 || (now - State.runtime.lastVoteTime) <= this.LIMIT) {
             State.runtime.streak++;
@@ -4075,47 +4067,40 @@ const StreakManager = {
 
         const currentStreak = State.runtime.streak;
 
-        // ONLY trigger visuals if streak > 5
+        // --- VISUAL COUNTER LOGIC ---
+        // Only show if streak is > 5 (Start on 6th vote)
         if (currentStreak > 5) {
-            // If this is the start (6th vote)
             if (currentStreak === 6) {
                 this.showNotification("🔥 STREAK STARTED!", "success");
-                this.updateScreenCounter(true); // Animate entry
+                this.updateScreenCounter(true);
             } else {
-                this.updateScreenCounter(false); // Just update number
+                this.updateScreenCounter(false);
             }
 
-            // Track Personal Best
             if (currentStreak > State.data.longestStreak) {
                 State.save('longestStreak', currentStreak);
             }
         }
 
-        // Reset the "End Streak" timer
         if (this.timer) clearTimeout(this.timer);
         this.timer = setTimeout(() => this.endStreak(), this.LIMIT);
     },
 
     endStreak() {
         if (this.timer) clearTimeout(this.timer);
-        
         const finalScore = State.runtime.streak;
         
-        // Only trigger "End" events if it was a valid streak (>5)
         if (finalScore > 5) {
             this.showNotification(`Streak Ended: ${finalScore} Words`, "neutral");
             this.checkHighScore(finalScore);
-            this.updateProfileUI(); // Refresh profile if open
         }
         
-        // Hide/Remove the floating counter
+        // Remove counter
         const counter = document.getElementById('streak-floating-counter');
         if (counter) {
             counter.style.opacity = '0';
-            counter.style.transform = 'translateX(-50%) scale(0.8)';
             setTimeout(() => counter.remove(), 300);
         }
-
         State.runtime.streak = 0;
     },
 
@@ -4129,195 +4114,140 @@ const StreakManager = {
                 position: fixed; top: 15%; left: 50%; transform: translateX(-50%);
                 background: linear-gradient(135deg, #4f46e5, #7c3aed);
                 color: white; padding: 12px 25px; border-radius: 50px;
-                font-weight: 900; font-size: 1.8rem; z-index: 9999;
-                box-shadow: 0 10px 25px rgba(79, 70, 229, 0.4);
-                text-shadow: 0 2px 4px rgba(0,0,0,0.2);
-                transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-                pointer-events: none; opacity: 0;
+                font-weight: 900; font-size: 1.8rem; z-index: 100000;
+                box-shadow: 0 10px 25px rgba(0,0,0,0.3); pointer-events: none;
+                transition: transform 0.1s;
             `;
             document.body.appendChild(el);
         }
-
+        
+        el.innerHTML = `<span>⚡</span> ${State.runtime.streak}`;
+        
+        // Pulse animation
         requestAnimationFrame(() => {
-            el.style.opacity = '1';
             el.style.transform = isNew ? 'translateX(-50%) scale(1.5)' : 'translateX(-50%) scale(1.1)';
             setTimeout(() => el.style.transform = 'translateX(-50%) scale(1)', 150);
         });
-
-        el.innerHTML = `<span>⚡</span> ${State.runtime.streak}`;
     },
 
     showNotification(msg, type) {
         const notif = document.createElement('div');
         notif.textContent = msg;
-        const color = type === 'success' ? '#10b981' : '#374151';
         notif.style.cssText = `
-            position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-20px);
-            background: ${color}; color: white; padding: 10px 20px; border-radius: 8px;
-            font-weight: bold; z-index: 10000; opacity: 0; transition: all 0.3s;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-size: 0.9rem;
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            background: ${type === 'success' ? '#10b981' : '#374151'}; 
+            color: white; padding: 10px 20px; border-radius: 8px; font-weight: bold; 
+            z-index: 100000; box-shadow: 0 4px 6px rgba(0,0,0,0.2);
         `;
         document.body.appendChild(notif);
-
-        requestAnimationFrame(() => {
-            notif.style.opacity = '1';
-            notif.style.transform = 'translateX(-50%) translateY(0)';
-        });
-
-        setTimeout(() => {
-            notif.style.opacity = '0';
-            notif.style.transform = 'translateX(-50%) translateY(-20px)';
-            setTimeout(() => notif.remove(), 300);
-        }, 2500);
+        setTimeout(() => notif.remove(), 2500);
     },
 
     // --- HIGH SCORE LOGIC ---
     checkHighScore(score) {
         const scores = State.data.highScores || [];
         const minScore = scores.length < 5 ? 0 : scores[scores.length - 1].score;
-
-        if (score > minScore || scores.length < 5) {
-            this.promptName(score);
-        }
+        if (score > minScore || scores.length < 5) this.promptName(score);
     },
 
     promptName(score) {
         if(document.getElementById('nameEntryModal')) return;
+        // Simple Name Entry Modal
         const html = `
-            <div id="nameEntryModal" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);z-index:100000;display:flex;align-items:center;justify-content:center;">
-                <div style="background:white;padding:2rem;border-radius:1rem;width:90%;max-width:320px;text-align:center;">
-                    <h2 style="font-size:1.5rem;font-weight:900;color:#4f46e5;margin-bottom:0.5rem;">NEW RECORD!</h2>
-                    <p style="font-size:1.2rem;font-weight:bold;color:#1f2937;margin-bottom:1.5rem;">Score: ${score}</p>
+            <div id="nameEntryModal" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);z-index:100001;display:flex;align-items:center;justify-content:center;">
+                <div style="background:white;padding:2rem;border-radius:1rem;text-align:center;">
+                    <h2 style="font-size:1.5rem;font-weight:900;color:#4f46e5;">NEW RECORD!</h2>
+                    <p style="font-size:1.2rem;font-weight:bold;margin:1rem 0;">Score: ${score}</p>
                     <input type="text" id="hsNameInput" maxlength="3" placeholder="AAA" 
-                        style="font-family:monospace;font-size:2.5rem;text-align:center;width:100%;letter-spacing:0.5rem;border:2px solid #e5e7eb;border-radius:0.5rem;padding:0.5rem;text-transform:uppercase;outline:none;">
-                    <button id="hsSaveBtn" style="margin-top:1.5rem;width:100%;padding:12px;background:#4f46e5;color:white;font-weight:bold;border:none;border-radius:0.5rem;cursor:pointer;">SAVE</button>
+                        style="font-size:2rem;text-align:center;width:150px;letter-spacing:5px;border:2px solid #ccc;border-radius:5px;text-transform:uppercase;">
+                    <button id="hsSaveBtn" style="display:block;width:100%;margin-top:1rem;padding:10px;background:#4f46e5;color:white;border:none;border-radius:5px;font-weight:bold;cursor:pointer;">SAVE</button>
                 </div>
-            </div>
-        `;
+            </div>`;
         const div = document.createElement('div');
         div.innerHTML = html;
         document.body.appendChild(div.firstElementChild);
 
-        const input = document.getElementById('hsNameInput');
-        const btn = document.getElementById('hsSaveBtn');
-        input.focus();
-        input.oninput = (e) => e.target.value = e.target.value.toUpperCase().replace(/[^A-Z]/g, '');
-        btn.onclick = () => {
-            const name = (input.value || "AAA").padEnd(3,'_');
+        document.getElementById('hsSaveBtn').onclick = () => {
+            const name = (document.getElementById('hsNameInput').value || "AAA").toUpperCase();
             const scores = State.data.highScores || [];
             scores.push({ name, score, date: Date.now() });
             scores.sort((a,b) => b.score - a.score);
             if(scores.length > 5) scores.pop();
             State.save('highScores', scores);
             document.getElementById('nameEntryModal').remove();
-            setTimeout(() => this.showLeaderboard(), 300);
+            this.showLeaderboard();
         };
-    },
-
-    // --- PROFILE INTEGRATION ---
-    updateProfileUI() {
-        // Robust selector to find where to put the stats
-        const container = 
-            document.querySelector('.profile-stats') || 
-            document.querySelector('#profile-modal .modal-body') || 
-            document.querySelector('.modal-content') ||
-            document.body; 
-
-        if (!container) return;
-
-        let display = document.getElementById('streak-display-stat');
-        
-        if (!display) {
-            const wrap = document.createElement('div');
-            wrap.style.cssText = `
-                margin-top: 20px; padding: 15px; 
-                background: #eff6ff; border: 2px solid #bfdbfe; 
-                border-radius: 12px; text-align: center; cursor: pointer;
-                transition: transform 0.1s;
-            `;
-            wrap.onclick = (e) => {
-                e.stopPropagation();
-                this.showLeaderboard();
-            };
-            wrap.onmousedown = () => wrap.style.transform = 'scale(0.98)';
-            wrap.onmouseup = () => wrap.style.transform = 'scale(1)';
-
-            wrap.innerHTML = `
-                <div style="font-size:0.8rem; color:#60a5fa; font-weight:800; letter-spacing:1px; text-transform:uppercase; margin-bottom:5px;">Longest Streak</div>
-                <div id="streak-display-stat" style="font-size:2rem; font-weight:900; color:#2563eb; line-height:1;">0</div>
-                <div style="font-size:0.7rem; color:#93c5fd; font-weight:600; margin-top:5px;">🏆 TAP FOR HIGH SCORES</div>
-            `;
-            
-            // Try to insert before the last button (usually "Close" or "Logout")
-            const lastBtn = container.querySelector('button:last-of-type');
-            if (lastBtn) {
-                container.insertBefore(wrap, lastBtn);
-            } else {
-                container.appendChild(wrap);
-            }
-            display = document.getElementById('streak-display-stat');
-        }
-
-        if (display) {
-            display.textContent = (State.data.longestStreak || 0);
-        }
     },
 
     showLeaderboard() {
         const scores = State.data.highScores || [];
-        const html = `
-            <div id="highScoreModal" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:99999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);">
-                <div style="background:white;padding:2rem;border-radius:1rem;width:90%;max-width:380px;text-align:center;box-shadow:0 20px 25px -5px rgba(0,0,0,0.1);">
-                    <div style="font-size:3rem;margin-bottom:0.5rem;">👑</div>
-                    <h2 style="font-size:1.5rem;font-weight:900;color:#1e3a8a;margin-bottom:1.5rem;text-transform:uppercase;">Hall of Fame</h2>
-                    
-                    <div style="margin-bottom:2rem;">
-                        ${scores.length === 0 ? '<p style="color:#94a3b8;font-style:italic;">No records yet!</p>' : ''}
-                        ${scores.map((s, i) => `
-                            <div style="display:flex;justify-content:space-between;padding:0.75rem 1rem;margin-bottom:0.5rem;background:${i===0?'#fffbeb':'#f8fafc'};border-radius:0.5rem;border:1px solid ${i===0?'#fcd34d':'#e2e8f0'};align-items:center;">
-                                <div style="display:flex;align-items:center;gap:10px;">
-                                    <span style="font-weight:bold;color:${i===0?'#d97706':'#cbd5e1'};width:20px;">${i+1}</span>
-                                    <span style="font-family:monospace;font-weight:bold;font-size:1.1rem;color:#334155;">${s.name}</span>
-                                </div>
-                                <span style="font-weight:900;color:#2563eb;font-size:1.2rem;">${s.score}</span>
-                            </div>
-                        `).join('')}
-                    </div>
+        const listHtml = scores.map((s, i) => 
+            `<div style="display:flex;justify-content:space-between;padding:10px;background:${i===0?'#fffbeb':'#f8fafc'};border-bottom:1px solid #eee;">
+                <span><b>${i+1}.</b> ${s.name}</span> <span style="font-weight:bold;color:#4f46e5">${s.score}</span>
+             </div>`
+        ).join('');
 
-                    <button onclick="document.getElementById('highScoreModal').remove()" 
-                        style="width:100%;padding:12px;background:#f1f5f9;color:#475569;font-weight:bold;border:none;border-radius:0.5rem;cursor:pointer;">
-                        CLOSE
-                    </button>
+        const html = `
+            <div id="highScoreModal" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:100001;display:flex;align-items:center;justify-content:center;">
+                <div style="background:white;padding:20px;border-radius:10px;width:300px;text-align:center;">
+                    <h2 style="margin-top:0;">🏆 HALL OF FAME</h2>
+                    <div style="text-align:left;margin:20px 0;border:1px solid #eee;border-radius:5px;">${listHtml || '<p style="padding:10px;text-align:center;">No scores yet</p>'}</div>
+                    <button onclick="document.getElementById('highScoreModal').remove()" style="padding:10px 20px;background:#333;color:white;border:none;border-radius:5px;cursor:pointer;">CLOSE</button>
                 </div>
-            </div>
-        `;
+            </div>`;
         const div = document.createElement('div');
         div.innerHTML = html;
         document.body.appendChild(div.firstElementChild);
+    },
+
+    // --- AUTO-DISCOVERY PROFILE INJECTION ---
+    injectProfileStats() {
+        // Look for the streak display to see if we already injected it
+        if (document.getElementById('streak-display-stat')) return;
+
+        // Try to find ANY container that looks like the profile stats area
+        const container = 
+            document.querySelector('.profile-stats') || 
+            document.querySelector('.modal-body') || 
+            document.querySelector('.modal-content');
+
+        if (container) {
+            const div = document.createElement('div');
+            div.style.cssText = "margin-top:15px;padding:10px;background:#eff6ff;border:1px dashed #4f46e5;border-radius:8px;text-align:center;cursor:pointer;";
+            div.innerHTML = `
+                <div style="font-size:10px;text-transform:uppercase;color:#666;font-weight:bold;">Longest Streak</div>
+                <div style="font-size:24px;font-weight:900;color:#4f46e5;">${State.data.longestStreak}</div>
+                <div style="font-size:10px;color:#999;">TAP FOR HIGH SCORES</div>
+            `;
+            div.onclick = (e) => { e.stopPropagation(); this.showLeaderboard(); };
+            div.id = 'streak-display-stat';
+            
+            // Append at the end of the container
+            container.appendChild(div);
+        }
     }
 };
 
-// 3. GAME HOOKS (Integrate with existing logic)
+// 3. HOOKS & TIMERS
 
+// Hook: Vote
 const _originalVote = Game.vote;
 Game.vote = async function(type) {
     const prevTime = State.runtime.lastVoteTime;
     await _originalVote.call(this, type);
-    // If vote succeeded (time updated), check streak
     if (State.runtime.lastVoteTime > prevTime) StreakManager.handleSuccess();
 };
 
+// Hook: Profile Display (if used)
 const _originalUpdateProfile = UIManager.updateProfileDisplay;
 UIManager.updateProfileDisplay = function() {
     if (_originalUpdateProfile) _originalUpdateProfile.call(this);
-    // Inject our UI slightly after the original UI renders
-    setTimeout(() => StreakManager.updateProfileUI(), 100);
+    setTimeout(() => StreakManager.injectProfileStats(), 100);
 };
 
-const _originalInit = Game.init;
-Game.init = function() {
-    _originalInit.call(this);
-};
+// ⚠️ AUTO-DISCOVERY LOOP: Checks every 1s if Profile is open
+// This ensures the High Score button appears even if the specific hook fails.
+setInterval(() => StreakManager.injectProfileStats(), 1000);
 
 // --- INITIALIZATION ---
 window.onload = Game.init.bind(Game);
