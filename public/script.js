@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.40.9', 
+    APP_VERSION: '5.40.10', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -229,7 +229,9 @@ const State = {
         allWords: [],
         currentWordIndex: 0,
         streak: 0,
+        mashCount: 0,
         lastVoteTime: 0,
+        lastStreakTime: 0,
         isCoolingDown: false,
         cooldownTimer: null,
         mashLevel: 0,
@@ -3786,24 +3788,28 @@ const Game = {
             else {
                 clearInterval(State.runtime.cooldownTimer);
                 State.runtime.isCoolingDown = false;
-                State.runtime.streak = 0;
+                State.runtime.mashCount = 0;
                 State.runtime.mashLevel++;
                 UIManager.displayWord(State.runtime.allWords[State.runtime.currentWordIndex])
             }
         }, 1000)
     },
-    async vote(t, s = false) {
+async vote(t, s = false) {
         if (State.runtime.isCoolingDown) return;
         const n = Date.now();
-        if (State.runtime.lastVoteTime > 0 && (n - State.runtime.lastVoteTime) > CONFIG.VOTE.STREAK_WINDOW) State.runtime.streak = 1;
-        else State.runtime.streak++;
+
+        if (State.runtime.lastVoteTime > 0 && (n - State.runtime.lastVoteTime) > CONFIG.VOTE.STREAK_WINDOW) {
+            State.runtime.mashCount = 1;
+        } else {
+            State.runtime.mashCount++;
+        }
         State.runtime.lastVoteTime = n;
-        if (State.runtime.streak > CONFIG.VOTE.MASH_LIMIT) {
+
+        if (State.runtime.mashCount > CONFIG.VOTE.MASH_LIMIT) {
             this.handleCooldown();
-            return
+            return;
         }
         
-        // Haptic Feedback for Button Click (Not Swipe)
         if (!s) {
             if (t === 'notWord') Haptics.heavy();
             else Haptics.medium();
@@ -3816,7 +3822,6 @@ const Game = {
         const wd = DOM.game.wordDisplay;
         const colors = Accessibility.getColors();
         
-        // Handle visual feedback
         if (!s && (t === 'good' || t === 'bad')) {
             this.cleanStyles(wd);
             wd.style.setProperty('--dynamic-swipe-color', t === 'good' ? colors.good : colors.bad);
@@ -3830,7 +3835,6 @@ const Game = {
             else SoundManager.playBad();
         }
         
-        // Helper for Special Effects
         const hSpec = (c, k) => {
             State.unlockBadge(k);
             this.cleanStyles(wd);
@@ -4061,15 +4065,18 @@ const StreakManager = {
     timer: null,
     LIMIT: 5000, 
 
-    handleSuccess() {
+	handleSuccess() {
         const now = Date.now();
-        // Reset if too slow or first vote
-        if (State.runtime.streak === 0 || (now - State.runtime.lastVoteTime) <= this.LIMIT) {
-            State.runtime.streak++;
-        } else {
+        // Check if > 5 seconds have passed since the LAST SUCCESSFUL VOTE
+        if (State.runtime.streak > 0 && (now - State.runtime.lastStreakTime) > this.LIMIT) {
             this.endStreak();
             State.runtime.streak = 1; 
+        } else {
+            State.runtime.streak++;
         }
+        
+        // Update timestamp for the next check
+        State.runtime.lastStreakTime = now;
 
         const currentStreak = State.runtime.streak;
         
@@ -4080,7 +4087,7 @@ const StreakManager = {
             if(el) el.textContent = currentStreak + " Words";
         }
 
-        // Visuals: Show pop-up if streak >= 5
+        // Visuals (Only after 5)
         if (currentStreak >= 5) {
             if (currentStreak === 5) this.showNotification("🔥 STREAK STARTED!", "success");
             this.updateScreenCounter(true);
@@ -4092,7 +4099,6 @@ const StreakManager = {
         if (this.timer) clearTimeout(this.timer);
         this.timer = setTimeout(() => this.endStreak(), this.LIMIT);
     },
-
     endStreak() {
         if (this.timer) clearTimeout(this.timer);
         const finalScore = State.runtime.streak;
