@@ -40,7 +40,11 @@ const CONFIG = {
 };
 
 // --- DOM ELEMENT REFERENCES ---
-const DOM = {
+// Changed from const to let so we can assign it later
+let DOM = {}; 
+
+// Wrapper function to capture elements ONLY after HTML loads
+const loadDOM = () => ({
     header: {
         logoArea: document.getElementById('logoArea'),
         userStatsBar: document.getElementById('userStatsBar'),
@@ -143,7 +147,7 @@ const DOM = {
     general: {
         version: document.querySelector('.version-indicator')
     }
-};
+});
 
 // --- HELPER: Safe JSON Parse (Prevents Crashes) ---
 const safeParse = (key, fallback) => {
@@ -3547,6 +3551,7 @@ const Game = {
         e.style.color = ''
     },
     async init() {
+		DOM = loadDOM();
         try {
             // 1. Force Version Display (High Z-Index)
             const vEl = document.querySelector('.version-indicator');
