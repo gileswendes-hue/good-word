@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.44.1', 
+    APP_VERSION: '5.44.2', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4050,12 +4050,12 @@ State.save = function(key, value) {
 // ---------------------------------------------------------
 const StreakManager = {
     timer: null,
-    LIMIT: 5000, // 5 seconds allowed between votes
+    LIMIT: 5000, // 5 seconds
 
     handleSuccess() {
         const now = Date.now();
         
-        // Start/Continue streak logic
+        // Logic: Increment or Reset
         if (State.runtime.streak === 0 || (now - State.runtime.lastVoteTime) <= this.LIMIT) {
             State.runtime.streak++;
         } else {
@@ -4063,32 +4063,89 @@ const StreakManager = {
             State.runtime.streak = 1; 
         }
 
-        // Only record/show streaks that are longer than 5 words (per requirements)
+        // --- NEW: Visual Feedback on Main Screen ---
+        this.updateScreenCounter();
+
+        // Update Longest Streak Data
         if (State.runtime.streak > 5) {
-            // Update Longest Streak if current is better
             if (State.runtime.streak > State.data.longestStreak) {
                 State.save('longestStreak', State.runtime.streak);
             }
-            this.updateProfileUI(); // Update text in real-time
         }
 
+        // Reset timer
         if (this.timer) clearTimeout(this.timer);
         this.timer = setTimeout(() => this.endStreak(), this.LIMIT);
     },
 
     endStreak() {
         if (this.timer) clearTimeout(this.timer);
+        
         const finalScore = State.runtime.streak;
         
-        // Trigger High Score logic if streak > 5
+        // Hide the screen counter
+        const counter = document.getElementById('streak-floating-counter');
+        if (counter) {
+            counter.style.opacity = '0';
+            setTimeout(() => counter.remove(), 300);
+        }
+
+        // High Score Check
         if (finalScore > 5) {
             this.checkHighScore(finalScore);
+            // Refresh profile UI if it's currently open
+            this.updateProfileUI(); 
         }
+        
         State.runtime.streak = 0;
     },
 
+    // --- NEW: Floating Counter on Game Screen ---
+    updateScreenCounter() {
+        // Only show if streak > 1
+        if (State.runtime.streak < 2) return;
+
+        let el = document.getElementById('streak-floating-counter');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'streak-floating-counter';
+            // Styling for the floating counter
+            el.style.cssText = `
+                position: fixed; 
+                top: 15%; 
+                left: 50%; 
+                transform: translateX(-50%); 
+                background: rgba(79, 70, 229, 0.9); 
+                color: white; 
+                padding: 10px 20px; 
+                border-radius: 50px; 
+                font-weight: 900; 
+                font-size: 1.5rem; 
+                z-index: 1000; 
+                box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+                transition: transform 0.1s, opacity 0.3s;
+                pointer-events: none;
+            `;
+            document.body.appendChild(el);
+        }
+
+        // Animate on update
+        el.style.opacity = '1';
+        el.style.transform = 'translateX(-50%) scale(1.2)';
+        setTimeout(() => el.style.transform = 'translateX(-50%) scale(1)', 100);
+
+        // Text Content
+        if (State.runtime.streak <= 5) {
+            el.textContent = `${State.runtime.streak}`;
+            el.style.background = '#6b7280'; // Gray before it gets "serious"
+        } else {
+            el.textContent = `🔥 STREAK: ${State.runtime.streak}`;
+            el.style.background = '#4f46e5'; // Indigo for hot streak
+        }
+    },
+
     checkHighScore(score) {
-        const scores = State.data.highScores;
+        const scores = State.data.highScores || [];
         const minScore = scores.length < 5 ? 0 : scores[scores.length - 1].score;
 
         if (score > minScore || scores.length < 5) {
@@ -4096,46 +4153,46 @@ const StreakManager = {
         }
     },
 
-    // --- UPDATED UI LOGIC TO INJECT HTML ---
+    // --- UPDATED: Profile Injection (More Robust) ---
     updateProfileUI() {
-        // 1. Check if the display element exists. If not, create it.
+        // We search for multiple possible containers to ensure we find the modal
+        const containerCandidates = [
+            document.querySelector('.profile-stats'), // Standard class
+            document.querySelector('#profile-modal .modal-body'), // ID approach
+            document.querySelector('.modal-content'), // Generic modal
+            document.querySelector('.profile-content') // Fallback
+        ];
+
+        // Find the first valid container
+        const profileContent = containerCandidates.find(c => c !== null);
+
+        if (!profileContent) {
+            // If we can't find the profile yet, it might be closed. 
+            // We do nothing and wait for the next updateProfileDisplay call.
+            return;
+        }
+
         let streakDisplay = document.getElementById('streak-display-stat');
         
         if (!streakDisplay) {
-            // Attempt to find the profile stats container
-            // We look for the container that holds the other stats (like contribution)
-            const profileContent = document.querySelector('.profile-content') || document.querySelector('.modal-content') || document.getElementById('profile-modal');
+            const container = document.createElement('div');
+            container.style.cssText = 'margin-top: 15px; padding: 12px; background: #f3f4f6; border-radius: 8px; text-align: center; border: 2px dashed #d1d5db;';
             
-            if (profileContent) {
-                // Create the container for our new stat
-                const container = document.createElement('div');
-                container.style.marginTop = '15px';
-                container.style.padding = '10px';
-                container.style.background = '#f3f4f6'; // Light gray bg
-                container.style.borderRadius = '8px';
-                container.style.textAlign = 'center';
-                container.innerHTML = `
-                    <div style="font-size: 0.85rem; color: #6b7280; font-weight: bold; text-transform: uppercase;">Longest Streak</div>
-                    <div id="streak-display-stat" style="font-size: 1.5rem; font-weight: 900; color: #4f46e5; cursor: pointer; text-decoration: underline;">0 Words</div>
-                `;
-                
-                // Insert it. If there's a button (like "Close" or "Logout"), try to insert before it.
-                const btn = profileContent.querySelector('button');
-                if (btn) {
-                    profileContent.insertBefore(container, btn);
-                } else {
-                    profileContent.appendChild(container);
-                }
-                streakDisplay = document.getElementById('streak-display-stat');
-            }
+            container.innerHTML = `
+                <div style="font-size: 0.75rem; color: #6b7280; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">Longest Streak</div>
+                <div id="streak-display-stat" style="font-size: 1.8rem; font-weight: 900; color: #4f46e5; cursor: pointer; line-height: 1;">0</div>
+                <div style="font-size: 0.7rem; color: #9ca3af; margin-top: 5px;">(Tap to view Leaderboard)</div>
+            `;
+            
+            // Insert at the end of the stats container
+            profileContent.appendChild(container);
+            streakDisplay = document.getElementById('streak-display-stat');
         }
 
-        // 2. Update the text if we found/created the element
         if (streakDisplay) {
-            streakDisplay.textContent = (State.data.longestStreak || 0) + " Words";
-            streakDisplay.title = "View High Scores";
+            streakDisplay.textContent = (State.data.longestStreak || 0);
             streakDisplay.onclick = (e) => {
-                e.stopPropagation();
+                e.stopPropagation(); // Stop click from closing modal
                 this.showLeaderboard();
             };
         }
@@ -4143,24 +4200,25 @@ const StreakManager = {
 
     showLeaderboard() {
         const scores = State.data.highScores || [];
-        // (Same Leaderboard HTML as before)
+        // Create Leaderboard Modal
         const html = `
-            <div id="highScoreModal" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(5px);">
-                <div style="background:white;padding:2rem;border-radius:1rem;width:90%;max-width:400px;text-align:center;box-shadow:0 10px 25px rgba(0,0,0,0.5); border: 4px solid #4f46e5;">
-                    <h2 style="font-size:1.5rem; font-weight:900; color:#4f46e5; margin-bottom:1rem; text-transform:uppercase;">🏆 Top 5 Streaks</h2>
+            <div id="highScoreModal" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:99999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(5px);">
+                <div style="background:white;padding:2rem;border-radius:1rem;width:90%;max-width:400px;text-align:center;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);">
+                    <div style="font-size:3rem; margin-bottom:10px;">🏆</div>
+                    <h2 style="font-size:1.5rem; font-weight:900; color:#111827; margin-bottom:1.5rem; text-transform:uppercase;">Hall of Fame</h2>
                     <div style="margin-bottom:1.5rem; text-align:left;">
-                        ${scores.length === 0 ? '<p style="text-align:center;color:#9ca3af;">No high scores yet!</p>' : ''}
+                        ${scores.length === 0 ? '<p style="text-align:center;color:#9ca3af;font-style:italic;">No records yet. Start voting!</p>' : ''}
                         ${scores.map((s, i) => `
-                            <div style="display:flex; justify-content:space-between; padding:0.75rem; margin-bottom:0.5rem; background:${i===0?'#fef3c7':'#f9fafb'}; border:${i===0?'1px solid #fcd34d':'1px solid #e5e7eb'}; border-radius:0.5rem;">
-                                <div>
-                                    <span style="font-weight:bold; color:#9ca3af; margin-right:10px;">#${i+1}</span>
-                                    <span style="font-family:monospace; font-weight:900; font-size:1.1rem;">${s.name}</span>
+                            <div style="display:flex; justify-content:space-between; align-items:center; padding:1rem; margin-bottom:0.5rem; background:${i===0?'#fffbeb':'#f9fafb'}; border:1px solid ${i===0?'#fcd34d':'#e5e7eb'}; border-radius:0.75rem;">
+                                <div style="display:flex; align-items:center;">
+                                    <span style="display:inline-block; width:24px; font-weight:bold; color:${i===0?'#d97706':'#9ca3af'};">${i+1}.</span>
+                                    <span style="font-family:monospace; font-weight:900; font-size:1.25rem; color:#374151;">${s.name}</span>
                                 </div>
-                                <span style="font-weight:bold; color:#4f46e5; font-size:1.1rem;">${s.score}</span>
+                                <span style="font-weight:bold; color:#4f46e5; font-size:1.25rem;">${s.score}</span>
                             </div>
                         `).join('')}
                     </div>
-                    <button onclick="document.getElementById('highScoreModal').remove()" style="width:100%; padding:10px; background:#e5e7eb; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">CLOSE</button>
+                    <button onclick="document.getElementById('highScoreModal').remove()" style="width:100%; padding:14px; background:#1f2937; color:white; border:none; border-radius:10px; font-weight:bold; font-size:1rem; cursor:pointer;">CLOSE</button>
                 </div>
             </div>
         `;
@@ -4173,18 +4231,18 @@ const StreakManager = {
         if(document.getElementById('nameEntryModal')) return;
 
         const html = `
-            <div id="nameEntryModal" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);z-index:10000;display:flex;align-items:center;justify-content:center;">
-                <div style="background:white;padding:2rem;border-radius:1rem;width:90%;max-width:350px;text-align:center; animation: popIn 0.3s ease-out;">
-                    <div style="font-size:3rem; margin-bottom:0.5rem;">🚀</div>
-                    <h2 style="font-size:1.5rem; font-weight:900; color:#4f46e5; margin:0;">NEW HIGH SCORE!</h2>
-                    <p style="color:#6b7280; font-weight:bold; font-size:1.25rem; margin-bottom:1.5rem;">Streak: ${score}</p>
+            <div id="nameEntryModal" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.95);z-index:100000;display:flex;align-items:center;justify-content:center;">
+                <div style="background:white;padding:2.5rem;border-radius:1.5rem;width:90%;max-width:350px;text-align:center; animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+                    <div style="font-size:4rem; margin-bottom:1rem;">🚀</div>
+                    <h2 style="font-size:1.8rem; font-weight:900; color:#4f46e5; line-height:1;">NEW<br>RECORD!</h2>
+                    <p style="color:#6b7280; font-weight:bold; font-size:1.5rem; margin: 1rem 0;">Score: <span style="color:#111827;">${score}</span></p>
                     
-                    <p style="font-size:0.75rem; font-weight:bold; color:#9ca3af; text-transform:uppercase; margin-bottom:0.5rem;">Enter Initials</p>
+                    <p style="font-size:0.75rem; font-weight:bold; color:#9ca3af; text-transform:uppercase; margin-bottom:0.5rem; letter-spacing:1px;">Enter Initials</p>
                     <input type="text" id="hsNameInput" maxlength="3" 
-                        style="font-family:monospace; text-transform:uppercase; font-size:2.5rem; width:100%; text-align:center; letter-spacing:0.5rem; border:2px solid #e5e7eb; border-radius:0.5rem; padding:10px; outline:none;" 
+                        style="font-family:monospace; text-transform:uppercase; font-size:3rem; width:100%; text-align:center; letter-spacing:0.5rem; border:2px solid #e5e7eb; border-radius:1rem; padding:10px; outline:none; background:#f9fafb;" 
                         placeholder="_ _ _" autocomplete="off">
                     
-                    <button id="hsSaveBtn" style="margin-top:1.5rem; width:100%; padding:12px; background:#4f46e5; color:white; font-weight:bold; border:none; border-radius:8px; cursor:pointer; box-shadow:0 4px 6px -1px rgba(79, 70, 229, 0.4);">SAVE SCORE</button>
+                    <button id="hsSaveBtn" style="margin-top:2rem; width:100%; padding:16px; background:#4f46e5; color:white; font-weight:bold; border:none; border-radius:12px; cursor:pointer; font-size:1.1rem; box-shadow:0 10px 15px -3px rgba(79, 70, 229, 0.3);">SAVE SCORE</button>
                 </div>
             </div>
             <style>@keyframes popIn { from {transform:scale(0.8);opacity:0;} to {transform:scale(1);opacity:1;} }</style>
@@ -4220,37 +4278,31 @@ const StreakManager = {
 // 3. GAME HOOKS
 // ---------------------------------------------------------
 
-// Hook into Game.vote to track streaks
-// We wrap the original function to preserve mashing protection and logic
+// Hook into Game.vote
 const _originalVote = Game.vote;
 Game.vote = async function(type) {
     const prevTime = State.runtime.lastVoteTime;
-    
-    // Call original function
     await _originalVote.call(this, type);
     
-    // If lastVoteTime updated, the vote was successful (passed mash protection)
+    // Check if vote was accepted (time updated)
     if (State.runtime.lastVoteTime > prevTime) {
         StreakManager.handleSuccess();
     }
 };
 
-// Hook into UIManager.updateProfileDisplay to render the stats
+// Hook into UIManager.updateProfileDisplay
 const _originalUpdateProfile = UIManager.updateProfileDisplay;
 UIManager.updateProfileDisplay = function() {
-    // Let the original code update the standard stats
     if (_originalUpdateProfile) _originalUpdateProfile.call(this);
     
-    // Apply our streak UI overrides
-    StreakManager.updateProfileUI();
+    // We add a small delay to ensure the DOM is constructed by the original function
+    setTimeout(() => StreakManager.updateProfileUI(), 50);
 };
 
-// Hook into Game initialization to ensure Profile UI is ready
+// Hook into Game initialization
 const _originalInit = Game.init;
 Game.init = function() {
     _originalInit.call(this);
-    // Initial UI Update
-    setTimeout(() => StreakManager.updateProfileUI(), 500);
 };
 
 // --- INITIALIZATION ---
