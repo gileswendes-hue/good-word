@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
-    API_BASE_URL: '/api/words',
-	SCORE_API_URL: '/api/scores',
+	API_BASE_URL: 'https://good-word.onrender.com/api/words',
+    SCORE_API_URL: 'https://good-word.onrender.com/api/scores',
     APP_VERSION: '5.47', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
