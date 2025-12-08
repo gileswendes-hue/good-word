@@ -42,7 +42,8 @@ body {
 .not-word-button { background: linear-gradient(145deg, #64748b, #475569); }
 
 button {
-    transition: transform .1s ease, box-shadow .1s ease;
+    touch-action: manipulation; 
+    -webkit-tap-highlight-color: transparent; 
 }
 
 button:active {
