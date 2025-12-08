@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.48.6', 
+    APP_VERSION: '5.48.7', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1946,11 +1946,12 @@ halloween(active) {
                 
                 const bubble = showSpiderBubble(text);
                 
-                // If spider is upside down (transform contains 180deg), flip bubble text
+                // FIX: Check if spider is upside down (Action 1)
+                // If so, flip the bubble 180deg so it is readable to the user
                 if (body.style.transform.includes('180deg')) {
                     bubble.style.transform = 'translateX(-50%) rotate(180deg)';
-                    bubble.style.bottom = 'auto';
-                    bubble.style.top = '110%';
+                    bubble.style.bottom = 'auto'; // Reset bottom
+                    bubble.style.top = '110%';    // Move to visual bottom
                 }
 
                 body.style.animation = 'shake 0.3s ease-in-out';
@@ -1989,7 +1990,7 @@ halloween(active) {
                     
                     // 2. SHORT DROP (POKE HEAD OUT)
                     thread.style.transition = 'height 2.5s ease-in-out'; 
-                    thread.style.height = '18vh'; // Fixed short distance
+                    thread.style.height = '18vh'; // Short drop
                     
                     setTimeout(() => {
                          if (wrap.classList.contains('hunting')) return;
@@ -2001,9 +2002,9 @@ halloween(active) {
                          // 3. SHOW BUBBLE & FIX ORIENTATION
                          if(wrap.showBubble) {
                              const b = wrap.showBubble(text);
-                             // Counter-rotate the bubble so text is readable
+                             // FIX: Flip text 180 degrees so it is upright for the user
                              b.style.transform = 'translateX(-50%) rotate(180deg)';
-                             // Move bubble to appear "below" the head (which is pointing down)
+                             // Position visually below the head
                              b.style.bottom = 'auto';
                              b.style.top = '110%';
                          }
