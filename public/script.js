@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.59.0', 
+    APP_VERSION: '5.49', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -3115,7 +3115,6 @@ const PinPad = {
         } else {
             // --- VERIFY MODE ---
             
-            // Double check lock time
             if (this.isLocked()) {
                 const remaining = Math.ceil((this.getLockoutTime() - Date.now()) / 1000);
                 alert(`Locked! Wait ${remaining}s`); // Fallback
@@ -3206,7 +3205,6 @@ const PinPad = {
     }
 };
 
-// Expose to window so HTML buttons can find it
 window.PinPad = PinPad;
 
 const ModalManager = {
@@ -3292,9 +3290,15 @@ const ModalManager = {
                 document.getElementById('toggleMute').onchange = e => {
                     State.save('settings', { ...State.data.settings, muteSounds: e.target.checked });
                     SoundManager.updateMute();
+					
+                };
+						document.getElementById('toggleArachnophobia').onchange = e => {
+                    State.save('settings', { ...State.data.settings, arachnophobiaMode: e.target.checked });
+                    if (State.data.currentTheme === 'halloween') {
+                        Effects.halloween(true);
+                    }
                 };
 
-				// Kids Mode (Complex Logic)
                 document.getElementById('toggleKidsMode').onchange = e => {
                     const turningOn = e.target.checked;
                     const savedPin = State.data.settings.kidsModePin;
@@ -3352,14 +3356,6 @@ const ModalManager = {
         };
 
         // --- Standard Modal Listeners ---
-		document.getElementById('toggleArachnophobia').onchange = e => {
-                    State.save('settings', { ...State.data.settings, arachnophobiaMode: e.target.checked });
-                    // Refresh effects immediately to hide/show spider without reloading
-                    if (State.data.currentTheme === 'halloween') {
-                        Effects.halloween(true);
-                    }
-                };
-		
         document.getElementById('closeSettingsModal').onclick = () => this.toggle('settings', false);
         DOM.game.buttons.custom.onclick = () => {
             DOM.inputs.newWord.value = '';
