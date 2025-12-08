@@ -3377,8 +3377,9 @@ const ModalManager = {
                 document.getElementById('toggleMute').onchange = e => {
                     State.save('settings', { ...State.data.settings, muteSounds: e.target.checked });
                     SoundManager.updateMute();
-					
-					const arachBtn = document.getElementById('toggleArachnophobia');
+                };
+
+                const arachBtn = document.getElementById('toggleArachnophobia');
                 if (arachBtn) {
                     arachBtn.onchange = e => {
                         State.save('settings', { ...State.data.settings, arachnophobiaMode: e.target.checked });
