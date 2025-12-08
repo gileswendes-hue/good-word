@@ -3374,11 +3374,12 @@ const ModalManager = {
                     State.save('settings', { ...State.data.settings, largeText: e.target.checked });
                     Accessibility.apply();
                 };
-                document.getElementById('toggleMute').onchange = e => {
+				document.getElementById('toggleMute').onchange = e => {
                     State.save('settings', { ...State.data.settings, muteSounds: e.target.checked });
                     SoundManager.updateMute();
                 };
 
+                // --- ARACHNOPHOBIA LISTENER (Corrected Position) ---
                 const arachBtn = document.getElementById('toggleArachnophobia');
                 if (arachBtn) {
                     arachBtn.onchange = e => {
@@ -3388,9 +3389,6 @@ const ModalManager = {
                         }
                     };
                 }
-					
-             
-                };
 
                 document.getElementById('toggleKidsMode').onchange = e => {
                     const turningOn = e.target.checked;
