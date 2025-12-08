@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.43', 
+    APP_VERSION: '5.41', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -38,7 +38,8 @@ const CONFIG = {
     },
 };
 
-const getDOM = () => ({
+// --- DOM ELEMENT REFERENCES ---
+const DOM = {
     header: {
         logoArea: document.getElementById('logoArea'),
         userStatsBar: document.getElementById('userStatsBar'),
@@ -141,46 +142,40 @@ const getDOM = () => ({
     general: {
         version: document.querySelector('.version-indicator')
     }
-});
-let DOM = {}; // Will be populated in Game.init
+};
 
 const State = {
     data: {
-        // Recommended Fix:
-userId: localStorage.getItem('userId') || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'user_' + Math.random().toString(36).substr(2, 9)),
+        userId: localStorage.getItem('userId') || crypto.randomUUID(),
+        // --- NEW: High Scores & Streak Data ---
+        highScores: JSON.parse(localStorage.getItem('highScores') || '[]'),
+        maxRapidStreak: parseInt(localStorage.getItem('maxRapidStreak') || 0),
+        
+        // --- EXISTING DATA (Restored) ---
         username: localStorage.getItem('username') || '',
         voteCount: parseInt(localStorage.getItem('voteCount') || 0),
         contributorCount: parseInt(localStorage.getItem('contributorCount') || 0),
         profilePhoto: localStorage.getItem('profilePhoto') || null,
-        
-        // --- NEW: High Score Data ---
-        bestStreak: parseInt(localStorage.getItem('bestStreak') || 0),
-        highScores: JSON.parse(localStorage.getItem('highScores')) || [], 
-        // ---------------------------
-
         pendingVotes: JSON.parse(localStorage.getItem('pendingVotes')) || [],
         offlineCache: JSON.parse(localStorage.getItem('offlineCache')) || [],
-
+        
         insectStats: {
             saved: parseInt(localStorage.getItem('insectSaved') || 0),
             eaten: parseInt(localStorage.getItem('insectEaten') || 0),
             teased: parseInt(localStorage.getItem('insectTeased') || 0)
         },
-        
         fishStats: {
             caught: parseInt(localStorage.getItem('fishCaught') || 0),
-			spared: parseInt(localStorage.getItem('fishSpared') || 0)
+            spared: parseInt(localStorage.getItem('fishSpared') || 0)
         },
-        
         badges: {
-           cake: localStorage.getItem('cakeBadgeUnlocked') === 'true',
+            cake: localStorage.getItem('cakeBadgeUnlocked') === 'true',
             llama: localStorage.getItem('llamaBadgeUnlocked') === 'true',
             potato: localStorage.getItem('potatoBadgeUnlocked') === 'true',
             squirrel: localStorage.getItem('squirrelBadgeUnlocked') === 'true',
             spider: localStorage.getItem('spiderBadgeUnlocked') === 'true',
             germ: localStorage.getItem('germBadgeUnlocked') === 'true',
             bone: localStorage.getItem('boneBadgeUnlocked') === 'true',
-            
             poop: localStorage.getItem('poopBadgeUnlocked') === 'true',
             penguin: localStorage.getItem('penguinBadgeUnlocked') === 'true',
             scorpion: localStorage.getItem('scorpionBadgeUnlocked') === 'true',
@@ -189,20 +184,17 @@ userId: localStorage.getItem('userId') || (typeof crypto !== 'undefined' && cryp
             diamond: localStorage.getItem('diamondBadgeUnlocked') === 'true',
             rock: localStorage.getItem('rockBadgeUnlocked') === 'true',
             chopper: localStorage.getItem('chopperBadgeUnlocked') === 'true',
-            snowman: localStorage.getItem('snowmanBadgeUnlocked') === 'true',
-            
-            fish: localStorage.getItem('fishBadgeUnlocked') === 'true',
-            tropical: localStorage.getItem('tropicalBadgeUnlocked') === 'true',
-            puffer: localStorage.getItem('pufferBadgeUnlocked') === 'true',
-            shark: localStorage.getItem('sharkBadgeUnlocked') === 'true',
-            octopus: localStorage.getItem('octopusBadgeUnlocked') === 'true',
-            
             exterminator: localStorage.getItem('exterminatorBadgeUnlocked') === 'true',
             saint: localStorage.getItem('saintBadgeUnlocked') === 'true',
             prankster: localStorage.getItem('pranksterBadgeUnlocked') === 'true',
             judge: localStorage.getItem('judgeBadgeUnlocked') === 'true',
-            bard: localStorage.getItem('bardBadgeUnlocked') === 'true',
+            bard: localStorage.getItem('bardBadgeUnlocked') === 'true',       
             traveler: localStorage.getItem('travelerBadgeUnlocked') === 'true',
+            fish: localStorage.getItem('fishBadgeUnlocked') === 'true',
+            tropical: localStorage.getItem('tropicalBadgeUnlocked') === 'true',
+            puffer: localStorage.getItem('pufferBadgeUnlocked') === 'true',
+            shark: localStorage.getItem('sharkBadgeUnlocked') === 'true',
+            snowman: localStorage.getItem('snowmanBadgeUnlocked') === 'true',
             angler: localStorage.getItem('anglerBadgeUnlocked') === 'true',
             shepherd: localStorage.getItem('shepherdBadgeUnlocked') === 'true'
         },
@@ -241,29 +233,27 @@ userId: localStorage.getItem('userId') || (typeof crypto !== 'undefined' && cryp
         mashLevel: 0,
         isDailyMode: false,
         
-        // --- NEW: Runtime Streak Logic ---
-        scoringStreak: 0,
-        lastScoreTime: 0
-        // ---------------------------------
+        // --- NEW: Rapid Streak Runtime ---
+        rapidStreak: 0,
+        streakTimer: null
     },
     save(k, v) {
         this.data[k] = v;
         const s = localStorage;
 
-        if (k === 'pendingVotes') s.setItem('pendingVotes', JSON.stringify(v));
-        else if (k === 'offlineCache') s.setItem('offlineCache', JSON.stringify(v));
-        
-        // --- NEW: Save Handlers ---
-        else if (k === 'highScores') s.setItem('highScores', JSON.stringify(v));
-        else if (k === 'bestStreak') s.setItem('bestStreak', v);
-        // --------------------------
+        // --- NEW: Handler for High Scores ---
+        if (k === 'highScores') s.setItem('highScores', JSON.stringify(v));
+        else if (k === 'maxRapidStreak') s.setItem('maxRapidStreak', v);
 
+        // --- EXISTING HANDLERS ---
+        else if (k === 'pendingVotes') s.setItem('pendingVotes', JSON.stringify(v));
+        else if (k === 'offlineCache') s.setItem('offlineCache', JSON.stringify(v));
         else if (k === 'insectStats') {
             s.setItem('insectSaved', v.saved);
             s.setItem('insectEaten', v.eaten);
             s.setItem('insectTeased', v.teased);
         } 
-       else if (k === 'fishStats') {
+        else if (k === 'fishStats') {
             s.setItem('fishCaught', v.caught);
             s.setItem('fishSpared', v.spared); 
         }
@@ -281,7 +271,8 @@ userId: localStorage.getItem('userId') || (typeof crypto !== 'undefined' && cryp
         else if (k === 'lastMosquitoSpawn') s.setItem(k, v);
         else s.setItem(k, v);
     },
-    // ... keep unlockBadge, incrementVote, etc. as they were ...
+    
+    // ... Any other existing methods (unlockBadge, etc.) go here ...
     unlockBadge(n) {
         if (this.data.badges[n]) return;
         this.data.badges[n] = true;
@@ -293,7 +284,6 @@ userId: localStorage.getItem('userId') || (typeof crypto !== 'undefined' && cryp
         localStorage.setItem('voteCount', this.data.voteCount);
         if (this.data.voteCount >= 1000) this.unlockBadge('judge');
     },
-
     incrementContributor() {
         this.data.contributorCount++;
         localStorage.setItem('contributorCount', this.data.contributorCount);
@@ -309,6 +299,7 @@ userId: localStorage.getItem('userId') || (typeof crypto !== 'undefined' && cryp
     }
 };
 
+// --- OFFLINE MANAGER (Defined Outside State) ---
 const OfflineManager = {
     CACHE_TARGET: 500,
 
@@ -658,33 +649,39 @@ const MosquitoManager = {
         if (Math.random() > 0.3) return; 
         this.init();
     },
-// CORRECT CODE for MosquitoManager
-spawnStuck(typeChar) {
-    if (this.el) this.remove(); 
 
-    this.type = typeChar || '🦟';
-    this.config = this.TYPES[this.type] || this.TYPES['🦟'];
-    
-    this.el = document.createElement('div');
-    this.el.textContent = this.type;
-    this.el.className = 'mosquito-entity';
+    spawnStuck(typeChar) {
+        if (this.el) this.remove(); 
 
-    document.body.appendChild(this.el);
+        this.type = typeChar || '🦟';
+        this.config = this.TYPES[this.type] || this.TYPES['🦟'];
+        
+        this.el = document.createElement('div');
+        this.el.textContent = this.type;
+        this.el.className = 'mosquito-entity';
+        
+        this.x = 88; 
+        this.y = 20; 
 
+        Object.assign(this.el.style, {
+            position: 'fixed', 
+            fontSize: '1.8rem', 
+            zIndex: '100',
+            left: this.x + '%', 
+            top: this.y + '%',
+            transform: 'translate(-50%, -50%)', // Center it
+            filter: 'drop-shadow(1px 2px 3px rgba(0,0,0,0.5))'
+        });
 
-    this.el.onclick = (e) => {
-        e.stopPropagation();
-        UIManager.showPostVoteMessage("It's stuck in the web!"); 
-    };
-
-    this.state = 'stuck';
-    
-    setTimeout(() => {
-        if (State.data.currentTheme === 'halloween') {
-            Effects.spiderHunt(this.x, this.y, true);
-        }
-    }, 100);
-},
+        document.body.appendChild(this.el);
+        this.state = 'stuck';
+        
+        setTimeout(() => {
+            if (State.data.currentTheme === 'halloween') {
+                Effects.spiderHunt(this.x, this.y, true);
+            }
+        }, 100);
+    },
 
     init() {
         if (this.el) this.remove();
@@ -762,11 +759,8 @@ spawnStuck(typeChar) {
         if (this.config.badge) State.unlockBadge(this.config.badge);
         if (State.data.insectStats.saved >= 100) State.unlockBadge('saint');
         
-   // Safe access to dialogue
-const msg = (typeof GAME_DIALOGUE !== 'undefined' && GAME_DIALOGUE.insects && GAME_DIALOGUE.insects[this.type]) 
-    ? GAME_DIALOGUE.insects[this.type] 
-    : "Saved!";
-UIManager.showPostVoteMessage(msg);
+        const msg = GAME_DIALOGUE.insects[this.type] || "Saved!";
+        UIManager.showPostVoteMessage(msg);
 
         const bubble = document.createElement('div');
         bubble.textContent = "Thank you! 💖";
@@ -1023,10 +1017,10 @@ const API = {
             if (!listResponse.ok) throw new Error("Missing kids file");
             const listText = await listResponse.text();
             const safeList = new Set(listText.split('\n').map(l => l.trim().toUpperCase()).filter(l => l.length > 0));
+            
             const allWords = await this.fetchWords(); 
-            if (!allWords) return [{ _id: 'err', text: 'Network Error', goodVotes: 0, badVotes: 0 }];
+            
             const safeWords = allWords.filter(w => safeList.has(w.text.toUpperCase()));
-
             if (safeWords.length === 0) return [{ _id: 'temp', text: 'No Matching Words', goodVotes: 0, badVotes: 0 }];
             return safeWords;
         } catch (e) {
@@ -1104,13 +1098,10 @@ const ThemeManager = {
         this.populateChooser();
         this.apply(State.data.currentTheme)
     },
-populateChooser() {
-        const c = DOM.theme.chooser;
-        if (!c) return; // <--- ✅ SAFETY CHECK: Stops crash if HTML is missing
-
+    populateChooser() {
         const u = State.data.unlockedThemes,
-            a = [...new Set(u)].sort();
-            
+            a = [...new Set(u)].sort(),
+            c = DOM.theme.chooser;
         c.innerHTML = '<option value="default">Default</option>';
         a.forEach(t => {
             const o = document.createElement('option');
@@ -2444,34 +2435,32 @@ const UIManager = {
     updateStats() {
         const w = State.runtime.allWords;
         if (!w.length) return;
-
-        // --- ✅ FIX: Check existence before setting text ---
-        if (DOM.header.streak) DOM.header.streak.textContent = State.data.daily.streak;
-        if (DOM.header.userVotes) DOM.header.userVotes.textContent = State.data.voteCount.toLocaleString();
+        
+        DOM.header.streak.textContent = State.data.daily.streak;
+        DOM.header.userVotes.textContent = State.data.voteCount.toLocaleString();
         
         const totalGood = w.reduce((a, b) => a + (b.goodVotes || 0), 0);
         const totalBad = w.reduce((a, b) => a + (b.badVotes || 0), 0);
         const globalTotal = totalGood + totalBad;
 
-        if (DOM.header.globalVotes) DOM.header.globalVotes.textContent = globalTotal.toLocaleString();
-        if (DOM.header.totalWords) DOM.header.totalWords.textContent = w.length.toLocaleString();
-        if (DOM.header.good) DOM.header.good.textContent = totalGood.toLocaleString();
-        if (DOM.header.bad) DOM.header.bad.textContent = totalBad.toLocaleString();
+        DOM.header.globalVotes.textContent = globalTotal.toLocaleString();
+        DOM.header.totalWords.textContent = w.length.toLocaleString();
+        DOM.header.good.textContent = totalGood.toLocaleString();
+        DOM.header.bad.textContent = totalBad.toLocaleString();
 
         // --- GRAPH LOGIC ---
         if (globalTotal > 0) {
             const goodPct = (totalGood / globalTotal) * 100;
             const badPct = 100 - goodPct; 
 
-            if (DOM.header.barGood) DOM.header.barGood.style.width = `${goodPct}%`;
-            if (DOM.header.barBad) DOM.header.barBad.style.width = `${badPct}%`;
+            DOM.header.barGood.style.width = `${goodPct}%`;
+            DOM.header.barBad.style.width = `${badPct}%`;
         } else {
-            if (DOM.header.barGood) DOM.header.barGood.style.width = '50%';
-            if (DOM.header.barBad) DOM.header.barBad.style.width = '50%';
+            DOM.header.barGood.style.width = '50%';
+            DOM.header.barBad.style.width = '50%';
         }
         this.renderMiniRankings();
     },
-  
     updateProfileDisplay() {
         const n = State.data.username;
         const p = State.data.profilePhoto; 
@@ -2505,26 +2494,6 @@ const UIManager = {
         DOM.profile.streak.textContent = d.daily.streak;
         DOM.profile.totalVotes.textContent = d.voteCount.toLocaleString();
         DOM.profile.contributions.textContent = d.contributorCount.toLocaleString();
-
-        let streakBtn = document.getElementById('highScoreBtn');
-        if (!streakBtn && DOM.profile.badges) {
-            const wrapper = document.createElement('div');
-            wrapper.className = "w-full flex justify-center mt-4 mb-2";
-            wrapper.innerHTML = `
-                <div id="highScoreBtn" class="bg-indigo-50 border border-indigo-100 rounded-xl p-3 px-6 flex items-center gap-3 cursor-pointer hover:bg-indigo-100 transition shadow-sm">
-                    <span class="text-2xl">⚡</span>
-                    <div class="text-left">
-                        <div class="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Longest Streak</div>
-                        <div class="text-xl font-black text-indigo-700" id="profileBestStreak">0</div>
-                    </div>
-                </div>
-            `;
-            // Insert before Badges section
-            DOM.profile.badges.before(wrapper);
-            document.getElementById('highScoreBtn').onclick = () => HighScoreManager.showLeaderboard();
-        }
-        const bs = document.getElementById('profileBestStreak');
-        if (bs) bs.textContent = (d.bestStreak || 0).toLocaleString();
         
         // --- KARMA TITLE LOGIC ---
         const saved = d.insectStats.saved;
@@ -2544,45 +2513,51 @@ const UIManager = {
         const totalAvailable = Object.keys(CONFIG.THEME_SECRETS).length + 1;
         const userCount = d.unlockedThemes.length + 1;
         DOM.profile.themes.textContent = `${userCount} / ${totalAvailable}`;
-
-const row1 = [
-            {k:'cake', i:'🍰', t:'The Cake', d:'The cake is a lie!', w:'CAKE'},
-            {k:'llama', i:'🦙', t:'Drama Llama', d:'Found the secret llama', w:'LLAMA'},
-            {k:'potato', i:'🥔', t:'Spud', d:'Found the hidden potato', w:'POTATO'},
-            {k:'squirrel', i:'🐿️', t:'Nutty', d:'Found the squirrel', w:'SQUIRREL'},
-            {k:'spider', i:'🕷️', t:'Web Spinner', d:'Teased the spider', w:'SPIDER'},
-            {k:'germ', i:'🦠', t:'Patient Zero', d:'Found a germ in the ballpit', w:'GERM'},
-            {k:'bone', i:'🦴', t:'Archaeologist', d:'Found the hidden bone', w:'MASON'}
+        
+        // --- BADGE DEFINITIONS ---
+        const row1 = [
+            { k: 'cake', i: '🎂', w: 'CAKE' }, 
+            { k: 'llama', i: '🦙', w: 'LLAMA' }, 
+            { k: 'potato', i: '🥔', w: 'POTATO' }, 
+            { k: 'squirrel', i: '🐿️', w: 'SQUIRREL' }, 
+            { k: 'spider', i: '🕷️', w: 'SPIDER' }, 
+            { k: 'germ', i: '🦠', w: 'GERM' }, 
+            { k: 'bone', i: '🦴', w: 'MASON' }
         ];
+        
         const row2 = [
-            {k:'poop', i:'💩', t:'Oops', d:'Found this in the ballpit'},
-            {k:'penguin', i:'🐧', t:'Lost Bird', d:'Found a penguin in the ballpit'},
-            {k:'scorpion', i:'🦂', t:'Stinger', d:'Found a scorpion in the ballpit'},
-            {k:'mushroom', i:'🍄', t:'Fungi', d:'Found a mushroom in the ballpit'},
-            {k:'needle', i:'💉', t:'Ouch', d:'Found a needle in the ballpit'},
-            {k:'diamond', i:'💎', t:'Riches', d:'Found a diamond in the ballpit'},
-            {k:'rock', i:'🤘', t:'Space Rock', d:'Found the rock in space'},
-            {k:'chopper', i:'🚁', t:'Get to the Chopper', d:'Spotted the rare helicopter'},
-            {k:'snowman', i:'⛄', t:'Frosty', d:'Built a snowman'}
+            { k: 'poop', i: '💩', d: 'squelch.' }, 
+            { k: 'penguin', i: '🐧', d: 'noot noot!' }, 
+            { k: 'scorpion', i: '🦂', d: 'I am in your tent.' }, 
+            { k: 'mushroom', i: '🍄', d: 'edible once.' }, 
+            { k: 'needle', i: '💉', d: 'wheedle, wheedle, pry and needle' }, 
+            { k: 'diamond', i: '💎', d: 'hidden Gem.' },
+            { k: 'rock', i: '🤘', d: 'space rock!' }, 
+            { k: 'chopper', i: '🚁', d: 'Get to the choppa!' }, 
+            { k: 'snowman', i: '⛄', d: "# We're walking in the air..." }
         ];
+        
+        // --- UPDATED FISH ROW WITH DESCRIPTIONS ---
         const row_fish = [
-            {k:'fish', i:'🐟', t:'Glub Glub', d:'Caught a fish'},
-            {k:'tropical', i:'🐠', t:'Tropical', d:'Caught a tropical fish'},
-            {k:'puffer', i:'🐡', t:'Pokey', d:'Caught a pufferfish'},
-            {k:'shark', i:'🦈', t:'Jaws', d:'Caught a shark'},
-            {k:'octopus', i:'🐙', t:'Ink Master', d:'Caught an octopus'}
+            { k: 'fish', i: '🐟', t: 'Blue Fish', d: 'A standard catch.' }, 
+            { k: 'tropical', i: '🐠', t: 'Tropical Fish', d: 'Found in the deep.' }, 
+            { k: 'puffer', i: '🐡', t: 'Pufferfish', d: 'Spiky friend.' }, 
+            { k: 'shark', i: '🦈', t: 'Shark', d: 'Gonna need a bigger boat.' },
+            { k: 'octopus', i: '🐙', t: 'The Kraken', d: 'Ink-credible!' }
         ];
+        
         const row3 = [
-            {k:'exterminator', i:'🚫', t:'Exterminator', d:'Fed 100 bugs to the spider'},
-            {k:'saint', i:'😇', t:'Saint', d:'Saved 100 bugs'},
-            {k:'prankster', i:'🃏', t:'Prankster', d:'Teased the spider 50 times'},
-            {k:'judge', i:'⚖️', t:'The Judge', d:'Voted 1,000 times'},
-            {k:'bard', i:'🎭', t:'The Bard', d:'Submitted 5 new words'},
-            {k:'traveler', i:'🌍', t:'Time Traveler', d:'Unlocked 5 themes'},
-            {k:'angler', i:'🎣', t:'Master Angler', d:'Caught 250 fish'},
-            {k:'shepherd', i:'🐑', t:'Fish Shepherd', d:'Let 250 fish go'}
+            { k: 'exterminator', i: '☠️', t: 'The Exterminator', d: 'Fed 100 bugs to the spider' }, 
+            { k: 'saint', i: '😇', t: 'The Saint', d: 'Saved 100 bugs from the web' }, 
+            { k: 'prankster', i: '🃏', t: 'Original Prankster', d: 'Teased the spider 50 times' },
+            { k: 'judge', i: '⚖️', t: 'The Judge', d: 'Cast 1,000 votes!' },
+            { k: 'bard', i: '✍️', t: 'The Bard', d: 'Contributed 5 accepted words' },
+            { k: 'traveler', i: '🌍', t: 'The Traveller', d: 'Unlocked 5 different themes' },
+            { k: 'angler', i: '🔱', t: 'The Best in Brixham', d: 'Caught 250 fish' },
+			{ k: 'shepherd', i: '🛟', t: 'Sea Shepherd', d: 'Chose to let 250 fish swim away safely' }
         ];
 
+        // Helper to render badges
         const renderRow = (list) => `<div class="flex flex-wrap justify-center gap-3 text-3xl w-full">` + list.map(x => {
             const un = d.badges[x.k];
             // Format a default title from the key (e.g., "cake" -> "Cake")
@@ -2656,8 +2631,9 @@ const row1 = [
         };
 
         // --- ATTACH LISTENERS ---
-b.querySelectorAll('.badge-item').forEach(el => {
-    // (The bad code is deleted from here)
+        b.querySelectorAll('.badge-item').forEach(el => {
+            el.onclick = (e) => {
+                e.stopPropagation();
                 const isLocked = el.classList.contains('grayscale');
                 
                 if (isLocked) {
@@ -2676,26 +2652,21 @@ b.querySelectorAll('.badge-item').forEach(el => {
                 }
             }
         });
-// Efficient Delegation
-        const jarContainer = document.getElementById('jar-container');
-        if (jarContainer) {
-            jarContainer.onclick = (e) => {
-                if (e.target.classList.contains('jar-bug')) {
-                    e.stopPropagation();
-                    if (State.data.currentTheme !== 'halloween') {
-
-                        UIManager.showPostVoteMessage("Visit the Halloween theme to feed the spider!");
-                        return;
-                    }
-                    ModalManager.toggle('profile', false);
-                    State.data.insectStats.saved = Math.max(0, State.data.insectStats.saved - 1);
-                    State.save('insectStats', State.data.insectStats);
-                    if (typeof MosquitoManager !== 'undefined') MosquitoManager.spawnStuck('🦟');
-                    UIManager.showPostVoteMessage("Feeding time! 🕷️");
+        const jarBugs = b.querySelectorAll('.jar-bug');
+        jarBugs.forEach(bug => {
+            bug.onclick = (e) => {
+                e.stopPropagation();
+                if (State.data.currentTheme !== 'halloween') {
+                    showTooltip(bug, "Spider Missing", "Please visit the spider on the Halloween theme to feed");
+                    return;
                 }
+                ModalManager.toggle('profile', false);
+                State.data.insectStats.saved = Math.max(0, State.data.insectStats.saved - 1);
+                State.save('insectStats', State.data.insectStats);
+                if (typeof MosquitoManager !== 'undefined') MosquitoManager.spawnStuck('🦟');
+                UIManager.showPostVoteMessage("Feeding time! 🕷️");
             };
-        }
-
+        });
         ModalManager.toggle('profile', true);
     },
     displayWord(w) {
@@ -3225,7 +3196,6 @@ const ModalManager = {
         DOM.game.wordDisplay.onclick = () => Game.showDefinition();
         const shareBtn = document.getElementById('shareWordButton');
         if (shareBtn) {
-            shareBtn.style.marginBottom = "10px";
             shareBtn.onclick = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -3316,15 +3286,12 @@ const ModalManager = {
             };
             reader.readAsDataURL(file);
         };
-   
+        
         Object.keys(DOM.modals).forEach(k => {
-            const el = DOM.modals[k];
-            if (el) { 
-                el.style.zIndex = '150'; 
-                el.addEventListener('click', e => {
-                    if (e.target === el) this.toggle(k, false);
-                });
-            }
+            DOM.modals[k].style.zIndex = '150'; 
+            DOM.modals[k].addEventListener('click', e => {
+                if (e.target === DOM.modals[k]) this.toggle(k, false);
+            });
         });
     }
 };
@@ -3512,158 +3479,6 @@ const ContactManager = {
 };
 window.ContactManager = ContactManager;
 
-const HighScoreManager = {
-    STREAK_THRESHOLD: 5, 
-    TIME_WINDOW: 5000,   // 5 Seconds
-    
-    // --- NEW: Encouragement Phrases ---
-    phrases: [
-        "On Fire! 🔥", "Unstoppable! 🚀", "Crushing it! 💪", 
-        "In the zone! 🎯", "Don't stop! ⚡", "Great Rhythm! 🎵", 
-        "Speedy! 🏎️", "Perfect! ⭐", "Keep going! 🏃"
-    ],
-
-    init() {
-        if (document.getElementById('nameEntryModal')) return;
-        
-        // 1. Floating Streak Counter (Visual)
-        const float = document.createElement('div');
-        float.id = 'streakFloater';
-        float.className = 'fixed top-[18%] left-1/2 transform -translate-x-1/2 bg-orange-600 text-white font-black py-1 px-4 rounded-full shadow-[0_0_15px_rgba(234,88,12,0.6)] z-[50] opacity-0 pointer-events-none transition-all duration-300 scale-50 border-2 border-yellow-300';
-        float.innerHTML = '<span class="text-xl mr-2">🔥</span><span id="streakFloatNum" class="text-2xl">0</span>';
-        document.body.appendChild(float);
-
-        // 2. Name Entry Modal (Retro Style)
-        const entryEl = document.createElement('div');
-        entryEl.id = 'nameEntryModal';
-        entryEl.className = 'fixed inset-0 bg-black bg-opacity-90 z-[200] hidden flex items-center justify-center font-mono';
-        entryEl.innerHTML = `
-            <div class="bg-gray-900 border-4 border-green-500 rounded-lg p-8 w-full max-w-sm mx-4 text-center shadow-[0_0_20px_rgba(34,197,94,0.6)]">
-                <h3 class="text-3xl font-bold text-green-500 mb-2 uppercase tracking-widest animate-pulse">New High Score!</h3>
-                <div class="text-white text-xl mb-6">SCORE: <span id="newScoreDisplay" class="text-yellow-400 font-bold">0</span></div>
-                <p class="text-green-400 text-xs mb-4 uppercase">Enter Initials</p>
-                <input type="text" id="initialsInput" maxlength="3" class="bg-black text-white text-4xl font-bold text-center w-32 border-b-4 border-green-500 focus:outline-none focus:border-yellow-400 uppercase tracking-[0.5em] mb-8" autocomplete="off">
-                <button onclick="HighScoreManager.submitScore()" class="w-full py-3 bg-green-600 text-black font-bold uppercase hover:bg-green-500 transition-colors">Enter</button>
-            </div>`;
-        document.body.appendChild(entryEl);
-
-        // 3. Leaderboard Modal
-        const listEl = document.createElement('div');
-        listEl.id = 'leaderboardModal';
-        listEl.className = 'fixed inset-0 bg-gray-900 bg-opacity-95 z-[200] hidden flex items-center justify-center';
-        listEl.innerHTML = `
-            <div class="bg-white rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-2xl font-bold text-gray-800">🏆 Top Streaks</h3>
-                    <button onclick="document.getElementById('leaderboardModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600">✕</button>
-                </div>
-                <div id="highScoreList" class="space-y-2 mb-6"></div>
-                <div class="text-center text-xs text-gray-400">Keep the rhythm. Don't stop voting.</div>
-            </div>`;
-        document.body.appendChild(listEl);
-
-        document.getElementById('initialsInput').addEventListener('input', function() {
-            this.value = this.value.toUpperCase();
-        });
-    },
-
-    // --- NEW: Visual Handlers ---
-    updateVisual(n) {
-        const el = document.getElementById('streakFloater');
-        const num = document.getElementById('streakFloatNum');
-        if (!el || !num) return;
-
-        // Show/Update
-        el.classList.remove('opacity-0', 'scale-50');
-        el.classList.add('opacity-100', 'scale-100');
-        num.textContent = n;
-        
-        // Pulse Animation
-        el.style.transform = 'translateX(-50%) scale(1.2)';
-        setTimeout(() => el.style.transform = 'translateX(-50%) scale(1)', 100);
-    },
-
-    hideVisual() {
-        const el = document.getElementById('streakFloater');
-        if (el) {
-            el.classList.add('opacity-0', 'scale-50');
-            el.classList.remove('opacity-100', 'scale-100');
-        }
-    },
-    
-    getEncouragement() {
-        return this.phrases[Math.floor(Math.random() * this.phrases.length)];
-    },
-    // ----------------------------
-
-    check(finalScore) {
-        // Always hide visual when check() is called (streak broken)
-        this.hideVisual();
-
-        if (finalScore < this.STREAK_THRESHOLD) return;
-        
-        // Notify user streak ended
-        UIManager.showPostVoteMessage(`Streak Ended. Final Score: ${finalScore} 🏁`);
-
-        if (finalScore > State.data.bestStreak) {
-            State.save('bestStreak', finalScore);
-            // Delay slightly so it doesn't override the "Streak Ended" message immediately
-            setTimeout(() => UIManager.showPostVoteMessage(`🔥 New Personal Best: ${finalScore}!`), 1500);
-        }
-        
-        const scores = State.data.highScores;
-        const lowestTop = scores.length < 5 ? 0 : scores[scores.length - 1].score;
-        if (finalScore > lowestTop) {
-            this.promptName(finalScore);
-        }
-    },
-
-    promptName(score) {
-        this.pendingScore = score;
-        document.getElementById('newScoreDisplay').textContent = score;
-        document.getElementById('initialsInput').value = '';
-        document.getElementById('nameEntryModal').classList.remove('hidden');
-        document.getElementById('initialsInput').focus();
-    },
-
-    submitScore() {
-        const initials = document.getElementById('initialsInput').value.trim().substring(0, 3) || 'AAA';
-        const newEntry = { name: initials, score: this.pendingScore, date: Date.now() };
-        let scores = [...State.data.highScores, newEntry];
-        scores.sort((a, b) => b.score - a.score);
-        scores = scores.slice(0, 5);
-        State.save('highScores', scores);
-        document.getElementById('nameEntryModal').classList.add('hidden');
-        UIManager.showPostVoteMessage("High Score Saved! 💾");
-        this.showLeaderboard();
-    },
-
-    showLeaderboard() {
-        const container = document.getElementById('highScoreList');
-        const scores = State.data.highScores;
-        if (scores.length === 0) {
-            container.innerHTML = '<div class="text-center text-gray-500 py-4">No high scores yet.<br>Vote fast to start a streak!</div>';
-        } else {
-            let html = '';
-            scores.forEach((s, i) => {
-                const medal = i === 0 ? '🥇' : (i === 1 ? '🥈' : (i === 2 ? '🥉' : `${i+1}.`));
-                const bg = i === 0 ? 'bg-yellow-50 border-yellow-200' : 'bg-gray-50 border-gray-100';
-                html += `
-                    <div class="flex justify-between items-center p-3 rounded-lg border ${bg}">
-                        <div class="flex items-center gap-3">
-                            <span class="font-bold text-lg w-6 text-center">${medal}</span>
-                            <span class="font-mono font-bold text-xl tracking-wider text-gray-800">${s.name}</span>
-                        </div>
-                        <div class="font-black text-indigo-600 text-xl">${s.score}</div>
-                    </div>`;
-            });
-            container.innerHTML = html;
-        }
-        document.getElementById('leaderboardModal').classList.remove('hidden');
-    }
-};
-window.HighScoreManager = HighScoreManager;
-
 // --- MAIN GAME LOGIC ---
 const Game = {
     cleanStyles(e) {
@@ -3675,135 +3490,249 @@ const Game = {
         e.style.filter = 'none';
         e.style.color = ''
     },
-async init() {
-        DOM = getDOM();
+    async init() {
         Accessibility.apply();
-        this.updateLights();
-        UIManager.updateOfflineIndicator();
+		this.updateLights();
+		UIManager.updateOfflineIndicator();
+        DOM.general.version.textContent = `v${CONFIG.APP_VERSION} | Made by Gilxs in 12,025`;
+        DOM.game.buttons.good.onclick = () => this.vote('good');
+        DOM.game.buttons.bad.onclick = () => this.vote('bad');
+        DOM.game.buttons.notWord.onclick = () => this.vote('notWord');
+        // [ADD THIS LISTENER]
+    if (DOM.profile.streak) {
+        DOM.profile.streak.style.cursor = 'pointer';
+        DOM.profile.streak.onclick = () => {
+            Haptics.light();
+            HighScoreManager.toggleProfileView();
+        };
+        // Also add a visual hint
+        DOM.profile.streak.parentElement.setAttribute('title', 'Tap to view High Scores');
+    }
+}
+
+const HighScoreManager = {
+    check(score) {
+        if (score < 5) return; 
+        const scores = State.data.highScores || [];
+        // Check if list is not full OR score beats the lowest
+        if (scores.length < 5 || score > scores[scores.length - 1].score) {
+            this.promptName(score);
+        }
+    },
+
+    promptName(score) {
+        const div = document.createElement('div');
+        div.className = "fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 backdrop-blur-sm";
+        div.innerHTML = `
+            <div class="bg-gray-900 border-4 border-indigo-500 rounded-xl p-8 max-w-sm w-full text-center shadow-[0_0_50px_rgba(79,70,229,0.5)] transform scale-100 transition-all">
+                <div class="text-4xl mb-2">🏆</div>
+                <h2 class="text-2xl font-black text-white uppercase tracking-wider mb-1">New High Score!</h2>
+                <p class="text-indigo-400 font-bold text-xl mb-6">${score} Words</p>
+                <div class="mb-6">
+                    <label class="block text-gray-500 text-xs font-bold uppercase mb-2">Enter Initials</label>
+                    <input type="text" id="hsNameInput" maxlength="3" 
+                        class="bg-gray-800 text-white text-4xl font-mono text-center tracking-[0.5em] w-full p-4 rounded-lg border-2 border-gray-700 focus:border-indigo-500 focus:outline-none uppercase"
+                        placeholder="_ _ _" autocomplete="off">
+                </div>
+                <button id="hsSaveBtn" class="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase tracking-widest rounded-lg shadow-lg transition-transform active:scale-95">
+                    Save Record
+                </button>
+            </div>
+        `;
+        document.body.appendChild(div);
+
+        const input = document.getElementById('hsNameInput');
+        const btn = document.getElementById('hsSaveBtn');
+        input.focus();
         
-        // 1. Safe Version Check
-        if (DOM.general.version) {
-            DOM.general.version.textContent = `v${CONFIG.APP_VERSION} | Made by Gilxs in 12,025`;
+        input.oninput = (e) => {
+            e.target.value = e.target.value.toUpperCase().replace(/[^A-Z]/g, '');
+        };
+
+        const save = () => {
+            const name = input.value || 'AAA';
+            this.save(name, score);
+            div.remove();
+            UIManager.openProfile(); // Ensure profile is open
+            // Short delay to allow modal to open before toggling view
+            setTimeout(() => {
+                 if (!DOM.profile.streak.classList.contains('showing-scores')) {
+                    this.toggleProfileView();
+                 }
+            }, 100);
+        };
+
+        btn.onclick = save;
+        input.onkeydown = (e) => { if(e.key === 'Enter') save(); };
+    },
+
+    save(name, score) {
+        const scores = State.data.highScores || [];
+        scores.push({ name, score, date: Date.now() });
+        scores.sort((a, b) => b.score - a.score);
+        if (scores.length > 5) scores.length = 5;
+        
+        State.save('highScores', scores);
+        UIManager.showPostVoteMessage("High Score Saved!");
+    },
+
+    renderList() {
+        const scores = State.data.highScores || [];
+        if (scores.length === 0) return '<div class="text-center text-gray-400 italic py-4">No records yet. Be the first!</div>';
+        
+        let html = '<div class="space-y-2">';
+        scores.forEach((s, i) => {
+            const colors = ['text-yellow-500', 'text-gray-400', 'text-orange-400', 'text-gray-600', 'text-gray-600'];
+            const medal = i < 3 ? ['👑', '🥈', '🥉'][i] : (i+1)+'.';
+            html += `
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
+                    <div class="flex items-center gap-3">
+                        <span class="font-black text-xl w-8 text-center ${colors[i]}">${medal}</span>
+                        <span class="font-mono text-lg font-bold text-gray-800 tracking-wider">${s.name}</span>
+                    </div>
+                    <span class="font-black text-indigo-600">${s.score}</span>
+                </div>
+            `;
+        });
+        html += '</div>';
+        return html;
+    },
+
+    toggleProfileView() {
+        const streakEl = DOM.profile.streak;
+        if (!streakEl) return;
+        
+        const container = streakEl.closest('.p-4') || streakEl.parentElement.parentElement;
+        const isShowingScores = streakEl.classList.toggle('showing-scores');
+        
+        let listContainer = document.getElementById('highScoreList');
+        if (!listContainer) {
+            listContainer = document.createElement('div');
+            listContainer.id = "highScoreList";
+            listContainer.className = "mt-4 hidden animate-fade-in";
+            // Append to the main container wrapper
+            if(container.parentElement) container.parentElement.appendChild(listContainer);
         }
 
-        // 2. Safe Button Attachments
-        if (DOM.game.buttons.good) DOM.game.buttons.good.onclick = () => this.vote('good');
-        if (DOM.game.buttons.bad) DOM.game.buttons.bad.onclick = () => this.vote('bad');
-        if (DOM.game.buttons.notWord) DOM.game.buttons.notWord.onclick = () => this.vote('notWord');
-        if (DOM.game.dailyBanner) DOM.game.dailyBanner.onclick = () => this.activateDailyMode();
+        // Hide/Show the stats grid
+        const statsGrid = document.getElementById('userStatsBar')?.nextElementSibling || container.querySelector('.grid');
         
-        // 3. Submit Word Listener
-        const submitBtn = document.getElementById('submitWordButton');
-        if (submitBtn) {
-            submitBtn.onclick = async () => {
-                const t = DOM.inputs.newWord.value.trim();
-                if (!t || t.includes(' ') || t.length > 45) {
-                    DOM.inputs.modalMsg.textContent = "Invalid word.";
-                    return;
-                }
-                submitBtn.disabled = true;
-                try {
-                    const r = await API.submitWord(t);
-                    if (r.status === 201) {
-                        State.incrementContributor();
-                        DOM.inputs.modalMsg.textContent = "Success! Your new word has been added!";
-                        setTimeout(() => {
-                            ModalManager.toggle('submission', false);
-                            this.refreshData();
-                        }, 1000);
-                    } else {
-                        const d = await r.json();
-                        DOM.inputs.modalMsg.textContent = d.message || "Error";
-                    }
-                } catch (e) {
-                    DOM.inputs.modalMsg.textContent = "Network Error";
-                }
-                submitBtn.disabled = false;
-            };
+        if (isShowingScores) {
+            if(statsGrid) statsGrid.style.display = 'none';
+            listContainer.innerHTML = `
+                <div class="p-4 bg-white rounded-2xl shadow-sm border border-gray-100 mx-4 mb-4">
+                    <h3 class="text-center font-black text-gray-300 uppercase tracking-widest text-xs mb-4">Hall of Fame</h3>
+                    ${this.renderList()}
+                    <p class="text-center text-xs text-gray-400 mt-4 cursor-pointer hover:text-indigo-500" onclick="HighScoreManager.toggleProfileView()">(Tap Streak to return)</p>
+                </div>
+            `;
+            listContainer.classList.remove('hidden');
+        } else {
+            if(statsGrid) statsGrid.style.display = 'grid';
+            listContainer.classList.add('hidden');
         }
+    }
+};
 
-        // 4. Comparison Listener
-        const compareBtn = document.getElementById('runComparisonButton');
-        if (compareBtn) {
-            compareBtn.onclick = async () => {
-                const w1 = DOM.inputs.wordOne.value.trim(),
-                    w2 = DOM.inputs.wordTwo.value.trim();
-                if (!w1 && !w2) {
-                    DOM.inputs.compareResults.innerHTML = '<span class="text-red-500">Please enter at least one word.</span>';
-                    return;
-                }
-                DOM.inputs.compareResults.innerHTML = '<span class="text-gray-500 animate-pulse">Analyzing words...</span>';
-                const gd = async w => {
-                    if (w.includes(' ') || w.length > 45) return { t: w, valid: false, err: 'Invalid word.' };
-                    const e = State.runtime.allWords.find(x => x.text.toUpperCase() === w.toUpperCase());
-                    if (e) return { t: e.text, valid: true, exists: true, d: e };
-                    const r = await API.submitWord(w);
-                    if (r.status === 201) {
-                        State.incrementContributor();
-                        return { t: w.toUpperCase(), valid: true, exists: false, isNew: true };
-                    }
-                    return { t: w, valid: false, err: 'Could not fetch data.' };
-                };
-                const res = [];
-                if (w1) res.push(await gd(w1));
-                if (w2) res.push(await gd(w2));
-                if (res.some(r => r.isNew)) this.refreshData(false);
-                if (res.some(r => !r.valid)) {
-                    DOM.inputs.compareResults.innerHTML = res.map(r => !r.valid ? `<p class="text-red-500 mb-2"><strong>${r.t}</strong>: ${r.err}</p>` : '').join('');
-                    return;
-                }
-                const st = res.map(r => {
-                    if (r.isNew) return { text: r.t.toUpperCase(), score: 0, good: 0, bad: 0, total: 0, approval: 0, isNew: true };
-                    const g = r.d.goodVotes || 0,
-                        b = r.d.badVotes || 0,
-                        t = g + b;
-                    return {
-                        text: r.t.toUpperCase(),
-                        score: g - b,
-                        good: g,
-                        bad: b,
-                        total: t,
-                        approval: t > 0 ? Math.round((g / t) * 100) : 0,
-                        isNew: false
-                    };
-                });
-                let h = '';
-                if (st.length === 2) {
-                    const [s1, s2] = st;
-                    let wi = -1;
-                    if (s1.score !== s2.score) wi = s1.score > s2.score? 0 : 1;
-                    h = `<div class="flex flex-col md:flex-row gap-4 w-full justify-center items-stretch">`;
-                    st.forEach((s, i) => {
-                        const iw = i === wi,
-                            il = wi !== -1 && !iw,
-                            bc = iw ? 'border-yellow-400 bg-yellow-50 shadow-xl scale-105 z-10' : 'border-gray-200 bg-white',
-                            oc = il ? 'opacity-70 grayscale-[0.3]' : '';
-                        h += `<div class="flex-1 p-4 rounded-xl border-2 ${bc} ${oc} flex flex-col items-center transition-all duration-300">${iw?'<div class="text-2xl mb-2">🏆</div>':'<div class="h-8 mb-2"></div>'}<h3 class="text-xl font-black text-gray-800 mb-1">${s.text}</h3>${iw?'<span class="bg-yellow-400 text-white text-[10px] font-bold px-2 py-0.5 rounded-full mb-2">WINNER</span>':''}${s.isNew?'<span class="bg-purple-100 text-purple-600 text-xs px-2 py-1 rounded mb-2">New!</span>':''}<div class="text-3xl font-bold ${s.score>=0?'text-green-600':'text-red-600'} mb-4">${s.score}</div><div class="w-full space-y-2"><div class="flex justify-between text-xs text-gray-500"><span>Approval</span><span>${s.approval}%</span></div><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-blue-500 h-2.5 rounded-full" style="width: ${s.approval}%"></div></div><div class="flex justify-between text-xs pt-1"><span class="text-green-600 font-bold">+${s.good}</span><span class="text-red-600 font-bold">-${s.bad}</span></div></div></div>`;
-                        if (i === 0) h += `<div class="flex items-center justify-center font-black text-gray-300 md:px-2">VS</div>`;
-                    });
-                    h += '</div>';
+        DOM.game.dailyBanner.onclick = () => this.activateDailyMode();
+        document.getElementById('submitWordButton').onclick = async () => {
+            const t = DOM.inputs.newWord.value.trim();
+            if (!t || t.includes(' ') || t.length > 45) {
+                DOM.inputs.modalMsg.textContent = "Invalid word.";
+                return
+            }
+            const btn = document.getElementById('submitWordButton');
+            btn.disabled = true;
+            try {
+                const r = await API.submitWord(t);
+                if (r.status === 201) {
+                    State.incrementContributor();
+                    DOM.inputs.modalMsg.textContent = "Success! Your new word has been added!";
+                    setTimeout(() => {
+                        ModalManager.toggle('submission', false);
+                        this.refreshData()
+                    }, 1000)
                 } else {
-                    const s = st[0];
-                    h = `<div class="p-4 rounded-xl border border-gray-200 bg-white flex flex-col items-center w-full max-w-xs mx-auto"><h3 class="text-xl font-black text-gray-800 mb-2">${s.text}</h3>${s.isNew?'<span class="bg-purple-100 text-purple-600 text-xs px-2 py-1 rounded mb-2">Newly Added!</span>':''}<div class="text-4xl font-bold ${s.score>=0?'text-green-600':'text-red-600'} mb-4">${s.score}</div><div class="w-full space-y-2"><div class="flex justify-between text-xs text-gray-500"><span>Approval Rating</span><span>${s.approval}%</span></div><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-blue-500 h-2.5 rounded-full" style="width: ${s.approval}%"></div></div><div class="flex justify-between text-xs pt-1"><span class="text-green-600 font-bold">+${s.good} Votes</span><span class="text-red-600 font-bold">-${s.bad} Votes</span></div></div></div>`;
+                    const d = await r.json();
+                    DOM.inputs.modalMsg.textContent = d.message || "Error"
                 }
-                DOM.inputs.compareResults.innerHTML = h;
+            } catch (e) {
+                DOM.inputs.modalMsg.textContent = "Network Error"
+            }
+            btn.disabled = false
+        };
+        document.getElementById('runComparisonButton').onclick = async () => {
+            const w1 = DOM.inputs.wordOne.value.trim(),
+                w2 = DOM.inputs.wordTwo.value.trim();
+            if (!w1 && !w2) {
+                DOM.inputs.compareResults.innerHTML = '<span class="text-red-500">Please enter at least one word.</span>';
+                return
+            }
+            DOM.inputs.compareResults.innerHTML = '<span class="text-gray-500 animate-pulse">Analyzing words...</span>';
+            const gd = async w => {
+                if (w.includes(' ') || w.length > 45) return { t: w, valid: false, err: 'Invalid word.' };
+                const e = State.runtime.allWords.find(x => x.text.toUpperCase() === w.toUpperCase());
+                if (e) return { t: e.text, valid: true, exists: true, d: e };
+                const r = await API.submitWord(w);
+                if (r.status === 201) {
+                    State.incrementContributor();
+                    return { t: w.toUpperCase(), valid: true, exists: false, isNew: true }
+                }
+                return { t: w, valid: false, err: 'Could not fetch data.' }
             };
-        }
-
-        // 5. Theme Chooser & Other Listeners
-        if (DOM.theme.chooser) DOM.theme.chooser.onchange = e => ThemeManager.apply(e.target.value, true);
-        
-        const clearDataBtn = document.getElementById('clearAllDataButton');
-        if (clearDataBtn) clearDataBtn.onclick = State.clearAll;
-
+            const res = [];
+            if (w1) res.push(await gd(w1));
+            if (w2) res.push(await gd(w2));
+            if (res.some(r => r.isNew)) this.refreshData(false);
+            if (res.some(r => !r.valid)) {
+                DOM.inputs.compareResults.innerHTML = res.map(r => !r.valid ? `<p class="text-red-500 mb-2"><strong>${r.t}</strong>: ${r.err}</p>` : '').join('');
+                return
+            }
+            const st = res.map(r => {
+                if (r.isNew) return { text: r.t.toUpperCase(), score: 0, good: 0, bad: 0, total: 0, approval: 0, isNew: true };
+                const g = r.d.goodVotes || 0,
+                    b = r.d.badVotes || 0,
+                    t = g + b;
+                return {
+                    text: r.t.toUpperCase(),
+                    score: g - b,
+                    good: g,
+                    bad: b,
+                    total: t,
+                    approval: t > 0 ? Math.round((g / t) * 100) : 0,
+                    isNew: false
+                }
+            });
+            let h = '';
+            if (st.length === 2) {
+                const [s1, s2] = st;
+                let wi = -1;
+                if (s1.score !== s2.score) wi = s1.score > s2.score? 0 : 1;
+                h = `<div class="flex flex-col md:flex-row gap-4 w-full justify-center items-stretch">`;
+                st.forEach((s, i) => {
+                    const iw = i === wi,
+                        il = wi !== -1 && !iw,
+                        bc = iw ? 'border-yellow-400 bg-yellow-50 shadow-xl scale-105 z-10' : 'border-gray-200 bg-white',
+                        oc = il ? 'opacity-70 grayscale-[0.3]' : '';
+                    h += `<div class="flex-1 p-4 rounded-xl border-2 ${bc} ${oc} flex flex-col items-center transition-all duration-300">${iw?'<div class="text-2xl mb-2">🏆</div>':'<div class="h-8 mb-2"></div>'}<h3 class="text-xl font-black text-gray-800 mb-1">${s.text}</h3>${iw?'<span class="bg-yellow-400 text-white text-[10px] font-bold px-2 py-0.5 rounded-full mb-2">WINNER</span>':''}${s.isNew?'<span class="bg-purple-100 text-purple-600 text-xs px-2 py-1 rounded mb-2">New!</span>':''}<div class="text-3xl font-bold ${s.score>=0?'text-green-600':'text-red-600'} mb-4">${s.score}</div><div class="w-full space-y-2"><div class="flex justify-between text-xs text-gray-500"><span>Approval</span><span>${s.approval}%</span></div><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-blue-500 h-2.5 rounded-full" style="width: ${s.approval}%"></div></div><div class="flex justify-between text-xs pt-1"><span class="text-green-600 font-bold">+${s.good}</span><span class="text-red-600 font-bold">-${s.bad}</span></div></div></div>`;
+                    if (i === 0) h += `<div class="flex items-center justify-center font-black text-gray-300 md:px-2">VS</div>`
+                });
+                h += '</div>'
+            } else {
+                const s = st[0];
+                h = `<div class="p-4 rounded-xl border border-gray-200 bg-white flex flex-col items-center w-full max-w-xs mx-auto"><h3 class="text-xl font-black text-gray-800 mb-2">${s.text}</h3>${s.isNew?'<span class="bg-purple-100 text-purple-600 text-xs px-2 py-1 rounded mb-2">Newly Added!</span>':''}<div class="text-4xl font-bold ${s.score>=0?'text-green-600':'text-red-600'} mb-4">${s.score}</div><div class="w-full space-y-2"><div class="flex justify-between text-xs text-gray-500"><span>Approval Rating</span><span>${s.approval}%</span></div><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-blue-500 h-2.5 rounded-full" style="width: ${s.approval}%"></div></div><div class="flex justify-between text-xs pt-1"><span class="text-green-600 font-bold">+${s.good} Votes</span><span class="text-red-600 font-bold">-${s.bad} Votes</span></div></div></div>`
+            }
+            DOM.inputs.compareResults.innerHTML = h
+        };
+        DOM.theme.chooser.onchange = e => ThemeManager.apply(e.target.value, true);
+        document.getElementById('clearAllDataButton').onclick = State.clearAll;
         InputHandler.init();
         ThemeManager.init();
         ModalManager.init();
-        HighScoreManager.init();
-        UIManager.updateProfileDisplay();
+		UIManager.updateProfileDisplay();
         MosquitoManager.startMonitoring();
         this.checkDailyStatus();
-        await this.refreshData();
+        await this.refreshData()
     },
     checkDailyStatus() {
         const t = new Date().toISOString().split('T')[0];
@@ -3921,13 +3850,15 @@ async init() {
             UIManager.showMessage("Connection Error", true);
         }
     },
-  nextWord() {
+    nextWord() {
         let p = State.runtime.allWords;
         if (!p.length) return;
 
         // --- SMART FILTERING LOGIC ---
+        // If "Only 0/0" mode is on, we filter the list *temporarily* for selection
         if (State.data.settings.zeroVotesOnly) {
             const unvoted = p.filter(w => (w.goodVotes || 0) === 0 && (w.badVotes || 0) === 0);
+            // If there are unvoted words, use them. Otherwise, fallback to all words.
             if (unvoted.length > 0) p = unvoted;
             else UIManager.showPostVoteMessage("No more new words! Showing random.");
         }
@@ -3943,6 +3874,7 @@ async init() {
         else if (!b.bone && r < CAKE.prob + LLAMA.prob + POTATO.prob + SQUIRREL.prob + MASON.prob) sp = MASON.text;
         
         if (sp) {
+            // Special words are always selected from the FULL list
             const i = State.runtime.allWords.findIndex(w => w.text.toUpperCase() === sp);
             if (i !== -1 && i !== State.runtime.currentWordIndex) {
                 State.runtime.currentWordIndex = i;
@@ -3953,6 +3885,7 @@ async init() {
         
         // Selection Algorithm (Weighted Random)
         let av = p.reduce((acc, w, i) => {
+            // Note: We need the index relative to the FULL list, not the filtered `p`
             const trueIndex = State.runtime.allWords.indexOf(w);
             if (!State.data.seenHistory.includes(trueIndex) && trueIndex !== State.runtime.currentWordIndex) {
                  acc.push({ i: trueIndex, v: (w.goodVotes || 0) + (w.badVotes || 0) });
@@ -3960,17 +3893,12 @@ async init() {
             return acc
         }, []);
         
-        // --- CRITICAL FIX: Handle empty lists or single-item lists ---
         if (!av.length) {
+             // Fallback if history is full
              av = p.map(w => {
                  const trueIndex = State.runtime.allWords.indexOf(w);
                  return { i: trueIndex, v: (w.goodVotes || 0) + (w.badVotes || 0) }
-             });
-             
-             // Only filter out the current word if we actually have other options
-             if (av.length > 1) {
-                 av = av.filter(x => x.i !== State.runtime.currentWordIndex);
-             }
+             }).filter(x => x.i !== State.runtime.currentWordIndex);
         }
 
         let tw = 0;
@@ -3980,16 +3908,8 @@ async init() {
             tw += w;
             return { i: c.i, w }
         });
-
-        // Safety check to prevent crash if av is somehow still empty
-        if (av.length === 0) {
-            UIManager.displayWord(State.runtime.allWords[0]);
-            return;
-        }
-
         let rnd = Math.random() * tw,
             sel = av[av.length - 1].i;
-            
         for (let it of av) {
             rnd -= it.w;
             if (rnd <= 0) {
@@ -4055,50 +3975,16 @@ async init() {
     },
     async vote(t, s = false) {
         if (State.runtime.isCoolingDown) return;
-
-        const now = Date.now();
-        let streakMessage = null; // Store streak message to display later
-
-        // 1. Mash Protection
-        if (State.runtime.lastVoteTime > 0 && (now - State.runtime.lastVoteTime) > CONFIG.VOTE.STREAK_WINDOW) {
-             State.runtime.streak = 1;
-        } else {
-             State.runtime.streak++;
-        }
-        
-        // 2. High Score Streak Logic
-        const timeDiff = now - State.runtime.lastScoreTime;
-
-        // CHECK BREAK
-        if (State.runtime.lastScoreTime > 0 && timeDiff > HighScoreManager.TIME_WINDOW) {
-            // Streak Broke!
-            HighScoreManager.check(State.runtime.scoringStreak); // Check score & Hide visual
-            State.runtime.scoringStreak = 1; 
-        } else {
-            // Streak Continues
-            State.runtime.scoringStreak++;
-            
-            // Handle Visuals & Messages
-            if (State.runtime.scoringStreak >= HighScoreManager.STREAK_THRESHOLD) {
-                HighScoreManager.updateVisual(State.runtime.scoringStreak);
-                
-                if (State.runtime.scoringStreak === HighScoreManager.STREAK_THRESHOLD) {
-                    streakMessage = "Streak Started! 🔥";
-                } else {
-                    streakMessage = HighScoreManager.getEncouragement();
-                }
-            }
-        }
-        
-        State.runtime.lastScoreTime = now;
-        State.runtime.lastVoteTime = now;
-
+        const n = Date.now();
+        if (State.runtime.lastVoteTime > 0 && (n - State.runtime.lastVoteTime) > CONFIG.VOTE.STREAK_WINDOW) State.runtime.streak = 1;
+        else State.runtime.streak++;
+        State.runtime.lastVoteTime = n;
         if (State.runtime.streak > CONFIG.VOTE.MASH_LIMIT) {
             this.handleCooldown();
-            return;
+            return
         }
         
-        // Haptic Feedback
+        // Haptic Feedback for Button Click (Not Swipe)
         if (!s) {
             if (t === 'notWord') Haptics.heavy();
             else Haptics.medium();
@@ -4107,12 +3993,11 @@ async init() {
         const w = State.runtime.allWords[State.runtime.currentWordIndex],
             up = w.text.toUpperCase(),
             { CAKE, LLAMA, POTATO, SQUIRREL, MASON } = CONFIG.SPECIAL;
-            
         UIManager.disableButtons(true);
         const wd = DOM.game.wordDisplay;
         const colors = Accessibility.getColors();
         
-        // Visual Swipe Feedback
+        // Handle visual feedback
         if (!s && (t === 'good' || t === 'bad')) {
             this.cleanStyles(wd);
             wd.style.setProperty('--dynamic-swipe-color', t === 'good' ? colors.good : colors.bad);
@@ -4126,7 +4011,7 @@ async init() {
             else SoundManager.playBad();
         }
         
-        // Special Word Handling
+        // Helper for Special Effects
         const hSpec = (c, k) => {
             State.unlockBadge(k);
             this.cleanStyles(wd);
@@ -4160,7 +4045,8 @@ async init() {
             State.incrementVote();
             
             if (State.runtime.isDailyMode) {
-                const tod = new Date(), dStr = tod.toISOString().split('T')[0];
+                const tod = new Date(),
+                    dStr = tod.toISOString().split('T')[0];
                 const last = State.data.daily.lastDate;
                 let s = State.data.daily.streak;
                 if (last) {
@@ -4177,35 +4063,20 @@ async init() {
                 this.checkDailyStatus();
                 setTimeout(() => ModalManager.toggle('dailyResult', true), 600)
             }
-            
-            // --- MESSAGE PRIORITY SYSTEM ---
             let m = '';
-            
-            if (un) {
-                m = "🎉 New Theme Unlocked!";
-            }
-            else if (streakMessage) {
-                // Priority 1: Streak Message (Started or Encouragement)
-                m = streakMessage;
-            }
+            if (un) m = "🎉 New Theme Unlocked!";
             else if (State.data.settings.showPercentages && (t === 'good' || t === 'bad')) {
-                // Priority 2: Percentages
                 const tot = (w.goodVotes || 0) + (w.badVotes || 0),
                     p = Math.round((w[`${t}Votes`] / tot) * 100);
                 m = `${t==='good'?'Good':'Bad'} vote! ${p}% agree.`
             }
-            
-            // Priority 3: Random Tips
-if (State.data.settings.showTips && !streakMessage && !un) {
-    State.save('voteCounterForTips', State.data.voteCounterForTips + 1);
-    // Check if GAME_TIPS exists before accessing it
-    if (typeof GAME_TIPS !== 'undefined' && State.data.voteCounterForTips % CONFIG.TIP_COOLDOWN === 0) {
-        m = GAME_TIPS[Math.floor(Math.random() * GAME_TIPS.length)];
-    }
-}
-            
+            if (State.data.settings.showTips) {
+                State.save('voteCounterForTips', State.data.voteCounterForTips + 1);
+                if (State.data.voteCounterForTips % CONFIG.TIP_COOLDOWN === 0) m = GAME_TIPS[Math.floor(Math.random() * GAME_TIPS.length)]
+            }
             UIManager.showPostVoteMessage(m);
             
+            // Haptic Feedback for Vote Success (Medium)
             if (t === 'good' || t === 'bad') Haptics.medium();
 
             UIManager.updateStats();
@@ -4222,10 +4093,10 @@ if (State.data.settings.showTips && !streakMessage && !un) {
         } catch (e) {
             UIManager.showMessage("Vote Failed", true);
             wd.classList.remove('animate-fly-left', 'animate-fly-right', 'swipe-good-color', 'swipe-bad-color', 'override-theme-color');
-           UIManager.disableButtons(false)
+            UIManager.disableButtons(false)
         }
     }
-};     
+};
 
 const InputHandler = {
     sX: 0,
@@ -4236,10 +4107,6 @@ const InputHandler = {
     init() {
         const c = DOM.game.card,
             wd = DOM.game.wordDisplay;
-        if (!c || !wd) {
-            console.warn("InputHandler: 'gameCard' or 'wordDisplay' ID missing in HTML.");
-            return;
-        }
             
         // HELPER: Common Drag Start Logic
         const startDrag = (x, y) => {
@@ -4252,6 +4119,7 @@ const InputHandler = {
             wd.style.animation = 'none';
         };
 
+        // HELPER: Common Drag Move Logic
         const moveDrag = (x, y, e) => {
             if (State.runtime.isCoolingDown || DOM.game.buttons.good.disabled) return;
             const dX = x - this.sX;
@@ -4369,6 +4237,8 @@ const InputHandler = {
     }
 };
 
+// --- INITIALIZATION ---
 window.onload = Game.init.bind(Game);
 window.fEhPVHxCRUFDSHxIT0xJREFZfFNVTnxWQU = API; 
+
 })();
