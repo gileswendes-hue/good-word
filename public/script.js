@@ -234,10 +234,8 @@ const State = {
             offlineMode: false
         },
         currentTheme: localStorage.getItem('currentTheme') || 'default',
-        unlockedThemes: JSON.parse(localStorage.getItem('unlockedThemes')) || [],
         voteCounterForTips: parseInt(localStorage.getItem('voteCounterForTips')) || 0,
         manualTheme: localStorage.getItem('manualTheme') === 'true',
-        seenHistory: JSON.parse(localStorage.getItem('seenHistory')) || [],
         lastMosquitoSpawn: parseInt(localStorage.getItem('lastMosquitoSpawn') || 0),
         daily: {
             streak: parseInt(localStorage.getItem('dailyStreak') || 0),
@@ -4283,5 +4281,28 @@ const StreakManager = {
 window.StreakManager = StreakManager;
 window.onload = Game.init.bind(Game);
 window.fEhPVHxCRUFDSHxIT0xJREFZfFNVTnxWQU = API; 
+
+window.Debug = {
+        getState: () => State.data,
+        getRuntime: () => State.runtime,
+        getWords: () => State.runtime.allWords,
+        refresh: () => Game.refreshData(),
+        reset: () => State.clearAll(),
+        testVote: (type) => Game.vote(type || 'good'),
+        checkDOM: () => {
+            console.log("Checking HTML Elements...");
+            const missing = [];
+            // Check critical elements
+            ['gameCard', 'wordDisplay', 'goodButton', 'badButton'].forEach(id => {
+                if (!document.getElementById(id)) missing.push(id);
+            });
+            if (missing.length > 0) {
+                console.error("CRITICAL: Missing HTML IDs:", missing.join(', '));
+                return "HTML Mismatch";
+            }
+            return "HTML Structure OK";
+        }
+    };
+    console.log("🔧 Debug Tools Loaded. Type 'Debug.checkDOM()' to verify HTML or 'Debug.getState()' to see data.");
 
 })();
