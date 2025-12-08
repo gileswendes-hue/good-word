@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.47.1', 
+    APP_VERSION: '5.47.2', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1297,35 +1297,50 @@ const Effects = {
     
 plymouth(a) {
         const c = DOM.theme.effects.plymouth;
-        
-        // 1. Clear ALL timers (Important for switching themes)
+
         if (this.plymouthShooterTimeout) clearTimeout(this.plymouthShooterTimeout);
         if (this.satelliteTimeout) clearTimeout(this.satelliteTimeout);
-        if (this.plymouthStreakTimeout) clearTimeout(this.plymouthStreakTimeout); // <--- NEW TIMER
+        if (this.plymouthStreakTimeout) clearTimeout(this.plymouthStreakTimeout);
 
-        // 2. If 'a' is false (theme inactive), clear screen and stop.
         if (!a) { c.innerHTML = ''; return; }
-        
+
         c.innerHTML = '';
 
-        // 3. Static Background Stars
-        for (let i = 0; i < 50; i++) {
+        if (!document.getElementById('plymouth-stars-style')) {
+            const style = document.createElement('style');
+            style.id = 'plymouth-stars-style';
+            style.innerHTML = `
+                @keyframes twinkle {
+                    0% { opacity: 0.3; transform: scale(0.8); }
+                    50% { opacity: 1; transform: scale(1.2); box-shadow: 0 0 2px rgba(255,255,255,0.8); }
+                    100% { opacity: 0.3; transform: scale(0.8); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
+        for (let i = 0; i < 60; i++) {
             const s = document.createElement('div');
             s.className = 'star-particle';
+            const size = Math.random() * 3 + 1;
+
             Object.assign(s.style, {
+                position: 'absolute',
                 left: Math.random() * 100 + '%',
                 top: Math.random() * 100 + '%',
-                width: Math.random() * 3 + 'px',
-                height: Math.random() * 3 + 'px',
-                animationDelay: Math.random() * 5 + 's',
-                opacity: Math.random()
+                width: size + 'px',
+                height: size + 'px',
+                background: 'white',
+                borderRadius: '50%',
+                animation: `twinkle ${Math.random() * 4 + 2}s infinite ease-in-out`,
+                animationDelay: `-${Math.random() * 5}s`
             });
             c.appendChild(s);
         }
 
         this.spawnPlymouthShooter = () => {
             if (State.data.currentTheme !== 'plymouth') return;
-            
+
             const s = document.createElement('div');
             s.textContent = '🌠';
             Object.assign(s.style, {
@@ -1343,7 +1358,7 @@ plymouth(a) {
             c.appendChild(s);
 
             const travelDist = Math.random() * 300 + 200;
-            const duration = Math.random() * 1500 + 2000; 
+            const duration = Math.random() * 1500 + 2000;
 
             const anim = s.animate([
                 { transform: 'translate(0, 0) rotate(-35deg)', opacity: 0 },
@@ -1352,21 +1367,20 @@ plymouth(a) {
             ], { duration: duration, easing: 'ease-out' });
 
             anim.onfinish = () => s.remove();
-            
+
             this.plymouthShooterTimeout = setTimeout(() => this.spawnPlymouthShooter(), Math.random() * 8000 + 4000);
         };
 
         this.spawnRealStreak = () => {
             if (State.data.currentTheme !== 'plymouth') return;
-            
+
             const streak = document.createElement('div');
-            const width = Math.random() * 150 + 50; 
-            
+            const width = Math.random() * 150 + 50;
+
             Object.assign(streak.style, {
                 position: 'absolute',
                 height: (Math.random() * 2 + 1) + 'px',
                 width: width + 'px',
-
                 background: 'linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,0.9) 50%, rgba(255,255,255,0))',
                 top: (Math.random() * 60) + '%',
                 left: (Math.random() * 100) + '%',
@@ -1383,17 +1397,15 @@ plymouth(a) {
 
             const anim = streak.animate([
                 { transform: 'translate(0, 0) rotate(-35deg)', opacity: 0 },
-                { transform: `translate(${travelX * 0.1}px, ${travelY * 0.1}px) rotate(-35deg)`, opacity: 1, offset: 0.1 }, // Fade in quick
+                { transform: `translate(${travelX * 0.1}px, ${travelY * 0.1}px) rotate(-35deg)`, opacity: 1, offset: 0.1 },
                 { transform: `translate(${travelX}px, ${travelY}px) rotate(-35deg)`, opacity: 0 }
-            ], { 
-                duration: Math.random() * 800 + 600, 
-                easing: 'ease-out' 
+            ], {
+                duration: Math.random() * 800 + 600,
+                easing: 'ease-out'
             });
 
             anim.onfinish = () => streak.remove();
-
-    
-            this.plymouthStreakTimeout = setTimeout(() => this.spawnRealStreak(), Math.random() * 6000 + 3000);
+            this.plymouthStreakTimeout = setTimeout(() => this.spawnRealStreak(), Math.random() * 3000 + 1000);
         };
 
         this.spawnSatellite = () => {
@@ -1402,20 +1414,20 @@ plymouth(a) {
             const sat = document.createElement('div');
             sat.textContent = '🛰️';
             const startLeft = Math.random() > 0.5;
-            
+
             Object.assign(sat.style, {
                 position: 'absolute',
                 fontSize: '2.5rem',
                 opacity: '0.9',
-                zIndex: '2', 
-                top: (Math.random() * 50 + 10) + '%', 
+                zIndex: '2',
+                top: (Math.random() * 50 + 10) + '%',
                 left: startLeft ? '-10%' : '110%',
-                transition: 'left 35s linear, transform 35s linear', 
+                transition: 'left 35s linear, transform 35s linear',
                 filter: 'drop-shadow(0 0 3px rgba(200,200,255,0.3))',
                 transform: startLeft ? 'rotate(15deg)' : 'scaleX(-1) rotate(-15deg)',
                 pointerEvents: 'none'
             });
-            
+
             c.appendChild(sat);
 
             requestAnimationFrame(() => {
@@ -1423,16 +1435,13 @@ plymouth(a) {
                 sat.style.transform = startLeft ? 'rotate(45deg)' : 'scaleX(-1) rotate(-45deg)';
             });
 
-            setTimeout(() => {
-                if(sat.parentNode) sat.remove();
-            }, 36000);
-
+            setTimeout(() => { if(sat.parentNode) sat.remove(); }, 36000);
             this.satelliteTimeout = setTimeout(() => this.spawnSatellite(), Math.random() * 25000 + 20000);
         };
-        
+
         this.spawnPlymouthShooter();
         this.spawnSatellite();
-        this.spawnRealStreak(); 
+        this.spawnRealStreak();
     },
 
     fire() { const c = DOM.theme.effects.fire; c.innerHTML = ''; for (let i = 0; i < 80; i++) { const p = document.createElement('div'); p.className = 'fire-particle'; p.style.animationDuration = `${Math.random()*1.5+0.5}s`; p.style.animationDelay = `${Math.random()}s`; p.style.left = `calc(10% + (80% * ${Math.random()}))`; const size = Math.random() * 3 + 2; p.style.width = p.style.height = `${size}em`; p.style.setProperty('--sway', `${(Math.random()-.5)*20}px`); c.appendChild(p) } for (let i = 0; i < 15; i++) { const s = document.createElement('div'); s.className = 'smoke-particle'; s.style.animationDelay = `${Math.random()*3}s`; s.style.left = `${Math.random()*90+5}%`; s.style.setProperty('--sway', `${(Math.random()-.5)*150}px`); c.appendChild(s) } },
