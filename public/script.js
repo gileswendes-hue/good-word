@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.48.7', 
+    APP_VERSION: '5.48.9', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4385,31 +4385,24 @@ async showLeaderboard() {
     }
 };
 
-window.StreakManager = StreakManager;
-window.onload = Game.init.bind(Game);
-window.fEhPVHxCRUFDSHxIT0xJREFZfFNVTnxWQU = API; 
-
-window.Debug = {
-        getState: () => State.data,
-        getRuntime: () => State.runtime,
-        getWords: () => State.runtime.allWords,
-        refresh: () => Game.refreshData(),
-        reset: () => State.clearAll(),
-        testVote: (type) => Game.vote(type || 'good'),
-        checkDOM: () => {
-            console.log("Checking HTML Elements...");
-            const missing = [];
-            // Check critical elements
-            ['gameCard', 'wordDisplay', 'goodButton', 'badButton'].forEach(id => {
-                if (!document.getElementById(id)) missing.push(id);
-            });
-            if (missing.length > 0) {
-                console.error("CRITICAL: Missing HTML IDs:", missing.join(', '));
-                return "HTML Mismatch";
-            }
-            return "HTML Structure OK";
-        }
+window.StreakManager = {
+        showLeaderboard: () => StreakManager.showLeaderboard()
     };
-    console.log("🔧 Debug Tools Loaded. Type 'Debug.checkDOM()' to verify HTML or 'Debug.getState()' to see data.");
+    window.ContactManager = {
+        open: () => ContactManager.open(),
+        close: () => ContactManager.close(),
+        send: () => ContactManager.send()
+    };
+    window.PinPad = PinPad;
+    window.TipManager = {
+        open: () => TipManager.open(),
+        close: () => TipManager.close(),
+        send: () => TipManager.send()
+    };
+
+    window.onload = Game.init.bind(Game);
+
+    console.log("%c Good Word / Bad Word ", "background: #4f46e5; color: #bada55; padding: 4px; border-radius: 4px;");
+    console.log("Play fair! ️😇");
 
 })();
