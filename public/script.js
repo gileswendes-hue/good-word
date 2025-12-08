@@ -1915,7 +1915,7 @@ halloween(active) {
             const body = wrap.querySelector('#spider-body');
             const thread = wrap.querySelector('#spider-thread');
 
-            // --- SMART BUBBLE HELPER ---
+            // --- SMART BUBBLE HELPER (REPLACEMENT) ---
             const showSpiderBubble = (text, forcedOrientation = null) => {
                 const old = body.querySelector('.spider-dynamic-bubble');
                 if (old) old.remove();
@@ -1947,47 +1947,42 @@ halloween(active) {
                 const currentLeft = parseFloat(wrap.style.left) || 50;
                 const isUpsideDown = forcedOrientation === 'upside-down' || (body.style.transform && body.style.transform.includes('180deg'));
 
-                // 1. Vertical Position
+                // 1. Vertical Position & Arrow Flip
                 if (isUpsideDown) {
-                    // Spider Head is pointing DOWN. Bubble goes BELOW head.
+                    // Spider is upside down. Arrow needs to point UP (towards the feet/thread) 
+                    // and the bubble needs a counter-rotation to be upright for the user.
                     b.style.top = '115%'; 
                     b.style.bottom = 'auto';
+                    b.style.transform = 'translateX(-50%) rotate(180deg)'; // COUNTER-ROTATION
                     
                     // Arrow points UP (at the head)
                     arrow.style.bottom = '100%';
-                    arrow.style.borderBottom = '6px solid white'; // Point Up
+                    arrow.style.borderBottom = '6px solid white';
                     arrow.style.borderTop = 'none';
                 } else {
-                    // Spider Head is pointing UP. Bubble goes ABOVE head.
+                    // Spider is upright (Normal).
                     b.style.bottom = '100%'; 
                     b.style.top = 'auto';
+                    b.style.transform = 'translateX(-50%)';
                     
-                    // Arrow points DOWN (at the head)
+                    // Arrow points DOWN
                     arrow.style.top = '100%';
-                    arrow.style.borderTop = '6px solid white'; // Point Down
+                    arrow.style.borderTop = '6px solid white';
                     arrow.style.borderBottom = 'none';
                 }
 
                 // 2. Horizontal Alignment (Edge Detection)
                 if (currentLeft < 20) {
-                    // Too close to LEFT edge -> Align Left
                     b.style.left = '0';
-                    b.style.transform = isUpsideDown ? 'rotate(180deg)' : 'none'; // Only rotate, don't translate
-                    arrow.style.left = '20px'; // Move arrow to match spider center approx
+                    if (!isUpsideDown) b.style.transform = 'none';
+                    arrow.style.left = '20px';
                 } else if (currentLeft > 80) {
-                    // Too close to RIGHT edge -> Align Right
                     b.style.right = '0';
                     b.style.left = 'auto';
-                    b.style.transform = isUpsideDown ? 'rotate(180deg)' : 'none';
+                    if (!isUpsideDown) b.style.transform = 'none';
                     arrow.style.right = '20px';
-                } else {
-                    // Centered
-                    b.style.left = '50%';
-                    b.style.transform = isUpsideDown ? 'translateX(-50%) rotate(180deg)' : 'translateX(-50%)';
-                    arrow.style.left = '50%';
-                    arrow.style.marginLeft = '-6px';
-                }
-
+                } // Center logic is handled in the vertical position block's 'else'
+                
                 requestAnimationFrame(() => b.style.opacity = '1');
                 setTimeout(() => {
                     if (b.parentNode && !wrap.classList.contains('hunting')) {
