@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.41', 
+    APP_VERSION: '5.40.3', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -144,30 +144,29 @@ const DOM = {
     }
 };
 
+// --- STATE MANAGEMENT ---
 const State = {
     data: {
         userId: localStorage.getItem('userId') || crypto.randomUUID(),
-        // --- NEW: High Scores & Streak Data ---
-        highScores: JSON.parse(localStorage.getItem('highScores') || '[]'),
-        maxRapidStreak: parseInt(localStorage.getItem('maxRapidStreak') || 0),
-        
-        // --- EXISTING DATA (Restored) ---
         username: localStorage.getItem('username') || '',
         voteCount: parseInt(localStorage.getItem('voteCount') || 0),
         contributorCount: parseInt(localStorage.getItem('contributorCount') || 0),
         profilePhoto: localStorage.getItem('profilePhoto') || null,
+        
         pendingVotes: JSON.parse(localStorage.getItem('pendingVotes')) || [],
         offlineCache: JSON.parse(localStorage.getItem('offlineCache')) || [],
-        
+
         insectStats: {
             saved: parseInt(localStorage.getItem('insectSaved') || 0),
             eaten: parseInt(localStorage.getItem('insectEaten') || 0),
             teased: parseInt(localStorage.getItem('insectTeased') || 0)
         },
+        
         fishStats: {
             caught: parseInt(localStorage.getItem('fishCaught') || 0),
-            spared: parseInt(localStorage.getItem('fishSpared') || 0)
+			spared: parseInt(localStorage.getItem('fishSpared') || 0)
         },
+        
         badges: {
             cake: localStorage.getItem('cakeBadgeUnlocked') === 'true',
             llama: localStorage.getItem('llamaBadgeUnlocked') === 'true',
@@ -195,8 +194,8 @@ const State = {
             puffer: localStorage.getItem('pufferBadgeUnlocked') === 'true',
             shark: localStorage.getItem('sharkBadgeUnlocked') === 'true',
             snowman: localStorage.getItem('snowmanBadgeUnlocked') === 'true',
-            angler: localStorage.getItem('anglerBadgeUnlocked') === 'true',
-            shepherd: localStorage.getItem('shepherdBadgeUnlocked') === 'true'
+			angler: localStorage.getItem('anglerBadgeUnlocked') === 'true',
+			shepherd: localStorage.getItem('shepherdBadgeUnlocked') === 'true'
         },
         settings: JSON.parse(localStorage.getItem('userSettings')) || {
             showTips: true,
@@ -231,32 +230,24 @@ const State = {
         isCoolingDown: false,
         cooldownTimer: null,
         mashLevel: 0,
-        isDailyMode: false,
-        
-        // --- NEW: Rapid Streak Runtime ---
-        rapidStreak: 0,
-        streakTimer: null
+        isDailyMode: false
     },
     save(k, v) {
         this.data[k] = v;
         const s = localStorage;
 
-        // --- NEW: Handler for High Scores ---
-        if (k === 'highScores') s.setItem('highScores', JSON.stringify(v));
-        else if (k === 'maxRapidStreak') s.setItem('maxRapidStreak', v);
-
-        // --- EXISTING HANDLERS ---
-        else if (k === 'pendingVotes') s.setItem('pendingVotes', JSON.stringify(v));
+        if (k === 'pendingVotes') s.setItem('pendingVotes', JSON.stringify(v));
         else if (k === 'offlineCache') s.setItem('offlineCache', JSON.stringify(v));
+        
         else if (k === 'insectStats') {
             s.setItem('insectSaved', v.saved);
             s.setItem('insectEaten', v.eaten);
             s.setItem('insectTeased', v.teased);
         } 
-        else if (k === 'fishStats') {
-            s.setItem('fishCaught', v.caught);
-            s.setItem('fishSpared', v.spared); 
-        }
+       else if (k === 'fishStats') {
+    s.setItem('fishCaught', v.caught);
+    s.setItem('fishSpared', v.spared); 
+}
         else if (k.startsWith('badge_')) {
             s.setItem(k, v);
         }
@@ -272,7 +263,6 @@ const State = {
         else s.setItem(k, v);
     },
     
-    // ... Any other existing methods (unlockBadge, etc.) go here ...
     unlockBadge(n) {
         if (this.data.badges[n]) return;
         this.data.badges[n] = true;
@@ -284,6 +274,7 @@ const State = {
         localStorage.setItem('voteCount', this.data.voteCount);
         if (this.data.voteCount >= 1000) this.unlockBadge('judge');
     },
+
     incrementContributor() {
         this.data.contributorCount++;
         localStorage.setItem('contributorCount', this.data.contributorCount);
@@ -1079,10 +1070,7 @@ const ThemeManager = {
     init() {
 
         const s = document.createElement("style");
-        s.innerText = `
-            @keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }
-            @keyframes twinkle { 0%, 100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); } }
-        `;
+        s.innerText = `@keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }`;
         document.head.appendChild(s);
     
         Object.entries(CONFIG.THEME_SECRETS).forEach(([k, v]) => {
@@ -1264,9 +1252,8 @@ const Effects = {
     plymouth(a) {
         const c = DOM.theme.effects.plymouth;
         
-        // 1. CLEAR ALL TIMERS
+        // 1. Clear any existing timers (Important for switching themes)
         if (this.plymouthShooterTimeout) clearTimeout(this.plymouthShooterTimeout);
-        if (this.realisticShooterTimeout) clearTimeout(this.realisticShooterTimeout);
         if (this.satelliteTimeout) clearTimeout(this.satelliteTimeout);
 
         // 2. If 'a' is false (theme inactive), clear screen and stop.
@@ -1274,7 +1261,7 @@ const Effects = {
         
         c.innerHTML = '';
 
-        // 3. STATIC BACKGROUND STARS (Twinkling)
+        // 3. Static Background Stars
         for (let i = 0; i < 50; i++) {
             const s = document.createElement('div');
             s.className = 'star-particle';
@@ -1283,14 +1270,13 @@ const Effects = {
                 top: Math.random() * 100 + '%',
                 width: Math.random() * 3 + 'px',
                 height: Math.random() * 3 + 'px',
-                animation: `twinkle ${Math.random() * 4 + 2}s infinite ease-in-out alternate`, 
                 animationDelay: Math.random() * 5 + 's',
                 opacity: Math.random()
             });
             c.appendChild(s);
         }
 
-        // 4. THE FUN EMOJI SHOOTER (Big & Slow)
+        // 4. Shooting Star Logic
         this.spawnPlymouthShooter = () => {
             if (State.data.currentTheme !== 'plymouth') return;
             
@@ -1298,103 +1284,78 @@ const Effects = {
             s.textContent = '🌠';
             Object.assign(s.style, {
                 position: 'absolute',
-                fontSize: (Math.random() * 1.5 + 2.5) + 'rem', // Big (2.5rem - 4rem)
+                fontSize: (Math.random() * 1 + 1) + 'rem',
                 transform: 'rotate(-35deg)',
-                filter: 'drop-shadow(0 0 10px rgba(255,255,255,0.8))',
-                zIndex: '5',
+                boxShadow: '0 0 8px rgba(255,255,255,0.8)',
+                zIndex: '10',
                 pointerEvents: 'none',
-                top: Math.random() * 30 + '%',
-                left: Math.random() * 60 + 20 + '%',
+                borderRadius: '100%',
+                top: Math.random() * 40 + '%',
+                left: Math.random() * 80 + 10 + '%',
                 opacity: '0'
             });
             c.appendChild(s);
 
-            const travelDist = Math.random() * 400 + 300;
-            // Slow Duration: 2.5s to 4s
-            const duration = Math.random() * 1500 + 2500; 
+            const travelDist = Math.random() * 300 + 200;
+            const duration = Math.random() * 400 + 600;
 
             const anim = s.animate([
-                { transform: 'translate(0, 0) rotate(-35deg) scale(0.8)', opacity: 0 },
-                { transform: 'translate(0, 0) rotate(-35deg) scale(1)', opacity: 1, offset: 0.1 },
-                { transform: `translate(-${travelDist}px, ${travelDist * 0.6}px) rotate(-35deg) scale(1)`, opacity: 0 }
+                { transform: 'translate(0, 0) rotate(-35deg)', opacity: 0 },
+                { transform: 'translate(0, 0) rotate(-35deg)', opacity: 1, offset: 0.1 },
+                { transform: `translate(-${travelDist}px, ${travelDist/2}px) rotate(-35deg)`, opacity: 0 }
             ], { duration: duration, easing: 'ease-out' });
 
             anim.onfinish = () => s.remove();
             
-            this.plymouthShooterTimeout = setTimeout(() => this.spawnPlymouthShooter(), Math.random() * 5000 + 3000);
+            this.plymouthShooterTimeout = setTimeout(() => this.spawnPlymouthShooter(), Math.random() * 8000 + 4000);
         };
         this.spawnPlymouthShooter();
 
-        // 5. NEW: REALISTIC SHOOTING STARS (Thin Streaks & Fast)
-        this.spawnRealisticShooter = () => {
-            if (State.data.currentTheme !== 'plymouth') return;
-
-            const star = document.createElement('div');
-            // Create a "Tail" using a gradient
-            Object.assign(star.style, {
-                position: 'absolute',
-                width: (Math.random() * 80 + 40) + 'px', // Long tail (40-120px)
-                height: '2px', // Very thin
-                background: 'linear-gradient(to right, rgba(255,255,255,0), rgba(255,255,255,1))',
-                top: Math.random() * 50 + '%', // Top half of screen
-                left: Math.random() * 80 + 20 + '%', // Right side
-                transform: 'rotate(-45deg)',
-                opacity: 0,
-                pointerEvents: 'none',
-                zIndex: '1', // Behind everything
-                boxShadow: '0 0 4px rgba(255,255,255,0.8)'
-            });
-            c.appendChild(star);
-
-            // Fast Duration: 0.5s to 1.2s
-            const duration = Math.random() * 700 + 500; 
-            const dist = Math.random() * 200 + 100;
-
-            const anim = star.animate([
-                { opacity: 0, transform: 'translateX(0) translateY(0) rotate(-45deg)' },
-                { opacity: 1, offset: 0.1 }, // Fade in quickly
-                { opacity: 0, transform: `translateX(-${dist}px) translateY(${dist}px) rotate(-45deg)` } // Zip across
-            ], { duration: duration, easing: 'ease-out' });
-
-            anim.onfinish = () => star.remove();
-
-            // Spawn frequently (every 1.5 - 4 seconds)
-            this.realisticShooterTimeout = setTimeout(() => this.spawnRealisticShooter(), Math.random() * 2500 + 1500);
-        };
-        this.spawnRealisticShooter();
-
-        // 6. DRIFTING SATELLITE
+        // 5. NEW: Drifting Satellite 🛰️
         this.spawnSatellite = () => {
             if (State.data.currentTheme !== 'plymouth') return;
 
             const sat = document.createElement('div');
             sat.textContent = '🛰️';
+            
+            // Randomize direction (Left->Right or Right->Left)
             const startLeft = Math.random() > 0.5;
             
             Object.assign(sat.style, {
                 position: 'absolute',
                 fontSize: '2.5rem',
                 opacity: '0.9',
-                zIndex: '2', 
-                top: (Math.random() * 50 + 10) + '%', 
+                zIndex: '2', // Low Z-index to ensure it stays behind UI cards
+                top: (Math.random() * 50 + 10) + '%', // Random vertical position (upper half)
                 left: startLeft ? '-10%' : '110%',
-                transition: 'left 35s linear, transform 35s linear',
+                transition: 'left 35s linear, transform 35s linear', // Very slow drift
                 filter: 'drop-shadow(0 0 3px rgba(200,200,255,0.3))',
                 transform: startLeft ? 'rotate(15deg)' : 'scaleX(-1) rotate(-15deg)',
                 pointerEvents: 'none'
             });
+            
             c.appendChild(sat);
 
+            // Trigger Animation Frame
             requestAnimationFrame(() => {
                 sat.style.left = startLeft ? '110%' : '-10%';
+                // Slow rotation change during flight
                 sat.style.transform = startLeft ? 'rotate(45deg)' : 'scaleX(-1) rotate(-45deg)';
             });
 
-            setTimeout(() => { if(sat.parentNode) sat.remove(); }, 36000);
+            // Cleanup after it leaves screen
+            setTimeout(() => {
+                if(sat.parentNode) sat.remove();
+            }, 36000);
+
+            // Schedule next satellite (Every 20-45 seconds)
             this.satelliteTimeout = setTimeout(() => this.spawnSatellite(), Math.random() * 25000 + 20000);
         };
+        
+        // Start the satellite loop
         this.spawnSatellite();
     },
+
     fire() { const c = DOM.theme.effects.fire; c.innerHTML = ''; for (let i = 0; i < 80; i++) { const p = document.createElement('div'); p.className = 'fire-particle'; p.style.animationDuration = `${Math.random()*1.5+0.5}s`; p.style.animationDelay = `${Math.random()}s`; p.style.left = `calc(10% + (80% * ${Math.random()}))`; const size = Math.random() * 3 + 2; p.style.width = p.style.height = `${size}em`; p.style.setProperty('--sway', `${(Math.random()-.5)*20}px`); c.appendChild(p) } for (let i = 0; i < 15; i++) { const s = document.createElement('div'); s.className = 'smoke-particle'; s.style.animationDelay = `${Math.random()*3}s`; s.style.left = `${Math.random()*90+5}%`; s.style.setProperty('--sway', `${(Math.random()-.5)*150}px`); c.appendChild(s) } },
     
 bubbles(active) {
@@ -3300,24 +3261,19 @@ const ModalManager = {
 const TipManager = {
     serviceID: 'service_b6d75wi',
     templateID: 'template_qody7q7',
-    COOLDOWN_MINS: 10, 
+    COOLDOWN_MINS: 10, // <--- CONFIG: Minutes between messages
 
     init() {
         if (document.getElementById('tipModal')) return;
-        
+        // ... (Keep existing innerHTML creation code exactly as is) ...
         const el = document.createElement('div');
         el.id = 'tipModal';
         el.className = 'fixed inset-0 bg-gray-900 bg-opacity-95 z-[200] hidden flex items-center justify-center';
-        
         el.innerHTML = `
             <div class="bg-white rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl">
                 <h3 class="text-2xl font-bold text-center mb-2 text-gray-800">Submit a Tip</h3>
                 <p class="text-gray-500 text-center mb-4 text-sm">Got a clever loading tip? Send it in!</p>
-                
-                <textarea id="tipInput" rows="4" class="w-full p-3 border border-gray-300 rounded-lg mb-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none" placeholder="Type your tip here..."></textarea>
-                
-                <div id="tipError" class="text-red-500 text-sm font-bold text-center h-5 mb-2"></div>
-
+                <textarea id="tipInput" rows="4" class="w-full p-3 border border-gray-300 rounded-lg mb-4 focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none" placeholder="Type your tip here..."></textarea>
                 <div class="flex gap-3">
                     <button onclick="TipManager.close()" class="flex-1 py-3 text-gray-500 font-semibold hover:bg-gray-100 rounded-lg transition-colors">Cancel</button>
                     <button onclick="TipManager.send()" class="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition-colors shadow-lg">Send</button>
@@ -3330,18 +3286,14 @@ const TipManager = {
         this.init();
         document.getElementById('tipModal').classList.remove('hidden');
         document.getElementById('tipInput').value = '';
-        document.getElementById('tipError').textContent = ''; 
         document.getElementById('tipInput').focus();
     },
-
     close() {
         const el = document.getElementById('tipModal');
         if (el) el.classList.add('hidden');
     },
 
     send() {
-        const errDiv = document.getElementById('tipError');
-        
         // 1. CHECK COOLDOWN
         const lastSent = parseInt(localStorage.getItem('lastTipSent') || 0);
         const now = Date.now();
@@ -3350,37 +3302,20 @@ const TipManager = {
 
         if (diff < cooldownMs) {
             const minLeft = Math.ceil((cooldownMs - diff) / 60000);
-            errDiv.textContent = `⏳ Wait ${minLeft}m before sending again.`;
-            return; 
+            UIManager.showPostVoteMessage(`Please wait ${minLeft} min before sending another.`);
+            return;
         }
 
         const input = document.getElementById('tipInput');
         const text = input.value.trim();
 
-        if (!text) { 
-            errDiv.textContent = "Please write something first!";
-            return; 
-        }
-        if (text.length > 250) { 
-            errDiv.textContent = "Keep it short! Under 250 chars."; 
-            return; 
-        }
+        if (!text) { UIManager.showPostVoteMessage("Please write something first!"); return; }
+        if (text.length > 250) { UIManager.showPostVoteMessage("Keep it short! Under 250 chars."); return; }
 
-        // --- SUCCESS PATH ---
-        
-        // 1. Close Tip Modal
         this.close();
-
-        // 2. FORCE CLOSE SETTINGS MENU
-        ModalManager.toggle('settings', false);
-
-        // 3. SCROLL TO TOP (So they see the message)
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-
-        // 4. Show Success Message
         UIManager.showPostVoteMessage("Tip sent! Thanks! 💌");
 
-        // 5. Set Timestamp & Send
+        // 2. SET TIMESTAMP
         localStorage.setItem('lastTipSent', now);
 
         emailjs.send(this.serviceID, this.templateID, {
@@ -3425,7 +3360,7 @@ const ContactManager = {
         this.init();
         document.getElementById('contactModal').classList.remove('hidden');
         document.getElementById('contactInput').value = '';
-        document.getElementById('contactError').textContent = ''; 
+        document.getElementById('contactError').textContent = ''; // Clear errors
         document.getElementById('contactInput').focus();
     },
 
@@ -3445,6 +3380,7 @@ const ContactManager = {
 
         if (diff < cooldownMs) {
             const minLeft = Math.ceil((cooldownMs - diff) / 60000);
+            // Show error INSIDE modal
             errDiv.textContent = `⏳ Wait ${minLeft}m before sending again.`;
             return;
         }
@@ -3457,18 +3393,10 @@ const ContactManager = {
             return; 
         }
 
-        // --- SUCCESS PATH ---
-
-        // 1. Close Modal
         this.close();
-
-        // 2. SCROLL TO TOP (Added this line)
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-
-        // 3. Show Success Message
         UIManager.showPostVoteMessage("Message sent! I'll read it soon. 📨");
         
-        // 4. Set Timestamp & Send
+        // 2. SET TIMESTAMP
         localStorage.setItem('lastContactSent', now);
 
         emailjs.send(this.serviceID, this.templateID, {
@@ -3498,142 +3426,6 @@ const Game = {
         DOM.game.buttons.good.onclick = () => this.vote('good');
         DOM.game.buttons.bad.onclick = () => this.vote('bad');
         DOM.game.buttons.notWord.onclick = () => this.vote('notWord');
-        // [ADD THIS LISTENER]
-    if (DOM.profile.streak) {
-        DOM.profile.streak.style.cursor = 'pointer';
-        DOM.profile.streak.onclick = () => {
-            Haptics.light();
-            HighScoreManager.toggleProfileView();
-        };
-        // Also add a visual hint
-        DOM.profile.streak.parentElement.setAttribute('title', 'Tap to view High Scores');
-    }
-}
-
-const HighScoreManager = {
-    check(score) {
-        if (score < 5) return; 
-        const scores = State.data.highScores || [];
-        // Check if list is not full OR score beats the lowest
-        if (scores.length < 5 || score > scores[scores.length - 1].score) {
-            this.promptName(score);
-        }
-    },
-
-    promptName(score) {
-        const div = document.createElement('div');
-        div.className = "fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 backdrop-blur-sm";
-        div.innerHTML = `
-            <div class="bg-gray-900 border-4 border-indigo-500 rounded-xl p-8 max-w-sm w-full text-center shadow-[0_0_50px_rgba(79,70,229,0.5)] transform scale-100 transition-all">
-                <div class="text-4xl mb-2">🏆</div>
-                <h2 class="text-2xl font-black text-white uppercase tracking-wider mb-1">New High Score!</h2>
-                <p class="text-indigo-400 font-bold text-xl mb-6">${score} Words</p>
-                <div class="mb-6">
-                    <label class="block text-gray-500 text-xs font-bold uppercase mb-2">Enter Initials</label>
-                    <input type="text" id="hsNameInput" maxlength="3" 
-                        class="bg-gray-800 text-white text-4xl font-mono text-center tracking-[0.5em] w-full p-4 rounded-lg border-2 border-gray-700 focus:border-indigo-500 focus:outline-none uppercase"
-                        placeholder="_ _ _" autocomplete="off">
-                </div>
-                <button id="hsSaveBtn" class="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black uppercase tracking-widest rounded-lg shadow-lg transition-transform active:scale-95">
-                    Save Record
-                </button>
-            </div>
-        `;
-        document.body.appendChild(div);
-
-        const input = document.getElementById('hsNameInput');
-        const btn = document.getElementById('hsSaveBtn');
-        input.focus();
-        
-        input.oninput = (e) => {
-            e.target.value = e.target.value.toUpperCase().replace(/[^A-Z]/g, '');
-        };
-
-        const save = () => {
-            const name = input.value || 'AAA';
-            this.save(name, score);
-            div.remove();
-            UIManager.openProfile(); // Ensure profile is open
-            // Short delay to allow modal to open before toggling view
-            setTimeout(() => {
-                 if (!DOM.profile.streak.classList.contains('showing-scores')) {
-                    this.toggleProfileView();
-                 }
-            }, 100);
-        };
-
-        btn.onclick = save;
-        input.onkeydown = (e) => { if(e.key === 'Enter') save(); };
-    },
-
-    save(name, score) {
-        const scores = State.data.highScores || [];
-        scores.push({ name, score, date: Date.now() });
-        scores.sort((a, b) => b.score - a.score);
-        if (scores.length > 5) scores.length = 5;
-        
-        State.save('highScores', scores);
-        UIManager.showPostVoteMessage("High Score Saved!");
-    },
-
-    renderList() {
-        const scores = State.data.highScores || [];
-        if (scores.length === 0) return '<div class="text-center text-gray-400 italic py-4">No records yet. Be the first!</div>';
-        
-        let html = '<div class="space-y-2">';
-        scores.forEach((s, i) => {
-            const colors = ['text-yellow-500', 'text-gray-400', 'text-orange-400', 'text-gray-600', 'text-gray-600'];
-            const medal = i < 3 ? ['👑', '🥈', '🥉'][i] : (i+1)+'.';
-            html += `
-                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
-                    <div class="flex items-center gap-3">
-                        <span class="font-black text-xl w-8 text-center ${colors[i]}">${medal}</span>
-                        <span class="font-mono text-lg font-bold text-gray-800 tracking-wider">${s.name}</span>
-                    </div>
-                    <span class="font-black text-indigo-600">${s.score}</span>
-                </div>
-            `;
-        });
-        html += '</div>';
-        return html;
-    },
-
-    toggleProfileView() {
-        const streakEl = DOM.profile.streak;
-        if (!streakEl) return;
-        
-        const container = streakEl.closest('.p-4') || streakEl.parentElement.parentElement;
-        const isShowingScores = streakEl.classList.toggle('showing-scores');
-        
-        let listContainer = document.getElementById('highScoreList');
-        if (!listContainer) {
-            listContainer = document.createElement('div');
-            listContainer.id = "highScoreList";
-            listContainer.className = "mt-4 hidden animate-fade-in";
-            // Append to the main container wrapper
-            if(container.parentElement) container.parentElement.appendChild(listContainer);
-        }
-
-        // Hide/Show the stats grid
-        const statsGrid = document.getElementById('userStatsBar')?.nextElementSibling || container.querySelector('.grid');
-        
-        if (isShowingScores) {
-            if(statsGrid) statsGrid.style.display = 'none';
-            listContainer.innerHTML = `
-                <div class="p-4 bg-white rounded-2xl shadow-sm border border-gray-100 mx-4 mb-4">
-                    <h3 class="text-center font-black text-gray-300 uppercase tracking-widest text-xs mb-4">Hall of Fame</h3>
-                    ${this.renderList()}
-                    <p class="text-center text-xs text-gray-400 mt-4 cursor-pointer hover:text-indigo-500" onclick="HighScoreManager.toggleProfileView()">(Tap Streak to return)</p>
-                </div>
-            `;
-            listContainer.classList.remove('hidden');
-        } else {
-            if(statsGrid) statsGrid.style.display = 'grid';
-            listContainer.classList.add('hidden');
-        }
-    }
-};
-
         DOM.game.dailyBanner.onclick = () => this.activateDailyMode();
         document.getElementById('submitWordButton').onclick = async () => {
             const t = DOM.inputs.newWord.value.trim();
@@ -4242,3 +4034,4 @@ window.onload = Game.init.bind(Game);
 window.fEhPVHxCRUFDSHxIT0xJREFZfFNVTnxWQU = API; 
 
 })();
+
