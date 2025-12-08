@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.44', 
+    APP_VERSION: '5.45', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -145,6 +145,19 @@ const DOM = {
     }
 };
 
+// --- HELPER: Safe JSON Parse (Prevents Crashes) ---
+const safeParse = (key, fallback) => {
+    try {
+        const item = localStorage.getItem(key);
+        // If data is corrupt (e.g. "[object Object]"), return fallback
+        if (item === "[object Object]") return fallback;
+        return item ? JSON.parse(item) : fallback;
+    } catch (e) {
+        console.warn(`Corrupt data for ${key}, resetting.`);
+        return fallback;
+    }
+};
+
 // --- STATE MANAGEMENT ---
 const State = {
     data: {
@@ -153,10 +166,14 @@ const State = {
         voteCount: parseInt(localStorage.getItem('voteCount') || 0),
         contributorCount: parseInt(localStorage.getItem('contributorCount') || 0),
         profilePhoto: localStorage.getItem('profilePhoto') || null,
+		
+		
 		longestStreak: parseInt(localStorage.getItem('longestStreak') || 0),
-        highScores: JSON.parse(localStorage.getItem('highScores') || "[]"),  
-        pendingVotes: JSON.parse(localStorage.getItem('pendingVotes')) || [],
-        offlineCache: JSON.parse(localStorage.getItem('offlineCache')) || [],
+        highScores: safeParse('highScores', []),
+        pendingVotes: safeParse('pendingVotes', []),
+        offlineCache: safeParse('offlineCache', []),
+        unlockedThemes: safeParse('unlockedThemes', []),
+        seenHistory: safeParse('seenHistory', []),
 		
 
         insectStats: {
@@ -240,7 +257,11 @@ const State = {
     save(k, v) {
         this.data[k] = v;
         const s = localStorage;
-
+		
+		if (['pendingVotes','offlineCache','highScores','unlockedThemes','seenHistory','settings'].includes(k)) {
+            s.setItem(k, JSON.stringify(v));
+        }
+		
         if (k === 'pendingVotes') s.setItem('pendingVotes', JSON.stringify(v));
         else if (k === 'offlineCache') s.setItem('offlineCache', JSON.stringify(v));
         else if (k === 'highScores') s.setItem('highScores', JSON.stringify(v));
@@ -3434,6 +3455,85 @@ const ContactManager = {
 };
 window.ContactManager = ContactManager;
 
+// --- INPUT HANDLER (Swipe & Drag) ---
+const InputHandler = {
+    sX: 0, sY: 0, drag: false, scroll: false, raf: null,
+    init() {
+        const c = DOM.game.card, wd = DOM.game.wordDisplay;
+        
+        const startDrag = (x, y) => {
+            if (State.runtime.isCoolingDown || DOM.game.buttons.good.disabled) return;
+            this.sX = x; this.sY = y; this.drag = false; this.scroll = false;
+            wd.style.transition = 'none'; wd.style.animation = 'none';
+        };
+
+        const moveDrag = (x, y, e) => {
+            if (State.runtime.isCoolingDown || DOM.game.buttons.good.disabled) return;
+            const dX = x - this.sX, dY = y - this.sY;
+            if (!this.drag && !this.scroll) {
+                if (Math.abs(dY) > Math.abs(dX)) { this.scroll = true; return; }
+                this.drag = true; Haptics.light();
+                Game.cleanStyles(wd); wd.style.background = 'none'; wd.style.webkitTextFillColor = 'initial';
+            }
+            if (this.scroll) return;
+            if (this.drag) {
+                if (e.cancelable) e.preventDefault();
+                if (this.raf) cancelAnimationFrame(this.raf);
+                this.raf = requestAnimationFrame(() => {
+                    wd.style.transform = `translate(${dX}px, ${dY * 0.8}px) rotate(${dX * 0.05}deg)`;
+                    const colors = Accessibility.getColors();
+                    const col = dX < 0 ? colors.good : colors.bad;
+                    const alpha = Math.min(Math.abs(dX) / 150, 1);
+                    wd.style.setProperty('--dynamic-swipe-color', Utils.hexToRgba(col, alpha));
+                    if (State.data.settings.colorblindMode) {
+                        const rgb = dX < 0 ? '59, 130, 246' : '249, 115, 22';
+                        wd.style.setProperty('--dynamic-swipe-color', `rgba(${rgb}, ${alpha})`);
+                    }
+                    wd.classList.add('override-theme-color');
+                });
+            }
+        };
+
+        const endDrag = (x) => {
+            if (!this.drag) return;
+            const dX = x - this.sX;
+            wd.classList.remove('override-theme-color');
+            if (this.raf) cancelAnimationFrame(this.raf);
+            if (Math.abs(dX) > CONFIG.VOTE.SWIPE_THRESHOLD) {
+                let l = dX < 0; 
+                if (State.data.settings.mirrorMode) l = !l;
+                wd.style.transition = 'transform .4s ease-out, opacity .4s ease-out';
+                const exitX = l ? -window.innerWidth : window.innerWidth;
+                const rot = l ? -20 : 20;
+                wd.style.transform = `translate(${exitX}px, 0px) rotate(${rot}deg)`;
+                wd.style.opacity = '0';
+                const colors = Accessibility.getColors();
+                wd.style.color = l ? colors.good : colors.bad;
+                SoundManager.playWhoosh();
+                Game.vote(l ? 'good' : 'bad', true);
+            } else {
+                wd.classList.add('word-reset');
+                wd.style.transform = 'translate(0,0) rotate(0)';
+                wd.style.color = '';
+                setTimeout(() => {
+                    wd.classList.remove('word-reset');
+                    wd.style = '';
+                    const currentWord = State.runtime.allWords[State.runtime.currentWordIndex];
+                    if(currentWord) UIManager.displayWord(currentWord);
+                }, 300);
+            }
+            this.drag = false; this.scroll = false;
+        };
+
+        c.addEventListener('mousedown', e => { if (e.target.closest('button, input, select')) return; if(e.cancelable) e.preventDefault(); startDrag(e.clientX, e.clientY); });
+        window.addEventListener('mousemove', e => { if (this.drag) moveDrag(e.clientX, e.clientY, e); });
+        window.addEventListener('mouseup', e => { if (this.drag) endDrag(e.clientX); });
+        c.addEventListener('touchstart', e => { if (e.target.closest('button, input, select')) return; startDrag(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
+        c.addEventListener('touchmove', e => { moveDrag(e.touches[0].clientX, e.touches[0].clientY, e); }, { passive: false });
+        c.addEventListener('touchend', e => { endDrag(e.changedTouches[0].clientX); }, false);
+    }
+};
+
 // --- MAIN GAME LOGIC ---
 const Game = {
     cleanStyles(e) {
@@ -3446,13 +3546,25 @@ const Game = {
         e.style.color = ''
     },
 async init() {
+        // --- VERSION FIX ---
         const vEl = document.querySelector('.version-indicator');
-        if(vEl) vEl.textContent = `v${CONFIG.APP_VERSION} | Made by Gilxs in 12,025`;
+        if(vEl) {
+            vEl.textContent = `v${CONFIG.APP_VERSION} | Made by Gilxs in 12,025`;
+            // Force styling to ensure it is centered
+            vEl.style.position = 'fixed';
+            vEl.style.bottom = '5px';
+            vEl.style.left = '0';
+            vEl.style.width = '100%';
+            vEl.style.textAlign = 'center';
+            vEl.style.zIndex = '1000';
+            vEl.style.pointerEvents = 'none';
+            vEl.style.opacity = '0.7';
+            vEl.style.fontSize = '10px';
+        }
      
         Accessibility.apply();
 		this.updateLights();
 		UIManager.updateOfflineIndicator();
-        DOM.general.version.textContent = `v${CONFIG.APP_VERSION} | Made by Gilxs in 12,025`;
         DOM.game.buttons.good.onclick = () => this.vote('good');
         DOM.game.buttons.bad.onclick = () => this.vote('bad');
         DOM.game.buttons.notWord.onclick = () => this.vote('notWord');
