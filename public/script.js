@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
-	API_BASE_URL: 'https://good-word.onrender.com/api/words',
-    SCORE_API_URL: 'https://good-word.onrender.com/api/scores',
+    API_BASE_URL: '/api/words',
+	SCORE_API_URL: '/api/scores',
     APP_VERSION: '5.47', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
@@ -3681,10 +3681,18 @@ const Game = {
             if(vEl) {
                 vEl.textContent = `v${CONFIG.APP_VERSION} | Made by Gilxs in 12,025`;
                 Object.assign(vEl.style, {
-                    position: 'fixed', bottom: '5px', left: '0', width: '100%',
-                    textAlign: 'center', zIndex: '9999', pointerEvents: 'none',
-                    opacity: '0.6', fontSize: '10px', color: '#64748b'
-                });
+            position: 'fixed', 
+            bottom: '5px', 
+            left: '50%',                // Move to middle of screen
+            transform: 'translateX(-50%)', // Center align the text block itself
+            width: 'auto',              // Let text define the width
+            whiteSpace: 'nowrap',       // Prevent weird wrapping
+            zIndex: '9999', 
+            pointerEvents: 'none',
+            opacity: '0.6', 
+            fontSize: '10px', 
+            color: '#64748b'
+        });
             }
 
             Accessibility.apply();
