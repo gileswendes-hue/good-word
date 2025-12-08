@@ -39,6 +39,17 @@ if (!MONGO_URI) {
 
 // --- 3. MONGOOSE SCHEMA AND MODEL ---
 
+// inside your backend code (e.g., server.js or models.js)
+
+const scoreSchema = new mongoose.Schema({
+    name: { type: String, required: true, maxlength: 3 }, // 3 letter initials
+    score: { type: Number, required: true },
+    date: { type: Date, default: Date.now },
+    userId: String // Optional: to prevent one person spamming
+});
+
+const Score = mongoose.model('Score', scoreSchema);
+
 // Defines the structure of a 'word' document in MongoDB
 const wordSchema = new mongoose.Schema({
     text: { type: String, required: true, unique: true, trim: true, lowercase: true },
@@ -167,8 +178,51 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// --- 5. START SERVER ---
+// Submit a new High Score
+app.post('/api/scores', async (req, res) => {
+    try {
+        const { name, score, userId } = req.body;
 
+        // Basic validation
+        if (!name || !score) {
+            return res.status(400).json({ message: 'Name and score required' });
+        }
+
+        // Clean input (force 3 chars, uppercase)
+        const cleanName = name.trim().slice(0, 3).toUpperCase();
+
+        const newScore = new Score({
+            name: cleanName,
+            score: parseInt(score),
+            userId
+        });
+
+        await newScore.save();
+        res.status(201).json(newScore);
+    } catch (err) {
+        console.error("Error saving score:", err);
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
+// Get Top 5 Global High Scores
+app.get('/api/scores', async (req, res) => {
+    try {
+        // Find all scores, sort by score descending, limit to top 5
+        const topScores = await Score.find()
+            .sort({ score: -1 })
+            .limit(5)
+            .select('name score -_id'); // Only return name and score
+
+        res.json(topScores);
+    } catch (err) {
+        console.error("Error fetching scores:", err);
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
+// --- 5. START SERVER ---
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
+
