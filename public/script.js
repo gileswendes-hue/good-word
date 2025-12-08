@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.47', 
+    APP_VERSION: '5.47.1', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1295,12 +1295,13 @@ const Effects = {
     snowmanTimeout: null,
     plymouthShooterTimeout: null, 
     
-    plymouth(a) {
+plymouth(a) {
         const c = DOM.theme.effects.plymouth;
         
-        // 1. Clear any existing timers (Important for switching themes)
+        // 1. Clear ALL timers (Important for switching themes)
         if (this.plymouthShooterTimeout) clearTimeout(this.plymouthShooterTimeout);
         if (this.satelliteTimeout) clearTimeout(this.satelliteTimeout);
+        if (this.plymouthStreakTimeout) clearTimeout(this.plymouthStreakTimeout); // <--- NEW TIMER
 
         // 2. If 'a' is false (theme inactive), clear screen and stop.
         if (!a) { c.innerHTML = ''; return; }
@@ -1322,7 +1323,6 @@ const Effects = {
             c.appendChild(s);
         }
 
-        // 4. Shooting Star Logic
         this.spawnPlymouthShooter = () => {
             if (State.data.currentTheme !== 'plymouth') return;
             
@@ -1343,7 +1343,7 @@ const Effects = {
             c.appendChild(s);
 
             const travelDist = Math.random() * 300 + 200;
-            const duration = Math.random() * 400 + 600;
+            const duration = Math.random() * 1500 + 2000; 
 
             const anim = s.animate([
                 { transform: 'translate(0, 0) rotate(-35deg)', opacity: 0 },
@@ -1355,26 +1355,62 @@ const Effects = {
             
             this.plymouthShooterTimeout = setTimeout(() => this.spawnPlymouthShooter(), Math.random() * 8000 + 4000);
         };
-        this.spawnPlymouthShooter();
 
-        // 5. NEW: Drifting Satellite 🛰️
+        this.spawnRealStreak = () => {
+            if (State.data.currentTheme !== 'plymouth') return;
+            
+            const streak = document.createElement('div');
+            const width = Math.random() * 150 + 50; 
+            
+            Object.assign(streak.style, {
+                position: 'absolute',
+                height: (Math.random() * 2 + 1) + 'px',
+                width: width + 'px',
+
+                background: 'linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,0.9) 50%, rgba(255,255,255,0))',
+                top: (Math.random() * 60) + '%',
+                left: (Math.random() * 100) + '%',
+                transform: 'rotate(-35deg)',
+                opacity: '0',
+                pointerEvents: 'none',
+                zIndex: '5',
+                boxShadow: '0 0 4px rgba(255, 255, 255, 0.8)'
+            });
+            c.appendChild(streak);
+
+            const travelX = -200;
+            const travelY = 100;
+
+            const anim = streak.animate([
+                { transform: 'translate(0, 0) rotate(-35deg)', opacity: 0 },
+                { transform: `translate(${travelX * 0.1}px, ${travelY * 0.1}px) rotate(-35deg)`, opacity: 1, offset: 0.1 }, // Fade in quick
+                { transform: `translate(${travelX}px, ${travelY}px) rotate(-35deg)`, opacity: 0 }
+            ], { 
+                duration: Math.random() * 800 + 600, 
+                easing: 'ease-out' 
+            });
+
+            anim.onfinish = () => streak.remove();
+
+    
+            this.plymouthStreakTimeout = setTimeout(() => this.spawnRealStreak(), Math.random() * 6000 + 3000);
+        };
+
         this.spawnSatellite = () => {
             if (State.data.currentTheme !== 'plymouth') return;
 
             const sat = document.createElement('div');
             sat.textContent = '🛰️';
-            
-            // Randomize direction (Left->Right or Right->Left)
             const startLeft = Math.random() > 0.5;
             
             Object.assign(sat.style, {
                 position: 'absolute',
                 fontSize: '2.5rem',
                 opacity: '0.9',
-                zIndex: '2', // Low Z-index to ensure it stays behind UI cards
-                top: (Math.random() * 50 + 10) + '%', // Random vertical position (upper half)
+                zIndex: '2', 
+                top: (Math.random() * 50 + 10) + '%', 
                 left: startLeft ? '-10%' : '110%',
-                transition: 'left 35s linear, transform 35s linear', // Very slow drift
+                transition: 'left 35s linear, transform 35s linear', 
                 filter: 'drop-shadow(0 0 3px rgba(200,200,255,0.3))',
                 transform: startLeft ? 'rotate(15deg)' : 'scaleX(-1) rotate(-15deg)',
                 pointerEvents: 'none'
@@ -1382,24 +1418,21 @@ const Effects = {
             
             c.appendChild(sat);
 
-            // Trigger Animation Frame
             requestAnimationFrame(() => {
                 sat.style.left = startLeft ? '110%' : '-10%';
-                // Slow rotation change during flight
                 sat.style.transform = startLeft ? 'rotate(45deg)' : 'scaleX(-1) rotate(-45deg)';
             });
 
-            // Cleanup after it leaves screen
             setTimeout(() => {
                 if(sat.parentNode) sat.remove();
             }, 36000);
 
-            // Schedule next satellite (Every 20-45 seconds)
             this.satelliteTimeout = setTimeout(() => this.spawnSatellite(), Math.random() * 25000 + 20000);
         };
         
-        // Start the satellite loop
+        this.spawnPlymouthShooter();
         this.spawnSatellite();
+        this.spawnRealStreak(); 
     },
 
     fire() { const c = DOM.theme.effects.fire; c.innerHTML = ''; for (let i = 0; i < 80; i++) { const p = document.createElement('div'); p.className = 'fire-particle'; p.style.animationDuration = `${Math.random()*1.5+0.5}s`; p.style.animationDelay = `${Math.random()}s`; p.style.left = `calc(10% + (80% * ${Math.random()}))`; const size = Math.random() * 3 + 2; p.style.width = p.style.height = `${size}em`; p.style.setProperty('--sway', `${(Math.random()-.5)*20}px`); c.appendChild(p) } for (let i = 0; i < 15; i++) { const s = document.createElement('div'); s.className = 'smoke-particle'; s.style.animationDelay = `${Math.random()*3}s`; s.style.left = `${Math.random()*90+5}%`; s.style.setProperty('--sway', `${(Math.random()-.5)*150}px`); c.appendChild(s) } },
