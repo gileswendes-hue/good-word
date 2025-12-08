@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.47.4', 
+    APP_VERSION: '5.48.1', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -18,7 +18,7 @@ const CONFIG = {
     TIP_COOLDOWN: 4,
     HISTORY_SIZE: 500,
     VOTE: {
-        MASH_LIMIT: 5,
+        MASH_LIMIT: 8,
         COOLDOWN_TIERS: [15, 30],
         STREAK_WINDOW: 1500,
         SWIPE_THRESHOLD: 100
@@ -686,9 +686,16 @@ const MosquitoManager = {
             zIndex: '100',
             left: this.x + '%', 
             top: this.y + '%',
-            transform: 'translate(-50%, -50%)', // Center it
-            filter: 'drop-shadow(1px 2px 3px rgba(0,0,0,0.5))'
+            transform: 'translate(-50%, -50%)', 
+            filter: 'drop-shadow(1px 2px 3px rgba(0,0,0,0.5))',
+			cursor: 'pointer',       
+            pointerEvents: 'auto'   
         });
+
+        this.el.onclick = (e) => {
+            e.stopPropagation();
+            this.startRescue();
+        };
 
         document.body.appendChild(this.el);
         this.state = 'stuck';
@@ -768,7 +775,9 @@ const MosquitoManager = {
     startRescue() {
         this.state = 'thanking';
         SoundManager.stopBuzz(); 
-        this.path.setAttribute('d', '');
+        
+        // --- FIX: Check if path exists (it doesn't for fed bugs) ---
+        if (this.path) this.path.setAttribute('d', '');
         
         State.data.insectStats.saved++;
         State.save('insectStats', State.data.insectStats);
@@ -4166,7 +4175,7 @@ const Game = {
 
 const StreakManager = {
     timer: null,
-    LIMIT: 5000, 
+    LIMIT: 7500, 
 
     handleSuccess() {
         const now = Date.now();
@@ -4292,11 +4301,15 @@ const StreakManager = {
         document.getElementById('hsSaveBtn').onclick = saveFn;
     },
 
-    async showLeaderboard() {
-        this.renderLeaderboard(State.data.highScores, "YOUR DEVICE");
+async showLeaderboard() {
+        // 1. Show Local Scores with retro title
+        this.renderLeaderboard(State.data.highScores, "LOCAL BEST");
+        
+        // 2. Fetch and Show Global Scores
         const globalScores = await API.getGlobalScores();
         if (globalScores && globalScores.length > 0) {
-            this.renderLeaderboard(globalScores, "GLOBAL RANKING");
+            // --- CHANGED: "GLOBAL RANKING" -> "HIGH SCORES" ---
+            this.renderLeaderboard(globalScores, "HIGH SCORES");
         }
     },
 
@@ -4307,26 +4320,41 @@ const StreakManager = {
         const displayScores = [...scores];
         while(displayScores.length < 5) displayScores.push({name: '---', score: 0});
 
-        const listHtml = displayScores.map((s, i) => 
-            `<div style="display:flex; justify-content:space-between; padding:12px; background:${i===0?'#fffbeb':'#f9fafb'}; border-bottom:1px solid #e5e7eb;">
-                <span style="font-weight:bold; color:#374151; display:flex; align-items:center;">
-                    <span style="color:#9ca3af; font-size:0.8em; margin-right:8px; width:20px;">#${i+1}</span> 
-                    ${s.name}
-                </span> 
-                <span style="font-weight:900; color:#4f46e5; font-size:1.2rem;">${s.score}</span>
-             </div>`
-        ).join('');
+        // --- RETRO ARCADE STYLING ---
+        const listHtml = displayScores.map((s, i) => {
+            // Colors: Top rank = Yellow, others = Neon Green
+            const rankColor = i === 0 ? '#ffff00' : '#00ff00';
+            const name = s.name.padEnd(3, ' '); // Ensure name alignment
+            const score = s.score.toString().padStart(6, '0'); // Retro "000100" format
+
+            return `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 15px; border-bottom:1px dashed #333; font-family:'Courier New', monospace; letter-spacing:1px;">
+                <div style="display:flex; align-items:center;">
+                    <span style="color:#ff00ff; margin-right:15px; width:40px; text-align:right;">${(i+1) < 10 ? '0'+(i+1) : i+1}</span> 
+                    <span style="font-weight:bold; color:${rankColor}; text-transform:uppercase;">${name}</span>
+                </div>
+                <span style="font-weight:bold; color:#00ffff; font-size:1.1rem; text-shadow: 0 0 5px rgba(0,255,255,0.5);">${score}</span>
+             </div>`;
+        }).join('');
 
         const html = `
-            <div id="highScoreModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:10000; display:flex; align-items:center; justify-content:center;" onclick="this.remove()">
-                <div style="background:white; border-radius:1rem; width:350px; max-width:90%; overflow:hidden; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);" onclick="event.stopPropagation()">
-                    <div style="background:#4f46e5; padding:1.5rem; text-align:center;">
-                        <h2 style="color:white; font-weight:900; font-size:1.5rem; margin:0; letter-spacing:0.05em;">${title}</h2>
+            <div id="highScoreModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:10000; display:flex; align-items:center; justify-content:center;" onclick="this.remove()">
+                <div style="background:#111; border:4px solid #ff00ff; border-radius:4px; width:380px; max-width:95%; overflow:hidden; box-shadow:0 0 20px rgba(255,0,255,0.4), inset 0 0 20px rgba(0,0,0,0.8);" onclick="event.stopPropagation()">
+                    
+                    <div style="background:#000; padding:1.5rem; text-align:center; border-bottom:4px solid #ff00ff; position:relative;">
+                        <h2 style="color:#ffff00; font-family:'Courier New', monospace; font-weight:900; font-size:2rem; margin:0; letter-spacing:0.1em; text-shadow:3px 3px #ff0000;">${title}</h2>
+                        <div style="font-size:0.7rem; color:#00ff00; font-family:'Courier New', monospace; margin-top:5px; opacity:0.8;">TOP 5 PLAYERS</div>
                     </div>
-                    <div style="max-height:60vh; overflow-y:auto;">
+                    
+                    <div style="max-height:60vh; overflow-y:auto; background:black;">
                         ${listHtml}
                     </div>
-                    <button onclick="document.getElementById('highScoreModal').remove()" style="width:100%; padding:1rem; background:#f3f4f6; color:#6b7280; border:none; font-weight:bold; cursor:pointer; border-top:1px solid #e5e7eb;">CLOSE</button>
+                    
+                    <button onclick="document.getElementById('highScoreModal').remove()" 
+                        style="width:100%; padding:1rem; background:#ff00ff; color:white; border:none; font-family:'Courier New', monospace; font-weight:bold; cursor:pointer; font-size:1.2rem; text-transform:uppercase; transition:background 0.2s;"
+                        onmouseover="this.style.background='#d900d9'" onmouseout="this.style.background='#ff00ff'">
+                        CLOSE
+                    </button>
                 </div>
             </div>`;
         
