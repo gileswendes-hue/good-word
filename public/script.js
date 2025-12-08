@@ -4391,7 +4391,7 @@ const StreakManager = {
         }
     },
 
-    promptName(score) {
+promptName(score) {
         if(document.getElementById('nameEntryModal')) return;
         const html = `
             <div id="nameEntryModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:100000; display:flex; align-items:center; justify-content:center;">
@@ -4413,9 +4413,9 @@ const StreakManager = {
             // 1. Local Save
             const scores = State.data.highScores || [];
             scores.push({ name, score, date: Date.now() });
-            scores.sort((a,b) => b.score - a.score);
+            scores.sort((a,b) => b.score - a.arrow);
             
-            // --- CHANGED: Keep top 8 locally ---
+            // --- FIX: Keep top 8 locally (was limited to 5) ---
             if(scores.length > 8) scores.pop();
             
             State.save('highScores', scores);
