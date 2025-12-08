@@ -1,7 +1,7 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-    APP_VERSION: '5.40.6', 
+    APP_VERSION: '5.40.8', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -152,6 +152,8 @@ const State = {
         voteCount: parseInt(localStorage.getItem('voteCount') || 0),
         contributorCount: parseInt(localStorage.getItem('contributorCount') || 0),
         profilePhoto: localStorage.getItem('profilePhoto') || null,
+		longestStreak: parseInt(localStorage.getItem('longestStreak') || 0),
+        highScores: JSON.parse(localStorage.getItem('highScores') || "[]"),
         
         pendingVotes: JSON.parse(localStorage.getItem('pendingVotes')) || [],
         offlineCache: JSON.parse(localStorage.getItem('offlineCache')) || [],
@@ -238,7 +240,7 @@ const State = {
 
         if (k === 'pendingVotes') s.setItem('pendingVotes', JSON.stringify(v));
         else if (k === 'offlineCache') s.setItem('offlineCache', JSON.stringify(v));
-        
+        else if (k === 'highScores') s.setItem('highScores', JSON.stringify(v));
         else if (k === 'insectStats') {
             s.setItem('insectSaved', v.saved);
             s.setItem('insectEaten', v.eaten);
@@ -3837,6 +3839,8 @@ const Game = {
             if (res.status !== 403 && !res.ok) throw 0;
             w[`${t}Votes`] = (w[`${t}Votes`] || 0) + 1;
             State.incrementVote();
+			
+			StreakManager.handleSuccess();
             
             if (State.runtime.isDailyMode) {
                 const tod = new Date(),
@@ -4031,7 +4035,6 @@ const InputHandler = {
     }
 };
 
-// --- STREAK MANAGER & HIGH SCORES ---
 const StreakManager = {
     timer: null,
     LIMIT: 5000, 
@@ -4047,15 +4050,15 @@ const StreakManager = {
 
         const currentStreak = State.runtime.streak;
         
-        // Update Longest Streak
+        // Update Longest Streak Data
         if (currentStreak > State.data.longestStreak) {
             State.save('longestStreak', currentStreak);
-            // Live update the profile if it's open
+            // Live update the profile text if it's open
             const el = document.getElementById('streak-display-value');
             if(el) el.textContent = currentStreak + " Words";
         }
 
-        // Visuals (Only after 5)
+        // Visuals (Only show floating counter after 5 words)
         if (currentStreak >= 5) {
             if (currentStreak === 5) this.showNotification("🔥 STREAK STARTED!", "success");
             this.updateScreenCounter(true);
@@ -4148,7 +4151,7 @@ const StreakManager = {
         document.body.appendChild(div.firstElementChild);
     }
 };
-// --- INITIALIZATION ---
+
 window.StreakManager = StreakManager;
 window.onload = Game.init.bind(Game);
 window.fEhPVHxCRUFDSHxIT0xJREFZfFNVTnxWQU = API; 
