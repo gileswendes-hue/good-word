@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.59.0', 
+    APP_VERSION: '5.59.1', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -3820,21 +3820,26 @@ const Game = {
             if(vEl) {
                 vEl.textContent = `v${CONFIG.APP_VERSION} | Made by Gilxs in 12,025`;
                Object.assign(vEl.style, {
-                    position: 'fixed', 
-                    bottom: '10px', 
-                    left: '50%',                
-                    transform: 'translateX(-50%)', 
-                    width: 'auto',              
-                    whiteSpace: 'nowrap',       
-                    zIndex: '9999', 
-                    pointerEvents: 'none',
-                    opacity: '1',               // Fully visible
-                    fontSize: '12px',           // Larger
-                    fontWeight: 'bold',         // Bold
-                    color: '#111827',           // Dark Black
-                    textShadow: '0 1px 0 rgba(255,255,255,0.6)', 
-                    mixBlendMode: 'normal'
-                });
+                position: 'fixed', 
+                bottom: '10px', 
+                left: '50%',                
+                transform: 'translateX(-50%)', 
+                width: 'auto',              
+                whiteSpace: 'nowrap',       
+                zIndex: '9999', 
+                pointerEvents: 'none',
+                
+                // --- SMART VISIBILITY ---
+                opacity: '1',               
+                fontSize: '12px',           
+                fontWeight: '900',          
+                
+                // The Magic Trick:
+                color: '#ffffff',           // Base color MUST be White
+                mixBlendMode: 'difference', // Inverts based on background
+                
+                textShadow: 'none'          // No shadows
+            });
             }
 
             Accessibility.apply();
