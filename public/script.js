@@ -1915,7 +1915,7 @@ halloween(active) {
             const body = wrap.querySelector('#spider-body');
             const thread = wrap.querySelector('#spider-thread');
 
-            // --- SMART BUBBLE HELPER (REPLACEMENT) ---
+// --- SMART BUBBLE HELPER (FINAL FIX) ---
             const showSpiderBubble = (text, forcedOrientation = null) => {
                 const old = body.querySelector('.spider-dynamic-bubble');
                 if (old) old.remove();
@@ -1931,7 +1931,11 @@ halloween(active) {
                     boxShadow: '0 2px 5px rgba(0,0,0,0.2)', border: '1px solid #e5e7eb',
                     marginBottom: '8px', zIndex: '10'
                 });
-                b.textContent = text;
+                
+                // CREATE INNER TEXT SPAN FOR SEPARATE ROTATION
+                const textSpan = document.createElement('span');
+                textSpan.textContent = text;
+                b.appendChild(textSpan);
 
                 // Little Arrow
                 const arrow = document.createElement('div');
@@ -1949,39 +1953,47 @@ halloween(active) {
 
                 // 1. Vertical Position & Arrow Flip
                 if (isUpsideDown) {
-                    // Spider is upside down. Arrow needs to point UP (towards the feet/thread) 
-                    // and the bubble needs a counter-rotation to be upright for the user.
+                    // Spider is upside down. Position bubble below the head (relative top)
                     b.style.top = '115%'; 
                     b.style.bottom = 'auto';
-                    b.style.transform = 'translateX(-50%) rotate(180deg)'; // COUNTER-ROTATION
+                    b.style.transform = 'translateX(-50%)'; // Center bubble container
                     
-                    // Arrow points UP (at the head)
+                    // COUNTER-ROTATION: Rotate the text content itself 180 degrees
+                    textSpan.style.transform = 'rotate(180deg)'; 
+                    textSpan.style.display = 'inline-block';
+
+                    // Arrow points UP
                     arrow.style.bottom = '100%';
                     arrow.style.borderBottom = '6px solid white';
-                    arrow.style.borderTop = 'none';
+                    arrow.style.top = 'auto';
                 } else {
-                    // Spider is upright (Normal).
+                    // Spider is upright (Normal)
                     b.style.bottom = '100%'; 
                     b.style.top = 'auto';
                     b.style.transform = 'translateX(-50%)';
+                    textSpan.style.transform = 'none'; // Ensure text is normal
                     
                     // Arrow points DOWN
                     arrow.style.top = '100%';
                     arrow.style.borderTop = '6px solid white';
-                    arrow.style.borderBottom = 'none';
+                    arrow.style.bottom = 'auto';
                 }
 
                 // 2. Horizontal Alignment (Edge Detection)
                 if (currentLeft < 20) {
                     b.style.left = '0';
-                    if (!isUpsideDown) b.style.transform = 'none';
-                    arrow.style.left = '20px';
+                    b.style.transform = 'none'; 
+                    arrow.style.left = '20px'; 
                 } else if (currentLeft > 80) {
                     b.style.right = '0';
                     b.style.left = 'auto';
-                    if (!isUpsideDown) b.style.transform = 'none';
+                    b.style.transform = 'none';
                     arrow.style.right = '20px';
-                } // Center logic is handled in the vertical position block's 'else'
+                } else {
+                    // Centered (Transform handled above)
+                    arrow.style.left = '50%';
+                    arrow.style.marginLeft = '-6px';
+                }
                 
                 requestAnimationFrame(() => b.style.opacity = '1');
                 setTimeout(() => {
