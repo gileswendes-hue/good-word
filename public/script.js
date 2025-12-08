@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.59.3', 
+    APP_VERSION: '5.60', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -3850,8 +3850,10 @@ const Game = {
                     left: '50%',                
                     transform: 'translateX(-50%)', 
                     
-                    // --- CHANGED: Lower Z-Index so cards scroll OVER it ---
-                    zIndex: '0', 
+                    // --- Z-INDEX UPDATE ---
+                    // z-5 sits ABOVE the Summer grass (z-0) 
+                    // but BELOW the Game Card (z-10) so it scrolls nicely.
+                    zIndex: '5', 
                     
                     pointerEvents: 'none',
                     fontFamily: 'system-ui, -apple-system, sans-serif',
@@ -3863,6 +3865,12 @@ const Game = {
                     padding: '6px 14px',
                     borderRadius: '9999px',
                     border: '1px solid rgba(0,0,0,0.1)',
+                    
+                    // --- WIDTH UPDATE ---
+                    // 'max-content' forces the pill to be exactly as wide as the text
+                    // preventing it from stretching across the screen.
+                    width: 'max-content',
+                    
                     textShadow: 'none',
                     opacity: '1',
                     mixBlendMode: 'normal'
@@ -4290,7 +4298,7 @@ const Game = {
 
 const StreakManager = {
     timer: null,
-    LIMIT: 7500, 
+    LIMIT: 15000, 
 
     handleSuccess() {
         const now = Date.now();
@@ -4374,8 +4382,10 @@ const StreakManager = {
     checkHighScore(score) {
         if (!State.data.highScores) State.data.highScores = [];
         const scores = State.data.highScores;
-        const minScore = scores.length < 5 ? 0 : scores[scores.length - 1].score;
-        if (score > minScore || scores.length < 5) {
+        // --- CHANGED: Check against 8 instead of 10 ---
+        const minScore = scores.length < 8 ? 0 : scores[scores.length - 1].score;
+        
+        if (score > minScore || scores.length < 8) {
             setTimeout(() => this.promptName(score), 500);
         }
     },
@@ -4403,7 +4413,10 @@ const StreakManager = {
             const scores = State.data.highScores || [];
             scores.push({ name, score, date: Date.now() });
             scores.sort((a,b) => b.score - a.score);
-            if(scores.length > 5) scores.pop();
+            
+            // --- CHANGED: Keep top 8 locally ---
+            if(scores.length > 8) scores.pop();
+            
             State.save('highScores', scores);
 
             // 2. Global Save
@@ -4416,14 +4429,10 @@ const StreakManager = {
         document.getElementById('hsSaveBtn').onclick = saveFn;
     },
 
-async showLeaderboard() {
-        // 1. Show Local Scores with retro title
+    async showLeaderboard() {
         this.renderLeaderboard(State.data.highScores, "LOCAL BEST");
-        
-        // 2. Fetch and Show Global Scores
         const globalScores = await API.getGlobalScores();
         if (globalScores && globalScores.length > 0) {
-            // --- CHANGED: "GLOBAL RANKING" -> "HIGH SCORES" ---
             this.renderLeaderboard(globalScores, "HIGH SCORES");
         }
     },
@@ -4432,18 +4441,15 @@ async showLeaderboard() {
         const existing = document.getElementById('highScoreModal');
         if(existing) existing.remove();
 
-        const displayScores = [...scores];
-        while(displayScores.length < 5) displayScores.push({name: '---', score: 0});
+        // --- CHANGED: Slice to top 8, pad to 8 ---
+        const displayScores = [...scores].slice(0, 8);
+        while(displayScores.length < 8) displayScores.push({name: '---', score: 0});
 
-        // --- 1980s ARCADE STYLING ---
         const listHtml = displayScores.map((s, i) => {
-            // Colors: 1st=Yellow, 2nd=Cyan, 3rd=Green, Others=Red
             const rankColor = i === 0 ? 'text-yellow-400' : (i===1 ? 'text-cyan-400' : (i===2 ? 'text-green-400' : 'text-red-500'));
             const scoreColor = 'text-white';
-            
-            // Pad score with zeros (e.g. 001500) for retro feel
             const retroScore = s.score.toString().padStart(7, '0');
-            const retroName = s.name.toUpperCase().substring(0, 3); // Force 3 letter initials
+            const retroName = s.name.toUpperCase().substring(0, 3);
 
             return `
             <div class="flex items-center justify-between border-b-2 border-gray-800/50 pb-2 mb-2 font-mono tracking-widest group hover:bg-white/5 transition-colors p-1">
@@ -4465,14 +4471,14 @@ async showLeaderboard() {
                         
                         <div class="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-0 bg-[length:100%_4px,3px_100%] pointer-events-none"></div>
 
-                        <div class="text-center mb-8 relative z-10">
+                        <div class="text-center mb-6 relative z-10">
                             <h2 class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 to-yellow-600 tracking-[0.2em] drop-shadow-[4px_4px_0_rgba(180,83,9,0.5)] animate-pulse" style="font-family: 'Courier New', monospace;">
                                 ${title}
                             </h2>
                             <div class="text-[10px] text-indigo-400 mt-2 font-mono font-bold tracking-[0.5em] uppercase">--- Insert Coin ---</div>
                         </div>
 
-                        <div class="space-y-2 mb-8 relative z-10">
+                        <div class="space-y-2 mb-4 relative z-10 max-h-[50vh] overflow-y-auto pr-2 scrollbar-hide">
                             ${listHtml}
                         </div>
 
