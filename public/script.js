@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.45', 
+    APP_VERSION: '5.46', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -3459,6 +3459,7 @@ window.ContactManager = ContactManager;
 const InputHandler = {
     sX: 0, sY: 0, drag: false, scroll: false, raf: null,
     init() {
+		if (!DOM.game.card || !DOM.game.wordDisplay) return;
         const c = DOM.game.card, wd = DOM.game.wordDisplay;
         
         const startDrag = (x, y) => {
@@ -3546,25 +3547,23 @@ const Game = {
         e.style.color = ''
     },
 async init() {
-        // --- VERSION FIX ---
+        // --- 1. Version Fix (Robust) ---
         const vEl = document.querySelector('.version-indicator');
         if(vEl) {
             vEl.textContent = `v${CONFIG.APP_VERSION} | Made by Gilxs in 12,025`;
-            // Force styling to ensure it is centered
-            vEl.style.position = 'fixed';
-            vEl.style.bottom = '5px';
-            vEl.style.left = '0';
-            vEl.style.width = '100%';
-            vEl.style.textAlign = 'center';
-            vEl.style.zIndex = '1000';
-            vEl.style.pointerEvents = 'none';
-            vEl.style.opacity = '0.7';
-            vEl.style.fontSize = '10px';
+            // Force Center Styling
+            Object.assign(vEl.style, {
+                position: 'fixed', bottom: '5px', left: '0', width: '100%',
+                textAlign: 'center', zIndex: '1000', pointerEvents: 'none',
+                opacity: '0.6', fontSize: '10px', color: '#64748b'
+            });
         }
-     
+        
         Accessibility.apply();
+        SoundManager.init();
 		this.updateLights();
 		UIManager.updateOfflineIndicator();
+		
         DOM.game.buttons.good.onclick = () => this.vote('good');
         DOM.game.buttons.bad.onclick = () => this.vote('bad');
         DOM.game.buttons.notWord.onclick = () => this.vote('notWord');
@@ -3786,19 +3785,17 @@ async init() {
     },
    nextWord() {
         let p = State.runtime.allWords;
-        if (!p.length) return;
+        if (!p || p.length === 0) return;
 
-        // Smart Filtering: Zero Votes Only
+        // 1. Smart Filtering
         if (State.data.settings.zeroVotesOnly) {
             const unvoted = p.filter(w => (w.goodVotes || 0) === 0 && (w.badVotes || 0) === 0);
             if (unvoted.length > 0) p = unvoted;
             else UIManager.showPostVoteMessage("No more new words! Showing random.");
         }
 
-        const r = Math.random(),
-            { CAKE, LLAMA, POTATO, SQUIRREL, MASON } = CONFIG.SPECIAL,
-            b = State.data.badges;
-        
+        // 2. Special Words (Cake, etc)
+        const r = Math.random(), { CAKE, LLAMA, POTATO, SQUIRREL, MASON } = CONFIG.SPECIAL, b = State.data.badges;
         let sp = null;
         if (!b.cake && r < CAKE.prob) sp = CAKE.text;
         else if (!b.llama && r < CAKE.prob + LLAMA.prob) sp = LLAMA.text;
@@ -3815,21 +3812,23 @@ async init() {
             }
         }
         
-        // Weighted Random Selection
+        // 3. Selection Algorithm (Safe)
         let av = p.reduce((acc, w, i) => {
             const trueIndex = State.runtime.allWords.indexOf(w);
-            if (!State.data.seenHistory.includes(trueIndex) && trueIndex !== State.runtime.currentWordIndex) {
+            // Allow re-picking current word if it's the ONLY word available
+            if ((!State.data.seenHistory.includes(trueIndex) && trueIndex !== State.runtime.currentWordIndex) || p.length === 1) {
                  acc.push({ i: trueIndex, v: (w.goodVotes || 0) + (w.badVotes || 0) });
             }
             return acc;
         }, []);
         
+        // Fallback: If history blocked everything, just pick anything valid
         if (!av.length) {
-             av = p.map(w => {
-                 const trueIndex = State.runtime.allWords.indexOf(w);
-                 return { i: trueIndex, v: (w.goodVotes || 0) + (w.badVotes || 0) };
-             }).filter(x => x.i !== State.runtime.currentWordIndex);
+             av = p.map(w => ({ i: State.runtime.allWords.indexOf(w), v: 0 }));
         }
+
+        // CRITICAL FIX: Ensure 'av' is not empty before accessing it
+        if (av.length === 0) return; 
 
         let tw = 0;
         av = av.map(c => {
@@ -3839,13 +3838,10 @@ async init() {
             return { i: c.i, w };
         });
         
-        let rnd = Math.random() * tw, sel = av[av.length - 1].i;
+        let rnd = Math.random() * tw, sel = av[0].i; // Default to first
         for (let it of av) {
             rnd -= it.w;
-            if (rnd <= 0) {
-                sel = it.i;
-                break;
-            }
+            if (rnd <= 0) { sel = it.i; break; }
         }
         
         State.runtime.currentWordIndex = sel;
