@@ -2665,6 +2665,13 @@ async generateImage() {
 
 const UIManager = {
     msgTimeout: null,
+    
+    // --- NEW CONSTANTS FOR BANANA TEXTURE ---
+    // These match the body background precisely to tile seamlessly
+    BANANA_BG_IMAGE: 'radial-gradient(circle at 15% 50%, rgba(92, 64, 51, 0.6) 1px, transparent 1.5px), radial-gradient(circle at 85% 30%, rgba(92, 64, 51, 0.5) 1.5px, transparent 2.5px), radial-gradient(ellipse at 70% 20%, rgba(70, 45, 30, 0.3) 2px, transparent 10px), radial-gradient(ellipse at 20% 80%, rgba(70, 45, 30, 0.4) 4px, transparent 15px), repeating-linear-gradient(90deg, transparent, transparent 59px, rgba(139, 69, 19, 0.06) 60px, rgba(139, 69, 19, 0.03) 62px, transparent 62px, transparent 140px), radial-gradient(circle at 50% 50%, rgba(139, 69, 19, 0.02) 0%, transparent 50%)',
+    BANANA_BG_SIZE: '103px 103px, 263px 263px, 499px 499px, 379px 379px, 100% 100%, 800px 800px',
+    BANANA_BG_POSITION: '17px 23px, 150px 70px, 0 0, 0 0, 0 0, 0 0',
+
     showMessage(t, err = false) {
         const wd = DOM.game.wordDisplay;
         wd.textContent = t;
@@ -2960,8 +2967,13 @@ const UIManager = {
             wd.style.textShadow = '2px 2px 0px #300, 0 0 8px #ff5000, 0 0 20px #ff0000'
         }
         if (t === 'banana') {
-            wd.style.color = '#ffd200';
-            wd.style.animation = 'bounce-word .5s ease-out infinite alternate'
+            wd.style.backgroundImage = UIManager.BANANA_BG_IMAGE;
+            wd.style.backgroundSize = UIManager.BANANA_BG_SIZE;
+            wd.style.backgroundPosition = UIManager.BANANA_BG_POSITION;
+            wd.style.webkitBackgroundClip = 'text';
+            wd.style.webkitTextFillColor = 'transparent';
+            wd.style.color = 'transparent'; // Fallback
+            wd.style.animation = 'bounce-word .5s ease-out infinite alternate';
         }
         if (t === 'winter') {
             wd.style.color = '#01579b';
@@ -3035,7 +3047,7 @@ const UIManager = {
             score: (w.goodVotes || 0) - (w.badVotes || 0)
         }));
         const tg = [...r].sort((a, b) => (b.score - a.score) || ((b.good + b.bad) - (a.good + a.bad)));
-        const tb = [...r].sort((a, b) => (a.score - b.score) || ((b.good + b.bad) - (a.good + a.bad)));
+        const tb = [...r].sort((a, b) => (a.score - b.score) || ((b.good + b.bad) - (a.good + a.ad)));
         if (lim === 0) return { topGood: tg, topBad: tb };
         return { topGood: tg.slice(0, lim), topBad: tb.slice(0, lim) }
     },
@@ -3928,7 +3940,7 @@ const Game = {
                 if (st.length === 2) {
                     const [s1, s2] = st; let wi = -1; if (s1.score !== s2.score) wi = s1.score > s2.score? 0 : 1;
                     h = `<div class="flex flex-col md:flex-row gap-4 w-full justify-center items-stretch">`;
-                    st.forEach((s, i) => { const iw = i === wi, il = wi !== -1 && !iw, bc = iw ? 'border-yellow-400 bg-yellow-50 shadow-xl scale-105 z-10' : 'border-gray-200 bg-white', oc = il ? 'opacity-70 grayscale-[0.3]' : ''; h += `<div class="flex-1 p-4 rounded-xl border-2 ${bc} ${oc} flex flex-col items-center transition-all duration-300">${iw?'<div class="text-2xl mb-2">🏆</div>':'<div class="h-8 mb-2"></div>'}<h3 class="text-xl font-black text-gray-800 mb-1">${s.text}</h3>${iw?'<span class="bg-yellow-400 text-white text-[10px] font-bold px-2 py-0.5 rounded-full mb-2">WINNER</span>':''}${s.isNew?'<span class="bg-purple-100 text-purple-600 text-xs px-2 py-1 rounded mb-2">New!</span>':''}<div class="text-3xl font-bold ${s.score>=0?'text-green-600':'text-red-600'} mb-4">${s.score}</div><div class="w-full space-y-2"><div class="flex justify-between text-xs text-gray-500"><span>Approval</span><span>${s.approval}%</span></div><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-blue-500 h-2.5 rounded-full" style="width: ${s.approval}%"></div></div><div class="flex justify-between text-xs pt-1"><span class="text-green-600 font-bold">+${s.good}</span><span class="text-red-600 font-bold">-${s.bad}</span></div></div></div>`; if (i === 0) h += `<div class="flex items-center justify-center font-black text-gray-300 md:px-2">VS</div>` }); h += '</div>'
+                    st.forEach((s, i) => { const iw = i === wi, il = wi !== -1 && !iw, bc = iw ? 'border-yellow-400 bg-yellow-50 shadow-xl scale-105 z-10' : 'border-gray-200 bg-white', oc = il ? 'opacity-70 grayscale-[0.3]' : ''; h += `<div class="flex-1 p-4 rounded-xl border-2 ${bc} ${oc} flex flex-col items-center transition-all duration-300">${iw?'<div class="text-2xl mb-2">🏆</div>':'<div class="h-8 mb-2"></div>'}<h3 class="text-xl font-black text-gray-800 mb-1">${s.text}</h3>${iw?'<span class="bg-yellow-400 text-white text-[10px] font-bold px-2 py-0.5 rounded-full mb-2">WINNER</span>':''}${s.isNew?'<span class="bg-purple-100 text-purple-600 text-xs px-2 py-1 rounded-full mb-2">New!</span>':''}<div class="text-3xl font-bold ${s.score>=0?'text-green-600':'text-red-600'} mb-4">${s.score}</div><div class="w-full space-y-2"><div class="flex justify-between text-xs text-gray-500"><span>Approval</span><span>${s.approval}%</span></div><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-blue-500 h-2.5 rounded-full" style="width: ${s.approval}%"></div></div><div class="flex justify-between text-xs pt-1"><span class="text-green-600 font-bold">+${s.good}</span><span class="text-red-600 font-bold">-${s.bad}</span></div></div></div>`; if (i === 0) h += `<div class="flex items-center justify-center font-black text-gray-300 md:px-2">VS</div>` }); h += '</div>'
                 } else { const s = st[0]; h = `<div class="p-4 rounded-xl border border-gray-200 bg-white flex flex-col items-center w-full max-w-xs mx-auto"><h3 class="text-xl font-black text-gray-800 mb-2">${s.text}</h3>${s.isNew?'<span class="bg-purple-100 text-purple-600 text-xs px-2 py-1 rounded mb-2">Newly Added!</span>':''}<div class="text-4xl font-bold ${s.score>=0?'text-green-600':'text-red-600'} mb-4">${s.score}</div><div class="w-full space-y-2"><div class="flex justify-between text-xs text-gray-500"><span>Approval Rating</span><span>${s.approval}%</span></div><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-blue-500 h-2.5 rounded-full" style="width: ${s.approval}%"></div></div><div class="flex justify-between text-xs pt-1"><span class="text-green-600 font-bold">+${s.good} Votes</span><span class="text-red-600 font-bold">-${s.bad} Votes</span></div></div></div>` }
                 DOM.inputs.compareResults.innerHTML = h
             };
@@ -4392,6 +4404,7 @@ const StreakManager = {
     checkHighScore(score) {
         if (!State.data.highScores) State.data.highScores = [];
         const scores = State.data.highScores;
+        // --- CHANGED: Check against 8 instead of 10 ---
         const minScore = scores.length < 8 ? 0 : scores[scores.length - 1].score;
         
         if (score > minScore || scores.length < 8) {
@@ -4421,8 +4434,9 @@ promptName(score) {
             // 1. Local Save
             const scores = State.data.highScores || [];
             scores.push({ name, score, date: Date.now() });
-            scores.sort((a,b) => b.score - a.score);
+            scores.sort((a,b) => b.score - a.arrow);
             
+            // --- FIX: Keep top 8 locally (was limited to 5) ---
             if(scores.length > 8) scores.pop();
             
             State.save('highScores', scores);
