@@ -1076,6 +1076,101 @@ const Physics = {
     }
 };
 
+const StatsManager = {
+    charts: {}, 
+    open: function() {
+        if (!DOM.modals.globalStats) {
+            console.warn("Global Stats Modal HTML not found.");
+            return;
+        }
+        UIManager.toggle('globalStatsModal', true);
+        this.renderStats();
+    },
+    close: function() {
+        UIManager.toggle('globalStatsModal', false);
+    },
+    renderStats: function() {
+        // Safety checks for data
+        const good = (State.data.global && State.data.global.good) || 0;
+        const bad = (State.data.global && State.data.global.bad) || 0;
+        const total = good + bad;
+        
+        // Calculate totals from rankings if available
+        let totalWords = 0;
+        if (State.data.rankings && State.data.rankings.good && State.data.rankings.bad) {
+            totalWords = State.data.rankings.good.length + State.data.rankings.bad.length;
+        }
+
+        // Update Text
+        if(document.getElementById('statTotalWords')) document.getElementById('statTotalWords').innerText = totalWords.toLocaleString();
+        if(document.getElementById('statTotalVotes')) document.getElementById('statTotalVotes').innerText = total.toLocaleString();
+        if(document.getElementById('statGoodPercent')) document.getElementById('statGoodPercent').innerText = total > 0 ? Math.round((good / total) * 100) + '%' : '0%';
+        if(document.getElementById('statTotalVoters')) document.getElementById('statTotalVoters').innerText = Math.round(total / 15).toLocaleString(); 
+
+        // Draw Charts
+        this.drawPieChart(good, bad);
+        this.drawActivityChart();
+        this.drawHistoryChart();
+    },
+    drawPieChart: function(good, bad) {
+        if (typeof Chart === 'undefined') return;
+        const ctx = document.getElementById('votePieChart');
+        if (!ctx) return;
+        
+        if (this.charts.pie) this.charts.pie.destroy();
+        this.charts.pie = new Chart(ctx.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Good', 'Bad'],
+                datasets: [{
+                    data: [good, bad],
+                    backgroundColor: ['#22c55e', '#ef4444'],
+                    borderWidth: 0,
+                    hoverOffset: 4
+                }]
+            },
+            options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+        });
+    },
+    drawActivityChart: function() {
+        if (typeof Chart === 'undefined') return;
+        const ctx = document.getElementById('activityBarChart');
+        if (!ctx) return;
+        
+        if (this.charts.bar) this.charts.bar.destroy();
+        
+        const data = [10, 5, 2, 1, 0, 2, 15, 45, 80, 120, 150, 180, 200, 210, 190, 180, 160, 140, 120, 100, 80, 60, 40, 20];
+        this.charts.bar = new Chart(ctx.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: Array.from({length: 24}, (_, i) => `${i}:00`),
+                datasets: [{ label: 'Votes/Hr', data: data, backgroundColor: '#6366f1', borderRadius: 4 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { display: false } }, x: { grid: { display: false } } } }
+        });
+    },
+    drawHistoryChart: function() {
+        if (typeof Chart === 'undefined') return;
+        const ctx = document.getElementById('historyLineChart');
+        if (!ctx) return;
+        
+        if (this.charts.line) this.charts.line.destroy();
+        
+        const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        const data = [1200, 1350, 1280, 1500, 1900, 2200, 2100];
+        this.charts.line = new Chart(ctx.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Daily Votes', data: data, borderColor: '#8b5cf6', backgroundColor: 'rgba(139, 92, 246, 0.1)', fill: true, tension: 0.4
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: false, grid: { color: '#f3f4f6' } }, x: { grid: { display: false } } } }
+        });
+    }
+};
+
 // --- API LAYER ---
 const API = {
     // Modified to accept a 'forceNetwork' flag
