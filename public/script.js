@@ -1123,7 +1123,6 @@ const API = {
 
 
 
-// --- THEME MANAGER ---
 const ThemeManager = {
     wordMap: {},
     init() {
@@ -1159,56 +1158,29 @@ const ThemeManager = {
         c.value = State.data.currentTheme
     },
     apply(t, m = false) {
-if (t === 'banana') {
+        if (m) State.save('manualTheme', true);
+        document.body.className = document.body.className.split(' ').filter(c => !c.startsWith('theme-')).join(' ');
+        document.body.classList.add(`theme-${t}`);
+        State.save('currentTheme', t);
+        
+        // --- BANANA TEXTURE INJECTION FIX ---
+        const BANANA_BG_IMAGE = 'radial-gradient(circle at 15% 50%, rgba(92, 64, 51, 0.6) 1px, transparent 1.5px), radial-gradient(circle at 85% 30%, rgba(92, 64, 51, 0.5) 1.5px, transparent 2.5px), radial-gradient(ellipse at 70% 20%, rgba(70, 45, 30, 0.3) 2px, transparent 10px), radial-gradient(ellipse at 20% 80%, rgba(70, 45, 30, 0.4) 4px, transparent 15px), repeating-linear-gradient(90deg, transparent, transparent 59px, rgba(139, 69, 19, 0.06) 60px, rgba(139, 69, 19, 0.03) 62px, transparent 62px, transparent 140px), radial-gradient(circle at 50% 50%, rgba(139, 69, 19, 0.02) 0%, transparent 50%)';
+        const BANANA_BG_SIZE = '103px 103px, 263px 263px, 499px 499px, 379px 379px, 100% 100%, 800px 800px';
+        const BANANA_BG_POSITION = '17px 23px, 150px 70px, 0 0, 0 0, 0 0, 0 0';
+
+        if (t === 'banana') {
             if (!document.getElementById('banana-style')) {
                 const s = document.createElement('style');
                 s.id = 'banana-style';
                 
+                // CRITICAL FIX: Ensure all background properties are set in the style tag
                 s.innerHTML = `
                     body.theme-banana {
                         background-color: #f7e98e !important;
                         
-                        background-image: 
-                            /* 1. The "Sugar Spots" (Tiny, sharp, high density but scattered) */
-                            radial-gradient(circle at 15% 50%, rgba(92, 64, 51, 0.6) 1px, transparent 1.5px),
-                            radial-gradient(circle at 85% 30%, rgba(92, 64, 51, 0.5) 1.5px, transparent 2.5px),
-                            
-                            /* 2. Large Irregular Blotches (The "Ripe" look) */
-                            radial-gradient(ellipse at 70% 20%, rgba(70, 45, 30, 0.3) 2px, transparent 10px),
-                            radial-gradient(ellipse at 20% 80%, rgba(70, 45, 30, 0.4) 4px, transparent 15px),
-                            
-                            /* 3. Sparse Fibers */
-                            repeating-linear-gradient(
-                                90deg, 
-                                transparent, 
-                                transparent 59px, 
-                                rgba(139, 69, 19, 0.06) 60px,
-                                rgba(139, 69, 19, 0.03) 62px,
-                                transparent 62px,
-                                transparent 140px 
-                            ),
-                            
-                            /* 4. Subtle background noise */
-                            radial-gradient(circle at 50% 50%, rgba(139, 69, 19, 0.02) 0%, transparent 50%) !important;
-                        
-                        background-size: 
-                            103px 103px,
-                            263px 263px,
-                            499px 499px,
-                            379px 379px,
-                            100% 100%,
-                            800px 800px
-                            !important;
-                            
-                        /* FIX: Random offsets for organic look */
-                        background-position: 
-                            17px 23px, 
-                            150px 70px,
-                            0 0, 
-                            0 0,
-                            0 0,
-                            0 0 
-                            !important;
+                        background-image: ${BANANA_BG_IMAGE} !important;
+                        background-size: ${BANANA_BG_SIZE} !important;
+                        background-position: ${BANANA_BG_POSITION} !important;
                             
                         background-attachment: fixed !important;
                     }
