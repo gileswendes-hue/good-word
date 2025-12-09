@@ -3832,23 +3832,27 @@ const InputHandler = {
     }
 };
 
+// --- SHARE MANAGER START ---
 const VoteShareManager = {
     messages: {
         good: [
             "I think '{word}' is a GOOD word. Do you agree?",
             "Team '{word}'! Scan this to vote GOOD.",
-            "Surely '{word}' is a top-tier word? I think so.",
-            "Definition of a good word: '{word}'. Agree?"
+            "Surely '{word}' is a banging word? I think so.",
+            "Definition of a good word: '{word}'. Agree?",
+            "Bloody fantastic word, '{word}'!"
         ],
         bad: [
-            "I think '{word}' is a BAD word. Help me banish it.",
+            "I think '{word}' is a BAD word. Help me banish it!",
             "Does anyone actually like the word '{word}'? 🤢",
             "Tragedy of the day: '{word}'. Scan to vote BAD.",
-            "I can't believe '{word}' is a word. Disagree?"
+            "I can't believe '{word}' is a word. Disagree?",
+            "Worst. Word. Ever. '{word}'"
         ]
     },
 
     async shareCurrent(voteType) {
+        // 1. Get the CURRENT word
         const wordObj = State.runtime.allWords[State.runtime.currentWordIndex];
         
         if (!wordObj) {
@@ -3856,34 +3860,49 @@ const VoteShareManager = {
             return;
         }
         
-        const word = wordObj.text.toUpperCase();
-        const color = voteType === 'good' ? '10b981' : 'ef4444'; 
+        // CAPITALIZE THE WORD
+        const word = wordObj.text.toUpperCase(); 
 
+        // 2. Set Visuals
+        const color = voteType === 'good' ? '10b981' : 'ef4444'; 
+        
+        // 3. Build URLs
         const gameUrl = `https://good-word.onrender.com/?word=${encodeURIComponent(word)}`;
         const qrApiUrl = `https://quickchart.io/qr?text=${encodeURIComponent(gameUrl)}&dark=${color}&margin=4&size=400&centerImageUrl=https://good-word.onrender.com/logo.png&centerImageSizeRatio=0.3`;
 
+        // 4. Pick Message & Combine with URL
         const msgList = this.messages[voteType];
         const rawMsg = msgList[Math.floor(Math.random() * msgList.length)].replace(/{word}/g, word);
         const fullShareText = `${rawMsg} ${gameUrl}`;
 
-        UIManager.showPostVoteMessage(voteType === 'good' ? "Sharing GOOD vibes... 📡" : "Sharing BAD vibes... 📡");
+        UIManager.showPostVoteMessage("Generating image... 📡");
         
         try {
             const response = await fetch(qrApiUrl);
             const blob = await response.blob();
             const file = new File([blob], `vote_${word}.png`, { type: "image/png" });
 
+            // 5. KEY FIX: Copy to Clipboard ALWAYS (Mobile & Desktop)
+            // This ensures that if the app drops the text, the user can just hit "Paste"
+            try {
+                await navigator.clipboard.writeText(fullShareText);
+            } catch (clipErr) {
+                console.warn("Clipboard write failed (might be restricted on this device)", clipErr);
+            }
+
+            // 6. Try Native Share
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                UIManager.showPostVoteMessage("Image ready! Text copied to clipboard 📋");
+                
                 await navigator.share({
                     title: `Vote on ${word}`,
                     text: fullShareText, 
                     files: [file]
                 });
-                UIManager.showPostVoteMessage("Shared! 🚀");
             } else {
-                await navigator.clipboard.writeText(fullShareText);
+                // Desktop Fallback
                 window.open(qrApiUrl, '_blank');
-                UIManager.showPostVoteMessage("Text copied to clipboard! 📋");
+                UIManager.showPostVoteMessage("Text copied! Image opened in new tab 📄");
             }
         } catch (err) {
             console.error("Share failed:", err);
@@ -3894,6 +3913,7 @@ const VoteShareManager = {
         }
     }
 };
+// --- SHARE MANAGER END ---
 
 const Game = {
     cleanStyles(e) {
