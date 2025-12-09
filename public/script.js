@@ -1160,19 +1160,33 @@ const ThemeManager = {
         document.body.classList.add(`theme-${t}`);
         State.save('currentTheme', t);
         
-        // --- BANANA RANDOMIZER ---
-        // We generate random offsets to break the "grid" look
-        const rx1 = Math.floor(Math.random() * 500); const ry1 = Math.floor(Math.random() * 500);
-        const rx2 = Math.floor(Math.random() * 500); const ry2 = Math.floor(Math.random() * 500);
-        const rx3 = Math.floor(Math.random() * 500); const ry3 = Math.floor(Math.random() * 500);
+        // --- BANANA TEXTURE GENERATOR ---
+        // Generates random offsets every time to break the grid
+        const r1 = Math.floor(Math.random() * 200);
+        const r2 = Math.floor(Math.random() * 200);
+        const r3 = Math.floor(Math.random() * 200);
+        const r4 = Math.floor(Math.random() * 200);
+        const r5 = Math.floor(Math.random() * 200);
+        const r6 = Math.floor(Math.random() * 200);
 
-        // Define the texture exactly once so Body and Text match
-        const B_IMG = 'radial-gradient(circle at 15% 50%, rgba(92, 64, 51, 0.6) 1px, transparent 1.5px), radial-gradient(circle at 85% 30%, rgba(92, 64, 51, 0.5) 1.5px, transparent 2.5px), radial-gradient(ellipse at 70% 20%, rgba(70, 45, 30, 0.3) 2px, transparent 10px), radial-gradient(ellipse at 20% 80%, rgba(70, 45, 30, 0.4) 4px, transparent 15px), repeating-linear-gradient(90deg, transparent, transparent 59px, rgba(139, 69, 19, 0.06) 60px, rgba(139, 69, 19, 0.03) 62px, transparent 62px, transparent 140px), radial-gradient(circle at 50% 50%, rgba(139, 69, 19, 0.02) 0%, transparent 50%)';
-        const B_SIZE = '103px 103px, 263px 263px, 499px 499px, 379px 379px, 100% 100%, 800px 800px';
-        const B_POS = `${rx1}px ${ry1}px, ${rx2}px ${ry2}px, ${rx3}px ${ry3}px, 0 0, 0 0, 0 0`;
+        // 6 Layers of chaos for a natural look
+        const B_IMG = `
+            radial-gradient(circle at 15% 50%, rgba(92, 64, 51, 0.5) 0px, transparent 2px),
+            radial-gradient(circle at 85% 30%, rgba(92, 64, 51, 0.4) 0px, transparent 3px),
+            radial-gradient(circle at 40% 80%, rgba(92, 64, 51, 0.3) 0px, transparent 1.5px),
+            radial-gradient(ellipse at 70% 20%, rgba(70, 45, 30, 0.25) 2px, transparent 12px),
+            radial-gradient(ellipse at 20% 80%, rgba(70, 45, 30, 0.3) 4px, transparent 18px),
+            radial-gradient(circle at 50% 50%, rgba(139, 69, 19, 0.03) 0%, transparent 60%)
+        `;
+        
+        // Prime numbers to prevent pattern alignment (The Cicada Principle)
+        const B_SIZE = `137px 137px, 263px 263px, 191px 191px, 499px 499px, 379px 379px, 800px 800px`;
+        
+        // Apply random offsets
+        const B_POS = `${r1}px ${r2}px, ${r3}px ${r4}px, ${r5}px ${r6}px, 0 0, 0 0, 0 0`;
 
         if (t === 'banana') {
-            // 1. Pass these values to UIManager so the word knows them
+            // 1. SAVE TO UIMANAGER FOR TEXT
             UIManager.bananaConfig = { img: B_IMG, size: B_SIZE, pos: B_POS };
 
             if (!document.getElementById('banana-style')) {
@@ -1180,7 +1194,7 @@ const ThemeManager = {
                 s.id = 'banana-style';
                 document.head.appendChild(s);
             }
-            // 2. Inject CSS for Body
+            // 2. INJECT CSS FOR BODY
             document.getElementById('banana-style').innerHTML = `
                 body.theme-banana {
                     background-color: #f7e98e !important;
@@ -1191,7 +1205,7 @@ const ThemeManager = {
                 }
             `;
         } else {
-            UIManager.bananaConfig = null; // Clear if not banana
+            UIManager.bananaConfig = null;
             const old = document.getElementById('banana-style');
             if (old) old.remove();
         }
@@ -2612,7 +2626,7 @@ async generateImage() {
 
 const UIManager = {
     msgTimeout: null,
-    bananaConfig: null, // Holds the random texture data
+    bananaConfig: null, // Holds the texture data
 
     showMessage(t, err = false) {
         const wd = DOM.game.wordDisplay;
@@ -2695,7 +2709,6 @@ const UIManager = {
             DOM.profile.modalImage.classList.add('hidden');
         }
     },
-	
     openProfile() {
         this.updateProfileDisplay();
         const d = State.data;
@@ -2813,9 +2826,11 @@ const UIManager = {
         if (t === 'halloween') { wd.style.color = '#FF8C00'; wd.style.textShadow = '2px 2px 0px #1a0000, 0 0 8px rgba(255,140,0,1), 0 0 15px rgba(255,69,0,0.6)' }
         if (t === 'submarine') { wd.style.color = '#b0e0e6'; wd.style.textShadow = '0 0 10px rgba(176,224,230,0.7), 0 0 5px rgba(255,255,255,0.3)'; wd.style.animation = 'bobbing-word 2.5s ease-in-out infinite' }
         if (t === 'fire') { wd.style.color = '#ffaa00'; wd.style.textShadow = '2px 2px 0px #300, 0 0 8px #ff5000, 0 0 20px #ff0000' }
+        
+        // --- BANANA WORD TEXTURE FIX ---
         if (t === 'banana') {
-            // FIX: Apply texture to text using the shared config
             if (this.bananaConfig) {
+                // Apply the random texture to the text
                 wd.style.backgroundImage = this.bananaConfig.img;
                 wd.style.backgroundSize = this.bananaConfig.size;
                 wd.style.backgroundPosition = this.bananaConfig.pos;
@@ -2823,12 +2838,14 @@ const UIManager = {
                 wd.style.webkitTextFillColor = 'transparent';
                 wd.style.color = 'transparent'; 
                 wd.style.animation = 'bounce-word .5s ease-out infinite alternate';
-                // Add a drop shadow filter so the text pops against the white card
-                wd.style.filter = 'drop-shadow(2px 2px 0px rgba(0,0,0,0.1))';
+                // Add a drop shadow to make it legible
+                wd.style.filter = 'drop-shadow(2px 2px 0px rgba(75, 54, 33, 0.2))';
             } else {
-                 wd.style.color = '#ffd200';
+                 // Fallback if config missing
+                 wd.style.color = '#4b3621'; // Dark Brown (Readable)
             }
         }
+
         if (t === 'winter') { wd.style.color = '#01579b'; wd.classList.remove('animate-snow-text'); void wd.offsetWidth; wd.classList.add('animate-snow-text') }
         if (t === 'summer') { wd.style.color = '#fffde7'; wd.style.textShadow = '0 0 5px #fff9c4, 0 0 20px #ffeb3b, 0 0 40px #ff9800, 0 0 70px #ff5722'; wd.style.animation = 'sun-pulse 4s ease-in-out infinite alternate' } else { if (!['banana', 'rainbow', 'submarine'].includes(t)) wd.style.animation = 'none' }
         if (t === 'rainbow') { wd.style.background = 'linear-gradient(45deg, #f00, #ff7f00, #ff0, #0f0, #0ff, #00f, #9400d3)'; wd.style.webkitBackgroundClip = 'text'; wd.style.webkitTextFillColor = 'transparent'; wd.style.color = 'transparent'; wd.style.animation = 'rainbow-text 5s ease infinite' }
