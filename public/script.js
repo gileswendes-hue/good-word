@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.60.4', 
+    APP_VERSION: '5.60.5', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1306,7 +1306,8 @@ const Effects = {
     fishTimeout: null,
     spaceRareTimeout: null,
     snowmanTimeout: null,
-    plymouthShooterTimeout: null, 
+    plymouthShooterTimeout: null,
+	bubbleRaf: null,
     
 plymouth(a) {
         const c = DOM.theme.effects.plymouth;
@@ -1859,7 +1860,11 @@ spawnFish() {
 halloween(active) {
         if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
         if (this.webRaf) cancelAnimationFrame(this.webRaf);
+        if (this.bubbleRaf) cancelAnimationFrame(this.bubbleRaf);
         
+        // Remove independent bubbles if any exist
+        document.querySelectorAll('.spider-independent-bubble').forEach(b => b.remove());
+
         // Arachnophobia Check
         const isSafeMode = State.data.settings.arachnophobiaMode;
         
@@ -1873,19 +1878,20 @@ halloween(active) {
             return;
         }
 
-        // 1. INJECT SCUTTLE ANIMATION
+        // 1. INJECT SCUTTLE ANIMATION (Vibration)
         if (!document.getElementById('spider-motion-style')) {
             const s = document.createElement('style');
             s.id = 'spider-motion-style';
             s.innerHTML = `
-                @keyframes spider-scuttle {
-                    0% { transform: rotate(0deg); }
-                    25% { transform: rotate(5deg); }
-                    75% { transform: rotate(-5deg); }
-                    100% { transform: rotate(0deg); }
+                @keyframes spider-vibrate {
+                    0% { transform: translate(0, 0) rotate(0deg); }
+                    25% { transform: translate(1px, 1px) rotate(1deg); }
+                    50% { transform: translate(0, 0) rotate(0deg); }
+                    75% { transform: translate(-1px, 1px) rotate(-1deg); }
+                    100% { transform: translate(0, 0) rotate(0deg); }
                 }
                 .scuttling-motion {
-                    animation: spider-scuttle 0.2s infinite linear;
+                    animation: spider-vibrate 0.1s infinite linear;
                 }
             `;
             document.head.appendChild(s);
@@ -1895,129 +1901,108 @@ halloween(active) {
         if (!wrap) {
             wrap = document.createElement('div');
             wrap.id = 'spider-wrap';
+            // Start centered, above screen
             Object.assign(wrap.style, {
-                position: 'fixed', left: '50%', top: '-15vh', zIndex: '102',
-                transition: 'left 4s ease-in-out', pointerEvents: 'none' 
+                position: 'fixed', left: '50%', top: '-60px', zIndex: '102',
+                transition: 'left 1s linear, top 1s linear', pointerEvents: 'none',
+                width: '0', height: '0', overflow: 'visible'
             });
             
             const eaten = State.data.insectStats.eaten || 0;
             const scale = Math.min(0.6 + (eaten * 0.005), 1.3).toFixed(2);
             
             wrap.innerHTML = `
-                <div id="spider-anchor" style="transform: scale(${scale}); transform-origin: top center;">
-                    <div id="spider-thread" style="width: 2px; background: rgba(255,255,255,0.6); margin: 0 auto; height: 0; transition: height 4s ease-in-out;"></div>
-                    <div id="spider-body" style="font-size: 3rem; margin-top: -10px; cursor: pointer; position: relative; z-index: 2; pointer-events: auto; transition: transform 1s ease;">
+                <div id="spider-anchor" style="transform: scale(${scale}); transform-origin: top center; position: absolute; left: 0; top: 0;">
+                    <div id="spider-thread" style="width: 2px; background: rgba(255,255,255,0.6); margin: 0 auto; height: 0; transition: height 1s linear;"></div>
+                    <div id="spider-body" style="font-size: 3rem; margin-top: -10px; margin-left: -1.5rem; cursor: pointer; position: relative; z-index: 2; pointer-events: auto; transition: transform 0.5s ease;">
                         🕷️
                     </div>
                 </div>`;
             document.body.appendChild(wrap);
             
             const body = wrap.querySelector('#spider-body');
-            const thread = wrap.querySelector('#spider-thread');
 
-// --- SMART BUBBLE HELPER (FINAL FIX) ---
-            const showSpiderBubble = (text, forcedOrientation = null) => {
-                const old = body.querySelector('.spider-dynamic-bubble');
-                if (old) old.remove();
+            // --- INDEPENDENT BUBBLE SYSTEM ---
+            // This creates a bubble on the BODY tag that follows the spider
+            // ensuring it is always upright and on-screen.
+            const spawnIndependentBubble = (text) => {
+                // Clear old
+                document.querySelectorAll('.spider-independent-bubble').forEach(b => b.remove());
+                if (this.bubbleRaf) cancelAnimationFrame(this.bubbleRaf);
 
                 const b = document.createElement('div');
-                b.className = 'spider-dynamic-bubble';
+                b.className = 'spider-independent-bubble';
                 Object.assign(b.style, {
-                    position: 'absolute', 
-                    background: 'white', color: '#1f2937', padding: '6px 12px', 
-                    borderRadius: '12px', fontSize: '14px', fontWeight: 'bold', 
-                    fontFamily: 'sans-serif', whiteSpace: 'nowrap', width: 'max-content',
+                    position: 'fixed', background: 'white', color: '#1f2937', 
+                    padding: '6px 12px', borderRadius: '12px', fontSize: '14px', 
+                    fontWeight: 'bold', fontFamily: 'sans-serif', whiteSpace: 'nowrap', width: 'max-content',
                     pointerEvents: 'none', opacity: '0', transition: 'opacity 0.2s', 
-                    boxShadow: '0 2px 5px rgba(0,0,0,0.2)', border: '1px solid #e5e7eb',
-                    marginBottom: '8px', zIndex: '10'
+                    boxShadow: '0 4px 10px rgba(0,0,0,0.3)', border: '2px solid #1f2937',
+                    zIndex: '10000' // Always on top
                 });
+                b.textContent = text;
                 
-                // CREATE INNER TEXT SPAN FOR SEPARATE ROTATION
-                const textSpan = document.createElement('span');
-                textSpan.textContent = text;
-                b.appendChild(textSpan);
-
-                // Little Arrow
+                // Add tiny arrow pointer
                 const arrow = document.createElement('div');
                 Object.assign(arrow.style, {
                     position: 'absolute', width: '0', height: '0',
-                    borderLeft: '6px solid transparent',
-                    borderRight: '6px solid transparent'
+                    borderLeft: '6px solid transparent', borderRight: '6px solid transparent',
+                    borderTop: '6px solid #1f2937', left: '50%', marginLeft: '-6px', top: '100%'
                 });
                 b.appendChild(arrow);
-                body.appendChild(b);
+                document.body.appendChild(b);
 
-                // --- ORIENTATION & EDGE LOGIC ---
-                const currentLeft = parseFloat(wrap.style.left) || 50;
-                const isUpsideDown = forcedOrientation === 'upside-down' || (body.style.transform && body.style.transform.includes('180deg'));
-
-                // 1. Vertical Position & Arrow Flip
-                if (isUpsideDown) {
-                    // Spider is upside down. Position bubble below the head (relative top)
-                    b.style.top = '115%'; 
-                    b.style.bottom = 'auto';
-                    b.style.transform = 'translateX(-50%)'; // Center bubble container
+                // Tracking Loop
+                const track = () => {
+                    if (!b.parentNode || !body.parentNode) return;
                     
-                    // COUNTER-ROTATION: Rotate the text content itself 180 degrees
-                    textSpan.style.transform = 'rotate(180deg)'; 
-                    textSpan.style.display = 'inline-block';
-
-                    // Arrow points UP
-                    arrow.style.bottom = '100%';
-                    arrow.style.borderBottom = '6px solid white';
-                    arrow.style.top = 'auto';
-                } else {
-                    // Spider is upright (Normal)
-                    b.style.bottom = '100%'; 
-                    b.style.top = 'auto';
-                    b.style.transform = 'translateX(-50%)';
-                    textSpan.style.transform = 'none'; // Ensure text is normal
+                    const rect = body.getBoundingClientRect();
+                    const bRect = b.getBoundingClientRect();
                     
-                    // Arrow points DOWN
-                    arrow.style.top = '100%';
-                    arrow.style.borderTop = '6px solid white';
-                    arrow.style.bottom = 'auto';
-                }
+                    // Center bubble above spider
+                    let targetX = rect.left + (rect.width / 2) - (bRect.width / 2);
+                    let targetY = rect.top - bRect.height - 10; // 10px padding above head
 
-                // 2. Horizontal Alignment (Edge Detection)
-                if (currentLeft < 20) {
-                    b.style.left = '0';
-                    b.style.transform = 'none'; 
-                    arrow.style.left = '20px'; 
-                } else if (currentLeft > 80) {
-                    b.style.right = '0';
-                    b.style.left = 'auto';
-                    b.style.transform = 'none';
-                    arrow.style.right = '20px';
-                } else {
-                    // Centered (Transform handled above)
-                    arrow.style.left = '50%';
-                    arrow.style.marginLeft = '-6px';
-                }
+                    // Clamp to screen edges (Padding 10px)
+                    targetX = Math.max(10, Math.min(window.innerWidth - bRect.width - 10, targetX));
+                    targetY = Math.max(10, Math.min(window.innerHeight - bRect.height - 10, targetY));
+
+                    b.style.left = targetX + 'px';
+                    b.style.top = targetY + 'px';
+
+                    this.bubbleRaf = requestAnimationFrame(track);
+                };
+                
+                track();
                 
                 requestAnimationFrame(() => b.style.opacity = '1');
                 setTimeout(() => {
-                    if (b.parentNode && !wrap.classList.contains('hunting')) {
-                        b.style.opacity = '0'; setTimeout(() => b.remove(), 300);
-                    }
+                    b.style.opacity = '0';
+                    setTimeout(() => { 
+                        if(b.parentNode) b.remove(); 
+                        cancelAnimationFrame(this.bubbleRaf);
+                    }, 300);
                 }, 2000);
-                return b; 
             };
-            wrap.showBubble = showSpiderBubble; // Attach to DOM for external use
+            
+            // Expose for hunt function
+            wrap.spawnIndependentBubble = spawnIndependentBubble;
 
             body.onclick = (e) => {
                 e.stopPropagation();
                 State.unlockBadge('spider');
-                const willFall = Math.random() < 0.2; 
-                const lines = willFall ? GAME_DIALOGUE.spider.pokeGrumpy : GAME_DIALOGUE.spider.pokeHappy;
+                
+                const lines = Math.random() < 0.2 ? GAME_DIALOGUE.spider.pokeGrumpy : GAME_DIALOGUE.spider.pokeHappy;
                 const text = lines[Math.floor(Math.random() * lines.length)];
                 
-                showSpiderBubble(text); // Helper auto-detects orientation
+                spawnIndependentBubble(text); 
+                
                 body.style.animation = 'shake 0.3s ease-in-out';
                 
-                if (willFall) {
-                    if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
-                    setTimeout(() => { this.spiderFall(wrap, thread, body); }, 400); 
+                // If hanging low, maybe retreat
+                const thread = wrap.querySelector('#spider-thread');
+                if (parseFloat(getComputedStyle(thread).height) > 100) {
+                     this.retreatSpider(thread, wrap, null, '2s');
                 } else {
                     setTimeout(() => { body.style.animation = ''; }, 2000);
                 }
@@ -2027,101 +2012,117 @@ halloween(active) {
         const body = wrap.querySelector('#spider-body');
         const thread = wrap.querySelector('#spider-thread');
         
+        // --- REALISTIC SPIDER AI ---
         const runDrop = () => {
             if (!document.body.contains(wrap)) return;
             if (wrap.classList.contains('hunting')) return;
             
-            const actionRoll = Math.random();
+            const roll = Math.random();
+            const currentLeft = parseFloat(wrap.style.left) || 50;
+            
+            // Reset Styles
             body.style.transform = 'rotate(0deg)'; 
-            body.classList.remove('scuttling-motion'); // Stop shaking
+            body.classList.remove('scuttling-motion'); 
             thread.style.opacity = '1'; 
             
-            // --- ACTION 1: POKE HEAD OUT (Upside Down) ---
-            if (actionRoll < 0.7) {
-                const safeLeft = Math.random() * 60 + 20;
-                // SLOW MOVE (8s)
-                wrap.style.transition = 'left 8s ease-in-out'; 
-                body.classList.add('scuttling-motion'); // Start Scuttling
-                wrap.style.left = safeLeft + '%';
+            // DECISION TREE
+            
+            // 1. CEILING SCUTTLE (Move Sideways)
+            // It retracts thread, then runs along the "ceiling" (top of screen)
+            if (roll < 0.4) {
+                // Pull up first
+                thread.style.transition = 'height 1s ease-in-out';
+                thread.style.height = '0px';
                 
-                this.spiderTimeout = setTimeout(() => {
+                setTimeout(() => {
                     if (wrap.classList.contains('hunting')) return;
-                    body.classList.remove('scuttling-motion'); // Stop Scuttling
                     
-                    // 1. Flip Body UPSIDE DOWN
-                    body.style.transform = 'rotate(180deg)'; 
+                    // Pick a random spot on the ceiling (10% to 90%)
+                    const destX = Math.random() * 80 + 10; 
+                    const dist = Math.abs(destX - currentLeft);
+                    const duration = dist * 0.1; // Slower scuttle (0.1s per percent)
                     
-                    // 2. Short Drop
-                    thread.style.transition = 'height 2.5s ease-in-out'; 
-                    thread.style.height = '18vh'; 
+                    wrap.style.transition = `left ${duration}s linear`;
+                    body.classList.add('scuttling-motion'); // Wiggle legs
+                    wrap.style.left = destX + '%';
                     
                     setTimeout(() => {
-                         if (wrap.classList.contains('hunting')) return;
-                         const phrases = (typeof GAME_DIALOGUE !== 'undefined' && GAME_DIALOGUE.spider && GAME_DIALOGUE.spider.idle) ? GAME_DIALOGUE.spider.idle : ['Boo!', 'Hi!', '🕷️'];
-                         const text = phrases[Math.floor(Math.random() * phrases.length)];
-                         
-                         // 3. FORCE 'upside-down' flag so text is correct
-                         if(wrap.showBubble) wrap.showBubble(text, 'upside-down'); 
-                         
-                         setTimeout(() => {
-                             if (wrap.classList.contains('hunting')) return;
-                             thread.style.height = '0'; 
-                             this.spiderTimeout = setTimeout(runDrop, Math.random() * 5000 + 5000);
-                         }, 2500); 
-                    }, 2500);
-                }, 8000); // Wait for move (8s)
+                        body.classList.remove('scuttling-motion'); // Stop wiggling
+                        this.spiderTimeout = setTimeout(runDrop, Math.random() * 2000 + 1000);
+                    }, duration * 1000);
+                    
+                }, 1000); 
                 return;
             }
             
-            // --- ACTION 2: WALL CLIMB (Scuttling) ---
-            if (actionRoll < 0.9) {
-                const isLeft = Math.random() > 0.5;
-                const wallX = isLeft ? 5 : 85; 
+            // 2. DROP & HANG (Classic Spider)
+            if (roll < 0.7) {
+                // Ensure we aren't moving L/R
+                wrap.style.transition = 'none';
                 
-                // SLOW MOVE (8s)
-                wrap.style.transition = 'left 8s ease-in-out';
-                body.classList.add('scuttling-motion');
-                wrap.style.left = wallX + '%';
+                const dropHeight = Math.random() * 40 + 10; // Drop 10-50vh
+                const dropTime = Math.random() * 2 + 2; // 2-4 seconds (Slow drop)
                 
-                this.spiderTimeout = setTimeout(() => {
+                thread.style.transition = `height ${dropTime}s cubic-bezier(0.45, 0, 0.55, 1)`; // Ease-in-out
+                thread.style.height = dropHeight + 'vh';
+                
+                // Maybe say something
+                setTimeout(() => {
                     if (wrap.classList.contains('hunting')) return;
-                    body.classList.remove('scuttling-motion');
-                    
-                    thread.style.opacity = '0'; 
-                    body.style.transform = `rotate(${isLeft ? 90 : -90}deg)`;
-                    
-                    const climbDepth = Math.random() * 40 + 30; 
-                    thread.style.transition = 'height 4s ease-in-out';
-                    thread.style.height = climbDepth + 'vh';
-                    
-                    setTimeout(() => {
-                         if (wrap.classList.contains('hunting')) return;
-                         thread.style.height = '0'; 
+                    if (Math.random() < 0.3) {
+                         const phrases = (typeof GAME_DIALOGUE !== 'undefined' && GAME_DIALOGUE.spider && GAME_DIALOGUE.spider.idle) ? GAME_DIALOGUE.spider.idle : ['...'];
+                         if(wrap.spawnIndependentBubble) wrap.spawnIndependentBubble(phrases[Math.floor(Math.random() * phrases.length)]);
+                    }
+                    this.spiderTimeout = setTimeout(runDrop, Math.random() * 4000 + 2000);
+                }, dropTime * 1000);
+                
+                return;
+            }
+            
+            // 3. WALL INTERACTION (Climb down side)
+            // Go to nearest wall
+            const isLeft = currentLeft < 50;
+            const wallX = isLeft ? 1 : 98; // Stick to edge
+            
+            // Retract
+            thread.style.transition = 'height 1s ease';
+            thread.style.height = '5px';
+            
+            setTimeout(() => {
+                 if (wrap.classList.contains('hunting')) return;
+                 // Scuttle to wall
+                 const duration = Math.abs(wallX - currentLeft) * 0.05;
+                 wrap.style.transition = `left ${duration}s linear`;
+                 body.classList.add('scuttling-motion');
+                 wrap.style.left = wallX + '%';
+                 
+                 setTimeout(() => {
+                     body.classList.remove('scuttling-motion');
+                     
+                     // Rotate to face down/out
+                     body.style.transform = `rotate(${isLeft ? 90 : -90}deg)`;
+                     
+                     // "Climb" down (using thread height as distance from top)
+                     const climbDist = Math.random() * 50 + 20;
+                     thread.style.transition = 'height 4s ease-out';
+                     thread.style.height = climbDist + 'vh';
+                     
+                     setTimeout(() => {
+                         // Climb back up
+                         thread.style.transition = 'height 2s ease-in';
+                         thread.style.height = '0px';
                          setTimeout(() => {
                              body.style.transform = 'rotate(0deg)';
-                             thread.style.opacity = '1'; 
-                             this.spiderTimeout = setTimeout(runDrop, Math.random() * 5000 + 5000);
-                         }, 4000);
-                    }, 5000);
-                }, 8000);
-                return;
-            }
-            
-            // --- ACTION 3: JUST MOVE (Scuttling) ---
-            const safeLeft = Math.random() * 60 + 20; 
-            wrap.style.transition = 'left 8s ease-in-out'; // SLOW
-            body.classList.add('scuttling-motion');
-            wrap.style.left = safeLeft + '%';
-            
-            this.spiderTimeout = setTimeout(() => {
-                body.classList.remove('scuttling-motion');
-                runDrop();
-            }, 8000);
+                             this.spiderTimeout = setTimeout(runDrop, 1000);
+                         }, 2000);
+                     }, 5000);
+                 }, duration * 1000);
+            }, 1000);
         };
         
         this.spiderTimeout = setTimeout(runDrop, 1000);
         
-        // WEB LOGIC (Unchanged, just ensuring it's here)
+        // WEB LOGIC (Preserved)
         if (!document.getElementById('spider-web-corner')) {
             const web = document.createElement('div');
             web.id = 'spider-web-corner';
@@ -2140,6 +2141,7 @@ halloween(active) {
             };
             
             const svg = document.getElementById('web-svg');
+            // ... (Web Animation Logic - Keep existing SVG math) ...
             const cx = 300, cy = 0;
             const baseAnchors = [{ x: 0, y: 0 }, { x: 60, y: 100 }, { x: 140, y: 200 }, { x: 220, y: 270 }, { x: 300, y: 300 }];
             
@@ -2193,23 +2195,22 @@ halloween(active) {
         const thread = wrap.querySelector('#spider-thread');
         const body = wrap.querySelector('#spider-body');
         
-        // STOP SCUTTLE if attacking
         body.classList.remove('scuttling-motion');
-
         if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
         wrap.classList.add('hunting');
         
+        // --- UPDATE: Use Independent Bubble ---
         let phrases = isFood ? GAME_DIALOGUE.spider.hunting : GAME_DIALOGUE.spider.trickedStart;
         const text = phrases[Math.floor(Math.random() * phrases.length)];
-        const bub = wrap.showBubble ? wrap.showBubble(text) : null;
+        if(wrap.spawnIndependentBubble) wrap.spawnIndependentBubble(text);
 
         const destX = isFood ? targetXPercent : 88;
         const destY = isFood ? targetYPercent : 20;
         const currentX = parseFloat(wrap.style.left) || 50;
         const dist = Math.abs(currentX - destX);
         
-        // Slow down hunt slightly (was *8, now *12)
-        const moveTime = Math.max(dist * 12, 800); 
+        // Slower hunt speed
+        const moveTime = Math.max(dist * 15, 800); 
         
         wrap.style.transition = `left ${moveTime}ms ease-in-out`;
         wrap.style.left = destX + '%';
@@ -2230,23 +2231,23 @@ halloween(active) {
                 setTimeout(() => {
                     if (isFood && MosquitoManager.state === 'stuck') {
                         MosquitoManager.eat();
-                        if(wrap.showBubble) wrap.showBubble("YUM!");
+                        if(wrap.spawnIndependentBubble) wrap.spawnIndependentBubble("YUM!");
                         
                         body.style.animation = 'shake 0.2s ease-in-out';
                         setTimeout(() => {
                             body.style.animation = '';
-                            this.retreatSpider(thread, wrap, bub, '4s');
+                            this.retreatSpider(thread, wrap, null, '4s');
                         }, 1000);
                     } 
                     else {
                         const angryPhrases = GAME_DIALOGUE.spider.trickedEnd;
                         const angryText = angryPhrases[Math.floor(Math.random() * angryPhrases.length)];
-                        if(wrap.showBubble) wrap.showBubble(angryText);
+                        if(wrap.spawnIndependentBubble) wrap.spawnIndependentBubble(angryText);
                         
                         body.style.animation = 'shake 0.3s ease-in-out';
                         setTimeout(() => {
                             body.style.animation = '';
-                            this.retreatSpider(thread, wrap, bub, '4s');
+                            this.retreatSpider(thread, wrap, null, '4s');
                         }, 1500);
                     }
                 }, 2000); 
@@ -2255,10 +2256,9 @@ halloween(active) {
     },
 
     spiderFall(wrap, thread, body, bub) {
-        if(bub) {
-            bub.style.opacity = '0';
-            setTimeout(() => bub.remove(), 300);
-        }
+        // Clear bubble (logic handled by independent system timeout, but good to ensure)
+        document.querySelectorAll('.spider-independent-bubble').forEach(b => b.remove());
+
         thread.style.transition = 'height 0.8s cubic-bezier(0.55, 0.085, 0.68, 0.53), opacity 0s linear';
         thread.style.opacity = '0'; 
         
@@ -2285,7 +2285,6 @@ halloween(active) {
         thread.style.transition = `height ${duration} ease-in-out`;
         requestAnimationFrame(() => { thread.style.height = '0'; });
         setTimeout(() => {
-            if(bub) bub.remove();
             wrap.classList.remove('hunting');
             this.halloween(true);
         }, parseFloat(duration) * 1000);
