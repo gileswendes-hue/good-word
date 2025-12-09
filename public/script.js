@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.61.3', 
+    APP_VERSION: '5.61.2', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -2720,6 +2720,7 @@ const UIManager = {
     toggle: function(id, show) {
         const el = document.getElementById(id + (id.endsWith('Modal') ? '' : 'Modal'));
         if (!el && document.getElementById(id)) {
+            // Fallback for direct ID matches
             document.getElementById(id).classList.toggle('hidden', !show);
             document.getElementById(id).classList.toggle('flex', show);
             return;
@@ -2747,7 +2748,6 @@ const UIManager = {
         }, 150);
     },
 
-    // --- RESTORED VISUAL FUNCTIONS ---
     updateTheme: function(theme) {
         document.body.className = `flex flex-col items-center justify-center min-h-screen p-4 pb-16 theme-${theme}`;
         
@@ -2758,43 +2758,18 @@ const UIManager = {
         });
 
         // Enable specific effects
-        if (theme === 'winter') {
-            const snow = document.getElementById('snow-effect');
-            if(snow) snow.classList.remove('hidden');
-        }
-        if (theme === 'underwater') {
-            const bubbles = document.getElementById('bubble-effect');
-            if(bubbles) bubbles.classList.remove('hidden');
-        }
-        if (theme === 'fire') {
-            const fire = document.getElementById('fire-effect');
-            if(fire) fire.classList.remove('hidden');
-        }
-        if (theme === 'summer') {
-            const sun = document.getElementById('summer-effect');
-            if(sun) sun.classList.remove('hidden');
-        }
-        if (theme === 'plymouth') {
-            const rain = document.getElementById('plymouth-effect');
-            if(rain) rain.classList.remove('hidden');
-        }
-        if (theme === 'ballpit') {
-            const balls = document.getElementById('ballpit-effect');
-            if(balls) balls.classList.remove('hidden');
-        }
-        if (theme === 'space') {
-            const space = document.getElementById('space-effect');
-            if(space) space.classList.remove('hidden');
-        }
+        if (theme === 'winter') document.getElementById('snow-effect')?.classList.remove('hidden');
+        if (theme === 'underwater') document.getElementById('bubble-effect')?.classList.remove('hidden');
+        if (theme === 'fire') document.getElementById('fire-effect')?.classList.remove('hidden');
+        if (theme === 'summer') document.getElementById('summer-effect')?.classList.remove('hidden');
+        if (theme === 'plymouth') document.getElementById('plymouth-effect')?.classList.remove('hidden');
+        if (theme === 'ballpit') document.getElementById('ballpit-effect')?.classList.remove('hidden');
+        if (theme === 'space') document.getElementById('space-effect')?.classList.remove('hidden');
     },
 
     triggerConfetti: function() {
         if (window.confetti) {
-            confetti({
-                particleCount: 100,
-                spread: 70,
-                origin: { y: 0.6 }
-            });
+            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
         }
     },
 
@@ -2814,11 +2789,8 @@ const UIManager = {
     triggerHearts: function() {
         if (window.confetti) {
             confetti({
-                particleCount: 50,
-                spread: 60,
-                origin: { y: 0.7 },
-                shapes: ['heart'],
-                colors: ['#ef4444', '#ec4899']
+                particleCount: 50, spread: 60, origin: { y: 0.7 },
+                shapes: ['heart'], colors: ['#ef4444', '#ec4899']
             });
         }
     },
@@ -2836,16 +2808,10 @@ const UIManager = {
         if (!el) return;
         el.innerText = msg;
         el.style.opacity = '1';
-        
         if (this.msgTimeout) clearTimeout(this.msgTimeout);
-        
-        this.msgTimeout = setTimeout(() => {
-            el.style.opacity = '0';
-        }, 2000);
+        this.msgTimeout = setTimeout(() => { el.style.opacity = '0'; }, 2000);
     },
-    // --------------------------------
 
-    // --- NEW RANKING FUNCTIONS ---
     showFullRankings: function(targetSection = 'good') {
         if (!State.data.rankings || !State.data.rankings.good) {
             console.warn("Rankings data not loaded yet.");
@@ -2858,12 +2824,9 @@ const UIManager = {
         
         setTimeout(() => {
             const scrollContainer = document.querySelector('#fullRankingsModalContainer .overflow-y-auto');
-            
             if (targetSection === 'bad') {
                 const badList = document.getElementById('fullBadRankings');
-                if (badList && badList.parentElement) {
-                    badList.parentElement.scrollIntoView({ behavior: 'smooth' });
-                }
+                if (badList?.parentElement) badList.parentElement.scrollIntoView({ behavior: 'smooth' });
             } else {
                 if (scrollContainer) scrollContainer.scrollTop = 0;
             }
@@ -2901,6 +2864,74 @@ const UIManager = {
             `;
             container.appendChild(row);
         });
+    }
+};
+
+const VoteShareManager = {
+    messages: {
+        good: [
+            "I think '{word}' is a GOOD word. Do you agree?",
+            "Team '{word}'! Scan this to vote GOOD.",
+            "Surely '{word}' is a top-tier word? I think so.",
+            "Definition of a good word: '{word}'. Agree?"
+        ],
+        bad: [
+            "I think '{word}' is a BAD word. Help me banish it.",
+            "Does anyone actually like the word '{word}'? 🤢",
+            "Tragedy of the day: '{word}'. Scan to vote BAD.",
+            "I can't believe '{word}' is a word. Disagree?"
+        ]
+    },
+
+    async shareCurrent(voteType) {
+        const wordObj = State.runtime.allWords[State.runtime.currentWordIndex];
+        if (!wordObj) {
+            UIManager.showPostVoteMessage("Wait for the word to load!");
+            return;
+        }
+        
+        const word = wordObj.text.toUpperCase(); 
+        const color = voteType === 'good' ? '10b981' : 'ef4444'; 
+        
+        const gameUrl = `https://good-word.onrender.com/?word=${encodeURIComponent(word)}`;
+        const qrApiUrl = `https://quickchart.io/qr?text=${encodeURIComponent(gameUrl)}&dark=${color}&margin=4&size=400&centerImageUrl=https://good-word.onrender.com/logo.png&centerImageSizeRatio=0.3`;
+
+        const msgList = this.messages[voteType];
+        const rawMsg = msgList[Math.floor(Math.random() * msgList.length)].replace(/{word}/g, word);
+        const fullShareText = `${rawMsg} ${gameUrl}`;
+
+        UIManager.showPostVoteMessage("Generating image... 📡");
+        
+        try {
+            const response = await fetch(qrApiUrl);
+            const blob = await response.blob();
+            const file = new File([blob], `vote_${word}.png`, { type: "image/png" });
+
+            try {
+                await navigator.clipboard.writeText(fullShareText);
+            } catch (clipErr) {
+                console.warn("Clipboard write failed", clipErr);
+            }
+
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                UIManager.showPostVoteMessage("Image ready! Text copied 📋");
+                
+                await navigator.share({
+                    title: `Vote on ${word}`,
+                    text: fullShareText, 
+                    files: [file]
+                });
+            } else {
+                window.open(qrApiUrl, '_blank');
+                UIManager.showPostVoteMessage("Text copied! Image opened 📄");
+            }
+        } catch (err) {
+            console.error("Share failed:", err);
+            if (err.name !== 'AbortError') {
+                 window.open(qrApiUrl, '_blank');
+                 UIManager.showPostVoteMessage("Opened in new tab 📄");
+            }
+        }
     }
 };
 	
