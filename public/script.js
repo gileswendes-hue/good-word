@@ -4515,7 +4515,7 @@ async showLeaderboard() {
         closeBtn.onclick = close;
         modal.onclick = close;
 
-        let showingLocal = true;
+        let showingLocal = false;
 
        const render = () => {
             const isLocal = showingLocal;
