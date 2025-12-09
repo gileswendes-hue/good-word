@@ -1160,16 +1160,14 @@ const ThemeManager = {
         document.body.classList.add(`theme-${t}`);
         State.save('currentTheme', t);
         
-        // --- BANANA RANDOMIZER ---
-        // 1. Generate random offsets to break the grid look
-        const r1 = Math.floor(Math.random() * 500); 
-        const r2 = Math.floor(Math.random() * 500);
-        const r3 = Math.floor(Math.random() * 500);
-        const r4 = Math.floor(Math.random() * 500);
-        const r5 = Math.floor(Math.random() * 500);
+        // --- BANANA TEXTURE GENERATOR ---
+        const r1 = Math.floor(Math.random() * 200); 
+        const r2 = Math.floor(Math.random() * 200);
+        const r3 = Math.floor(Math.random() * 200);
+        const r4 = Math.floor(Math.random() * 200);
+        const r5 = Math.floor(Math.random() * 200);
 
-        // 2. Define Texture (Used by both Body and Word)
-        // We use prime numbers for sizes (137px, 263px) to prevent pattern alignment
+        // 8 LAYERS TOTAL (7 Texture + 1 Base Color)
         const B_IMG = `
             radial-gradient(circle at 15% 50%, rgba(92, 64, 51, 0.5) 0px, transparent 2px),
             radial-gradient(circle at 85% 30%, rgba(92, 64, 51, 0.4) 0px, transparent 3px),
@@ -1177,14 +1175,17 @@ const ThemeManager = {
             radial-gradient(ellipse at 70% 20%, rgba(70, 45, 30, 0.25) 2px, transparent 12px),
             radial-gradient(ellipse at 20% 80%, rgba(70, 45, 30, 0.3) 4px, transparent 18px),
             repeating-linear-gradient(90deg, transparent, transparent 59px, rgba(139, 69, 19, 0.05) 60px, transparent 61px, transparent 140px),
-            radial-gradient(circle at 50% 50%, rgba(139, 69, 19, 0.03) 0%, transparent 60%)
+            radial-gradient(circle at 50% 50%, rgba(139, 69, 19, 0.03) 0%, transparent 60%),
+            linear-gradient(#f7e98e, #f7e98e)
         `;
         
-        const B_SIZE = `137px 137px, 263px 263px, 191px 191px, 499px 499px, 379px 379px, 100% 100%, 800px 800px`;
-        const B_POS = `${r1}px ${r2}px, ${r3}px ${r4}px, ${r5}px 0px, 0px ${r5}px, 0 0, 0 0, 0 0`;
+        // 8 SIZES (Last one matches base color)
+        const B_SIZE = `137px 137px, 263px 263px, 191px 191px, 499px 499px, 379px 379px, 100% 100%, 800px 800px, 100% 100%`;
+        
+        // 8 POSITIONS (Randomized)
+        const B_POS = `${r1}px ${r2}px, ${r3}px ${r4}px, ${r5}px 0px, 0px ${r5}px, 0 0, 0 0, 0 0, 0 0`;
 
         if (t === 'banana') {
-            // Save config so UIManager can texturize the word
             UIManager.bananaConfig = { img: B_IMG, size: B_SIZE, pos: B_POS };
 
             if (!document.getElementById('banana-style')) {
@@ -1192,7 +1193,6 @@ const ThemeManager = {
                 s.id = 'banana-style';
                 document.head.appendChild(s);
             }
-            // Inject CSS for Body Background
             document.getElementById('banana-style').innerHTML = `
                 body.theme-banana {
                     background-color: #f7e98e !important;
@@ -2825,7 +2825,7 @@ const UIManager = {
         if (t === 'submarine') { wd.style.color = '#b0e0e6'; wd.style.textShadow = '0 0 10px rgba(176,224,230,0.7), 0 0 5px rgba(255,255,255,0.3)'; wd.style.animation = 'bobbing-word 2.5s ease-in-out infinite' }
         if (t === 'fire') { wd.style.color = '#ffaa00'; wd.style.textShadow = '2px 2px 0px #300, 0 0 8px #ff5000, 0 0 20px #ff0000' }
         
-        // --- BANANA WORD TEXTURE ---
+        // --- BANANA WORD TEXTURE FIX ---
         if (t === 'banana') {
             if (this.bananaConfig) {
                 // Apply the random texture to the text
