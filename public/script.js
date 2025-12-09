@@ -1161,41 +1161,39 @@ const ThemeManager = {
         State.save('currentTheme', t);
         
         // --- BANANA TEXTURE GENERATOR ---
-        // 1. Generate random offsets to break the grid
-        const r1 = Math.floor(Math.random() * 200);
+        const r1 = Math.floor(Math.random() * 200); 
         const r2 = Math.floor(Math.random() * 200);
         const r3 = Math.floor(Math.random() * 200);
         const r4 = Math.floor(Math.random() * 200);
         const r5 = Math.floor(Math.random() * 200);
 
+        // 8 LAYERS TOTAL (7 Texture + 1 Base Color)
         const B_IMG = `
             radial-gradient(circle at 15% 50%, rgba(92, 64, 51, 0.5) 0px, transparent 2px),
             radial-gradient(circle at 85% 30%, rgba(92, 64, 51, 0.4) 0px, transparent 3px),
+            radial-gradient(circle at 40% 80%, rgba(92, 64, 51, 0.3) 0px, transparent 1.5px),
             radial-gradient(ellipse at 70% 20%, rgba(70, 45, 30, 0.25) 2px, transparent 12px),
             radial-gradient(ellipse at 20% 80%, rgba(70, 45, 30, 0.3) 4px, transparent 18px),
             repeating-linear-gradient(90deg, transparent, transparent 59px, rgba(139, 69, 19, 0.05) 60px, transparent 61px, transparent 140px),
-            radial-gradient(circle at 50% 50%, rgba(139, 69, 19, 0.03) 0%, transparent 60%)
+            radial-gradient(circle at 50% 50%, rgba(139, 69, 19, 0.03) 0%, transparent 60%),
+            linear-gradient(#f7e98e, #f7e98e)
         `;
         
-        // Prime numbers for sizes help prevent pattern alignment
-        const B_SIZE = `137px 137px, 263px 263px, 499px 499px, 379px 379px, 100% 100%, 800px 800px`;
+        // 8 SIZES (Last one matches base color)
+        const B_SIZE = `137px 137px, 263px 263px, 191px 191px, 499px 499px, 379px 379px, 100% 100%, 800px 800px, 100% 100%`;
         
-        // Apply random offsets
-        const B_POS = `${r1}px ${r2}px, ${r3}px ${r4}px, ${r5}px 0px, 0px ${r5}px, 0 0, 0 0`;
+        // 8 POSITIONS (Randomized)
+        const B_POS = `${r1}px ${r2}px, ${r3}px ${r4}px, ${r5}px 0px, 0px ${r5}px, 0 0, 0 0, 0 0, 0 0`;
 
         if (t === 'banana') {
-            // 2. Save config for UIManager to use on the word
             UIManager.bananaConfig = { img: B_IMG, size: B_SIZE, pos: B_POS };
 
-            let s = document.getElementById('banana-style');
-            if (!s) {
-                s = document.createElement('style');
+            if (!document.getElementById('banana-style')) {
+                const s = document.createElement('style');
                 s.id = 'banana-style';
                 document.head.appendChild(s);
             }
-            
-            // 3. Inject CSS
-            s.innerHTML = `
+            document.getElementById('banana-style').innerHTML = `
                 body.theme-banana {
                     background-color: #f7e98e !important;
                     background-image: ${B_IMG} !important;
@@ -3184,7 +3182,7 @@ const ModalManager = {
                 html += `<div class="mb-6"><h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 border-b border-gray-100 pb-1">Accessibility</h3><div class="space-y-4">`;
                 html += mkTog('toggleColorblind', 'Colourblind Mode', s.colorblindMode);
                 html += mkTog('toggleLargeText', 'Increase Text Size', s.largeText);
-                html += mkTog('toggleMute', 'Mute All Sounds', s.muteSounds);
+                html += mkTog('toggleMute', '🔇 Mute All Sounds', s.muteSounds);
 				if (State.data.unlockedThemes.includes('halloween')) {
                     html += mkTog('toggleArachnophobia', '🚫 Arachnophobia Mode', s.arachnophobiaMode);
                 }
