@@ -1163,25 +1163,26 @@ const ThemeManager = {
         document.body.classList.add(`theme-${t}`);
         State.save('currentTheme', t);
         
-        // --- BANANA TEXTURE INJECTION FIX ---
+        const rX1 = Math.floor(Math.random() * 500);
+        const rY1 = Math.floor(Math.random() * 500);
+        const rX2 = Math.floor(Math.random() * 500);
+        const rY2 = Math.floor(Math.random() * 500);
+
         const BANANA_BG_IMAGE = 'radial-gradient(circle at 15% 50%, rgba(92, 64, 51, 0.6) 1px, transparent 1.5px), radial-gradient(circle at 85% 30%, rgba(92, 64, 51, 0.5) 1.5px, transparent 2.5px), radial-gradient(ellipse at 70% 20%, rgba(70, 45, 30, 0.3) 2px, transparent 10px), radial-gradient(ellipse at 20% 80%, rgba(70, 45, 30, 0.4) 4px, transparent 15px), repeating-linear-gradient(90deg, transparent, transparent 59px, rgba(139, 69, 19, 0.06) 60px, rgba(139, 69, 19, 0.03) 62px, transparent 62px, transparent 140px), radial-gradient(circle at 50% 50%, rgba(139, 69, 19, 0.02) 0%, transparent 50%)';
         const BANANA_BG_SIZE = '103px 103px, 263px 263px, 499px 499px, 379px 379px, 100% 100%, 800px 800px';
-        const BANANA_BG_POSITION = '17px 23px, 150px 70px, 0 0, 0 0, 0 0, 0 0';
+        const BANANA_BG_POSITION = `${rX1}px ${rY1}px, ${rX2}px ${rY2}px, 0 0, 0 0, 0 0, 0 0`; // Applied random offsets
 
         if (t === 'banana') {
             if (!document.getElementById('banana-style')) {
                 const s = document.createElement('style');
                 s.id = 'banana-style';
                 
-                // CRITICAL FIX: Ensure all background properties are set in the style tag
                 s.innerHTML = `
                     body.theme-banana {
                         background-color: #f7e98e !important;
-                        
                         background-image: ${BANANA_BG_IMAGE} !important;
                         background-size: ${BANANA_BG_SIZE} !important;
                         background-position: ${BANANA_BG_POSITION} !important;
-                            
                         background-attachment: fixed !important;
                     }
                     body.theme-banana #wordDisplay {
@@ -1191,11 +1192,19 @@ const ThemeManager = {
                 `;
                 document.head.appendChild(s);
             }
+            
+            UIManager.BANANA_BG_IMAGE = BANANA_BG_IMAGE;
+            UIManager.BANANA_BG_SIZE = BANANA_BG_SIZE;
+            UIManager.BANANA_BG_POSITION = BANANA_BG_POSITION;
+
         } else {
+            UIManager.BANANA_BG_IMAGE = 'none';
+            UIManager.BANANA_BG_SIZE = 'auto';
+            UIManager.BANANA_BG_POSITION = '0 0';
+
             const old = document.getElementById('banana-style');
             if (old) old.remove();
         }
-        // -------------------------------
 
         const e = DOM.theme.effects;
         e.snow.classList.toggle('hidden', t !== 'winter');
@@ -2638,11 +2647,9 @@ async generateImage() {
 const UIManager = {
     msgTimeout: null,
     
-    // --- NEW CONSTANTS FOR BANANA TEXTURE ---
-    // These match the body background precisely to tile seamlessly
-    BANANA_BG_IMAGE: 'radial-gradient(circle at 15% 50%, rgba(92, 64, 51, 0.6) 1px, transparent 1.5px), radial-gradient(circle at 85% 30%, rgba(92, 64, 51, 0.5) 1.5px, transparent 2.5px), radial-gradient(ellipse at 70% 20%, rgba(70, 45, 30, 0.3) 2px, transparent 10px), radial-gradient(ellipse at 20% 80%, rgba(70, 45, 30, 0.4) 4px, transparent 15px), repeating-linear-gradient(90deg, transparent, transparent 59px, rgba(139, 69, 19, 0.06) 60px, rgba(139, 69, 19, 0.03) 62px, transparent 62px, transparent 140px), radial-gradient(circle at 50% 50%, rgba(139, 69, 19, 0.02) 0%, transparent 50%)',
-    BANANA_BG_SIZE: '103px 103px, 263px 263px, 499px 499px, 379px 379px, 100% 100%, 800px 800px',
-    BANANA_BG_POSITION: '17px 23px, 150px 70px, 0 0, 0 0, 0 0, 0 0',
+	BANANA_BG_IMAGE: 'none',
+    BANANA_BG_SIZE: 'auto',
+    BANANA_BG_POSITION: '0 0',
 
     showMessage(t, err = false) {
         const wd = DOM.game.wordDisplay;
