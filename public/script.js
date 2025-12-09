@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.61.0', 
+    APP_VERSION: '5.61.3', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -69,7 +69,9 @@ const loadDOM = () => ({
             notWord: document.getElementById('notWordButton'),
             custom: document.getElementById('customWordButton'),
             shareGood: document.getElementById('shareQrGood'),
-            shareBad: document.getElementById('shareQrBad')
+            shareBad: document.getElementById('shareQrBad'),
+            viewAllGood: document.getElementById('viewAllGoodBtn'),
+            viewAllBad: document.getElementById('viewAllBadBtn')
         },
         message: document.getElementById('postVoteMessage')
     },
@@ -2715,125 +2717,110 @@ async generateImage() {
 };
 
 const UIManager = {
-    msgTimeout: null,
-    bananaConfig: null, 
+    toggle: function(id, show) {
+        const el = document.getElementById(id + (id.endsWith('Modal') ? '' : 'Modal'));
+        if (!el && document.getElementById(id)) {
+            // Fallback if ID was passed directly
+            document.getElementById(id).classList.toggle('hidden', !show);
+            document.getElementById(id).classList.toggle('flex', show);
+            return;
+        }
+        if (el) {
+            el.classList.toggle('hidden', !show);
+            el.classList.toggle('flex', show);
+        }
+    },
 
-    showMessage(t, err = false) {
-        const wd = DOM.game.wordDisplay;
-        wd.textContent = t;
-        wd.className = `text-4xl font-bold text-center min-h-[72px] ${err?'text-red-500':'text-gray-500'}`;
-        wd.style.fontSize = '2.0rem';
-        wd.style.cursor = 'default';
-        DOM.game.wordFrame.style.padding = '0';
-        this.disableButtons(true)
+    updateWordDisplay: function(word, isKidMode = false) {
+        const display = document.getElementById('wordDisplay');
+        if (!display) return;
+        
+        display.style.opacity = '0';
+        
+        setTimeout(() => {
+            display.innerText = word;
+            if (isKidMode) {
+                display.classList.add('font-comic', 'text-blue-500');
+            } else {
+                display.classList.remove('font-comic', 'text-blue-500');
+            }
+            display.style.opacity = '1';
+        }, 150);
     },
-    disableButtons(d) {
-        Object.values(DOM.game.buttons).forEach(b => {
-            if (!b.id.includes('custom')) b.disabled = d
-        })
-    },
-    showPostVoteMessage(m) {
-        const el = DOM.game.message;
+    
+    showPostVoteMessage: function(msg) {
+        const el = document.getElementById('postVoteMessage');
+        if (!el) return;
+        el.innerText = msg;
+        el.style.opacity = '1';
+        
         if (this.msgTimeout) clearTimeout(this.msgTimeout);
-        el.classList.remove('opacity-100');
-        el.classList.add('opacity-0');
-        setTimeout(() => {
-            el.innerHTML = m;
-            el.classList.remove('opacity-0');
-            el.classList.add('opacity-100');
-            this.msgTimeout = setTimeout(() => {
-                el.classList.remove('opacity-100');
-                el.classList.add('opacity-0')
-            }, 5000)
-        }, 150)
-    },
-	
-showThemeUnlock(themeName) {
-        // Format name (capitalize first letter)
-        const name = themeName.charAt(0).toUpperCase() + themeName.slice(1);
         
-        const el = document.createElement('div');
-        // Styling: Fixed, below streak (24%), purple gradient, smaller text
-        el.style.cssText = `
-            position: fixed; 
-            top: 24%; 
-            left: 50%; 
-            transform: translateX(-50%); 
-            background: linear-gradient(135deg, #6366f1, #a855f7); 
-            color: white; 
-            padding: 8px 16px; 
-            border-radius: 20px; 
-            font-weight: bold; 
-            font-size: 1rem; 
-            z-index: 99999; 
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3); 
-            pointer-events: none; 
-            border: 2px solid rgba(255,255,255,0.2);
-            opacity: 0;
-            transition: opacity 0.3s, transform 0.3s;
-        `;
-        el.innerHTML = `✨ New Theme: ${name}!`;
-        
-        document.body.appendChild(el);
-
-        // Animation sequence
-        requestAnimationFrame(() => {
-            el.style.opacity = '1';
-            el.style.transform = 'translateX(-50%) scale(1.1)';
-            setTimeout(() => el.style.transform = 'translateX(-50%) scale(1)', 200);
-        });
-
-        // Remove after 3 seconds
-        setTimeout(() => {
+        this.msgTimeout = setTimeout(() => {
             el.style.opacity = '0';
-            setTimeout(() => el.remove(), 300);
-        }, 3000);
-    },	
-	
-	showUnlockPopup(category, icon, name) {
-        const el = document.createElement('div');
-        el.style.cssText = `
-            position: fixed; 
-            top: 24%; 
-            left: 50%; 
-            transform: translateX(-50%); 
-            background: linear-gradient(135deg, #f59e0b, #ea580c); 
-            color: white; 
-            padding: 8px 20px; 
-            border-radius: 50px; 
-            font-weight: 800; 
-            font-size: 1rem; 
-            z-index: 99999; 
-            box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4); 
-            pointer-events: none; 
-            border: 2px solid rgba(255,255,255,0.3);
-            opacity: 0;
-            transition: opacity 0.3s, transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            white-space: nowrap;
-        `;
-        
-        // Layout: Icon | Category: Name
-        el.innerHTML = `<span style="font-size: 1.4rem;">${icon}</span> <span><span style="opacity:0.8; font-size:0.8em; text-transform:uppercase;">${category}:</span> ${name}</span>`;
-        
-        document.body.appendChild(el);
-
-        // Animation
-        requestAnimationFrame(() => {
-            el.style.opacity = '1';
-            el.style.transform = 'translateX(-50%) scale(1.1)';
-            setTimeout(() => el.style.transform = 'translateX(-50%) scale(1)', 200);
-        });
-
-        // Remove
-        setTimeout(() => {
-            el.style.opacity = '0';
-            el.style.transform = 'translateX(-50%) scale(0.8)';
-            setTimeout(() => el.remove(), 300);
-        }, 3000);
+        }, 2000);
     },
+
+    // --- NEW RANKING FUNCTIONS ---
+    showFullRankings: function(targetSection = 'good') {
+        // Safety check
+        if (!State.data.rankings || !State.data.rankings.good) {
+            console.warn("Rankings data not loaded yet.");
+            return;
+        }
+
+        this.populateFullRankings('good', State.data.rankings.good);
+        this.populateFullRankings('bad', State.data.rankings.bad);
+        this.toggle('fullRankingsModal', true);
+        
+        // Auto-Scroll Logic
+        setTimeout(() => {
+            const scrollContainer = document.querySelector('#fullRankingsModalContainer .overflow-y-auto');
+            
+            if (targetSection === 'bad') {
+                const badList = document.getElementById('fullBadRankings');
+                if (badList && badList.parentElement) {
+                    badList.parentElement.scrollIntoView({ behavior: 'smooth' });
+                }
+            } else {
+                if (scrollContainer) scrollContainer.scrollTop = 0;
+            }
+        }, 50); 
+    },
+
+    populateFullRankings: function(type, list) {
+        const container = document.getElementById(type === 'good' ? 'fullGoodRankings' : 'fullBadRankings');
+        if (!container) return;
+        
+        container.innerHTML = '';
+        
+        if (!list || list.length === 0) {
+            container.innerHTML = '<p class="text-gray-400 text-sm">No data available.</p>';
+            return;
+        }
+
+        list.slice(0, 100).forEach((item, index) => {
+            const row = document.createElement('div');
+            row.className = 'flex justify-between items-center p-2 hover:bg-white/50 rounded transition border-b border-gray-100 last:border-0';
+            
+            let rankColor = 'text-gray-500';
+            if (index === 0) rankColor = 'text-yellow-500 font-bold';
+            if (index === 1) rankColor = 'text-gray-400 font-bold';
+            if (index === 2) rankColor = 'text-amber-700 font-bold';
+
+            row.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <span class="${rankColor} w-6 text-right text-sm">#${index + 1}</span>
+                    <span class="font-bold text-gray-800">${item.word}</span>
+                </div>
+                <div class="text-xs font-mono text-gray-500">
+                    ${item.score > 0 ? '+' : ''}${item.score}
+                </div>
+            `;
+            container.appendChild(row);
+        });
+    }
+};
 	
     updateStats() {
         const w = State.runtime.allWords;
@@ -3554,6 +3541,14 @@ const ModalManager = {
             VoteShareManager.shareCurrent('bad');
         });
     }
+
+    if (DOM.game.buttons.viewAllGood) {
+            DOM.game.buttons.viewAllGood.onclick = () => UIManager.showFullRankings('good');
+        }
+        if (DOM.game.buttons.viewAllBad) {
+            DOM.game.buttons.viewAllBad.onclick = () => UIManager.showFullRankings('bad');
+        }
+
         DOM.profile.photoInput.onchange = (e) => {
             const file = e.target.files[0];
             if (!file) return;
@@ -4003,6 +3998,13 @@ const Game = {
                 e.stopPropagation();
                 VoteShareManager.shareCurrent('bad');
             });
+        }
+
+        if (DOM.game.buttons.viewAllGood) {
+            DOM.game.buttons.viewAllGood.onclick = () => UIManager.showFullRankings('good');
+        }
+        if (DOM.game.buttons.viewAllBad) {
+            DOM.game.buttons.viewAllBad.onclick = () => UIManager.showFullRankings('bad');
         }
 
 			document.getElementById('showHelpButton').onclick = () => {
