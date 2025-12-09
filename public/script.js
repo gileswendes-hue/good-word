@@ -1159,12 +1159,12 @@ const ThemeManager = {
         c.value = State.data.currentTheme
     },
     apply(t, m = false) {
-        if (m) State.save('manualTheme', true);
-        document.body.className = document.body.className.split(' ').filter(c => !c.startsWith('theme-')).join(' ');
-        document.body.classList.add(`theme-${t}`);
-        State.save('currentTheme', t);
-        
-		s.innerHTML = `
+if (t === 'banana') {
+            if (!document.getElementById('banana-style')) {
+                const s = document.createElement('style');
+                s.id = 'banana-style';
+                
+                s.innerHTML = `
                     body.theme-banana {
                         background-color: #f7e98e !important;
                         
@@ -1177,13 +1177,13 @@ const ThemeManager = {
                             radial-gradient(ellipse at 70% 20%, rgba(70, 45, 30, 0.3) 2px, transparent 10px),
                             radial-gradient(ellipse at 20% 80%, rgba(70, 45, 30, 0.4) 4px, transparent 15px),
                             
-                            /* 3. Sparse Fibers (Thin vertical lines—kept organized but subtle) */
+                            /* 3. Sparse Fibers */
                             repeating-linear-gradient(
                                 90deg, 
                                 transparent, 
                                 transparent 59px, 
-                                rgba(139, 69, 19, 0.06) 60px, 
-                                rgba(139, 69, 19, 0.03) 62px, 
+                                rgba(139, 69, 19, 0.06) 60px,
+                                rgba(139, 69, 19, 0.03) 62px,
                                 transparent 62px,
                                 transparent 140px 
                             ),
@@ -1191,35 +1191,35 @@ const ThemeManager = {
                             /* 4. Subtle background noise */
                             radial-gradient(circle at 50% 50%, rgba(139, 69, 19, 0.02) 0%, transparent 50%) !important;
                         
-                        /* Prime numbers for background-size prevent grid alignment */
                         background-size: 
-                            103px 103px,    /* Tiny spots A - Random offset added below */
-                            263px 263px,    /* Tiny spots B - Random offset added below */
-                            499px 499px,    /* Large Blotches A */
-                            379px 379px,    /* Large Blotches B */
-                            100% 100%,      /* Fibers (Fill screen) */
-                            800px 800px     /* Noise */
+                            103px 103px,
+                            263px 263px,
+                            499px 499px,
+                            379px 379px,
+                            100% 100%,
+                            800px 800px
                             !important;
                             
+                        /* FIX: Random offsets for organic look */
                         background-position: 
-                            17px 23px,    /* Random offset for spot pattern 1 */
-                            150px 70px,   /* Random offset for spot pattern 2 */
+                            17px 23px, 
+                            150px 70px,
                             0 0, 
                             0 0,
                             0 0,
-                            0 0 !important;
+                            0 0 
+                            !important;
                             
                         background-attachment: fixed !important;
                     }
                     body.theme-banana #wordDisplay {
-                        color: #4b3621 !important; /* Dark Coffee Brown */
+                        color: #4b3621 !important;
                         text-shadow: 1px 1px 0px rgba(255,255,255,0.4);
                     }
                 `;
                 document.head.appendChild(s);
             }
         } else {
-// ... rest of theme apply logic
             const old = document.getElementById('banana-style');
             if (old) old.remove();
         }
