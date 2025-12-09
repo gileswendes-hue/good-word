@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.61.0', 
+    APP_VERSION: '5.62.1', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -67,7 +67,9 @@ const loadDOM = () => ({
             good: document.getElementById('goodButton'),
             bad: document.getElementById('badButton'),
             notWord: document.getElementById('notWordButton'),
-            custom: document.getElementById('customWordButton')
+            custom: document.getElementById('customWordButton'),
+            shareGood: document.getElementById('shareQrGood'),
+            shareBad: document.getElementById('shareQrBad')
         },
         message: document.getElementById('postVoteMessage')
     },
@@ -3819,6 +3821,65 @@ const InputHandler = {
     }
 };
 
+const ShareManager = {
+    messages: {
+        good: [
+            "I voted GOOD on '{word}'. Prove me wrong.",
+            "Surely '{word}' is a banger of a word? I think so.",
+            "I'm on Team '{word}'. Scan to vote!",
+            "Definition of a good word: '{word}'. Agree?"
+        ],
+        bad: [
+            "I voted BAD on '{word}'. It had to be done.",
+            "Does anyone actually like the word '{word}'? 🤢",
+            "Tragedy of the day: '{word}'. Scan to banish it.",
+            "Unacceptable that '{word}' is a word. Disagree?"
+        ]
+    },
+
+    async sharePrevious(voteType) {
+        if (!State.runtime.lastVotedWord) {
+            UIManager.showPostVoteMessage("Vote on a word first!");
+            return;
+        }
+
+        const wordObj = State.runtime.lastVotedWord;
+        const word = wordObj.text;
+
+        const color = voteType === 'good' ? '10b981' : 'ef4444'; 
+        
+        const gameUrl = `https://good-word.onrender.com/?word=${encodeURIComponent(word)}`;
+
+        const qrApiUrl = `https://quickchart.io/qr?text=${encodeURIComponent(gameUrl)}&dark=${color}&margin=4&size=400&centerImageUrl=https://good-word.onrender.com/logo.png&centerImageSizeRatio=0.3`;
+
+        const msgList = this.messages[voteType];
+        const randomMsg = msgList[Math.floor(Math.random() * msgList.length)].replace('{word}', word);
+
+        UIManager.showPostVoteMessage("Creating QR Code... 📡");
+        
+        try {
+            const response = await fetch(qrApiUrl);
+            const blob = await response.blob();
+            const file = new File([blob], `vote_${word}.png`, { type: "image/png" });
+
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    title: `Vote on ${word}`,
+                    text: randomMsg,
+                    files: [file]
+                });
+                UIManager.showPostVoteMessage("Shared! 🚀");
+            } else {
+                window.open(qrApiUrl, '_blank');
+                UIManager.showPostVoteMessage("Opened in new tab 📄");
+            }
+        } catch (err) {
+            console.error(err);
+            UIManager.showPostVoteMessage("Could not share ⚠️");
+        }
+    }
+};
+
 const Game = {
     cleanStyles(e) {
         e.style.animation = 'none';
@@ -3893,6 +3954,22 @@ const Game = {
             if (DOM.game.buttons.bad) DOM.game.buttons.bad.onclick = () => this.vote('bad');
             if (DOM.game.buttons.notWord) DOM.game.buttons.notWord.onclick = () => this.vote('notWord');
             if (DOM.game.dailyBanner) DOM.game.dailyBanner.onclick = () => this.activateDailyMode();
+            if (DOM.game.buttons.shareGood) {
+                DOM.game.buttons.shareGood.addEventListener('click', (e) => {
+                e.stopPropagation();
+                ShareManager.sharePrevious('good');
+            });
+           
+            DOM.game.buttons.shareGood.disabled = true;
+        }
+
+        if (DOM.game.buttons.shareBad) {
+            DOM.game.buttons.shareBad.addEventListener('click', (e) => {
+                e.stopPropagation();
+                ShareManager.sharePrevious('bad');
+            });
+            DOM.game.buttons.shareBad.disabled = true;
+        }
 
 			document.getElementById('showHelpButton').onclick = () => {
 			window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -4058,6 +4135,8 @@ const Game = {
         }
     },
 
+
+
     nextWord() {
         let p = State.runtime.allWords;
         if (!p || p.length === 0) return;
@@ -4175,6 +4254,12 @@ const Game = {
     },
 
     async vote(t, s = false) {
+        if (State.runtime.allWords[State.runtime.currentWordIndex]) {
+            State.runtime.lastVotedWord = State.runtime.allWords[State.runtime.currentWordIndex];
+            
+            if(DOM.game.buttons.shareGood) DOM.game.buttons.shareGood.disabled = false;
+            if(DOM.game.buttons.shareBad) DOM.game.buttons.shareBad.disabled = false;
+        }
         if (State.runtime.isCoolingDown) return;
         const n = Date.now();
         if (State.runtime.lastVoteTime > 0 && (n - State.runtime.lastVoteTime) > CONFIG.VOTE.STREAK_WINDOW) {
