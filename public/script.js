@@ -4534,7 +4534,7 @@ startCRTDisplay(local, global) {
         modal.onclick = close;
 
         // --- RENDER LOGIC ---
-        let showingLocal = true; // Set to 'true' for Local first, 'false' for World first
+        let showingLocal = false
 
         const render = () => {
             const isLocal = showingLocal;
@@ -4620,6 +4620,7 @@ startCRTDisplay(local, global) {
             }, 4500); // Swap every 4.5 seconds
         }
     }
+};
 
 window.StreakManager = {
         showLeaderboard: () => StreakManager.showLeaderboard()
