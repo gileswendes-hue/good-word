@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.60.8', 
+    APP_VERSION: '5.60.9', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4419,7 +4419,6 @@ async showLeaderboard() {
         const closeBtn = document.getElementById('hs-close-btn');
         const container = document.getElementById('crt-content');
 
-        // Close Logic
         const close = () => {
             if (modal.interval) clearInterval(modal.interval);
             modal.remove();
@@ -4427,15 +4426,18 @@ async showLeaderboard() {
         closeBtn.onclick = close;
         modal.onclick = close;
 
-        // --- RENDER LOGIC ---
         let showingLocal = true;
 
-        const render = () => {
+       const render = () => {
             const isLocal = showingLocal;
             const data = isLocal ? local : global;
-            const title = isLocal ? "YOUR BEST" : "WORLD BEST";
             
-            // Define Themes (Local = Amber, Global = Cyan)
+            let title = "WORLD HIGH SCORES";
+            if (isLocal) {
+                const uName = State.data.username ? State.data.username.toUpperCase() : '';
+                title = uName ? (uName.length > 10 ? uName.substring(0, 10) + "'S" : `${uName}'S BEST`) : "YOUR HIGH SCORES";
+            }
+
             const theme = isLocal 
                 ? { 
                     main: 'text-amber-400', 
@@ -4461,7 +4463,7 @@ async showLeaderboard() {
             titleEl.textContent = title;
             
             subtitleEl.className = `text-[10px] mt-2 font-mono font-bold tracking-[0.5em] uppercase opacity-60 ${theme.sub}`;
-            subtitleEl.textContent = isLocal ? "--- MEMORY BANK A ---" : "--- NET WORK LINK ---";
+            subtitleEl.textContent = isLocal ? "--- MEMORY BANK A ---" : "--- NETWORK LINK ---";
 
             closeBtn.className = `relative z-30 w-full py-4 mt-auto font-black tracking-[0.2em] border-b-4 active:border-b-0 active:translate-y-1 uppercase text-lg transition-all font-mono shadow-lg ${theme.btn}`;
 
