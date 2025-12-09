@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.62.1', 
+    APP_VERSION: '5.62', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -3821,7 +3821,7 @@ const InputHandler = {
     }
 };
 
-const ShareManager = {
+const VoteShareManager = {
     messages: {
         good: [
             "I voted GOOD on '{word}'. Prove me wrong.",
@@ -3957,7 +3957,7 @@ const Game = {
             if (DOM.game.buttons.shareGood) {
                 DOM.game.buttons.shareGood.addEventListener('click', (e) => {
                 e.stopPropagation();
-                ShareManager.sharePrevious('good');
+                VoteShareManager.sharePrevious('good');
             });
            
             DOM.game.buttons.shareGood.disabled = true;
@@ -3966,7 +3966,7 @@ const Game = {
         if (DOM.game.buttons.shareBad) {
             DOM.game.buttons.shareBad.addEventListener('click', (e) => {
                 e.stopPropagation();
-                ShareManager.sharePrevious('bad');
+                VoteShareManager.sharePrevious('bad');
             });
             DOM.game.buttons.shareBad.disabled = true;
         }
