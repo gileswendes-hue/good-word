@@ -4392,7 +4392,6 @@ const StreakManager = {
     checkHighScore(score) {
         if (!State.data.highScores) State.data.highScores = [];
         const scores = State.data.highScores;
-        // --- CHANGED: Check against 8 instead of 10 ---
         const minScore = scores.length < 8 ? 0 : scores[scores.length - 1].score;
         
         if (score > minScore || scores.length < 8) {
@@ -4422,9 +4421,8 @@ promptName(score) {
             // 1. Local Save
             const scores = State.data.highScores || [];
             scores.push({ name, score, date: Date.now() });
-            scores.sort((a,b) => b.score - a.arrow);
+            scores.sort((a,b) => b.score - a.score);
             
-            // --- FIX: Keep top 8 locally (was limited to 5) ---
             if(scores.length > 8) scores.pop();
             
             State.save('highScores', scores);
