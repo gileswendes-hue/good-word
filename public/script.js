@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.60.9', 
+    APP_VERSION: '5.61', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1144,9 +1144,10 @@ const ThemeManager = {
         if ((State.data.unlockedThemes.length + 1) >= 5) {
             State.unlockBadge('traveler');
         }
-        
+        const options = ['default', ...State.data.unlockedThemes];
+        const randomTheme = options[Math.floor(Math.random() * options.length)];
+        this.apply(randomTheme);
         this.populateChooser();
-        this.apply(State.data.currentTheme)
     },
     populateChooser() {
         const u = State.data.unlockedThemes,
@@ -1166,16 +1167,13 @@ const ThemeManager = {
         document.body.className = document.body.className.split(' ').filter(c => !c.startsWith('theme-')).join(' ');
         document.body.classList.add(`theme-${t}`);
         State.save('currentTheme', t);
-        
-        // --- BANANA TEXTURE GENERATOR (ORGANIC V4) ---
-        // 1. Generate 10 random offsets to scatter the layers completely
+
         const r1 = Math.floor(Math.random() * 500); const r2 = Math.floor(Math.random() * 500);
         const r3 = Math.floor(Math.random() * 500); const r4 = Math.floor(Math.random() * 500);
         const r5 = Math.floor(Math.random() * 500); const r6 = Math.floor(Math.random() * 500);
         const r7 = Math.floor(Math.random() * 500); const r8 = Math.floor(Math.random() * 500);
         const r9 = Math.floor(Math.random() * 500); const r10 = Math.floor(Math.random() * 500);
 
-        // 2. Define 9 Layers of Texture (Bruises, Spots, Scuffs)
         const B_IMG = `
             /* 1. Sharp dark pinpricks (High contrast) */
             radial-gradient(circle at 15% 50%, rgba(60, 40, 20, 0.8) 1px, transparent 1.5px),
@@ -1204,8 +1202,7 @@ const ThemeManager = {
             /* 9. Base Yellow Color */
             linear-gradient(#f7e98e, #f7e98e)
         `;
-        
-        // 3. Prime Number Sizes (The Cicada Principle) prevents grid alignment
+
         const B_SIZE = `
             137px 137px, 
             419px 419px, 
@@ -1218,7 +1215,6 @@ const ThemeManager = {
             100% 100%
         `;
         
-        // 4. Apply the random offsets
         const B_POS = `
             ${r1}px ${r2}px, 
             ${r3}px ${r4}px, 
