@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.60.6', 
+    APP_VERSION: '5.60.7', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4180,13 +4180,11 @@ const Game = {
 			if (un) UIManager.showThemeUnlock(un); 
 
             let m = '';
-            if (un) m = "🎉 Theme Unlocked!"; // Kept as fallback/bottom message
-            else if (State.data.settings.showPercentages && (t === 'good' || t === 'bad')) {
-
-            let m = '';
+            // Set the bottom text message
             if (un) m = "🎉 New Theme Unlocked!";
             else if (State.data.settings.showPercentages && (t === 'good' || t === 'bad')) {
                 const tot = (w.goodVotes || 0) + (w.badVotes || 0);
+				
                 const p = Math.round((w[`${t}Votes`] / tot) * 100);
                 m = `${t==='good'?'Good':'Bad'} vote! ${p}% agree.`;
             }
