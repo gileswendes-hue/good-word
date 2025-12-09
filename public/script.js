@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.60.1', 
+    APP_VERSION: '5.60.2', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -39,8 +39,7 @@ const CONFIG = {
     },
 };
 
-// --- DOM ELEMENT REFERENCES ---
-let DOM = {}; // Changed to let
+let DOM = {};
 
 const loadDOM = () => ({
     header: {
@@ -147,11 +146,9 @@ const loadDOM = () => ({
     }
 });
 
-// --- HELPER: Safe JSON Parse (Prevents Crashes) ---
 const safeParse = (key, fallback) => {
     try {
         const item = localStorage.getItem(key);
-        // If data is corrupt (e.g. "[object Object]"), return fallback
         if (item === "[object Object]") return fallback;
         return item ? JSON.parse(item) : fallback;
     } catch (e) {
@@ -160,7 +157,6 @@ const safeParse = (key, fallback) => {
     }
 };
 
-// --- STATE MANAGEMENT ---
 const State = {
     data: {
         userId: localStorage.getItem('userId') || crypto.randomUUID(),
@@ -318,7 +314,6 @@ const State = {
     }
 };
 
-// --- OFFLINE MANAGER (Defined Outside State) ---
 const OfflineManager = {
     CACHE_TARGET: 500,
 
@@ -400,14 +395,8 @@ const OfflineManager = {
     }
 };
 		
-        
-	
-  
-
-// Initialize User ID if missing
 if (!localStorage.getItem('userId')) localStorage.setItem('userId', State.data.userId);
 
-// --- ACCESSIBILITY HELPER ---
 const Accessibility = {
     apply() {
         const s = State.data.settings,
@@ -431,7 +420,6 @@ const Accessibility = {
     }
 };
 
-// --- UTILITIES ---
 const Utils = {
     hexToRgba(hex, alpha) {
         let r = 0, g = 0, b = 0;
@@ -448,7 +436,6 @@ const Utils = {
     }
 };
 
-// --- HAPTICS MANAGER ---
 const Haptics = {
     light() {
         if (navigator.vibrate) navigator.vibrate(10);
@@ -461,7 +448,6 @@ const Haptics = {
     }
 };
 
-// --- AUDIO SYNTHESIS ---
 const SoundManager = {
     ctx: null,
     masterGain: null,
@@ -593,7 +579,6 @@ playBad() {
         });
     },
 
-    // --- MOSQUITO AUDIO ---
     startBuzz() {
         if (State.data.settings.muteSounds) return; 
         if (!this.ctx) this.init();
@@ -633,7 +618,6 @@ playBad() {
     }
 };
 
-// --- INSECT/ENTITY LOGIC ---
 const MosquitoManager = {
     el: null, svg: null, path: null, checkInterval: null,
     x: 50, y: 50, angle: 0, 
@@ -682,7 +666,7 @@ const MosquitoManager = {
         this.x = 88; 
         this.y = 20; 
 
-Object.assign(this.el.style, {
+        Object.assign(this.el.style, {
             position: 'fixed', 
             fontSize: '1.8rem', 
             zIndex: '100',
@@ -758,7 +742,7 @@ Object.assign(this.el.style, {
         document.body.appendChild(this.svg);
         document.body.appendChild(this.el);
         
-        // --- CORRECTED CLICK HANDLER ---
+        // --- CLICK HANDLER (UPDATED) ---
         this.el.onclick = (e) => {
             e.stopPropagation();
             if (this.state === 'stuck') {
@@ -766,7 +750,7 @@ Object.assign(this.el.style, {
                 this.startRescue();
             }
             else if (this.state === 'flying') {
-                UIManager.showPostVoteMessage("Too fast! Wait for the web!");
+                this.splat(); // <--- NEW: Splat the bug instead of showing message
             }
         };
         
@@ -777,11 +761,27 @@ Object.assign(this.el.style, {
         this.loop();
     },
 
+    // --- NEW SPLAT FUNCTION ---
+    splat() {
+        this.state = 'splatted';
+        if (this.raf) cancelAnimationFrame(this.raf);
+        SoundManager.stopBuzz();
+        SoundManager.playPop(); // Play a pop sound
+        
+        this.el.textContent = '💥'; // Visual Change
+        this.el.style.transition = 'transform 0.1s ease-out, opacity 0.5s ease-in 0.5s';
+        this.el.style.transform = 'translate(-50%, -50%) scale(1.5)';
+        
+        UIManager.showPostVoteMessage("Splat!");
+        
+        // Remove after 1 second
+        setTimeout(() => this.remove(), 1000);
+    },
+
     startRescue() {
         this.state = 'thanking';
         SoundManager.stopBuzz(); 
         
-        // --- FIX: Check if path exists (it doesn't for fed bugs) ---
         if (this.path) this.path.setAttribute('d', '');
         
         State.data.insectStats.saved++;
@@ -865,7 +865,7 @@ Object.assign(this.el.style, {
             const inWebZone = (distRight + distTop) < 300;
             const isVisible = pxX > 50 && pxX < (window.innerWidth - 50) && pxY > 50 && pxY < (window.innerHeight - 50);
 
-            // --- CORRECTED LOGIC: Only get stuck if Arachnophobia Mode is OFF ---
+            // Only get stuck if Arachnophobia Mode is OFF
             if (this.state === 'flying' && inWebZone && isVisible && !State.data.settings.arachnophobiaMode) {
                 this.state = 'stuck';
                 SoundManager.stopBuzz(); 
@@ -2842,13 +2842,11 @@ const jarBugs = b.querySelectorAll('.jar-bug');
             bug.onclick = (e) => {
                 e.stopPropagation();
                 
-                // 1. Check if correct theme
                 if (State.data.currentTheme !== 'halloween') { 
                     showTooltip(bug, "Spider Missing", "Please visit the spider on the Halloween theme to feed"); 
                     return; 
                 }
 
-                // 2. Check if Arachnophobia Mode is ON (Spider is hidden)
                 if (State.data.settings.arachnophobiaMode) {
                     showTooltip(bug, "Spider Hidden", "You have Arachnophobia Mode turned on! The spider is gone."); 
                     return; 
@@ -2877,10 +2875,8 @@ const jarBugs = b.querySelectorAll('.jar-bug');
         if (t === 'submarine') { wd.style.color = '#b0e0e6'; wd.style.textShadow = '0 0 10px rgba(176,224,230,0.7), 0 0 5px rgba(255,255,255,0.3)'; wd.style.animation = 'bobbing-word 2.5s ease-in-out infinite' }
         if (t === 'fire') { wd.style.color = '#ffaa00'; wd.style.textShadow = '2px 2px 0px #300, 0 0 8px #ff5000, 0 0 20px #ff0000' }
         
-        // --- BANANA WORD TEXTURE FIX ---
         if (t === 'banana') {
             if (this.bananaConfig) {
-                // Apply the random texture to the text
                 wd.style.backgroundImage = this.bananaConfig.img;
                 wd.style.backgroundSize = this.bananaConfig.size;
                 wd.style.backgroundPosition = this.bananaConfig.pos;
@@ -2888,10 +2884,8 @@ const jarBugs = b.querySelectorAll('.jar-bug');
                 wd.style.webkitTextFillColor = 'transparent';
                 wd.style.color = 'transparent'; 
                 wd.style.animation = 'bounce-word .5s ease-out infinite alternate';
-                // Add a drop shadow to make it legible
                 wd.style.filter = 'drop-shadow(2px 2px 0px rgba(75, 54, 33, 0.2))';
             } else {
-                 // Fallback if config missing (Safety Brown)
                  wd.style.color = '#4b3621'; 
             }
         }
@@ -2980,16 +2974,15 @@ const jarBugs = b.querySelectorAll('.jar-bug');
         }
     }
 };
-// --- PIN PAD MANAGER (UPDATED WITH ON-SCREEN ALERTS) ---
+
 const PinPad = {
     input: '',
-    mode: 'set', // 'set' or 'verify'
+    mode: 'set', 
     onSuccess: null,
     onCancel: null,
     
-    // Security Constants
     MAX_ATTEMPTS: 3,
-    LOCKOUT_MS: 60000, // 60 seconds
+    LOCKOUT_MS: 60000,
 
     init() {
         if (document.getElementById('pinPadModal')) return;
@@ -3028,12 +3021,10 @@ const PinPad = {
 
     open(mode, onSuccess, onCancel) {
         this.init();
-        
-        // --- VISUAL LOCK CHECK ---
-        // Instead of silently returning, we now open the modal but show the "LOCKED" state
+       
         if (mode === 'verify' && this.isLocked()) {
              const remaining = Math.ceil((this.getLockoutTime() - Date.now()) / 1000);
-             // Ensure the user sees this
+
              alert(`System is locked for ${remaining} more seconds.`);
              return;
         }
@@ -3097,7 +3088,7 @@ const PinPad = {
             if (this.onSuccess) this.onSuccess(this.input);
             this.close(true);
         } else {
-            // --- VERIFY MODE ---
+
             
             if (this.isLocked()) {
                 const remaining = Math.ceil((this.getLockoutTime() - Date.now()) / 1000);
@@ -3109,30 +3100,27 @@ const PinPad = {
             const savedPin = State.data.settings.kidsModePin;
             
             if (this.input === savedPin) {
-                // SUCCESS
+
                 Haptics.medium();
                 this.resetSecurity();
                 if (this.onSuccess) this.onSuccess();
                 this.close(true);
             } else {
-                // FAIL
+
                 Haptics.heavy();
                 this.shakeBox();
                 
                 const attempts = this.recordFailure();
                 if (attempts >= this.MAX_ATTEMPTS) {
-                     // LOCKOUT TRIGGERED
                      s.textContent = "LOCKED FOR 60 SECONDS!";
                      s.className = "text-red-600 font-bold text-center mb-6 text-sm animate-pulse";
                      
-                     // Force an alert so they definitely see it
                      setTimeout(() => {
                         alert("Too many failed attempts. Parental controls locked for 60 seconds.");
                         this.close(false);
                      }, 500);
                      
                 } else {
-                     // WRONG PIN
                      const left = this.MAX_ATTEMPTS - attempts;
                      s.textContent = `Wrong PIN! ${left} attempts remaining`;
                      s.className = "text-red-500 font-semibold text-center mb-6 text-sm";
@@ -3155,7 +3143,6 @@ const PinPad = {
         }
     },
 
-    // --- SECURITY HELPERS ---
     getAttempts() {
         return parseInt(localStorage.getItem('pin_attempts') || 0);
     },
@@ -3198,7 +3185,6 @@ const ModalManager = {
         e.classList.toggle('flex', show)
     },
     init() {
-        // SETTINGS BUTTON HANDLER
         document.getElementById('showSettingsButton').onclick = () => {
             const s = State.data.settings;
             const container = document.getElementById('settingsModalContainer').querySelector('.space-y-4');
@@ -3248,13 +3234,10 @@ const ModalManager = {
                 html += mkTog('toggleLights', '🎄 Christmas Lights', s.showLights, 'text-green-600');
                 html += `</div></div>`;
 
-                // INJECT HTML
                 container.innerHTML = html;
                 
-                // Network
                 document.getElementById('toggleOffline').onchange = e => OfflineManager.toggle(e.target.checked);
 
-                // Settings
                 document.getElementById('togglePercentages').onchange = e => 
                     State.save('settings', { ...State.data.settings, showPercentages: e.target.checked });
                 document.getElementById('toggleTips').onchange = e => 
@@ -3264,7 +3247,6 @@ const ModalManager = {
                     Game.refreshData(true);
                 };
 
-                // Accessibility
                 document.getElementById('toggleColorblind').onchange = e => {
                     State.save('settings', { ...State.data.settings, colorblindMode: e.target.checked });
                     Accessibility.apply();
@@ -3278,7 +3260,6 @@ const ModalManager = {
                     SoundManager.updateMute();
                 };
 
-                // --- ARACHNOPHOBIA LISTENER (Corrected Position) ---
                 const arachBtn = document.getElementById('toggleArachnophobia');
                 if (arachBtn) {
                     arachBtn.onchange = e => {
@@ -3468,15 +3449,13 @@ const ModalManager = {
     }
 };
 
-// --- TIP SUBMISSION MANAGER ---
 const TipManager = {
     serviceID: 'service_b6d75wi',
     templateID: 'template_qody7q7',
-    COOLDOWN_MINS: 10, // <--- CONFIG: Minutes between messages
+    COOLDOWN_MINS: 10, 
 
     init() {
         if (document.getElementById('tipModal')) return;
-        // ... (Keep existing innerHTML creation code exactly as is) ...
         const el = document.createElement('div');
         el.id = 'tipModal';
         el.className = 'fixed inset-0 bg-gray-900 bg-opacity-95 z-[200] hidden flex items-center justify-center';
@@ -3505,7 +3484,6 @@ const TipManager = {
     },
 
 send() {
-        // 1. CHECK COOLDOWN
         const lastSent = parseInt(localStorage.getItem('lastTipSent') || 0);
         const now = Date.now();
         const diff = now - lastSent;
@@ -3523,15 +3501,13 @@ send() {
         if (!text) { UIManager.showPostVoteMessage("Please write something first!"); return; }
         if (text.length > 250) { UIManager.showPostVoteMessage("Keep it short! Under 250 chars."); return; }
 
-        // --- NEW: Close Modals & Scroll Up ---
         this.close();
-        if (typeof ModalManager !== 'undefined') ModalManager.toggle('settings', false); // Close settings too
-        window.scrollTo({ top: 0, behavior: 'smooth' }); // Scroll to top
+        if (typeof ModalManager !== 'undefined') ModalManager.toggle('settings', false); 
+        window.scrollTo({ top: 0, behavior: 'smooth' }); 
         // -------------------------------------
 
         UIManager.showPostVoteMessage("Tip sent! Thanks! 💌");
 
-        // 2. SET TIMESTAMP
         localStorage.setItem('lastTipSent', now);
 
         emailjs.send(this.serviceID, this.templateID, {
@@ -3542,7 +3518,6 @@ send() {
 };
 window.TipManager = TipManager;
 
-// --- CONTACT MANAGER ---
 const ContactManager = {
     serviceID: 'service_b6d75wi',
     templateID: 'template_qody7q7',
@@ -3588,7 +3563,6 @@ const ContactManager = {
     send() {
         const errDiv = document.getElementById('contactError');
         
-        // 1. CHECK COOLDOWN
         const lastSent = parseInt(localStorage.getItem('lastContactSent') || 0);
         const now = Date.now();
         const diff = now - lastSent;
@@ -3608,14 +3582,12 @@ const ContactManager = {
             return; 
         }
 
-        // --- NEW: Close Modal & Scroll Up ---
         this.close();
         window.scrollTo({ top: 0, behavior: 'smooth' }); // Scroll to top
         // ------------------------------------
 
         UIManager.showPostVoteMessage("Message sent! I'll read it soon. 📨");
         
-        // 2. SET TIMESTAMP
         localStorage.setItem('lastContactSent', now);
 
         emailjs.send(this.serviceID, this.templateID, {
@@ -3626,7 +3598,6 @@ const ContactManager = {
 };
 window.ContactManager = ContactManager;
 
-// --- INPUT HANDLER (Swipe & Drag) ---
 const InputHandler = {
     sX: 0, sY: 0, drag: false, scroll: false, raf: null,
     init() {
@@ -3706,7 +3677,6 @@ const InputHandler = {
     }
 };
 
-// --- MAIN GAME LOGIC ---
 const Game = {
     cleanStyles(e) {
         e.style.animation = 'none';
@@ -3722,7 +3692,6 @@ const Game = {
         const options = ['👍', '👎', '🗳️'];
         const choice = options[Math.floor(Math.random() * options.length)];
         
-        // Create an SVG favicon on the fly
         const svg = `<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>${choice}</text></svg>`;
         
         let link = document.querySelector("link[rel~='icon']");
@@ -3737,7 +3706,6 @@ const Game = {
 		this.setRandomFavicon();
 		DOM = loadDOM();
         try {
-            // 1. Force Version Display (High Z-Index)
             const vEl = document.querySelector('.version-indicator');
             if (vEl) {
                 vEl.textContent = `v${CONFIG.APP_VERSION} | Made by Gilxs in 12,025`;
@@ -3748,9 +3716,6 @@ const Game = {
                     left: '50%',                
                     transform: 'translateX(-50%)', 
                     
-                    // --- Z-INDEX UPDATE ---
-                    // z-5 sits ABOVE the Summer grass (z-0) 
-                    // but BELOW the Game Card (z-10) so it scrolls nicely.
                     zIndex: '5', 
                     
                     pointerEvents: 'none',
@@ -3763,12 +3728,7 @@ const Game = {
                     padding: '6px 14px',
                     borderRadius: '9999px',
                     border: '1px solid rgba(0,0,0,0.1)',
-                    
-                    // --- WIDTH UPDATE ---
-                    // 'max-content' forces the pill to be exactly as wide as the text
-                    // preventing it from stretching across the screen.
                     width: 'max-content',
-                    
                     textShadow: 'none',
                     opacity: '1',
                     mixBlendMode: 'normal'
@@ -3777,19 +3737,16 @@ const Game = {
 
             Accessibility.apply();
             
-            // 2. Safe Audio Init
             try { SoundManager.init(); } catch(e) { console.warn("Audio init deferred"); }
             
             if (typeof this.updateLights === 'function') this.updateLights();
             UIManager.updateOfflineIndicator();
             
-            // 3. Expose Managers
             window.StreakManager = StreakManager;
             window.ContactManager = ContactManager;
             window.PinPad = PinPad;
             window.TipManager = TipManager;
 
-            // 4. Bind Buttons
             if (DOM.game.buttons.good) DOM.game.buttons.good.onclick = () => this.vote('good');
             if (DOM.game.buttons.bad) DOM.game.buttons.bad.onclick = () => this.vote('bad');
             if (DOM.game.buttons.notWord) DOM.game.buttons.notWord.onclick = () => this.vote('notWord');
@@ -3804,7 +3761,6 @@ const Game = {
 			UIManager.showPostVoteMessage("That's very kind, but I'm not accepting any donations at the moment. Have fun!");
 	};
             
-            // 5. Initialize Submit & Compare Buttons
             document.getElementById('submitWordButton').onclick = async () => {
                 const t = DOM.inputs.newWord.value.trim();
                 if (!t || t.includes(' ') || t.length > 45) { DOM.inputs.modalMsg.textContent = "Invalid word."; return }
@@ -3830,7 +3786,6 @@ const Game = {
                 DOM.inputs.compareResults.innerHTML = h
             };
 
-            // 6. Initialize Managers
             if (DOM.theme.chooser) DOM.theme.chooser.onchange = e => ThemeManager.apply(e.target.value, true);
             const clearBtn = document.getElementById('clearAllDataButton');
             if (clearBtn) clearBtn.onclick = State.clearAll;
@@ -3842,7 +3797,6 @@ const Game = {
             MosquitoManager.startMonitoring();
             this.checkDailyStatus();
             
-            // 7. Load Data
             await this.refreshData();
 
         } catch(e) {
@@ -4205,7 +4159,7 @@ const Game = {
 
 const StreakManager = {
     timer: null,
-    LIMIT: 15000, 
+    LIMIT: 6000, 
 
     handleSuccess() {
         const now = Date.now();
@@ -4289,7 +4243,6 @@ const StreakManager = {
     checkHighScore(score) {
         if (!State.data.highScores) State.data.highScores = [];
         const scores = State.data.highScores;
-        // --- CHANGED: Check against 8 instead of 10 ---
         const minScore = scores.length < 8 ? 0 : scores[scores.length - 1].score;
         
         if (score > minScore || scores.length < 8) {
@@ -4316,19 +4269,15 @@ promptName(score) {
         const saveFn = async () => {
             const name = (document.getElementById('hsNameInput').value || "AAA").toUpperCase();
             
-            // 1. Local Save
             const scores = State.data.highScores || [];
             scores.push({ name, score, date: Date.now() });
             scores.sort((a,b) => b.score - a.arrow);
             
-            // --- FIX: Keep top 8 locally (was limited to 5) ---
             if(scores.length > 8) scores.pop();
-            
             State.save('highScores', scores);
 
-            // 2. Global Save
-            API.submitHighScore(name, score);
 
+            API.submitHighScore(name, score);
             document.getElementById('nameEntryModal').remove();
             this.showLeaderboard();
         };
@@ -4347,8 +4296,6 @@ promptName(score) {
     renderLeaderboard(scores, title) {
         const existing = document.getElementById('highScoreModal');
         if(existing) existing.remove();
-
-        // --- CHANGED: Slice to top 8, pad to 8 ---
         const displayScores = [...scores].slice(0, 8);
         while(displayScores.length < 8) displayScores.push({name: '---', score: 0});
 
