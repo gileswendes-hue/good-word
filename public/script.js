@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.60.7', 
+    APP_VERSION: '5.60.8', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4342,68 +4342,170 @@ promptName(score) {
         document.getElementById('hsSaveBtn').onclick = saveFn;
     },
 
-    async showLeaderboard() {
-        this.renderLeaderboard(State.data.highScores, "LOCAL BEST");
-        const globalScores = await API.getGlobalScores();
-        if (globalScores && globalScores.length > 0) {
-            this.renderLeaderboard(globalScores, "HIGH SCORES");
-        }
+async showLeaderboard() {
+        // 1. Get Local Scores
+        const localScores = State.data.highScores || [];
+        
+        // 2. Try Get Global Scores
+        let globalScores = [];
+        try {
+            globalScores = await API.getGlobalScores();
+        } catch (e) { console.warn("No global scores"); }
+
+        // 3. Start the CRT Display Loop
+        this.startCRTDisplay(localScores, globalScores);
     },
 
-    renderLeaderboard(scores, title) {
+    startCRTDisplay(local, global) {
+        // Remove existing modal if open
         const existing = document.getElementById('highScoreModal');
-        if(existing) existing.remove();
-        const displayScores = [...scores].slice(0, 8);
-        while(displayScores.length < 8) displayScores.push({name: '---', score: 0});
+        if (existing) {
+            if (existing.interval) clearInterval(existing.interval);
+            existing.remove();
+        }
 
-        const listHtml = displayScores.map((s, i) => {
-            const rankColor = i === 0 ? 'text-yellow-400' : (i===1 ? 'text-cyan-400' : (i===2 ? 'text-green-400' : 'text-red-500'));
-            const scoreColor = 'text-white';
-            const retroScore = s.score.toString().padStart(7, '0');
-            const retroName = s.name.toUpperCase().substring(0, 3);
+        // --- INJECT CRT STYLES ---
+        if (!document.getElementById('crt-style')) {
+            const s = document.createElement('style');
+            s.id = 'crt-style';
+            s.innerHTML = `
+                @keyframes crt-flicker { 0% {opacity:0.97} 5% {opacity:0.95} 10% {opacity:0.9} 15% {opacity:0.95} 20% {opacity:0.99} 50% {opacity:0.95} 80% {opacity:0.9} 100% {opacity:0.97} }
+                @keyframes text-chroma { 0% {text-shadow: 2px 0 0 red, -2px 0 0 blue;} 10% {text-shadow: 2px 0 0 red, -2px 0 0 blue;} 11% {text-shadow: none;} 100% {text-shadow: none;} }
+                .crt-screen { animation: crt-flicker 0.15s infinite; overflow: hidden; position: relative; }
+                .crt-scanlines {
+                    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+                    background-size: 100% 4px, 3px 100%;
+                    pointer-events: none;
+                    position: absolute; inset: 0; z-index: 50;
+                }
+                .crt-glitch { animation: text-chroma 2s infinite; }
+            `;
+            document.head.appendChild(s);
+        }
 
-            return `
-            <div class="flex items-center justify-between border-b-2 border-gray-800/50 pb-2 mb-2 font-mono tracking-widest group hover:bg-white/5 transition-colors p-1">
-                <div class="flex items-center gap-4">
-                    <span class="text-2xl font-black ${rankColor} drop-shadow-[2px_2px_0_rgba(0,0,0,1)]">${i+1}</span>
-                    <span class="text-xl font-bold text-purple-400 drop-shadow-[1px_1px_0_rgba(0,0,0,1)]">${retroName}</span>
-                </div>
-                <div class="flex-grow mx-2 border-b-2 border-dotted border-gray-700 h-4 opacity-30"></div>
-                <span class="text-xl font-black ${scoreColor} drop-shadow-[2px_2px_0_rgba(0,0,0,1)]">${retroScore}</span>
-             </div>`;
-        }).join('');
-
+        // --- MODAL HTML STRUCTURE ---
         const html = `
-            <div id="highScoreModal" class="fixed inset-0 bg-black/95 z-[200] flex items-center justify-center p-4 backdrop-blur-sm" onclick="this.remove()">
-                
-                <div class="bg-gray-900 border-4 border-indigo-600 w-full max-w-md p-1 shadow-[0_0_50px_rgba(79,70,229,0.6)] relative rounded-lg transform transition-all scale-100" onclick="event.stopPropagation()">
+            <div id="highScoreModal" class="fixed inset-0 bg-black/95 z-[200] flex items-center justify-center p-4 backdrop-blur-sm">
+                <div class="bg-gray-900 w-full max-w-md p-1 shadow-[0_0_50px_rgba(0,0,0,0.8)] relative rounded-lg transform transition-all scale-100 overflow-hidden" onclick="event.stopPropagation()">
                     
-                    <div class="bg-black border-2 border-black p-6 rounded relative overflow-hidden">
+                    <div id="crt-content" class="bg-black border-[3px] border-gray-800 p-6 rounded relative overflow-hidden crt-screen min-h-[500px] flex flex-col shadow-[inset_0_0_20px_rgba(0,0,0,1)]">
+                        <div class="crt-scanlines"></div>
                         
-                        <div class="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-0 bg-[length:100%_4px,3px_100%] pointer-events-none"></div>
-
-                        <div class="text-center mb-6 relative z-10">
-                            <h2 class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 to-yellow-600 tracking-[0.2em] drop-shadow-[4px_4px_0_rgba(180,83,9,0.5)] animate-pulse" style="font-family: 'Courier New', monospace;">
-                                ${title}
+                        <div class="text-center mb-6 relative z-10 transition-colors duration-300" id="hs-header">
+                            <h2 id="hs-title" class="text-4xl font-black tracking-[0.2em] crt-glitch" style="font-family: 'Courier New', monospace; filter: drop-shadow(0 0 5px currentColor);">
+                                LOADING...
                             </h2>
-                            <div class="text-[10px] text-indigo-400 mt-2 font-mono font-bold tracking-[0.5em] uppercase">--- Insert Coin ---</div>
+                            <div id="hs-subtitle" class="text-[10px] mt-2 font-mono font-bold tracking-[0.5em] uppercase opacity-70">--- SYSTEM READY ---</div>
                         </div>
 
-                        <div class="space-y-2 mb-4 relative z-10 max-h-[50vh] overflow-y-auto pr-2 scrollbar-hide">
-                            ${listHtml}
-                        </div>
+                        <div id="hs-list" class="space-y-2 mb-4 relative z-10 flex-grow overflow-y-auto pr-2 scrollbar-hide transition-opacity duration-200">
+                            </div>
 
-                        <button onclick="document.getElementById('highScoreModal').remove()" 
-                            class="relative z-10 w-full py-4 bg-indigo-700 hover:bg-indigo-600 text-white font-black tracking-[0.2em] border-b-4 border-indigo-900 active:border-b-0 active:translate-y-1 uppercase text-lg transition-all font-mono shadow-[0_0_15px_rgba(79,70,229,0.5)]">
-                            Close
+                        <button id="hs-close-btn" class="relative z-30 w-full py-4 mt-auto font-black tracking-[0.2em] border-b-4 active:border-b-0 active:translate-y-1 uppercase text-lg transition-all font-mono">
+                            EJECT DISK
                         </button>
                     </div>
                 </div>
             </div>`;
-        
+
         const div = document.createElement('div');
         div.innerHTML = html;
         document.body.appendChild(div.firstElementChild);
+
+        const modal = document.getElementById('highScoreModal');
+        const titleEl = document.getElementById('hs-title');
+        const subtitleEl = document.getElementById('hs-subtitle');
+        const listEl = document.getElementById('hs-list');
+        const closeBtn = document.getElementById('hs-close-btn');
+        const container = document.getElementById('crt-content');
+
+        // Close Logic
+        const close = () => {
+            if (modal.interval) clearInterval(modal.interval);
+            modal.remove();
+        };
+        closeBtn.onclick = close;
+        modal.onclick = close;
+
+        // --- RENDER LOGIC ---
+        let showingLocal = true;
+
+        const render = () => {
+            const isLocal = showingLocal;
+            const data = isLocal ? local : global;
+            const title = isLocal ? "YOUR BEST" : "WORLD BEST";
+            
+            // Define Themes (Local = Amber, Global = Cyan)
+            const theme = isLocal 
+                ? { 
+                    main: 'text-amber-400', 
+                    sub: 'text-amber-200', 
+                    border: 'border-amber-900',
+                    btn: 'bg-amber-900/40 text-amber-100 border-amber-600 hover:bg-amber-800',
+                    ranks: ['text-amber-300', 'text-amber-400', 'text-amber-500'],
+                    glow: '0 0 10px rgba(251, 191, 36, 0.4)'
+                  }
+                : { 
+                    main: 'text-cyan-400', 
+                    sub: 'text-cyan-200', 
+                    border: 'border-cyan-900',
+                    btn: 'bg-cyan-900/40 text-cyan-100 border-cyan-600 hover:bg-cyan-800',
+                    ranks: ['text-cyan-300', 'text-cyan-400', 'text-cyan-500'],
+                    glow: '0 0 10px rgba(34, 211, 238, 0.4)'
+                  };
+
+            // Apply Theme
+            container.style.boxShadow = `inset 0 0 20px rgba(0,0,0,1), ${theme.glow}`;
+            
+            titleEl.className = `text-3xl sm:text-4xl font-black tracking-[0.2em] crt-glitch ${theme.main}`;
+            titleEl.textContent = title;
+            
+            subtitleEl.className = `text-[10px] mt-2 font-mono font-bold tracking-[0.5em] uppercase opacity-60 ${theme.sub}`;
+            subtitleEl.textContent = isLocal ? "--- MEMORY BANK A ---" : "--- NET WORK LINK ---";
+
+            closeBtn.className = `relative z-30 w-full py-4 mt-auto font-black tracking-[0.2em] border-b-4 active:border-b-0 active:translate-y-1 uppercase text-lg transition-all font-mono shadow-lg ${theme.btn}`;
+
+            // Pad scores to 8 items
+            const displayScores = [...(data || [])].slice(0, 8);
+            while(displayScores.length < 8) displayScores.push({name: '---', score: 0});
+
+            // Generate List HTML
+            listEl.innerHTML = displayScores.map((s, i) => {
+                const rankColor = i < 3 ? theme.ranks[i] : theme.ranks[2];
+                const retroScore = s.score.toString().padStart(7, '0');
+                const retroName = (s.name || '---').toUpperCase().substring(0, 3);
+                
+                return `
+                <div class="flex items-center justify-between border-b border-white/10 pb-2 mb-2 font-mono tracking-widest group hover:bg-white/5 transition-colors p-1">
+                    <div class="flex items-center gap-3 sm:gap-4">
+                        <span class="text-xl sm:text-2xl font-black ${rankColor} drop-shadow-md">${i+1}</span>
+                        <span class="text-lg sm:text-xl font-bold ${theme.sub} drop-shadow-sm">${retroName}</span>
+                    </div>
+                    <div class="flex-grow mx-2 border-b-2 border-dotted border-white/20 h-4 opacity-30"></div>
+                    <span class="text-lg sm:text-xl font-black text-white drop-shadow-md tracking-wider">${retroScore}</span>
+                 </div>`;
+            }).join('');
+        };
+
+        // Initial Render
+        render();
+
+        // Cycle Interval (only if global scores exist)
+        if (global && global.length > 0) {
+            modal.interval = setInterval(() => {
+                // Glitch effect transition
+                listEl.style.opacity = '0.5';
+                titleEl.style.transform = 'skewX(-10deg)';
+                
+                setTimeout(() => {
+                    showingLocal = !showingLocal;
+                    render();
+                    listEl.style.opacity = '1';
+                    titleEl.style.transform = 'none';
+                }, 150);
+                
+            }, 4500); // Swap every 4.5 seconds
+        }
     }
 };
 
