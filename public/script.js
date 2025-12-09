@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.61', 
+    APP_VERSION: '5.61.0', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -291,7 +291,55 @@ const State = {
         if (this.data.badges[n]) return;
         this.data.badges[n] = true;
         localStorage.setItem(`${n}BadgeUnlocked`, 'true');
-        UIManager.showPostVoteMessage(`Unlocked ${n} badge!`);
+        
+        // --- BADGE METADATA ---
+        const meta = {
+            // Words
+            cake: { i: '🎂', t: 'Hidden Word' },
+            llama: { i: '🦙', t: 'Hidden Word' },
+            potato: { i: '🥔', t: 'Hidden Word' },
+            squirrel: { i: '🐿️', t: 'Hidden Word' },
+            spider: { i: '🕷️', t: 'Hidden Word' },
+            germ: { i: '🦠', t: 'Hidden Word' },
+            bone: { i: '🦴', t: 'Hidden Word' },
+            // Items
+            poop: { i: '💩', t: 'Secret Item' },
+            penguin: { i: '🐧', t: 'Secret Item' },
+            scorpion: { i: '🦂', t: 'Secret Item' },
+            mushroom: { i: '🍄', t: 'Secret Item' },
+            needle: { i: '💉', t: 'Secret Item' },
+            diamond: { i: '💎', t: 'Secret Item' },
+            rock: { i: '🤘', t: 'Secret Item' },
+            chopper: { i: '🚁', t: 'Secret Item' },
+            snowman: { i: '⛄', t: 'Secret Item' },
+            // Fish
+            fish: { i: '🐟', t: 'New Catch' },
+            tropical: { i: '🐠', t: 'New Catch' },
+            puffer: { i: '🐡', t: 'New Catch' },
+            shark: { i: '🦈', t: 'New Catch' },
+            octopus: { i: '🐙', t: 'New Catch' },
+            // Achievements
+            exterminator: { i: '☠️', t: 'Achievement' },
+            saint: { i: '😇', t: 'Achievement' },
+            prankster: { i: '🃏', t: 'Achievement' },
+            judge: { i: '⚖️', t: 'Achievement' },
+            bard: { i: '✍️', t: 'Achievement' },
+            traveler: { i: '🌍', t: 'Achievement' },
+            angler: { i: '🔱', t: 'Achievement' },
+            shepherd: { i: '🛟', t: 'Achievement' }
+        };
+
+        const info = meta[n] || { i: '🏅', t: 'Unlocked' };
+        const label = n.charAt(0).toUpperCase() + n.slice(1);
+        
+        // Trigger Popup
+        UIManager.showUnlockPopup(info.t, info.i, label);
+        
+        // Play Sound
+        if(typeof SoundManager !== 'undefined') SoundManager.playUnlock();
+
+        // Bottom message fallback
+        UIManager.showPostVoteMessage(`Unlocked ${label} badge!`);
     },
     incrementVote() {
         this.data.voteCount++;
@@ -2739,6 +2787,51 @@ showThemeUnlock(themeName) {
             setTimeout(() => el.remove(), 300);
         }, 3000);
     },	
+	
+	showUnlockPopup(category, icon, name) {
+        const el = document.createElement('div');
+        el.style.cssText = `
+            position: fixed; 
+            top: 24%; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            background: linear-gradient(135deg, #f59e0b, #ea580c); 
+            color: white; 
+            padding: 8px 20px; 
+            border-radius: 50px; 
+            font-weight: 800; 
+            font-size: 1rem; 
+            z-index: 99999; 
+            box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4); 
+            pointer-events: none; 
+            border: 2px solid rgba(255,255,255,0.3);
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            white-space: nowrap;
+        `;
+        
+        // Layout: Icon | Category: Name
+        el.innerHTML = `<span style="font-size: 1.4rem;">${icon}</span> <span><span style="opacity:0.8; font-size:0.8em; text-transform:uppercase;">${category}:</span> ${name}</span>`;
+        
+        document.body.appendChild(el);
+
+        // Animation
+        requestAnimationFrame(() => {
+            el.style.opacity = '1';
+            el.style.transform = 'translateX(-50%) scale(1.1)';
+            setTimeout(() => el.style.transform = 'translateX(-50%) scale(1)', 200);
+        });
+
+        // Remove
+        setTimeout(() => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateX(-50%) scale(0.8)';
+            setTimeout(() => el.remove(), 300);
+        }, 3000);
+    },
 	
     updateStats() {
         const w = State.runtime.allWords;
