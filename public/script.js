@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.62', 
+    APP_VERSION: '5.61.1', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -3539,9 +3539,24 @@ const ModalManager = {
         
         document.getElementById('shareProfileButton').onclick = () => ShareManager.share();
         DOM.daily.closeBtn.onclick = () => {
-            this.toggle('dailyResult', false);
-            Game.disableDailyMode()
-        };
+        this.toggle('dailyResult', false);
+        Game.disableDailyMode();
+    }; // <--- CLOSE THE DAILY BUTTON LOGIC FIRST
+
+    // NOW PASTE THE SHARE LOGIC HERE (OUTSIDE)
+    if (DOM.game.buttons.shareGood) {
+        DOM.game.buttons.shareGood.addEventListener('click', (e) => {
+            e.stopPropagation();
+            VoteShareManager.shareCurrent('good'); 
+        });
+    }
+
+    if (DOM.game.buttons.shareBad) {
+        DOM.game.buttons.shareBad.addEventListener('click', (e) => {
+            e.stopPropagation();
+            VoteShareManager.shareCurrent('bad');
+        });
+    }
         DOM.profile.photoInput.onchange = (e) => {
             const file = e.target.files[0];
             if (!file) return;
@@ -3821,41 +3836,46 @@ const InputHandler = {
     }
 };
 
+// --- SHARE MANAGER START ---
 const VoteShareManager = {
     messages: {
         good: [
-            "I voted GOOD on '{word}'. Prove me wrong.",
-            "Surely '{word}' is a banger of a word? I think so.",
-            "I'm on Team '{word}'. Scan to vote!",
+            "I think '{word}' is a GOOD word. Do you agree?",
+            "Team '{word}'! Scan this to vote GOOD.",
+            "Surely '{word}' is a top-tier word? I think so.",
             "Definition of a good word: '{word}'. Agree?"
         ],
         bad: [
-            "I voted BAD on '{word}'. It had to be done.",
+            "I think '{word}' is a BAD word. Help me banish it.",
             "Does anyone actually like the word '{word}'? 🤢",
-            "Tragedy of the day: '{word}'. Scan to banish it.",
-            "Unacceptable that '{word}' is a word. Disagree?"
+            "Tragedy of the day: '{word}'. Scan to vote BAD.",
+            "I can't believe '{word}' is a word. Disagree?"
         ]
     },
 
-    async sharePrevious(voteType) {
-        if (!State.runtime.lastVotedWord) {
-            UIManager.showPostVoteMessage("Vote on a word first!");
+    async shareCurrent(voteType) {
+        // 1. Get the CURRENT word (no longer the "last" word)
+        const wordObj = State.runtime.allWords[State.runtime.currentWordIndex];
+        
+        if (!wordObj) {
+            UIManager.showPostVoteMessage("Wait for the word to load!");
             return;
         }
-
-        const wordObj = State.runtime.lastVotedWord;
+        
         const word = wordObj.text;
 
+        // 2. Set Visuals
         const color = voteType === 'good' ? '10b981' : 'ef4444'; 
         
+        // 3. Build URLs
         const gameUrl = `https://good-word.onrender.com/?word=${encodeURIComponent(word)}`;
-
         const qrApiUrl = `https://quickchart.io/qr?text=${encodeURIComponent(gameUrl)}&dark=${color}&margin=4&size=400&centerImageUrl=https://good-word.onrender.com/logo.png&centerImageSizeRatio=0.3`;
 
+        // 4. Pick Message
         const msgList = this.messages[voteType];
-        const randomMsg = msgList[Math.floor(Math.random() * msgList.length)].replace('{word}', word);
+        const randomMsg = msgList[Math.floor(Math.random() * msgList.length)].replace(/{word}/g, word);
 
-        UIManager.showPostVoteMessage("Creating QR Code... 📡");
+        UIManager.showPostVoteMessage(voteType === 'good' ? "Sharing GOOD vibes... 📡" : "Sharing BAD vibes... 📡");
         
         try {
             const response = await fetch(qrApiUrl);
@@ -3865,7 +3885,8 @@ const VoteShareManager = {
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
                 await navigator.share({
                     title: `Vote on ${word}`,
-                    text: randomMsg,
+                    text: randomMsg, // The message
+                    url: gameUrl,    // Adding URL here often helps the text appear on iOS/Android
                     files: [file]
                 });
                 UIManager.showPostVoteMessage("Shared! 🚀");
@@ -3875,10 +3896,14 @@ const VoteShareManager = {
             }
         } catch (err) {
             console.error(err);
-            UIManager.showPostVoteMessage("Could not share ⚠️");
+            // If user cancelled, don't show error
+            if (err.name !== 'AbortError') {
+                 UIManager.showPostVoteMessage("Could not share ⚠️");
+            }
         }
     }
 };
+// --- SHARE MANAGER END ---
 
 const Game = {
     cleanStyles(e) {
@@ -3954,21 +3979,20 @@ const Game = {
             if (DOM.game.buttons.bad) DOM.game.buttons.bad.onclick = () => this.vote('bad');
             if (DOM.game.buttons.notWord) DOM.game.buttons.notWord.onclick = () => this.vote('notWord');
             if (DOM.game.dailyBanner) DOM.game.dailyBanner.onclick = () => this.activateDailyMode();
-            if (DOM.game.buttons.shareGood) {
-                DOM.game.buttons.shareGood.addEventListener('click', (e) => {
-                e.stopPropagation();
-                VoteShareManager.sharePrevious('good');
-            });
            
-            DOM.game.buttons.shareGood.disabled = true;
+           // --- NEW SHARE LISTENERS ---
+        if (DOM.game.buttons.shareGood) {
+            DOM.game.buttons.shareGood.addEventListener('click', (e) => {
+                e.stopPropagation();
+                VoteShareManager.shareCurrent('good'); 
+            });
         }
 
         if (DOM.game.buttons.shareBad) {
             DOM.game.buttons.shareBad.addEventListener('click', (e) => {
                 e.stopPropagation();
-                VoteShareManager.sharePrevious('bad');
+                VoteShareManager.shareCurrent('bad');
             });
-            DOM.game.buttons.shareBad.disabled = true;
         }
 
 			document.getElementById('showHelpButton').onclick = () => {
