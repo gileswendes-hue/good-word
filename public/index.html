@@ -119,8 +119,17 @@
             <button id="badButton" class="bad-button flex-1 py-4 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-red-500/50" disabled>Bad Word</button>
         </div>
         
-        <button id="notWordButton" class="not-word-button w-full py-3 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-slate-500/50 relative z-20" disabled>Not a word!</button>
-        
+        <div class="flex space-x-3 w-full relative z-20">
+            <button id="shareQrGood" class="flex-none p-2 bg-white rounded-xl shadow-lg border-2 border-green-500 hover:bg-green-50 transition-transform hover:scale-105" title="Click here to share word as good">
+                <img src="qr.png" class="w-8 h-8 object-contain" alt="Share Good">
+            </button>
+            
+            <button id="notWordButton" class="not-word-button flex-grow py-3 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-slate-500/50" disabled>Not a word!</button>
+            
+            <button id="shareQrBad" class="flex-none p-2 bg-white rounded-xl shadow-lg border-2 border-red-500 hover:bg-red-50 transition-transform hover:scale-105" title="Click here to share word as bad">
+                <img src="qr.png" class="w-8 h-8 object-contain" alt="Share Bad">
+            </button>
+        </div>
         <button id="customWordButton" class="w-full py-3 mt-3 rounded-xl font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 shadow-sm transition duration-150 ease-in-out border border-indigo-100 relative z-20">Submit Custom Word ✍️</button>
         
         <button id="compareWordsButton" class="w-full py-3 mt-3 rounded-xl font-bold text-purple-600 bg-purple-50 hover:bg-purple-100 shadow-sm transition duration-150 ease-in-out border border-purple-100 relative z-20">Compare Words ⚖️</button>
