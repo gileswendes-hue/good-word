@@ -1124,7 +1124,6 @@ const API = {
 const ThemeManager = {
     wordMap: {},
     init() {
-
         const s = document.createElement("style");
         s.innerText = `@keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }`;
         document.head.appendChild(s);
@@ -1161,56 +1160,41 @@ const ThemeManager = {
         document.body.classList.add(`theme-${t}`);
         State.save('currentTheme', t);
         
-        // --- BANANA GENERATION (Run every time theme is applied) ---
-        const rX1 = Math.floor(Math.random() * 500); 
-        const rY1 = Math.floor(Math.random() * 500);
-        const rX2 = Math.floor(Math.random() * 500);
-        const rY2 = Math.floor(Math.random() * 500);
+        // --- BANANA RANDOMIZER ---
+        // We generate random offsets to break the "grid" look
+        const rx1 = Math.floor(Math.random() * 500); const ry1 = Math.floor(Math.random() * 500);
+        const rx2 = Math.floor(Math.random() * 500); const ry2 = Math.floor(Math.random() * 500);
+        const rx3 = Math.floor(Math.random() * 500); const ry3 = Math.floor(Math.random() * 500);
 
-        const BANANA_BG_IMAGE = 'radial-gradient(circle at 15% 50%, rgba(92, 64, 51, 0.6) 1px, transparent 1.5px), radial-gradient(circle at 85% 30%, rgba(92, 64, 51, 0.5) 1.5px, transparent 2.5px), radial-gradient(ellipse at 70% 20%, rgba(70, 45, 30, 0.3) 2px, transparent 10px), radial-gradient(ellipse at 20% 80%, rgba(70, 45, 30, 0.4) 4px, transparent 15px), repeating-linear-gradient(90deg, transparent, transparent 59px, rgba(139, 69, 19, 0.06) 60px, rgba(139, 69, 19, 0.03) 62px, transparent 62px, transparent 140px), radial-gradient(circle at 50% 50%, rgba(139, 69, 19, 0.02) 0%, transparent 50%)';
-        const BANANA_BG_SIZE = '103px 103px, 263px 263px, 499px 499px, 379px 379px, 100% 100%, 800px 800px';
-        const BANANA_BG_POSITION = `${rX1}px ${rY1}px, ${rX2}px ${rY2}px, 0 0, 0 0, 0 0, 0 0`;
+        // Define the texture exactly once so Body and Text match
+        const B_IMG = 'radial-gradient(circle at 15% 50%, rgba(92, 64, 51, 0.6) 1px, transparent 1.5px), radial-gradient(circle at 85% 30%, rgba(92, 64, 51, 0.5) 1.5px, transparent 2.5px), radial-gradient(ellipse at 70% 20%, rgba(70, 45, 30, 0.3) 2px, transparent 10px), radial-gradient(ellipse at 20% 80%, rgba(70, 45, 30, 0.4) 4px, transparent 15px), repeating-linear-gradient(90deg, transparent, transparent 59px, rgba(139, 69, 19, 0.06) 60px, rgba(139, 69, 19, 0.03) 62px, transparent 62px, transparent 140px), radial-gradient(circle at 50% 50%, rgba(139, 69, 19, 0.02) 0%, transparent 50%)';
+        const B_SIZE = '103px 103px, 263px 263px, 499px 499px, 379px 379px, 100% 100%, 800px 800px';
+        const B_POS = `${rx1}px ${ry1}px, ${rx2}px ${ry2}px, ${rx3}px ${ry3}px, 0 0, 0 0, 0 0`;
 
         if (t === 'banana') {
-            
-            // 1. CRITICAL FIX: Assign values to UIManager before DOM injection
-            UIManager.BANANA_BG_IMAGE = BANANA_BG_IMAGE;
-            UIManager.BANANA_BG_SIZE = BANANA_BG_SIZE;
-            UIManager.BANANA_BG_POSITION = BANANA_BG_POSITION;
+            // 1. Pass these values to UIManager so the word knows them
+            UIManager.bananaConfig = { img: B_IMG, size: B_SIZE, pos: B_POS };
 
-            let s = document.getElementById('banana-style');
-            if (!s) {
-                s = document.createElement('style');
+            if (!document.getElementById('banana-style')) {
+                const s = document.createElement('style');
                 s.id = 'banana-style';
                 document.head.appendChild(s);
             }
-            
-            // 2. Update the style tag with new random values
-            s.innerHTML = `
+            // 2. Inject CSS for Body
+            document.getElementById('banana-style').innerHTML = `
                 body.theme-banana {
                     background-color: #f7e98e !important;
-                    
-                    background-image: ${BANANA_BG_IMAGE} !important;
-                    background-size: ${BANANA_BG_SIZE} !important;
-                    background-position: ${BANANA_BG_POSITION} !important;
+                    background-image: ${B_IMG} !important;
+                    background-size: ${B_SIZE} !important;
+                    background-position: ${B_POS} !important;
                     background-attachment: fixed !important;
                 }
-                body.theme-banana #wordDisplay {
-                    color: #4b3621 !important;
-                    text-shadow: 1px 1px 0px rgba(255,255,255,0.4);
-                }
             `;
-            
         } else {
-            // Clear styles if moving away
-            UIManager.BANANA_BG_IMAGE = 'none';
-            UIManager.BANANA_BG_SIZE = 'auto';
-            UIManager.BANANA_BG_POSITION = '0 0';
-
+            UIManager.bananaConfig = null; // Clear if not banana
             const old = document.getElementById('banana-style');
             if (old) old.remove();
         }
-        // -------------------------------
 
         const e = DOM.theme.effects;
         e.snow.classList.toggle('hidden', t !== 'winter');
@@ -1221,40 +1205,21 @@ const ThemeManager = {
         e.ballpit.classList.toggle('hidden', t !== 'ballpit');
         e.space.classList.toggle('hidden', t !== 'space');
         
-        if (t === 'winter') Effects.snow();
-        else e.snow.innerHTML = '';
-        
-        if (t === 'submarine') Effects.bubbles(true);
-        else Effects.bubbles(false); 
-        
-        if (t === 'fire') Effects.fire();
-        else e.fire.innerHTML = '';
-        if (t === 'summer') Effects.summer();
-        else e.summer.innerHTML = '';
-        if (t === 'plymouth') Effects.plymouth(true);
-        else {
-            e.plymouth.innerHTML = '';
-            Effects.plymouth(false)
-        }
-        if (t === 'ballpit') Effects.ballpit(true);
-        else Effects.ballpit(false);
-        if (t === 'space') Effects.space(true);
-        else Effects.space(false);
+        if (t === 'winter') Effects.snow(); else e.snow.innerHTML = '';
+        if (t === 'submarine') Effects.bubbles(true); else Effects.bubbles(false); 
+        if (t === 'fire') Effects.fire(); else e.fire.innerHTML = '';
+        if (t === 'summer') Effects.summer(); else e.summer.innerHTML = '';
+        if (t === 'plymouth') Effects.plymouth(true); else { e.plymouth.innerHTML = ''; Effects.plymouth(false) }
+        if (t === 'ballpit') Effects.ballpit(true); else Effects.ballpit(false);
+        if (t === 'space') Effects.space(true); else Effects.space(false);
         Effects.halloween(t === 'halloween');
         if (t !== 'halloween') MosquitoManager.remove();
-
         
-        const cards = document.querySelectorAll('.card, .ranking-card'),
-            isR = t === 'rainbow';
+        const cards = document.querySelectorAll('.card, .ranking-card'), isR = t === 'rainbow';
         [DOM.game.card, ...cards].forEach(el => {
             if (!el) return;
-            if (isR) {
-                el.classList.add('thin-rainbow-frame');
-                el.classList.remove('card')
-            } else {
-                el.classList.remove('thin-rainbow-frame');
-                el.classList.add('card')
-            }
+            if (isR) { el.classList.add('thin-rainbow-frame'); el.classList.remove('card') } 
+            else { el.classList.remove('thin-rainbow-frame'); el.classList.add('card') }
         });
         const d = document.getElementById('card-snow-drift');
         if (d) d.style.display = t !== 'winter' ? 'none' : 'block';
@@ -1267,12 +1232,7 @@ const ThemeManager = {
         if (t && !State.data.unlockedThemes.includes(t)) {
             State.data.unlockedThemes.push(t);
             State.save('unlockedThemes', State.data.unlockedThemes);
-            
-            // --- FIX: Count includes Default theme (+1) ---
-            if ((State.data.unlockedThemes.length + 1) >= 5) {
-                State.unlockBadge('traveler');
-            }
-            
+            if ((State.data.unlockedThemes.length + 1) >= 5) State.unlockBadge('traveler');
             this.populateChooser();
             if (!State.data.manualTheme) this.apply(t);
             return true
@@ -2652,11 +2612,7 @@ async generateImage() {
 
 const UIManager = {
     msgTimeout: null,
-    
-    // --- NEW CONSTANTS FOR BANANA TEXTURE (Defaulted) ---
-    BANANA_BG_IMAGE: 'none',
-    BANANA_BG_SIZE: 'auto',
-    BANANA_BG_POSITION: '0 0',
+    bananaConfig: null, // Holds the random texture data
 
     showMessage(t, err = false) {
         const wd = DOM.game.wordDisplay;
@@ -2703,11 +2659,9 @@ const UIManager = {
         DOM.header.good.textContent = totalGood.toLocaleString();
         DOM.header.bad.textContent = totalBad.toLocaleString();
 
-        // --- GRAPH LOGIC ---
         if (globalTotal > 0) {
             const goodPct = (totalGood / globalTotal) * 100;
             const badPct = 100 - goodPct; 
-
             DOM.header.barGood.style.width = `${goodPct}%`;
             DOM.header.barBad.style.width = `${badPct}%`;
         } else {
@@ -2732,7 +2686,6 @@ const UIManager = {
             DOM.header.profileEmoji.classList.remove('hidden');
             DOM.header.profileImage.classList.add('hidden');
         }
-
         if (p) {
             DOM.profile.modalEmoji.classList.add('hidden');
             DOM.profile.modalImage.src = p;
@@ -2750,11 +2703,9 @@ const UIManager = {
         DOM.profile.totalVotes.textContent = d.voteCount.toLocaleString();
         DOM.profile.contributions.textContent = d.contributorCount.toLocaleString();
         
-        // --- KARMA TITLE LOGIC ---
         const saved = d.insectStats.saved;
         const eaten = d.insectStats.eaten;
         let karmaTitle = "Garden Observer";
-        
         if (saved > 20 && saved > eaten) karmaTitle = "Friend of Bugs 🐞";
         if (saved > 50 && saved > eaten) karmaTitle = "Guardian of the Garden 🌿";
         if (eaten > 20 && eaten > saved) karmaTitle = "Spider Feeder 🕸️";
@@ -2771,90 +2722,28 @@ const UIManager = {
 		const streakEl = document.getElementById('streak-display-value');
 			if(streakEl) streakEl.textContent = (State.data.longestStreak || 0) + " Words";
         
-        // --- BADGE DEFINITIONS ---
-        const row1 = [
-            { k: 'cake', i: '🎂', w: 'CAKE' }, 
-            { k: 'llama', i: '🦙', w: 'LLAMA' }, 
-            { k: 'potato', i: '🥔', w: 'POTATO' }, 
-            { k: 'squirrel', i: '🐿️', w: 'SQUIRREL' }, 
-            { k: 'spider', i: '🕷️', w: 'SPIDER' }, 
-            { k: 'germ', i: '🦠', w: 'GERM' }, 
-            { k: 'bone', i: '🦴', w: 'MASON' }
-        ];
-        
-        const row2 = [
-            { k: 'poop', i: '💩', d: 'squelch.' }, 
-            { k: 'penguin', i: '🐧', d: 'noot noot!' }, 
-            { k: 'scorpion', i: '🦂', d: 'I am in your tent.' }, 
-            { k: 'mushroom', i: '🍄', d: 'edible once.' }, 
-            { k: 'needle', i: '💉', d: 'wheedle, wheedle, pry and needle' }, 
-            { k: 'diamond', i: '💎', d: 'hidden Gem.' },
-            { k: 'rock', i: '🤘', d: 'space rock!' }, 
-            { k: 'chopper', i: '🚁', d: 'Get to the choppa!' }, 
-            { k: 'snowman', i: '⛄', d: "# We're walking in the air..." }
-        ];
-        
-        // --- UPDATED FISH ROW WITH DESCRIPTIONS ---
-        const row_fish = [
-            { k: 'fish', i: '🐟', t: 'Blue Fish', d: 'A standard catch.' }, 
-            { k: 'tropical', i: '🐠', t: 'Tropical Fish', d: 'Found in the deep.' }, 
-            { k: 'puffer', i: '🐡', t: 'Pufferfish', d: 'Spiky friend.' }, 
-            { k: 'shark', i: '🦈', t: 'Shark', d: 'Gonna need a bigger boat.' },
-            { k: 'octopus', i: '🐙', t: 'The Kraken', d: 'Ink-credible!' }
-        ];
-        
-        const row3 = [
-            { k: 'exterminator', i: '☠️', t: 'The Exterminator', d: 'Fed 100 bugs to the spider' }, 
-            { k: 'saint', i: '😇', t: 'The Saint', d: 'Saved 100 bugs from the web' }, 
-            { k: 'prankster', i: '🃏', t: 'Original Prankster', d: 'Teased the spider 50 times' },
-            { k: 'judge', i: '⚖️', t: 'The Judge', d: 'Cast 1,000 votes!' },
-            { k: 'bard', i: '✍️', t: 'The Bard', d: 'Contributed 5 accepted words' },
-            { k: 'traveler', i: '🌍', t: 'The Traveller', d: 'Unlocked 5 different themes' },
-            { k: 'angler', i: '🔱', t: 'The Best in Brixham', d: 'Caught 250 fish' },
-			{ k: 'shepherd', i: '🛟', t: 'Sea Shepherd', d: 'Chose to let 250 fish swim away safely' }
-        ];
+        const row1 = [{ k: 'cake', i: '🎂', w: 'CAKE' }, { k: 'llama', i: '🦙', w: 'LLAMA' }, { k: 'potato', i: '🥔', w: 'POTATO' }, { k: 'squirrel', i: '🐿️', w: 'SQUIRREL' }, { k: 'spider', i: '🕷️', w: 'SPIDER' }, { k: 'germ', i: '🦠', w: 'GERM' }, { k: 'bone', i: '🦴', w: 'MASON' }];
+        const row2 = [{ k: 'poop', i: '💩', d: 'squelch.' }, { k: 'penguin', i: '🐧', d: 'noot noot!' }, { k: 'scorpion', i: '🦂', d: 'I am in your tent.' }, { k: 'mushroom', i: '🍄', d: 'edible once.' }, { k: 'needle', i: '💉', d: 'wheedle, wheedle, pry and needle' }, { k: 'diamond', i: '💎', d: 'hidden Gem.' }, { k: 'rock', i: '🤘', d: 'space rock!' }, { k: 'chopper', i: '🚁', d: 'Get to the choppa!' }, { k: 'snowman', i: '⛄', d: "# We're walking in the air..." }];
+        const row_fish = [{ k: 'fish', i: '🐟', t: 'Blue Fish', d: 'A standard catch.' }, { k: 'tropical', i: '🐠', t: 'Tropical Fish', d: 'Found in the deep.' }, { k: 'puffer', i: '🐡', t: 'Pufferfish', d: 'Spiky friend.' }, { k: 'shark', i: '🦈', t: 'Shark', d: 'Gonna need a bigger boat.' }, { k: 'octopus', i: '🐙', t: 'The Kraken', d: 'Ink-credible!' }];
+        const row3 = [{ k: 'exterminator', i: '☠️', t: 'The Exterminator', d: 'Fed 100 bugs to the spider' }, { k: 'saint', i: '😇', t: 'The Saint', d: 'Saved 100 bugs from the web' }, { k: 'prankster', i: '🃏', t: 'Original Prankster', d: 'Teased the spider 50 times' }, { k: 'judge', i: '⚖️', t: 'The Judge', d: 'Cast 1,000 votes!' }, { k: 'bard', i: '✍️', t: 'The Bard', d: 'Contributed 5 accepted words' }, { k: 'traveler', i: '🌍', t: 'The Traveller', d: 'Unlocked 5 different themes' }, { k: 'angler', i: '🔱', t: 'The Best in Brixham', d: 'Caught 250 fish' }, { k: 'shepherd', i: '🛟', t: 'Sea Shepherd', d: 'Chose to let 250 fish swim away safely' }];
 
-        // Helper to render badges
         const renderRow = (list) => `<div class="flex flex-wrap justify-center gap-3 text-3xl w-full">` + list.map(x => {
             const un = d.badges[x.k];
-            // Format a default title from the key (e.g., "cake" -> "Cake")
             const defTitle = x.k.charAt(0).toUpperCase() + x.k.slice(1);
-            
-            return `<span class="badge-item relative ${un?'':'opacity-25 grayscale'} transition-all duration-300 transform ${un?'hover:scale-125 cursor-pointer':''}" 
-                    title="${un? (x.t || defTitle) : 'Locked'}" 
-                    data-key="${x.k}"
-                    ${x.w ? `data-word="${x.w}"` : ''} 
-                    data-title="${x.t || defTitle}" 
-                    data-desc="${x.d || 'Keep playing to find this item!'}"
-                    >${x.i}</span>`
+            return `<span class="badge-item relative ${un?'':'opacity-25 grayscale'} transition-all duration-300 transform ${un?'hover:scale-125 cursor-pointer':''}" title="${un? (x.t || defTitle) : 'Locked'}" data-key="${x.k}" ${x.w ? `data-word="${x.w}"` : ''} data-title="${x.t || defTitle}" data-desc="${x.d || 'Keep playing to find this item!'}">${x.i}</span>`
         }).join('') + `</div>`;
 
-        // Bug Jar Logic
         let bugJarHTML = '';
         if (saved > 0) {
             const bugCount = Math.min(saved, 40);
             let bugsStr = '';
-            for(let i=0; i<bugCount; i++) {
-                bugsStr += `<span class="jar-bug" style="cursor: pointer; display: inline-block; padding: 2px; transition: transform 0.1s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">🦟</span>`;
-            }
-            bugJarHTML = `<div class="w-full text-center my-4 p-3 bg-green-50 rounded-xl border border-green-100 relative overflow-hidden">
-                <div class="text-[10px] font-bold text-green-600 mb-1 uppercase tracking-wider">The Bug Jar (${saved})</div>
-                <div id="jar-container" class="text-xl leading-6 opacity-90 break-words" style="letter-spacing: 1px;">
-                    ${bugsStr}
-                </div>
-                ${State.data.currentTheme === 'halloween' ? '<div class="text-[9px] text-green-500 mt-1 italic">Tap a bug to feed the spider!</div>' : ''}
-            </div>`;
+            for(let i=0; i<bugCount; i++) bugsStr += `<span class="jar-bug" style="cursor: pointer; display: inline-block; padding: 2px; transition: transform 0.1s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">🦟</span>`;
+            bugJarHTML = `<div class="w-full text-center my-4 p-3 bg-green-50 rounded-xl border border-green-100 relative overflow-hidden"><div class="text-[10px] font-bold text-green-600 mb-1 uppercase tracking-wider">The Bug Jar (${saved})</div><div id="jar-container" class="text-xl leading-6 opacity-90 break-words" style="letter-spacing: 1px;">${bugsStr}</div>${State.data.currentTheme === 'halloween' ? '<div class="text-[9px] text-green-500 mt-1 italic">Tap a bug to feed the spider!</div>' : ''}</div>`;
         }
         
         const b = DOM.profile.badges;
-        b.innerHTML = 
-            `<div class="text-xs font-bold text-gray-500 uppercase mb-2 mt-2">🏆 Word Badges</div>` + renderRow(row1) + 
-            `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🧸 Found Items</div>` + renderRow(row2) + 
-            `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🌊 Aquarium</div>` + renderRow(row_fish) + 
-            `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🎖️ Achievements</div>` + renderRow(row3) +
-            bugJarHTML;
+        b.innerHTML = `<div class="text-xs font-bold text-gray-500 uppercase mb-2 mt-2">🏆 Word Badges</div>` + renderRow(row1) + `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🧸 Found Items</div>` + renderRow(row2) + `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🌊 Aquarium</div>` + renderRow(row_fish) + `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🎖️ Achievements</div>` + renderRow(row3) + bugJarHTML;
 
-        // --- GLOBAL TOOLTIP HELPER ---
         const showTooltip = (targetEl, title, desc) => {
             document.querySelectorAll('.global-badge-tooltip').forEach(t => t.remove());
             const tip = document.createElement('div');
@@ -2881,18 +2770,13 @@ const UIManager = {
             requestAnimationFrame(() => tip.style.opacity = '1');
             targetEl.style.transform = "scale(1.2)";
             setTimeout(() => targetEl.style.transform = "", 200);
-            setTimeout(() => { 
-                tip.style.opacity = '0';
-                setTimeout(() => { if(tip.parentNode) tip.remove(); }, 200);
-            }, 3000);
+            setTimeout(() => { tip.style.opacity = '0'; setTimeout(() => { if(tip.parentNode) tip.remove(); }, 200); }, 3000);
         };
 
-        // --- ATTACH LISTENERS ---
         b.querySelectorAll('.badge-item').forEach(el => {
             el.onclick = (e) => {
                 e.stopPropagation();
                 const isLocked = el.classList.contains('grayscale');
-                
                 if (isLocked) {
                     let desc = "Keep playing to unlock!";
                     if (el.dataset.word) desc = "Find the hidden word to unlock.";
@@ -2900,23 +2784,14 @@ const UIManager = {
                     showTooltip(el, "Locked: " + el.dataset.title, desc);
                     return;
                 }
-
-                if (el.dataset.word) {
-                    Game.loadSpecial(el.dataset.word);
-                    ModalManager.toggle('profile', false);
-                } else {
-                    showTooltip(el, el.dataset.title, el.dataset.desc);
-                }
+                if (el.dataset.word) { Game.loadSpecial(el.dataset.word); ModalManager.toggle('profile', false); } else { showTooltip(el, el.dataset.title, el.dataset.desc); }
             }
         });
         const jarBugs = b.querySelectorAll('.jar-bug');
         jarBugs.forEach(bug => {
             bug.onclick = (e) => {
                 e.stopPropagation();
-                if (State.data.currentTheme !== 'halloween') {
-                    showTooltip(bug, "Spider Missing", "Please visit the spider on the Halloween theme to feed");
-                    return;
-                }
+                if (State.data.currentTheme !== 'halloween') { showTooltip(bug, "Spider Missing", "Please visit the spider on the Halloween theme to feed"); return; }
                 ModalManager.toggle('profile', false);
                 State.data.insectStats.saved = Math.max(0, State.data.insectStats.saved - 1);
                 State.save('insectStats', State.data.insectStats);
@@ -2927,69 +2802,40 @@ const UIManager = {
         ModalManager.toggle('profile', true);
     },
     displayWord(w) {
-        if (!w) {
-            this.showMessage("No words available!");
-            return
-        }
-        const wd = DOM.game.wordDisplay,
-            txt = w.text.toUpperCase();
+        if (!w) { this.showMessage("No words available!"); return }
+        const wd = DOM.game.wordDisplay, txt = w.text.toUpperCase();
         wd.textContent = txt;
         wd.className = 'font-extrabold text-gray-900 text-center min-h-[72px]';
         wd.style = '';
         wd.style.opacity = '1';
         const t = State.data.currentTheme;
         if (['dark', 'halloween', 'submarine', 'fire', 'plymouth'].includes(t)) wd.style.color = '#f3f4f6';
-        if (t === 'halloween') {
-            wd.style.color = '#FF8C00';
-            wd.style.textShadow = '2px 2px 0px #1a0000, 0 0 8px rgba(255,140,0,1), 0 0 15px rgba(255,69,0,0.6)'
-        }
-        if (t === 'submarine') {
-            wd.style.color = '#b0e0e6';
-            wd.style.textShadow = '0 0 10px rgba(176,224,230,0.7), 0 0 5px rgba(255,255,255,0.3)';
-            wd.style.animation = 'bobbing-word 2.5s ease-in-out infinite'
-        }
-        if (t === 'fire') {
-            wd.style.color = '#ffaa00';
-            wd.style.textShadow = '2px 2px 0px #300, 0 0 8px #ff5000, 0 0 20px #ff0000'
-        }
+        if (t === 'halloween') { wd.style.color = '#FF8C00'; wd.style.textShadow = '2px 2px 0px #1a0000, 0 0 8px rgba(255,140,0,1), 0 0 15px rgba(255,69,0,0.6)' }
+        if (t === 'submarine') { wd.style.color = '#b0e0e6'; wd.style.textShadow = '0 0 10px rgba(176,224,230,0.7), 0 0 5px rgba(255,255,255,0.3)'; wd.style.animation = 'bobbing-word 2.5s ease-in-out infinite' }
+        if (t === 'fire') { wd.style.color = '#ffaa00'; wd.style.textShadow = '2px 2px 0px #300, 0 0 8px #ff5000, 0 0 20px #ff0000' }
         if (t === 'banana') {
-            // FIX: Use the dynamically assigned properties from ThemeManager
-            wd.style.backgroundImage = UIManager.BANANA_BG_IMAGE;
-            wd.style.backgroundSize = UIManager.BANANA_BG_SIZE;
-            wd.style.backgroundPosition = UIManager.BANANA_BG_POSITION;
-            wd.style.webkitBackgroundClip = 'text';
-            wd.style.webkitTextFillColor = 'transparent';
-            wd.style.color = 'transparent'; 
-            wd.style.animation = 'bounce-word .5s ease-out infinite alternate'
+            // FIX: Apply texture to text using the shared config
+            if (this.bananaConfig) {
+                wd.style.backgroundImage = this.bananaConfig.img;
+                wd.style.backgroundSize = this.bananaConfig.size;
+                wd.style.backgroundPosition = this.bananaConfig.pos;
+                wd.style.webkitBackgroundClip = 'text';
+                wd.style.webkitTextFillColor = 'transparent';
+                wd.style.color = 'transparent'; 
+                wd.style.animation = 'bounce-word .5s ease-out infinite alternate';
+                // Add a drop shadow filter so the text pops against the white card
+                wd.style.filter = 'drop-shadow(2px 2px 0px rgba(0,0,0,0.1))';
+            } else {
+                 wd.style.color = '#ffd200';
+            }
         }
-        if (t === 'winter') {
-            wd.style.color = '#01579b';
-            wd.classList.remove('animate-snow-text');
-            void wd.offsetWidth;
-            wd.classList.add('animate-snow-text')
-        }
-        if (t === 'summer') {
-            wd.style.color = '#fffde7';
-            wd.style.textShadow = '0 0 5px #fff9c4, 0 0 20px #ffeb3b, 0 0 40px #ff9800, 0 0 70px #ff5722';
-            wd.style.animation = 'sun-pulse 4s ease-in-out infinite alternate'
-        } else {
-            if (!['banana', 'rainbow', 'submarine'].includes(t)) wd.style.animation = 'none'
-        }
-        if (t === 'rainbow') {
-            wd.style.background = 'linear-gradient(45deg, #f00, #ff7f00, #ff0, #0f0, #0ff, #00f, #9400d3)';
-            wd.style.webkitBackgroundClip = 'text';
-            wd.style.webkitTextFillColor = 'transparent';
-            wd.style.color = 'transparent';
-            wd.style.animation = 'rainbow-text 5s ease infinite'
-        }
+        if (t === 'winter') { wd.style.color = '#01579b'; wd.classList.remove('animate-snow-text'); void wd.offsetWidth; wd.classList.add('animate-snow-text') }
+        if (t === 'summer') { wd.style.color = '#fffde7'; wd.style.textShadow = '0 0 5px #fff9c4, 0 0 20px #ffeb3b, 0 0 40px #ff9800, 0 0 70px #ff5722'; wd.style.animation = 'sun-pulse 4s ease-in-out infinite alternate' } else { if (!['banana', 'rainbow', 'submarine'].includes(t)) wd.style.animation = 'none' }
+        if (t === 'rainbow') { wd.style.background = 'linear-gradient(45deg, #f00, #ff7f00, #ff0, #0f0, #0ff, #00f, #9400d3)'; wd.style.webkitBackgroundClip = 'text'; wd.style.webkitTextFillColor = 'transparent'; wd.style.color = 'transparent'; wd.style.animation = 'rainbow-text 5s ease infinite' }
+        
         const drift = document.getElementById('card-snow-drift');
-        if (t === 'winter') {
-            drift.classList.remove('animate-snow-drift');
-            void drift.offsetWidth;
-            drift.classList.add('animate-snow-drift')
-        } else {
-            drift.style.height = '0';
-        }
+        if (t === 'winter') { drift.classList.remove('animate-snow-drift'); void drift.offsetWidth; drift.classList.add('animate-snow-drift') } else { drift.style.height = '0'; }
+        
         this.fitText(txt);
         if (!State.runtime.isCoolingDown) this.disableButtons(false);
         wd.style.cursor = 'grab'
@@ -2998,13 +2844,10 @@ const UIManager = {
         const isLarge = State.data.settings.largeText;
         const baseSize = isLarge ? 140 : 96; 
         const minSize = isLarge ? 32 : 24;
-
         const wd = DOM.game.wordDisplay;
         const cW = DOM.game.card.clientWidth - parseFloat(getComputedStyle(DOM.game.card).paddingLeft) * 2;
-
         wd.style.fontSize = `${baseSize}px`;
         wd.style.whiteSpace = 'nowrap';
-
         if (wd.scrollWidth > cW) {
             const s = cW / wd.scrollWidth;
             wd.style.fontSize = Math.max(minSize, Math.floor(baseSize * s)) + 'px';
@@ -3013,28 +2856,19 @@ const UIManager = {
     },
     renderRankingsImpl(c, l, type, isF) {
         c.innerHTML = '';
-        if (!l.length) {
-            c.innerHTML = `<p class="text-gray-500">No data yet.</p>`;
-            return
-        }
+        if (!l.length) { c.innerHTML = `<p class="text-gray-500">No data yet.</p>`; return }
         l.forEach((w, i) => {
             const d = document.createElement('div');
             d.className = `flex justify-between items-center py-1 ${isF?'full-ranking-item text-sm':'rank-item'}`;
-            const bg = type === 'good' ? 'bg-green-500' : 'bg-red-500',
-                val = type === 'good' ? w.score : Math.abs(w.score);
+            const bg = type === 'good' ? 'bg-green-500' : 'bg-red-500', val = type === 'good' ? w.score : Math.abs(w.score);
             d.innerHTML = `<div class="flex items-center ${isF?'space-x-3':'space-x-2'}"><span class="font-bold ${isF?'text-base w-8':'text-lg w-5'} text-center text-gray-500 flex-shrink-0">${w.rank||(i+1)}.</span><span class="font-medium text-gray-800">${w.text.toUpperCase()}</span></div><div class="flex items-center space-x-3"><span class="text-xs text-white ${bg} px-2 rounded-full font-bold">${val}</span><span class="text-sm text-gray-600">(${w.good} / ${w.bad})</span></div>`;
             c.appendChild(d)
         })
     },
     getRankedLists(lim) {
-        const r = State.runtime.allWords.map(w => ({
-            text: w.text,
-            good: w.goodVotes || 0,
-            bad: w.badVotes || 0,
-            score: (w.goodVotes || 0) - (w.badVotes || 0)
-        }));
+        const r = State.runtime.allWords.map(w => ({ text: w.text, good: w.goodVotes || 0, bad: w.badVotes || 0, score: (w.goodVotes || 0) - (w.badVotes || 0) }));
         const tg = [...r].sort((a, b) => (b.score - a.score) || ((b.good + b.bad) - (a.good + a.bad)));
-        const tb = [...r].sort((a, b) => (a.score - b.score) || ((b.good + b.bad) - (a.good + a.ad)));
+        const tb = [...r].sort((a, b) => (a.score - b.score) || ((b.good + b.bad) - (a.good + a.bad)));
         if (lim === 0) return { topGood: tg, topBad: tb };
         return { topGood: tg.slice(0, lim), topBad: tb.slice(0, lim) }
     },
@@ -3057,10 +2891,7 @@ const UIManager = {
         DOM.rankings.listsContainer.classList.add('hidden');
         DOM.rankings.searchContainer.classList.remove('hidden');
         const c = DOM.rankings.searchResult;
-        if (gI === -1) {
-            c.innerHTML = `<p class="text-xl text-gray-700 font-bold">Word not found: ${q}</p>`;
-            return
-        }
+        if (gI === -1) { c.innerHTML = `<p class="text-xl text-gray-700 font-bold">Word not found: ${q}</p>`; return }
         const w = topGood[gI];
         c.innerHTML = `<div class="p-4 bg-white rounded-xl shadow-sm border border-gray-200 inline-block w-full max-w-sm"><h3 class="text-2xl font-black text-gray-800 mb-4">${w.text.toUpperCase()}</h3><div class="flex justify-around mb-4"><div class="text-center"><div class="text-sm text-gray-500">Good Rank</div><div class="text-3xl font-bold text-green-600">#${gI+1}</div></div><div class="text-center"><div class="text-sm text-gray-500">Bad Rank</div><div class="text-3xl font-bold text-red-600">#${bI+1}</div></div></div><div class="border-t pt-4 flex justify-between text-sm"><span class="font-bold text-green-600">+${w.good} Good</span><span class="font-bold text-red-600">-${w.bad} Bad</span></div></div>`
     },
