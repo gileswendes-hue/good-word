@@ -8,7 +8,7 @@ const GAME_TIPS = [
     "Tip: Go outside for a stomp?",
     "Tip: Bad reception? Faster gameplay in Offline Mode.",
     "Tip: Nobody else has a clue either.",
-    "Tip: Excellent word? Why not share it?',
+    "Tip: Excellent word? Why not share it?",
     "Tip: Have you found the ball pit yet?",
     "# I've got a floor, so what?",
     "Tip: Feed bugs to the spider!",
