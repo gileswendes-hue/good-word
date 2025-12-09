@@ -1160,30 +1160,69 @@ const ThemeManager = {
         document.body.classList.add(`theme-${t}`);
         State.save('currentTheme', t);
         
-        // --- BANANA TEXTURE GENERATOR ---
-        const r1 = Math.floor(Math.random() * 200); 
-        const r2 = Math.floor(Math.random() * 200);
-        const r3 = Math.floor(Math.random() * 200);
-        const r4 = Math.floor(Math.random() * 200);
-        const r5 = Math.floor(Math.random() * 200);
+        // --- BANANA TEXTURE GENERATOR (ORGANIC V4) ---
+        // 1. Generate 10 random offsets to scatter the layers completely
+        const r1 = Math.floor(Math.random() * 500); const r2 = Math.floor(Math.random() * 500);
+        const r3 = Math.floor(Math.random() * 500); const r4 = Math.floor(Math.random() * 500);
+        const r5 = Math.floor(Math.random() * 500); const r6 = Math.floor(Math.random() * 500);
+        const r7 = Math.floor(Math.random() * 500); const r8 = Math.floor(Math.random() * 500);
+        const r9 = Math.floor(Math.random() * 500); const r10 = Math.floor(Math.random() * 500);
 
-        // 8 LAYERS TOTAL (7 Texture + 1 Base Color)
+        // 2. Define 9 Layers of Texture (Bruises, Spots, Scuffs)
         const B_IMG = `
-            radial-gradient(circle at 15% 50%, rgba(92, 64, 51, 0.5) 0px, transparent 2px),
-            radial-gradient(circle at 85% 30%, rgba(92, 64, 51, 0.4) 0px, transparent 3px),
-            radial-gradient(circle at 40% 80%, rgba(92, 64, 51, 0.3) 0px, transparent 1.5px),
-            radial-gradient(ellipse at 70% 20%, rgba(70, 45, 30, 0.25) 2px, transparent 12px),
-            radial-gradient(ellipse at 20% 80%, rgba(70, 45, 30, 0.3) 4px, transparent 18px),
+            /* 1. Sharp dark pinpricks (High contrast) */
+            radial-gradient(circle at 15% 50%, rgba(60, 40, 20, 0.8) 1px, transparent 1.5px),
+            
+            /* 2. Soft wide bruises (Low opacity, large) */
+            radial-gradient(ellipse 30px 20px at 40% 80%, rgba(139, 69, 19, 0.15) 0%, transparent 50px),
+            
+            /* 3. Long thin scuff marks (Rotated feel via ellipse) */
+            radial-gradient(ellipse 3px 12px at 70% 20%, rgba(90, 50, 30, 0.4) 0%, transparent 6px),
+            
+            /* 4. Medium cluster spots */
+            radial-gradient(circle at 85% 30%, rgba(80, 50, 25, 0.5) 1.5px, transparent 3px),
+            
+            /* 5. Tiny scattered noise (Faint) */
+            radial-gradient(circle at 50% 50%, rgba(100, 70, 40, 0.3) 1px, transparent 2px),
+            
+            /* 6. Large dark "over-ripe" spots */
+            radial-gradient(ellipse at 20% 10%, rgba(70, 30, 10, 0.25) 4px, transparent 20px),
+
+            /* 7. Fibers (Vertical lines) */
             repeating-linear-gradient(90deg, transparent, transparent 59px, rgba(139, 69, 19, 0.05) 60px, transparent 61px, transparent 140px),
+            
+            /* 8. General surface noise */
             radial-gradient(circle at 50% 50%, rgba(139, 69, 19, 0.03) 0%, transparent 60%),
+            
+            /* 9. Base Yellow Color */
             linear-gradient(#f7e98e, #f7e98e)
         `;
         
-        // 8 SIZES (Last one matches base color)
-        const B_SIZE = `137px 137px, 263px 263px, 191px 191px, 499px 499px, 379px 379px, 100% 100%, 800px 800px, 100% 100%`;
+        // 3. Prime Number Sizes (The Cicada Principle) prevents grid alignment
+        const B_SIZE = `
+            137px 137px, 
+            419px 419px, 
+            263px 263px, 
+            313px 313px, 
+            191px 191px, 
+            503px 503px, 
+            100% 100%, 
+            800px 800px, 
+            100% 100%
+        `;
         
-        // 8 POSITIONS (Randomized)
-        const B_POS = `${r1}px ${r2}px, ${r3}px ${r4}px, ${r5}px 0px, 0px ${r5}px, 0 0, 0 0, 0 0, 0 0`;
+        // 4. Apply the random offsets
+        const B_POS = `
+            ${r1}px ${r2}px, 
+            ${r3}px ${r4}px, 
+            ${r5}px ${r6}px, 
+            ${r7}px ${r8}px, 
+            ${r9}px ${r10}px, 
+            ${r2}px ${r9}px, 
+            0 0, 
+            0 0, 
+            0 0
+        `;
 
         if (t === 'banana') {
             UIManager.bananaConfig = { img: B_IMG, size: B_SIZE, pos: B_POS };
