@@ -45,5 +45,6 @@ const GAME_TIPS = [
     "# I was alone, I was all by myself.",
     "Tip: Why not turn on the Christmas lights?",
     "Tip: The spider lies.",
-    "Tip: Try using the word share button!"
+    "Tip: Try using the word share button!",
+    "What's your longest word streak?"
 ];
