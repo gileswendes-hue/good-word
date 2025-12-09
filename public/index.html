@@ -56,7 +56,7 @@
             </div>
         </div>
 
-        <div id="headerStatsCard" class="md:col-span-3 bg-white/90 backdrop-blur-sm shadow-md rounded-xl p-3 border border-gray-100 flex flex-col justify-center relative">
+        <div id="headerStatsCard" class="md:col-span-3 bg-white/90 backdrop-blur-sm shadow-md rounded-xl p-3 border border-gray-100 flex flex-col justify-center cursor-pointer hover:bg-white hover:scale-[1.02] transition-all relative" title="Click to view Top 100 Rankings">
             
             <div class="flex justify-between items-center mb-2 px-2">
                 <div class="text-center">
@@ -102,6 +102,12 @@
 
         <div id="wordFrame" class="w-full text-center rounded-xl mb-6 relative group">
             <div id="wordDisplay" class="font-extrabold text-gray-900 text-center min-h-[72px]">Loading...</div>
+            
+            <button id="shareWordButton" class="absolute top-1 right-0 p-2 opacity-80 hover:opacity-100 transition-opacity text-gray-400 hover:text-indigo-600 z-20" title="Share this word">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+            </button>
         </div>
         
         <div id="card-snow-drift"></div>
@@ -130,29 +136,14 @@
 
     </main>
 
-<section class="mt-8 w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
-        <div class="ranking-card card p-6 rounded-xl relative">
-            <div class="flex justify-between items-center mb-4 border-b pb-2">
-                <h2 class="text-xl font-bold text-green-700">Top Good Words</h2>
-                <button id="viewAllGoodBtn" class="text-xs font-bold text-green-700 bg-green-100 px-3 py-1.5 rounded-lg hover:bg-green-200 transition-colors flex items-center">
-                    Top 100 <span class="ml-1 text-[10px]">➜</span>
-                </button>
-            </div>
-            <div class="ranking-frame rounded-xl">
-                <div id="goodRankings" class="space-y-2"><p class="text-gray-500">No data yet.</p></div>
-            </div>
+    <section class="mt-8 w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
+        <div class="ranking-card card p-6 rounded-xl">
+            <h2 class="text-xl font-bold text-green-700 mb-4 border-b pb-2">Top Good Words</h2>
+            <div class="ranking-frame rounded-xl"><div id="goodRankings" class="space-y-2"><p class="text-gray-500">No data yet.</p></div></div>
         </div>
-
-        <div class="ranking-card card p-6 rounded-xl relative">
-             <div class="flex justify-between items-center mb-4 border-b pb-2">
-                <h2 class="text-xl font-bold text-red-700">Top Bad Words</h2>
-                <button id="viewAllBadBtn" class="text-xs font-bold text-red-700 bg-red-100 px-3 py-1.5 rounded-lg hover:bg-red-200 transition-colors flex items-center">
-                    Top 100 <span class="ml-1 text-[10px]">➜</span>
-                </button>
-            </div>
-            <div class="ranking-frame rounded-xl">
-                <div id="badRankings" class="space-y-2"><p class="text-gray-500">No data yet.</p></div>
-            </div>
+        <div class="ranking-card card p-6 rounded-xl">
+            <h2 class="text-xl font-bold text-red-700 mb-4 border-b pb-2">Top Bad Words</h2>
+            <div class="ranking-frame rounded-xl"><div id="badRankings" class="space-y-2"><p class="text-gray-500">No data yet.</p></div></div>
         </div>
     </section>
     
