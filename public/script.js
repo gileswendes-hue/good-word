@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.61.2', 
+    APP_VERSION: '5.61.3', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -2747,6 +2747,7 @@ const UIManager = {
         }, 150);
     },
 
+    // --- RESTORED VISUAL FUNCTIONS ---
     updateTheme: function(theme) {
         document.body.className = `flex flex-col items-center justify-center min-h-screen p-4 pb-16 theme-${theme}`;
         
@@ -2842,6 +2843,7 @@ const UIManager = {
             el.style.opacity = '0';
         }, 2000);
     },
+    // --------------------------------
 
     // --- NEW RANKING FUNCTIONS ---
     showFullRankings: function(targetSection = 'good') {
