@@ -1164,13 +1164,7 @@ const ThemeManager = {
         document.body.classList.add(`theme-${t}`);
         State.save('currentTheme', t);
         
-        // --- BANANA TEXTURE INJECTION (Version 3: Sparse & Organic) ---
-        if (t === 'banana') {
-            if (!document.getElementById('banana-style')) {
-                const s = document.createElement('style');
-                s.id = 'banana-style';
-                
-                s.innerHTML = `
+		s.innerHTML = `
                     body.theme-banana {
                         background-color: #f7e98e !important;
                         
@@ -1183,15 +1177,15 @@ const ThemeManager = {
                             radial-gradient(ellipse at 70% 20%, rgba(70, 45, 30, 0.3) 2px, transparent 10px),
                             radial-gradient(ellipse at 20% 80%, rgba(70, 45, 30, 0.4) 4px, transparent 15px),
                             
-                            /* 3. Sparse Fibers (Widely spaced vertical lines) */
+                            /* 3. Sparse Fibers (Thin vertical lines—kept organized but subtle) */
                             repeating-linear-gradient(
                                 90deg, 
                                 transparent, 
                                 transparent 59px, 
-                                rgba(139, 69, 19, 0.06) 60px, /* Thin line */
-                                rgba(139, 69, 19, 0.03) 62px, /* Feather edge */
+                                rgba(139, 69, 19, 0.06) 60px, 
+                                rgba(139, 69, 19, 0.03) 62px, 
                                 transparent 62px,
-                                transparent 140px /* Large gap */
+                                transparent 140px 
                             ),
                             
                             /* 4. Subtle background noise */
@@ -1199,8 +1193,8 @@ const ThemeManager = {
                         
                         /* Prime numbers for background-size prevent grid alignment */
                         background-size: 
-                            103px 103px,    /* Tiny spots A */
-                            263px 263px,    /* Tiny spots B */
+                            103px 103px,    /* Tiny spots A - Random offset added below */
+                            263px 263px,    /* Tiny spots B - Random offset added below */
                             499px 499px,    /* Large Blotches A */
                             379px 379px,    /* Large Blotches B */
                             100% 100%,      /* Fibers (Fill screen) */
@@ -1208,10 +1202,10 @@ const ThemeManager = {
                             !important;
                             
                         background-position: 
+                            17px 23px,    /* Random offset for spot pattern 1 */
+                            150px 70px,   /* Random offset for spot pattern 2 */
                             0 0, 
-                            30px 50px, 
-                            100px 20px, 
-                            -50px 150px,
+                            0 0,
                             0 0,
                             0 0 !important;
                             
@@ -1225,6 +1219,7 @@ const ThemeManager = {
                 document.head.appendChild(s);
             }
         } else {
+// ... rest of theme apply logic
             const old = document.getElementById('banana-style');
             if (old) old.remove();
         }
