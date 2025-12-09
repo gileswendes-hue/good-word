@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.60', 
+    APP_VERSION: '5.60.1', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -2837,11 +2837,23 @@ const UIManager = {
                 if (el.dataset.word) { Game.loadSpecial(el.dataset.word); ModalManager.toggle('profile', false); } else { showTooltip(el, el.dataset.title, el.dataset.desc); }
             }
         });
-        const jarBugs = b.querySelectorAll('.jar-bug');
+const jarBugs = b.querySelectorAll('.jar-bug');
         jarBugs.forEach(bug => {
             bug.onclick = (e) => {
                 e.stopPropagation();
-                if (State.data.currentTheme !== 'halloween') { showTooltip(bug, "Spider Missing", "Please visit the spider on the Halloween theme to feed"); return; }
+                
+                // 1. Check if correct theme
+                if (State.data.currentTheme !== 'halloween') { 
+                    showTooltip(bug, "Spider Missing", "Please visit the spider on the Halloween theme to feed"); 
+                    return; 
+                }
+
+                // 2. Check if Arachnophobia Mode is ON (Spider is hidden)
+                if (State.data.settings.arachnophobiaMode) {
+                    showTooltip(bug, "Spider Hidden", "You have Arachnophobia Mode turned on! The spider is gone."); 
+                    return; 
+                }
+
                 ModalManager.toggle('profile', false);
                 State.data.insectStats.saved = Math.max(0, State.data.insectStats.saved - 1);
                 State.save('insectStats', State.data.insectStats);
@@ -2849,6 +2861,7 @@ const UIManager = {
                 UIManager.showPostVoteMessage("Feeding time! 🕷️");
             };
         });
+		
         ModalManager.toggle('profile', true);
     },
     displayWord(w) {
