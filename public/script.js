@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.60.3', 
+    APP_VERSION: '5.60.4', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -314,6 +314,7 @@ const State = {
     }
 };
 
+// --- OFFLINE MANAGER (Fixed Kids Mode Sync) ---
 const OfflineManager = {
     CACHE_TARGET: 500,
 
@@ -329,8 +330,10 @@ const OfflineManager = {
                 State.data.settings.offlineMode = true;
                 State.save('settings', State.data.settings);
                 UIManager.showPostVoteMessage("Offline Mode Ready! 🚇");
-                State.runtime.allWords = State.data.offlineCache; 
-                Game.nextWord();
+                
+                // FIX: Don't dump raw cache. Reload data to apply Kids Mode filters.
+                Game.refreshData(true); 
+                
             } else {
                 alert("Could not download words. Check connection.");
                 const toggle = document.getElementById('toggleOffline');
@@ -341,7 +344,7 @@ const OfflineManager = {
             await this.sync();
             State.data.settings.offlineMode = false;
             State.save('settings', State.data.settings);
-            Game.refreshData(); 
+            Game.refreshData(true); 
         }
         UIManager.updateOfflineIndicator();
     },
