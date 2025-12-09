@@ -1161,41 +1161,41 @@ const ThemeManager = {
         State.save('currentTheme', t);
         
         // --- BANANA TEXTURE GENERATOR ---
-        // Generates random offsets every time to break the grid
+        // 1. Generate random offsets to break the grid
         const r1 = Math.floor(Math.random() * 200);
         const r2 = Math.floor(Math.random() * 200);
         const r3 = Math.floor(Math.random() * 200);
         const r4 = Math.floor(Math.random() * 200);
         const r5 = Math.floor(Math.random() * 200);
-        const r6 = Math.floor(Math.random() * 200);
 
-        // 6 Layers of chaos for a natural look
         const B_IMG = `
             radial-gradient(circle at 15% 50%, rgba(92, 64, 51, 0.5) 0px, transparent 2px),
             radial-gradient(circle at 85% 30%, rgba(92, 64, 51, 0.4) 0px, transparent 3px),
-            radial-gradient(circle at 40% 80%, rgba(92, 64, 51, 0.3) 0px, transparent 1.5px),
             radial-gradient(ellipse at 70% 20%, rgba(70, 45, 30, 0.25) 2px, transparent 12px),
             radial-gradient(ellipse at 20% 80%, rgba(70, 45, 30, 0.3) 4px, transparent 18px),
+            repeating-linear-gradient(90deg, transparent, transparent 59px, rgba(139, 69, 19, 0.05) 60px, transparent 61px, transparent 140px),
             radial-gradient(circle at 50% 50%, rgba(139, 69, 19, 0.03) 0%, transparent 60%)
         `;
         
-        // Prime numbers to prevent pattern alignment (The Cicada Principle)
-        const B_SIZE = `137px 137px, 263px 263px, 191px 191px, 499px 499px, 379px 379px, 800px 800px`;
+        // Prime numbers for sizes help prevent pattern alignment
+        const B_SIZE = `137px 137px, 263px 263px, 499px 499px, 379px 379px, 100% 100%, 800px 800px`;
         
         // Apply random offsets
-        const B_POS = `${r1}px ${r2}px, ${r3}px ${r4}px, ${r5}px ${r6}px, 0 0, 0 0, 0 0`;
+        const B_POS = `${r1}px ${r2}px, ${r3}px ${r4}px, ${r5}px 0px, 0px ${r5}px, 0 0, 0 0`;
 
         if (t === 'banana') {
-            // 1. SAVE TO UIMANAGER FOR TEXT
+            // 2. Save config for UIManager to use on the word
             UIManager.bananaConfig = { img: B_IMG, size: B_SIZE, pos: B_POS };
 
-            if (!document.getElementById('banana-style')) {
-                const s = document.createElement('style');
+            let s = document.getElementById('banana-style');
+            if (!s) {
+                s = document.createElement('style');
                 s.id = 'banana-style';
                 document.head.appendChild(s);
             }
-            // 2. INJECT CSS FOR BODY
-            document.getElementById('banana-style').innerHTML = `
+            
+            // 3. Inject CSS
+            s.innerHTML = `
                 body.theme-banana {
                     background-color: #f7e98e !important;
                     background-image: ${B_IMG} !important;
@@ -2626,7 +2626,7 @@ async generateImage() {
 
 const UIManager = {
     msgTimeout: null,
-    bananaConfig: null, // Holds the texture data
+    bananaConfig: null, 
 
     showMessage(t, err = false) {
         const wd = DOM.game.wordDisplay;
@@ -2841,8 +2841,8 @@ const UIManager = {
                 // Add a drop shadow to make it legible
                 wd.style.filter = 'drop-shadow(2px 2px 0px rgba(75, 54, 33, 0.2))';
             } else {
-                 // Fallback if config missing
-                 wd.style.color = '#4b3621'; // Dark Brown (Readable)
+                 // Fallback if config missing (Safety Brown)
+                 wd.style.color = '#4b3621'; 
             }
         }
 
