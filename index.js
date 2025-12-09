@@ -211,7 +211,7 @@ app.get('/api/scores', async (req, res) => {
         // Find all scores, sort by score descending, limit to top 5
         const topScores = await Score.find()
             .sort({ score: -1 })
-            .limit(5)
+            .limit(8)
             .select('name score -_id'); // Only return name and score
 
         res.json(topScores);
@@ -225,4 +225,5 @@ app.get('/api/scores', async (req, res) => {
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
+
 
