@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.61.5', 
+    APP_VERSION: '5.61.2', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -3115,88 +3115,49 @@ const API = {
 };
 
 const Game = {
-    cleanStyles(e) {
-        e.style.animation = 'none';
-        e.style.background = 'none';
-        e.style.webkitTextFillColor = 'initial';
-        e.style.textShadow = 'none';
-        e.style.transform = 'none';
-        e.style.filter = 'none';
-        e.style.color = ''
-    },
-	
-	setRandomFavicon() {
-        const options = ['👍', '👎', '🗳️'];
-        const choice = options[Math.floor(Math.random() * options.length)];
+    init: async function() {
+        DOM = loadDOM();
         
-        const svg = `<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>${choice}</text></svg>`;
+        // Restore Settings
+        if (State.user.settings.mirror) document.body.classList.add('mirror-mode');
+        if (State.user.settings.tilt) document.body.classList.add('tilt-mode');
         
-        let link = document.querySelector("link[rel~='icon']");
-        if (!link) {
-            link = document.createElement('link');
-            link.rel = 'icon';
-            document.head.appendChild(link);
+        Accessibility.apply();
+        UIManager.updateTheme(State.data.currentTheme);
+
+        // Load Data
+        await API.fetchGlobalStats();
+        this.updateHeaderStats();
+        
+        // Check for Deep Link (?word=ENVY)
+        const urlParams = new URLSearchParams(window.location.search);
+        const deepLinkWord = urlParams.get('word');
+
+        if (deepLinkWord) {
+             State.runtime.allWords = [{ text: deepLinkWord, id: 'shared-' + Date.now() }];
+             API.fetchWords().then(words => {
+                 State.runtime.allWords = [...State.runtime.allWords, ...words];
+             });
+        } else {
+             State.runtime.allWords = await API.fetchWords();
         }
-        link.href = `data:image/svg+xml,${svg}`;
-    },
-    async init() {
-		this.setRandomFavicon();
-		DOM = loadDOM();
-        try {
-            const vEl = document.querySelector('.version-indicator');
-            if (vEl) {
-                vEl.textContent = `v${CONFIG.APP_VERSION} | Made by Gilxs in 12,025`;
-                
-                Object.assign(vEl.style, {
-                    position: 'fixed', 
-                    bottom: '15px', 
-                    left: '50%',                
-                    transform: 'translateX(-50%)', 
-                    
-                    zIndex: '5', 
-                    
-                    pointerEvents: 'none',
-                    fontFamily: 'system-ui, -apple-system, sans-serif',
-                    fontSize: '11px',           
-                    fontWeight: '600',          
-                    color: '#374151',
-                    letterSpacing: '0.05em',
-                    backgroundColor: 'rgba(255, 255, 255, 0.92)', 
-                    padding: '6px 14px',
-                    borderRadius: '9999px',
-                    border: '1px solid rgba(0,0,0,0.1)',
-                    width: 'max-content',
-                    textShadow: 'none',
-                    opacity: '1',
-                    mixBlendMode: 'normal'
-                });
-            }
 
-            Accessibility.apply();
-            
-            try { SoundManager.init(); } catch(e) { console.warn("Audio init deferred"); }
-            
-            if (typeof this.updateLights === 'function') this.updateLights();
-            UIManager.updateOfflineIndicator();
-            
-            window.StreakManager = StreakManager;
-            window.ContactManager = ContactManager;
-            window.PinPad = PinPad;
-            window.TipManager = TipManager;
+        this.renderWord();
 
-            if (DOM.game.buttons.good) DOM.game.buttons.good.onclick = () => this.vote('good');
-            if (DOM.game.buttons.bad) DOM.game.buttons.bad.onclick = () => this.vote('bad');
-            if (DOM.game.buttons.notWord) DOM.game.buttons.notWord.onclick = () => this.vote('notWord');
-            if (DOM.game.dailyBanner) DOM.game.dailyBanner.onclick = () => this.activateDailyMode();
-           
-           // --- NEW SHARE LISTENERS ---
+        // --- EVENT LISTENERS ---
+        
+        // Main Game Buttons
+        if(DOM.game.buttons.good) DOM.game.buttons.good.onclick = () => this.vote('good');
+        if(DOM.game.buttons.bad) DOM.game.buttons.bad.onclick = () => this.vote('bad');
+        if(DOM.game.buttons.notWord) DOM.game.buttons.notWord.onclick = () => this.vote('not_word');
+
+        // Share Buttons
         if (DOM.game.buttons.shareGood) {
             DOM.game.buttons.shareGood.addEventListener('click', (e) => {
                 e.stopPropagation();
                 VoteShareManager.shareCurrent('good'); 
             });
         }
-
         if (DOM.game.buttons.shareBad) {
             DOM.game.buttons.shareBad.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -3204,6 +3165,7 @@ const Game = {
             });
         }
 
+        // View Rankings Buttons
         if (DOM.game.buttons.viewAllGood) {
             DOM.game.buttons.viewAllGood.onclick = () => UIManager.showFullRankings('good');
         }
@@ -3211,760 +3173,98 @@ const Game = {
             DOM.game.buttons.viewAllBad.onclick = () => UIManager.showFullRankings('bad');
         }
 
-			document.getElementById('showHelpButton').onclick = () => {
-			window.scrollTo({ top: 0, behavior: 'smooth' });
-			UIManager.showPostVoteMessage("What's going on? There aren't really any rules, but if you're really confused then drop me a message and I'll see if I can help!");
-	};
-			document.getElementById('showDonateButton').onclick = () => {
-			window.scrollTo({ top: 0, behavior: 'smooth' });
-			UIManager.showPostVoteMessage("That's very kind, but I'm not accepting any donations at the moment. Have fun!");
-	};
-            
-            document.getElementById('submitWordButton').onclick = async () => {
-                const t = DOM.inputs.newWord.value.trim();
-                if (!t || t.includes(' ') || t.length > 45) { DOM.inputs.modalMsg.textContent = "Invalid word."; return }
-                const btn = document.getElementById('submitWordButton'); btn.disabled = true;
-                try { const r = await API.submitWord(t); if (r.status === 201) { State.incrementContributor(); DOM.inputs.modalMsg.textContent = "Success! Your new word has been added!"; setTimeout(() => { ModalManager.toggle('submission', false); this.refreshData() }, 1000) } else { const d = await r.json(); DOM.inputs.modalMsg.textContent = d.message || "Error" } } catch (e) { DOM.inputs.modalMsg.textContent = "Network Error" }
-                btn.disabled = false
-            };
-
-            document.getElementById('runComparisonButton').onclick = async () => {
-                const w1 = DOM.inputs.wordOne.value.trim(), w2 = DOM.inputs.wordTwo.value.trim();
-                if (!w1 && !w2) { DOM.inputs.compareResults.innerHTML = '<span class="text-red-500">Please enter at least one word.</span>'; return }
-                DOM.inputs.compareResults.innerHTML = '<span class="text-gray-500 animate-pulse">Analyzing words...</span>';
-                const gd = async w => { if (w.includes(' ') || w.length > 45) return { t: w, valid: false, err: 'Invalid word.' }; const e = State.runtime.allWords.find(x => x.text.toUpperCase() === w.toUpperCase()); if (e) return { t: e.text, valid: true, exists: true, d: e }; const r = await API.submitWord(w); if (r.status === 201) { State.incrementContributor(); return { t: w.toUpperCase(), valid: true, exists: false, isNew: true } } return { t: w, valid: false, err: 'Could not fetch data.' } };
-                const res = []; if (w1) res.push(await gd(w1)); if (w2) res.push(await gd(w2)); if (res.some(r => r.isNew)) this.refreshData(false);
-                if (res.some(r => !r.valid)) { DOM.inputs.compareResults.innerHTML = res.map(r => !r.valid ? `<p class="text-red-500 mb-2"><strong>${r.t}</strong>: ${r.err}</p>` : '').join(''); return }
-                const st = res.map(r => { if (r.isNew) return { text: r.t.toUpperCase(), score: 0, good: 0, bad: 0, total: 0, approval: 0, isNew: true }; const g = r.d.goodVotes || 0, b = r.d.badVotes || 0, t = g + b; return { text: r.t.toUpperCase(), score: g - b, good: g, bad: b, total: t, approval: t > 0 ? Math.round((g / t) * 100) : 0, isNew: false } });
-                let h = '';
-                if (st.length === 2) {
-                    const [s1, s2] = st; let wi = -1; if (s1.score !== s2.score) wi = s1.score > s2.score? 0 : 1;
-                    h = `<div class="flex flex-col md:flex-row gap-4 w-full justify-center items-stretch">`;
-                    st.forEach((s, i) => { const iw = i === wi, il = wi !== -1 && !iw, bc = iw ? 'border-yellow-400 bg-yellow-50 shadow-xl scale-105 z-10' : 'border-gray-200 bg-white', oc = il ? 'opacity-70 grayscale-[0.3]' : ''; h += `<div class="flex-1 p-4 rounded-xl border-2 ${bc} ${oc} flex flex-col items-center transition-all duration-300">${iw?'<div class="text-2xl mb-2">🏆</div>':'<div class="h-8 mb-2"></div>'}<h3 class="text-xl font-black text-gray-800 mb-1">${s.text}</h3>${iw?'<span class="bg-yellow-400 text-white text-[10px] font-bold px-2 py-0.5 rounded-full mb-2">WINNER</span>':''}${s.isNew?'<span class="bg-purple-100 text-purple-600 text-xs px-2 py-1 rounded-full mb-2">New!</span>':''}<div class="text-3xl font-bold ${s.score>=0?'text-green-600':'text-red-600'} mb-4">${s.score}</div><div class="w-full space-y-2"><div class="flex justify-between text-xs text-gray-500"><span>Approval</span><span>${s.approval}%</span></div><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-blue-500 h-2.5 rounded-full" style="width: ${s.approval}%"></div></div><div class="flex justify-between text-xs pt-1"><span class="text-green-600 font-bold">+${s.good}</span><span class="text-red-600 font-bold">-${s.bad}</span></div></div></div>`; if (i === 0) h += `<div class="flex items-center justify-center font-black text-gray-300 md:px-2">VS</div>` }); h += '</div>'
-                } else { const s = st[0]; h = `<div class="p-4 rounded-xl border border-gray-200 bg-white flex flex-col items-center w-full max-w-xs mx-auto"><h3 class="text-xl font-black text-gray-800 mb-2">${s.text}</h3>${s.isNew?'<span class="bg-purple-100 text-purple-600 text-xs px-2 py-1 rounded mb-2">Newly Added!</span>':''}<div class="text-4xl font-bold ${s.score>=0?'text-green-600':'text-red-600'} mb-4">${s.score}</div><div class="w-full space-y-2"><div class="flex justify-between text-xs text-gray-500"><span>Approval Rating</span><span>${s.approval}%</span></div><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-blue-500 h-2.5 rounded-full" style="width: ${s.approval}%"></div></div><div class="flex justify-between text-xs pt-1"><span class="text-green-600 font-bold">+${s.good} Votes</span><span class="text-red-600 font-bold">-${s.bad} Votes</span></div></div></div>` }
-                DOM.inputs.compareResults.innerHTML = h
-            };
-
-            if (DOM.theme.chooser) DOM.theme.chooser.onchange = e => ThemeManager.apply(e.target.value, true);
-            const clearBtn = document.getElementById('clearAllDataButton');
-            if (clearBtn) clearBtn.onclick = State.clearAll;
-
-            InputHandler.init();
-            ThemeManager.init();
-            ModalManager.init();
-            UIManager.updateProfileDisplay();
-            MosquitoManager.startMonitoring();
-            this.checkDailyStatus();
-            
-            await this.refreshData();
-
-        } catch(e) {
-            console.error("Critical Init Error:", e);
-            const vEl = document.querySelector('.version-indicator');
-            if(vEl) vEl.textContent = "Error: " + e.message;
+        // Global Stats (Chart.js)
+        if (DOM.header.statsCard) {
+            DOM.header.statsCard.onclick = () => StatsManager.open();
+            DOM.header.statsCard.style.cursor = 'pointer'; 
         }
+        const closeStatsBtn = document.getElementById('closeGlobalStatsModal');
+        if (closeStatsBtn) closeStatsBtn.onclick = () => StatsManager.close();
+
+        // Modals
+        const closeRankBtn = document.getElementById('closeFullRankingsModal');
+        if(closeRankBtn) closeRankBtn.onclick = () => UIManager.toggle('fullRankingsModal', false);
+
+        document.getElementById('showSettingsButton').onclick = () => UIManager.toggle('settings', true);
+        document.getElementById('closeSettingsModal').onclick = () => UIManager.toggle('settings', false);
+
+        document.getElementById('headerUserStats').onclick = () => UIManager.toggle('profile', true);
+        document.getElementById('closeProfileModal').onclick = () => UIManager.toggle('profile', false);
     },
 
-    checkDailyStatus() {
-        const t = new Date().toISOString().split('T')[0];
-        const l = State.data.daily.lastDate;
-        if (t === l) {
-            DOM.game.dailyStatus.textContent = "Come back tomorrow!";
-            DOM.game.dailyBanner.style.display = 'none'
-        } else {
-            DOM.game.dailyStatus.textContent = "Vote Now!";
-            DOM.game.dailyBanner.style.display = 'block'
-        }
-    },
-
-    updateLights() {
-        const existing = document.querySelector('christmas-lights');
-        if (State.data.settings.showLights) {
-            if (!existing) {
-                const lights = document.createElement('christmas-lights');
-                document.body.appendChild(lights);
-            }
-        } else {
-            if (existing) existing.remove();
-        }
-    },
-
-    activateDailyMode() {
-        if (State.runtime.isDailyMode) return;
-        const now = new Date();
-        const t = now.getFullYear() + '-' + (now.getMonth() + 1) + '-' + now.getDate();
-        if (t === State.data.daily.lastDate) return;
-        State.runtime.isDailyMode = true;
-        DOM.game.dailyBanner.classList.add('daily-locked-mode');
-        DOM.game.buttons.notWord.style.display = 'none';
-        DOM.game.buttons.custom.style.display = 'none';
-        UIManager.showMessage('Loading Daily Word...');
-        const sortedWords = [...State.runtime.allWords].sort((a, b) => a.text.localeCompare(b.text));
-        let seed = 0;
-        for (let i = 0; i < t.length; i++) {
-            seed = ((seed << 5) - seed) + t.charCodeAt(i);
-            seed |= 0;
-        }
-        seed = Math.abs(seed);
-        const winningWordRef = sortedWords[seed % sortedWords.length];
-        if (winningWordRef) {
-            const idx = State.runtime.allWords.findIndex(w => w.text === winningWordRef.text);
-            if (idx !== -1) {
-                State.runtime.currentWordIndex = idx;
-                UIManager.displayWord(State.runtime.allWords[idx]);
-            } else {
-                UIManager.showMessage("Error finding word");
-            }
-        } else {
-            UIManager.showMessage("No Daily Word Found");
-        }
-    },
-
-    disableDailyMode() {
-        State.runtime.isDailyMode = false;
-        DOM.game.dailyBanner.classList.remove('daily-locked-mode');
-        DOM.game.buttons.notWord.style.display = 'block';
-        DOM.game.buttons.custom.style.display = 'block';
-        this.nextWord()
-    },
-
-    async refreshData(u = true) {
-        if (u) UIManager.showMessage(State.data.settings.kidsMode ? "Loading Kids Mode..." : "Loading...");
-        let d = [];
-        const compareBtn = document.getElementById('compareWordsButton');
-
-        if (State.data.settings.kidsMode) {
-            d = await API.fetchKidsWords();
-            DOM.game.buttons.custom.style.display = 'none';   
-            DOM.game.buttons.notWord.style.display = 'none';  
-            DOM.game.dailyBanner.style.display = 'none';      
-            if (compareBtn) compareBtn.classList.add('hidden');
-        } else {
-            d = await API.fetchWords();
-            DOM.game.buttons.custom.style.display = 'block';
-            DOM.game.buttons.notWord.style.display = 'block';
-            if (compareBtn) compareBtn.classList.remove('hidden');
-            if(!State.runtime.isDailyMode) this.checkDailyStatus();
-        }
-
-        if (d && d.length > 0) {
-            State.runtime.allWords = State.data.settings.kidsMode ? d : d.filter(w => (w.notWordVotes || 0) < 3);
-            UIManager.updateStats();
-
-            if (u && !State.runtime.isDailyMode) {
-                const params = new URLSearchParams(window.location.search);
-                const sharedWord = params.get('word');
-
-                if (sharedWord) {
-                    const idx = State.runtime.allWords.findIndex(w => w.text.toUpperCase() === sharedWord.toUpperCase());
-                    if (idx !== -1) {
-                        State.runtime.currentWordIndex = idx;
-                        UIManager.displayWord(State.runtime.allWords[idx]);
-                        window.history.replaceState({}, document.title, "/"); 
-                        UIManager.showPostVoteMessage("Shared word loaded! 🔗");
-                    } else {
-                        UIManager.showPostVoteMessage("Word not found. Showing random.");
-                        this.nextWord();
-                    }
-                } else {
-                    this.nextWord();
-                }
-            }
-        } else {
-            UIManager.showMessage("Connection Error", true);
-        }
-    },
-
-
-
-    nextWord() {
-        let p = State.runtime.allWords;
-        if (!p || p.length === 0) return;
-
-        // Smart Filtering
-        if (State.data.settings.zeroVotesOnly) {
-            const unvoted = p.filter(w => (w.goodVotes || 0) === 0 && (w.badVotes || 0) === 0);
-            if (unvoted.length > 0) p = unvoted;
-            else UIManager.showPostVoteMessage("No more new words! Showing random.");
-        }
-
-        // Special Words
-        const r = Math.random(), { CAKE, LLAMA, POTATO, SQUIRREL, MASON } = CONFIG.SPECIAL, b = State.data.badges;
-        let sp = null;
-        if (!b.cake && r < CAKE.prob) sp = CAKE.text;
-        else if (!b.llama && r < CAKE.prob + LLAMA.prob) sp = LLAMA.text;
-        else if (!b.potato && r < CAKE.prob + LLAMA.prob + POTATO.prob) sp = POTATO.text;
-        else if (!b.squirrel && r < CAKE.prob + LLAMA.prob + POTATO.prob + SQUIRREL.prob) sp = SQUIRREL.text;
-        else if (!b.bone && r < CAKE.prob + LLAMA.prob + POTATO.prob + SQUIRREL.prob + MASON.prob) sp = MASON.text;
+    vote: async function(type) {
+        if (State.runtime.isProcessing || State.runtime.isCoolingDown) return;
         
-        if (sp) {
-            const i = State.runtime.allWords.findIndex(w => w.text.toUpperCase() === sp);
-            if (i !== -1 && i !== State.runtime.currentWordIndex) {
-                State.runtime.currentWordIndex = i;
-                UIManager.displayWord(State.runtime.allWords[i]);
-                return;
-            }
+        State.runtime.isProcessing = true;
+        const wordObj = State.runtime.allWords[State.runtime.currentWordIndex];
+        
+        // Optimistic UI Update
+        if (type === 'good') {
+            State.data.global.good++;
+            State.user.votes[wordObj.id] = 'good';
+            DOM.header.user.votes.innerText = parseInt(DOM.header.user.votes.innerText) + 1;
+            this.handleStreak(true);
+        } else if (type === 'bad') {
+            State.data.global.bad++;
+            State.user.votes[wordObj.id] = 'bad';
+            DOM.header.user.votes.innerText = parseInt(DOM.header.user.votes.innerText) + 1;
+            this.handleStreak(true);
+        } else {
+             this.handleStreak(false);
         }
-        
-        // Selection Algorithm
-        let av = p.reduce((acc, w, i) => {
-            const trueIndex = State.runtime.allWords.indexOf(w);
-            if ((!State.data.seenHistory.includes(trueIndex) && trueIndex !== State.runtime.currentWordIndex) || p.length === 1) {
-                 acc.push({ i: trueIndex, v: (w.goodVotes || 0) + (w.badVotes || 0) });
-            }
-            return acc;
-        }, []);
-        
-        if (!av.length) av = p.map(w => ({ i: State.runtime.allWords.indexOf(w), v: 0 }));
-        if (av.length === 0) return; 
 
-        let tw = 0;
-        av = av.map(c => {
-            let w = 1.0 / (c.v + 1);
-            if (State.runtime.allWords[c.i].text.toUpperCase() === CAKE.text) w *= CONFIG.BOOST_FACTOR;
-            tw += w;
-            return { i: c.i, w };
-        });
+        this.updateHeaderStats();
+        API.vote(wordObj.id, type);
         
-        let rnd = Math.random() * tw, sel = av[0].i; 
-        for (let it of av) {
-            rnd -= it.w;
-            if (rnd <= 0) { sel = it.i; break; }
-        }
-        
-        State.runtime.currentWordIndex = sel;
-        State.data.seenHistory.push(sel);
-        if (State.data.seenHistory.length > CONFIG.HISTORY_SIZE) State.data.seenHistory.shift();
-        State.save('seenHistory', State.data.seenHistory);
-        UIManager.displayWord(State.runtime.allWords[sel]);
+        this.nextWord();
+        State.runtime.isProcessing = false;
     },
 
-    loadSpecial(t) {
-        const i = State.runtime.allWords.findIndex(w => w.text.toUpperCase() === t);
-        if (i !== -1) {
-            State.runtime.currentWordIndex = i;
-            UIManager.displayWord(State.runtime.allWords[i]);
-        }
-    },
-
-    async showDefinition() {
-        const w = State.runtime.allWords[State.runtime.currentWordIndex];
-        if (!w) return;
-        ModalManager.toggle('definition', true);
-        document.getElementById('definitionWord').textContent = w.text.toUpperCase();
-        const d = document.getElementById('definitionResults');
-        d.innerHTML = 'Loading...';
-        try {
-            const r = await API.define(w.text);
-            if (!r.ok) throw 0;
-            const j = await r.json();
-            let h = '';
-            j[0].meanings.forEach(m => {
-                h += `<div class="mb-4"><h4 class="text-lg font-bold italic text-indigo-600">${m.partOfSpeech}</h4><ol class="list-decimal list-inside pl-4 mt-2 space-y-1">`;
-                m.definitions.forEach(def => {
-                    h += `<li>${def.definition}</li>`;
-                    if (def.example) h += `<p class="text-sm text-gray-500 pl-4 italic">"${def.example}"</p>`;
-                });
-                h += '</ol></div>';
+    nextWord: function() {
+        State.runtime.currentWordIndex++;
+        if (State.runtime.currentWordIndex >= State.runtime.allWords.length) {
+            API.fetchWords().then(more => {
+                State.runtime.allWords = [...State.runtime.allWords, ...more];
+                this.renderWord();
             });
-            d.innerHTML = h;
-        } catch {
-            d.innerHTML = '<p class="text-red-500">Definition not found.</p>';
+        } else {
+            this.renderWord();
         }
     },
 
-    handleCooldown() {
-        State.runtime.isCoolingDown = true;
-        const t = CONFIG.VOTE.COOLDOWN_TIERS;
-        let r = t[Math.min(State.runtime.mashLevel, t.length - 1)];
-        UIManager.showMessage(`Mashing detected. Wait ${r}s...`, true);
-        Haptics.heavy(); 
-        
-        State.runtime.cooldownTimer = setInterval(() => {
-            r--;
-            if (r > 0) UIManager.showMessage(`Wait ${r}s...`, true);
-            else {
-                clearInterval(State.runtime.cooldownTimer);
-                State.runtime.isCoolingDown = false;
-                State.runtime.mashCount = 0; 
-                State.runtime.mashLevel++;
-                UIManager.displayWord(State.runtime.allWords[State.runtime.currentWordIndex]);
-            }
-        }, 1000);
+    renderWord: function() {
+        const wordObj = State.runtime.allWords[State.runtime.currentWordIndex];
+        if(!wordObj) return;
+        UIManager.updateWordDisplay(wordObj.text, State.runtime.isKidMode);
     },
 
-    async vote(t, s = false) {
-        if (State.runtime.allWords[State.runtime.currentWordIndex]) {
-            State.runtime.lastVotedWord = State.runtime.allWords[State.runtime.currentWordIndex];
-            
-            if(DOM.game.buttons.shareGood) DOM.game.buttons.shareGood.disabled = false;
-            if(DOM.game.buttons.shareBad) DOM.game.buttons.shareBad.disabled = false;
-        }
-        if (State.runtime.isCoolingDown) return;
-        const n = Date.now();
-        if (State.runtime.lastVoteTime > 0 && (n - State.runtime.lastVoteTime) > CONFIG.VOTE.STREAK_WINDOW) {
-            State.runtime.mashCount = 1;
-        } else {
-            State.runtime.mashCount++;
-        }
-        State.runtime.lastVoteTime = n;
-
-        if (State.runtime.mashCount > CONFIG.VOTE.MASH_LIMIT) {
-            this.handleCooldown();
-            return;
-        }
-        if (!s) {
-            if (t === 'notWord') Haptics.heavy();
-            else Haptics.medium();
-        }
-        const w = State.runtime.allWords[State.runtime.currentWordIndex],
-            up = w.text.toUpperCase(),
-            { CAKE, LLAMA, POTATO, SQUIRREL, MASON } = CONFIG.SPECIAL;
-        
-        UIManager.disableButtons(true);
-        const wd = DOM.game.wordDisplay;
-        const colors = Accessibility.getColors();
-        
-        if (!s && (t === 'good' || t === 'bad')) {
-            Game.cleanStyles(wd);
-            wd.style.setProperty('--dynamic-swipe-color', t === 'good' ? colors.good : colors.bad);
-            wd.classList.add('override-theme-color', 'color-fade');
-            wd.style.color = t === 'good' ? colors.good : colors.bad;
-            await new Promise(r => setTimeout(r, 50));
-            wd.classList.remove('color-fade');
-            wd.classList.add(t === 'good' ? 'animate-fly-left' : 'animate-fly-right');
-            
-            if (t === 'good') SoundManager.playGood();
-            else SoundManager.playBad();
-        }
-        
-        const hSpec = (c, k) => {
-            State.unlockBadge(k);
-            Game.cleanStyles(wd);
-            wd.className = 'font-extrabold text-gray-900 text-center min-h-[72px]';
-            wd.classList.add(c.text === 'LLAMA' ? 'word-fade-llama' : 'word-fade-quick');
-            setTimeout(() => {
-                wd.className = '';
-                wd.style.opacity = '1';
-                wd.style.transform = 'none';
-                UIManager.showMessage(c.msg, false);
-                setTimeout(() => {
-                    this.nextWord();
-                    this.refreshData(false)
-                }, c.dur)
-            }, c.fade)
-        };
-        
-        if (up === CAKE.text) { hSpec(CAKE, 'cake'); return }
-        if (up === LLAMA.text) { hSpec(LLAMA, 'llama'); return }
-        if (up === POTATO.text) { hSpec(POTATO, 'potato'); return }
-        if (up === SQUIRREL.text) { hSpec(SQUIRREL, 'squirrel'); return }
-        if (up === MASON.text) { hSpec(MASON, 'bone'); return }
-        
-        try {
-            const un = ThemeManager.checkUnlock(up);
-            if (un) SoundManager.playUnlock();
-
-            const res = await API.vote(w._id, t);
-            if (res.status !== 403 && !res.ok) throw 0;
-            w[`${t}Votes`] = (w[`${t}Votes`] || 0) + 1;
-            State.incrementVote();
-			
-			StreakManager.handleSuccess();
-            
-            if (State.runtime.isDailyMode) {
-                const tod = new Date(), dStr = tod.toISOString().split('T')[0];
-                const last = State.data.daily.lastDate;
-                let s = State.data.daily.streak;
-                if (last) {
-                    const yd = new Date();
-                    yd.setDate(yd.getDate() - 1);
-                    if (last === yd.toISOString().split('T')[0]) s++;
-                    else s = 1;
-                } else s = 1;
-                State.save('daily', { streak: s, lastDate: dStr });
-                DOM.daily.streakResult.textContent = '🔥 ' + s;
-                const { topGood } = UIManager.getRankedLists(0);
-                const rank = topGood.findIndex(x => x.text === w.text) + 1;
-                DOM.daily.worldRank.textContent = rank > 0 ? '#' + rank : 'Unranked';
-                this.checkDailyStatus();
-                setTimeout(() => ModalManager.toggle('dailyResult', true), 600);
-            }
-
-			if (un) UIManager.showThemeUnlock(un); 
-
-            let m = '';
-            // Set the bottom text message
-            if (un) m = "🎉 New Theme Unlocked!";
-            else if (State.data.settings.showPercentages && (t === 'good' || t === 'bad')) {
-                const tot = (w.goodVotes || 0) + (w.badVotes || 0);
-				
-                const p = Math.round((w[`${t}Votes`] / tot) * 100);
-                m = `${t==='good'?'Good':'Bad'} vote! ${p}% agree.`;
-            }
-            if (State.data.settings.showTips) {
-                State.save('voteCounterForTips', State.data.voteCounterForTips + 1);
-                if (State.data.voteCounterForTips % CONFIG.TIP_COOLDOWN === 0) m = GAME_TIPS[Math.floor(Math.random() * GAME_TIPS.length)];
-            }
-            UIManager.showPostVoteMessage(m);
-            if (t === 'good' || t === 'bad') Haptics.medium();
-            UIManager.updateStats();
-            setTimeout(() => {
-                wd.classList.remove('animate-fly-left', 'animate-fly-right', 'swipe-good-color', 'swipe-bad-color', 'override-theme-color');
-                wd.style.transform = '';
-                wd.style.opacity = '1';
-                wd.style.color = '';
-                if (!State.runtime.isDailyMode) {
-                    this.nextWord();
-                    this.refreshData(false);
-                }
-            }, (t === 'good' || t === 'bad') ? 600 : 0);
-
-        } catch (e) {
-            UIManager.showMessage("Vote Failed", true);
-            wd.classList.remove('animate-fly-left', 'animate-fly-right', 'swipe-good-color', 'swipe-bad-color', 'override-theme-color');
-            UIManager.disableButtons(false);
-        }
-    }
-};
-
-const StreakManager = {
-    timer: null,
-    LIMIT: 6000, 
-
-    handleSuccess() {
-        const now = Date.now();
-        if (State.runtime.streak > 0 && (now - State.runtime.lastStreakTime) > this.LIMIT) {
-            this.endStreak();
-            State.runtime.streak = 1; 
-        } else {
+    handleStreak: function(correct) {
+        if (correct) {
             State.runtime.streak++;
-        }
-        
-        State.runtime.lastStreakTime = now;
-        const currentStreak = State.runtime.streak;
-        
-        if (currentStreak > State.data.longestStreak) {
-            State.save('longestStreak', currentStreak);
-            const el = document.getElementById('streak-display-value');
-            if(el) el.textContent = currentStreak + " Words";
-        }
-
-        if (currentStreak >= 5) {
-            if (currentStreak === 5) this.showNotification("🔥 STREAK STARTED!", "success");
-            this.updateScreenCounter(true);
+            if (State.runtime.streak > State.user.stats.streak) State.user.stats.streak = State.runtime.streak;
         } else {
-             const counter = document.getElementById('streak-floating-counter');
-             if(counter) counter.style.opacity = '0';
+            State.runtime.streak = 0;
         }
-
-        if (this.timer) clearTimeout(this.timer);
-        this.timer = setTimeout(() => this.endStreak(), this.LIMIT);
+        DOM.header.user.streak.innerText = State.runtime.streak;
+        DOM.profile.stats.streak.innerText = State.user.stats.streak;
+        localStorage.setItem('userStats', JSON.stringify(State.user.stats));
     },
 
-    endStreak() {
-        if (this.timer) clearTimeout(this.timer);
-        const finalScore = State.runtime.streak;
+    updateHeaderStats: function() {
+        DOM.header.counts.good.innerText = Utils.formatNumber(State.data.global.good);
+        DOM.header.counts.bad.innerText = Utils.formatNumber(State.data.global.bad);
+        DOM.header.counts.total.innerText = Utils.formatNumber(State.data.global.good + State.data.global.bad);
+        DOM.header.counts.words.innerText = State.data.totalWords;
+
+        const total = State.data.global.good + State.data.global.bad;
+        const goodP = total === 0 ? 50 : (State.data.global.good / total) * 100;
         
-        if (finalScore >= 5) {
-            this.showNotification(`Streak Ended: ${finalScore} Words`, "neutral");
-            this.checkHighScore(finalScore);
-        }
-        
-        const counter = document.getElementById('streak-floating-counter');
-        if (counter) {
-            counter.style.opacity = '0';
-            setTimeout(() => counter.remove(), 300);
-        }
-        State.runtime.streak = 0;
-    },
-
-    updateScreenCounter(pulse) {
-        let el = document.getElementById('streak-floating-counter');
-        if (!el) {
-            el = document.createElement('div');
-            el.id = 'streak-floating-counter';
-            el.style.cssText = `position: fixed; top: 15%; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #FF512F, #DD2476); color: white; padding: 10px 25px; border-radius: 50px; font-weight: 900; font-size: 1.8rem; z-index: 99999; box-shadow: 0 4px 15px rgba(0,0,0,0.3); pointer-events: none; transition: transform 0.1s, opacity 0.2s; opacity: 1; border: 2px solid white; text-shadow: 0 2px 4px rgba(0,0,0,0.2);`;
-            document.body.appendChild(el);
-        }
-        el.style.opacity = '1';
-        el.innerHTML = `<span>🔥</span> ${State.runtime.streak}`;
-        if (pulse) {
-            requestAnimationFrame(() => {
-                el.style.transform = 'translateX(-50%) scale(1.3)';
-                setTimeout(() => el.style.transform = 'translateX(-50%) scale(1)', 150);
-            });
-        }
-    },
-
-    showNotification(msg, type) {
-        const notif = document.createElement('div');
-        notif.textContent = msg;
-        notif.style.cssText = `position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: ${type === 'success' ? '#10b981' : '#374151'}; color: white; padding: 10px 20px; border-radius: 8px; font-weight: bold; z-index: 99999; box-shadow: 0 4px 6px rgba(0,0,0,0.2); animation: fadeOut 2.5s forwards;`;
-        if(!document.getElementById('notif-style')) {
-            const s = document.createElement('style');
-            s.id = 'notif-style';
-            s.innerHTML = `@keyframes fadeOut { 0% {opacity:1;} 80% {opacity:1;} 100% {opacity:0;} }`;
-            document.head.appendChild(s);
-        }
-        document.body.appendChild(notif);
-        setTimeout(() => notif.remove(), 2500);
-    },
-
-    checkHighScore(score) {
-        if (!State.data.highScores) State.data.highScores = [];
-        const scores = State.data.highScores;
-        const minScore = scores.length < 8 ? 0 : scores[scores.length - 1].score;
-        
-        if (score > minScore || scores.length < 8) {
-            setTimeout(() => this.promptName(score), 500);
-        }
-    },
-
-promptName(score) {
-        if(document.getElementById('nameEntryModal')) return;
-        const html = `
-            <div id="nameEntryModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:100000; display:flex; align-items:center; justify-content:center;">
-                <div style="background:white; padding:2rem; border-radius:1rem; text-align:center; max-width:90%; width:300px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
-                    <h2 style="color:#4f46e5; font-size:1.5rem; font-weight:900; margin-bottom:0.5rem; text-transform: uppercase;">New High Score!</h2>
-                    <p style="color:#4b5563; font-size:1.25rem; font-weight:bold; margin-bottom:1.5rem;">Streak: ${score}</p>
-                    <input type="text" id="hsNameInput" maxlength="3" placeholder="AAA" 
-                        style="font-size:2rem; text-align:center; width:100%; letter-spacing:0.2em; border:2px solid #e5e7eb; border-radius:0.5rem; padding:0.5rem; text-transform:uppercase; margin-bottom:1.5rem; font-weight:bold;">
-                    <button id="hsSaveBtn" style="width:100%; padding:1rem; background:#4f46e5; color:white; border:none; border-radius:0.5rem; font-weight:bold; font-size:1rem; cursor:pointer; transition: background 0.2s;">SAVE SCORE</button>
-                </div>
-            </div>`;
-        const div = document.createElement('div');
-        div.innerHTML = html;
-        document.body.appendChild(div.firstElementChild);
-
-        const saveFn = async () => {
-            const name = (document.getElementById('hsNameInput').value || "AAA").toUpperCase();
-            
-            const scores = State.data.highScores || [];
-            scores.push({ name, score, date: Date.now() });
-            scores.sort((a,b) => b.score - a.arrow);
-            
-            if(scores.length > 8) scores.pop();
-            State.save('highScores', scores);
-
-
-            API.submitHighScore(name, score);
-            document.getElementById('nameEntryModal').remove();
-            this.showLeaderboard();
-        };
-
-        document.getElementById('hsSaveBtn').onclick = saveFn;
-    },
-
-async showLeaderboard() {
-        // 1. Get Local Scores
-        const localScores = State.data.highScores || [];
-        
-        // 2. Try Get Global Scores
-        let globalScores = [];
-        try {
-            globalScores = await API.getGlobalScores();
-        } catch (e) { console.warn("No global scores"); }
-
-        // 3. Start the CRT Display Loop
-        this.startCRTDisplay(localScores, globalScores);
-    },
-
-startCRTDisplay(local, global) {
-        // Remove existing modal if open
-        const existing = document.getElementById('highScoreModal');
-        if (existing) {
-            if (existing.interval) clearInterval(existing.interval);
-            existing.remove();
-        }
-
-        // --- INJECT CRT STYLES (UPDATED FOR GLASS LOOK) ---
-        if (!document.getElementById('crt-style')) {
-            const s = document.createElement('style');
-            s.id = 'crt-style';
-            s.innerHTML = `
-                @keyframes crt-flicker { 0% {opacity:0.97} 5% {opacity:0.95} 10% {opacity:0.9} 15% {opacity:0.95} 20% {opacity:0.99} 50% {opacity:0.95} 80% {opacity:0.9} 100% {opacity:0.97} }
-                @keyframes text-chroma { 0% {text-shadow: 2px 0 0 red, -2px 0 0 blue;} 10% {text-shadow: 2px 0 0 red, -2px 0 0 blue;} 11% {text-shadow: none;} 100% {text-shadow: none;} }
-                
-                .crt-screen { 
-                    animation: crt-flicker 0.15s infinite; 
-                    overflow: hidden; 
-                    position: relative;
-                    /* GLASS EFFECT */
-                    border-radius: 40px; /* Highly rounded corners */
-                    box-shadow: inset 0 0 5rem rgba(0,0,0,0.9), inset 0 0 10px rgba(255,255,255,0.1); /* Deep vignette + rim light */
-                    background-color: #080808;
-                }
-                
-                .crt-scanlines {
-                    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-                    background-size: 100% 4px, 3px 100%;
-                    pointer-events: none;
-                    position: absolute; inset: 0; z-index: 50;
-                    border-radius: 40px; /* Match screen */
-                }
-
-                .crt-glare {
-                    position: absolute; inset: 0; z-index: 55; pointer-events: none;
-                    background: radial-gradient(circle at 50% 20%, rgba(255,255,255,0.07), transparent 60%);
-                    border-radius: 40px;
-                }
-
-                .crt-glitch { animation: text-chroma 2s infinite; }
-            `;
-            document.head.appendChild(s);
-        }
-
-        // --- MODAL HTML STRUCTURE ---
-        const html = `
-            <div id="highScoreModal" class="fixed inset-0 bg-black/95 z-[200] flex items-center justify-center p-4 backdrop-blur-sm">
-                <div class="bg-gray-900 w-full max-w-md p-1 shadow-[0_0_50px_rgba(0,0,0,0.8)] relative rounded-[3rem] transform transition-all scale-100 overflow-hidden" onclick="event.stopPropagation()">
-                    
-                    <div id="crt-content" class="bg-gray-900 border-[12px] border-gray-800 p-6 rounded-[3rem] relative overflow-hidden crt-screen min-h-[500px] flex flex-col shadow-[inset_0_0_20px_rgba(0,0,0,1)]">
-                        <div class="crt-scanlines"></div>
-                        <div class="crt-glare"></div> <div class="text-center mb-6 relative z-10 transition-colors duration-300" id="hs-header">
-                            <h2 id="hs-title" class="text-3xl sm:text-4xl font-black tracking-[0.2em] crt-glitch" style="font-family: 'Courier New', monospace; filter: drop-shadow(0 0 5px currentColor);">
-                                LOADING...
-                            </h2>
-                            <div id="hs-subtitle" class="text-[10px] mt-2 font-mono font-bold tracking-[0.5em] uppercase opacity-70">--- SYSTEM READY ---</div>
-                        </div>
-
-                        <div id="hs-list" class="space-y-2 mb-4 relative z-10 flex-grow overflow-y-auto pr-2 scrollbar-hide transition-opacity duration-200">
-                            </div>
-
-                        <button id="hs-close-btn" class="relative z-30 w-full py-4 mt-auto font-black tracking-[0.2em] border-b-4 active:border-b-0 active:translate-y-1 uppercase text-lg transition-all font-mono rounded-b-xl">
-                            EJECT DISK
-                        </button>
-                    </div>
-                </div>
-            </div>`;
-
-        const div = document.createElement('div');
-        div.innerHTML = html;
-        document.body.appendChild(div.firstElementChild);
-
-        const modal = document.getElementById('highScoreModal');
-        const titleEl = document.getElementById('hs-title');
-        const subtitleEl = document.getElementById('hs-subtitle');
-        const listEl = document.getElementById('hs-list');
-        const closeBtn = document.getElementById('hs-close-btn');
-        const container = document.getElementById('crt-content');
-
-        // Close Logic
-        const close = () => {
-            if (modal.interval) clearInterval(modal.interval);
-            modal.remove();
-        };
-        closeBtn.onclick = close;
-        modal.onclick = close;
-
-        // --- RENDER LOGIC ---
-        let showingLocal = false
-
-        const render = () => {
-            const isLocal = showingLocal;
-            const data = isLocal ? local : global;
-            
-            // Title Logic with Username
-            let title = "WORLD HIGH SCORES";
-            if (isLocal) {
-                const uName = State.data.username ? State.data.username.toUpperCase() : '';
-                title = uName ? (uName.length > 10 ? uName.substring(0, 10) + "'S" : `${uName}'S HIGH SCORES`) : "YOUR HIGH SCORES";
-            }
-            
-            // Define Themes (Local = Amber, Global = Cyan)
-            const theme = isLocal 
-                ? { 
-                    main: 'text-amber-400', 
-                    sub: 'text-amber-200', 
-                    border: 'border-amber-900',
-                    btn: 'bg-amber-900/40 text-amber-100 border-amber-600 hover:bg-amber-800',
-                    ranks: ['text-amber-300', 'text-amber-400', 'text-amber-500'],
-                    glow: '0 0 25px rgba(251, 191, 36, 0.3)'
-                  }
-                : { 
-                    main: 'text-cyan-400', 
-                    sub: 'text-cyan-200', 
-                    border: 'border-cyan-900',
-                    btn: 'bg-cyan-900/40 text-cyan-100 border-cyan-600 hover:bg-cyan-800',
-                    ranks: ['text-cyan-300', 'text-cyan-400', 'text-cyan-500'],
-                    glow: '0 0 25px rgba(34, 211, 238, 0.3)'
-                  };
-
-            // Apply Theme
-            // Note: We use the existing inset shadow AND add the color glow
-            container.style.boxShadow = `inset 0 0 5rem rgba(0,0,0,0.9), ${theme.glow}`;
-            
-            titleEl.className = `text-3xl sm:text-4xl font-black tracking-[0.2em] crt-glitch ${theme.main}`;
-            titleEl.textContent = title;
-            
-            subtitleEl.className = `text-[10px] mt-2 font-mono font-bold tracking-[0.5em] uppercase opacity-60 ${theme.sub}`;
-            subtitleEl.textContent = isLocal ? "--- MEMORY BANK A ---" : "--- NETWORK LINK ---";
-
-            closeBtn.className = `relative z-30 w-full py-4 mt-auto font-black tracking-[0.2em] border-b-4 active:border-b-0 active:translate-y-1 uppercase text-lg transition-all font-mono shadow-lg rounded-xl ${theme.btn}`;
-
-            // Pad scores to 8 items
-            const displayScores = [...(data || [])].slice(0, 8);
-            while(displayScores.length < 8) displayScores.push({name: '---', score: 0});
-
-            // Generate List HTML
-            listEl.innerHTML = displayScores.map((s, i) => {
-                const rankColor = i < 3 ? theme.ranks[i] : theme.ranks[2];
-                const retroScore = s.score.toString().padStart(7, '0');
-                const retroName = (s.name || '---').toUpperCase().substring(0, 3);
-                
-                return `
-                <div class="flex items-center justify-between border-b border-white/10 pb-2 mb-2 font-mono tracking-widest group hover:bg-white/5 transition-colors p-1">
-                    <div class="flex items-center gap-3 sm:gap-4">
-                        <span class="text-xl sm:text-2xl font-black ${rankColor} drop-shadow-md">${i+1}</span>
-                        <span class="text-lg sm:text-xl font-bold ${theme.sub} drop-shadow-sm">${retroName}</span>
-                    </div>
-                    <div class="flex-grow mx-2 border-b-2 border-dotted border-white/20 h-4 opacity-30"></div>
-                    <span class="text-lg sm:text-xl font-black text-white drop-shadow-md tracking-wider">${retroScore}</span>
-                 </div>`;
-            }).join('');
-        };
-
-        // Initial Render
-        render();
-
-        // Cycle Interval (only if global scores exist)
-        if (global && global.length > 0) {
-            modal.interval = setInterval(() => {
-                // Glitch effect transition
-                listEl.style.opacity = '0.5';
-                titleEl.style.transform = 'skewX(-10deg)';
-                
-                setTimeout(() => {
-                    showingLocal = !showingLocal;
-                    render();
-                    listEl.style.opacity = '1';
-                    titleEl.style.transform = 'none';
-                }, 150);
-                
-            }, 4500); // Swap every 4.5 seconds
-        }
+        DOM.header.bars.good.style.width = `${goodP}%`;
+        DOM.header.bars.bad.style.width = `${100 - goodP}%`;
     }
 };
 
-window.StreakManager = {
-        showLeaderboard: () => StreakManager.showLeaderboard()
-    };
-    window.ContactManager = {
-        open: () => ContactManager.open(),
-        close: () => ContactManager.close(),
-        send: () => ContactManager.send()
-    };
-    window.PinPad = PinPad;
-    window.TipManager = {
-        open: () => TipManager.open(),
-        close: () => TipManager.close(),
-        send: () => TipManager.send()
-    };
-
-    window.onload = Game.init.bind(Game);
-
-    console.log("%c Good Word / Bad Word ", "background: #4f46e5; color: #bada55; padding: 4px; border-radius: 4px;");
-    console.log("Play fair! ️😇");
+// Start Game
+window.onload = Game.init.bind(Game);
 
 })();
