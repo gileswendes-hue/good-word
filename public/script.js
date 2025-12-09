@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.61.2', 
+    APP_VERSION: '5.61.5', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -2815,7 +2815,6 @@ const UIManager = {
     toggle: function(id, show) {
         const el = document.getElementById(id + (id.endsWith('Modal') ? '' : 'Modal'));
         if (!el && document.getElementById(id)) {
-            // Fallback for direct ID matches
             document.getElementById(id).classList.toggle('hidden', !show);
             document.getElementById(id).classList.toggle('flex', show);
             return;
@@ -2846,13 +2845,11 @@ const UIManager = {
     updateTheme: function(theme) {
         document.body.className = `flex flex-col items-center justify-center min-h-screen p-4 pb-16 theme-${theme}`;
         
-        // Hide all effects first
         ['snow-effect', 'bubble-effect', 'fire-effect', 'summer-effect', 'plymouth-effect', 'ballpit-effect', 'space-effect'].forEach(id => {
             const el = document.getElementById(id);
             if(el) el.classList.add('hidden');
         });
 
-        // Enable specific effects
         if (theme === 'winter') document.getElementById('snow-effect')?.classList.remove('hidden');
         if (theme === 'underwater') document.getElementById('bubble-effect')?.classList.remove('hidden');
         if (theme === 'fire') document.getElementById('fire-effect')?.classList.remove('hidden');
@@ -2863,41 +2860,23 @@ const UIManager = {
     },
 
     triggerConfetti: function() {
-        if (window.confetti) {
-            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-        }
+        if (window.confetti) confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
     },
-
     triggerSnow: function() {
         const el = document.getElementById('card-snow-drift');
-        if (el) {
-            el.style.opacity = '1';
-            setTimeout(() => el.style.opacity = '0', 2000);
-        }
+        if (el) { el.style.opacity = '1'; setTimeout(() => el.style.opacity = '0', 2000); }
     },
-
     triggerFire: function() {
         document.body.classList.add('shake-animation');
         setTimeout(() => document.body.classList.remove('shake-animation'), 500);
     },
-
     triggerHearts: function() {
-        if (window.confetti) {
-            confetti({
-                particleCount: 50, spread: 60, origin: { y: 0.7 },
-                shapes: ['heart'], colors: ['#ef4444', '#ec4899']
-            });
-        }
+        if (window.confetti) confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 }, shapes: ['heart'], colors: ['#ef4444', '#ec4899'] });
     },
-
     triggerGlitch: function() {
         const display = document.getElementById('wordDisplay');
-        if(display) {
-            display.classList.add('glitch-text');
-            setTimeout(() => display.classList.remove('glitch-text'), 600);
-        }
+        if(display) { display.classList.add('glitch-text'); setTimeout(() => display.classList.remove('glitch-text'), 600); }
     },
-    
     showPostVoteMessage: function(msg) {
         const el = document.getElementById('postVoteMessage');
         if (!el) return;
@@ -2912,7 +2891,6 @@ const UIManager = {
             console.warn("Rankings data not loaded yet.");
             return;
         }
-
         this.populateFullRankings('good', State.data.rankings.good);
         this.populateFullRankings('bad', State.data.rankings.bad);
         this.toggle('fullRankingsModal', true);
@@ -2931,9 +2909,7 @@ const UIManager = {
     populateFullRankings: function(type, list) {
         const container = document.getElementById(type === 'good' ? 'fullGoodRankings' : 'fullBadRankings');
         if (!container) return;
-        
         container.innerHTML = '';
-        
         if (!list || list.length === 0) {
             container.innerHTML = '<p class="text-gray-400 text-sm">No data available.</p>';
             return;
@@ -2955,8 +2931,7 @@ const UIManager = {
                 </div>
                 <div class="text-xs font-mono text-gray-500">
                     ${item.score > 0 ? '+' : ''}${item.score}
-                </div>
-            `;
+                </div>`;
             container.appendChild(row);
         });
     }
@@ -2977,7 +2952,6 @@ const VoteShareManager = {
             "I can't believe '{word}' is a word. Disagree?"
         ]
     },
-
     async shareCurrent(voteType) {
         const wordObj = State.runtime.allWords[State.runtime.currentWordIndex];
         if (!wordObj) {
@@ -3002,20 +2976,11 @@ const VoteShareManager = {
             const blob = await response.blob();
             const file = new File([blob], `vote_${word}.png`, { type: "image/png" });
 
-            try {
-                await navigator.clipboard.writeText(fullShareText);
-            } catch (clipErr) {
-                console.warn("Clipboard write failed", clipErr);
-            }
+            try { await navigator.clipboard.writeText(fullShareText); } catch (clipErr) { console.warn("Clipboard failed", clipErr); }
 
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
                 UIManager.showPostVoteMessage("Image ready! Text copied 📋");
-                
-                await navigator.share({
-                    title: `Vote on ${word}`,
-                    text: fullShareText, 
-                    files: [file]
-                });
+                await navigator.share({ title: `Vote on ${word}`, text: fullShareText, files: [file] });
             } else {
                 window.open(qrApiUrl, '_blank');
                 UIManager.showPostVoteMessage("Text copied! Image opened 📄");
@@ -3029,1094 +2994,125 @@ const VoteShareManager = {
         }
     }
 };
-	
-    updateStats() {
-        const w = State.runtime.allWords;
-        if (!w.length) return;
-        
-        DOM.header.streak.textContent = State.data.daily.streak;
-        DOM.header.userVotes.textContent = State.data.voteCount.toLocaleString();
-        
-        const totalGood = w.reduce((a, b) => a + (b.goodVotes || 0), 0);
-        const totalBad = w.reduce((a, b) => a + (b.badVotes || 0), 0);
-        const globalTotal = totalGood + totalBad;
 
-        DOM.header.globalVotes.textContent = globalTotal.toLocaleString();
-        DOM.header.totalWords.textContent = w.length.toLocaleString();
-        DOM.header.good.textContent = totalGood.toLocaleString();
-        DOM.header.bad.textContent = totalBad.toLocaleString();
-
-        if (globalTotal > 0) {
-            const goodPct = (totalGood / globalTotal) * 100;
-            const badPct = 100 - goodPct; 
-            DOM.header.barGood.style.width = `${goodPct}%`;
-            DOM.header.barBad.style.width = `${badPct}%`;
-        } else {
-            DOM.header.barGood.style.width = '50%';
-            DOM.header.barBad.style.width = '50%';
-        }
-        this.renderMiniRankings();
-    },
-    updateProfileDisplay() {
-        const n = State.data.username;
-        const p = State.data.profilePhoto; 
-        
-        DOM.header.profileLabel.textContent = n ? `${n}'s Profile` : 'My Profile';
-        DOM.profile.statsTitle.textContent = n ? `${n}'s Stats` : 'Your Stats';
-        if (n) DOM.inputs.username.value = n;
-
-        if (p) {
-            DOM.header.profileEmoji.classList.add('hidden');
-            DOM.header.profileImage.src = p;
-            DOM.header.profileImage.classList.remove('hidden');
-        } else {
-            DOM.header.profileEmoji.classList.remove('hidden');
-            DOM.header.profileImage.classList.add('hidden');
-        }
-        if (p) {
-            DOM.profile.modalEmoji.classList.add('hidden');
-            DOM.profile.modalImage.src = p;
-            DOM.profile.modalImage.classList.remove('hidden');
-        } else {
-            DOM.profile.modalEmoji.classList.remove('hidden');
-            DOM.profile.modalImage.classList.add('hidden');
-        }
-    },
-    openProfile() {
-        this.updateProfileDisplay();
-        const d = State.data;
-        DOM.profile.streak.textContent = d.daily.streak;
-        DOM.profile.totalVotes.textContent = d.voteCount.toLocaleString();
-        DOM.profile.contributions.textContent = d.contributorCount.toLocaleString();
-        
-        const saved = d.insectStats.saved;
-        const eaten = d.insectStats.eaten;
-        let karmaTitle = "Garden Observer";
-        if (saved > 20 && saved > eaten) karmaTitle = "Friend of Bugs 🐞";
-        if (saved > 50 && saved > eaten) karmaTitle = "Guardian of the Garden 🌿";
-        if (eaten > 20 && eaten > saved) karmaTitle = "Spider Feeder 🕸️";
-        if (eaten > 50 && eaten > saved) karmaTitle = "Spider Sympathiser 🕷️";
-        if (saved > 50 && eaten > 50) karmaTitle = "Lord of the Flies 👑";
-        if (d.badges.chopper) karmaTitle = "Air Traffic Controller 🚁";
-        if (d.badges.angler) karmaTitle = "The Best in Brixham 🎣";
-
-        DOM.profile.statsTitle.innerHTML = `${d.username ? d.username + "'s" : "Your"} Stats<br><span class="text-xs text-indigo-500 font-bold uppercase tracking-widest mt-1 block">${karmaTitle}</span>`;
-
-        const totalAvailable = Object.keys(CONFIG.THEME_SECRETS).length + 1;
-        const userCount = d.unlockedThemes.length + 1;
-        DOM.profile.themes.textContent = `${userCount} / ${totalAvailable}`;
-		const streakEl = document.getElementById('streak-display-value');
-			if(streakEl) streakEl.textContent = (State.data.longestStreak || 0) + " Words";
-        
-        const row1 = [{ k: 'cake', i: '🎂', w: 'CAKE' }, { k: 'llama', i: '🦙', w: 'LLAMA' }, { k: 'potato', i: '🥔', w: 'POTATO' }, { k: 'squirrel', i: '🐿️', w: 'SQUIRREL' }, { k: 'spider', i: '🕷️', w: 'SPIDER' }, { k: 'germ', i: '🦠', w: 'GERM' }, { k: 'bone', i: '🦴', w: 'MASON' }];
-        const row2 = [{ k: 'poop', i: '💩', d: 'squelch.' }, { k: 'penguin', i: '🐧', d: 'noot noot!' }, { k: 'scorpion', i: '🦂', d: 'I am in your tent.' }, { k: 'mushroom', i: '🍄', d: 'edible once.' }, { k: 'needle', i: '💉', d: 'wheedle, wheedle, pry and needle' }, { k: 'diamond', i: '💎', d: 'hidden Gem.' }, { k: 'rock', i: '🤘', d: 'space rock!' }, { k: 'chopper', i: '🚁', d: 'Get to the choppa!' }, { k: 'snowman', i: '⛄', d: "# We're walking in the air..." }];
-        const row_fish = [{ k: 'fish', i: '🐟', t: 'Blue Fish', d: 'A standard catch.' }, { k: 'tropical', i: '🐠', t: 'Tropical Fish', d: 'Found in the deep.' }, { k: 'puffer', i: '🐡', t: 'Pufferfish', d: 'Spiky friend.' }, { k: 'shark', i: '🦈', t: 'Shark', d: 'Gonna need a bigger boat.' }, { k: 'octopus', i: '🐙', t: 'The Kraken', d: 'Ink-credible!' }];
-        const row3 = [{ k: 'exterminator', i: '☠️', t: 'The Exterminator', d: 'Fed 100 bugs to the spider' }, { k: 'saint', i: '😇', t: 'The Saint', d: 'Saved 100 bugs from the web' }, { k: 'prankster', i: '🃏', t: 'Original Prankster', d: 'Teased the spider 50 times' }, { k: 'judge', i: '⚖️', t: 'The Judge', d: 'Cast 1,000 votes!' }, { k: 'bard', i: '✍️', t: 'The Bard', d: 'Contributed 5 accepted words' }, { k: 'traveler', i: '🌍', t: 'The Traveller', d: 'Unlocked 5 different themes' }, { k: 'angler', i: '🔱', t: 'The Best in Brixham', d: 'Caught 250 fish' }, { k: 'shepherd', i: '🛟', t: 'Sea Shepherd', d: 'Chose to let 250 fish swim away safely' }];
-
-        const renderRow = (list) => `<div class="flex flex-wrap justify-center gap-3 text-3xl w-full">` + list.map(x => {
-            const un = d.badges[x.k];
-            const defTitle = x.k.charAt(0).toUpperCase() + x.k.slice(1);
-            return `<span class="badge-item relative ${un?'':'opacity-25 grayscale'} transition-all duration-300 transform ${un?'hover:scale-125 cursor-pointer':''}" title="${un? (x.t || defTitle) : 'Locked'}" data-key="${x.k}" ${x.w ? `data-word="${x.w}"` : ''} data-title="${x.t || defTitle}" data-desc="${x.d || 'Keep playing to find this item!'}">${x.i}</span>`
-        }).join('') + `</div>`;
-
-        let bugJarHTML = '';
-        if (saved > 0) {
-            const bugCount = Math.min(saved, 40);
-            let bugsStr = '';
-            for(let i=0; i<bugCount; i++) bugsStr += `<span class="jar-bug" style="cursor: pointer; display: inline-block; padding: 2px; transition: transform 0.1s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">🦟</span>`;
-            bugJarHTML = `<div class="w-full text-center my-4 p-3 bg-green-50 rounded-xl border border-green-100 relative overflow-hidden"><div class="text-[10px] font-bold text-green-600 mb-1 uppercase tracking-wider">The Bug Jar (${saved})</div><div id="jar-container" class="text-xl leading-6 opacity-90 break-words" style="letter-spacing: 1px;">${bugsStr}</div>${State.data.currentTheme === 'halloween' ? '<div class="text-[9px] text-green-500 mt-1 italic">Tap a bug to feed the spider!</div>' : ''}</div>`;
-        }
-        
-        const b = DOM.profile.badges;
-        b.innerHTML = `<div class="text-xs font-bold text-gray-500 uppercase mb-2 mt-2">🏆 Word Badges</div>` + renderRow(row1) + `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🧸 Found Items</div>` + renderRow(row2) + `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🌊 Aquarium</div>` + renderRow(row_fish) + `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🎖️ Achievements</div>` + renderRow(row3) + bugJarHTML;
-
-        const showTooltip = (targetEl, title, desc) => {
-            document.querySelectorAll('.global-badge-tooltip').forEach(t => t.remove());
-            const tip = document.createElement('div');
-            tip.className = 'global-badge-tooltip';
-            Object.assign(tip.style, {
-                position: 'fixed', backgroundColor: '#1f2937', color: 'white', padding: '8px 12px', 
-                borderRadius: '8px', fontSize: '12px', textAlign: 'center', width: 'max-content', 
-                maxWidth: '200px', zIndex: '9999', boxShadow: '0 4px 6px rgba(0,0,0,0.3)', 
-                pointerEvents: 'none', lineHeight: '1.4', opacity: '0', transition: 'opacity 0.2s'
-            });
-            tip.innerHTML = `<div class="font-bold text-yellow-300 mb-1 text-sm border-b border-gray-600 pb-1">${title}</div><div class="text-gray-200">${desc}</div>`;
-            const arrow = document.createElement('div');
-            Object.assign(arrow.style, {
-                position: 'absolute', top: '100%', left: '50%', marginLeft: '-6px',
-                borderWidth: '6px', borderStyle: 'solid', borderColor: '#1f2937 transparent transparent transparent'
-            });
-            tip.appendChild(arrow);
-            document.body.appendChild(tip);
-            const rect = targetEl.getBoundingClientRect();
-            const tipHeight = tip.offsetHeight || 60; 
-            tip.style.top = (rect.top - tipHeight - 12) + 'px'; 
-            tip.style.left = (rect.left + rect.width / 2) + 'px';
-            tip.style.transform = 'translateX(-50%)';
-            requestAnimationFrame(() => tip.style.opacity = '1');
-            targetEl.style.transform = "scale(1.2)";
-            setTimeout(() => targetEl.style.transform = "", 200);
-            setTimeout(() => { tip.style.opacity = '0'; setTimeout(() => { if(tip.parentNode) tip.remove(); }, 200); }, 3000);
-        };
-
-        b.querySelectorAll('.badge-item').forEach(el => {
-            el.onclick = (e) => {
-                e.stopPropagation();
-                const isLocked = el.classList.contains('grayscale');
-                if (isLocked) {
-                    let desc = "Keep playing to unlock!";
-                    if (el.dataset.word) desc = "Find the hidden word to unlock.";
-                    else if (['poop','penguin','scorpion','mushroom','needle','diamond'].includes(el.dataset.key)) desc = "Find this item!";
-                    showTooltip(el, "Locked: " + el.dataset.title, desc);
-                    return;
-                }
-                if (el.dataset.word) { Game.loadSpecial(el.dataset.word); ModalManager.toggle('profile', false); } else { showTooltip(el, el.dataset.title, el.dataset.desc); }
-            }
-        });
-        const jarBugs = b.querySelectorAll('.jar-bug');
-        jarBugs.forEach(bug => {
-            bug.onclick = (e) => {
-                e.stopPropagation();
-                
-                // 1. Theme Check
-                if (State.data.currentTheme !== 'halloween') { 
-                    showTooltip(bug, "Spider Missing", "Please visit the spider on the Halloween theme to feed"); 
-                    return; 
-                }
-
-                // 2. Arachnophobia Check
-                if (State.data.settings.arachnophobiaMode) {
-                    showTooltip(bug, "Spider Hidden", "You have Arachnophobia Mode turned on! The spider is gone."); 
-                    return; 
-                }
-
-                ModalManager.toggle('profile', false);
-                State.data.insectStats.saved = Math.max(0, State.data.insectStats.saved - 1);
-                State.save('insectStats', State.data.insectStats);
-                
-                // 3. Spawn as Fodder (True)
-                if (typeof MosquitoManager !== 'undefined') MosquitoManager.spawnStuck('🦟', true);
-                
-                UIManager.showPostVoteMessage("Feeding time! 🕷️");
-            };
-        });
-        ModalManager.toggle('profile', true);
-    },
-    displayWord(w) {
-        if (!w) { this.showMessage("No words available!"); return }
-        const wd = DOM.game.wordDisplay, txt = w.text.toUpperCase();
-        wd.textContent = txt;
-        wd.className = 'font-extrabold text-gray-900 text-center min-h-[72px]';
-        wd.style = '';
-        wd.style.opacity = '1';
-        const t = State.data.currentTheme;
-        if (['dark', 'halloween', 'submarine', 'fire', 'plymouth'].includes(t)) wd.style.color = '#f3f4f6';
-        if (t === 'halloween') { wd.style.color = '#FF8C00'; wd.style.textShadow = '2px 2px 0px #1a0000, 0 0 8px rgba(255,140,0,1), 0 0 15px rgba(255,69,0,0.6)' }
-        if (t === 'submarine') { wd.style.color = '#b0e0e6'; wd.style.textShadow = '0 0 10px rgba(176,224,230,0.7), 0 0 5px rgba(255,255,255,0.3)'; wd.style.animation = 'bobbing-word 2.5s ease-in-out infinite' }
-        if (t === 'fire') { wd.style.color = '#ffaa00'; wd.style.textShadow = '2px 2px 0px #300, 0 0 8px #ff5000, 0 0 20px #ff0000' }
-        if (t === 'banana') {
-            if (this.bananaConfig) {
-                wd.style.backgroundImage = this.bananaConfig.img;
-                wd.style.backgroundSize = this.bananaConfig.size;
-                wd.style.backgroundPosition = this.bananaConfig.pos;
-                wd.style.webkitBackgroundClip = 'text';
-                wd.style.webkitTextFillColor = 'transparent';
-                wd.style.color = 'transparent'; 
-                wd.style.animation = 'bounce-word .5s ease-out infinite alternate';
-                wd.style.filter = 'drop-shadow(2px 2px 0px rgba(75, 54, 33, 0.2))';
-            } else {
-                 wd.style.color = '#4b3621'; 
-            }
-        }
-
-        if (t === 'winter') { wd.style.color = '#01579b'; wd.classList.remove('animate-snow-text'); void wd.offsetWidth; wd.classList.add('animate-snow-text') }
-        if (t === 'summer') { wd.style.color = '#fffde7'; wd.style.textShadow = '0 0 5px #fff9c4, 0 0 20px #ffeb3b, 0 0 40px #ff9800, 0 0 70px #ff5722'; wd.style.animation = 'sun-pulse 4s ease-in-out infinite alternate' } else { if (!['banana', 'rainbow', 'submarine'].includes(t)) wd.style.animation = 'none' }
-        if (t === 'rainbow') { wd.style.background = 'linear-gradient(45deg, #f00, #ff7f00, #ff0, #0f0, #0ff, #00f, #9400d3)'; wd.style.webkitBackgroundClip = 'text'; wd.style.webkitTextFillColor = 'transparent'; wd.style.color = 'transparent'; wd.style.animation = 'rainbow-text 5s ease infinite' }
-        
-        const drift = document.getElementById('card-snow-drift');
-        if (t === 'winter') { drift.classList.remove('animate-snow-drift'); void drift.offsetWidth; drift.classList.add('animate-snow-drift') } else { drift.style.height = '0'; }
-        
-        this.fitText(txt);
-        if (!State.runtime.isCoolingDown) this.disableButtons(false);
-        wd.style.cursor = 'grab'
-    },
-    fitText(t) {
-        const isLarge = State.data.settings.largeText;
-        const baseSize = isLarge ? 140 : 96; 
-        const minSize = isLarge ? 32 : 24;
-        const wd = DOM.game.wordDisplay;
-        const cW = DOM.game.card.clientWidth - parseFloat(getComputedStyle(DOM.game.card).paddingLeft) * 2;
-        wd.style.fontSize = `${baseSize}px`;
-        wd.style.whiteSpace = 'nowrap';
-        if (wd.scrollWidth > cW) {
-            const s = cW / wd.scrollWidth;
-            wd.style.fontSize = Math.max(minSize, Math.floor(baseSize * s)) + 'px';
-        }
-        wd.style.whiteSpace = 'normal';
-    },
-    renderRankingsImpl(c, l, type, isF) {
-        c.innerHTML = '';
-        if (!l.length) { c.innerHTML = `<p class="text-gray-500">No data yet.</p>`; return }
-        l.forEach((w, i) => {
-            const d = document.createElement('div');
-            d.className = `flex justify-between items-center py-1 ${isF?'full-ranking-item text-sm':'rank-item'}`;
-            const bg = type === 'good' ? 'bg-green-500' : 'bg-red-500', val = type === 'good' ? w.score : Math.abs(w.score);
-            d.innerHTML = `<div class="flex items-center ${isF?'space-x-3':'space-x-2'}"><span class="font-bold ${isF?'text-base w-8':'text-lg w-5'} text-center text-gray-500 flex-shrink-0">${w.rank||(i+1)}.</span><span class="font-medium text-gray-800">${w.text.toUpperCase()}</span></div><div class="flex items-center space-x-3"><span class="text-xs text-white ${bg} px-2 rounded-full font-bold">${val}</span><span class="text-sm text-gray-600">(${w.good} / ${w.bad})</span></div>`;
-            c.appendChild(d)
-        })
-    },
-    getRankedLists(lim) {
-        const r = State.runtime.allWords.map(w => ({ text: w.text, good: w.goodVotes || 0, bad: w.badVotes || 0, score: (w.goodVotes || 0) - (w.badVotes || 0) }));
-        const tg = [...r].sort((a, b) => (b.score - a.score) || ((b.good + b.bad) - (a.good + a.bad)));
-        const tb = [...r].sort((a, b) => (a.score - b.score) || ((b.good + b.bad) - (a.good + a.bad)));
-        if (lim === 0) return { topGood: tg, topBad: tb };
-        return { topGood: tg.slice(0, lim), topBad: tb.slice(0, lim) }
-    },
-    renderMiniRankings() {
-        const { topGood, topBad } = this.getRankedLists(5);
-        this.renderRankingsImpl(DOM.rankings.good, topGood, 'good', false);
-        this.renderRankingsImpl(DOM.rankings.bad, topBad, 'bad', false)
-    },
-    renderFullRankings() {
-        const { topGood, topBad } = this.getRankedLists(100);
-        this.renderRankingsImpl(DOM.rankings.fullGood, topGood, 'good', true);
-        this.renderRankingsImpl(DOM.rankings.fullBad, topBad, 'bad', true)
-    },
-    handleRankSearch() {
-        const q = DOM.rankings.searchInput.value.trim().toUpperCase();
-        if (!q) return;
-        const { topGood, topBad } = this.getRankedLists(0);
-        const gI = topGood.findIndex(w => w.text.toUpperCase() === q);
-        const bI = topBad.findIndex(w => w.text.toUpperCase() === q);
-        DOM.rankings.listsContainer.classList.add('hidden');
-        DOM.rankings.searchContainer.classList.remove('hidden');
-        const c = DOM.rankings.searchResult;
-        if (gI === -1) { c.innerHTML = `<p class="text-xl text-gray-700 font-bold">Word not found: ${q}</p>`; return }
-        const w = topGood[gI];
-        c.innerHTML = `<div class="p-4 bg-white rounded-xl shadow-sm border border-gray-200 inline-block w-full max-w-sm"><h3 class="text-2xl font-black text-gray-800 mb-4">${w.text.toUpperCase()}</h3><div class="flex justify-around mb-4"><div class="text-center"><div class="text-sm text-gray-500">Good Rank</div><div class="text-3xl font-bold text-green-600">#${gI+1}</div></div><div class="text-center"><div class="text-sm text-gray-500">Bad Rank</div><div class="text-3xl font-bold text-red-600">#${bI+1}</div></div></div><div class="border-t pt-4 flex justify-between text-sm"><span class="font-bold text-green-600">+${w.good} Good</span><span class="font-bold text-red-600">-${w.bad} Bad</span></div></div>`
-    },
-    updateOfflineIndicator() {
-        let ind = document.getElementById('offlineIndicator');
-        if (!ind) {
-            ind = document.createElement('div');
-            ind.id = 'offlineIndicator';
-            ind.className = 'fixed bottom-4 left-4 bg-gray-900 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg z-50 transition-opacity duration-500 pointer-events-none';
-            ind.innerHTML = '🚇 OFFLINE MODE';
-            document.body.appendChild(ind);
-        }
-        if (OfflineManager.isActive()) {
-            const pendingCount = State.data.pendingVotes ? State.data.pendingVotes.length : 0;
-            ind.style.opacity = '1';
-            ind.innerHTML = `🚇 OFFLINE (${pendingCount})`;
-        } else {
-            ind.style.opacity = '0';
-        }
-    }
-};
-
-const PinPad = {
-    input: '',
-    mode: 'set', 
-    onSuccess: null,
-    onCancel: null,
-    
-    MAX_ATTEMPTS: 3,
-    LOCKOUT_MS: 60000,
-
-    init() {
-        if (document.getElementById('pinPadModal')) return;
-        const el = document.createElement('div');
-        el.id = 'pinPadModal';
-        el.className = 'fixed inset-0 bg-gray-900 bg-opacity-95 z-[200] hidden flex items-center justify-center';
-        
-        el.innerHTML = `
-            <div class="bg-white rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl transform transition-all scale-100">
-                <h3 id="pinTitle" class="text-2xl font-bold text-center mb-2 text-gray-800">Parent Lock</h3>
-                <p id="pinSubtitle" class="text-gray-500 text-center mb-6 text-sm transition-colors duration-200">Enter PIN</p>
-                
-                <div id="pinDots" class="flex justify-center gap-4 mb-8">
-                    <div class="w-4 h-4 rounded-full bg-gray-200 border-2 border-gray-100"></div>
-                    <div class="w-4 h-4 rounded-full bg-gray-200 border-2 border-gray-100"></div>
-                    <div class="w-4 h-4 rounded-full bg-gray-200 border-2 border-gray-100"></div>
-                    <div class="w-4 h-4 rounded-full bg-gray-200 border-2 border-gray-100"></div>
-                </div>
-
-                <div class="grid grid-cols-3 gap-4 mb-6">
-                    ${[1,2,3,4,5,6,7,8,9].map(n => 
-                        `<button onclick="PinPad.handleInput('${n}')" class="h-16 w-16 rounded-full bg-gray-100 text-2xl font-bold text-gray-700 active:bg-gray-200 active:scale-95 transition-all mx-auto flex items-center justify-center">${n}</button>`
-                    ).join('')}
-                    <div class="h-16 w-16"></div>
-                    <button onclick="PinPad.handleInput('0')" class="h-16 w-16 rounded-full bg-gray-100 text-2xl font-bold text-gray-700 active:bg-gray-200 active:scale-95 transition-all mx-auto flex items-center justify-center">0</button>
-                    <button onclick="PinPad.handleInput('back')" class="h-16 w-16 rounded-full bg-red-50 text-red-500 active:bg-red-100 active:scale-95 transition-all mx-auto flex items-center justify-center">
-                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M3 12l6.414 6.414a2 2 0 001.414.586H19a2 2 0 002-2V7a2 2 0 00-2-2h-8.172a2 2 0 00-1.414.586L3 12z"></path></svg>
-                    </button>
-                </div>
-                
-                <button onclick="PinPad.close()" class="w-full py-3 text-gray-500 font-semibold active:text-gray-700">Cancel</button>
-            </div>
-        `;
-        document.body.appendChild(el);
-    },
-
-    open(mode, onSuccess, onCancel) {
-        this.init();
-       
-        if (mode === 'verify' && this.isLocked()) {
-             const remaining = Math.ceil((this.getLockoutTime() - Date.now()) / 1000);
-
-             alert(`System is locked for ${remaining} more seconds.`);
-             return;
-        }
-
-        this.mode = mode || 'verify';
-        this.onSuccess = onSuccess;
-        this.onCancel = onCancel;
-        this.input = '';
-        this.updateDisplay();
-        
-        const m = document.getElementById('pinPadModal');
-        const t = document.getElementById('pinTitle');
-        const s = document.getElementById('pinSubtitle');
-        
-        if (this.mode === 'set') {
-            t.textContent = "Create PIN";
-            s.textContent = "Set a 4-digit code for parents";
-            s.className = "text-gray-500 text-center mb-6 text-sm";
-        } else {
-            t.textContent = "Parent Lock";
-            s.textContent = "Enter PIN to unlock settings";
-            s.className = "text-gray-500 text-center mb-6 text-sm";
-        }
-        m.classList.remove('hidden');
-    },
-
-    close(success = false) {
-        const el = document.getElementById('pinPadModal');
-        if (el) el.classList.add('hidden');
-        if (!success && this.onCancel) this.onCancel();
-    },
-
-    handleInput(val) {
-        Haptics.light();
-        if (val === 'back') {
-            this.input = this.input.slice(0, -1);
-        } else if (this.input.length < 4) {
-            this.input += val;
-        }
-        this.updateDisplay();
-        if (this.input.length === 4) {
-            setTimeout(() => this.submit(), 300);
-        }
-    },
-
-    updateDisplay() {
-        const dots = document.querySelectorAll('#pinDots div');
-        dots.forEach((d, i) => {
-            if (i < this.input.length) {
-                d.className = 'w-4 h-4 rounded-full bg-indigo-600 shadow-[0_0_10px_rgba(79,70,229,0.5)] transform scale-110 transition-all duration-200';
-            } else {
-                d.className = 'w-4 h-4 rounded-full bg-gray-200 border-2 border-gray-100 transition-all duration-200';
-            }
-        });
-    },
-
-    submit() {
-        const s = document.getElementById('pinSubtitle');
-
-        if (this.mode === 'set') {
-            if (this.onSuccess) this.onSuccess(this.input);
-            this.close(true);
-        } else {
-
-            if (this.isLocked()) {
-                const remaining = Math.ceil((this.getLockoutTime() - Date.now()) / 1000);
-                alert(`Locked! Wait ${remaining}s`); // Fallback
-                this.close(false);
-                return;
-            }
-
-            const savedPin = State.data.settings.kidsModePin;
-            
-            if (this.input === savedPin) {
-
-                Haptics.medium();
-                this.resetSecurity();
-                if (this.onSuccess) this.onSuccess();
-                this.close(true);
-            } else {
-
-                Haptics.heavy();
-                this.shakeBox();
-                
-                const attempts = this.recordFailure();
-                if (attempts >= this.MAX_ATTEMPTS) {
-                     s.textContent = "LOCKED FOR 60 SECONDS!";
-                     s.className = "text-red-600 font-bold text-center mb-6 text-sm animate-pulse";
-                     
-                     setTimeout(() => {
-                        alert("Too many failed attempts. Parental controls locked for 60 seconds.");
-                        this.close(false);
-                     }, 500);
-                     
-                } else {
-                     const left = this.MAX_ATTEMPTS - attempts;
-                     s.textContent = `Wrong PIN! ${left} attempts remaining`;
-                     s.className = "text-red-500 font-semibold text-center mb-6 text-sm";
-                     
-                     setTimeout(() => {
-                         this.input = '';
-                         this.updateDisplay();
-                     }, 1000);
-                }
-            }
-        }
-    },
-
-    shakeBox() {
-        const box = document.querySelector('#pinPadModal > div');
-        if (box) {
-            box.classList.remove('animate-shake');
-            void box.offsetWidth; 
-            box.classList.add('animate-shake');
-        }
-    },
-
-    getAttempts() {
-        return parseInt(localStorage.getItem('pin_attempts') || 0);
-    },
-    
-    getLockoutTime() {
-        return parseInt(localStorage.getItem('pin_lockout_until') || 0);
-    },
-
-    isLocked() {
-        const lockout = this.getLockoutTime();
-        if (lockout > Date.now()) return true;
-        if (lockout !== 0 && lockout < Date.now()) {
-            this.resetSecurity();
-        }
-        return false;
-    },
-
-    recordFailure() {
-        const newAttempts = this.getAttempts() + 1;
-        localStorage.setItem('pin_attempts', newAttempts);
-        
-        if (newAttempts >= this.MAX_ATTEMPTS) {
-            localStorage.setItem('pin_lockout_until', Date.now() + this.LOCKOUT_MS);
-        }
-        return newAttempts;
-    },
-
-    resetSecurity() {
-        localStorage.removeItem('pin_attempts');
-        localStorage.removeItem('pin_lockout_until');
-    }
-};
-
-window.PinPad = PinPad;
-
-const ModalManager = {
-    toggle(id, show) {
-        const e = DOM.modals[id];
-        e.classList.toggle('hidden', !show);
-        e.classList.toggle('flex', show)
-    },
-    init() {
-        document.getElementById('showSettingsButton').onclick = () => {
-            const s = State.data.settings;
-            const container = document.getElementById('settingsModalContainer').querySelector('.space-y-4');
-            
-            if (container) {
-                const mkTog = (id, label, checked, color = 'text-indigo-600') => `
-                    <div class="flex items-center justify-between">
-                        <label for="${id}" class="text-lg font-medium text-gray-700">${label}</label>
-                        <input type="checkbox" id="${id}" ${checked ? 'checked' : ''} 
-                               class="h-6 w-6 ${color} border-gray-300 rounded focus:ring-indigo-500">
-                    </div>`;
-
-                let html = '';
-                
-                // 1. NETWORK
-                const isOffline = s.offlineMode || false;
-                html += `<div class="mb-6">
-                    <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 border-b border-gray-100 pb-1">Network</h3>
-                    <div class="space-y-4">`;
-                html += mkTog('toggleOffline', '🚇 Offline Mode', isOffline, 'text-gray-800');
-                html += `<p class="text-xs text-gray-400 mt-1">Saves words locally. Votes sync when you reconnect.</p>`;
-                html += `</div></div>`;
- 
-                // 2. SETTINGS
-                html += `<div class="mb-6"><h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 border-b border-gray-100 pb-1">Settings</h3><div class="space-y-4">`;
-                html += mkTog('togglePercentages', 'Show Vote Percentages', s.showPercentages);
-                html += mkTog('toggleTips', 'Show Tips & Hints', s.showTips);
-                html += `<button onclick="TipManager.open()" class="w-full mt-2 py-2 bg-indigo-50 text-indigo-600 font-bold rounded-lg border border-indigo-100 hover:bg-indigo-100 transition">💡 Submit Your Own Tip</button>`;
-                html += mkTog('toggleZeroVotes', 'Show Only New Words (0/0)', s.zeroVotesOnly);
-                html += `</div></div>`;
-
-                // 3. ACCESSIBILITY
-                html += `<div class="mb-6"><h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 border-b border-gray-100 pb-1">Accessibility</h3><div class="space-y-4">`;
-                html += mkTog('toggleColorblind', 'Colourblind Mode', s.colorblindMode);
-                html += mkTog('toggleLargeText', 'Increase Text Size', s.largeText);
-                html += mkTog('toggleMute', '🔇 Mute All Sounds', s.muteSounds);
-				if (State.data.unlockedThemes.includes('halloween')) {
-                    html += mkTog('toggleArachnophobia', '🚫 Arachnophobia Mode', s.arachnophobiaMode);
-                }
-                html += mkTog('toggleKidsMode', '🧸 Kids Mode', s.kidsMode, 'text-pink-600');
-                html += `</div></div>`;
-
-                // 4. FUN
-                html += `<div><h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 border-b border-gray-100 pb-1">Fun</h3><div class="space-y-4">`;
-                html += mkTog('toggleTilt', 'Gravity Tilt (Default Theme)', s.enableTilt);
-                html += mkTog('toggleMirror', 'Mirror Mode', s.mirrorMode);
-                html += mkTog('toggleLights', '🎄 Christmas Lights', s.showLights, 'text-green-600');
-                html += `</div></div>`;
-
-                container.innerHTML = html;
-                
-                document.getElementById('toggleOffline').onchange = e => OfflineManager.toggle(e.target.checked);
-
-                document.getElementById('togglePercentages').onchange = e => 
-                    State.save('settings', { ...State.data.settings, showPercentages: e.target.checked });
-                document.getElementById('toggleTips').onchange = e => 
-                    State.save('settings', { ...State.data.settings, showTips: e.target.checked });
-                document.getElementById('toggleZeroVotes').onchange = e => {
-                    State.save('settings', { ...State.data.settings, zeroVotesOnly: e.target.checked });
-                    Game.refreshData(true);
-                };
-
-                document.getElementById('toggleColorblind').onchange = e => {
-                    State.save('settings', { ...State.data.settings, colorblindMode: e.target.checked });
-                    Accessibility.apply();
-                };
-                document.getElementById('toggleLargeText').onchange = e => {
-                    State.save('settings', { ...State.data.settings, largeText: e.target.checked });
-                    Accessibility.apply();
-                };
-				document.getElementById('toggleMute').onchange = e => {
-                    State.save('settings', { ...State.data.settings, muteSounds: e.target.checked });
-                    SoundManager.updateMute();
-                };
-
-                const arachBtn = document.getElementById('toggleArachnophobia');
-                if (arachBtn) {
-                    arachBtn.onchange = e => {
-                        State.save('settings', { ...State.data.settings, arachnophobiaMode: e.target.checked });
-                        if (State.data.currentTheme === 'halloween') {
-                            Effects.halloween(true);
-                        }
-                    };
-                }
-
-                document.getElementById('toggleKidsMode').onchange = e => {
-                    const turningOn = e.target.checked;
-                    const savedPin = State.data.settings.kidsModePin;
-
-                    e.preventDefault(); 
-
-                    if (turningOn) {
-                        if (!savedPin) {
-                            e.target.checked = false;
-                            PinPad.open('set', (newPin) => {
-                                State.save('settings', { ...State.data.settings, kidsMode: true, kidsModePin: newPin });
-                                UIManager.showPostVoteMessage(`Kids Mode Active! 🧸`);
-                                Game.refreshData(true);
-                                this.toggle('settings', false); 
-                            }, () => {
-                                
-                                document.getElementById('toggleKidsMode').checked = false;
-                            });
-                        } else {
-                            State.save('settings', { ...State.data.settings, kidsMode: true });
-                            Game.refreshData(true);
-                        }
-                    } else {
-                        e.target.checked = true;
-                        if (!savedPin) {
-                            State.save('settings', { ...State.data.settings, kidsMode: false });
-                            Game.refreshData(true);
-                            return;
-                        }
-                        
-                        PinPad.open('verify', () => {
-                            State.save('settings', { ...State.data.settings, kidsMode: false });
-                            Game.refreshData(true);
-                            document.getElementById('toggleKidsMode').checked = false;
-                        }, () => {
-                            document.getElementById('toggleKidsMode').checked = true; 
-                        });
-                    }
-                };
-
-                document.getElementById('toggleTilt').onchange = e => {
-                    State.save('settings', { ...State.data.settings, enableTilt: e.target.checked });
-                    TiltManager.refresh();
-                };
-                document.getElementById('toggleMirror').onchange = e => {
-                    State.save('settings', { ...State.data.settings, mirrorMode: e.target.checked });
-                    Accessibility.apply();
-                };
-                document.getElementById('toggleLights').onchange = e => {
-                    State.save('settings', { ...State.data.settings, showLights: e.target.checked });
-                    Game.updateLights();
-                };
-            }
-            this.toggle('settings', true)
-        };
-
-        document.getElementById('closeSettingsModal').onclick = () => this.toggle('settings', false);
-        DOM.game.buttons.custom.onclick = () => {
-            DOM.inputs.newWord.value = '';
-            DOM.inputs.modalMsg.textContent = '';
-            this.toggle('submission', true)
-        };
-        document.getElementById('cancelSubmitButton').onclick = () => this.toggle('submission', false);
-        DOM.rankings.btnShow.onclick = () => {
-            UIManager.renderFullRankings();
-            this.toggle('fullRankings', true)
-        };
-        document.getElementById('closeFullRankingsModal').onclick = () => this.toggle('fullRankings', false);
-        document.getElementById('compareWordsButton').onclick = () => {
-            DOM.inputs.wordOne.value = '';
-            DOM.inputs.wordTwo.value = '';
-            DOM.inputs.compareResults.innerHTML = 'Type words above to see who wins!';
-            this.toggle('compare', true)
-        };
-        document.getElementById('closeCompareModal').onclick = () => this.toggle('compare', false);
-        DOM.game.wordDisplay.onclick = () => Game.showDefinition();
-        const shareBtn = document.getElementById('shareWordButton');
-        if (shareBtn) {
-            shareBtn.onclick = (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                e.stopImmediatePropagation(); 
-                
-                const currentWord = State.runtime.allWords[State.runtime.currentWordIndex];
-                if (currentWord) ShareManager.shareWord(currentWord.text);
-            };
-        }
-        document.getElementById('closeDefinitionModal').onclick = () => this.toggle('definition', false);
-        DOM.rankings.searchBtn.onclick = () => UIManager.handleRankSearch();
-        DOM.rankings.clearSearch.onclick = () => {
-            DOM.rankings.searchInput.value = '';
-            DOM.rankings.searchContainer.classList.add('hidden');
-            DOM.rankings.listsContainer.classList.remove('hidden')
-        };
-        DOM.header.userStatsBar.onclick = () => UIManager.openProfile();
-        document.getElementById('closeProfileModal').onclick = () => this.toggle('profile', false);
-        
-        document.getElementById('saveUsernameBtn').onclick = async () => {
-            const n = DOM.inputs.username.value.trim(),
-                m = DOM.profile.saveMsg;
-            if (!n || n.includes(' ') || n.length > 45) {
-                m.textContent = "Invalid name (no spaces).";
-                m.className = "text-xs text-red-500 mt-1 font-bold";
-                return
-            }
-            State.save('username', n);
-            UIManager.updateProfileDisplay();
-            m.textContent = "Saved!";
-            m.className = "text-xs text-green-500 mt-1 font-bold";
-            const e = State.runtime.allWords.some(w => w.text.toUpperCase() === n.toUpperCase());
-            if (!e) {
-                m.textContent = "Saved & submitted as new word!";
-                try {
-                    await API.submitWord(n);
-                    State.incrementContributor()
-                } catch {
-                    console.error("Failed to auto-submit")
-                }
-            }
-            setTimeout(() => m.textContent = '', 2000)
-        };
-        
-        document.getElementById('shareProfileButton').onclick = () => ShareManager.share();
-        DOM.daily.closeBtn.onclick = () => {
-        this.toggle('dailyResult', false);
-        Game.disableDailyMode();
-    }; 
-
-    if (DOM.game.buttons.shareGood) {
-        DOM.game.buttons.shareGood.addEventListener('click', (e) => {
-            e.stopPropagation();
-            VoteShareManager.shareCurrent('good'); 
-        });
-    }
-
-    if (DOM.game.buttons.shareBad) {
-        DOM.game.buttons.shareBad.addEventListener('click', (e) => {
-            e.stopPropagation();
-            VoteShareManager.shareCurrent('bad');
-        });
-    }
-
-    if (DOM.game.buttons.viewAllGood) {
-            DOM.game.buttons.viewAllGood.onclick = () => UIManager.showFullRankings('good');
-        }
-        if (DOM.game.buttons.viewAllBad) {
-            DOM.game.buttons.viewAllBad.onclick = () => UIManager.showFullRankings('bad');
-        }
-
-        DOM.profile.photoInput.onchange = (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            if (file.size > 2 * 1024 * 1024) {
-                alert("File too large. Please choose an image under 2MB.");
-                return;
-            }
-            const reader = new FileReader();
-            reader.onload = (readerEvent) => {
-                const img = new Image();
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    const MAX_SIZE = 150; 
-                    let width = img.width;
-                    let height = img.height;
-                    if (width > height) {
-                        if (width > MAX_SIZE) {
-                            height *= MAX_SIZE / width;
-                            width = MAX_SIZE;
-                        }
-                    } else {
-                        if (height > MAX_SIZE) {
-                            width *= MAX_SIZE / height;
-                            height = MAX_SIZE;
-                        }
-                    }
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, width, height);
-                    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-                    State.save('profilePhoto', dataUrl);
-                    UIManager.updateProfileDisplay();
-                    DOM.profile.saveMsg.textContent = "Photo Updated!";
-                    DOM.profile.saveMsg.className = "text-xs text-green-500 mt-1 font-bold";
-                    setTimeout(() => DOM.profile.saveMsg.textContent = '', 2000);
-                };
-                img.src = readerEvent.target.result;
-            };
-            reader.readAsDataURL(file);
-        };
-        
-        Object.keys(DOM.modals).forEach(k => {
-            DOM.modals[k].style.zIndex = '150'; 
-            DOM.modals[k].addEventListener('click', e => {
-                if (e.target === DOM.modals[k]) this.toggle(k, false);
-            });
-        });
-    }
-};
-
-const TipManager = {
-    serviceID: 'service_b6d75wi',
-    templateID: 'template_qody7q7',
-    COOLDOWN_MINS: 10, 
-
-    init() {
-        if (document.getElementById('tipModal')) return;
-        const el = document.createElement('div');
-        el.id = 'tipModal';
-        el.className = 'fixed inset-0 bg-gray-900 bg-opacity-95 z-[200] hidden flex items-center justify-center';
-        el.innerHTML = `
-            <div class="bg-white rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl">
-                <h3 class="text-2xl font-bold text-center mb-2 text-gray-800">Submit a Tip</h3>
-                <p class="text-gray-500 text-center mb-4 text-sm">Got a clever loading tip? Send it in!</p>
-                <textarea id="tipInput" rows="4" class="w-full p-3 border border-gray-300 rounded-lg mb-4 focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none" placeholder="Type your tip here..."></textarea>
-                <div class="flex gap-3">
-                    <button onclick="TipManager.close()" class="flex-1 py-3 text-gray-500 font-semibold hover:bg-gray-100 rounded-lg transition-colors">Cancel</button>
-                    <button onclick="TipManager.send()" class="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition-colors shadow-lg">Send</button>
-                </div>
-            </div>`;
-        document.body.appendChild(el);
-    },
-
-    open() {
-        this.init();
-        document.getElementById('tipModal').classList.remove('hidden');
-        document.getElementById('tipInput').value = '';
-        document.getElementById('tipInput').focus();
-    },
-    close() {
-        const el = document.getElementById('tipModal');
-        if (el) el.classList.add('hidden');
-    },
-
-send() {
-        const lastSent = parseInt(localStorage.getItem('lastTipSent') || 0);
-        const now = Date.now();
-        const diff = now - lastSent;
-        const cooldownMs = this.COOLDOWN_MINS * 60 * 1000;
-
-        if (diff < cooldownMs) {
-            const minLeft = Math.ceil((cooldownMs - diff) / 60000);
-            UIManager.showPostVoteMessage(`Please wait ${minLeft} min before sending another.`);
+const StatsManager = {
+    charts: {}, 
+    open: function() {
+        if (!DOM.modals.globalStats) {
+            console.warn("Global Stats Modal HTML not found.");
             return;
         }
-
-        const input = document.getElementById('tipInput');
-        const text = input.value.trim();
-
-        if (!text) { UIManager.showPostVoteMessage("Please write something first!"); return; }
-        if (text.length > 250) { UIManager.showPostVoteMessage("Keep it short! Under 250 chars."); return; }
-
-        this.close();
-        if (typeof ModalManager !== 'undefined') ModalManager.toggle('settings', false); 
-        window.scrollTo({ top: 0, behavior: 'smooth' }); 
-        // -------------------------------------
-
-        UIManager.showPostVoteMessage("Tip sent! Thanks! 💌");
-
-        localStorage.setItem('lastTipSent', now);
-
-        emailjs.send(this.serviceID, this.templateID, {
-            message: text,
-            username: State.data.username || "Anonymous"
-        }).catch((err) => console.error('Background email failed:', err));
-    }
-};
-window.TipManager = TipManager;
-
-const ContactManager = {
-    serviceID: 'service_b6d75wi',
-    templateID: 'template_qody7q7',
-    COOLDOWN_MINS: 10, 
-
-    init() {
-        if (document.getElementById('contactModal')) return;
-        
-        const el = document.createElement('div');
-        el.id = 'contactModal';
-        el.className = 'fixed inset-0 bg-gray-900 bg-opacity-95 z-[200] hidden flex items-center justify-center';
-        
-        el.innerHTML = `
-            <div class="bg-white rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl">
-                <h3 class="text-2xl font-bold text-center mb-2 text-gray-800">Contact Developer</h3>
-                <p class="text-gray-500 text-center mb-4 text-sm">Found a bug or have a question?</p>
-                
-                <textarea id="contactInput" rows="5" class="w-full p-3 border border-gray-300 rounded-lg mb-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none" placeholder="Write your message here..."></textarea>
-                
-                <div id="contactError" class="text-red-500 text-sm font-bold text-center h-5 mb-2"></div>
-
-                <div class="flex gap-3">
-                    <button onclick="ContactManager.close()" class="flex-1 py-3 text-gray-500 font-semibold hover:bg-gray-100 rounded-lg transition-colors">Cancel</button>
-                    <button onclick="ContactManager.send()" class="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition-colors shadow-lg">Send</button>
-                </div>
-            </div>`;
-        document.body.appendChild(el);
+        UIManager.toggle('globalStatsModal', true);
+        this.renderStats();
     },
-
-    open() {
-        this.init();
-        document.getElementById('contactModal').classList.remove('hidden');
-        document.getElementById('contactInput').value = '';
-        document.getElementById('contactError').textContent = '';
-        document.getElementById('contactInput').focus();
+    close: function() {
+        UIManager.toggle('globalStatsModal', false);
     },
-
-    close() {
-        const el = document.getElementById('contactModal');
-        if (el) el.classList.add('hidden');
-    },
-
-    send() {
-        const errDiv = document.getElementById('contactError');
+    renderStats: function() {
+        const good = (State.data.global && State.data.global.good) || 0;
+        const bad = (State.data.global && State.data.global.bad) || 0;
+        const total = good + bad;
         
-        const lastSent = parseInt(localStorage.getItem('lastContactSent') || 0);
-        const now = Date.now();
-        const diff = now - lastSent;
-        const cooldownMs = this.COOLDOWN_MINS * 60 * 1000;
-
-        if (diff < cooldownMs) {
-            const minLeft = Math.ceil((cooldownMs - diff) / 60000);
-            errDiv.textContent = `⏳ Wait ${minLeft}m before sending again.`;
-            return;
+        let totalWords = 0;
+        if (State.data.rankings && State.data.rankings.good && State.data.rankings.bad) {
+            totalWords = State.data.rankings.good.length + State.data.rankings.bad.length;
         }
 
-        const input = document.getElementById('contactInput');
-        const text = input.value.trim();
+        if(document.getElementById('statTotalWords')) document.getElementById('statTotalWords').innerText = totalWords.toLocaleString();
+        if(document.getElementById('statTotalVotes')) document.getElementById('statTotalVotes').innerText = total.toLocaleString();
+        if(document.getElementById('statGoodPercent')) document.getElementById('statGoodPercent').innerText = total > 0 ? Math.round((good / total) * 100) + '%' : '0%';
+        if(document.getElementById('statTotalVoters')) document.getElementById('statTotalVoters').innerText = Math.round(total / 15).toLocaleString(); 
 
-        if (!text) { 
-            errDiv.textContent = "Please write a message first!";
-            return; 
-        }
-
-        this.close();
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-
-        UIManager.showPostVoteMessage("Message sent! I'll read it soon. 📨");
-        
-        localStorage.setItem('lastContactSent', now);
-
-        emailjs.send(this.serviceID, this.templateID, {
-            message: "CONTACT: " + text,
-            username: State.data.username || "Anonymous"
-        }).catch((err) => console.error('Background email failed:', err));
-    }
-};
-window.ContactManager = ContactManager;
-
-const InputHandler = {
-    sX: 0, sY: 0, drag: false, scroll: false, raf: null,
-    init() {
-		if (!DOM.game.card || !DOM.game.wordDisplay) return;
-        const c = DOM.game.card, wd = DOM.game.wordDisplay;
-        
-        const startDrag = (x, y) => {
-            if (State.runtime.isCoolingDown || DOM.game.buttons.good.disabled) return;
-            this.sX = x; this.sY = y; this.drag = false; this.scroll = false;
-            wd.style.transition = 'none'; wd.style.animation = 'none';
-        };
-
-        const moveDrag = (x, y, e) => {
-            if (State.runtime.isCoolingDown || DOM.game.buttons.good.disabled) return;
-            const dX = x - this.sX, dY = y - this.sY;
-            if (!this.drag && !this.scroll) {
-                if (Math.abs(dY) > Math.abs(dX)) { this.scroll = true; return; }
-                this.drag = true; Haptics.light();
-                Game.cleanStyles(wd); wd.style.background = 'none'; wd.style.webkitTextFillColor = 'initial';
-            }
-            if (this.scroll) return;
-            if (this.drag) {
-                if (e.cancelable) e.preventDefault();
-                if (this.raf) cancelAnimationFrame(this.raf);
-                this.raf = requestAnimationFrame(() => {
-                    wd.style.transform = `translate(${dX}px, ${dY * 0.8}px) rotate(${dX * 0.05}deg)`;
-                    const colors = Accessibility.getColors();
-                    const col = dX < 0 ? colors.good : colors.bad;
-                    const alpha = Math.min(Math.abs(dX) / 150, 1);
-                    wd.style.setProperty('--dynamic-swipe-color', Utils.hexToRgba(col, alpha));
-                    if (State.data.settings.colorblindMode) {
-                        const rgb = dX < 0 ? '59, 130, 246' : '249, 115, 22';
-                        wd.style.setProperty('--dynamic-swipe-color', `rgba(${rgb}, ${alpha})`);
-                    }
-                    wd.classList.add('override-theme-color');
-                });
-            }
-        };
-
-        const endDrag = (x) => {
-            if (!this.drag) return;
-            const dX = x - this.sX;
-            wd.classList.remove('override-theme-color');
-            if (this.raf) cancelAnimationFrame(this.raf);
-            if (Math.abs(dX) > CONFIG.VOTE.SWIPE_THRESHOLD) {
-                let l = dX < 0; 
-                if (State.data.settings.mirrorMode) l = !l;
-                wd.style.transition = 'transform .4s ease-out, opacity .4s ease-out';
-                const exitX = l ? -window.innerWidth : window.innerWidth;
-                const rot = l ? -20 : 20;
-                wd.style.transform = `translate(${exitX}px, 0px) rotate(${rot}deg)`;
-                wd.style.opacity = '0';
-                const colors = Accessibility.getColors();
-                wd.style.color = l ? colors.good : colors.bad;
-                SoundManager.playWhoosh();
-                Game.vote(l ? 'good' : 'bad', true);
-            } else {
-                wd.classList.add('word-reset');
-                wd.style.transform = 'translate(0,0) rotate(0)';
-                wd.style.color = '';
-                setTimeout(() => {
-                    wd.classList.remove('word-reset');
-                    wd.style = '';
-                    const currentWord = State.runtime.allWords[State.runtime.currentWordIndex];
-                    if(currentWord) UIManager.displayWord(currentWord);
-                }, 300);
-            }
-            this.drag = false; this.scroll = false;
-        };
-
-        c.addEventListener('mousedown', e => { if (e.target.closest('button, input, select')) return; if(e.cancelable) e.preventDefault(); startDrag(e.clientX, e.clientY); });
-        window.addEventListener('mousemove', e => { if (this.drag) moveDrag(e.clientX, e.clientY, e); });
-        window.addEventListener('mouseup', e => { if (this.drag) endDrag(e.clientX); });
-        c.addEventListener('touchstart', e => { if (e.target.closest('button, input, select')) return; startDrag(e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
-        c.addEventListener('touchmove', e => { moveDrag(e.touches[0].clientX, e.touches[0].clientY, e); }, { passive: false });
-        c.addEventListener('touchend', e => { endDrag(e.changedTouches[0].clientX); }, false);
+        this.drawPieChart(good, bad);
+        this.drawActivityChart();
+        this.drawHistoryChart();
+    },
+    drawPieChart: function(good, bad) {
+        if (typeof Chart === 'undefined') return;
+        const ctx = document.getElementById('votePieChart');
+        if (!ctx) return;
+        if (this.charts.pie) this.charts.pie.destroy();
+        this.charts.pie = new Chart(ctx.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Good', 'Bad'],
+                datasets: [{ data: [good, bad], backgroundColor: ['#22c55e', '#ef4444'], borderWidth: 0, hoverOffset: 4 }]
+            },
+            options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+        });
+    },
+    drawActivityChart: function() {
+        if (typeof Chart === 'undefined') return;
+        const ctx = document.getElementById('activityBarChart');
+        if (!ctx) return;
+        if (this.charts.bar) this.charts.bar.destroy();
+        const data = [10, 5, 2, 1, 0, 2, 15, 45, 80, 120, 150, 180, 200, 210, 190, 180, 160, 140, 120, 100, 80, 60, 40, 20];
+        this.charts.bar = new Chart(ctx.getContext('2d'), {
+            type: 'bar',
+            data: { labels: Array.from({length: 24}, (_, i) => `${i}:00`), datasets: [{ label: 'Votes/Hr', data: data, backgroundColor: '#6366f1', borderRadius: 4 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { display: false } }, x: { grid: { display: false } } } }
+        });
+    },
+    drawHistoryChart: function() {
+        if (typeof Chart === 'undefined') return;
+        const ctx = document.getElementById('historyLineChart');
+        if (!ctx) return;
+        if (this.charts.line) this.charts.line.destroy();
+        const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        const data = [1200, 1350, 1280, 1500, 1900, 2200, 2100];
+        this.charts.line = new Chart(ctx.getContext('2d'), {
+            type: 'line',
+            data: { labels: labels, datasets: [{ label: 'Daily Votes', data: data, borderColor: '#8b5cf6', backgroundColor: 'rgba(139, 92, 246, 0.1)', fill: true, tension: 0.4 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: false, grid: { color: '#f3f4f6' } }, x: { grid: { display: false } } } }
+        });
     }
 };
 
-// --- SHARE MANAGER START ---
-const VoteShareManager = {
-    messages: {
-        good: [
-            "I think '{word}' is a GOOD word. Do you agree?",
-            "Team '{word}'! Scan this to vote GOOD.",
-            "Surely '{word}' is a banging word? I think so.",
-            "Definition of a good word: '{word}'. Agree?",
-            "Bloody fantastic word, '{word}'!"
-        ],
-        bad: [
-            "I think '{word}' is a BAD word. Help me banish it!",
-            "Does anyone actually like the word '{word}'? 🤢",
-            "Tragedy of the day: '{word}'. Scan to vote BAD.",
-            "I can't believe '{word}' is a word. Disagree?",
-            "Worst. Word. Ever. '{word}'"
-        ]
-    },
-
-    async shareCurrent(voteType) {
-        // 1. Get the CURRENT word
-        const wordObj = State.runtime.allWords[State.runtime.currentWordIndex];
-        
-        if (!wordObj) {
-            UIManager.showPostVoteMessage("Wait for the word to load!");
-            return;
-        }
-        
-        // CAPITALIZE THE WORD
-        const word = wordObj.text.toUpperCase(); 
-
-        // 2. Set Visuals
-        const color = voteType === 'good' ? '10b981' : 'ef4444'; 
-        
-        // 3. Build URLs
-        const gameUrl = `https://good-word.onrender.com/?word=${encodeURIComponent(word)}`;
-        const qrApiUrl = `https://quickchart.io/qr?text=${encodeURIComponent(gameUrl)}&dark=${color}&margin=4&size=400&centerImageUrl=https://good-word.onrender.com/logo.png&centerImageSizeRatio=0.3`;
-
-        // 4. Pick Message & Combine with URL
-        const msgList = this.messages[voteType];
-        const rawMsg = msgList[Math.floor(Math.random() * msgList.length)].replace(/{word}/g, word);
-        const fullShareText = `${rawMsg} ${gameUrl}`;
-
-        UIManager.showPostVoteMessage("Generating image... 📡");
-        
+const API = {
+    fetchGlobalStats: async () => {
         try {
-            const response = await fetch(qrApiUrl);
-            const blob = await response.blob();
-            const file = new File([blob], `vote_${word}.png`, { type: "image/png" });
-
-            // 5. KEY FIX: Copy to Clipboard ALWAYS (Mobile & Desktop)
-            // This ensures that if the app drops the text, the user can just hit "Paste"
-            try {
-                await navigator.clipboard.writeText(fullShareText);
-            } catch (clipErr) {
-                console.warn("Clipboard write failed (might be restricted on this device)", clipErr);
-            }
-
-            // 6. Try Native Share
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                UIManager.showPostVoteMessage("Image ready! Text copied to clipboard 📋");
-                
-                await navigator.share({
-                    title: `Vote on ${word}`,
-                    text: fullShareText, 
-                    files: [file]
-                });
-            } else {
-                // Desktop Fallback
-                window.open(qrApiUrl, '_blank');
-                UIManager.showPostVoteMessage("Text copied! Image opened in new tab 📄");
-            }
-        } catch (err) {
-            console.error("Share failed:", err);
-            if (err.name !== 'AbortError') {
-                 window.open(qrApiUrl, '_blank');
-                 UIManager.showPostVoteMessage("Opened in new tab 📄");
-            }
+            const res = await fetch(`${CONFIG.API_BASE_URL}/stats`);
+            if (!res.ok) throw new Error('API Error');
+            const data = await res.json();
+            State.data.global = data.global;
+            State.data.rankings = data.rankings;
+            State.data.totalWords = data.totalWords || 0;
+            return data;
+        } catch (e) {
+            console.warn("Offline mode or API error", e);
+            State.data.rankings = { good: [], bad: [] };
+            return null;
         }
+    },
+    fetchWords: async () => {
+        try {
+            const res = await fetch(`${CONFIG.API_BASE_URL}/random?count=50`);
+            if (!res.ok) throw new Error('Words API Error');
+            const words = await res.json();
+            return words;
+        } catch (e) {
+            console.error(e);
+            return [{ text: "OFFLINE", id: "error" }];
+        }
+    },
+    vote: async (wordId, voteType) => {
+        try {
+            await fetch(`${CONFIG.API_BASE_URL}/vote`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ wordId, voteType, userId: State.user.id })
+            });
+        } catch (e) { console.error("Vote sync error", e); }
+    },
+    submitWord: async (word) => {
+        const res = await fetch(`${CONFIG.API_BASE_URL}/submit`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ word, userId: State.user.id })
+        });
+        return res.json();
     }
 };
-// --- SHARE MANAGER END ---
 
 const Game = {
     cleanStyles(e) {
