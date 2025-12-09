@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.61.1', 
+    APP_VERSION: '5.61.0', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -3233,7 +3233,6 @@ const PinPad = {
             this.close(true);
         } else {
 
-            
             if (this.isLocked()) {
                 const remaining = Math.ceil((this.getLockoutTime() - Date.now()) / 1000);
                 alert(`Locked! Wait ${remaining}s`); // Fallback
@@ -3470,7 +3469,6 @@ const ModalManager = {
             this.toggle('settings', true)
         };
 
-        // --- Standard Modal Listeners ---
         document.getElementById('closeSettingsModal').onclick = () => this.toggle('settings', false);
         DOM.game.buttons.custom.onclick = () => {
             DOM.inputs.newWord.value = '';
@@ -3541,9 +3539,8 @@ const ModalManager = {
         DOM.daily.closeBtn.onclick = () => {
         this.toggle('dailyResult', false);
         Game.disableDailyMode();
-    }; // <--- CLOSE THE DAILY BUTTON LOGIC FIRST
+    }; 
 
-    // NOW PASTE THE SHARE LOGIC HERE (OUTSIDE)
     if (DOM.game.buttons.shareGood) {
         DOM.game.buttons.shareGood.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -3710,7 +3707,7 @@ const ContactManager = {
         this.init();
         document.getElementById('contactModal').classList.remove('hidden');
         document.getElementById('contactInput').value = '';
-        document.getElementById('contactError').textContent = ''; // Clear errors
+        document.getElementById('contactError').textContent = '';
         document.getElementById('contactInput').focus();
     },
 
@@ -3742,8 +3739,7 @@ const ContactManager = {
         }
 
         this.close();
-        window.scrollTo({ top: 0, behavior: 'smooth' }); // Scroll to top
-        // ------------------------------------
+        window.scrollTo({ top: 0, behavior: 'smooth' });
 
         UIManager.showPostVoteMessage("Message sent! I'll read it soon. 📨");
         
@@ -3836,7 +3832,6 @@ const InputHandler = {
     }
 };
 
-// --- SHARE MANAGER START ---
 const VoteShareManager = {
     messages: {
         good: [
@@ -3854,7 +3849,6 @@ const VoteShareManager = {
     },
 
     async shareCurrent(voteType) {
-        // 1. Get the CURRENT word (no longer the "last" word)
         const wordObj = State.runtime.allWords[State.runtime.currentWordIndex];
         
         if (!wordObj) {
@@ -3862,18 +3856,15 @@ const VoteShareManager = {
             return;
         }
         
-        const word = wordObj.text;
-
-        // 2. Set Visuals
+        const word = wordObj.text.toUpperCase();
         const color = voteType === 'good' ? '10b981' : 'ef4444'; 
-        
-        // 3. Build URLs
+
         const gameUrl = `https://good-word.onrender.com/?word=${encodeURIComponent(word)}`;
         const qrApiUrl = `https://quickchart.io/qr?text=${encodeURIComponent(gameUrl)}&dark=${color}&margin=4&size=400&centerImageUrl=https://good-word.onrender.com/logo.png&centerImageSizeRatio=0.3`;
 
-        // 4. Pick Message
         const msgList = this.messages[voteType];
-        const randomMsg = msgList[Math.floor(Math.random() * msgList.length)].replace(/{word}/g, word);
+        const rawMsg = msgList[Math.floor(Math.random() * msgList.length)].replace(/{word}/g, word);
+        const fullShareText = `${rawMsg} ${gameUrl}`;
 
         UIManager.showPostVoteMessage(voteType === 'good' ? "Sharing GOOD vibes... 📡" : "Sharing BAD vibes... 📡");
         
@@ -3885,25 +3876,24 @@ const VoteShareManager = {
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
                 await navigator.share({
                     title: `Vote on ${word}`,
-                    text: randomMsg, // The message
-                    url: gameUrl,    // Adding URL here often helps the text appear on iOS/Android
+                    text: fullShareText, 
                     files: [file]
                 });
                 UIManager.showPostVoteMessage("Shared! 🚀");
             } else {
+                await navigator.clipboard.writeText(fullShareText);
                 window.open(qrApiUrl, '_blank');
-                UIManager.showPostVoteMessage("Opened in new tab 📄");
+                UIManager.showPostVoteMessage("Text copied to clipboard! 📋");
             }
         } catch (err) {
-            console.error(err);
-            // If user cancelled, don't show error
+            console.error("Share failed:", err);
             if (err.name !== 'AbortError') {
-                 UIManager.showPostVoteMessage("Could not share ⚠️");
+                 window.open(qrApiUrl, '_blank');
+                 UIManager.showPostVoteMessage("Opened in new tab 📄");
             }
         }
     }
 };
-// --- SHARE MANAGER END ---
 
 const Game = {
     cleanStyles(e) {
@@ -4653,7 +4643,7 @@ startCRTDisplay(local, global) {
             let title = "WORLD HIGH SCORES";
             if (isLocal) {
                 const uName = State.data.username ? State.data.username.toUpperCase() : '';
-                title = uName ? (uName.length > 10 ? uName.substring(0, 10) + "'S" : `${uName}'S BEST`) : "YOUR HIGH SCORES";
+                title = uName ? (uName.length > 10 ? uName.substring(0, 10) + "'S" : `${uName}'S HIGH SCORES`) : "YOUR HIGH SCORES";
             }
             
             // Define Themes (Local = Amber, Global = Cyan)
