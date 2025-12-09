@@ -44,7 +44,7 @@ const GAME_TIPS = [
     "Knock, knock, Neo. 🐇",
     "❤️💎",
     "Tip: Going Underground? Try Offline Mode!",
-    "# I was alone, I was all by myself.,
+    "# I was alone, I was all by myself.",
     "Tip: Why not turn on the Christmas lights?",
     "Tip: The spider lies.",
     "Tip: Try using the word share button!",
