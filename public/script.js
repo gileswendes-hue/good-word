@@ -4445,7 +4445,7 @@ async showLeaderboard() {
         this.startCRTDisplay(localScores, globalScores);
     },
 
-    startCRTDisplay(local, global) {
+startCRTDisplay(local, global) {
         // Remove existing modal if open
         const existing = document.getElementById('highScoreModal');
         if (existing) {
@@ -4453,20 +4453,38 @@ async showLeaderboard() {
             existing.remove();
         }
 
-        // --- INJECT CRT STYLES ---
+        // --- INJECT CRT STYLES (UPDATED FOR GLASS LOOK) ---
         if (!document.getElementById('crt-style')) {
             const s = document.createElement('style');
             s.id = 'crt-style';
             s.innerHTML = `
                 @keyframes crt-flicker { 0% {opacity:0.97} 5% {opacity:0.95} 10% {opacity:0.9} 15% {opacity:0.95} 20% {opacity:0.99} 50% {opacity:0.95} 80% {opacity:0.9} 100% {opacity:0.97} }
                 @keyframes text-chroma { 0% {text-shadow: 2px 0 0 red, -2px 0 0 blue;} 10% {text-shadow: 2px 0 0 red, -2px 0 0 blue;} 11% {text-shadow: none;} 100% {text-shadow: none;} }
-                .crt-screen { animation: crt-flicker 0.15s infinite; overflow: hidden; position: relative; }
+                
+                .crt-screen { 
+                    animation: crt-flicker 0.15s infinite; 
+                    overflow: hidden; 
+                    position: relative;
+                    /* GLASS EFFECT */
+                    border-radius: 40px; /* Highly rounded corners */
+                    box-shadow: inset 0 0 5rem rgba(0,0,0,0.9), inset 0 0 10px rgba(255,255,255,0.1); /* Deep vignette + rim light */
+                    background-color: #080808;
+                }
+                
                 .crt-scanlines {
                     background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
                     background-size: 100% 4px, 3px 100%;
                     pointer-events: none;
                     position: absolute; inset: 0; z-index: 50;
+                    border-radius: 40px; /* Match screen */
                 }
+
+                .crt-glare {
+                    position: absolute; inset: 0; z-index: 55; pointer-events: none;
+                    background: radial-gradient(circle at 50% 20%, rgba(255,255,255,0.07), transparent 60%);
+                    border-radius: 40px;
+                }
+
                 .crt-glitch { animation: text-chroma 2s infinite; }
             `;
             document.head.appendChild(s);
@@ -4475,13 +4493,12 @@ async showLeaderboard() {
         // --- MODAL HTML STRUCTURE ---
         const html = `
             <div id="highScoreModal" class="fixed inset-0 bg-black/95 z-[200] flex items-center justify-center p-4 backdrop-blur-sm">
-                <div class="bg-gray-900 w-full max-w-md p-1 shadow-[0_0_50px_rgba(0,0,0,0.8)] relative rounded-lg transform transition-all scale-100 overflow-hidden" onclick="event.stopPropagation()">
+                <div class="bg-gray-900 w-full max-w-md p-1 shadow-[0_0_50px_rgba(0,0,0,0.8)] relative rounded-[3rem] transform transition-all scale-100 overflow-hidden" onclick="event.stopPropagation()">
                     
-                    <div id="crt-content" class="bg-black border-[3px] border-gray-800 p-6 rounded relative overflow-hidden crt-screen min-h-[500px] flex flex-col shadow-[inset_0_0_20px_rgba(0,0,0,1)]">
+                    <div id="crt-content" class="bg-gray-900 border-[12px] border-gray-800 p-6 rounded-[3rem] relative overflow-hidden crt-screen min-h-[500px] flex flex-col shadow-[inset_0_0_20px_rgba(0,0,0,1)]">
                         <div class="crt-scanlines"></div>
-                        
-                        <div class="text-center mb-6 relative z-10 transition-colors duration-300" id="hs-header">
-                            <h2 id="hs-title" class="text-4xl font-black tracking-[0.2em] crt-glitch" style="font-family: 'Courier New', monospace; filter: drop-shadow(0 0 5px currentColor);">
+                        <div class="crt-glare"></div> <div class="text-center mb-6 relative z-10 transition-colors duration-300" id="hs-header">
+                            <h2 id="hs-title" class="text-3xl sm:text-4xl font-black tracking-[0.2em] crt-glitch" style="font-family: 'Courier New', monospace; filter: drop-shadow(0 0 5px currentColor);">
                                 LOADING...
                             </h2>
                             <div id="hs-subtitle" class="text-[10px] mt-2 font-mono font-bold tracking-[0.5em] uppercase opacity-70">--- SYSTEM READY ---</div>
@@ -4490,7 +4507,7 @@ async showLeaderboard() {
                         <div id="hs-list" class="space-y-2 mb-4 relative z-10 flex-grow overflow-y-auto pr-2 scrollbar-hide transition-opacity duration-200">
                             </div>
 
-                        <button id="hs-close-btn" class="relative z-30 w-full py-4 mt-auto font-black tracking-[0.2em] border-b-4 active:border-b-0 active:translate-y-1 uppercase text-lg transition-all font-mono">
+                        <button id="hs-close-btn" class="relative z-30 w-full py-4 mt-auto font-black tracking-[0.2em] border-b-4 active:border-b-0 active:translate-y-1 uppercase text-lg transition-all font-mono rounded-b-xl">
                             EJECT DISK
                         </button>
                     </div>
@@ -4508,6 +4525,7 @@ async showLeaderboard() {
         const closeBtn = document.getElementById('hs-close-btn');
         const container = document.getElementById('crt-content');
 
+        // Close Logic
         const close = () => {
             if (modal.interval) clearInterval(modal.interval);
             modal.remove();
@@ -4515,18 +4533,21 @@ async showLeaderboard() {
         closeBtn.onclick = close;
         modal.onclick = close;
 
-        let showingLocal = false;
+        // --- RENDER LOGIC ---
+        let showingLocal = true; // Set to 'true' for Local first, 'false' for World first
 
-       const render = () => {
+        const render = () => {
             const isLocal = showingLocal;
             const data = isLocal ? local : global;
             
+            // Title Logic with Username
             let title = "WORLD HIGH SCORES";
             if (isLocal) {
                 const uName = State.data.username ? State.data.username.toUpperCase() : '';
                 title = uName ? (uName.length > 10 ? uName.substring(0, 10) + "'S" : `${uName}'S BEST`) : "YOUR HIGH SCORES";
             }
-
+            
+            // Define Themes (Local = Amber, Global = Cyan)
             const theme = isLocal 
                 ? { 
                     main: 'text-amber-400', 
@@ -4534,7 +4555,7 @@ async showLeaderboard() {
                     border: 'border-amber-900',
                     btn: 'bg-amber-900/40 text-amber-100 border-amber-600 hover:bg-amber-800',
                     ranks: ['text-amber-300', 'text-amber-400', 'text-amber-500'],
-                    glow: '0 0 10px rgba(251, 191, 36, 0.4)'
+                    glow: '0 0 25px rgba(251, 191, 36, 0.3)'
                   }
                 : { 
                     main: 'text-cyan-400', 
@@ -4542,11 +4563,12 @@ async showLeaderboard() {
                     border: 'border-cyan-900',
                     btn: 'bg-cyan-900/40 text-cyan-100 border-cyan-600 hover:bg-cyan-800',
                     ranks: ['text-cyan-300', 'text-cyan-400', 'text-cyan-500'],
-                    glow: '0 0 10px rgba(34, 211, 238, 0.4)'
+                    glow: '0 0 25px rgba(34, 211, 238, 0.3)'
                   };
 
             // Apply Theme
-            container.style.boxShadow = `inset 0 0 20px rgba(0,0,0,1), ${theme.glow}`;
+            // Note: We use the existing inset shadow AND add the color glow
+            container.style.boxShadow = `inset 0 0 5rem rgba(0,0,0,0.9), ${theme.glow}`;
             
             titleEl.className = `text-3xl sm:text-4xl font-black tracking-[0.2em] crt-glitch ${theme.main}`;
             titleEl.textContent = title;
@@ -4554,7 +4576,7 @@ async showLeaderboard() {
             subtitleEl.className = `text-[10px] mt-2 font-mono font-bold tracking-[0.5em] uppercase opacity-60 ${theme.sub}`;
             subtitleEl.textContent = isLocal ? "--- MEMORY BANK A ---" : "--- NETWORK LINK ---";
 
-            closeBtn.className = `relative z-30 w-full py-4 mt-auto font-black tracking-[0.2em] border-b-4 active:border-b-0 active:translate-y-1 uppercase text-lg transition-all font-mono shadow-lg ${theme.btn}`;
+            closeBtn.className = `relative z-30 w-full py-4 mt-auto font-black tracking-[0.2em] border-b-4 active:border-b-0 active:translate-y-1 uppercase text-lg transition-all font-mono shadow-lg rounded-xl ${theme.btn}`;
 
             // Pad scores to 8 items
             const displayScores = [...(data || [])].slice(0, 8);
@@ -4598,7 +4620,6 @@ async showLeaderboard() {
             }, 4500); // Swap every 4.5 seconds
         }
     }
-};
 
 window.StreakManager = {
         showLeaderboard: () => StreakManager.showLeaderboard()
