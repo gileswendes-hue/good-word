@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.60.2', 
+    APP_VERSION: '5.60.3', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -653,7 +653,8 @@ const MosquitoManager = {
         this.init();
     },
 
-    spawnStuck(typeChar) {
+    // Updated: Accepts isFodder flag to change click behavior
+    spawnStuck(typeChar, isFodder = false) {
         if (this.el) this.remove(); 
 
         this.type = typeChar || '🦟';
@@ -680,7 +681,11 @@ const MosquitoManager = {
 
         this.el.onclick = (e) => {
             e.stopPropagation();
-            this.startRescue();
+            if (isFodder) {
+                this.splat(); // If from jar, splat it (prevents infinite save loop)
+            } else {
+                this.startRescue(); // If natural catch, save it
+            }
         };
 
         document.body.appendChild(this.el);
@@ -742,7 +747,6 @@ const MosquitoManager = {
         document.body.appendChild(this.svg);
         document.body.appendChild(this.el);
         
-        // --- CLICK HANDLER (UPDATED) ---
         this.el.onclick = (e) => {
             e.stopPropagation();
             if (this.state === 'stuck') {
@@ -750,7 +754,7 @@ const MosquitoManager = {
                 this.startRescue();
             }
             else if (this.state === 'flying') {
-                this.splat(); // <--- NEW: Splat the bug instead of showing message
+                this.splat(); // Splat flying bugs on tap
             }
         };
         
@@ -761,14 +765,14 @@ const MosquitoManager = {
         this.loop();
     },
 
-    // --- NEW SPLAT FUNCTION ---
+    // --- NEW: Splat Function ---
     splat() {
         this.state = 'splatted';
         if (this.raf) cancelAnimationFrame(this.raf);
         SoundManager.stopBuzz();
-        SoundManager.playPop(); // Play a pop sound
+        SoundManager.playPop(); 
         
-        this.el.textContent = '💥'; // Visual Change
+        this.el.textContent = '💥'; 
         this.el.style.transition = 'transform 0.1s ease-out, opacity 0.5s ease-in 0.5s';
         this.el.style.transform = 'translate(-50%, -50%) scale(1.5)';
         
@@ -2837,16 +2841,18 @@ const UIManager = {
                 if (el.dataset.word) { Game.loadSpecial(el.dataset.word); ModalManager.toggle('profile', false); } else { showTooltip(el, el.dataset.title, el.dataset.desc); }
             }
         });
-const jarBugs = b.querySelectorAll('.jar-bug');
+        const jarBugs = b.querySelectorAll('.jar-bug');
         jarBugs.forEach(bug => {
             bug.onclick = (e) => {
                 e.stopPropagation();
                 
+                // 1. Theme Check
                 if (State.data.currentTheme !== 'halloween') { 
                     showTooltip(bug, "Spider Missing", "Please visit the spider on the Halloween theme to feed"); 
                     return; 
                 }
 
+                // 2. Arachnophobia Check
                 if (State.data.settings.arachnophobiaMode) {
                     showTooltip(bug, "Spider Hidden", "You have Arachnophobia Mode turned on! The spider is gone."); 
                     return; 
@@ -2855,11 +2861,13 @@ const jarBugs = b.querySelectorAll('.jar-bug');
                 ModalManager.toggle('profile', false);
                 State.data.insectStats.saved = Math.max(0, State.data.insectStats.saved - 1);
                 State.save('insectStats', State.data.insectStats);
-                if (typeof MosquitoManager !== 'undefined') MosquitoManager.spawnStuck('🦟');
+                
+                // 3. Spawn as Fodder (True)
+                if (typeof MosquitoManager !== 'undefined') MosquitoManager.spawnStuck('🦟', true);
+                
                 UIManager.showPostVoteMessage("Feeding time! 🕷️");
             };
         });
-		
         ModalManager.toggle('profile', true);
     },
     displayWord(w) {
@@ -2874,7 +2882,6 @@ const jarBugs = b.querySelectorAll('.jar-bug');
         if (t === 'halloween') { wd.style.color = '#FF8C00'; wd.style.textShadow = '2px 2px 0px #1a0000, 0 0 8px rgba(255,140,0,1), 0 0 15px rgba(255,69,0,0.6)' }
         if (t === 'submarine') { wd.style.color = '#b0e0e6'; wd.style.textShadow = '0 0 10px rgba(176,224,230,0.7), 0 0 5px rgba(255,255,255,0.3)'; wd.style.animation = 'bobbing-word 2.5s ease-in-out infinite' }
         if (t === 'fire') { wd.style.color = '#ffaa00'; wd.style.textShadow = '2px 2px 0px #300, 0 0 8px #ff5000, 0 0 20px #ff0000' }
-        
         if (t === 'banana') {
             if (this.bananaConfig) {
                 wd.style.backgroundImage = this.bananaConfig.img;
