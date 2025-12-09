@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.61.3', 
+    APP_VERSION: '5.61.2', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -2720,7 +2720,6 @@ const UIManager = {
     toggle: function(id, show) {
         const el = document.getElementById(id + (id.endsWith('Modal') ? '' : 'Modal'));
         if (!el && document.getElementById(id)) {
-            // Fallback if ID was passed directly
             document.getElementById(id).classList.toggle('hidden', !show);
             document.getElementById(id).classList.toggle('flex', show);
             return;
@@ -2747,6 +2746,89 @@ const UIManager = {
             display.style.opacity = '1';
         }, 150);
     },
+
+    updateTheme: function(theme) {
+        document.body.className = `flex flex-col items-center justify-center min-h-screen p-4 pb-16 theme-${theme}`;
+        
+        // Hide all effects first
+        ['snow-effect', 'bubble-effect', 'fire-effect', 'summer-effect', 'plymouth-effect', 'ballpit-effect', 'space-effect'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.classList.add('hidden');
+        });
+
+        // Enable specific effects
+        if (theme === 'winter') {
+            const snow = document.getElementById('snow-effect');
+            if(snow) snow.classList.remove('hidden');
+        }
+        if (theme === 'underwater') {
+            const bubbles = document.getElementById('bubble-effect');
+            if(bubbles) bubbles.classList.remove('hidden');
+        }
+        if (theme === 'fire') {
+            const fire = document.getElementById('fire-effect');
+            if(fire) fire.classList.remove('hidden');
+        }
+        if (theme === 'summer') {
+            const sun = document.getElementById('summer-effect');
+            if(sun) sun.classList.remove('hidden');
+        }
+        if (theme === 'plymouth') {
+            const rain = document.getElementById('plymouth-effect');
+            if(rain) rain.classList.remove('hidden');
+        }
+        if (theme === 'ballpit') {
+            const balls = document.getElementById('ballpit-effect');
+            if(balls) balls.classList.remove('hidden');
+        }
+        if (theme === 'space') {
+            const space = document.getElementById('space-effect');
+            if(space) space.classList.remove('hidden');
+        }
+    },
+
+    triggerConfetti: function() {
+        if (window.confetti) {
+            confetti({
+                particleCount: 100,
+                spread: 70,
+                origin: { y: 0.6 }
+            });
+        }
+    },
+
+    triggerSnow: function() {
+        const el = document.getElementById('card-snow-drift');
+        if (el) {
+            el.style.opacity = '1';
+            setTimeout(() => el.style.opacity = '0', 2000);
+        }
+    },
+
+    triggerFire: function() {
+        document.body.classList.add('shake-animation');
+        setTimeout(() => document.body.classList.remove('shake-animation'), 500);
+    },
+
+    triggerHearts: function() {
+        if (window.confetti) {
+            confetti({
+                particleCount: 50,
+                spread: 60,
+                origin: { y: 0.7 },
+                shapes: ['heart'],
+                colors: ['#ef4444', '#ec4899']
+            });
+        }
+    },
+
+    triggerGlitch: function() {
+        const display = document.getElementById('wordDisplay');
+        if(display) {
+            display.classList.add('glitch-text');
+            setTimeout(() => display.classList.remove('glitch-text'), 600);
+        }
+    },
     
     showPostVoteMessage: function(msg) {
         const el = document.getElementById('postVoteMessage');
@@ -2763,7 +2845,6 @@ const UIManager = {
 
     // --- NEW RANKING FUNCTIONS ---
     showFullRankings: function(targetSection = 'good') {
-        // Safety check
         if (!State.data.rankings || !State.data.rankings.good) {
             console.warn("Rankings data not loaded yet.");
             return;
@@ -2773,7 +2854,6 @@ const UIManager = {
         this.populateFullRankings('bad', State.data.rankings.bad);
         this.toggle('fullRankingsModal', true);
         
-        // Auto-Scroll Logic
         setTimeout(() => {
             const scrollContainer = document.querySelector('#fullRankingsModalContainer .overflow-y-auto');
             
