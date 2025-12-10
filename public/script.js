@@ -4119,42 +4119,72 @@ const InputHandler = {
     }
 };
 
+
 // --- PROMO MANAGER (FREE KEYRING) ---
 const PromoManager = {
-    serviceID: 'service_b6d75wi', // Uses same email service as tips
+    serviceID: 'service_b6d75wi', 
     templateID: 'template_qody7q7', 
 
     init() {
-        // If already claimed, don't show anything
         if (State.data.keyringClaimed) return;
         if (document.getElementById('promoButton')) return;
 
-        // 1. Create the Floating Button
+        // 1. Inject Animation Style
+        if (!document.getElementById('promo-anim-style')) {
+            const s = document.createElement('style');
+            s.id = 'promo-anim-style';
+            s.innerHTML = `
+                @keyframes promo-spin { 
+                    0% { transform: rotate(0deg) scale(1); } 
+                    50% { transform: rotate(180deg) scale(1.2); }
+                    100% { transform: rotate(360deg) scale(1); } 
+                }
+                .promo-spinning { animation: promo-spin 0.5s ease-in-out forwards; }
+            `;
+            document.head.appendChild(s);
+        }
+
+        // 2. Create the Floating Button
         const btn = document.createElement('div');
         btn.id = 'promoButton';
         btn.innerHTML = `
             <div class="absolute inset-0 bg-pink-500 rounded-full animate-ping opacity-75"></div>
-            <div class="relative bg-gradient-to-r from-pink-600 to-purple-600 text-white font-black text-sm px-4 py-3 rounded-full shadow-2xl border-2 border-white cursor-pointer flex items-center gap-2 transform transition hover:scale-110">
+            <div id="promoBtnInner" class="relative bg-gradient-to-r from-pink-600 to-purple-600 text-white font-black text-sm px-4 py-3 rounded-full shadow-2xl border-2 border-white cursor-pointer flex items-center gap-2 transform transition hover:scale-110">
                 <span class="text-xl">🎁</span> 
-                <span>FREE KEYRING!</span>
+                <span>FREE STUFF!</span>
             </div>
         `;
         Object.assign(btn.style, {
             position: 'fixed', bottom: '20px', right: '20px', zIndex: '9999',
             cursor: 'pointer', display: 'flex'
         });
-        btn.onclick = () => this.open();
+        
+        // 3. Click Handler with Spin
+        btn.onclick = () => {
+            const inner = document.getElementById('promoBtnInner');
+            if(inner) {
+                inner.classList.add('promo-spinning');
+                // Wait for animation (500ms) then open
+                setTimeout(() => {
+                    inner.classList.remove('promo-spinning');
+                    this.open();
+                }, 500);
+            } else {
+                this.open();
+            }
+        };
+        
         document.body.appendChild(btn);
 
-        // 2. Create the Modal (Hidden by default)
+        // 4. Create the Modal
         const modal = document.createElement('div');
         modal.id = 'promoModal';
         modal.className = 'fixed inset-0 bg-black/90 z-[10000] hidden flex items-center justify-center p-4 backdrop-blur-sm';
         modal.innerHTML = `
             <div class="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl transform transition-all">
                 <div class="bg-gradient-to-r from-pink-600 to-purple-600 p-4 text-center">
-                    <h2 class="text-2xl font-black text-white uppercase tracking-wider">Claim Your Gift! 🗝️</h2>
-                    <p class="text-pink-100 text-xs mt-1">Limited time offer. One per person.</p>
+                    <h2 class="text-2xl font-black text-white uppercase tracking-wider">Claim Free Metal Keyring and Shiny Stickers! 🗝️</h2>
+                    <p class="text-pink-100 text-xs mt-1">Real actual free stuff. Enjoy!</p>
                 </div>
                 
                 <div class="p-6 space-y-4">
@@ -4177,7 +4207,7 @@ const PromoManager = {
                         <input type="checkbox" id="promoOptIn" checked class="mt-1 h-4 w-4 text-pink-600 rounded border-gray-300 focus:ring-pink-500">
                         <label for="promoOptIn" class="text-xs text-gray-600 leading-snug">
                             <strong>Keep me posted!</strong><br>
-                            I want to hear about new word drops and features.
+                            I want to hear about new features and weird stuff.
                         </label>
                     </div>
 
@@ -4210,9 +4240,8 @@ const PromoManager = {
             return;
         }
 
-        // Construct Message
         const msg = `
-            NEW KEYRING AND STICKERS CLAIM! 🎁
+            NEW KEYRING CLAIM! 🎁
             ------------------
             Name: ${name}
             Address: ${address}
@@ -4224,7 +4253,6 @@ const PromoManager = {
         UIManager.showPostVoteMessage("Sending details... 📨");
         this.close();
 
-        // Send via EmailJS (using your existing config)
         emailjs.send(this.serviceID, this.templateID, {
             message: msg,
             username: name
@@ -4233,12 +4261,10 @@ const PromoManager = {
             State.save('keyringClaimed', true);
             const btn = document.getElementById('promoButton');
             if(btn) btn.remove();
-            
-            // Celebration Confetti
             if (typeof Game.vote === 'function') SoundManager.playUnlock();
         }).catch((err) => {
             console.error(err);
-            alert("Could not send data. Please try contacting developer directly.");
+            alert("Could not send data. Please try later or contacting Gilxs directly.");
         });
     }
 };
@@ -4549,6 +4575,7 @@ renderGraphs() {
             window.ContactManager = ContactManager;
             window.PinPad = PinPad;
             window.TipManager = TipManager;
+			window.PromoManager = PromoManager;
 
             // 4. Bind Buttons
             if (DOM.game.buttons.good) DOM.game.buttons.good.onclick = () => this.vote('good');
@@ -5192,8 +5219,9 @@ const StreakManager = {
             document.head.appendChild(s);
         }
 
+        // --- Z-INDEX CHANGED TO 300 (Higher than spider text) ---
         const html = `
-            <div id="highScoreModal" class="fixed inset-0 bg-black/90 z-[200] flex items-center justify-center p-4 backdrop-blur-md" onclick="StreakManager.closeLeaderboard()">
+            <div id="highScoreModal" class="fixed inset-0 bg-black/90 z-[300] flex items-center justify-center p-4 backdrop-blur-md" onclick="StreakManager.closeLeaderboard()">
                 <div class="crt-monitor w-full max-w-md transform transition-all scale-100" onclick="event.stopPropagation()">
                     <div class="crt-overlay"></div>
                     <div class="crt-content">
@@ -5226,12 +5254,12 @@ const StreakManager = {
         const username = State.data.username || "PLAYER";
 
         const renderRow = (s, i, color) => `
-            <div class="flex justify-between items-center crt-text text-sm py-2 crt-row">
+            <div class="flex justify-between items-center crt-text py-2 crt-row">
                 <div class="flex gap-3">
-                    <span class="text-gray-500">#${(i+1).toString().padStart(2,'0')}</span>
-                    <span class="${color} font-black drop-shadow-[0_0_3px_rgba(255,255,255,0.5)]">${s.name.substring(0,3).toUpperCase()}</span>
+                    <span class="text-gray-500 text-lg">#${(i+1).toString().padStart(2,'0')}</span>
+                    <span class="${color} font-black text-2xl drop-shadow-[0_0_3px_rgba(255,255,255,0.5)]">${s.name.substring(0,3).toUpperCase()}</span>
                 </div>
-                <span class="text-white tracking-widest text-lg">${s.score.toString().padStart(4,'0')}</span>
+                <span class="text-white tracking-widest text-3xl">${s.score.toString().padStart(4,'0')}</span>
             </div>`;
 
         const area = document.getElementById('hs-display-area');
