@@ -265,7 +265,7 @@ const State = {
         mashLevel: 0,
         isDailyMode: false
     },
-    save(k, v) {
+	save(k, v) {
         this.data[k] = v;
         const s = localStorage;
         
@@ -276,16 +276,23 @@ const State = {
         if (k === 'pendingVotes') s.setItem('pendingVotes', JSON.stringify(v));
         else if (k === 'offlineCache') s.setItem('offlineCache', JSON.stringify(v));
         else if (k === 'highScores') s.setItem('highScores', JSON.stringify(v));
+        
+        // --- FIX: Correct Braces for Insect Stats ---
         else if (k === 'insectStats') {
             s.setItem('insectSaved', v.saved);
             s.setItem('insectEaten', v.eaten);
             s.setItem('insectTeased', v.teased);
             s.setItem('insectSplatted', v.splatted);
             s.setItem('insectCollection', JSON.stringify(v.collection));
-			else if (k === 'wordHistory') {
+        } 
+        // ---------------------------------------------
+
+        // --- FIX: Separate Block for Word History ---
+        else if (k === 'wordHistory') {
             s.setItem('wordCountHistory', JSON.stringify(v));
         }
-        } 
+        // ---------------------------------------------
+
         else if (k === 'fishStats') {
             s.setItem('fishCaught', v.caught);
             s.setItem('fishSpared', v.spared); 
@@ -4854,7 +4861,7 @@ async refreshData(u = true) {
 
 const StreakManager = {
     timer: null,
-    loopTimer: null, // Track the CRT loop
+    loopTimer: null, 
     LIMIT: 15000, 
 
     handleSuccess() {
@@ -4976,8 +4983,30 @@ const StreakManager = {
         document.getElementById('hsSaveBtn').onclick = saveFn;
     },
 
-    async showLeaderboard() {
+    async shareScores() {
+        const scores = State.data.highScores || [];
+        const best = scores.length ? scores[0].score : 0;
+        const name = State.data.username || "I";
+        const text = `${name} just hit a streak of ${best} on Good Word / Bad Word! 🏆 Can you beat the high scores?`;
+        const url = window.location.origin;
 
+        if (navigator.share) {
+            try { 
+                await navigator.share({ title: 'High Scores', text: text, url: url }); 
+            } catch(e) {
+                // Share cancelled
+            }
+        } else {
+            try { 
+                await navigator.clipboard.writeText(`${text} ${url}`); 
+                UIManager.showPostVoteMessage("Score copied to clipboard! 📋"); 
+            } catch(e) {
+                UIManager.showPostVoteMessage("Could not share.");
+            }
+        }
+    },
+
+    async showLeaderboard() {
         if (!document.getElementById('crt-styles')) {
             const s = document.createElement('style');
             s.id = 'crt-styles';
@@ -5000,7 +5029,6 @@ const StreakManager = {
                     animation: scanline-scroll 10s linear infinite;
                 }
                 .crt-content { padding: 2rem; position: relative; z-index: 10; }
-                /* CHANGE: Added Text Shadow for Bolder Look */
                 .crt-text { font-family: 'Courier New', monospace; text-transform: uppercase; letter-spacing: 0.15em; font-weight: 900; text-shadow: 2px 2px 0px #000; }
                 .crt-title { animation: crt-glow 2s infinite alternate; color: #fff; font-size: 2rem; }
                 .crt-row { border-bottom: 2px dashed rgba(255,255,255,0.2); }
@@ -5023,7 +5051,10 @@ const StreakManager = {
                         
                         <div class="mt-4 flex justify-between items-center crt-text text-xs text-gray-400 font-bold">
                              <span id="hs-page-indicator">LOADING</span>
-                             <button onclick="StreakManager.closeLeaderboard()" class="px-2 py-1 border border-gray-600 rounded hover:bg-red-900/30 hover:text-red-400 hover:border-red-500 transition-colors cursor-pointer">⏏ EJECT DISK</button>
+                             <div class="flex gap-2">
+                                <button onclick="StreakManager.shareScores()" class="px-2 py-1 border border-gray-600 rounded hover:bg-blue-900/30 hover:text-blue-400 hover:border-blue-500 transition-colors cursor-pointer">📤 SHARE</button>
+                                <button onclick="StreakManager.closeLeaderboard()" class="px-2 py-1 border border-gray-600 rounded hover:bg-red-900/30 hover:text-red-400 hover:border-red-500 transition-colors cursor-pointer">⏏ EJECT DISK</button>
+                             </div>
                         </div>
                     </div>
                 </div>
