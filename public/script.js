@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.69.8', 
+    APP_VERSION: '5.69.9', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -3030,10 +3030,13 @@ const UIManager = {
             `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🧸 Found Items</div>` + renderRow(row2) + 
             `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🌊 Aquarium</div>` + renderRow(row_fish) + 
             
-            bugHotelHTML + // The Bug Hotel (Dead bugs)
+            // 1. The Bug Jar (Live Bugs) - MOVED HERE
+            bugJarHTML +
 
-            `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🎖️ Achievements</div>` + renderRow(row3) +
-            bugJarHTML; // The Bug Jar (Live bugs)
+            // 2. Bug Street (Collection)
+            bugHotelHTML + 
+
+            `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🎖️ Achievements</div>` + renderRow(row3);
 
         // Tooltip and Listener Logic (Same as before)
         const showTooltip = (targetEl, title, desc) => {
