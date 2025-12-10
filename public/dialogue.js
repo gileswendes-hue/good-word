@@ -18,7 +18,9 @@ const GAME_DIALOGUE = {
             'quiet night...', 
             '...', 
             'boo!',
-            'anyone home?'
+            'anyone home?',
+            'You can't find me, I'm a spyder.',
+            
         ],
 
         // When clicked (50% chance Happy)
@@ -30,7 +32,8 @@ const GAME_DIALOGUE = {
             "Hi frend!", 
             "Nice poke!",
             "MWAH!",
-            "Buy me dinner first!"
+            "Buy me dinner first!",
+            "My favourite food is French flies'
         ],
 
         // When clicked (50% chance Grumpy)
@@ -51,7 +54,9 @@ const GAME_DIALOGUE = {
             "Gotcha!", 
             "Snack detected!", 
             "Incoming!",
-            "NOM"
+            "NOM",
+            "I’ve got butterflies in my stomach",
+            "I need a light snack, got any glowbugs?'
         ],
 
         // When dropped on an empty web (Tricked)
