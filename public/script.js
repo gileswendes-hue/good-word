@@ -3615,7 +3615,7 @@ init() {
                 html += `<div class="mb-6"><h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 border-b border-gray-100 pb-1">Accessibility</h3><div class="space-y-4">`;
                 html += mkTog('toggleColorblind', 'Colourblind Mode', s.colorblindMode);
                 html += mkTog('toggleLargeText', 'Increase Text Size', s.largeText);
-                html += mkTog('toggleMute', 'Mute All Sounds', s.muteSounds);
+                html += mkTog('toggleMute', '🔇 Mute All Sounds', s.muteSounds);
 				if (State.data.unlockedThemes.includes('halloween')) {
                     html += mkTog('toggleArachnophobia', '🚫 Arachnophobia Mode', s.arachnophobiaMode);
                 }
