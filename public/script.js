@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.69.1', 
+    APP_VERSION: '5.69.2', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -181,7 +181,8 @@ const State = {
         insectStats: {
             saved: parseInt(localStorage.getItem('insectSaved') || 0),
             eaten: parseInt(localStorage.getItem('insectEaten') || 0),
-            teased: parseInt(localStorage.getItem('insectTeased') || 0)
+            teased: parseInt(localStorage.getItem('insectTeased') || 0),
+			splatted: parseInt(localStorage.getItem('insectSplatted') || 0)
         },
         
         fishStats: {
@@ -271,6 +272,7 @@ const State = {
             s.setItem('insectSaved', v.saved);
             s.setItem('insectEaten', v.eaten);
             s.setItem('insectTeased', v.teased);
+			s.setItem('insectSplatted', v.splatted);
         } 
        else if (k === 'fishStats') {
     s.setItem('fishCaught', v.caught);
@@ -718,9 +720,15 @@ Object.assign(this.el.style, {
             pointerEvents: 'auto'   
         });
 
-        this.el.onclick = (e) => {
+this.el.onclick = (e) => {
             e.stopPropagation();
-            this.startRescue();
+            if (this.state === 'stuck') {
+                if (this.huntTimer) clearTimeout(this.huntTimer);
+                this.startRescue();
+            }
+            else if (this.state === 'flying') {
+                this.splat();
+            }
         };
 
         document.body.appendChild(this.el);
@@ -835,6 +843,24 @@ Object.assign(this.el.style, {
             this.angle = Math.random() * Math.PI * 2;
             this.speed = 0.6; 
         }, 2000);
+    },
+	
+	splat() {
+        if (this.state === 'splatted') return;
+        this.state = 'splatted';
+        
+        State.data.insectStats.splatted = (State.data.insectStats.splatted || 0) + 1;
+        State.save('insectStats', State.data.insectStats);
+
+        UIManager.showPostVoteMessage("Splat! 🦶");
+        Haptics.heavy();
+
+        this.el.style.transition = 'transform 0.1s ease-out, opacity 0.2s';
+        this.el.style.transform = 'translate(-50%, -50%) scale(1.5) rotate(45deg)';
+        this.el.style.filter = 'grayscale(100%) brightness(0.5)'; // Make it look dead
+        this.el.style.opacity = '0';
+
+        setTimeout(() => this.remove(), 200);
     },
 
     loop() {
@@ -2882,10 +2908,8 @@ const UIManager = {
 			{ k: 'shepherd', i: '🛟', t: 'Sea Shepherd', d: 'Chose to let 250 fish swim away safely' }
         ];
 
-        // Helper to render badges
         const renderRow = (list) => `<div class="flex flex-wrap justify-center gap-3 text-3xl w-full">` + list.map(x => {
             const un = d.badges[x.k];
-            // Format a default title from the key (e.g., "cake" -> "Cake")
             const defTitle = x.k.charAt(0).toUpperCase() + x.k.slice(1);
             
             return `<span class="badge-item relative ${un?'':'opacity-25 grayscale'} transition-all duration-300 transform ${un?'hover:scale-125 cursor-pointer':''}" 
@@ -2897,7 +2921,6 @@ const UIManager = {
                     >${x.i}</span>`
         }).join('') + `</div>`;
 
-        // Bug Jar Logic
         let bugJarHTML = '';
         if (saved > 0) {
             const bugCount = Math.min(saved, 40);
@@ -2913,12 +2936,37 @@ const UIManager = {
                 ${State.data.currentTheme === 'halloween' ? '<div class="text-[9px] text-green-500 mt-1 italic">Tap a bug to feed the spider!</div>' : ''}
             </div>`;
         }
+		
+		let bugHotelHTML = '';
+        const splattedCount = State.data.insectStats.splatted || 0;
+        
+        if (splattedCount > 0) {
+            const displayLimit = Math.min(splattedCount, 50);
+            let bugsStr = '';
+            const bugIcons = ['🦟', '🪰', '🐞', '🐝']; 
+            
+            for(let i=0; i<displayLimit; i++) {
+                const icon = bugIcons[i % bugIcons.length];
+                bugsStr += `<span style="display:inline-block; padding:2px; filter:grayscale(100%); opacity:0.5; transform: rotate(${Math.random()*360}deg);">${icon}</span>`;
+            }
+            
+            bugHotelHTML = `<div class="w-full text-center my-4 p-3 bg-stone-100 rounded-xl border border-stone-200 relative overflow-hidden">
+                <div class="text-[10px] font-bold text-stone-500 mb-1 uppercase tracking-wider">The Bug Hotel (${splattedCount})</div>
+                <div class="text-xl leading-6 break-words" style="letter-spacing: 2px;">
+                    ${bugsStr}
+                </div>
+            </div>`;
+        }
         
         const b = DOM.profile.badges;
         b.innerHTML = 
             `<div class="text-xs font-bold text-gray-500 uppercase mb-2 mt-2">🏆 Word Badges</div>` + renderRow(row1) + 
             `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🧸 Found Items</div>` + renderRow(row2) + 
             `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🌊 Aquarium</div>` + renderRow(row_fish) + 
+			bugHotelHTML + 
+
+            `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🎖️ Achievements</div>` + renderRow(row3) +
+            bugJarHTML;
             `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🎖️ Achievements</div>` + renderRow(row3) +
             bugJarHTML;
 
