@@ -19,7 +19,7 @@ const GAME_DIALOGUE = {
             '...', 
             'boo!',
             'anyone home?',
-            'You can't find me, I'm a spyder.'
+            'You can't find me, I'm a spyder."
             
         ],
 
