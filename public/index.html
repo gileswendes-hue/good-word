@@ -119,6 +119,369 @@
             <button id="badButton" class="bad-button flex-1 py-4 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-red-500/50" disabled>Bad Word</button>
         </div>
         
+       <div class="flex space-x-2 w-full mt-3 relative z-20">
+    <button id="qrGoodBtn" class="p-3 rounded-xl border-2 border-green-500 bg-white shadow-sm hover:bg-green-50 transition-colors flex-shrink-0" title="Share Good QR">
+        <div class="w-6 h-6 flex items-center justify-center text-xl">👍</div>
+    </button>
+    
+    <button id="notWordButton" class="not-word-button flex-grow py-3 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-slate-500/50" disabled>
+        Not a word!
+    </button>
+
+    <button id="qrBadBtn" class="p-3 rounded-xl border-2 border-red-500 bg-white shadow-sm hover:bg-red-50 transition-colors flex-shrink-0" title="Share Bad QR">
+        <div class="w-6 h-6 flex items-center justify-center text-xl">👎</div>
+    </button>
+</div>
+        
+        <button id="customWordButton" class="w-full py-3 mt-3 rounded-xl font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 shadow-sm transition duration-150 ease-in-out border border-indigo-100 relative z-20">Submit Custom Word ✍️</button>
+        
+        <button id="compareWordsButton" class="w-full py-3 mt-3 rounded-xl font-bold text-purple-600 bg-purple-50 hover:bg-purple-100 shadow-sm transition duration-150 ease-in-out border border-purple-100 relative z-20">Compare Words ⚖️</button>
+
+    </main>
+
+    <section class="mt-8 w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
+        <div class="ranking-card card p-6 rounded-xl">
+            <h2 class="text-xl font-bold text-green-700 mb-4 border-b pb-2">Top Good Words</h2>
+            <div class="ranking-frame rounded-xl"><div id="goodRankings" class="space-y-2"><p class="text-gray-500">No data yet.</p></div></div>
+        </div>
+        <div class="ranking-card card p-6 rounded-xl">
+            <h2 class="text-xl font-bold text-red-700 mb-4 border-b pb-2">Top Bad Words</h2>
+            <div class="ranking-frame rounded-xl"><div id="badRankings" class="space-y-2"><p class="text-gray-500">No data yet.</p></div></div>
+        </div>
+    </section>
+    
+<div class="mt-6 p-4 bg-white/70 rounded-xl w-full max-w-sm flex flex-col items-center shadow-lg border border-gray-100 relative z-10">
+        
+        <h3 class="text-lg font-bold text-gray-700 mb-4 w-full text-center">Unlocked Themes 🎨</h3>
+        
+        <select id="themeChooser" class="w-full mb-4 p-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 font-semibold"><option value="default">Default</option></select>
+        
+<div class="flex items-center space-x-2 w-full">
+            
+            <button id="showHelpButton" class="text-xs w-8 h-8 flex items-center justify-center bg-slate-200 text-gray-700 font-bold rounded-full hover:bg-slate-300 transition duration-150 flex-shrink-0" title="Get Help">
+                ?
+            </button>
+
+            <button id="showSettingsButton" class="px-3 py-2 bg-slate-200 text-gray-700 font-bold rounded-lg shadow-md hover:bg-slate-300 transition duration-150 text-xs flex-grow">⚙️ Settings</button>
+            
+            <button onclick="ContactManager.open()" class="flex-grow flex items-center justify-center px-3 py-2 bg-indigo-100 text-indigo-700 font-bold rounded-lg shadow-md hover:bg-indigo-200 transition duration-150 text-xs">✉️ Contact</button>
+            
+            <button id="showDonateButton" class="text-xs w-8 h-8 flex items-center justify-center bg-green-100 text-green-700 font-bold rounded-full hover:bg-green-200 transition duration-150 flex-shrink-0" title="Donate">
+                $
+            </button>
+        </div>
+    </div>
+
+<div id="profileModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
+    <div class="bg-white p-6 rounded-2xl w-full max-w-md shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
+        <div class="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-indigo-500 to-purple-500 z-0"></div>
+        <button id="closeProfileModal" class="absolute top-4 right-4 text-white hover:text-gray-200 text-2xl font-bold leading-none z-10">&times;</button>
+        
+<div class="relative z-10 flex flex-col items-center mt-8 flex-grow overflow-y-auto">
+    
+<div class="flex items-center space-x-4 mb-4 w-full justify-center">
+    <div class="relative group cursor-pointer w-16 h-16 flex-shrink-0" onclick="document.getElementById('photoInput').click()">
+         <div class="w-full h-full bg-white rounded-full p-1 shadow-md overflow-hidden relative">
+             <div class="w-full h-full bg-gray-100 rounded-full flex items-center justify-center overflow-hidden">
+                 <span id="modalProfileEmoji" class="text-2xl absolute">👤</span>
+                 <img id="modalProfileImage" class="w-full h-full object-cover hidden relative z-10" src="" alt="Profile">
+             </div>
+         </div>
+         <input type="file" id="photoInput" accept="image/*" class="hidden">
+    </div>
+
+    <div class="flex flex-col">
+        <div class="flex items-center space-x-2">
+            <input type="text" id="usernameInput" placeholder="Name" class="border-b border-gray-300 bg-transparent px-1 py-1 text-lg font-bold text-gray-800 w-32 focus:outline-none focus:border-indigo-500">
+            <button id="saveUsernameBtn" class="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded font-bold hover:bg-indigo-200">Save</button>
+        </div>
+        <div id="profileSaveMsg" class="h-3 text-[10px]"></div>
+    </div>
+</div> 
+
+<h2 id="profileStatsTitle" class="text-2xl font-black text-gray-800 text-center mb-1">Your Stats</h2>
+<p class="text-gray-500 text-sm mb-6 text-center">Thanks for voting!</p>
+
+    <div class="grid grid-cols-2 gap-3 w-full mb-3">
+        <div class="bg-orange-50 p-2 rounded-xl border border-orange-100 flex flex-col items-center justify-center">
+            <span class="text-xl">🔥</span>
+            <div class="text-[10px] text-gray-500 font-bold uppercase mt-1">Daily</div>
+            <span id="profileStreak" class="text-xl font-black text-orange-600 leading-none">0</span>
+        </div>
+
+        <div id="streak-display-stat" onclick="StreakManager.showLeaderboard()" class="bg-indigo-50 p-2 rounded-xl border border-indigo-100 flex flex-col items-center justify-center cursor-pointer hover:bg-indigo-100 transition shadow-sm">
+            <span class="text-xl">⚡</span>
+            <div class="text-[10px] text-indigo-400 font-bold uppercase mt-1 flex items-center gap-1">Record <span class="text-[8px] bg-white px-1 rounded-full border border-indigo-100">🏆</span></div>
+            <span id="streak-display-value" class="text-xl font-black text-indigo-700 leading-none">0</span>
+        </div>
+
+        <div class="bg-blue-50 p-2 rounded-xl border border-blue-100 flex flex-col items-center justify-center">
+            <span class="text-xl">🗳️</span>
+            <div class="text-[10px] text-gray-500 font-bold uppercase mt-1">Votes</div>
+            <span id="profileTotalVotes" class="text-xl font-black text-blue-600 leading-none">0</span>
+            <div class="text-[9px] text-green-600 font-bold mt-1">(+<span id="profileContributions">0</span> words)</div>
+        </div>
+
+        <div class="bg-purple-50 p-2 rounded-xl border border-purple-100 flex flex-col items-center justify-center">
+            <span class="text-xl">🎨</span>
+            <div class="text-[10px] text-gray-500 font-bold uppercase mt-1">Themes</div>
+            <span id="profileThemes" class="text-xl font-black text-purple-600 leading-none">0/0</span>
+        </div>
+    </div>
+    
+    <div class="w-full bg-gray-50 rounded-xl p-3 border border-gray-200 mb-4 flex-grow overflow-y-auto min-h-[200px]">
+        <div id="badgeContainer" class="flex flex-col items-center"></div>
+    </div>
+
+    <button id="shareProfileButton" class="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-lg hover:bg-indigo-700 flex-shrink-0 flex items-center justify-center"><span class="mr-2">📤</span> Share Stats</button>
+</div>
+    </div>
+</div>
+
+    <div id="dailyResultModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white p-6 rounded-2xl w-full max-w-sm shadow-2xl text-center relative">
+            <div class="absolute -top-12 left-1/2 transform -translate-x-1/2 text-6xl">✨</div>
+            <h2 class="text-2xl font-black text-gray-800 mt-6 mb-2">Daily Vote Cast!</h2>
+            <p class="text-gray-500 mb-6">See you tomorrow!</p>
+			<div id="dailyPeopleCount" class="hidden"></div>
+            
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                 <div class="bg-gray-50 p-3 rounded-lg">
+                    <div class="text-xs text-gray-500">World Ranking</div>
+                    <div id="dailyWorldRank" class="font-bold text-gray-800 text-lg">#...</div>
+                 </div>
+                 <div class="bg-orange-50 p-3 rounded-lg border border-orange-100">
+                    <div class="text-xs text-orange-800">Your Streak</div>
+                    <div id="dailyStreakResult" class="font-black text-orange-600 text-xl">🔥 1</div>
+                 </div>
+            </div>
+            
+            <button id="closeDailyResult" class="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-lg hover:bg-indigo-700">Awesome!</button>
+        </div>
+    </div>
+
+    <div id="submissionModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white p-6 rounded-xl w-full max-w-md shadow-2xl">
+            <h2 class="text-2xl font-bold mb-4">Submit a New Word</h2>
+            <input type="text" id="newWordInput" placeholder="Enter your word here..." class="w-full p-3 border border-gray-300 rounded-lg mb-4 focus:ring-2 focus:ring-indigo-500">
+            <div id="modalMessage" class="text-sm text-red-500 mb-4"></div>
+            <div class="flex justify-end space-x-3">
+                <button id="cancelSubmitButton" class="px-4 py-2 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300">Cancel</button>
+                <button id="submitWordButton" class="px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700">Submit Word</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="fullRankingsModalContainer" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white p-6 rounded-xl w-full max-w-6xl max-h-[90vh] shadow-2xl flex flex-col">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-4 border-b pb-2">
+                <h2 class="text-2xl font-bold mb-2 md:mb-0">Word Rankings</h2>
+                <div class="flex gap-2 w-full md:w-auto">
+                    <input type="text" id="rankSearchInput" placeholder="Find rank for word..." class="border border-gray-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-indigo-500 flex-grow">
+                    <button id="rankSearchBtn" class="bg-indigo-600 text-white px-4 py-1.5 rounded-lg hover:bg-indigo-700 font-bold">Search</button>
+                    <button id="closeFullRankingsModal" class="text-gray-500 hover:text-gray-800 text-2xl font-bold leading-none ml-2">&times;</button>
+                </div>
+            </div>
+            <div class="flex-grow overflow-y-auto">
+                <div id="rankSearchContainer" class="hidden bg-blue-50 border-2 border-blue-200 p-4 rounded-xl mb-4 text-center">
+                    <div id="rankSearchResult"></div>
+                    <button id="clearRankSearch" class="mt-2 text-sm text-blue-600 underline">Back to Top 100</button>
+                </div>
+                <div id="rankingListsContainer" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-green-50/50 p-4 rounded-lg shadow-inner flex flex-col"><h3 class="text-xl font-semibold mb-4 text-green-700">Top 100 Good Words</h3><div id="fullGoodRankings" class="space-y-1"></div></div>
+                    <div class="bg-red-50/50 p-4 rounded-lg shadow-inner flex flex-col"><h3 class="text-xl font-semibold mb-4 text-red-700">Top 100 Bad Words</h3><div id="fullBadRankings" class="space-y-1"></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="definitionModalContainer" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white p-6 rounded-xl w-full max-w-lg shadow-2xl flex flex-col max-h-[80vh]">
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <h2 id="definitionWord" class="text-2xl font-bold">DEFINITION</h2>
+                <button id="closeDefinitionModal" class="text-gray-500 hover:text-gray-800 text-2xl font-bold leading-none">&times;</button>
+            </div>
+            <div id="definitionResults" class="space-y-4 overflow-y-auto"><p>Loading definition...</p></div>
+        </div>
+    </div>
+
+    <div id="compareModalContainer" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white p-6 rounded-xl w-full max-w-2xl shadow-2xl">
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <h2 class="text-2xl font-bold">Compare Any Two Words</h2>
+                <button id="closeCompareModal" class="text-gray-500 hover:text-gray-800 text-2xl font-bold leading-none">&times;</button>
+            </div>
+            <div class="space-y-4">
+                <div class="flex flex-col md:flex-row gap-3">
+                    <input type="text" id="wordOneInput" placeholder="First word..." class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                    <input type="text" id="wordTwoInput" placeholder="Second word..." class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                </div>
+                <div id="compareResults" class="p-3 bg-gray-50 rounded-lg min-h-[50px] flex flex-col items-center justify-center text-gray-500">Type two words above to see who wins!</div>
+            </div>
+            <div class="flex justify-end space-x-3 mt-4">
+                <button id="runComparisonButton" class="px-4 py-2 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 transition">Compare</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="settingsModalContainer" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white p-6 rounded-xl w-full max-w-md shadow-2xl">
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <h2 class="text-2xl font-bold">User Settings</h2>
+                <button id="closeSettingsModal" class="text-gray-500 hover:text-gray-800 text-2xl font-bold leading-none">&times;</button>
+            </div>
+            <div class="space-y-4">
+                <div class="flex items-center justify-between"><label for="togglePercentages" class="text-lg font-medium text-gray-700">Show Vote Percentages</label><input type="checkbox" id="togglePercentages" class="h-6 w-6 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"></div>
+                <div class="flex items-center justify-between"><label for="toggleTips" class="text-lg font-medium text-gray-700">Show Tips & Hints</label><input type="checkbox" id="toggleTips" class="h-6 w-6 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"></div>
+                <div class="flex items-center justify-between">
+    <label for="toggleTilt" class="text-lg font-medium text-gray-700">Gravity Tilt (Default theme)</label>
+    <input type="checkbox" id="toggleTilt" class="h-6 w-6 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+</div>
+                <div class="flex items-center justify-between">
+    <label for="toggleMirror" class="text-lg font-medium text-gray-700">Mirror Mode</label>
+    <input type="checkbox" id="toggleMirror" class="h-6 w-6 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+</div>
+                <hr class="my-4">
+                <h3 class="font-bold text-gray-500 uppercase text-xs tracking-wider mb-2">Accessibility</h3>
+                <div class="flex items-center justify-between"><label for="toggleColorblind" class="text-lg font-medium text-gray-700">Colorblind Mode</label><input type="checkbox" id="toggleColorblind" class="h-6 w-6 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"></div>
+                <div class="flex items-center justify-between"><label for="toggleLargeText" class="text-lg font-medium text-gray-700">Increase Text Size</label><input type="checkbox" id="toggleLargeText" class="h-6 w-6 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"></div>
+            </div>
+            <div class="mt-6 border-t pt-4">
+                <p class="text-sm text-gray-500">Clear all local data? Irreversible. I don't back up.</p>
+                <button id="clearAllDataButton" class="mt-3 px-4 py-2 w-full bg-red-500 text-white font-medium rounded-lg shadow-md hover:bg-red-600 transition">Clear All Local Data</button>
+            </div>
+        </div>
+    </div>
+    
+<div class="version-indicator fixed bottom-1 left-0 w-full text-center text-[10px] text-slate-400 opacity-80 pointer-events-none z-50 font-mono mix-blend-multiply">Loading...</div>
+
+    <script src="christmas-lights.js"></script>
+	<script src="tips.js"></script>
+	<script src="dialogue.js"></script>
+	<script src="script.js"></script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GOOD WORD / BAD WORD - Daily Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+	<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <script type="text/javascript">
+    (function(){
+        emailjs.init("n1x2e-mJZhYWD7_nl");
+    })();
+    </script>
+	<meta property="og:title" content="Good Word / Bad Word">
+	<meta property="og:description" content="Vote on words. Build streaks. Find secrets. Is 'Moist' a good word? You decide.">
+	<meta property="og:image" content="https://good-word.onrender.com/logo.png"> <meta property="og:url" content="https://good-word.onrender.com">
+	<meta name="theme-color" content="#4f46e5">
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-4 pb-16 theme-default">
+    
+    <div id="snow-effect" class="hidden"></div>
+    <div id="bubble-effect" class="hidden"></div>
+    <div id="fire-effect" class="hidden"></div>
+    <div id="summer-effect" class="hidden"></div>
+    <div id="plymouth-effect" class="hidden"></div>
+    <div id="ballpit-effect" class="hidden"></div>
+    <div id="space-effect" class="hidden"></div>
+    
+<header class="w-full max-w-3xl z-20 relative mb-8">
+    <div id="logoArea" class="h-32 w-full flex items-center justify-center mb-4 relative">
+        <img src="logo.png" alt="Good Word / Bad Word Logo" class="h-full w-auto max-w-full transform translate-x-4">
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+        
+        <div id="userStatsBar" class="md:col-span-2 bg-white/90 backdrop-blur-sm shadow-md rounded-xl p-3 cursor-pointer hover:bg-white hover:scale-[1.02] transition-all border border-indigo-100 flex flex-row items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-full overflow-hidden bg-indigo-50 border border-indigo-100 flex-shrink-0 flex items-center justify-center relative">
+                    <span id="headerProfileEmoji" class="text-2xl absolute">👤</span>
+                    <img id="headerProfileImage" class="w-full h-full object-cover hidden relative z-10" src="" alt="Profile">
+                </div>
+                <div class="flex flex-col">
+                    <span id="headerProfileLabel" class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">My Profile</span>
+                    <span class="text-sm font-black text-gray-800 leading-tight">View Badges</span>
+                </div>
+            </div>
+            <div class="flex flex-col items-end justify-center space-y-1 pl-3 border-l border-gray-100">
+                <div class="flex items-center text-xs font-bold text-indigo-600">
+                    <span class="mr-1">🔥</span><span id="headerStreak">0</span>
+                </div>
+                <div class="flex items-center text-xs font-bold text-indigo-600">
+                    <span class="mr-1">🗳️</span><span id="headerUserVotes">0</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="headerStatsCard" class="md:col-span-3 bg-white/90 backdrop-blur-sm shadow-md rounded-xl p-3 border border-gray-100 flex flex-col justify-center cursor-pointer hover:bg-white hover:scale-[1.02] transition-all relative" title="Click to view Top 100 Rankings">
+            
+            <div class="flex justify-between items-center mb-2 px-2">
+                <div class="text-center">
+                    <div class="text-[9px] text-gray-400 font-bold uppercase tracking-wide">Dictionary</div>
+                    <div id="headerTotalWords" class="text-xl font-black text-gray-600 leading-none">0</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-[9px] text-gray-400 font-bold uppercase tracking-wide">Total Votes</div>
+                    <div id="headerGlobalVotes" class="text-2xl font-black text-indigo-700 leading-none">0</div>
+                </div>
+            </div>
+
+            <div class="w-full bg-gray-200 rounded-full h-2 mb-1 flex overflow-hidden shadow-inner">
+                <div id="headerBarGood" class="bg-green-500 h-full transition-all duration-1000 ease-out" style="width: 50%"></div>
+                <div id="headerBarBad" class="bg-red-500 h-full transition-all duration-1000 ease-out" style="width: 50%"></div>
+            </div>
+
+		<div class="flex justify-between px-3 mt-1 items-end">
+                <div class="flex flex-col items-start">
+                    <div class="text-[10px] font-bold text-green-600/70 uppercase tracking-wider mb-[-2px]">Good</div>
+                    <div class="flex items-center text-green-600">
+                        <span class="text-xl mr-2">👍</span> 
+                        <span id="headerGood" class="text-2xl font-black tracking-tight leading-none">0</span>
+                    </div>
+                </div>
+                
+                <div class="flex flex-col items-end">
+                    <div class="text-[10px] font-bold text-red-600/70 uppercase tracking-wider mb-[-2px]">Bad</div>
+                    <div class="flex items-center text-red-600">
+                        <span id="headerBad" class="text-2xl font-black tracking-tight leading-none">0</span> 
+                        <span class="text-xl ml-2">👎</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+    <main id="gameCard" class="card p-8 w-full max-w-sm flex flex-col items-center rounded-2xl relative z-10">
+        <div id="dailyBanner" class="daily-banner">
+            📅 Daily Challenge: <span id="dailyStatusText">Vote Now!</span>
+        </div>
+
+        <div id="wordFrame" class="w-full text-center rounded-xl mb-6 relative group">
+            <div id="wordDisplay" class="font-extrabold text-gray-900 text-center min-h-[72px]">Loading...</div>
+            
+            <button id="shareWordButton" class="absolute top-1 right-0 p-2 opacity-80 hover:opacity-100 transition-opacity text-gray-400 hover:text-indigo-600 z-20" title="Share this word">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+            </button>
+        </div>
+        
+        <div id="card-snow-drift"></div>
+
+        <div id="postVoteMessage" class="mb-4 w-full text-center text-sm font-medium text-gray-600 min-h-[1.5rem] transition-opacity duration-500 opacity-0 relative z-10"></div>
+
+        <div class="flex space-x-4 w-full mb-3 relative z-20">
+            <button id="goodButton" class="good-button flex-1 py-4 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-green-500/50" disabled>Good Word</button>
+            <button id="badButton" class="bad-button flex-1 py-4 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-red-500/50" disabled>Bad Word</button>
+        </div>
+        
         <button id="notWordButton" class="not-word-button w-full py-3 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-slate-500/50 relative z-20" disabled>Not a word!</button>
         
         <button id="customWordButton" class="w-full py-3 mt-3 rounded-xl font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 shadow-sm transition duration-150 ease-in-out border border-indigo-100 relative z-20">Submit Custom Word ✍️</button>
