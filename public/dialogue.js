@@ -1,26 +1,25 @@
 const GAME_DIALOGUE = {
     // What the insects say when saved
     insects: {
-        '🐞': "Lucky escape!",
-        '🐝': "Buzz off!",
-        '🦟': "Phew!",
-        '🚁': "GET TO THE CHOPPA!"
+        "🐞": "Lucky escape!",
+        "🐝": "Buzz off!",
+        "🦟": "Phew!",
+        "🚁": "GET TO THE CHOPPA!"
     },
 
     // All spider speech
     spider: {
         // Random idle phrases when dropping down
         idle: [
-            '# Hunting spiders...', 
-            'just hanging', 
-            'looking for snacks', 
-            'nice web right?', 
-            'quiet night...', 
-            '...', 
-            'boo!',
-            'anyone home?',
-            'You can't find me, me spyder.'
-            
+            "# Hunting spiders...", 
+            "just hanging", 
+            "looking for snacks", 
+            "nice web right?", 
+            "quiet night...", 
+            "...", 
+            "boo!",
+            "anyone home?",
+            "You can't find me, me spyder."
         ],
 
         // When clicked (50% chance Happy)
@@ -84,14 +83,25 @@ const GAME_DIALOGUE = {
 
         // Reactions to specific food
         eating: {
-            '🐞': "Crunchy shell!",
-            '🐝': "Spicy snack!",
-            '🦟': "Finally, quiet.",
-            '🚁': "Tastes like metal!",
+            "🐞": "Crunchy shell!",
+            "🐝": "Spicy snack!",
+            "🦟": "Finally, quiet.",
+            "🚁": "Tastes like metal!",
             default: "Yummy!"
         },
 
-        // When the fly is saved before the spider gets there
-        missed: "Too slow! 😠"
+        // When the fly is saved before the spider gets there (Now an Array)
+        missed: [
+            "Too slow! 😠",
+            "My lunch!",
+            "So hungry...",
+            "Rude.",
+            "I was going to eat that.",
+            "Fast food...",
+            "Denied!",
+            "Come back!",
+            "My web is empty.",
+            "Aw, crumbs."
+        ]
     }
 };
