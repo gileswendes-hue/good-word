@@ -67,7 +67,12 @@ const loadDOM = () => ({
             good: document.getElementById('goodButton'),
             bad: document.getElementById('badButton'),
             notWord: document.getElementById('notWordButton'),
-            custom: document.getElementById('customWordButton')
+            custom: document.getElementById('customWordButton'),
+            shareQrGood: document.getElementById('shareQrGood'),
+            shareQrBad: document.getElementById('shareQrBad'),
+            viewAllGood: document.getElementById('viewAllGoodBtn'),
+            viewAllBad: document.getElementById('viewAllBadBtn')
+            
         },
         message: document.getElementById('postVoteMessage')
     },
@@ -1072,7 +1077,170 @@ const Physics = {
     }
 };
 
-// --- API LAYER ---
+// --- NEW MANAGERS START ---
+const VoteShareManager = {
+    async shareCurrent(voteType) {
+        const wordObj = State.runtime.allWords[State.runtime.currentWordIndex]; 
+        if (!wordObj) return;
+        const word = wordObj.text.toUpperCase();
+        
+        // 1. Copy Text
+        const url = `https://good-word.onrender.com/?word=${encodeURIComponent(word)}`;
+        const msg = (voteType === 'good' ? "I voted GOOD on" : "I voted BAD on") + ` ${word}! ${url}`;
+        try { await navigator.clipboard.writeText(msg); } catch(e) {}
+
+        // 2. Generate QR
+        const color = voteType === 'good' ? '10b981' : 'ef4444';
+        const qrUrl = `https://quickchart.io/qr?text=${encodeURIComponent(url)}&dark=${color}&size=400&margin=4`;
+        
+        try {
+            const resp = await fetch(qrUrl);
+            const blob = await resp.blob();
+            const file = new File([blob], `vote_${word}.png`, { type: "image/png" });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({ title: `Vote ${word}`, text: msg, files: [file] });
+            } else { window.open(qrUrl, '_blank'); }
+        } catch(e) { window.open(qrUrl, '_blank'); }
+    }
+};
+
+const StatsManager = {
+    open: function() {
+        const modal = document.getElementById('globalStatsModalContainer');
+        if(modal) { modal.classList.remove('hidden'); modal.classList.add('flex'); this.render(); }
+    },
+    close: function() {
+        const modal = document.getElementById('globalStatsModalContainer');
+        if(modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
+    },
+    render: function() {
+        if (typeof Chart === 'undefined') return;
+        const ctxPie = document.getElementById('votePieChart');
+        if (ctxPie && !this.pieChart) {
+            const good = (State.data.global && State.data.global.good) || 0;
+            const bad = (State.data.global && State.data.global.bad) || 0;
+            this.pieChart = new Chart(ctxPie.getContext('2d'), {
+                type: 'doughnut',
+                data: { labels: ['Good', 'Bad'], datasets: [{ data: [good, bad], backgroundColor: ['#22c55e', '#ef4444'], borderWidth: 0 }] }
+            });
+        }
+        // Add other charts here similarly
+    }
+};
+// --- NEW MANAGERS END ---
+const VoteShareManager = {
+    async shareCurrent(voteType) {
+        const wordObj = State.runtime.allWords[State.runtime.currentWordIndex]; 
+        if (!wordObj) return;
+        const word = wordObj.text.toUpperCase();
+        
+        const url = `https://good-word.onrender.com/?word=${encodeURIComponent(word)}`;
+        const msg = (voteType === 'good' ? "I voted GOOD on" : "I voted BAD on") + ` ${word}! ${url}`;
+        try { await navigator.clipboard.writeText(msg); } catch(e) {}
+
+        const color = voteType === 'good' ? '10b981' : 'ef4444';
+        const qrUrl = `https://quickchart.io/qr?text=${encodeURIComponent(url)}&dark=${color}&size=400&margin=4`;
+        
+        try {
+            const resp = await fetch(qrUrl);
+            const blob = await resp.blob();
+            const file = new File([blob], `vote_${word}.png`, { type: "image/png" });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({ title: `Vote ${word}`, text: msg, files: [file] });
+            } else { window.open(qrUrl, '_blank'); }
+        } catch(e) { window.open(qrUrl, '_blank'); }
+    }
+};
+
+const StatsManager = {
+    open: function() {
+        const modal = document.getElementById('globalStatsModalContainer');
+        if(modal) { modal.classList.remove('hidden'); modal.classList.add('flex'); this.render(); }
+    },
+    close: function() {
+        const modal = document.getElementById('globalStatsModalContainer');
+        if(modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
+    },
+    render: function() {
+        if (typeof Chart === 'undefined') return;
+        const ctxPie = document.getElementById('votePieChart');
+        if (ctxPie && !this.pieChart) {
+            const good = (State.data.global && State.data.global.good) || 0;
+            const bad = (State.data.global && State.data.global.bad) || 0;
+            this.pieChart = new Chart(ctxPie.getContext('2d'), {
+                type: 'doughnut',
+                data: { labels: ['Good', 'Bad'], datasets: [{ data: [good, bad], backgroundColor: ['#22c55e', '#ef4444'], borderWidth: 0 }] }
+            });
+        }
+    }
+};
+
+const VoteShareManager = {
+    messages: {
+        good: ["I think '{word}' is a GOOD word.", "Team '{word}'! Scan to vote GOOD."],
+        bad: ["I think '{word}' is a BAD word.", "Tragedy of the day: '{word}'."]
+    },
+    async shareCurrent(voteType) {
+        const wordObj = State.runtime.allWords[State.runtime.currentWordIndex]; 
+        if (!wordObj) return;
+        const word = wordObj.text.toUpperCase();
+        
+        // 1. Copy Text
+        const url = `https://good-word.onrender.com/?word=${encodeURIComponent(word)}`;
+        const msg = (voteType === 'good' ? "I voted GOOD on" : "I voted BAD on") + ` ${word}! ${url}`;
+        try { await navigator.clipboard.writeText(msg); } catch(e) {}
+
+        // 2. Generate QR
+        const color = voteType === 'good' ? '10b981' : 'ef4444';
+        const qrUrl = `https://quickchart.io/qr?text=${encodeURIComponent(url)}&dark=${color}&size=400&margin=4`;
+        
+        try {
+            const resp = await fetch(qrUrl);
+            const blob = await resp.blob();
+            const file = new File([blob], `vote_${word}.png`, { type: "image/png" });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({ title: `Vote ${word}`, text: msg, files: [file] });
+            } else { window.open(qrUrl, '_blank'); }
+        } catch(e) { window.open(qrUrl, '_blank'); }
+    }
+};
+
+const StatsManager = {
+    open: function() {
+        const modal = document.getElementById('globalStatsModalContainer');
+        if(modal) {
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            this.render();
+        }
+    },
+    close: function() {
+        const modal = document.getElementById('globalStatsModalContainer');
+        if(modal) {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+    },
+    render: function() {
+        if (typeof Chart === 'undefined') return;
+        const ctx = document.getElementById('votePieChart');
+        if (ctx) {
+            const good = (State.data.global && State.data.global.good) || 0;
+            const bad = (State.data.global && State.data.global.bad) || 0;
+            // Destroy old chart if exists (optional safety)
+            // Create new chart
+            new Chart(ctx.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Good', 'Bad'],
+                    datasets: [{ data: [good, bad], backgroundColor: ['#22c55e', '#ef4444'], borderWidth: 0 }]
+                },
+                options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+            });
+        }
+    }
+};
+
 const API = {
     // Modified to accept a 'forceNetwork' flag
     async fetchWords(forceNetwork = false) {
@@ -3509,6 +3677,20 @@ const ModalManager = {
         };
         DOM.header.userStatsBar.onclick = () => UIManager.openProfile();
         document.getElementById('closeProfileModal').onclick = () => this.toggle('profile', false);
+
+        // --- NEW LISTENERS ---
+        if(DOM.game.buttons.shareQrGood) DOM.game.buttons.shareQrGood.onclick = (e) => { e.stopPropagation(); VoteShareManager.shareCurrent('good'); };
+        if(DOM.game.buttons.shareQrBad) DOM.game.buttons.shareQrBad.onclick = (e) => { e.stopPropagation(); VoteShareManager.shareCurrent('bad'); };
+        
+        if(DOM.header.statsCard) {
+            DOM.header.statsCard.style.cursor = 'pointer';
+            DOM.header.statsCard.onclick = () => StatsManager.open();
+        }
+        const closeStats = document.getElementById('closeGlobalStatsModal');
+        if(closeStats) closeStats.onclick = () => StatsManager.close();
+
+        if(DOM.game.buttons.viewAllGood) DOM.game.buttons.viewAllGood.onclick = () => UIManager.showFullRankings('good');
+        if(DOM.game.buttons.viewAllBad) DOM.game.buttons.viewAllBad.onclick = () => UIManager.showFullRankings('bad');
         
         document.getElementById('saveUsernameBtn').onclick = async () => {
             const n = DOM.inputs.username.value.trim(),
@@ -3874,7 +4056,32 @@ const Game = {
                     textShadow: 'none',
                     opacity: '1',
                     mixBlendMode: 'normal'
+
+ // --- PASTE LISTENERS HERE ---
+    if(DOM.game.buttons.shareQrGood) DOM.game.buttons.shareQrGood.onclick = (e) => { e.stopPropagation(); VoteShareManager.shareCurrent('good'); };
+    if(DOM.game.buttons.shareQrBad) DOM.game.buttons.shareQrBad.onclick = (e) => { e.stopPropagation(); VoteShareManager.shareCurrent('bad'); };
+    
+    if(DOM.header.statsCard) {
+        DOM.header.statsCard.style.cursor = 'pointer';
+        DOM.header.statsCard.onclick = () => StatsManager.open();
+    }
+    const closeStats = document.getElementById('closeGlobalStatsModal');
+    if(closeStats) closeStats.onclick = () => StatsManager.close();
+
+    if(DOM.game.buttons.viewAllGood) DOM.game.buttons.viewAllGood.onclick = () => UIManager.showFullRankings('good');
+    if(DOM.game.buttons.viewAllBad) DOM.game.buttons.viewAllBad.onclick = () => UIManager.showFullRankings('bad');
+    // ---------------------------
+
+}, // <--- END OF INIT FUNCTION
+
                 });
+
+                // ... inside Game.init ...
+
+   
+
+vote: async function(type) {
+// ...
             }
 
             Accessibility.apply();
@@ -4638,7 +4845,5 @@ window.StreakManager = {
 
     window.onload = Game.init.bind(Game);
 
-    console.log("%c Good Word / Bad Word ", "background: #4f46e5; color: #bada55; padding: 4px; border-radius: 4px;");
-    console.log("Play fair! ️😇");
-
+    console.log("%c Good Word / Bad Word ", "background: #4f46e5; color: #bada55; padding: 4px; border-radius: 4px; font-weight: bold;");
 })();
