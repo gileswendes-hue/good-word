@@ -1993,91 +1993,110 @@ halloween(active) {
             const body = wrap.querySelector('#spider-body');
             const thread = wrap.querySelector('#spider-thread');
 
-const showSpiderBubble = (text, forcedOrientation = null) => {
-                const old = body.querySelector('.spider-dynamic-bubble');
+// --- SMART BUBBLE HELPER (FIXED ORIENTATION & POINTER) ---
+            const showSpiderBubble = (text) => {
+                const old = document.getElementById('spider-bubble-dynamic');
                 if (old) old.remove();
 
+                const spiderRect = body.getBoundingClientRect();
+                const currentTransform = body.style.transform || '';
+                
+                // Determine Spider Orientation
+                // 0 = Upright, 180 = Upside Down, 90 = Climbing Right Wall, -90 = Climbing Left Wall
+                let rotation = 0;
+                if (currentTransform.includes('180deg')) rotation = 180;
+                else if (currentTransform.includes('90deg') && !currentTransform.includes('-90deg')) rotation = 90;
+                else if (currentTransform.includes('-90deg')) rotation = -90;
+
                 const b = document.createElement('div');
-                b.className = 'spider-dynamic-bubble';
+                b.id = 'spider-bubble-dynamic';
                 Object.assign(b.style, {
-                    position: 'absolute', 
-                    background: 'white', color: '#1f2937', padding: '6px 12px', 
-                    borderRadius: '12px', fontSize: '14px', fontWeight: 'bold', 
+                    position: 'fixed', // Fixed to screen, ignores spider rotation
+                    background: 'white', color: '#1f2937', padding: '8px 14px', 
+                    borderRadius: '16px', fontSize: '14px', fontWeight: 'bold', 
                     fontFamily: 'sans-serif', whiteSpace: 'nowrap', width: 'max-content',
                     pointerEvents: 'none', opacity: '0', transition: 'opacity 0.2s', 
-                    boxShadow: '0 2px 5px rgba(0,0,0,0.2)', border: '1px solid #e5e7eb',
-                    marginBottom: '8px', zIndex: '200' 
+                    boxShadow: '0 4px 10px rgba(0,0,0,0.3)', border: '2px solid #1f2937',
+                    zIndex: '200'
                 });
                 
                 b.textContent = text;
 
-                // Little Arrow
+                // Create Arrow
                 const arrow = document.createElement('div');
                 Object.assign(arrow.style, {
                     position: 'absolute', width: '0', height: '0',
-                    borderLeft: '6px solid transparent',
-                    borderRight: '6px solid transparent',
-                    left: '50%', marginLeft: '-6px' 
+                    borderStyle: 'solid', pointerEvents: 'none'
                 });
                 b.appendChild(arrow);
-                body.appendChild(b);
+                document.body.appendChild(b); // Append to BODY, not spider container
 
-                // --- ORIENTATION LOGIC ---
-                // Detect if spider is upside down
-                const currentTransform = body.style.transform || '';
-                const isUpsideDown = forcedOrientation === 'upside-down' || currentTransform.includes('180deg');
+                // --- POSITIONING LOGIC ---
+                // We render the bubble first to get its dimensions
+                const bubRect = b.getBoundingClientRect();
+                const gap = 15; // Distance from spider head
+                
+                let top, left;
 
-                // Standard Positioning: 
-                // We attach to the "Local Top" of the spider body.
-                // If Upright: Local Top is Visual Top -> Bubble goes Above.
-                // If Inverted: Local Top is Visual Bottom -> Bubble goes Below.
-                b.style.bottom = '115%'; 
-                b.style.top = 'auto';
-
-                if (isUpsideDown) {
-                    // 1. Cancel the parent's 180deg rotation so text is upright
-                    b.style.transform = 'translateX(-50%) rotate(180deg)';
+                if (rotation === 0) {
+                    // Upright: Bubble ABOVE, Arrow DOWN
+                    top = spiderRect.top - bubRect.height - gap;
+                    left = spiderRect.left + (spiderRect.width / 2) - (bubRect.width / 2);
                     
-                    // 2. Arrow Logic:
-                    // Bubble is visually BELOW spider. Arrow should be on Bubble's TOP edge pointing UP.
-                    // Since Bubble is upright, its CSS "top" is Visual Top.
-                    arrow.style.top = '-6px'; 
-                    arrow.style.bottom = 'auto';
-                    arrow.style.borderBottom = '6px solid white'; // Point Up
-                    arrow.style.borderTop = 'none';
-                } else {
-                    // 1. Standard Centering
-                    b.style.transform = 'translateX(-50%)';
+                    Object.assign(arrow.style, {
+                        bottom: '-8px', left: '50%', transform: 'translateX(-50%)',
+                        borderWidth: '8px 8px 0 8px',
+                        borderColor: '#1f2937 transparent transparent transparent'
+                    });
+                } 
+                else if (rotation === 180) {
+                    // Upside Down: Bubble BELOW, Arrow UP
+                    top = spiderRect.bottom + gap;
+                    left = spiderRect.left + (spiderRect.width / 2) - (bubRect.width / 2);
                     
-                    // 2. Arrow Logic:
-                    // Bubble is visually ABOVE spider. Arrow should be on Bubble's BOTTOM edge pointing DOWN.
-                    arrow.style.top = '100%'; 
-                    arrow.style.bottom = 'auto';
-                    arrow.style.borderTop = '6px solid white'; // Point Down
-                    arrow.style.borderBottom = 'none';
+                    Object.assign(arrow.style, {
+                        top: '-8px', left: '50%', transform: 'translateX(-50%)',
+                        borderWidth: '0 8px 8px 8px',
+                        borderColor: 'transparent transparent #1f2937 transparent'
+                    });
+                }
+                else if (rotation === 90) {
+                    // Climbing Right Wall (Head Left): Bubble LEFT, Arrow RIGHT
+                    top = spiderRect.top + (spiderRect.height / 2) - (bubRect.height / 2);
+                    left = spiderRect.left - bubRect.width - gap;
+                    
+                    Object.assign(arrow.style, {
+                        right: '-8px', top: '50%', transform: 'translateY(-50%)',
+                        borderWidth: '8px 0 8px 8px',
+                        borderColor: 'transparent transparent transparent #1f2937'
+                    });
+                }
+                else if (rotation === -90) {
+                    // Climbing Left Wall (Head Right): Bubble RIGHT, Arrow LEFT
+                    top = spiderRect.top + (spiderRect.height / 2) - (bubRect.height / 2);
+                    left = spiderRect.right + gap;
+                    
+                    Object.assign(arrow.style, {
+                        left: '-8px', top: '50%', transform: 'translateY(-50%)',
+                        borderWidth: '8px 8px 8px 0',
+                        borderColor: 'transparent #1f2937 transparent transparent'
+                    });
                 }
 
-                // --- EDGE DETECTION ---
-                const rect = body.getBoundingClientRect();
-                // We must preserve the rotation if it exists, but change the translation
-                const rot = isUpsideDown ? 'rotate(180deg)' : '';
+                // Screen Edge Detection (Keep bubble on screen)
+                if (left < 10) left = 10;
+                if (left + bubRect.width > window.innerWidth - 10) left = window.innerWidth - bubRect.width - 10;
+                if (top < 10) top = 10;
+                if (top + bubRect.height > window.innerHeight - 10) top = window.innerHeight - bubRect.height - 10;
 
-                if (rect.left < 60) {
-                    b.style.transform = rot; // Remove translateX
-                    b.style.left = '-10px';
-                    arrow.style.left = '20px';
-                } else if (rect.right > window.innerWidth - 60) {
-                    b.style.transform = rot;
-                    b.style.left = 'auto';
-                    b.style.right = '-10px';
-                    arrow.style.left = 'auto';
-                    arrow.style.right = '20px';
-                }
+                b.style.top = `${top}px`;
+                b.style.left = `${left}px`;
                 
                 requestAnimationFrame(() => b.style.opacity = '1');
                 setTimeout(() => {
-                    if (b.parentNode && !wrap.classList.contains('hunting')) {
-                        b.style.opacity = '0'; setTimeout(() => b.remove(), 300);
+                    if (b.parentNode) {
+                        b.style.opacity = '0'; 
+                        setTimeout(() => b.remove(), 300);
                     }
                 }, 2000);
                 return b; 
