@@ -2946,6 +2946,17 @@ const UIManager = {
 
         DOM.profile.statsTitle.innerHTML = `${d.username ? d.username + "'s" : "Your"} Stats<br><span class="text-xs text-indigo-500 font-bold uppercase tracking-widest mt-1 block">${karmaTitle}</span>`;
 
+		setTimeout(() => {
+            const giftBtn = document.getElementById('profileGiftBtn');
+            if (giftBtn) {
+                giftBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    ModalManager.toggle('profile', false); // Close profile
+                    PromoManager.open(); // Open gift form
+                };
+            }
+        }, 0);
+
         const totalAvailable = Object.keys(CONFIG.THEME_SECRETS).length + 1;
         const userCount = d.unlockedThemes.length + 1;
         DOM.profile.themes.textContent = `${userCount} / ${totalAvailable}`;
@@ -4126,14 +4137,11 @@ const PromoManager = {
     templateID: 'template_qody7q7', 
 
     init() {
-        if (State.data.keyringClaimed) return;
-        if (document.getElementById('promoButton')) return;
-
-        // 1. Inject Animation Style
+        // 1. Inject Animation Style (Always needed)
         if (!document.getElementById('promo-anim-style')) {
             const s = document.createElement('style');
             s.id = 'promo-anim-style';
-		s.innerHTML = `
+            s.innerHTML = `
                 @keyframes promo-spin { 
                     0% { transform: rotateY(0deg) scale(1); } 
                     50% { transform: rotateY(180deg) scale(1.2); }
@@ -4144,81 +4152,82 @@ const PromoManager = {
             document.head.appendChild(s);
         }
 
-        // 2. Create the Floating Button
-        const btn = document.createElement('div');
-        btn.id = 'promoButton';
-        btn.innerHTML = `
-            <div class="absolute inset-0 bg-pink-500 rounded-full animate-ping opacity-75"></div>
-            <div id="promoBtnInner" class="relative bg-gradient-to-r from-pink-600 to-purple-600 text-white font-black text-sm px-4 py-3 rounded-full shadow-2xl border-2 border-white cursor-pointer flex items-center gap-2 transform transition hover:scale-110">
-                <span class="text-xl">🎁</span> 
-                <span>FREE STUFF!</span>
-            </div>
-        `;
-        Object.assign(btn.style, {
-            position: 'fixed', bottom: '20px', right: '20px', zIndex: '9999',
-            cursor: 'pointer', display: 'flex'
-        });
-        
-        // 3. Click Handler with Spin
-        btn.onclick = () => {
-            const inner = document.getElementById('promoBtnInner');
-            if(inner) {
-                inner.classList.add('promo-spinning');
-                // Wait for animation (500ms) then open
-                setTimeout(() => {
-                    inner.classList.remove('promo-spinning');
-                    this.open();
-                }, 500);
-            } else {
-                this.open();
-            }
-        };
-        
-        document.body.appendChild(btn);
-
-        // 4. Create the Modal
-        const modal = document.createElement('div');
-        modal.id = 'promoModal';
-        modal.className = 'fixed inset-0 bg-black/90 z-[10000] hidden flex items-center justify-center p-4 backdrop-blur-sm';
-        modal.innerHTML = `
-            <div class="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl transform transition-all">
-                <div class="bg-gradient-to-r from-pink-600 to-purple-600 p-4 text-center">
-                    <h2 class="text-2xl font-black text-white uppercase tracking-wider">Claim Free Metal Keyring and Shiny Stickers! 🗝️</h2>
-                    <p class="text-pink-100 text-xs mt-1">Real actual free stuff. Enjoy!</p>
+        // 2. Create the Floating Button (ONLY if not claimed/dismissed yet)
+        if (!State.data.keyringClaimed && !document.getElementById('promoButton')) {
+            const btn = document.createElement('div');
+            btn.id = 'promoButton';
+            btn.innerHTML = `
+                <div class="absolute inset-0 bg-pink-500 rounded-full animate-ping opacity-75"></div>
+                <div id="promoBtnInner" class="relative bg-gradient-to-r from-pink-600 to-purple-600 text-white font-black text-sm px-4 py-3 rounded-full shadow-2xl border-2 border-white cursor-pointer flex items-center gap-2 transform transition hover:scale-110">
+                    <span class="text-xl">🎁</span> 
+                    <span>FREE STUFF!</span>
                 </div>
-                
-                <div class="p-6 space-y-4">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Full Name</label>
-                        <input type="text" id="promoName" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none font-bold" placeholder="Your Name">
+            `;
+            Object.assign(btn.style, {
+                position: 'fixed', bottom: '20px', right: '20px', zIndex: '9999',
+                cursor: 'pointer', display: 'flex'
+            });
+            
+            btn.onclick = () => {
+                const inner = document.getElementById('promoBtnInner');
+                if(inner) {
+                    inner.classList.add('promo-spinning');
+                    setTimeout(() => {
+                        inner.classList.remove('promo-spinning');
+                        this.open();
+                    }, 500);
+                } else {
+                    this.open();
+                }
+            };
+            document.body.appendChild(btn);
+        }
+
+        // 3. Create the Modal (ALWAYS create it, so it can be opened from Profile)
+        if (!document.getElementById('promoModal')) {
+            const modal = document.createElement('div');
+            modal.id = 'promoModal';
+            modal.className = 'fixed inset-0 bg-black/90 z-[10000] hidden flex items-center justify-center p-4 backdrop-blur-sm';
+            modal.innerHTML = `
+                <div class="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl transform transition-all">
+                    <div class="bg-gradient-to-r from-pink-600 to-purple-600 p-4 text-center">
+                        <h2 class="text-2xl font-black text-white uppercase tracking-wider">Claim Free Metal Keyring and Shiny Stickers! 🗝️</h2>
+                        <p class="text-pink-100 text-xs mt-1">Real actual free stuff. Enjoy!</p>
                     </div>
                     
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Shipping Address</label>
-                        <textarea id="promoAddress" rows="3" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none resize-none" placeholder="Street, City, Postcode, Country"></textarea>
-                    </div>
+                    <div class="p-6 space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Full Name</label>
+                            <input type="text" id="promoName" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none font-bold" placeholder="Your Name">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Shipping Address</label>
+                            <textarea id="promoAddress" rows="3" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none resize-none" placeholder="Street, City, Postcode, Country"></textarea>
+                        </div>
 
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Email (for updates)</label>
-                        <input type="email" id="promoEmail" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none" placeholder="you@example.com">
-                    </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Email (for updates)</label>
+                            <input type="email" id="promoEmail" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none" placeholder="you@example.com">
+                        </div>
 
-                    <div class="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
-                        <input type="checkbox" id="promoOptIn" checked class="mt-1 h-4 w-4 text-pink-600 rounded border-gray-300 focus:ring-pink-500">
-                        <label for="promoOptIn" class="text-xs text-gray-600 leading-snug">
-                            <strong>Keep me posted!</strong><br>
-                            I want to hear about new features and weird stuff.
-                        </label>
-                    </div>
+                        <div class="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                            <input type="checkbox" id="promoOptIn" checked class="mt-1 h-4 w-4 text-pink-600 rounded border-gray-300 focus:ring-pink-500">
+                            <label for="promoOptIn" class="text-xs text-gray-600 leading-snug">
+                                <strong>Keep me posted!</strong><br>
+                                I want to hear about new features and weird stuff.
+                            </label>
+                        </div>
 
-                    <div class="pt-2 flex gap-3">
-                        <button onclick="PromoManager.dismiss()" class="flex-1 py-3 text-gray-500 ...">No Thanks</button>
-                        <button onclick="PromoManager.submit()" class="flex-1 py-3 bg-pink-600 text-white font-bold rounded-lg hover:bg-pink-700 shadow-lg transition transform active:scale-95">SEND IT! 🚀</button>
+                        <div class="pt-2 flex gap-3">
+                            <button onclick="PromoManager.dismiss()" class="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-lg transition">No Thanks</button>
+                            <button onclick="PromoManager.submit()" class="flex-1 py-3 bg-pink-600 text-white font-bold rounded-lg hover:bg-pink-700 shadow-lg transition transform active:scale-95">SEND IT! 🚀</button>
+                        </div>
                     </div>
                 </div>
-            </div>
-        `;
-        document.body.appendChild(modal);
+            `;
+            document.body.appendChild(modal);
+        }
     },
 
     open() {
