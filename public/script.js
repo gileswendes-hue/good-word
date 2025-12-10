@@ -4102,14 +4102,10 @@ const InputHandler = {
     }
 };
 
-// --- MAIN GAME LOGIC ---
-const Game = {
-	
-	renderGraphs() {
+renderGraphs() {
         const w = State.runtime.allWords;
         if (!w || w.length === 0) return;
 
-        // --- HELPER: Draw Text Centered ---
         const drawText = (ctx, text, x, y, color = "#666", size = 12) => {
             ctx.fillStyle = color;
             ctx.font = `${size}px sans-serif`;
@@ -4117,9 +4113,21 @@ const Game = {
             ctx.fillText(text, x, y);
         };
 
-        // ==========================================
-        // 1. SCATTER PLOT (Opinion Landscape)
-        // ==========================================
+        const fmtDate = (dStr) => {
+            if(!dStr) return '';
+            const M = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            const p = dStr.split('-');
+            if(p.length === 3) {
+                return `${parseInt(p[2])} ${M[parseInt(p[1])-1]}`;
+            }
+            return dStr;
+        };
+
+        const fmtK = (n) => {
+            if (n >= 1000) return (n / 1000) + 'k';
+            return n;
+        };
+
         const cvsScatter = document.getElementById('scatterChartCanvas');
         if (cvsScatter) {
             const ctx = cvsScatter.getContext('2d');
@@ -4138,41 +4146,30 @@ const Game = {
             maxGood = Math.max(5, maxGood * 1.1);
             maxBad = Math.max(5, maxBad * 1.1);
 
-            // Grid & Axes
-            ctx.beginPath();
-            ctx.strokeStyle = "#e5e7eb";
-            ctx.lineWidth = 1;
-            // Draw Grid Lines
+            // Grid
+            ctx.beginPath(); ctx.strokeStyle = "#e5e7eb"; ctx.lineWidth = 1;
             for(let i=1; i<=4; i++) {
                 const y = H - P - (i/5)*(H - 2*P);
                 const x = P + (i/5)*(W - 2*P);
-                ctx.moveTo(P, y); ctx.lineTo(W-P, y); // Horiz
-                ctx.moveTo(x, P); ctx.lineTo(x, H-P); // Vert
+                ctx.moveTo(P, y); ctx.lineTo(W-P, y); ctx.moveTo(x, P); ctx.lineTo(x, H-P);
             }
             ctx.stroke();
 
-            // Main Axes
-            ctx.beginPath();
-            ctx.strokeStyle = "#9ca3af";
-            ctx.lineWidth = 2;
-            ctx.moveTo(P, P); ctx.lineTo(P, H - P); // Y
-            ctx.lineTo(W - P, H - P); // X
-            ctx.stroke();
+            // Axes
+            ctx.beginPath(); ctx.strokeStyle = "#9ca3af"; ctx.lineWidth = 2;
+            ctx.moveTo(P, P); ctx.lineTo(P, H - P); ctx.lineTo(W - P, H - P); ctx.stroke();
 
             // Labels
             drawText(ctx, "Bad Votes →", W / 2, H - 10, "#4b5563", 12);
-            ctx.save();
-            ctx.translate(15, H / 2);
-            ctx.rotate(-Math.PI / 2);
-            drawText(ctx, "Good Votes →", 0, 0, "#4b5563", 12);
-            ctx.restore();
+            ctx.save(); ctx.translate(15, H / 2); ctx.rotate(-Math.PI / 2);
+            drawText(ctx, "Good Votes →", 0, 0, "#4b5563", 12); ctx.restore();
 
-            // Quadrant Labels
+            // Quadrant Text
             drawText(ctx, "😇 LOVED", P + 40, P + 20, "rgba(34, 197, 94, 0.3)", 10);
             drawText(ctx, "👿 HATED", W - P - 40, H - P - 20, "rgba(239, 68, 68, 0.3)", 10);
             drawText(ctx, "⚔️ CONTROVERSIAL", W - P - 60, P + 20, "rgba(107, 114, 128, 0.3)", 10);
 
-            // Plot Points
+            // Points
             w.forEach(word => {
                 const g = word.goodVotes || 0;
                 const b = word.badVotes || 0;
@@ -4184,27 +4181,23 @@ const Game = {
                 ctx.beginPath();
                 ctx.arc(x, y, 3, 0, Math.PI * 2);
                 
-                if (g > b * 1.5) ctx.fillStyle = "rgba(34, 197, 94, 0.6)"; // Green
-                else if (b > g * 1.5) ctx.fillStyle = "rgba(239, 68, 68, 0.6)"; // Red
-                else ctx.fillStyle = "rgba(107, 114, 128, 0.6)"; // Grey
+                if (g > b * 1.5) ctx.fillStyle = "rgba(34, 197, 94, 0.6)"; 
+                else if (b > g * 1.5) ctx.fillStyle = "rgba(239, 68, 68, 0.6)"; 
+                else ctx.fillStyle = "rgba(107, 114, 128, 0.6)"; 
                 
                 ctx.fill();
             });
         }
 
-        // ==========================================
-        // 2. LINE GRAPH (History - Updated)
-        // ==========================================
         const cvsLine = document.getElementById('lineChartCanvas');
         if (cvsLine) {
             const ctx = cvsLine.getContext('2d');
             const W = cvsLine.width;
             const H = cvsLine.height;
-            const P = 40; // Padding
+            const P = 40; 
 
             ctx.clearRect(0, 0, W, H);
 
-            // Get Data (or fallback if empty)
             let history = State.data.wordHistory || [];
             if (history.length === 0) {
                 const today = new Date().toISOString().split('T')[0];
@@ -4213,74 +4206,75 @@ const Game = {
 
             // Scales
             const currentMax = Math.max(...history.map(h => h.count), w.length);
-            // Round up to nearest nice number (e.g. 100, 1000, 5000)
-            const magnitude = Math.pow(10, Math.floor(Math.log10(currentMax || 10)));
-            const maxCount = Math.ceil(currentMax / magnitude) * magnitude;
-            
-            // Draw Axes
-            ctx.beginPath();
-            ctx.strokeStyle = "#ccc";
-            ctx.lineWidth = 1;
-            ctx.moveTo(P, P); ctx.lineTo(P, H - P); ctx.lineTo(W - P, H - P);
-            ctx.stroke();
+            let maxCount = 10000;
+            if (currentMax > 10000) {
+                const magnitude = Math.pow(10, Math.floor(Math.log10(currentMax)));
+                maxCount = Math.ceil(currentMax / magnitude) * magnitude;
+            }
 
-            // Draw Labels (Word Count & Dates)
-            // Y-Axis
+            // --- DRAW GRID & Y-LABELS (0, 2.5k, 5k, 7.5k, 10k) ---
             ctx.textAlign = "right";
-            drawText(ctx, maxCount.toLocaleString(), P - 5, P + 5, "#666", 10); // Top
-            drawText(ctx, "0", P - 5, H - P, "#666", 10); // Bottom
+            const steps = 4; // Splits into 4 segments (5 ticks)
+            
+            for (let i = 0; i <= steps; i++) {
+                const val = (maxCount / steps) * i;
+                const y = (H - P) - (val / maxCount) * (H - 2 * P);
+                
+                // Grid Line
+                ctx.beginPath();
+                ctx.strokeStyle = i === 0 ? "#9ca3af" : "#e5e7eb"; // Darker for X-axis (0)
+                ctx.lineWidth = i === 0 ? 2 : 1;
+                ctx.moveTo(P, y);
+                ctx.lineTo(W - P, y);
+                ctx.stroke();
 
-            // X-Axis
+                // Y-Axis Label (Right aligned to padding)
+                drawText(ctx, fmtK(val), P - 5, y + 4, "#666", 10);
+            }
+
+            // Vertical Axis Line (Left)
+            ctx.beginPath(); ctx.strokeStyle = "#9ca3af"; ctx.lineWidth = 2;
+            ctx.moveTo(P, P); ctx.lineTo(P, H - P); ctx.stroke();
+
+            // X-Axis Labels (Dates)
             ctx.textAlign = "center";
             const startDate = history[0].date;
             const endDate = history[history.length - 1].date;
-            drawText(ctx, startDate, P + 20, H - 10, "#666", 10); // Start Date
+            
+            drawText(ctx, fmtDate(startDate), P + 20, H - 10, "#666", 10);
             if (history.length > 1) {
-                drawText(ctx, endDate, W - P - 20, H - 10, "#666", 10); // End Date
+                drawText(ctx, fmtDate(endDate), W - P - 20, H - 10, "#666", 10);
             }
 
             // Plot Line
             if (history.length > 1) {
-                ctx.beginPath();
-                ctx.strokeStyle = "#4f46e5";
-                ctx.lineWidth = 3;
-                
+                ctx.beginPath(); ctx.strokeStyle = "#4f46e5"; ctx.lineWidth = 3;
                 history.forEach((h, i) => {
                     const x = P + (i / (history.length - 1)) * (W - 2 * P);
                     const y = (H - P) - (h.count / maxCount) * (H - 2 * P);
-                    if (i === 0) ctx.moveTo(x, y);
-                    else ctx.lineTo(x, y);
+                    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
                 });
                 ctx.stroke();
             } else {
-                // Single point - Plot on vertical axis (Left)
+                // Single point
                 const y = (H - P) - (history[0].count / maxCount) * (H - 2 * P);
-                ctx.beginPath();
-                ctx.fillStyle = "#4f46e5";
-                ctx.arc(P, y, 5, 0, Math.PI*2); // Plot at x=P (start of axis)
+                ctx.beginPath(); ctx.fillStyle = "#4f46e5";
+                ctx.arc(P, y, 5, 0, Math.PI*2); 
                 ctx.fill();
             }
 
-            // Titles
+            // Axis Titles
             drawText(ctx, "Time →", W / 2, H - 5, "#999", 10);
-            ctx.save();
-            ctx.translate(12, H / 2);
-            ctx.rotate(-Math.PI / 2);
-            drawText(ctx, "Total Words →", 0, 0, "#999", 10);
-            ctx.restore();
+            ctx.save(); ctx.translate(12, H / 2); ctx.rotate(-Math.PI / 2);
+            drawText(ctx, "Words →", 0, 0, "#999", 10); ctx.restore();
         }
 
-        // ==========================================
-        // 3. PIE CHART (Classifications)
-        // ==========================================
         const cvsPie = document.getElementById('pieChartCanvas');
         if (cvsPie) {
             const ctx = cvsPie.getContext('2d');
-            const W = cvsPie.width;
-            const H = cvsPie.height;
+            const W = cvsPie.width, H = cvsPie.height;
             ctx.clearRect(0, 0, W, H);
 
-            // Classify Words
             let cGood = 0, cBad = 0, cControversial = 0, cUnrated = 0;
             
             w.forEach(word => {
@@ -4310,30 +4304,21 @@ const Game = {
                 ];
 
                 let startAngle = 0;
-                const centerX = 150;
-                const centerY = H / 2;
-                const radius = 70;
+                const centerX = 150, centerY = H / 2, radius = 70;
 
                 data.forEach(slice => {
                     if (slice.val === 0) return;
                     const sliceAngle = (slice.val / totalRated) * 2 * Math.PI;
-                    
-                    ctx.beginPath();
-                    ctx.moveTo(centerX, centerY);
+                    ctx.beginPath(); ctx.moveTo(centerX, centerY);
                     ctx.arc(centerX, centerY, radius, startAngle, startAngle + sliceAngle);
-                    ctx.fillStyle = slice.color;
-                    ctx.fill();
+                    ctx.fillStyle = slice.color; ctx.fill();
                     startAngle += sliceAngle;
                 });
 
-                // Legend
                 let legY = 60;
                 data.forEach(slice => {
-                    ctx.fillStyle = slice.color;
-                    ctx.fillRect(260, legY, 15, 15);
-                    ctx.fillStyle = "#374151";
-                    ctx.textAlign = "left";
-                    ctx.font = "bold 12px sans-serif";
+                    ctx.fillStyle = slice.color; ctx.fillRect(260, legY, 15, 15);
+                    ctx.fillStyle = "#374151"; ctx.textAlign = "left"; ctx.font = "bold 12px sans-serif";
                     const pct = Math.round((slice.val / totalRated) * 100);
                     ctx.fillText(`${slice.label}: ${slice.val} (${pct}%)`, 285, legY + 12);
                     legY += 30;
