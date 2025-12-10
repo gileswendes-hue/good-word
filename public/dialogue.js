@@ -56,7 +56,7 @@ const GAME_DIALOGUE = {
             "Incoming!",
             "NOM",
             "I’ve got butterflies in my stomach",
-            "I need a light snack, got any glowbugs?'
+            "I need a light snack, got any glowbugs?"
         ],
 
         // When dropped on an empty web (Tricked)
