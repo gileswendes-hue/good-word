@@ -4597,7 +4597,8 @@ async showLeaderboard() {
     } catch(e) {
         document.getElementById('hs-global-list').innerHTML = '<div class="text-red-900 text-xs crt-text">OFFLINE</div>';
     }
-};
+} // Closes showLeaderboard function
+}; // <--- ADD THIS CLOSING BRACE AND SEMICOLON
 
 window.StreakManager = {
         showLeaderboard: () => StreakManager.showLeaderboard()
@@ -4615,24 +4616,6 @@ window.StreakManager = {
     };
 
     window.onload = Game.init.bind(Game);
-
-if (qrGood) {
-    qrGood.onclick = (e) => {
-        // Prevent clicking if cooling down or voting disabled
-        if (DOM.game.buttons.good.disabled || State.runtime.isCoolingDown) return;
-        e.stopPropagation();
-        ShareManager.shareQR('good');
-    };
-}
-
-if (qrBad) {
-    qrBad.onclick = (e) => {
-        // Prevent clicking if cooling down or voting disabled
-        if (DOM.game.buttons.good.disabled || State.runtime.isCoolingDown) return;
-        e.stopPropagation();
-        ShareManager.shareQR('bad');
-    };
-}
 
     console.log("%c Good Word / Bad Word ", "background: #4f46e5; color: #bada55; padding: 4px; border-radius: 4px;");
     console.log("Play fair! ️😇");
