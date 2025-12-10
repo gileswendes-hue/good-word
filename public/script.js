@@ -198,11 +198,11 @@ const State = {
             teased: parseInt(localStorage.getItem('insectTeased') || 0),
             splatted: parseInt(localStorage.getItem('insectSplatted') || 0),
             collection: JSON.parse(localStorage.getItem('insectCollection') || '[]')
-        }, // <--- insectStats closes here
-
-        // --- MOVED TO ROOT (Fixes the undefined error) ---
+        }, 
+		keyringClaimed: localStorage.getItem('keyringClaimed') === 'true',
+		
         wordHistory: JSON.parse(localStorage.getItem('wordCountHistory') || '[]'),
-        // -------------------------------------------------
+
         
         fishStats: {
             caught: parseInt(localStorage.getItem('fishCaught') || 0),
@@ -302,6 +302,9 @@ const State = {
         else if (k === 'daily') {
             s.setItem('dailyStreak', v.streak);
             s.setItem('dailyLastDate', v.lastDate);
+        }
+		else if (k === 'keyringClaimed') {
+            s.setItem('keyringClaimed', v);
         }
         else if (k === 'profilePhoto') s.setItem('profilePhoto', v);
         else if (k === 'lastMosquitoSpawn') s.setItem(k, v);
@@ -4115,6 +4118,131 @@ const InputHandler = {
         c.addEventListener('touchend', e => { endDrag(e.changedTouches[0].clientX); }, false);
     }
 };
+
+// --- PROMO MANAGER (FREE KEYRING) ---
+const PromoManager = {
+    serviceID: 'service_b6d75wi', // Uses same email service as tips
+    templateID: 'template_qody7q7', 
+
+    init() {
+        // If already claimed, don't show anything
+        if (State.data.keyringClaimed) return;
+        if (document.getElementById('promoButton')) return;
+
+        // 1. Create the Floating Button
+        const btn = document.createElement('div');
+        btn.id = 'promoButton';
+        btn.innerHTML = `
+            <div class="absolute inset-0 bg-pink-500 rounded-full animate-ping opacity-75"></div>
+            <div class="relative bg-gradient-to-r from-pink-600 to-purple-600 text-white font-black text-sm px-4 py-3 rounded-full shadow-2xl border-2 border-white cursor-pointer flex items-center gap-2 transform transition hover:scale-110">
+                <span class="text-xl">🎁</span> 
+                <span>FREE KEYRING!</span>
+            </div>
+        `;
+        Object.assign(btn.style, {
+            position: 'fixed', bottom: '20px', right: '20px', zIndex: '9999',
+            cursor: 'pointer', display: 'flex'
+        });
+        btn.onclick = () => this.open();
+        document.body.appendChild(btn);
+
+        // 2. Create the Modal (Hidden by default)
+        const modal = document.createElement('div');
+        modal.id = 'promoModal';
+        modal.className = 'fixed inset-0 bg-black/90 z-[10000] hidden flex items-center justify-center p-4 backdrop-blur-sm';
+        modal.innerHTML = `
+            <div class="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl transform transition-all">
+                <div class="bg-gradient-to-r from-pink-600 to-purple-600 p-4 text-center">
+                    <h2 class="text-2xl font-black text-white uppercase tracking-wider">Claim Your Gift! 🗝️</h2>
+                    <p class="text-pink-100 text-xs mt-1">Limited time offer. One per person.</p>
+                </div>
+                
+                <div class="p-6 space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Full Name</label>
+                        <input type="text" id="promoName" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none font-bold" placeholder="Your Name">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Shipping Address</label>
+                        <textarea id="promoAddress" rows="3" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none resize-none" placeholder="Street, City, Postcode, Country"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Email (for updates)</label>
+                        <input type="email" id="promoEmail" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none" placeholder="you@example.com">
+                    </div>
+
+                    <div class="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                        <input type="checkbox" id="promoOptIn" checked class="mt-1 h-4 w-4 text-pink-600 rounded border-gray-300 focus:ring-pink-500">
+                        <label for="promoOptIn" class="text-xs text-gray-600 leading-snug">
+                            <strong>Keep me posted!</strong><br>
+                            I want to hear about new word drops and features.
+                        </label>
+                    </div>
+
+                    <div class="pt-2 flex gap-3">
+                        <button onclick="PromoManager.close()" class="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-lg transition">No Thanks</button>
+                        <button onclick="PromoManager.submit()" class="flex-1 py-3 bg-pink-600 text-white font-bold rounded-lg hover:bg-pink-700 shadow-lg transition transform active:scale-95">SEND IT! 🚀</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    },
+
+    open() {
+        document.getElementById('promoModal').classList.remove('hidden');
+    },
+
+    close() {
+        document.getElementById('promoModal').classList.add('hidden');
+    },
+
+    submit() {
+        const name = document.getElementById('promoName').value.trim();
+        const address = document.getElementById('promoAddress').value.trim();
+        const email = document.getElementById('promoEmail').value.trim();
+        const optIn = document.getElementById('promoOptIn').checked;
+
+        if (!name || !address) {
+            alert("Please enter your name and address so we can send it!");
+            return;
+        }
+
+        // Construct Message
+        const msg = `
+            NEW KEYRING AND STICKERS CLAIM! 🎁
+            ------------------
+            Name: ${name}
+            Address: ${address}
+            Email: ${email}
+            Marketing Opt-In: ${optIn ? "YES ✅" : "NO ❌"}
+            User ID: ${State.data.userId}
+        `;
+
+        UIManager.showPostVoteMessage("Sending details... 📨");
+        this.close();
+
+        // Send via EmailJS (using your existing config)
+        emailjs.send(this.serviceID, this.templateID, {
+            message: msg,
+            username: name
+        }).then(() => {
+            UIManager.showPostVoteMessage("Request Received! 🎉");
+            State.save('keyringClaimed', true);
+            const btn = document.getElementById('promoButton');
+            if(btn) btn.remove();
+            
+            // Celebration Confetti
+            if (typeof Game.vote === 'function') SoundManager.playUnlock();
+        }).catch((err) => {
+            console.error(err);
+            alert("Could not send data. Please try contacting developer directly.");
+        });
+    }
+};
+
 const Game = {
 renderGraphs() {
         const w = State.runtime.allWords;
@@ -4492,6 +4620,7 @@ if (qrBad) {
             ModalManager.init();
             UIManager.updateProfileDisplay();
             MosquitoManager.startMonitoring();
+			PromoManager.init();
             this.checkDailyStatus();
             
             // 7. Load Data
