@@ -353,19 +353,41 @@ const OfflineManager = {
         UIManager.updateOfflineIndicator();
     },
 
-    async fillCache() {
+	async fillCache() {
         try {
             let gathered = [];
-            let attempts = 0; 
-            while (gathered.length < this.CACHE_TARGET && attempts < 20) {
-                const newWords = await API.fetchWords(true); 
-                if (!newWords || newWords.length === 0) break;
-                
-                const existingIds = new Set(gathered.map(w => w._id));
-                const unique = newWords.filter(w => !existingIds.has(w._id));
-                gathered = [...gathered, ...unique];
-                attempts++;
+            
+            // --- FIX: Check Kids Mode First ---
+            if (State.data.settings.kidsMode) {
+                // If in Kids Mode, fetch the safe text file instead of the API
+                const r = await fetch(CONFIG.KIDS_LIST_FILE);
+                if (!r.ok) throw 0;
+                const t = await r.text();
+                // Convert text lines to compatible objects
+                gathered = t.split('\n')
+                    .map(l => l.trim().toUpperCase())
+                    .filter(l => l.length > 0)
+                    .map((w, i) => ({ 
+                        _id: `kid_${i}`, 
+                        text: w, 
+                        goodVotes: 0, 
+                        badVotes: 0 
+                    }));
+            } else {
+                // Normal Mode: Fetch from API
+                let attempts = 0; 
+                while (gathered.length < this.CACHE_TARGET && attempts < 20) {
+                    const newWords = await API.fetchWords(true); 
+                    if (!newWords || newWords.length === 0) break;
+                    
+                    const existingIds = new Set(gathered.map(w => w._id));
+                    const unique = newWords.filter(w => !existingIds.has(w._id));
+                    gathered = [...gathered, ...unique];
+                    attempts++;
+                }
             }
+            // ----------------------------------
+            
             State.save('offlineCache', gathered);
             return true;
         } catch (e) {
@@ -3605,40 +3627,32 @@ const ModalManager = {
             reader.readAsDataURL(file);
         };
 		
-		// --- REQ 6 & 7: RANKING LINKS & GRAPHS ---
-        
-        // 1. Open Good Rankings from Main Screen
         const btnGood = document.getElementById('btnOpenGoodRankings');
         if (btnGood) btnGood.onclick = () => {
             UIManager.renderFullRankings();
             this.toggle('fullRankings', true);
-            // Scroll to top of list
             setTimeout(() => {
-                const container = document.getElementById('fullGoodRankings');
-                if(container && container.parentNode) container.parentNode.scrollTop = 0;
-            }, 50);
+                const header = document.querySelector('#fullGoodRankings h3') || document.getElementById('fullGoodRankings');
+                if(header) header.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
         };
 
-        // 2. Open Bad Rankings from Main Screen
         const btnBad = document.getElementById('btnOpenBadRankings');
         if (btnBad) btnBad.onclick = () => {
              UIManager.renderFullRankings();
              this.toggle('fullRankings', true);
-             // Scroll to Bad section (using scrollIntoView or direct scrollTop)
              setTimeout(() => {
-                 const badList = document.getElementById('fullBadRankings');
-                 if(badList) badList.scrollIntoView({ behavior: 'smooth' });
+                 const header = document.querySelector('#fullBadRankings h3') || document.getElementById('fullBadRankings');
+                 if(header) header.scrollIntoView({ behavior: 'smooth', block: 'start' });
              }, 100);
         };
 
-        // 3. Open Graphs from Header Stats
         const headerStats = document.getElementById('headerStatsCard');
         if (headerStats) {
             headerStats.onclick = (e) => {
                 e.preventDefault(); 
-                Game.renderGraphs(); // We will add this function in Part B
+                Game.renderGraphs(); 
                 
-                // Manually toggle graph modal since it's not in the main DOM list
                 const gm = document.getElementById('graphModalContainer');
                 if (gm) {
                     gm.classList.remove('hidden');
@@ -3647,7 +3661,6 @@ const ModalManager = {
             };
         }
         
-        // Close Graph Modal
         const closeGraph = document.getElementById('closeGraphModal');
         if (closeGraph) {
             closeGraph.onclick = () => {
@@ -4228,6 +4241,9 @@ if (qrBad) {
         let d = [];
         const compareBtn = document.getElementById('compareWordsButton');
 
+		const qrGood = document.getElementById('qrGoodBtn');
+        const qrBad = document.getElementById('qrBadBtn');
+
         if (State.data.settings.kidsMode) {
             d = await API.fetchKidsWords();
             DOM.game.buttons.custom.style.display = 'none';   
@@ -4513,6 +4529,7 @@ if (qrBad) {
 
 const StreakManager = {
     timer: null,
+    loopTimer: null, // Track the CRT loop
     LIMIT: 15000, 
 
     handleSuccess() {
@@ -4597,7 +4614,6 @@ const StreakManager = {
     checkHighScore(score) {
         if (!State.data.highScores) State.data.highScores = [];
         const scores = State.data.highScores;
-        // --- CHANGED: Check against 8 instead of 10 ---
         const minScore = scores.length < 8 ? 0 : scores[scores.length - 1].score;
         
         if (score > minScore || scores.length < 8) {
@@ -4605,7 +4621,7 @@ const StreakManager = {
         }
     },
 
-promptName(score) {
+    promptName(score) {
         if(document.getElementById('nameEntryModal')) return;
         const html = `
             <div id="nameEntryModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:100000; display:flex; align-items:center; justify-content:center;">
@@ -4623,75 +4639,65 @@ promptName(score) {
 
         const saveFn = async () => {
             const name = (document.getElementById('hsNameInput').value || "AAA").toUpperCase();
-            
-            // 1. Local Save
             const scores = State.data.highScores || [];
             scores.push({ name, score, date: Date.now() });
-            scores.sort((a,b) => b.score - a.arrow);
-            
-            // --- FIX: Keep top 8 locally (was limited to 5) ---
+            scores.sort((a,b) => b.score - a.score); // Fix: b.score - a.score (was a.arrow in snippet)
             if(scores.length > 8) scores.pop();
-            
             State.save('highScores', scores);
-
-            // 2. Global Save
             API.submitHighScore(name, score);
-
             document.getElementById('nameEntryModal').remove();
             this.showLeaderboard();
         };
-
         document.getElementById('hsSaveBtn').onclick = saveFn;
     },
 
-// Inside StreakManager object
     async showLeaderboard() {
-        // 1. Inject Enhanced CRT Styles (Glass effect)
+        // --- IMPROVED BOLDER CRT STYLE ---
         if (!document.getElementById('crt-styles')) {
             const s = document.createElement('style');
             s.id = 'crt-styles';
             s.innerHTML = `
-                @keyframes crt-flicker { 0% {opacity: 0.97;} 5% {opacity: 0.95;} 10% {opacity: 0.9;} 15% {opacity: 0.95;} 100% {opacity: 0.98;} }
-                @keyframes text-glow { 0% {text-shadow: 0 0 4px #3b82f6;} 50% {text-shadow: 0 0 15px #3b82f6, 0 0 5px white;} 100% {text-shadow: 0 0 4px #3b82f6;} }
-                @keyframes scanline { 0% {transform: translateY(-100%);} 100% {transform: translateY(100%);} }
+                @keyframes crt-flicker { 0% {opacity:0.95;} 2% {opacity:0.99;} 4% {opacity:0.95;} 100% {opacity:0.95;} }
+                @keyframes crt-glow { 0% {text-shadow: 0 0 5px #f0f, 0 0 10px #f0f;} 50% {text-shadow: 0 0 15px #0ff, 0 0 20px #0ff;} 100% {text-shadow: 0 0 5px #f0f, 0 0 10px #f0f;} }
+                @keyframes scanline-scroll { 0% {background-position: 0 0;} 100% {background-position: 0 100%;} }
                 .crt-monitor {
                     background-color: #050505;
-                    box-shadow: inset 0 0 60px rgba(0,0,0,0.9), 0 0 20px rgba(0,0,0,0.5), 0 0 0 4px #1a1a1a;
-                    border-radius: 50% 50% 50% 50% / 5% 5% 5% 5%; /* Curved glass effect */
+                    box-shadow: 0 0 0 3px #222, 0 0 40px rgba(0,0,0,0.8);
+                    border-radius: 20px;
                     position: relative; overflow: hidden;
-                    animation: crt-flicker 0.15s infinite;
-                    border: 8px solid #333;
+                    animation: crt-flicker 0.1s infinite;
+                    border: 4px solid #333;
                 }
-                .crt-scanline {
-                    position: absolute; top: 0; left: 0; width: 100%; height: 20%;
-                    background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0.05), rgba(255,255,255,0));
-                    animation: scanline 4s linear infinite; pointer-events: none; z-index: 50;
+                .crt-overlay {
+                    position: absolute; inset: 0; pointer-events: none; z-index: 50;
+                    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+                    background-size: 100% 3px, 4px 100%;
+                    animation: scanline-scroll 10s linear infinite;
                 }
-                .crt-content { padding: 2rem; transform: scale(0.95); } /* Pull content away from curved edges */
-                .crt-text { font-family: 'Courier New', monospace; text-transform: uppercase; letter-spacing: 0.1em; }
-                .crt-title { animation: text-glow 2s infinite ease-in-out; color: #60a5fa; }
+                .crt-content { padding: 2rem; position: relative; z-index: 10; }
+                .crt-text { font-family: 'Courier New', monospace; text-transform: uppercase; letter-spacing: 0.15em; font-weight: 900; }
+                .crt-title { animation: crt-glow 2s infinite alternate; color: #fff; font-size: 2rem; }
+                .crt-row { border-bottom: 2px dashed rgba(255,255,255,0.2); }
             `;
             document.head.appendChild(s);
         }
 
-        // 2. Build Modal
         const html = `
-            <div id="highScoreModal" class="fixed inset-0 bg-black/95 z-[200] flex items-center justify-center p-4 backdrop-blur-sm" onclick="this.remove()">
+            <div id="highScoreModal" class="fixed inset-0 bg-black/90 z-[200] flex items-center justify-center p-4 backdrop-blur-md" onclick="StreakManager.closeLeaderboard()">
                 <div class="crt-monitor w-full max-w-md transform transition-all scale-100" onclick="event.stopPropagation()">
-                    <div class="crt-scanline"></div>
+                    <div class="crt-overlay"></div>
                     <div class="crt-content">
                         <div class="text-center mb-6">
-                            <h2 class="text-3xl font-black crt-text crt-title mb-2">HIGH SCORES</h2>
-                            <div class="h-0.5 w-full bg-blue-900 shadow-[0_0_10px_#3b82f6]"></div>
+                            <h2 class="crt-text crt-title mb-2">HIGH SCORES</h2>
+                            <div class="h-1 w-full bg-gradient-to-r from-pink-500 to-cyan-500 shadow-[0_0_10px_white]"></div>
                         </div>
-
-                        <div id="hs-display-area" class="min-h-[300px]">
-                            <div class="text-center mt-20 text-green-400 crt-text animate-pulse">CONNECTING...</div>
+                        <div id="hs-display-area" class="min-h-[340px]">
+                            <div class="text-center mt-20 text-cyan-400 crt-text animate-pulse">CONNECTING...</div>
                         </div>
-
-                        <div class="mt-4 flex justify-between crt-text text-xs text-gray-500">
-                             <span id="hs-page-indicator">PAGE 1/2</span>
-                             <span>V${CONFIG.APP_VERSION}</span>
+                        
+                        <div class="mt-4 flex justify-between items-center crt-text text-xs text-gray-400 font-bold">
+                             <span id="hs-page-indicator">LOADING</span>
+                             <button onclick="StreakManager.closeLeaderboard()" class="px-2 py-1 border border-gray-600 rounded hover:bg-red-900/30 hover:text-red-400 hover:border-red-500 transition-colors cursor-pointer">⏏ EJECT DISK</button>
                         </div>
                     </div>
                 </div>
@@ -4701,59 +4707,69 @@ promptName(score) {
         div.innerHTML = html;
         document.body.appendChild(div.firstElementChild);
 
+        // Fetch Data First
+        const globalScores = await API.getGlobalScores();
+        const topGlobal = (globalScores && globalScores.length) ? globalScores.slice(0, 8) : [];
+        const localScores = (State.data.highScores || []).slice(0, 8);
+        const username = State.data.username || "PLAYER";
+
+        // Render Functions
         const renderRow = (s, i, color) => `
-            <div class="flex justify-between items-center crt-text text-sm py-2 border-b border-gray-800/50">
+            <div class="flex justify-between items-center crt-text text-sm py-2 crt-row">
                 <div class="flex gap-3">
-                    <span class="text-gray-600">#${(i+1).toString().padStart(2,'0')}</span>
-                    <span class="${color} font-bold">${s.name.substring(0,3).toUpperCase()}</span>
+                    <span class="text-gray-500">#${(i+1).toString().padStart(2,'0')}</span>
+                    <span class="${color} font-black drop-shadow-[0_0_3px_rgba(255,255,255,0.5)]">${s.name.substring(0,3).toUpperCase()}</span>
                 </div>
-                <span class="text-white tracking-widest">${s.score.toString().padStart(6,'0')}</span>
+                <span class="text-white tracking-widest text-lg">${s.score.toString().padStart(6,'0')}</span>
             </div>`;
 
         const area = document.getElementById('hs-display-area');
         const indicator = document.getElementById('hs-page-indicator');
+        
+        // Loop Logic
+        let showingGlobal = true; // Start with global
 
-        // Logic: Load Global -> Wait -> Load Local
-        try {
-            // PAGE 1: GLOBAL
-            const globalScores = await API.getGlobalScores();
-            const topGlobal = (globalScores && globalScores.length) ? globalScores.slice(0, 8) : [];
-            
-            let globalHTML = `<div class="text-green-400 text-xs crt-text mb-4 border-b border-green-900 pb-1">GLOBAL RANKINGS</div>`;
-            if (topGlobal.length === 0) globalHTML += '<div class="text-gray-600 text-xs crt-text">NO DATA FOUND</div>';
-            else globalHTML += topGlobal.map((s,i) => renderRow(s, i, 'text-green-400')).join('');
-            
-            area.innerHTML = globalHTML;
+        const renderPage = () => {
+            if(!document.getElementById('highScoreModal')) return;
 
-            // PAGE 2: LOCAL (Switch after 4 seconds)
+            area.style.opacity = '0';
             setTimeout(() => {
-                if(!document.getElementById('highScoreModal')) return; // Check if closed
+                if (showingGlobal) {
+                    indicator.textContent = "PAGE 1/2 [GLOBAL]";
+                    indicator.style.color = '#34d399'; // Greenish
+                    let h = `<div class="text-cyan-400 text-sm crt-text mb-4 border-b-2 border-cyan-700 pb-1 font-black">GLOBAL HIGH SCORES</div>`;
+                    if (topGlobal.length === 0) h += '<div class="text-gray-500 text-xs crt-text mt-8 text-center">NO DATA FOUND</div>';
+                    else h += topGlobal.map((s,i) => renderRow(s, i, 'text-cyan-400')).join('');
+                    area.innerHTML = h;
+                } else {
+                    indicator.textContent = "PAGE 2/2 [LOCAL]";
+                    indicator.style.color = '#fbbf24'; // Amber
+                    let h = `<div class="text-yellow-400 text-sm crt-text mb-4 border-b-2 border-yellow-700 pb-1 font-black">${username.toUpperCase()}'S HIGH SCORES</div>`;
+                    if (localScores.length === 0) h += '<div class="text-gray-500 text-xs crt-text mt-8 text-center">PLAY TO SET SCORES</div>';
+                    else h += localScores.map((s,i) => renderRow(s, i, 'text-yellow-400')).join('');
+                    area.innerHTML = h;
+                }
+                area.style.transition = 'opacity 0.2s';
+                area.style.opacity = '1';
                 
-                indicator.textContent = "PAGE 2/2";
+                // Flip for next loop
+                showingGlobal = !showingGlobal;
                 
-                // Fade effect
-                area.style.opacity = '0';
-                
-                setTimeout(() => {
-                    const localScores = (State.data.highScores || []).slice(0, 8);
-                    const username = State.data.username || "PLAYER";
-                    
-                    let localHTML = `<div class="text-yellow-400 text-xs crt-text mb-4 border-b border-yellow-900 pb-1">${username.toUpperCase()}'S RECORDS</div>`;
-                    if (localScores.length === 0) localHTML += '<div class="text-gray-600 text-xs crt-text">PLAY TO SET SCORES</div>';
-                    else localHTML += localScores.map((s,i) => renderRow(s, i, 'text-yellow-300')).join('');
-                    
-                    area.innerHTML = localHTML;
-                    area.style.transition = 'opacity 0.2s';
-                    area.style.opacity = '1';
-                }, 200);
+                // Recursion
+                this.loopTimer = setTimeout(renderPage, 4000);
+            }, 200);
+        };
 
-            }, 4000);
-
-       } catch (e) {
-            area.innerHTML = '<div class="text-red-900 text-xs crt-text text-center mt-10">CONNECTION ERROR</div>';
-        }
-    } // Close showLeaderboard function
-}; // <--- ADD THIS to close StreakManager object
+        // Start Loop
+        renderPage();
+    },
+    
+    closeLeaderboard() {
+        const el = document.getElementById('highScoreModal');
+        if(el) el.remove();
+        if (this.loopTimer) clearTimeout(this.loopTimer);
+    }
+};
 
     window.onload = Game.init.bind(Game);
 
