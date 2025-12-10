@@ -13,9 +13,12 @@ const GAME_TIPS = [
     "# I've got a floor, so what?",
     "Tip: Feed bugs to the spider!",
     "Tip: Wear sunscreen.",
+    "Tip: Check out the word stats!",
     "The best way to spread Christmas cheer is singing loud for all to hear!",
     "Tip: Tell Mason he is cute.",
+    "Tip: Add your favourite word to the dictionary!",
     "How thick is wall?",
+    "# Let's get on the roof! Let's get on the roof!",
     "What a terrible word! Let your friends know it must be banished!",
     "Tip: Try saying hello to the spider?",
     "Tip: Ask them out for a coffee.",
@@ -47,6 +50,6 @@ const GAME_TIPS = [
     "# I was alone, I was all by myself.",
     "Tip: Why not turn on the Christmas lights?",
     "Tip: The spider lies.",
-    "Tip: Try using the word share button!",
+    "Tip: Try using the QR code share buttons!",
     "What's your longest word streak?"
 ];
