@@ -2316,7 +2316,7 @@ halloween(active) {
         }
     },
     
-    spiderHunt(targetXPercent, targetYPercent, isFood) {
+spiderHunt(targetXPercent, targetYPercent, isFood) {
         const wrap = document.getElementById('spider-wrap');
         if (!wrap) return;
         const thread = wrap.querySelector('#spider-thread');
@@ -2355,7 +2355,9 @@ halloween(active) {
             thread.style.transition = 'height 3s cubic-bezier(0.45, 0, 0.55, 1)'; 
             thread.style.height = dropVH + 'vh';
             
-	setTimeout(() => {
+            // --- ADDED MISSING OPENING TIMEOUT HERE ---
+            setTimeout(() => { 
+                setTimeout(() => {
                     if (isFood && MosquitoManager.state === 'stuck') {
                         // 1. SUCCESSFUL HUNT
                         MosquitoManager.eat();
@@ -2390,9 +2392,9 @@ halloween(active) {
                             this.retreatSpider(thread, wrap, bub, '4s');
                         }, 1500);
                     }
-                }, 2000);
-            }, 3000); 
-        }, moveTime);
+                }, 2000); // Reaction delay
+            }, 3000); // Drop duration
+        }, moveTime); // Horizontal move duration
     },
 
     spiderFall(wrap, thread, body, bub) {
