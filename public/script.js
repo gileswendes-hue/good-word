@@ -4133,11 +4133,11 @@ const PromoManager = {
         if (!document.getElementById('promo-anim-style')) {
             const s = document.createElement('style');
             s.id = 'promo-anim-style';
-            s.innerHTML = `
+		s.innerHTML = `
                 @keyframes promo-spin { 
-                    0% { transform: rotate(0deg) scale(1); } 
-                    50% { transform: rotate(180deg) scale(1.2); }
-                    100% { transform: rotate(360deg) scale(1); } 
+                    0% { transform: rotateY(0deg) scale(1); } 
+                    50% { transform: rotateY(180deg) scale(1.2); }
+                    100% { transform: rotateY(360deg) scale(1); } 
                 }
                 .promo-spinning { animation: promo-spin 0.5s ease-in-out forwards; }
             `;
@@ -4212,7 +4212,7 @@ const PromoManager = {
                     </div>
 
                     <div class="pt-2 flex gap-3">
-                        <button onclick="PromoManager.close()" class="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-lg transition">No Thanks</button>
+                        <button onclick="PromoManager.dismiss()" class="flex-1 py-3 text-gray-500 ...">No Thanks</button>
                         <button onclick="PromoManager.submit()" class="flex-1 py-3 bg-pink-600 text-white font-bold rounded-lg hover:bg-pink-700 shadow-lg transition transform active:scale-95">SEND IT! 🚀</button>
                     </div>
                 </div>
@@ -4228,7 +4228,13 @@ const PromoManager = {
     close() {
         document.getElementById('promoModal').classList.add('hidden');
     },
-
+	dismiss() {
+        this.close();
+        State.save('keyringClaimed', true); // Remembers that they said no
+        const btn = document.getElementById('promoButton');
+        if(btn) btn.remove(); // Removes the flashing button immediately
+        UIManager.showPostVoteMessage("Offer declined.");
+    },
     submit() {
         const name = document.getElementById('promoName').value.trim();
         const address = document.getElementById('promoAddress').value.trim();
@@ -4236,7 +4242,7 @@ const PromoManager = {
         const optIn = document.getElementById('promoOptIn').checked;
 
         if (!name || !address) {
-            alert("Please enter your name and address so we can send it!");
+            alert("Please enter your name and address so I can send it!");
             return;
         }
 
@@ -4584,7 +4590,7 @@ renderGraphs() {
             if (DOM.game.dailyBanner) DOM.game.dailyBanner.onclick = () => this.activateDailyMode();
 
             const qrGood = document.getElementById('qrGoodBtn');
-const qrBad = document.getElementById('qrBadBtn');
+			const qrBad = document.getElementById('qrBadBtn');
 
 if (qrGood) {
     qrGood.onclick = (e) => {
@@ -5273,9 +5279,9 @@ const StreakManager = {
             area.style.opacity = '0';
             setTimeout(() => {
                 if (showingGlobal) {
-                    indicator.textContent = "PAGE 1/2 [GLOBAL]";
+                    indicator.textContent = "PAGE 1/2 [WORLD]";
                     indicator.style.color = '#34d399'; 
-                    let h = `<div class="text-cyan-400 text-sm crt-text mb-4 border-b-2 border-cyan-700 pb-1 font-black">GLOBAL RANKINGS</div>`;
+                    let h = `<div class="text-cyan-400 text-sm crt-text mb-4 border-b-2 border-cyan-700 pb-1 font-black">WORLD RANKINGS</div>`;
                     if (topGlobal.length === 0) h += '<div class="text-gray-500 text-xs crt-text mt-8 text-center">NO DATA FOUND</div>';
                     else h += topGlobal.map((s,i) => renderRow(s, i, 'text-cyan-400')).join('');
                     area.innerHTML = h;
