@@ -2462,11 +2462,10 @@ halloween(active) {
 
 const ShareManager = {
 
-async shareQR(type) {
+    async shareQR(type) {
         const word = State.runtime.allWords[State.runtime.currentWordIndex].text;
         UIManager.showPostVoteMessage("Generating QR Code... 📷");
-        
-        // --- CHANGE START ---
+
         const messages = [
             `Scan to vote on "${word}"!`,
             `I need your help with "${word}"`,
@@ -2475,7 +2474,6 @@ async shareQR(type) {
             `Quick vote needed on "${word}"`
         ];
         const randomMsg = messages[Math.floor(Math.random() * messages.length)];
-        // --- CHANGE END ---
 
         const targetUrl = `${window.location.origin}/?word=${encodeURIComponent(word)}`;
         const color = type === 'good' ? '16a34a' : 'dc2626';
@@ -2485,33 +2483,48 @@ async shareQR(type) {
             const response = await fetch(apiUrl);
             const blob = await response.blob();
             const file = new File([blob], `${word}_${type}_qr.png`, { type: 'image/png' });
-            
+
             const shareData = {
                 title: `Vote ${type} on ${word}!`,
-                text: randomMsg, // Used here
+                text: randomMsg,
                 files: [file]
             };
 
-    // 2. Existing Image Generation
-async generateImage() {
+            if (navigator.canShare && navigator.canShare(shareData)) {
+                await navigator.share(shareData);
+            } else {
+                // Fallback for desktop/unsupported browsers
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `${word}_${type}_qr.png`;
+                a.click();
+                UIManager.showPostVoteMessage("QR Code downloaded!");
+            }
+        } catch (e) {
+            console.error(e);
+            UIManager.showPostVoteMessage("Could not generate QR.");
+        }
+    },
+
+    async generateImage() {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
-        const width = 1080; 
+        const width = 1080;
         const height = 1350;
         canvas.width = width;
         canvas.height = height;
 
         // 1. Background (Gradient)
         const grad = ctx.createLinearGradient(0, 0, 0, height);
-        grad.addColorStop(0, '#4f46e5'); 
-        grad.addColorStop(1, '#9333ea'); 
+        grad.addColorStop(0, '#4f46e5');
+        grad.addColorStop(1, '#9333ea');
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, width, height);
 
         // 2. White Card Container
         const margin = 60;
         const cardY = 150;
-        const cardH = height - 280; 
+        const cardH = height - 280;
         ctx.fillStyle = '#ffffff';
         if (ctx.roundRect) {
             ctx.beginPath();
@@ -2523,12 +2536,12 @@ async generateImage() {
 
         // 3. Header Text
         const name = State.data.username || "Player";
-        ctx.fillStyle = '#1f2937'; 
+        ctx.fillStyle = '#1f2937';
         ctx.font = 'bold 60px Inter, sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText(`${name.toUpperCase()}'S STATS`, width / 2, cardY + 100);
 
-        ctx.fillStyle = '#6b7280'; 
+        ctx.fillStyle = '#6b7280';
         ctx.font = '30px Inter, sans-serif';
         ctx.fillText("GOOD WORD / BAD WORD", width / 2, cardY + 150);
 
@@ -2577,7 +2590,7 @@ async generateImage() {
 
         // 5. Collection Progress (Bottom Half - Teaser Style)
         const progressY = gridY + (2 * (boxH + gap)) + 60;
-        
+
         // Separator Line
         ctx.strokeStyle = '#e5e7eb';
         ctx.lineWidth = 2;
@@ -2611,7 +2624,7 @@ async generateImage() {
 
         collections.forEach((col, i) => {
             const x = (width / 4) * (i + 1);
-            
+
             // Draw Ring Background
             ctx.beginPath();
             ctx.arc(x, circleY, 70, 0, 2 * Math.PI);
@@ -2641,14 +2654,14 @@ async generateImage() {
         // 6. Footer
         ctx.fillStyle = '#ffffff';
         ctx.textAlign = 'center';
-        
+
         // Teaser Text
         ctx.font = 'italic 30px serif';
         ctx.fillStyle = 'rgba(255,255,255,0.9)';
         ctx.fillText("Can you find them all?", width / 2, height - 120);
 
         // URL
-        ctx.font = 'bold 40px Inter, sans-serif'; 
+        ctx.font = 'bold 40px Inter, sans-serif';
         ctx.fillStyle = '#ffffff';
         ctx.fillText("GBword.com", width / 2, height - 60);
 
@@ -2660,7 +2673,7 @@ async generateImage() {
         try {
             const blob = await this.generateImage();
             const file = new File([blob], 'gbword-stats.png', { type: 'image/png' });
-            
+
             const shareData = {
                 title: 'My Progress',
                 text: `I've found ${Object.values(State.data.badges).filter(Boolean).length} secrets in Good Word / Bad Word! Can you beat my streak? 🗳️`,
