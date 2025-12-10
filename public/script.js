@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.69', 
+    APP_VERSION: '5.69.1', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4235,13 +4235,14 @@ if (qrBad) {
         DOM.game.buttons.custom.style.display = 'block';
         this.nextWord()
     },
-
-    async refreshData(u = true) {
+	
+async refreshData(u = true) {
         if (u) UIManager.showMessage(State.data.settings.kidsMode ? "Loading Kids Mode..." : "Loading...");
         let d = [];
         const compareBtn = document.getElementById('compareWordsButton');
 
-		const qrGood = document.getElementById('qrGoodBtn');
+        // 1. Get QR Buttons
+        const qrGood = document.getElementById('qrGoodBtn');
         const qrBad = document.getElementById('qrBadBtn');
 
         if (State.data.settings.kidsMode) {
@@ -4250,11 +4251,20 @@ if (qrBad) {
             DOM.game.buttons.notWord.style.display = 'none';  
             DOM.game.dailyBanner.style.display = 'none';      
             if (compareBtn) compareBtn.classList.add('hidden');
+
+            // 2. Hide QR Buttons in Kids Mode
+            if (qrGood) qrGood.style.display = 'none';
+            if (qrBad) qrBad.style.display = 'none';
         } else {
             d = await API.fetchWords();
             DOM.game.buttons.custom.style.display = 'block';
             DOM.game.buttons.notWord.style.display = 'block';
             if (compareBtn) compareBtn.classList.remove('hidden');
+
+            // 3. Show QR Buttons in Normal Mode
+            if (qrGood) qrGood.style.display = 'block';
+            if (qrBad) qrBad.style.display = 'block';
+            
             if(!State.runtime.isDailyMode) this.checkDailyStatus();
         }
 
@@ -4688,7 +4698,7 @@ const StreakManager = {
                     <div class="crt-overlay"></div>
                     <div class="crt-content">
                         <div class="text-center mb-6">
-                            <h2 class="crt-text crt-title mb-2">HIGH SCORES</h2>
+                            <h2 class="crt-text crt-title mb-2">WORD STREAKS</h2>
                             <div class="h-1 w-full bg-gradient-to-r from-pink-500 to-cyan-500 shadow-[0_0_10px_white]"></div>
                         </div>
                         <div id="hs-display-area" class="min-h-[340px]">
