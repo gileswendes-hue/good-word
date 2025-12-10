@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.69.4', 
+    APP_VERSION: '5.69.5', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -790,7 +790,6 @@ this.el.onclick = (e) => {
         document.body.appendChild(this.svg);
         document.body.appendChild(this.el);
         
-        // --- CORRECTED CLICK HANDLER ---
         this.el.onclick = (e) => {
             e.stopPropagation();
             if (this.state === 'stuck') {
@@ -798,7 +797,7 @@ this.el.onclick = (e) => {
                 this.startRescue();
             }
             else if (this.state === 'flying') {
-                UIManager.showPostVoteMessage("Too fast! Wait for the web!");
+                this.splat(); 
             }
         };
         
@@ -4737,7 +4736,7 @@ const StreakManager = {
                     <div class="crt-overlay"></div>
                     <div class="crt-content">
                         <div class="text-center mb-6">
-                            <h2 class="crt-text crt-title mb-2">HIGH SCORES</h2>
+                            <h2 class="crt-text crt-title mb-2">WORD STREAK HIGH SCORES</h2>
                             <div class="h-1 w-full bg-gradient-to-r from-pink-500 to-cyan-500 shadow-[0_0_10px_white]"></div>
                         </div>
                         <div id="hs-display-area" class="min-h-[340px]">
