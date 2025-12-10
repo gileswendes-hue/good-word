@@ -739,7 +739,8 @@ this.el.onclick = (e) => {
             e.stopPropagation();
             if (this.state === 'stuck') {
                 if (this.huntTimer) clearTimeout(this.huntTimer);
-                this.startRescue();
+                this.splat(); 
+                // -------------------------------------------------
             }
             else if (this.state === 'flying') {
                 this.splat();
@@ -3618,11 +3619,21 @@ init() {
                     SoundManager.updateMute();
                 };
 
-                // --- ARACHNOPHOBIA LISTENER (Corrected Position) ---
-                const arachBtn = document.getElementById('toggleArachnophobia');
+				const arachBtn = document.getElementById('toggleArachnophobia');
                 if (arachBtn) {
                     arachBtn.onchange = e => {
-                        State.save('settings', { ...State.data.settings, arachnophobiaMode: e.target.checked });
+                        const isSafe = e.target.checked;
+                        State.save('settings', { ...State.data.settings, arachnophobiaMode: isSafe });
+                        
+                        // --- FIX: Refund bug if web disappears ---
+                        if (isSafe && typeof MosquitoManager !== 'undefined' && MosquitoManager.state === 'stuck') {
+                             State.data.insectStats.saved++;
+                             State.save('insectStats', State.data.insectStats);
+                             MosquitoManager.remove();
+                             UIManager.showPostVoteMessage("Bug returned to jar! 🦟");
+                        }
+                        // -----------------------------------------
+
                         if (State.data.currentTheme === 'halloween') {
                             Effects.halloween(true);
                         }
