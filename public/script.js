@@ -2944,7 +2944,23 @@ const UIManager = {
         if (d.badges.chopper) karmaTitle = "Air Traffic Controller 🚁";
         if (d.badges.angler) karmaTitle = "The Best in Brixham 🎣";
 
-        DOM.profile.statsTitle.innerHTML = `${d.username ? d.username + "'s" : "Your"} Stats<br><span class="text-xs text-indigo-500 font-bold uppercase tracking-widest mt-1 block">${karmaTitle}</span>`;
+        // --- CHANGE START: Add Gift Icon ---
+        DOM.profile.statsTitle.innerHTML = `${d.username ? d.username + "'s" : "Your"} Stats 
+            <span id="profileGiftBtn" class="cursor-pointer ml-2 text-xl hover:scale-125 inline-block transition-transform filter drop-shadow-sm" title="Claim Free Gift">🎁</span>
+            <br><span class="text-xs text-indigo-500 font-bold uppercase tracking-widest mt-1 block">${karmaTitle}</span>`;
+
+        // Add Click Listener for the Gift Icon
+        setTimeout(() => {
+            const giftBtn = document.getElementById('profileGiftBtn');
+            if (giftBtn) {
+                giftBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    ModalManager.toggle('profile', false); // Close profile
+                    if (window.PromoManager) window.PromoManager.open(); // Open gift form
+                };
+            }
+        }, 0);
+        // --- CHANGE END ---
 
 		setTimeout(() => {
             const giftBtn = document.getElementById('profileGiftBtn');
