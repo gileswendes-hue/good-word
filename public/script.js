@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.69.2', 
+    APP_VERSION: '5.69.4', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1974,8 +1974,7 @@ halloween(active) {
             const body = wrap.querySelector('#spider-body');
             const thread = wrap.querySelector('#spider-thread');
 
-// --- SMART BUBBLE HELPER (FINAL FIX) ---
-            const showSpiderBubble = (text, forcedOrientation = null) => {
+const showSpiderBubble = (text, forcedOrientation = null) => {
                 const old = body.querySelector('.spider-dynamic-bubble');
                 if (old) old.remove();
 
@@ -1988,70 +1987,63 @@ halloween(active) {
                     fontFamily: 'sans-serif', whiteSpace: 'nowrap', width: 'max-content',
                     pointerEvents: 'none', opacity: '0', transition: 'opacity 0.2s', 
                     boxShadow: '0 2px 5px rgba(0,0,0,0.2)', border: '1px solid #e5e7eb',
-                    marginBottom: '8px', zIndex: '10'
+                    marginBottom: '8px', zIndex: '200' // Increased Z-index
                 });
                 
-                // CREATE INNER TEXT SPAN FOR SEPARATE ROTATION
-                const textSpan = document.createElement('span');
-                textSpan.textContent = text;
-                b.appendChild(textSpan);
+                b.textContent = text;
 
                 // Little Arrow
                 const arrow = document.createElement('div');
                 Object.assign(arrow.style, {
                     position: 'absolute', width: '0', height: '0',
                     borderLeft: '6px solid transparent',
-                    borderRight: '6px solid transparent'
+                    borderRight: '6px solid transparent',
+                    left: '50%', marginLeft: '-6px' // Default centered
                 });
                 b.appendChild(arrow);
                 body.appendChild(b);
 
-                // --- ORIENTATION & EDGE LOGIC ---
-                const currentLeft = parseFloat(wrap.style.left) || 50;
-                const isUpsideDown = forcedOrientation === 'upside-down' || (body.style.transform && body.style.transform.includes('180deg'));
+                // --- ORIENTATION LOGIC ---
+                // Check if spider is upside down via transform string OR forced flag
+                const currentTransform = body.style.transform || '';
+                const isUpsideDown = forcedOrientation === 'upside-down' || currentTransform.includes('180deg');
 
-                // 1. Vertical Position & Arrow Flip
                 if (isUpsideDown) {
-                    // Spider is upside down. Position bubble below the head (relative top)
+                    // Spider is inverted (head at bottom). 
+                    // We Counter-Rotate the bubble 180deg so it appears upright to the user.
+                    b.style.transform = 'translateX(-50%) rotate(180deg)';
+                    
+                    // Position bubble visually "below" the inverted head (which is physically top)
                     b.style.top = '115%'; 
                     b.style.bottom = 'auto';
-                    b.style.transform = 'translateX(-50%)'; // Center bubble container
                     
-                    // COUNTER-ROTATION: Rotate the text content itself 180 degrees
-                    textSpan.style.transform = 'rotate(180deg)'; 
-                    textSpan.style.display = 'inline-block';
-
-                    // Arrow points UP
-                    arrow.style.bottom = '100%';
+                    // Arrow must point "Up" relative to the bubble's internal coordinates
+                    // (Because the bubble is rotated 180, "bottom" is visually "top")
+                    arrow.style.bottom = '100%'; 
                     arrow.style.borderBottom = '6px solid white';
-                    arrow.style.top = 'auto';
                 } else {
-                    // Spider is upright (Normal)
+                    // Normal Upright
+                    b.style.transform = 'translateX(-50%)';
                     b.style.bottom = '100%'; 
                     b.style.top = 'auto';
-                    b.style.transform = 'translateX(-50%)';
-                    textSpan.style.transform = 'none'; // Ensure text is normal
                     
-                    // Arrow points DOWN
+                    // Arrow points down
                     arrow.style.top = '100%';
                     arrow.style.borderTop = '6px solid white';
-                    arrow.style.bottom = 'auto';
                 }
 
-                // 2. Horizontal Alignment (Edge Detection)
-                if (currentLeft < 20) {
+                // Edge detection (prevent going off screen)
+                const rect = body.getBoundingClientRect();
+                if (rect.left < 50) {
+                    b.style.transform = isUpsideDown ? 'rotate(180deg)' : 'none';
                     b.style.left = '0';
-                    b.style.transform = 'none'; 
-                    arrow.style.left = '20px'; 
-                } else if (currentLeft > 80) {
+                    arrow.style.left = '20px';
+                } else if (rect.right > window.innerWidth - 50) {
+                    b.style.transform = isUpsideDown ? 'rotate(180deg)' : 'none';
                     b.style.right = '0';
                     b.style.left = 'auto';
-                    b.style.transform = 'none';
                     arrow.style.right = '20px';
-                } else {
-                    // Centered (Transform handled above)
-                    arrow.style.left = '50%';
-                    arrow.style.marginLeft = '-6px';
+                    arrow.style.left = 'auto';
                 }
                 
                 requestAnimationFrame(() => b.style.opacity = '1');
@@ -2862,8 +2854,8 @@ const UIManager = {
         const totalAvailable = Object.keys(CONFIG.THEME_SECRETS).length + 1;
         const userCount = d.unlockedThemes.length + 1;
         DOM.profile.themes.textContent = `${userCount} / ${totalAvailable}`;
-		const streakEl = document.getElementById('streak-display-value');
-			if(streakEl) streakEl.textContent = (State.data.longestStreak || 0) + " Words";
+        const streakEl = document.getElementById('streak-display-value');
+        if(streakEl) streakEl.textContent = (State.data.longestStreak || 0) + " Words";
         
         // --- BADGE DEFINITIONS ---
         const row1 = [
@@ -2888,7 +2880,6 @@ const UIManager = {
             { k: 'snowman', i: '⛄', d: "# We're walking in the air..." }
         ];
         
-        // --- UPDATED FISH ROW WITH DESCRIPTIONS ---
         const row_fish = [
             { k: 'fish', i: '🐟', t: 'Blue Fish', d: 'A standard catch.' }, 
             { k: 'tropical', i: '🐠', t: 'Tropical Fish', d: 'Found in the deep.' }, 
@@ -2905,13 +2896,13 @@ const UIManager = {
             { k: 'bard', i: '✍️', t: 'The Bard', d: 'Contributed 5 accepted words' },
             { k: 'traveler', i: '🌍', t: 'The Traveller', d: 'Unlocked 5 different themes' },
             { k: 'angler', i: '🔱', t: 'The Best in Brixham', d: 'Caught 250 fish' },
-			{ k: 'shepherd', i: '🛟', t: 'Sea Shepherd', d: 'Chose to let 250 fish swim away safely' }
+            { k: 'shepherd', i: '🛟', t: 'Sea Shepherd', d: 'Chose to let 250 fish swim away safely' }
         ];
 
+        // Helper to render badges
         const renderRow = (list) => `<div class="flex flex-wrap justify-center gap-3 text-3xl w-full">` + list.map(x => {
             const un = d.badges[x.k];
             const defTitle = x.k.charAt(0).toUpperCase() + x.k.slice(1);
-            
             return `<span class="badge-item relative ${un?'':'opacity-25 grayscale'} transition-all duration-300 transform ${un?'hover:scale-125 cursor-pointer':''}" 
                     title="${un? (x.t || defTitle) : 'Locked'}" 
                     data-key="${x.k}"
@@ -2921,6 +2912,7 @@ const UIManager = {
                     >${x.i}</span>`
         }).join('') + `</div>`;
 
+        // Bug Jar Logic
         let bugJarHTML = '';
         if (saved > 0) {
             const bugCount = Math.min(saved, 40);
@@ -2936,10 +2928,10 @@ const UIManager = {
                 ${State.data.currentTheme === 'halloween' ? '<div class="text-[9px] text-green-500 mt-1 italic">Tap a bug to feed the spider!</div>' : ''}
             </div>`;
         }
-		
-		let bugHotelHTML = '';
-        const splattedCount = State.data.insectStats.splatted || 0;
         
+        // Bug Hotel Logic (Splatted)
+        let bugHotelHTML = '';
+        const splattedCount = State.data.insectStats.splatted || 0;
         if (splattedCount > 0) {
             const displayLimit = Math.min(splattedCount, 50);
             let bugsStr = '';
@@ -2959,18 +2951,18 @@ const UIManager = {
         }
         
         const b = DOM.profile.badges;
+        // Corrected concatenation order
         b.innerHTML = 
             `<div class="text-xs font-bold text-gray-500 uppercase mb-2 mt-2">🏆 Word Badges</div>` + renderRow(row1) + 
             `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🧸 Found Items</div>` + renderRow(row2) + 
             `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🌊 Aquarium</div>` + renderRow(row_fish) + 
-			bugHotelHTML + 
+            
+            bugHotelHTML + // The Bug Hotel (Dead bugs)
 
             `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🎖️ Achievements</div>` + renderRow(row3) +
-            bugJarHTML;
-            `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🎖️ Achievements</div>` + renderRow(row3) +
-            bugJarHTML;
+            bugJarHTML; // The Bug Jar (Live bugs)
 
-        // --- GLOBAL TOOLTIP HELPER ---
+        // Tooltip and Listener Logic (Same as before)
         const showTooltip = (targetEl, title, desc) => {
             document.querySelectorAll('.global-badge-tooltip').forEach(t => t.remove());
             const tip = document.createElement('div');
@@ -3003,12 +2995,10 @@ const UIManager = {
             }, 3000);
         };
 
-        // --- ATTACH LISTENERS ---
         b.querySelectorAll('.badge-item').forEach(el => {
             el.onclick = (e) => {
                 e.stopPropagation();
                 const isLocked = el.classList.contains('grayscale');
-                
                 if (isLocked) {
                     let desc = "Keep playing to unlock!";
                     if (el.dataset.word) desc = "Find the hidden word to unlock.";
@@ -3016,7 +3006,6 @@ const UIManager = {
                     showTooltip(el, "Locked: " + el.dataset.title, desc);
                     return;
                 }
-
                 if (el.dataset.word) {
                     Game.loadSpecial(el.dataset.word);
                     ModalManager.toggle('profile', false);
@@ -3046,6 +3035,7 @@ const UIManager = {
         });
         ModalManager.toggle('profile', true);
     },
+	
     displayWord(w) {
         if (!w) {
             this.showMessage("No words available!");
@@ -4699,7 +4689,7 @@ const StreakManager = {
             const name = (document.getElementById('hsNameInput').value || "AAA").toUpperCase();
             const scores = State.data.highScores || [];
             scores.push({ name, score, date: Date.now() });
-            scores.sort((a,b) => b.score - a.score); // Fix: b.score - a.score (was a.arrow in snippet)
+            scores.sort((a,b) => b.score - a.score); 
             if(scores.length > 8) scores.pop();
             State.save('highScores', scores);
             API.submitHighScore(name, score);
@@ -4710,7 +4700,7 @@ const StreakManager = {
     },
 
     async showLeaderboard() {
-        // --- IMPROVED BOLDER CRT STYLE ---
+
         if (!document.getElementById('crt-styles')) {
             const s = document.createElement('style');
             s.id = 'crt-styles';
@@ -4733,7 +4723,8 @@ const StreakManager = {
                     animation: scanline-scroll 10s linear infinite;
                 }
                 .crt-content { padding: 2rem; position: relative; z-index: 10; }
-                .crt-text { font-family: 'Courier New', monospace; text-transform: uppercase; letter-spacing: 0.15em; font-weight: 900; }
+                /* CHANGE: Added Text Shadow for Bolder Look */
+                .crt-text { font-family: 'Courier New', monospace; text-transform: uppercase; letter-spacing: 0.15em; font-weight: 900; text-shadow: 2px 2px 0px #000; }
                 .crt-title { animation: crt-glow 2s infinite alternate; color: #fff; font-size: 2rem; }
                 .crt-row { border-bottom: 2px dashed rgba(255,255,255,0.2); }
             `;
@@ -4746,7 +4737,7 @@ const StreakManager = {
                     <div class="crt-overlay"></div>
                     <div class="crt-content">
                         <div class="text-center mb-6">
-                            <h2 class="crt-text crt-title mb-2">WORD STREAKS</h2>
+                            <h2 class="crt-text crt-title mb-2">HIGH SCORES</h2>
                             <div class="h-1 w-full bg-gradient-to-r from-pink-500 to-cyan-500 shadow-[0_0_10px_white]"></div>
                         </div>
                         <div id="hs-display-area" class="min-h-[340px]">
@@ -4765,27 +4756,24 @@ const StreakManager = {
         div.innerHTML = html;
         document.body.appendChild(div.firstElementChild);
 
-        // Fetch Data First
         const globalScores = await API.getGlobalScores();
         const topGlobal = (globalScores && globalScores.length) ? globalScores.slice(0, 8) : [];
         const localScores = (State.data.highScores || []).slice(0, 8);
         const username = State.data.username || "PLAYER";
 
-        // Render Functions
         const renderRow = (s, i, color) => `
             <div class="flex justify-between items-center crt-text text-sm py-2 crt-row">
                 <div class="flex gap-3">
                     <span class="text-gray-500">#${(i+1).toString().padStart(2,'0')}</span>
                     <span class="${color} font-black drop-shadow-[0_0_3px_rgba(255,255,255,0.5)]">${s.name.substring(0,3).toUpperCase()}</span>
                 </div>
-                <span class="text-white tracking-widest text-lg">${s.score.toString().padStart(6,'0')}</span>
+                <span class="text-white tracking-widest text-lg">${s.score.toString().padStart(4,'0')}</span>
             </div>`;
 
         const area = document.getElementById('hs-display-area');
         const indicator = document.getElementById('hs-page-indicator');
         
-        // Loop Logic
-        let showingGlobal = true; // Start with global
+        let showingGlobal = true;
 
         const renderPage = () => {
             if(!document.getElementById('highScoreModal')) return;
@@ -4794,31 +4782,25 @@ const StreakManager = {
             setTimeout(() => {
                 if (showingGlobal) {
                     indicator.textContent = "PAGE 1/2 [GLOBAL]";
-                    indicator.style.color = '#34d399'; // Greenish
-                    let h = `<div class="text-cyan-400 text-sm crt-text mb-4 border-b-2 border-cyan-700 pb-1 font-black">GLOBAL HIGH SCORES</div>`;
+                    indicator.style.color = '#34d399'; 
+                    let h = `<div class="text-cyan-400 text-sm crt-text mb-4 border-b-2 border-cyan-700 pb-1 font-black">GLOBAL RANKINGS</div>`;
                     if (topGlobal.length === 0) h += '<div class="text-gray-500 text-xs crt-text mt-8 text-center">NO DATA FOUND</div>';
                     else h += topGlobal.map((s,i) => renderRow(s, i, 'text-cyan-400')).join('');
                     area.innerHTML = h;
                 } else {
                     indicator.textContent = "PAGE 2/2 [LOCAL]";
-                    indicator.style.color = '#fbbf24'; // Amber
-                    let h = `<div class="text-yellow-400 text-sm crt-text mb-4 border-b-2 border-yellow-700 pb-1 font-black">${username.toUpperCase()}'S HIGH SCORES</div>`;
+                    indicator.style.color = '#fbbf24'; 
+                    let h = `<div class="text-yellow-400 text-sm crt-text mb-4 border-b-2 border-yellow-700 pb-1 font-black">${username.toUpperCase()}'S RECORDS</div>`;
                     if (localScores.length === 0) h += '<div class="text-gray-500 text-xs crt-text mt-8 text-center">PLAY TO SET SCORES</div>';
                     else h += localScores.map((s,i) => renderRow(s, i, 'text-yellow-400')).join('');
                     area.innerHTML = h;
                 }
                 area.style.transition = 'opacity 0.2s';
                 area.style.opacity = '1';
-                
-                // Flip for next loop
                 showingGlobal = !showingGlobal;
-                
-                // Recursion
                 this.loopTimer = setTimeout(renderPage, 4000);
             }, 200);
         };
-
-        // Start Loop
         renderPage();
     },
     
