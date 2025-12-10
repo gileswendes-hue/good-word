@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.69.5', 
+    APP_VERSION: '5.69.6', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -234,7 +234,8 @@ const State = {
             kidsModePin: null,
             showLights: false,
             offlineMode: false,
-			arachnophobiaMode: false
+			arachnophobiaMode: false,
+			randomizeTheme: true
         },
         currentTheme: localStorage.getItem('currentTheme') || 'default',
         voteCounterForTips: parseInt(localStorage.getItem('voteCounterForTips')) || 0,
@@ -1184,8 +1185,7 @@ const API = {
 // --- THEME MANAGER ---
 const ThemeManager = {
     wordMap: {},
-    init() {
-
+   init() {
         const s = document.createElement("style");
         s.innerText = `@keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }`;
         document.head.appendChild(s);
@@ -1201,7 +1201,15 @@ const ThemeManager = {
         }
         
         this.populateChooser();
-        this.apply(State.data.currentTheme)
+
+        if (State.data.settings.randomizeTheme && State.data.unlockedThemes.length > 0) {
+            const available = ['default', ...State.data.unlockedThemes];
+            const randomTheme = available[Math.floor(Math.random() * available.length)];
+            this.apply(randomTheme);
+        } else {
+            this.apply(State.data.currentTheme);
+        }
+		
     },
     populateChooser() {
         const u = State.data.unlockedThemes,
@@ -3429,6 +3437,9 @@ const ModalManager = {
  
                 // 2. SETTINGS
                 html += `<div class="mb-6"><h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 border-b border-gray-100 pb-1">Settings</h3><div class="space-y-4">`;
+				if (State.data.unlockedThemes.length > 0) {
+                     html += mkTog('toggleRandomTheme', '🔀 Randomise Theme on Load', s.randomizeTheme);
+                }
                 html += mkTog('togglePercentages', 'Show Vote Percentages', s.showPercentages);
                 html += mkTog('toggleTips', 'Show Tips & Hints', s.showTips);
                 html += `<button onclick="TipManager.open()" class="w-full mt-2 py-2 bg-indigo-50 text-indigo-600 font-bold rounded-lg border border-indigo-100 hover:bg-indigo-100 transition">💡 Submit Your Own Tip</button>`;
@@ -3464,6 +3475,10 @@ const ModalManager = {
                     State.save('settings', { ...State.data.settings, showPercentages: e.target.checked });
                 document.getElementById('toggleTips').onchange = e => 
                     State.save('settings', { ...State.data.settings, showTips: e.target.checked });
+					const randBtn = document.getElementById('toggleRandomTheme');
+                if (randBtn) {
+                    randBtn.onchange = e => State.save('settings', { ...State.data.settings, randomizeTheme: e.target.checked });
+                }
                 document.getElementById('toggleZeroVotes').onchange = e => {
                     State.save('settings', { ...State.data.settings, zeroVotesOnly: e.target.checked });
                     Game.refreshData(true);
@@ -4736,7 +4751,7 @@ const StreakManager = {
                     <div class="crt-overlay"></div>
                     <div class="crt-content">
                         <div class="text-center mb-6">
-                            <h2 class="crt-text crt-title mb-2">WORD STREAK HIGH SCORES</h2>
+                            <h2 class="crt-text crt-title mb-2">HIGH SCORES</h2>
                             <div class="h-1 w-full bg-gradient-to-r from-pink-500 to-cyan-500 shadow-[0_0_10px_white]"></div>
                         </div>
                         <div id="hs-display-area" class="min-h-[340px]">
