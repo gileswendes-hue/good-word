@@ -184,31 +184,33 @@ const State = {
         voteCount: parseInt(localStorage.getItem('voteCount') || 0),
         contributorCount: parseInt(localStorage.getItem('contributorCount') || 0),
         profilePhoto: localStorage.getItem('profilePhoto') || null,
-		
-		
-		longestStreak: parseInt(localStorage.getItem('longestStreak') || 0),
+        
+        longestStreak: parseInt(localStorage.getItem('longestStreak') || 0),
         highScores: safeParse('highScores', []),
         pendingVotes: safeParse('pendingVotes', []),
         offlineCache: safeParse('offlineCache', []),
         unlockedThemes: safeParse('unlockedThemes', []),
         seenHistory: safeParse('seenHistory', []),
-		
 
         insectStats: {
             saved: parseInt(localStorage.getItem('insectSaved') || 0),
             eaten: parseInt(localStorage.getItem('insectEaten') || 0),
             teased: parseInt(localStorage.getItem('insectTeased') || 0),
-			splatted: parseInt(localStorage.getItem('insectSplatted') || 0),
-			collection: JSON.parse(localStorage.getItem('insectCollection') || '[]'),
-			wordHistory: JSON.parse(localStorage.getItem('wordCountHistory') || '[]')
-        },
+            splatted: parseInt(localStorage.getItem('insectSplatted') || 0),
+            collection: JSON.parse(localStorage.getItem('insectCollection') || '[]')
+        }, // <--- insectStats closes here
+
+        // --- MOVED TO ROOT (Fixes the undefined error) ---
+        wordHistory: JSON.parse(localStorage.getItem('wordCountHistory') || '[]'),
+        // -------------------------------------------------
         
         fishStats: {
             caught: parseInt(localStorage.getItem('fishCaught') || 0),
-			spared: parseInt(localStorage.getItem('fishSpared') || 0)
+            spared: parseInt(localStorage.getItem('fishSpared') || 0)
         },
         
         badges: {
+            // ... (keep existing badges list) ...
             cake: localStorage.getItem('cakeBadgeUnlocked') === 'true',
             llama: localStorage.getItem('llamaBadgeUnlocked') === 'true',
             potato: localStorage.getItem('potatoBadgeUnlocked') === 'true',
@@ -234,10 +236,10 @@ const State = {
             tropical: localStorage.getItem('tropicalBadgeUnlocked') === 'true',
             puffer: localStorage.getItem('pufferBadgeUnlocked') === 'true',
             shark: localStorage.getItem('sharkBadgeUnlocked') === 'true',
-			octopus: localStorage.getItem('octopusBadgeUnlocked') === 'true',
+            octopus: localStorage.getItem('octopusBadgeUnlocked') === 'true',
             snowman: localStorage.getItem('snowmanBadgeUnlocked') === 'true',
-			angler: localStorage.getItem('anglerBadgeUnlocked') === 'true',
-			shepherd: localStorage.getItem('shepherdBadgeUnlocked') === 'true'
+            angler: localStorage.getItem('anglerBadgeUnlocked') === 'true',
+            shepherd: localStorage.getItem('shepherdBadgeUnlocked') === 'true'
         },
         settings: { 
             ...DEFAULT_SETTINGS, 
@@ -253,6 +255,7 @@ const State = {
             lastDate: localStorage.getItem('dailyLastDate') || ''
         }
     },
+    // ... (runtime and save functions remain the same) ...
     runtime: {
         allWords: [],
         currentWordIndex: 0,
@@ -265,7 +268,7 @@ const State = {
         mashLevel: 0,
         isDailyMode: false
     },
-	save(k, v) {
+    save(k, v) {
         this.data[k] = v;
         const s = localStorage;
         
@@ -276,8 +279,6 @@ const State = {
         if (k === 'pendingVotes') s.setItem('pendingVotes', JSON.stringify(v));
         else if (k === 'offlineCache') s.setItem('offlineCache', JSON.stringify(v));
         else if (k === 'highScores') s.setItem('highScores', JSON.stringify(v));
-        
-        // --- FIX: Correct Braces for Insect Stats ---
         else if (k === 'insectStats') {
             s.setItem('insectSaved', v.saved);
             s.setItem('insectEaten', v.eaten);
@@ -285,14 +286,9 @@ const State = {
             s.setItem('insectSplatted', v.splatted);
             s.setItem('insectCollection', JSON.stringify(v.collection));
         } 
-        // ---------------------------------------------
-
-        // --- FIX: Separate Block for Word History ---
         else if (k === 'wordHistory') {
             s.setItem('wordCountHistory', JSON.stringify(v));
         }
-        // ---------------------------------------------
-
         else if (k === 'fishStats') {
             s.setItem('fishCaught', v.caught);
             s.setItem('fishSpared', v.spared); 
@@ -4160,7 +4156,7 @@ const Game = {
             drawText(ctx, "Good Votes →", 0, 0, "#4b5563", 12);
             ctx.restore();
 
-            // Quadrant Labels (Subtle)
+            // Quadrant Labels
             drawText(ctx, "😇 LOVED", P + 40, P + 20, "rgba(34, 197, 94, 0.3)", 10);
             drawText(ctx, "👿 HATED", W - P - 40, H - P - 20, "rgba(239, 68, 68, 0.3)", 10);
             drawText(ctx, "⚔️ CONTROVERSIAL", W - P - 60, P + 20, "rgba(107, 114, 128, 0.3)", 10);
@@ -4177,7 +4173,6 @@ const Game = {
                 ctx.beginPath();
                 ctx.arc(x, y, 3, 0, Math.PI * 2);
                 
-                // Color Logic
                 if (g > b * 1.5) ctx.fillStyle = "rgba(34, 197, 94, 0.6)"; // Green
                 else if (b > g * 1.5) ctx.fillStyle = "rgba(239, 68, 68, 0.6)"; // Red
                 else ctx.fillStyle = "rgba(107, 114, 128, 0.6)"; // Grey
@@ -4187,27 +4182,29 @@ const Game = {
         }
 
         // ==========================================
-        // 2. LINE GRAPH (History)
+        // 2. LINE GRAPH (History - Updated)
         // ==========================================
         const cvsLine = document.getElementById('lineChartCanvas');
         if (cvsLine) {
             const ctx = cvsLine.getContext('2d');
             const W = cvsLine.width;
             const H = cvsLine.height;
-            const P = 30;
+            const P = 40; // Padding
 
             ctx.clearRect(0, 0, W, H);
 
             // Get Data (or fallback if empty)
             let history = State.data.wordHistory || [];
             if (history.length === 0) {
-                // Mock current point if no history
-                history = [{ date: new Date().toISOString().split('T')[0], count: w.length }];
+                const today = new Date().toISOString().split('T')[0];
+                history = [{ date: today, count: w.length }];
             }
 
             // Scales
-            const maxCount = Math.max(...history.map(h => h.count), w.length) * 1.1;
-            const minCount = Math.min(0, ...history.map(h => h.count));
+            const currentMax = Math.max(...history.map(h => h.count), w.length);
+            // Round up to nearest nice number (e.g. 100, 1000, 5000)
+            const magnitude = Math.pow(10, Math.floor(Math.log10(currentMax || 10)));
+            const maxCount = Math.ceil(currentMax / magnitude) * magnitude;
             
             // Draw Axes
             ctx.beginPath();
@@ -4215,6 +4212,21 @@ const Game = {
             ctx.lineWidth = 1;
             ctx.moveTo(P, P); ctx.lineTo(P, H - P); ctx.lineTo(W - P, H - P);
             ctx.stroke();
+
+            // Draw Labels (Word Count & Dates)
+            // Y-Axis
+            ctx.textAlign = "right";
+            drawText(ctx, maxCount.toLocaleString(), P - 5, P + 5, "#666", 10); // Top
+            drawText(ctx, "0", P - 5, H - P, "#666", 10); // Bottom
+
+            // X-Axis
+            ctx.textAlign = "center";
+            const startDate = history[0].date;
+            const endDate = history[history.length - 1].date;
+            drawText(ctx, startDate, P + 20, H - 10, "#666", 10); // Start Date
+            if (history.length > 1) {
+                drawText(ctx, endDate, W - P - 20, H - 10, "#666", 10); // End Date
+            }
 
             // Plot Line
             if (history.length > 1) {
@@ -4230,16 +4242,21 @@ const Game = {
                 });
                 ctx.stroke();
             } else {
-                // Single point representation
+                // Single point - Plot on vertical axis (Left)
                 const y = (H - P) - (history[0].count / maxCount) * (H - 2 * P);
                 ctx.beginPath();
                 ctx.fillStyle = "#4f46e5";
-                ctx.arc(W/2, y, 5, 0, Math.PI*2);
+                ctx.arc(P, y, 5, 0, Math.PI*2); // Plot at x=P (start of axis)
                 ctx.fill();
             }
 
-            drawText(ctx, "Time →", W / 2, H - 10, "#666");
-            drawText(ctx, "Words", 10, H / 2, "#666");
+            // Titles
+            drawText(ctx, "Time →", W / 2, H - 5, "#999", 10);
+            ctx.save();
+            ctx.translate(12, H / 2);
+            ctx.rotate(-Math.PI / 2);
+            drawText(ctx, "Total Words →", 0, 0, "#999", 10);
+            ctx.restore();
         }
 
         // ==========================================
@@ -4278,7 +4295,7 @@ const Game = {
                 const data = [
                     { label: "Good", val: cGood, color: "#22c55e" },
                     { label: "Bad", val: cBad, color: "#ef4444" },
-                    { label: "Controversial", val: cControversial, color: "#eab308" } // Yellow/Gold
+                    { label: "Controversial", val: cControversial, color: "#eab308" }
                 ];
 
                 let startAngle = 0;
