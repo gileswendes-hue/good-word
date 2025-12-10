@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.69.7', 
+    APP_VERSION: '5.69.8', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -2958,43 +2958,67 @@ const UIManager = {
             </div>`;
         }
         
+// --- BUG STREET LOGIC ---
         let bugHotelHTML = '';
         const splattedCount = State.data.insectStats.splatted || 0;
         const collection = State.data.insectStats.collection || [];
         
-        // The 4 types available to splat
-        const requiredBugs = ['🦟', '🐞', '🐝', '🚁'];
-        const isComplete = requiredBugs.every(b => collection.includes(b));
+        // Define types: Helicopter is the Hotel (Red), others are Houses (Green)
+        const bugTypes = [
+            { char: '🦟', type: 'house' }, // Mosquito
+            { char: '🐞', type: 'house' }, // Ladybird
+            { char: '🐝', type: 'house' }, // Bee
+            { char: '🚁', type: 'hotel' }  // Chopper
+        ];
+        
+        const requiredChars = bugTypes.map(b => b.char);
+        const isComplete = requiredChars.every(c => collection.includes(c));
 
-        if (splattedCount > 0) {
+        if (splattedCount > 0 || collection.length > 0) {
+            let innerHTML = '';
+            
             if (isComplete) {
                 // --- COMPLETED STATE ---
-                bugHotelHTML = `<div class="w-full text-center my-4 p-3 bg-yellow-50 rounded-xl border-2 border-yellow-300 relative overflow-hidden shadow-sm">
-                    <div class="absolute top-0 right-0 bg-yellow-400 text-white text-[9px] font-bold px-2 py-0.5 rounded-bl-lg">5 STARS</div>
-                    <div class="text-[10px] font-bold text-yellow-700 mb-2 uppercase tracking-wider">Bug Hotel Completed!</div>
-                    <div class="text-3xl flex justify-center gap-4 filter drop-shadow-sm">
-                        ${requiredBugs.map(b => `<span title="Collected">${b}</span>`).join('')}
-                    </div>
-                    <div class="text-[9px] text-yellow-600 mt-2 italic">You've splatted them all!</div>
-                </div>`;
-            } else {
-                // --- INCOMPLETE STATE (Original Logic) ---
-                const displayLimit = Math.min(splattedCount, 50);
-                let bugsStr = '';
-                // Fallback icons for the pile if we don't have enough history
-                const bugIcons = ['🦟', '🪰', '🐞', '🐝']; 
+                innerHTML = `<div class="flex justify-center gap-3 filter drop-shadow-sm mb-1">`;
                 
-                for(let i=0; i<displayLimit; i++) {
-                    const icon = bugIcons[i % bugIcons.length];
-                    bugsStr += `<span style="display:inline-block; padding:2px; filter:grayscale(100%); opacity:0.5; transform: rotate(${Math.random()*360}deg);">${icon}</span>`;
-                }
+                bugTypes.forEach(bug => {
+                    // Green border for Houses, Red for Hotel
+                    const style = bug.type === 'hotel' 
+                        ? 'border-2 border-red-500 bg-red-100 rounded-md shadow-sm text-2xl px-2 py-1' 
+                        : 'border-2 border-green-500 bg-green-100 rounded-md shadow-sm text-2xl px-2 py-1';
+                        
+                    innerHTML += `<span class="${style}">${bug.char}</span>`;
+                });
+                innerHTML += `</div><div class="text-[9px] text-green-700 mt-1 font-bold uppercase tracking-widest">Monopoly Complete!</div>`;
+                
+                bugHotelHTML = `<div class="w-full text-center my-4 p-3 bg-green-50 rounded-xl border-2 border-green-500 relative overflow-hidden shadow-md" title="You've completed capitalism">
+                    <div class="absolute top-0 right-0 bg-green-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-bl-lg">WINNER</div>
+                    <div class="text-[10px] font-bold text-green-800 mb-3 uppercase tracking-wider">Bug Street Completed</div>
+                    ${innerHTML}
+                </div>`;
+                
+            } else {
+                // --- INCOMPLETE STATE ---
+                innerHTML = `<div class="flex justify-center gap-2 flex-wrap">`;
+                
+                bugTypes.forEach(bug => {
+                    const hasIt = collection.includes(bug.char);
+                    if (hasIt) {
+                         const style = bug.type === 'hotel' 
+                            ? 'border-2 border-red-400 bg-white opacity-80' 
+                            : 'border-2 border-green-400 bg-white opacity-80';
+                         innerHTML += `<span class="inline-block p-1 rounded-md ${style} text-2xl">${bug.char}</span>`;
+                    } else {
+                         // Placeholder
+                         innerHTML += `<span class="inline-block p-1 rounded-md border-2 border-dashed border-gray-300 text-2xl grayscale opacity-30">${bug.char}</span>`;
+                    }
+                });
+                innerHTML += `</div>`;
                 
                 bugHotelHTML = `<div class="w-full text-center my-4 p-3 bg-stone-100 rounded-xl border border-stone-200 relative overflow-hidden">
-                    <div class="text-[10px] font-bold text-stone-500 mb-1 uppercase tracking-wider">The Bug Hotel (${splattedCount})</div>
-                    <div class="text-xl leading-6 break-words" style="letter-spacing: 2px;">
-                        ${bugsStr}
-                    </div>
-                    <div class="text-[9px] text-stone-400 mt-1 italic">Collect all 4 types to complete!</div>
+                    <div class="text-[10px] font-bold text-stone-500 mb-2 uppercase tracking-wider">Bug Street (${collection.length}/4)</div>
+                    ${innerHTML}
+                    <div class="text-[9px] text-stone-400 mt-2 italic">Splat different bugs to collect them!</div>
                 </div>`;
             }
         }
