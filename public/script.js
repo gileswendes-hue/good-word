@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.69.6', 
+    APP_VERSION: '5.69.7', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -160,7 +160,23 @@ const safeParse = (key, fallback) => {
     }
 };
 
-// --- STATE MANAGEMENT ---
+const DEFAULT_SETTINGS = {
+    showTips: true,
+    showPercentages: true,
+    colorblindMode: false,
+    largeText: false,
+    enableTilt: false,
+    mirrorMode: false,
+    muteSounds: false,
+    zeroVotesOnly: false,
+    kidsMode: false,
+    kidsModePin: null,
+    showLights: false,
+    offlineMode: false,
+    arachnophobiaMode: false,
+    randomizeTheme: true
+};
+
 const State = {
     data: {
         userId: localStorage.getItem('userId') || crypto.randomUUID(),
@@ -182,7 +198,8 @@ const State = {
             saved: parseInt(localStorage.getItem('insectSaved') || 0),
             eaten: parseInt(localStorage.getItem('insectEaten') || 0),
             teased: parseInt(localStorage.getItem('insectTeased') || 0),
-			splatted: parseInt(localStorage.getItem('insectSplatted') || 0)
+			splatted: parseInt(localStorage.getItem('insectSplatted') || 0),
+			collection: JSON.parse(localStorage.getItem('insectCollection') || '[]')
         },
         
         fishStats: {
@@ -221,22 +238,11 @@ const State = {
 			angler: localStorage.getItem('anglerBadgeUnlocked') === 'true',
 			shepherd: localStorage.getItem('shepherdBadgeUnlocked') === 'true'
         },
-        settings: JSON.parse(localStorage.getItem('userSettings')) || {
-            showTips: true,
-            showPercentages: true,
-            colorblindMode: false,
-            largeText: false,
-            enableTilt: false,
-            mirrorMode: false,
-            muteSounds: false,
-            zeroVotesOnly: false,
-            kidsMode: false,
-            kidsModePin: null,
-            showLights: false,
-            offlineMode: false,
-			arachnophobiaMode: false,
-			randomizeTheme: true
+        settings: { 
+            ...DEFAULT_SETTINGS, 
+            ...(JSON.parse(localStorage.getItem('userSettings')) || {}) 
         },
+            
         currentTheme: localStorage.getItem('currentTheme') || 'default',
         voteCounterForTips: parseInt(localStorage.getItem('voteCounterForTips')) || 0,
         manualTheme: localStorage.getItem('manualTheme') === 'true',
@@ -261,11 +267,11 @@ const State = {
     save(k, v) {
         this.data[k] = v;
         const s = localStorage;
-		
-		if (['pendingVotes','offlineCache','highScores','unlockedThemes','seenHistory','settings'].includes(k)) {
+        
+        if (['pendingVotes','offlineCache','highScores','unlockedThemes','seenHistory','settings'].includes(k)) {
             s.setItem(k, JSON.stringify(v));
         }
-		
+        
         if (k === 'pendingVotes') s.setItem('pendingVotes', JSON.stringify(v));
         else if (k === 'offlineCache') s.setItem('offlineCache', JSON.stringify(v));
         else if (k === 'highScores') s.setItem('highScores', JSON.stringify(v));
@@ -273,12 +279,13 @@ const State = {
             s.setItem('insectSaved', v.saved);
             s.setItem('insectEaten', v.eaten);
             s.setItem('insectTeased', v.teased);
-			s.setItem('insectSplatted', v.splatted);
+            s.setItem('insectSplatted', v.splatted);
+            s.setItem('insectCollection', JSON.stringify(v.collection)); // <--- SAVE COLLECTION
         } 
-       else if (k === 'fishStats') {
-    s.setItem('fishCaught', v.caught);
-    s.setItem('fishSpared', v.spared); 
-}
+        else if (k === 'fishStats') {
+            s.setItem('fishCaught', v.caught);
+            s.setItem('fishSpared', v.spared); 
+        }
         else if (k.startsWith('badge_')) {
             s.setItem(k, v);
         }
@@ -845,11 +852,17 @@ this.el.onclick = (e) => {
         }, 2000);
     },
 	
-	splat() {
+splat() {
         if (this.state === 'splatted') return;
         this.state = 'splatted';
         
         State.data.insectStats.splatted = (State.data.insectStats.splatted || 0) + 1;
+
+        if (!State.data.insectStats.collection) State.data.insectStats.collection = [];
+        if (!State.data.insectStats.collection.includes(this.type)) {
+            State.data.insectStats.collection.push(this.type);
+        }
+        
         State.save('insectStats', State.data.insectStats);
 
         UIManager.showPostVoteMessage("Splat! 🦶");
@@ -857,12 +870,11 @@ this.el.onclick = (e) => {
 
         this.el.style.transition = 'transform 0.1s ease-out, opacity 0.2s';
         this.el.style.transform = 'translate(-50%, -50%) scale(1.5) rotate(45deg)';
-        this.el.style.filter = 'grayscale(100%) brightness(0.5)'; // Make it look dead
+        this.el.style.filter = 'grayscale(100%) brightness(0.5)'; 
         this.el.style.opacity = '0';
 
         setTimeout(() => this.remove(), 200);
     },
-
     loop() {
         if (!document.body.contains(this.el)) return;
         if (this.state === 'flying' || this.state === 'leaving') {
@@ -1994,7 +2006,7 @@ const showSpiderBubble = (text, forcedOrientation = null) => {
                     fontFamily: 'sans-serif', whiteSpace: 'nowrap', width: 'max-content',
                     pointerEvents: 'none', opacity: '0', transition: 'opacity 0.2s', 
                     boxShadow: '0 2px 5px rgba(0,0,0,0.2)', border: '1px solid #e5e7eb',
-                    marginBottom: '8px', zIndex: '200' // Increased Z-index
+                    marginBottom: '8px', zIndex: '200' 
                 });
                 
                 b.textContent = text;
@@ -2005,52 +2017,61 @@ const showSpiderBubble = (text, forcedOrientation = null) => {
                     position: 'absolute', width: '0', height: '0',
                     borderLeft: '6px solid transparent',
                     borderRight: '6px solid transparent',
-                    left: '50%', marginLeft: '-6px' // Default centered
+                    left: '50%', marginLeft: '-6px' 
                 });
                 b.appendChild(arrow);
                 body.appendChild(b);
 
                 // --- ORIENTATION LOGIC ---
-                // Check if spider is upside down via transform string OR forced flag
+                // Detect if spider is upside down
                 const currentTransform = body.style.transform || '';
                 const isUpsideDown = forcedOrientation === 'upside-down' || currentTransform.includes('180deg');
 
+                // Standard Positioning: 
+                // We attach to the "Local Top" of the spider body.
+                // If Upright: Local Top is Visual Top -> Bubble goes Above.
+                // If Inverted: Local Top is Visual Bottom -> Bubble goes Below.
+                b.style.bottom = '115%'; 
+                b.style.top = 'auto';
+
                 if (isUpsideDown) {
-                    // Spider is inverted (head at bottom). 
-                    // We Counter-Rotate the bubble 180deg so it appears upright to the user.
+                    // 1. Cancel the parent's 180deg rotation so text is upright
                     b.style.transform = 'translateX(-50%) rotate(180deg)';
                     
-                    // Position bubble visually "below" the inverted head (which is physically top)
-                    b.style.top = '115%'; 
-                    b.style.bottom = 'auto';
-                    
-                    // Arrow must point "Up" relative to the bubble's internal coordinates
-                    // (Because the bubble is rotated 180, "bottom" is visually "top")
-                    arrow.style.bottom = '100%'; 
-                    arrow.style.borderBottom = '6px solid white';
+                    // 2. Arrow Logic:
+                    // Bubble is visually BELOW spider. Arrow should be on Bubble's TOP edge pointing UP.
+                    // Since Bubble is upright, its CSS "top" is Visual Top.
+                    arrow.style.top = '-6px'; 
+                    arrow.style.bottom = 'auto';
+                    arrow.style.borderBottom = '6px solid white'; // Point Up
+                    arrow.style.borderTop = 'none';
                 } else {
-                    // Normal Upright
+                    // 1. Standard Centering
                     b.style.transform = 'translateX(-50%)';
-                    b.style.bottom = '100%'; 
-                    b.style.top = 'auto';
                     
-                    // Arrow points down
-                    arrow.style.top = '100%';
-                    arrow.style.borderTop = '6px solid white';
+                    // 2. Arrow Logic:
+                    // Bubble is visually ABOVE spider. Arrow should be on Bubble's BOTTOM edge pointing DOWN.
+                    arrow.style.top = '100%'; 
+                    arrow.style.bottom = 'auto';
+                    arrow.style.borderTop = '6px solid white'; // Point Down
+                    arrow.style.borderBottom = 'none';
                 }
 
-                // Edge detection (prevent going off screen)
+                // --- EDGE DETECTION ---
                 const rect = body.getBoundingClientRect();
-                if (rect.left < 50) {
-                    b.style.transform = isUpsideDown ? 'rotate(180deg)' : 'none';
-                    b.style.left = '0';
+                // We must preserve the rotation if it exists, but change the translation
+                const rot = isUpsideDown ? 'rotate(180deg)' : '';
+
+                if (rect.left < 60) {
+                    b.style.transform = rot; // Remove translateX
+                    b.style.left = '-10px';
                     arrow.style.left = '20px';
-                } else if (rect.right > window.innerWidth - 50) {
-                    b.style.transform = isUpsideDown ? 'rotate(180deg)' : 'none';
-                    b.style.right = '0';
+                } else if (rect.right > window.innerWidth - 60) {
+                    b.style.transform = rot;
                     b.style.left = 'auto';
-                    arrow.style.right = '20px';
+                    b.style.right = '-10px';
                     arrow.style.left = 'auto';
+                    arrow.style.right = '20px';
                 }
                 
                 requestAnimationFrame(() => b.style.opacity = '1');
@@ -2061,6 +2082,7 @@ const showSpiderBubble = (text, forcedOrientation = null) => {
                 }, 2000);
                 return b; 
             };
+			
             wrap.showBubble = showSpiderBubble; // Attach to DOM for external use
 
             body.onclick = (e) => {
@@ -2936,25 +2958,45 @@ const UIManager = {
             </div>`;
         }
         
-        // Bug Hotel Logic (Splatted)
         let bugHotelHTML = '';
         const splattedCount = State.data.insectStats.splatted || 0;
+        const collection = State.data.insectStats.collection || [];
+        
+        // The 4 types available to splat
+        const requiredBugs = ['🦟', '🐞', '🐝', '🚁'];
+        const isComplete = requiredBugs.every(b => collection.includes(b));
+
         if (splattedCount > 0) {
-            const displayLimit = Math.min(splattedCount, 50);
-            let bugsStr = '';
-            const bugIcons = ['🦟', '🪰', '🐞', '🐝']; 
-            
-            for(let i=0; i<displayLimit; i++) {
-                const icon = bugIcons[i % bugIcons.length];
-                bugsStr += `<span style="display:inline-block; padding:2px; filter:grayscale(100%); opacity:0.5; transform: rotate(${Math.random()*360}deg);">${icon}</span>`;
+            if (isComplete) {
+                // --- COMPLETED STATE ---
+                bugHotelHTML = `<div class="w-full text-center my-4 p-3 bg-yellow-50 rounded-xl border-2 border-yellow-300 relative overflow-hidden shadow-sm">
+                    <div class="absolute top-0 right-0 bg-yellow-400 text-white text-[9px] font-bold px-2 py-0.5 rounded-bl-lg">5 STARS</div>
+                    <div class="text-[10px] font-bold text-yellow-700 mb-2 uppercase tracking-wider">Bug Hotel Completed!</div>
+                    <div class="text-3xl flex justify-center gap-4 filter drop-shadow-sm">
+                        ${requiredBugs.map(b => `<span title="Collected">${b}</span>`).join('')}
+                    </div>
+                    <div class="text-[9px] text-yellow-600 mt-2 italic">You've splatted them all!</div>
+                </div>`;
+            } else {
+                // --- INCOMPLETE STATE (Original Logic) ---
+                const displayLimit = Math.min(splattedCount, 50);
+                let bugsStr = '';
+                // Fallback icons for the pile if we don't have enough history
+                const bugIcons = ['🦟', '🪰', '🐞', '🐝']; 
+                
+                for(let i=0; i<displayLimit; i++) {
+                    const icon = bugIcons[i % bugIcons.length];
+                    bugsStr += `<span style="display:inline-block; padding:2px; filter:grayscale(100%); opacity:0.5; transform: rotate(${Math.random()*360}deg);">${icon}</span>`;
+                }
+                
+                bugHotelHTML = `<div class="w-full text-center my-4 p-3 bg-stone-100 rounded-xl border border-stone-200 relative overflow-hidden">
+                    <div class="text-[10px] font-bold text-stone-500 mb-1 uppercase tracking-wider">The Bug Hotel (${splattedCount})</div>
+                    <div class="text-xl leading-6 break-words" style="letter-spacing: 2px;">
+                        ${bugsStr}
+                    </div>
+                    <div class="text-[9px] text-stone-400 mt-1 italic">Collect all 4 types to complete!</div>
+                </div>`;
             }
-            
-            bugHotelHTML = `<div class="w-full text-center my-4 p-3 bg-stone-100 rounded-xl border border-stone-200 relative overflow-hidden">
-                <div class="text-[10px] font-bold text-stone-500 mb-1 uppercase tracking-wider">The Bug Hotel (${splattedCount})</div>
-                <div class="text-xl leading-6 break-words" style="letter-spacing: 2px;">
-                    ${bugsStr}
-                </div>
-            </div>`;
         }
         
         const b = DOM.profile.badges;
@@ -3410,13 +3452,16 @@ const ModalManager = {
         e.classList.toggle('hidden', !show);
         e.classList.toggle('flex', show)
     },
-    init() {
+init() {
         // SETTINGS BUTTON HANDLER
         document.getElementById('showSettingsButton').onclick = () => {
             const s = State.data.settings;
             const container = document.getElementById('settingsModalContainer').querySelector('.space-y-4');
             
             if (container) {
+                container.classList.add('max-h-[60vh]', 'overflow-y-auto', 'pr-2'); 
+
+
                 const mkTog = (id, label, checked, color = 'text-indigo-600') => `
                     <div class="flex items-center justify-between">
                         <label for="${id}" class="text-lg font-medium text-gray-700">${label}</label>
@@ -4751,7 +4796,7 @@ const StreakManager = {
                     <div class="crt-overlay"></div>
                     <div class="crt-content">
                         <div class="text-center mb-6">
-                            <h2 class="crt-text crt-title mb-2">HIGH SCORES</h2>
+                            <h2 class="crt-text crt-title mb-2">STREAK HIGH SCORES</h2>
                             <div class="h-1 w-full bg-gradient-to-r from-pink-500 to-cyan-500 shadow-[0_0_10px_white]"></div>
                         </div>
                         <div id="hs-display-area" class="min-h-[340px]">
