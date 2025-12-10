@@ -19,7 +19,7 @@ const GAME_DIALOGUE = {
             '...', 
             'boo!',
             'anyone home?',
-            'You can't find me, I'm a spyder."
+            'You can't find me, I'm a spyder.'
             
         ],
 
@@ -33,7 +33,7 @@ const GAME_DIALOGUE = {
             "Nice poke!",
             "MWAH!",
             "Buy me dinner first!",
-            "My favourite food is French flies'
+            "My favourite food is French flies"
         ],
 
         // When clicked (50% chance Grumpy)
