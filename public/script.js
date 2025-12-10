@@ -4736,10 +4736,11 @@ promptName(score) {
 
             }, 4000);
 
-        } catch (e) {
+       } catch (e) {
             area.innerHTML = '<div class="text-red-900 text-xs crt-text text-center mt-10">CONNECTION ERROR</div>';
         }
-    };
+    } // Close showLeaderboard function
+}; // <--- ADD THIS to close StreakManager object
 
     window.onload = Game.init.bind(Game);
 
