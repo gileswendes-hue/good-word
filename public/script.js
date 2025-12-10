@@ -5076,7 +5076,7 @@ async refreshData(u = true) {
 const StreakManager = {
     timer: null,
     loopTimer: null, 
-    LIMIT: 15000, 
+    LIMIT: 5500, 
 
     handleSuccess() {
         const now = Date.now();
