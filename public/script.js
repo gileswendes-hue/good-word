@@ -4101,7 +4101,7 @@ const InputHandler = {
         c.addEventListener('touchend', e => { endDrag(e.changedTouches[0].clientX); }, false);
     }
 };
-
+const Game = {
 renderGraphs() {
         const w = State.runtime.allWords;
         if (!w || w.length === 0) return;
