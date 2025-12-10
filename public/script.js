@@ -2355,9 +2355,9 @@ halloween(active) {
             thread.style.transition = 'height 3s cubic-bezier(0.45, 0, 0.55, 1)'; 
             thread.style.height = dropVH + 'vh';
             
-            setTimeout(() => {
-                setTimeout(() => {
+	setTimeout(() => {
                     if (isFood && MosquitoManager.state === 'stuck') {
+                        // 1. SUCCESSFUL HUNT
                         MosquitoManager.eat();
                         if(wrap.showBubble) wrap.showBubble("YUM!");
                         
@@ -2368,9 +2368,21 @@ halloween(active) {
                         }, 1000);
                     } 
                     else {
-                        const angryPhrases = GAME_DIALOGUE.spider.trickedEnd;
-                        const angryText = angryPhrases[Math.floor(Math.random() * angryPhrases.length)];
-                        if(wrap.showBubble) wrap.showBubble(angryText);
+                        // 2. FAILED HUNT (Either Missed or Tricked)
+                        let phrases;
+                        
+                        if (isFood) {
+                            // Food WAS there, but is gone now -> MISSED
+                            phrases = GAME_DIALOGUE.spider.missed; 
+                        } else {
+                            // Food was never there -> TRICKED
+                            phrases = GAME_DIALOGUE.spider.trickedEnd; 
+                        }
+
+                        // Pick random phrase (handles both Array and String to be safe)
+                        const text = Array.isArray(phrases) ? phrases[Math.floor(Math.random() * phrases.length)] : phrases;
+                        
+                        if(wrap.showBubble) wrap.showBubble(text);
                         
                         body.style.animation = 'shake 0.3s ease-in-out';
                         setTimeout(() => {
@@ -2378,7 +2390,7 @@ halloween(active) {
                             this.retreatSpider(thread, wrap, bub, '4s');
                         }, 1500);
                     }
-                }, 2000); 
+                }, 2000);
             }, 3000); 
         }, moveTime);
     },
