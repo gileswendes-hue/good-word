@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.69.10', 
+    APP_VERSION: '5.70', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -199,7 +199,8 @@ const State = {
             eaten: parseInt(localStorage.getItem('insectEaten') || 0),
             teased: parseInt(localStorage.getItem('insectTeased') || 0),
 			splatted: parseInt(localStorage.getItem('insectSplatted') || 0),
-			collection: JSON.parse(localStorage.getItem('insectCollection') || '[]')
+			collection: JSON.parse(localStorage.getItem('insectCollection') || '[]'),
+			wordHistory: JSON.parse(localStorage.getItem('wordCountHistory') || '[]')
         },
         
         fishStats: {
@@ -280,7 +281,10 @@ const State = {
             s.setItem('insectEaten', v.eaten);
             s.setItem('insectTeased', v.teased);
             s.setItem('insectSplatted', v.splatted);
-            s.setItem('insectCollection', JSON.stringify(v.collection)); // <--- SAVE COLLECTION
+            s.setItem('insectCollection', JSON.stringify(v.collection));
+			else if (k === 'wordHistory') {
+            s.setItem('wordCountHistory', JSON.stringify(v));
+        }
         } 
         else if (k === 'fishStats') {
             s.setItem('fishCaught', v.caught);
@@ -4091,87 +4095,215 @@ const Game = {
         const w = State.runtime.allWords;
         if (!w || w.length === 0) return;
 
-        // 1. Pie Chart (Vote Distribution)
-        const canvasPie = document.getElementById('pieChartCanvas');
-        if (canvasPie) {
-            const ctxPie = canvasPie.getContext('2d');
-            const totalGood = w.reduce((a, b) => a + (b.goodVotes || 0), 0);
-            const totalBad = w.reduce((a, b) => a + (b.badVotes || 0), 0);
-            const total = totalGood + totalBad;
-            
-            // Reset Canvas
-            ctxPie.clearRect(0, 0, 300, 200);
-            
-            if (total === 0) {
-                ctxPie.font = "14px Arial";
-                ctxPie.fillStyle = "#666";
-                ctxPie.fillText("No votes recorded yet.", 80, 100);
-            } else {
-                const center = { x: 150, y: 100, r: 80 };
-                const goodAngle = (totalGood / total) * 2 * Math.PI;
-                
-                // Draw Good Arc
-                ctxPie.beginPath();
-                ctxPie.moveTo(center.x, center.y);
-                ctxPie.arc(center.x, center.y, center.r, 0, goodAngle);
-                ctxPie.fillStyle = "#22c55e"; // Green
-                ctxPie.fill();
-                
-                // Draw Bad Arc
-                ctxPie.beginPath();
-                ctxPie.moveTo(center.x, center.y);
-                ctxPie.arc(center.x, center.y, center.r, goodAngle, 2 * Math.PI);
-                ctxPie.fillStyle = "#ef4444"; // Red
-                ctxPie.fill();
-                
-                // Legend
-                ctxPie.fillStyle = "#000";
-                ctxPie.font = "bold 12px Arial";
-                ctxPie.fillText(`Good: ${Math.round((totalGood/total)*100)}%`, 10, 190);
-                ctxPie.fillText(`Bad: ${Math.round((totalBad/total)*100)}%`, 220, 190);
+        // --- HELPER: Draw Text Centered ---
+        const drawText = (ctx, text, x, y, color = "#666", size = 12) => {
+            ctx.fillStyle = color;
+            ctx.font = `${size}px sans-serif`;
+            ctx.textAlign = "center";
+            ctx.fillText(text, x, y);
+        };
+
+        // ==========================================
+        // 1. SCATTER PLOT (Opinion Landscape)
+        // ==========================================
+        const cvsScatter = document.getElementById('scatterChartCanvas');
+        if (cvsScatter) {
+            const ctx = cvsScatter.getContext('2d');
+            const W = cvsScatter.width;
+            const H = cvsScatter.height;
+            const P = 40; // Padding
+
+            ctx.clearRect(0, 0, W, H);
+
+            // Scales
+            let maxGood = 0, maxBad = 0;
+            w.forEach(word => {
+                if ((word.goodVotes || 0) > maxGood) maxGood = word.goodVotes || 0;
+                if ((word.badVotes || 0) > maxBad) maxBad = word.badVotes || 0;
+            });
+            maxGood = Math.max(5, maxGood * 1.1);
+            maxBad = Math.max(5, maxBad * 1.1);
+
+            // Grid & Axes
+            ctx.beginPath();
+            ctx.strokeStyle = "#e5e7eb";
+            ctx.lineWidth = 1;
+            // Draw Grid Lines
+            for(let i=1; i<=4; i++) {
+                const y = H - P - (i/5)*(H - 2*P);
+                const x = P + (i/5)*(W - 2*P);
+                ctx.moveTo(P, y); ctx.lineTo(W-P, y); // Horiz
+                ctx.moveTo(x, P); ctx.lineTo(x, H-P); // Vert
             }
+            ctx.stroke();
+
+            // Main Axes
+            ctx.beginPath();
+            ctx.strokeStyle = "#9ca3af";
+            ctx.lineWidth = 2;
+            ctx.moveTo(P, P); ctx.lineTo(P, H - P); // Y
+            ctx.lineTo(W - P, H - P); // X
+            ctx.stroke();
+
+            // Labels
+            drawText(ctx, "Bad Votes →", W / 2, H - 10, "#4b5563", 12);
+            ctx.save();
+            ctx.translate(15, H / 2);
+            ctx.rotate(-Math.PI / 2);
+            drawText(ctx, "Good Votes →", 0, 0, "#4b5563", 12);
+            ctx.restore();
+
+            // Quadrant Labels (Subtle)
+            drawText(ctx, "😇 LOVED", P + 40, P + 20, "rgba(34, 197, 94, 0.3)", 10);
+            drawText(ctx, "👿 HATED", W - P - 40, H - P - 20, "rgba(239, 68, 68, 0.3)", 10);
+            drawText(ctx, "⚔️ CONTROVERSIAL", W - P - 60, P + 20, "rgba(107, 114, 128, 0.3)", 10);
+
+            // Plot Points
+            w.forEach(word => {
+                const g = word.goodVotes || 0;
+                const b = word.badVotes || 0;
+                if (g + b === 0) return;
+
+                const x = P + (b / maxBad) * (W - 2 * P);
+                const y = (H - P) - (g / maxGood) * (H - 2 * P);
+
+                ctx.beginPath();
+                ctx.arc(x, y, 3, 0, Math.PI * 2);
+                
+                // Color Logic
+                if (g > b * 1.5) ctx.fillStyle = "rgba(34, 197, 94, 0.6)"; // Green
+                else if (b > g * 1.5) ctx.fillStyle = "rgba(239, 68, 68, 0.6)"; // Red
+                else ctx.fillStyle = "rgba(107, 114, 128, 0.6)"; // Grey
+                
+                ctx.fill();
+            });
         }
 
-        // 2. Line Chart (Dictionary Growth - Simulated via Index)
-        const canvasLine = document.getElementById('lineChartCanvas');
-        if (canvasLine) {
-            const ctxLine = canvasLine.getContext('2d');
-            ctxLine.clearRect(0, 0, 300, 150);
-            
-            const padding = 20;
-            const gw = 300 - padding * 2;
-            const gh = 150 - padding * 2;
+        // ==========================================
+        // 2. LINE GRAPH (History)
+        // ==========================================
+        const cvsLine = document.getElementById('lineChartCanvas');
+        if (cvsLine) {
+            const ctx = cvsLine.getContext('2d');
+            const W = cvsLine.width;
+            const H = cvsLine.height;
+            const P = 30;
+
+            ctx.clearRect(0, 0, W, H);
+
+            // Get Data (or fallback if empty)
+            let history = State.data.wordHistory || [];
+            if (history.length === 0) {
+                // Mock current point if no history
+                history = [{ date: new Date().toISOString().split('T')[0], count: w.length }];
+            }
+
+            // Scales
+            const maxCount = Math.max(...history.map(h => h.count), w.length) * 1.1;
+            const minCount = Math.min(0, ...history.map(h => h.count));
             
             // Draw Axes
-            ctxLine.beginPath();
-            ctxLine.moveTo(padding, padding);
-            ctxLine.lineTo(padding, 150 - padding);
-            ctxLine.lineTo(300 - padding, 150 - padding);
-            ctxLine.strokeStyle = "#ccc";
-            ctxLine.stroke();
-            
-            // Plot Line (Simulated growth)
-            const count = w.length;
-            ctxLine.beginPath();
-            ctxLine.moveTo(padding, 150 - padding);
-            
-            // Draw a simplified growth curve
-            for (let i = 0; i <= 10; i++) {
-                const x = padding + (gw * (i / 10));
-                // Simulated eased growth curve based on total count
-                const progress = i / 10;
-                const yVal = progress * count; 
-                const y = (150 - padding) - ((yVal / count) * gh);
-                ctxLine.lineTo(x, y);
+            ctx.beginPath();
+            ctx.strokeStyle = "#ccc";
+            ctx.lineWidth = 1;
+            ctx.moveTo(P, P); ctx.lineTo(P, H - P); ctx.lineTo(W - P, H - P);
+            ctx.stroke();
+
+            // Plot Line
+            if (history.length > 1) {
+                ctx.beginPath();
+                ctx.strokeStyle = "#4f46e5";
+                ctx.lineWidth = 3;
+                
+                history.forEach((h, i) => {
+                    const x = P + (i / (history.length - 1)) * (W - 2 * P);
+                    const y = (H - P) - (h.count / maxCount) * (H - 2 * P);
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+            } else {
+                // Single point representation
+                const y = (H - P) - (history[0].count / maxCount) * (H - 2 * P);
+                ctx.beginPath();
+                ctx.fillStyle = "#4f46e5";
+                ctx.arc(W/2, y, 5, 0, Math.PI*2);
+                ctx.fill();
             }
-            ctxLine.strokeStyle = "#4f46e5";
-            ctxLine.lineWidth = 3;
-            ctxLine.stroke();
+
+            drawText(ctx, "Time →", W / 2, H - 10, "#666");
+            drawText(ctx, "Words", 10, H / 2, "#666");
+        }
+
+        // ==========================================
+        // 3. PIE CHART (Classifications)
+        // ==========================================
+        const cvsPie = document.getElementById('pieChartCanvas');
+        if (cvsPie) {
+            const ctx = cvsPie.getContext('2d');
+            const W = cvsPie.width;
+            const H = cvsPie.height;
+            ctx.clearRect(0, 0, W, H);
+
+            // Classify Words
+            let cGood = 0, cBad = 0, cControversial = 0, cUnrated = 0;
             
-            ctxLine.fillStyle = "#666";
-            ctxLine.font = "10px Arial";
-            ctxLine.fillText("Start", padding, 145);
-            ctxLine.fillText("Now (" + count + " words)", 200, 145);
+            w.forEach(word => {
+                const g = word.goodVotes || 0;
+                const b = word.badVotes || 0;
+                const total = g + b;
+                
+                if (total < 3) {
+                    cUnrated++;
+                } else {
+                    const ratio = g / total;
+                    if (ratio > 0.60) cGood++;
+                    else if (ratio < 0.40) cBad++;
+                    else cControversial++;
+                }
+            });
+
+            const totalRated = cGood + cBad + cControversial;
+            
+            if (totalRated === 0) {
+                drawText(ctx, "Not enough votes yet.", W/2, H/2);
+            } else {
+                const data = [
+                    { label: "Good", val: cGood, color: "#22c55e" },
+                    { label: "Bad", val: cBad, color: "#ef4444" },
+                    { label: "Controversial", val: cControversial, color: "#eab308" } // Yellow/Gold
+                ];
+
+                let startAngle = 0;
+                const centerX = 150;
+                const centerY = H / 2;
+                const radius = 70;
+
+                data.forEach(slice => {
+                    if (slice.val === 0) return;
+                    const sliceAngle = (slice.val / totalRated) * 2 * Math.PI;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(centerX, centerY);
+                    ctx.arc(centerX, centerY, radius, startAngle, startAngle + sliceAngle);
+                    ctx.fillStyle = slice.color;
+                    ctx.fill();
+                    startAngle += sliceAngle;
+                });
+
+                // Legend
+                let legY = 60;
+                data.forEach(slice => {
+                    ctx.fillStyle = slice.color;
+                    ctx.fillRect(260, legY, 15, 15);
+                    ctx.fillStyle = "#374151";
+                    ctx.textAlign = "left";
+                    ctx.font = "bold 12px sans-serif";
+                    const pct = Math.round((slice.val / totalRated) * 100);
+                    ctx.fillText(`${slice.label}: ${slice.val} (${pct}%)`, 285, legY + 12);
+                    legY += 30;
+                });
+            }
         }
     },
 	
@@ -4455,6 +4587,24 @@ async refreshData(u = true) {
                 } else {
                     this.nextWord();
                 }
+				
+				const today = new Date().toISOString().split('T')[0];
+				const history = State.data.wordHistory;
+				const currentCount = State.runtime.allWords.length;
+
+            // If last entry is not today, add today.
+            if (history.length === 0 || history[history.length - 1].date !== today) {
+                history.push({ date: today, count: currentCount });
+                // Optional: Limit to last 365 entries to save space
+                if (history.length > 365) history.shift(); 
+                State.save('wordHistory', history);
+            } else {
+                // If we already have today, update the count (in case it grew)
+                if (history[history.length - 1].count !== currentCount) {
+                    history[history.length - 1].count = currentCount;
+                    State.save('wordHistory', history);
+                }
+            }
             }
         } else {
             UIManager.showMessage("Connection Error", true);
