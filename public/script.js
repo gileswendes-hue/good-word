@@ -2450,6 +2450,45 @@ halloween(active) {
 
 // --- SHARE MANAGER ---
 const ShareManager = {
+
+    // Add this inside ShareManager object
+async shareQR(type) {
+    const word = State.runtime.allWords[State.runtime.currentWordIndex].text;
+    UIManager.showPostVoteMessage("Generating QR Code... 📷");
+    
+    // 1. Construct the specific URL (Good or Bad vote context)
+    // We point to the main site, passing the word as a parameter
+    const targetUrl = `${window.location.origin}/?word=${encodeURIComponent(word)}`;
+    
+    // 2. Use QuickChart or QRServer (Public APIs)
+    // Green (16a34a) for Good, Red (dc2626) for Bad
+    const color = type === 'good' ? '16a34a' : 'dc2626';
+    const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&color=${color}&margin=20&data=${encodeURIComponent(targetUrl)}`;
+
+    try {
+        const response = await fetch(apiUrl);
+        const blob = await response.blob();
+        const file = new File([blob], `${word}_${type}_qr.png`, { type: 'image/png' });
+        
+        const shareData = {
+            title: `Vote ${type} on ${word}!`,
+            text: `Scan to vote on "${word}"!`,
+            files: [file]
+        };
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share(shareData);
+        } else {
+            // Fallback for desktop: Open in new tab
+            window.open(apiUrl, '_blank');
+            UIManager.showPostVoteMessage("Opened QR in new tab!");
+        }
+    } catch (e) {
+        console.error(e);
+        UIManager.showPostVoteMessage("Could not generate QR.");
+    }
+},
+
     // 1. New Share Word Function
     async shareWord(wordText) {
         const url = `${window.location.origin}/?word=${encodeURIComponent(wordText)}`;
@@ -3903,6 +3942,25 @@ const Game = {
             if (DOM.game.buttons.notWord) DOM.game.buttons.notWord.onclick = () => this.vote('notWord');
             if (DOM.game.dailyBanner) DOM.game.dailyBanner.onclick = () => this.activateDailyMode();
 
+            const qrGood = document.getElementById('qrGoodBtn');
+const qrBad = document.getElementById('qrBadBtn');
+
+if (qrGood) {
+    qrGood.onclick = (e) => {
+        if (DOM.game.buttons.good.disabled || State.runtime.isCoolingDown) return;
+        e.stopPropagation();
+        ShareManager.shareQR('good');
+    };
+}
+
+if (qrBad) {
+    qrBad.onclick = (e) => {
+        if (DOM.game.buttons.good.disabled || State.runtime.isCoolingDown) return;
+        e.stopPropagation();
+        ShareManager.shareQR('bad');
+    };
+}
+
 			document.getElementById('showHelpButton').onclick = () => {
 			window.scrollTo({ top: 0, behavior: 'smooth' });
 			UIManager.showPostVoteMessage("What's going on? There aren't really any rules, but if you're really confused then drop me a message and I'll see if I can help!");
@@ -4444,70 +4502,100 @@ promptName(score) {
         document.getElementById('hsSaveBtn').onclick = saveFn;
     },
 
-    async showLeaderboard() {
-        this.renderLeaderboard(State.data.highScores, "LOCAL BEST");
-        const globalScores = await API.getGlobalScores();
-        if (globalScores && globalScores.length > 0) {
-            this.renderLeaderboard(globalScores, "HIGH SCORES");
-        }
-    },
+    // Replace the existing showLeaderboard and renderLeaderboard in StreakManager
+async showLeaderboard() {
+    // 1. Inject CRT Styles if missing
+    if (!document.getElementById('crt-styles')) {
+        const s = document.createElement('style');
+        s.id = 'crt-styles';
+        s.innerHTML = `
+            @keyframes crt-flicker { 0% {opacity: 0.97;} 5% {opacity: 0.95;} 10% {opacity: 0.9;} 15% {opacity: 0.95;} 100% {opacity: 0.98;} }
+            @keyframes text-glow { 0% {text-shadow: 0 0 4px #3b82f6;} 50% {text-shadow: 0 0 15px #3b82f6, 0 0 5px white;} 100% {text-shadow: 0 0 4px #3b82f6;} }
+            .crt-monitor {
+                background-color: #050505;
+                box-shadow: inset 0 0 100px rgba(0,0,0,0.9), 0 0 20px rgba(0,0,0,0.5);
+                border: 4px solid #333;
+                border-radius: 20px;
+                position: relative;
+                overflow: hidden;
+                animation: crt-flicker 0.15s infinite;
+            }
+            .crt-overlay {
+                position: absolute; inset: 0; pointer-events: none; z-index: 10;
+                background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+                background-size: 100% 2px, 3px 100%;
+            }
+            .crt-text { font-family: 'Courier New', monospace; text-transform: uppercase; letter-spacing: 0.1em; }
+            .crt-title { animation: text-glow 2s infinite ease-in-out; color: #60a5fa; }
+        `;
+        document.head.appendChild(s);
+    }
 
-    renderLeaderboard(scores, title) {
-        const existing = document.getElementById('highScoreModal');
-        if(existing) existing.remove();
-
-        // --- CHANGED: Slice to top 8, pad to 8 ---
-        const displayScores = [...scores].slice(0, 8);
-        while(displayScores.length < 8) displayScores.push({name: '---', score: 0});
-
-        const listHtml = displayScores.map((s, i) => {
-            const rankColor = i === 0 ? 'text-yellow-400' : (i===1 ? 'text-cyan-400' : (i===2 ? 'text-green-400' : 'text-red-500'));
-            const scoreColor = 'text-white';
-            const retroScore = s.score.toString().padStart(7, '0');
-            const retroName = s.name.toUpperCase().substring(0, 3);
-
-            return `
-            <div class="flex items-center justify-between border-b-2 border-gray-800/50 pb-2 mb-2 font-mono tracking-widest group hover:bg-white/5 transition-colors p-1">
-                <div class="flex items-center gap-4">
-                    <span class="text-2xl font-black ${rankColor} drop-shadow-[2px_2px_0_rgba(0,0,0,1)]">${i+1}</span>
-                    <span class="text-xl font-bold text-purple-400 drop-shadow-[1px_1px_0_rgba(0,0,0,1)]">${retroName}</span>
-                </div>
-                <div class="flex-grow mx-2 border-b-2 border-dotted border-gray-700 h-4 opacity-30"></div>
-                <span class="text-xl font-black ${scoreColor} drop-shadow-[2px_2px_0_rgba(0,0,0,1)]">${retroScore}</span>
-             </div>`;
-        }).join('');
-
-        const html = `
-            <div id="highScoreModal" class="fixed inset-0 bg-black/95 z-[200] flex items-center justify-center p-4 backdrop-blur-sm" onclick="this.remove()">
+    // 2. Build Skeleton HTML
+    const html = `
+        <div id="highScoreModal" class="fixed inset-0 bg-black/95 z-[200] flex items-center justify-center p-4 backdrop-blur-sm" onclick="this.remove()">
+            <div class="crt-monitor w-full max-w-md p-6 transform transition-all scale-100" onclick="event.stopPropagation()">
+                <div class="crt-overlay"></div>
                 
-                <div class="bg-gray-900 border-4 border-indigo-600 w-full max-w-md p-1 shadow-[0_0_50px_rgba(79,70,229,0.6)] relative rounded-lg transform transition-all scale-100" onclick="event.stopPropagation()">
-                    
-                    <div class="bg-black border-2 border-black p-6 rounded relative overflow-hidden">
-                        
-                        <div class="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-0 bg-[length:100%_4px,3px_100%] pointer-events-none"></div>
+                <div class="text-center mb-6 relative z-20">
+                    <h2 class="text-3xl font-black crt-text crt-title mb-2">HIGH SCORES</h2>
+                    <div class="h-0.5 w-full bg-blue-900 shadow-[0_0_10px_#3b82f6]"></div>
+                </div>
 
-                        <div class="text-center mb-6 relative z-10">
-                            <h2 class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 to-yellow-600 tracking-[0.2em] drop-shadow-[4px_4px_0_rgba(180,83,9,0.5)] animate-pulse" style="font-family: 'Courier New', monospace;">
-                                ${title}
-                            </h2>
-                            <div class="text-[10px] text-indigo-400 mt-2 font-mono font-bold tracking-[0.5em] uppercase">--- Insert Coin ---</div>
-                        </div>
+                <div id="hs-list-container" class="space-y-3 mb-6 relative z-20 max-h-[60vh] overflow-y-auto scrollbar-hide">
+                    <div class="mb-4">
+                        <div class="text-yellow-400 text-xs crt-text mb-2 border-b border-yellow-900 pb-1">LOCAL RECORDS</div>
+                        <div id="hs-local-list"></div>
+                    </div>
 
-                        <div class="space-y-2 mb-4 relative z-10 max-h-[50vh] overflow-y-auto pr-2 scrollbar-hide">
-                            ${listHtml}
-                        </div>
-
-                        <button onclick="document.getElementById('highScoreModal').remove()" 
-                            class="relative z-10 w-full py-4 bg-indigo-700 hover:bg-indigo-600 text-white font-black tracking-[0.2em] border-b-4 border-indigo-900 active:border-b-0 active:translate-y-1 uppercase text-lg transition-all font-mono shadow-[0_0_15px_rgba(79,70,229,0.5)]">
-                            Close
-                        </button>
+                    <div>
+                        <div class="text-green-400 text-xs crt-text mb-2 border-b border-green-900 pb-1">GLOBAL RECORDS</div>
+                        <div id="hs-global-list" class="text-gray-500 text-xs crt-text animate-pulse">CONNECTING TO NET...</div>
                     </div>
                 </div>
-            </div>`;
+
+                <button onclick="document.getElementById('highScoreModal').remove()" 
+                    class="relative z-20 w-full py-3 bg-blue-900/50 hover:bg-blue-800 text-blue-200 font-bold border border-blue-500 rounded crt-text transition-all">
+                    CLOSE TERMINAL
+                </button>
+            </div>
+        </div>`;
+
+    // 3. Mount Modal
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    document.body.appendChild(div.firstElementChild);
+
+    // 4. Render Helper
+    const renderRow = (s, i, colorClass) => `
+        <div class="flex justify-between items-center crt-text text-sm py-1 border-b border-gray-800/50">
+            <div class="flex gap-3">
+                <span class="text-gray-600">#${(i+1).toString().padStart(2,'0')}</span>
+                <span class="${colorClass} font-bold">${s.name.substring(0,3).toUpperCase()}</span>
+            </div>
+            <span class="text-white">${s.score.toString().padStart(6,'0')}</span>
+        </div>`;
+
+    // 5. Load Local Immediately
+    const localContainer = document.getElementById('hs-local-list');
+    const localScores = (State.data.highScores || []).slice(0, 5); // Top 5 Local
+    if(localScores.length === 0) localContainer.innerHTML = '<div class="text-gray-600 text-xs crt-text italic">NO DATA</div>';
+    else localContainer.innerHTML = localScores.map((s,i) => renderRow(s, i, 'text-yellow-300')).join('');
+
+    // 6. Fetch Global Asynchronously
+    try {
+        const globalScores = await API.getGlobalScores();
+        const globalContainer = document.getElementById('hs-global-list');
         
-        const div = document.createElement('div');
-        div.innerHTML = html;
-        document.body.appendChild(div.firstElementChild);
+        if (globalScores && globalScores.length > 0) {
+            // Take top 10 for global
+            const topGlobal = globalScores.slice(0, 10);
+            globalContainer.innerHTML = topGlobal.map((s,i) => renderRow(s, i, 'text-green-400')).join('');
+        } else {
+            globalContainer.innerHTML = '<div class="text-red-900 text-xs crt-text">CONNECTION FAILED</div>';
+        }
+    } catch(e) {
+        document.getElementById('hs-global-list').innerHTML = '<div class="text-red-900 text-xs crt-text">OFFLINE</div>';
     }
 };
 
@@ -4527,6 +4615,24 @@ window.StreakManager = {
     };
 
     window.onload = Game.init.bind(Game);
+
+if (qrGood) {
+    qrGood.onclick = (e) => {
+        // Prevent clicking if cooling down or voting disabled
+        if (DOM.game.buttons.good.disabled || State.runtime.isCoolingDown) return;
+        e.stopPropagation();
+        ShareManager.shareQR('good');
+    };
+}
+
+if (qrBad) {
+    qrBad.onclick = (e) => {
+        // Prevent clicking if cooling down or voting disabled
+        if (DOM.game.buttons.good.disabled || State.runtime.isCoolingDown) return;
+        e.stopPropagation();
+        ShareManager.shareQR('bad');
+    };
+}
 
     console.log("%c Good Word / Bad Word ", "background: #4f46e5; color: #bada55; padding: 4px; border-radius: 4px;");
     console.log("Play fair! ️😇");
