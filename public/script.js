@@ -3490,6 +3490,97 @@ const PinPad = {
 
 window.PinPad = PinPad;
 
+const DataManager = {
+    EXCLUDE: ['offlineCache', 'pendingVotes'],
+    SECRET_SALT: "s70p_7rying_70_ch347!", 
+
+    _generateHash(str) {
+        let hash = 0;
+        if (str.length === 0) return hash.toString();
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash |= 0;
+        }
+        return hash.toString(16);
+    },
+
+    async exportData() {
+        try {
+
+            const rawData = { ...State.data };
+            this.EXCLUDE.forEach(k => delete rawData[k]);
+
+            const dataString = JSON.stringify(rawData);
+            const signature = this._generateHash(dataString + this.SECRET_SALT);
+
+            const backup = {
+                timestamp: Date.now(),
+                version: CONFIG.APP_VERSION,
+                data: rawData,
+                signature: signature
+            };
+
+            const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const date = new Date().toISOString().split('T')[0];
+            a.href = url;
+            a.download = `gbword_backup_${State.data.username || 'user'}_${date}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            UIManager.showPostVoteMessage("Secure Backup saved! 💾");
+        } catch (e) {
+            console.error(e);
+            alert("Export failed.");
+        }
+    },
+
+    importData(file) {
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const json = JSON.parse(e.target.result);
+                
+                if (!json.data || !json.signature) {
+                    throw new Error("Invalid or old backup file format.");
+                }
+
+                const checkString = JSON.stringify(json.data);
+                const checkHash = this._generateHash(checkString + this.SECRET_SALT);
+
+                if (checkHash !== json.signature) {
+                    alert("⚠️ TAMPER DETECTED ⚠️\n\nThis save file has been modified externally.\nRestore rejected.");
+                    return;
+                }
+
+                if (!confirm(`Restore valid backup from ${new Date(json.timestamp).toLocaleDateString()}?`)) {
+                    return;
+                }
+
+                const newData = { ...State.data, ...json.data };
+                Object.keys(newData).forEach(k => {
+                    if (this.EXCLUDE.includes(k)) return;
+                    State.save(k, newData[k]);
+                });
+
+                alert("Success! Reloading...");
+                window.location.reload();
+
+            } catch (err) {
+                console.error(err);
+                alert("Error: " + err.message);
+            }
+        };
+        reader.readAsText(file);
+    }
+};
+
 const ModalManager = {
     toggle(id, show) {
         const e = DOM.modals[id];
@@ -3553,9 +3644,39 @@ init() {
                 html += mkTog('toggleLights', '🎄 Christmas Lights', s.showLights, 'text-green-600');
                 html += `</div></div>`;
 
+				// 5. DATA MANAGEMENT (New Section)
+                html += `<div class="mb-6">
+                    <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 border-b border-gray-100 pb-1">Data Backup</h3>
+                    <div class="flex gap-3">
+                        <button id="btnExportData" class="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-lg border border-gray-200 hover:bg-gray-200 transition text-sm">
+                            💾 Save Backup
+                        </button>
+                        <button id="btnImportData" class="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-lg border border-gray-200 hover:bg-gray-200 transition text-sm">
+                            📂 Restore File
+                        </button>
+                        <input type="file" id="fileImportInput" accept=".json" style="display:none">
+                    </div>
+                    <p class="text-[10px] text-gray-400 mt-2">Save your .json file to move stats to another device.</p>
+                </div>`;
+
                 // INJECT HTML
                 container.innerHTML = html;
                 
+				// Export
+                const btnExport = document.getElementById('btnExportData');
+                if(btnExport) btnExport.onclick = () => DataManager.exportData();
+
+                // Import (Click hidden file input)
+                const fileInput = document.getElementById('fileImportInput');
+                const btnImport = document.getElementById('btnImportData');
+                if(btnImport) btnImport.onclick = () => fileInput.click();
+                
+                // Handle File Selection
+                if(fileInput) fileInput.onchange = (e) => {
+                    DataManager.importData(e.target.files[0]);
+                    e.target.value = ''; 
+                };
+				
                 // Network
                 document.getElementById('toggleOffline').onchange = e => OfflineManager.toggle(e.target.checked);
 
