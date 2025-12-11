@@ -3596,6 +3596,7 @@ init() {
             if (container) {
                 container.classList.add('max-h-[60vh]', 'overflow-y-auto', 'pr-2'); 
 
+
                 const mkTog = (id, label, checked, color = 'text-indigo-600') => `
                     <div class="flex items-center justify-between">
                         <label for="${id}" class="text-lg font-medium text-gray-700">${label}</label>
@@ -3658,12 +3659,12 @@ init() {
                     <p class="text-[10px] text-gray-400 mt-2">Save your .json file to move stats to another device.</p>
                 </div>`;
 
-                // --- INJECT HTML FIRST (CRITICAL STEP) ---
+                // INJECT HTML
                 container.innerHTML = html;
                 
-                // --- NOW ATTACH LISTENERS (After HTML exists) ---
-                
-                // Data Listeners
+                // --- ATTACH LISTENERS ---
+
+                // Data Backup Listeners
                 const btnExport = document.getElementById('btnExportData');
                 if(btnExport) btnExport.onclick = () => DataManager.exportData();
 
@@ -3674,7 +3675,7 @@ init() {
                 if(fileInput) fileInput.onchange = (e) => {
                     if (e.target.files.length > 0) {
                         DataManager.importData(e.target.files[0]);
-                        e.target.value = ''; // Reset so you can load same file again
+                        e.target.value = ''; 
                     }
                 };
 
@@ -3726,12 +3727,12 @@ init() {
                     };
                 }
 
-                // ... (The rest of your toggleKidsMode / toggleTilt logic continues here) ...
-                document.getElementById('toggleKidsMode').onchange = e => { 
-                    // ... keep your existing kids mode logic here ... 
+                document.getElementById('toggleKidsMode').onchange = e => {
                     const turningOn = e.target.checked;
                     const savedPin = State.data.settings.kidsModePin;
+
                     e.preventDefault(); 
+
                     if (turningOn) {
                         if (!savedPin) {
                             e.target.checked = false;
@@ -3754,6 +3755,7 @@ init() {
                             Game.refreshData(true);
                             return;
                         }
+                        
                         PinPad.open('verify', () => {
                             State.save('settings', { ...State.data.settings, kidsMode: false });
                             Game.refreshData(true);
@@ -3763,7 +3765,7 @@ init() {
                         });
                     }
                 };
-                
+
                 document.getElementById('toggleTilt').onchange = e => {
                     State.save('settings', { ...State.data.settings, enableTilt: e.target.checked });
                     TiltManager.refresh();
