@@ -5372,7 +5372,7 @@ const StreakManager = {
 };
 
     window.onload = Game.init.bind(Game);
-
+	window.fEhPVHxCRUFDSHxIT0xJREFZfFNVTnxWQU = API;
     console.log("%c Good Word / Bad Word ", "background: #4f46e5; color: #bada55; padding: 4px; border-radius: 4px;");
     console.log("Play fair! ️😇");
 
