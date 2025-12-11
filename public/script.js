@@ -3596,7 +3596,6 @@ init() {
             if (container) {
                 container.classList.add('max-h-[60vh]', 'overflow-y-auto', 'pr-2'); 
 
-
                 const mkTog = (id, label, checked, color = 'text-indigo-600') => `
                     <div class="flex items-center justify-between">
                         <label for="${id}" class="text-lg font-medium text-gray-700">${label}</label>
@@ -3617,7 +3616,7 @@ init() {
  
                 // 2. SETTINGS
                 html += `<div class="mb-6"><h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 border-b border-gray-100 pb-1">Settings</h3><div class="space-y-4">`;
-				if (State.data.unlockedThemes.length > 0) {
+                if (State.data.unlockedThemes.length > 0) {
                      html += mkTog('toggleRandomTheme', '🔀 Randomise Theme on Load', s.randomizeTheme);
                 }
                 html += mkTog('togglePercentages', 'Show Vote Percentages', s.showPercentages);
@@ -3631,7 +3630,7 @@ init() {
                 html += mkTog('toggleColorblind', 'Colourblind Mode', s.colorblindMode);
                 html += mkTog('toggleLargeText', 'Increase Text Size', s.largeText);
                 html += mkTog('toggleMute', '🔇 Mute All Sounds', s.muteSounds);
-				if (State.data.unlockedThemes.includes('halloween')) {
+                if (State.data.unlockedThemes.includes('halloween')) {
                     html += mkTog('toggleArachnophobia', '🚫 Arachnophobia Mode', s.arachnophobiaMode);
                 }
                 html += mkTog('toggleKidsMode', '🧸 Kids Mode', s.kidsMode, 'text-pink-600');
@@ -3644,8 +3643,8 @@ init() {
                 html += mkTog('toggleLights', '🎄 Christmas Lights', s.showLights, 'text-green-600');
                 html += `</div></div>`;
 
-				// 5. DATA MANAGEMENT (New Section)
-                html += `<div class="mb-6">
+                // 5. DATA MANAGEMENT
+                html += `<div class="mb-6 mt-6">
                     <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 border-b border-gray-100 pb-1">Data Backup</h3>
                     <div class="flex gap-3">
                         <button id="btnExportData" class="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-lg border border-gray-200 hover:bg-gray-200 transition text-sm">
@@ -3659,24 +3658,26 @@ init() {
                     <p class="text-[10px] text-gray-400 mt-2">Save your .json file to move stats to another device.</p>
                 </div>`;
 
-                // INJECT HTML
+                // --- INJECT HTML FIRST (CRITICAL STEP) ---
                 container.innerHTML = html;
                 
-				// Export
+                // --- NOW ATTACH LISTENERS (After HTML exists) ---
+                
+                // Data Listeners
                 const btnExport = document.getElementById('btnExportData');
                 if(btnExport) btnExport.onclick = () => DataManager.exportData();
 
-                // Import (Click hidden file input)
                 const fileInput = document.getElementById('fileImportInput');
                 const btnImport = document.getElementById('btnImportData');
                 if(btnImport) btnImport.onclick = () => fileInput.click();
                 
-                // Handle File Selection
                 if(fileInput) fileInput.onchange = (e) => {
-                    DataManager.importData(e.target.files[0]);
-                    e.target.value = ''; 
+                    if (e.target.files.length > 0) {
+                        DataManager.importData(e.target.files[0]);
+                        e.target.value = ''; // Reset so you can load same file again
+                    }
                 };
-				
+
                 // Network
                 document.getElementById('toggleOffline').onchange = e => OfflineManager.toggle(e.target.checked);
 
@@ -3685,7 +3686,7 @@ init() {
                     State.save('settings', { ...State.data.settings, showPercentages: e.target.checked });
                 document.getElementById('toggleTips').onchange = e => 
                     State.save('settings', { ...State.data.settings, showTips: e.target.checked });
-					const randBtn = document.getElementById('toggleRandomTheme');
+                const randBtn = document.getElementById('toggleRandomTheme');
                 if (randBtn) {
                     randBtn.onchange = e => State.save('settings', { ...State.data.settings, randomizeTheme: e.target.checked });
                 }
@@ -3703,38 +3704,34 @@ init() {
                     State.save('settings', { ...State.data.settings, largeText: e.target.checked });
                     Accessibility.apply();
                 };
-				document.getElementById('toggleMute').onchange = e => {
+                document.getElementById('toggleMute').onchange = e => {
                     State.save('settings', { ...State.data.settings, muteSounds: e.target.checked });
                     SoundManager.updateMute();
                 };
 
-				const arachBtn = document.getElementById('toggleArachnophobia');
+                const arachBtn = document.getElementById('toggleArachnophobia');
                 if (arachBtn) {
                     arachBtn.onchange = e => {
                         const isSafe = e.target.checked;
                         State.save('settings', { ...State.data.settings, arachnophobiaMode: isSafe });
-                        
-                        // --- FIX: Refund bug if web disappears ---
                         if (isSafe && typeof MosquitoManager !== 'undefined' && MosquitoManager.state === 'stuck') {
                              State.data.insectStats.saved++;
                              State.save('insectStats', State.data.insectStats);
                              MosquitoManager.remove();
                              UIManager.showPostVoteMessage("Bug returned to jar! 🦟");
                         }
-                        // -----------------------------------------
-
                         if (State.data.currentTheme === 'halloween') {
                             Effects.halloween(true);
                         }
                     };
                 }
 
-                document.getElementById('toggleKidsMode').onchange = e => {
+                // ... (The rest of your toggleKidsMode / toggleTilt logic continues here) ...
+                document.getElementById('toggleKidsMode').onchange = e => { 
+                    // ... keep your existing kids mode logic here ... 
                     const turningOn = e.target.checked;
                     const savedPin = State.data.settings.kidsModePin;
-
                     e.preventDefault(); 
-
                     if (turningOn) {
                         if (!savedPin) {
                             e.target.checked = false;
@@ -3744,7 +3741,6 @@ init() {
                                 Game.refreshData(true);
                                 this.toggle('settings', false); 
                             }, () => {
-                                
                                 document.getElementById('toggleKidsMode').checked = false;
                             });
                         } else {
@@ -3758,7 +3754,6 @@ init() {
                             Game.refreshData(true);
                             return;
                         }
-                        
                         PinPad.open('verify', () => {
                             State.save('settings', { ...State.data.settings, kidsMode: false });
                             Game.refreshData(true);
@@ -3768,7 +3763,7 @@ init() {
                         });
                     }
                 };
-
+                
                 document.getElementById('toggleTilt').onchange = e => {
                     State.save('settings', { ...State.data.settings, enableTilt: e.target.checked });
                     TiltManager.refresh();
