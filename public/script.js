@@ -3953,7 +3953,7 @@ init() {
 const TipManager = {
     serviceID: 'service_b6d75wi',
     templateID: 'template_qody7q7',
-    COOLDOWN_MINS: 10, // <--- CONFIG: Minutes between messages
+    COOLDOWN_MINS: 10, 
 
     init() {
         if (document.getElementById('tipModal')) return;
@@ -4425,85 +4425,92 @@ renderGraphs() {
             });
         }
 
-        const cvsLine = document.getElementById('lineChartCanvas');
-        if (cvsLine) {
-            const ctx = cvsLine.getContext('2d');
-            const W = cvsLine.width;
-            const H = cvsLine.height;
-            const P = 40; 
+const cvsLine = document.getElementById('lineChartCanvas');
+if (cvsLine) {
+    const ctx = cvsLine.getContext('2d');
+    const W = cvsLine.width;
+    const H = cvsLine.height;
+    const P = 40; 
 
-            ctx.clearRect(0, 0, W, H);
+    ctx.clearRect(0, 0, W, H);
 
-            let history = State.data.wordHistory || [];
-            if (history.length === 0) {
-                const today = new Date().toISOString().split('T')[0];
-                history = [{ date: today, count: w.length }];
-            }
+    let history = State.data.wordHistory || [];
+    if (history.length === 0) {
+        const today = new Date().toISOString().split('T')[0];
+        history = [{ date: today, count: w.length }];
+    }
 
-            // Scales
-            const currentMax = Math.max(...history.map(h => h.count), w.length);
-            let maxCount = 10000;
-            if (currentMax > 10000) {
-                const magnitude = Math.pow(10, Math.floor(Math.log10(currentMax)));
-                maxCount = Math.ceil(currentMax / magnitude) * magnitude;
-            }
+    // --- 1. SET FIXED SCALES (4k to 8k) ---
+    const minCount = 4000; // Start at 4k
+    const maxCount = 8000; // End at 8k
+    const range = maxCount - minCount; // Total range (4000)
 
-            // --- DRAW GRID & Y-LABELS (0, 2.5k, 5k, 7.5k, 10k) ---
-            ctx.textAlign = "right";
-            const steps = 4; // Splits into 4 segments (5 ticks)
+    // --- DRAW GRID & Y-LABELS ---
+    ctx.textAlign = "right";
+    const steps = 4; 
+    
+    for (let i = 0; i <= steps; i++) {
+        // Calculate value based on minCount + step increment
+        const val = minCount + (range / steps) * i;
+        
+        // Math changed: Account for minCount offset
+        const normalizedHeight = (val - minCount) / range;
+        const y = (H - P) - normalizedHeight * (H - 2 * P);
+        
+        // Grid Line
+        ctx.beginPath();
+        ctx.strokeStyle = i === 0 ? "#9ca3af" : "#e5e7eb"; 
+        ctx.lineWidth = i === 0 ? 2 : 1;
+        ctx.moveTo(P, y);
+        ctx.lineTo(W - P, y);
+        ctx.stroke();
+
+        // Y-Axis Label
+        drawText(ctx, fmtK(val), P - 5, y + 4, "#666", 10);
+    }
+
+    // Vertical Axis Line (Left)
+    ctx.beginPath(); ctx.strokeStyle = "#9ca3af"; ctx.lineWidth = 2;
+    ctx.moveTo(P, P); ctx.lineTo(P, H - P); ctx.stroke();
+
+    // X-Axis Labels (Dates)
+    ctx.textAlign = "center";
+    const startDate = history[0].date;
+    const endDate = history[history.length - 1].date;
+    
+    drawText(ctx, fmtDate(startDate), P + 20, H - 10, "#666", 10);
+    if (history.length > 1) {
+        drawText(ctx, fmtDate(endDate), W - P - 20, H - 10, "#666", 10);
+    }
+
+    // --- 2. PLOT LINE ---
+    if (history.length > 1) {
+        ctx.beginPath(); ctx.strokeStyle = "#4f46e5"; ctx.lineWidth = 3;
+        history.forEach((h, i) => {
+            const x = P + (i / (history.length - 1)) * (W - 2 * P);
             
-            for (let i = 0; i <= steps; i++) {
-                const val = (maxCount / steps) * i;
-                const y = (H - P) - (val / maxCount) * (H - 2 * P);
-                
-                // Grid Line
-                ctx.beginPath();
-                ctx.strokeStyle = i === 0 ? "#9ca3af" : "#e5e7eb"; // Darker for X-axis (0)
-                ctx.lineWidth = i === 0 ? 2 : 1;
-                ctx.moveTo(P, y);
-                ctx.lineTo(W - P, y);
-                ctx.stroke();
-
-                // Y-Axis Label (Right aligned to padding)
-                drawText(ctx, fmtK(val), P - 5, y + 4, "#666", 10);
-            }
-
-            // Vertical Axis Line (Left)
-            ctx.beginPath(); ctx.strokeStyle = "#9ca3af"; ctx.lineWidth = 2;
-            ctx.moveTo(P, P); ctx.lineTo(P, H - P); ctx.stroke();
-
-            // X-Axis Labels (Dates)
-            ctx.textAlign = "center";
-            const startDate = history[0].date;
-            const endDate = history[history.length - 1].date;
+            // Math changed: Subtract minCount from actual count
+            const normalizedHeight = (h.count - minCount) / range;
+            const y = (H - P) - normalizedHeight * (H - 2 * P);
             
-            drawText(ctx, fmtDate(startDate), P + 20, H - 10, "#666", 10);
-            if (history.length > 1) {
-                drawText(ctx, fmtDate(endDate), W - P - 20, H - 10, "#666", 10);
-            }
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+    } else {
+        // Single point calculation
+        const normalizedHeight = (history[0].count - minCount) / range;
+        const y = (H - P) - normalizedHeight * (H - 2 * P);
+        
+        ctx.beginPath(); ctx.fillStyle = "#4f46e5";
+        ctx.arc(P, y, 5, 0, Math.PI*2); 
+        ctx.fill();
+    }
 
-            // Plot Line
-            if (history.length > 1) {
-                ctx.beginPath(); ctx.strokeStyle = "#4f46e5"; ctx.lineWidth = 3;
-                history.forEach((h, i) => {
-                    const x = P + (i / (history.length - 1)) * (W - 2 * P);
-                    const y = (H - P) - (h.count / maxCount) * (H - 2 * P);
-                    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-                });
-                ctx.stroke();
-            } else {
-                // Single point
-                const y = (H - P) - (history[0].count / maxCount) * (H - 2 * P);
-                ctx.beginPath(); ctx.fillStyle = "#4f46e5";
-                ctx.arc(P, y, 5, 0, Math.PI*2); 
-                ctx.fill();
-            }
-
-            // Axis Titles
-            drawText(ctx, "Time →", W / 2, H - 5, "#999", 10);
-            ctx.save(); ctx.translate(12, H / 2); ctx.rotate(-Math.PI / 2);
-            drawText(ctx, "Words →", 0, 0, "#999", 10); ctx.restore();
-        }
+    // Axis Titles
+    drawText(ctx, "Time →", W / 2, H - 5, "#999", 10);
+    ctx.save(); ctx.translate(12, H / 2); ctx.rotate(-Math.PI / 2);
+    drawText(ctx, "Words →", 0, 0, "#999", 10); ctx.restore();
+}
 
         const cvsPie = document.getElementById('pieChartCanvas');
         if (cvsPie) {
