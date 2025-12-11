@@ -19,7 +19,9 @@ const GAME_DIALOGUE = {
             "...", 
             "boo!",
             "anyone home?",
-            "You can't find me, me spyder."
+            "You can't find me, me spyder.",
+            "# Why don't you ever wanna play?",
+            "# I'm tired of this piece of string..."
         ],
 
         // When clicked (50% chance Happy)
