@@ -21,6 +21,7 @@ const GAME_TIPS = [
     "You can back up your 'progress' in the Settings menu.",
     "# Let's get on the roof! Let's get on the roof!",
     "What a terrible word! Let your friends know it must be banished!",
+    "The fish like swimming backwards!",
     "Tip: Try saying hello to the spider?",
     "Tip: Ask them out for a coffee.",
     "# I can't remember the sound that you found for me.",
