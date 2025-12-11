@@ -39,7 +39,6 @@ const CONFIG = {
     },
 };
 
-// --- DOM ELEMENT REFERENCES ---
 let DOM = {}; // Changed to let
 
 const loadDOM = () => ({
@@ -147,7 +146,6 @@ const loadDOM = () => ({
     }
 });
 
-// --- HELPER: Safe JSON Parse (Prevents Crashes) ---
 const safeParse = (key, fallback) => {
     try {
         const item = localStorage.getItem(key);
@@ -255,7 +253,7 @@ const State = {
             lastDate: localStorage.getItem('dailyLastDate') || ''
         }
     },
-    // ... (runtime and save functions remain the same) ...
+
     runtime: {
         allWords: [],
         currentWordIndex: 0,
@@ -377,9 +375,7 @@ const OfflineManager = {
         try {
             let gathered = [];
             
-            // --- FIX: Check Kids Mode First ---
             if (State.data.settings.kidsMode) {
-                // If in Kids Mode, fetch the safe text file instead of the API
                 const r = await fetch(CONFIG.KIDS_LIST_FILE);
                 if (!r.ok) throw 0;
                 const t = await r.text();
@@ -406,8 +402,7 @@ const OfflineManager = {
                     attempts++;
                 }
             }
-            // ----------------------------------
-            
+
             State.save('offlineCache', gathered);
             return true;
         } catch (e) {
@@ -443,15 +438,9 @@ const OfflineManager = {
         State.save('pendingVotes', []);
     }
 };
-		
-        
-	
-  
 
-// Initialize User ID if missing
 if (!localStorage.getItem('userId')) localStorage.setItem('userId', State.data.userId);
 
-// --- ACCESSIBILITY HELPER ---
 const Accessibility = {
     apply() {
         const s = State.data.settings,
@@ -475,7 +464,6 @@ const Accessibility = {
     }
 };
 
-// --- UTILITIES ---
 const Utils = {
     hexToRgba(hex, alpha) {
         let r = 0, g = 0, b = 0;
@@ -492,7 +480,6 @@ const Utils = {
     }
 };
 
-// --- HAPTICS MANAGER ---
 const Haptics = {
     light() {
         if (navigator.vibrate) navigator.vibrate(10);
@@ -505,7 +492,6 @@ const Haptics = {
     }
 };
 
-// --- AUDIO SYNTHESIS ---
 const SoundManager = {
     ctx: null,
     masterGain: null,
@@ -637,7 +623,6 @@ playBad() {
         });
     },
 
-    // --- MOSQUITO AUDIO ---
     startBuzz() {
         if (State.data.settings.muteSounds) return; 
         if (!this.ctx) this.init();
@@ -830,8 +815,7 @@ this.el.onclick = (e) => {
     startRescue() {
         this.state = 'thanking';
         SoundManager.stopBuzz(); 
-        
-        // --- FIX: Check if path exists (it doesn't for fed bugs) ---
+
         if (this.path) this.path.setAttribute('d', '');
         
         State.data.insectStats.saved++;
@@ -986,7 +970,7 @@ splat() {
         this.state = 'hidden';
     }
 };
-// --- GRAVITY TILT EFFECT ---
+
 const TiltManager = {
     active: false,
     handle(e) {
@@ -1017,7 +1001,6 @@ const TiltManager = {
     }
 };
 
-// --- PHYSICS ENGINE (BALL PIT) ---
 const Physics = {
     balls: [],
     gx: 0,
@@ -1090,11 +1073,8 @@ const Physics = {
     }
 };
 
-// --- API LAYER ---
 const API = {
-    // Modified to accept a 'forceNetwork' flag
     async fetchWords(forceNetwork = false) {
-        // 1. If Offline Mode is Active AND we aren't forcing a download
         if (OfflineManager.isActive() && !forceNetwork) {
             console.log("Serving from Offline Cache 🚇");
             return State.data.offlineCache; 
@@ -1105,7 +1085,6 @@ const API = {
             if (!r.ok) throw 0;
             return await r.json();
         } catch (e) {
-            // Fallback: If network fails but we have cache, use it
             if (State.data.offlineCache && State.data.offlineCache.length > 0) {
                 UIManager.showPostVoteMessage("Network error. Switched to Offline.");
                 return State.data.offlineCache;
@@ -1152,12 +1131,10 @@ const API = {
             // --- FIX: Update the UI counter immediately ---
             UIManager.updateOfflineIndicator();
             // ----------------------------------------------
-            
-            // Return a fake "OK" response so the game continues
+    
             return { ok: true, status: 200, json: async () => ({}) };
         }
 
-        // Standard Online Vote
         return fetch(`${CONFIG.API_BASE_URL}/${id}/vote`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -1203,9 +1180,6 @@ const API = {
     }
 };
 
-
-
-// --- THEME MANAGER ---
 const ThemeManager = {
     wordMap: {},
    init() {
@@ -1252,8 +1226,9 @@ const ThemeManager = {
         document.body.className = document.body.className.split(' ').filter(c => !c.startsWith('theme-')).join(' ');
         document.body.classList.add(`theme-${t}`);
         State.save('currentTheme', t);
-        
-        // --- BANANA TEXTURE INJECTION (Version 3: Sparse & Organic) ---
+
+		if (DOM.theme.chooser) DOM.theme.chooser.value = t;
+
         if (t === 'banana') {
             if (!document.getElementById('banana-style')) {
                 const s = document.createElement('style');
@@ -1554,15 +1529,12 @@ bubbles(active) {
         if (!active) { c.innerHTML = ''; return; }
         c.innerHTML = '';
 
-        // --- PERFORMANCE OPTIMIZATION ---
-        // Detect mobile or low-thread devices to reduce particle count
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         const isLowPower = navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4;
         
         // Use 15 bubbles for mobile/old devices, 35 for desktop
         const particleCount = (isMobile || isLowPower) ? 15 : 35;
 
-        // Background Bubbles
         const cl = [10, 30, 70, 90];
         for (let i = 0; i < particleCount; i++) {
             const p = document.createElement('div');
@@ -1588,7 +1560,6 @@ spawnFish() {
         const c = DOM.theme.effects.bubble;
         if (!c) return; // Safety check
 
-        // --- OCTOPUS ANIMATION STYLE ---
         if (!document.getElementById('octopus-style')) {
             const style = document.createElement('style');
             style.id = 'octopus-style';
@@ -1616,7 +1587,6 @@ spawnFish() {
             '🥾': { k: 'prankster', msg: "Keep the ocean clean!", speed: [15, 20] }
         };
 
-        // Weighted Random Selection
         const roll = Math.random();
         let fishEmoji = '🐟';
         if (roll < 0.05) fishEmoji = '🥾';
@@ -1644,7 +1614,6 @@ spawnFish() {
         inner.style.lineHeight = '1';
         inner.style.fontSize = fishEmoji === '🐙' ? '3.5rem' : '3rem';
 
-        // --- OCTOPUS MOVEMENT VARIATION ---
         if (fishEmoji === '🐙') {
             inner.classList.add('octopus-motion');
             // Randomize bobbing speed (1.5s to 2.5s)
@@ -1653,17 +1622,14 @@ spawnFish() {
             inner.style.animationDelay = '-' + (Math.random() * 2) + 's';
         }
 
-        // Config & Direction
         const isBoot = fishEmoji === '🥾';
         const startLeft = Math.random() > 0.5;
         const baseDir = startLeft ? -1 : 1; 
         // Ensure duration is a valid number (fallback to 15s)
         const duration = (Math.random() * (config.speed[1] - config.speed[0]) + config.speed[0]) || 15;
 
-        // Fake Out Logic (10%)
         const isFakeOut = !isBoot && fishEmoji !== '🐙' && Math.random() < 0.10;
 
-        // --- SETUP INITIAL STATE ---
         if (isBoot) {
             inner.style.animation = 'spin-slow 10s linear infinite';
             inner.style.transition = 'transform 0.5s';
@@ -1717,7 +1683,6 @@ spawnFish() {
             setTimeout(() => { if(b.parentNode) { b.style.opacity = '0'; setTimeout(() => b.remove(), 300); } }, 2000);
         };
 
-        // --- ESCAPE HANDLER ---
         const handleEscape = (e) => {
             const prop = isBoot ? 'top' : 'left';
             if (e.propertyName !== prop) return;
@@ -1734,7 +1699,6 @@ spawnFish() {
         };
         wrap.addEventListener('transitionend', handleEscape);
 
-        // --- CLICK HANDLER ---
         wrap.onclick = (e) => {
             e.stopPropagation();
 
@@ -1759,8 +1723,7 @@ spawnFish() {
             }
 
             const data = fishData[fishEmoji];
-            
-            // OCTOPUS INK LOGIC
+
             if (fishEmoji === '🐙') {
                 e.stopPropagation();
                 if (data.k) State.unlockBadge(data.k);
@@ -1769,7 +1732,6 @@ spawnFish() {
                 UIManager.showPostVoteMessage("Inked!");
                 SoundManager.playWhoosh();
 
-                // Ink Cloud
                 const rect = wrap.getBoundingClientRect();
                 const centerX = rect.left + rect.width / 2;
                 const centerY = rect.top + rect.height / 2;
@@ -1793,7 +1755,6 @@ spawnFish() {
                     setTimeout(() => ink.remove(), 1000);
                 }
 
-                // JET TO RANDOM TOP-RIGHT POSITION
                 const jetSpeed = Math.random() * 0.8 + 1.2; 
                 wrap.style.transition = `left ${jetSpeed}s cubic-bezier(0.25, 1, 0.5, 1), top ${jetSpeed}s ease-out`;
                 
@@ -1806,7 +1767,6 @@ spawnFish() {
                 return;
             }
 
-            // --- FAKE OUT TAP (SWIM BACK LOGIC) ---
             if (isFakeOut) {
                  showBubble('hey!'); 
                  SoundManager.playPop();
@@ -1837,7 +1797,6 @@ spawnFish() {
                  return; // Do NOT catch
             }
 
-            // --- STANDARD CATCH LOGIC ---
             if (data.k) State.unlockBadge(data.k);
             if (!isBoot) {
                 State.data.fishStats.caught++;
@@ -1848,7 +1807,6 @@ spawnFish() {
             if (fishEmoji === '🐡') UIManager.showPostVoteMessage("Popped!");
             SoundManager.playPop();
 
-            // Particles
             const rect = wrap.getBoundingClientRect();
             const centerX = rect.left + rect.width / 2;
             const centerY = rect.top + rect.height / 2;
@@ -1871,7 +1829,6 @@ spawnFish() {
             setTimeout(() => wrap.remove(), 100);
         };
 
-        // --- TRIGGER MOVEMENT (ANIMATION START) ---
         requestAnimationFrame(() => {
             if (isBoot) {
                 wrap.style.top = '-20%'; 
@@ -1962,7 +1919,6 @@ halloween(active) {
             return;
         }
 
-        // 1. INJECT SCUTTLE ANIMATION
         if (!document.getElementById('spider-motion-style')) {
             const s = document.createElement('style');
             s.id = 'spider-motion-style';
@@ -2004,7 +1960,6 @@ halloween(active) {
             const body = wrap.querySelector('#spider-body');
             const thread = wrap.querySelector('#spider-thread');
 
-// --- SMART BUBBLE HELPER (FIXED ORIENTATION, POINTER & TRACKING) ---
             const showSpiderBubble = (text) => {
                 // 1. Cleanup old bubble
                 const old = document.getElementById('spider-bubble-dynamic');
@@ -2035,7 +1990,6 @@ halloween(active) {
                 b.appendChild(arrow);
                 document.body.appendChild(b);
 
-                // 3. Tracking Logic (Runs every frame)
                 const updatePosition = () => {
                     if (!b.parentNode) return; // Stop if removed
 
@@ -2044,7 +1998,6 @@ halloween(active) {
                     const currentTransform = body.style.transform || '';
                     const gap = 15;
 
-                    // Determine Spider Orientation
                     let rotation = 0;
                     if (currentTransform.includes('180deg')) rotation = 180;
                     else if (currentTransform.includes('90deg') && !currentTransform.includes('-90deg')) rotation = 90;
@@ -2052,7 +2005,6 @@ halloween(active) {
 
                     let top, left;
 
-                    // Calculate Position based on Rotation
                     if (rotation === 0) {
                         // Upright: Bubble ABOVE
                         top = spiderRect.top - bubRect.height - gap;
@@ -2066,7 +2018,6 @@ halloween(active) {
                         });
                     } 
                     else if (rotation === 180) {
-                        // Upside Down: Bubble BELOW
                         top = spiderRect.bottom + gap;
                         left = spiderRect.left + (spiderRect.width / 2) - (bubRect.width / 2);
                         
@@ -2102,20 +2053,17 @@ halloween(active) {
                         });
                     }
 
-                    // Screen Edge Constraints
                     if (left < 10) left = 10;
                     if (left + bubRect.width > window.innerWidth - 10) left = window.innerWidth - bubRect.width - 10;
                     if (top < 10) top = 10;
                     if (top + bubRect.height > window.innerHeight - 10) top = window.innerHeight - bubRect.height - 10;
 
-                    // Apply Coordinates
                     b.style.top = `${top}px`;
                     b.style.left = `${left}px`;
 
                     b.rafId = requestAnimationFrame(updatePosition);
                 };
-
-                // 4. Start Tracking
+	
                 requestAnimationFrame(() => {
                     b.style.opacity = '1';
                     updatePosition();
@@ -2167,8 +2115,7 @@ halloween(active) {
             body.style.transform = 'rotate(0deg)'; 
             body.classList.remove('scuttling-motion'); // Stop shaking
             thread.style.opacity = '1'; 
-            
-            // --- ACTION 1: POKE HEAD OUT (Upside Down) ---
+
             if (actionRoll < 0.7) {
                 const safeLeft = Math.random() * 60 + 20;
                 // SLOW MOVE (8s)
@@ -2201,16 +2148,14 @@ halloween(active) {
                              this.spiderTimeout = setTimeout(runDrop, Math.random() * 5000 + 5000);
                          }, 2500); 
                     }, 2500);
-                }, 8000); // Wait for move (8s)
+                }, 8000);
                 return;
             }
-            
-            // --- ACTION 2: WALL CLIMB (Scuttling) ---
+    
             if (actionRoll < 0.9) {
                 const isLeft = Math.random() > 0.5;
                 const wallX = isLeft ? 5 : 85; 
-                
-                // SLOW MOVE (8s)
+    
                 wrap.style.transition = 'left 8s ease-in-out';
                 body.classList.add('scuttling-motion');
                 wrap.style.left = wallX + '%';
@@ -2238,8 +2183,7 @@ halloween(active) {
                 }, 8000);
                 return;
             }
-            
-            // --- ACTION 3: JUST MOVE (Scuttling) ---
+
             const safeLeft = Math.random() * 60 + 20; 
             wrap.style.transition = 'left 8s ease-in-out'; // SLOW
             body.classList.add('scuttling-motion');
@@ -2252,8 +2196,7 @@ halloween(active) {
         };
         
         this.spiderTimeout = setTimeout(runDrop, 1000);
-        
-        // WEB LOGIC (Unchanged, just ensuring it's here)
+
         if (!document.getElementById('spider-web-corner')) {
             const web = document.createElement('div');
             web.id = 'spider-web-corner';
@@ -2339,8 +2282,7 @@ spiderHunt(targetXPercent, targetYPercent, isFood) {
         const destY = isFood ? targetYPercent : 20;
         const currentX = parseFloat(wrap.style.left) || 50;
         const dist = Math.abs(currentX - destX);
-        
-        // Slow down hunt slightly (was *8, now *12)
+    
         const moveTime = Math.max(dist * 12, 800); 
         
         wrap.style.transition = `left ${moveTime}ms ease-in-out`;
@@ -2357,8 +2299,7 @@ spiderHunt(targetXPercent, targetYPercent, isFood) {
             const dropVH = (destY + 10) / scale; 
             thread.style.transition = 'height 3s cubic-bezier(0.45, 0, 0.55, 1)'; 
             thread.style.height = dropVH + 'vh';
-            
-            // --- ADDED MISSING OPENING TIMEOUT HERE ---
+
             setTimeout(() => { 
                 setTimeout(() => {
                     if (isFood && MosquitoManager.state === 'stuck') {
@@ -2739,7 +2680,6 @@ const ShareManager = {
         ctx.textAlign = 'center';
         ctx.fillText("COLLECTION PROGRESS", width / 2, progressY + 60);
 
-        // Define Categories
         const catKeys = {
             words: ['cake', 'llama', 'potato', 'squirrel', 'spider', 'germ', 'bone'],
             items: ['poop', 'penguin', 'scorpion', 'mushroom', 'needle', 'diamond', 'rock', 'chopper', 'snowman', 'fish', 'tropical', 'puffer', 'shark'],
@@ -2884,7 +2824,6 @@ const UIManager = {
         DOM.header.good.textContent = totalGood.toLocaleString();
         DOM.header.bad.textContent = totalBad.toLocaleString();
 
-        // --- GRAPH LOGIC ---
         if (globalTotal > 0) {
             const goodPct = (totalGood / globalTotal) * 100;
             const badPct = 100 - goodPct; 
@@ -2930,8 +2869,7 @@ const UIManager = {
         DOM.profile.streak.textContent = d.daily.streak;
         DOM.profile.totalVotes.textContent = d.voteCount.toLocaleString();
         DOM.profile.contributions.textContent = d.contributorCount.toLocaleString();
-        
-        // --- KARMA TITLE LOGIC ---
+
         const saved = d.insectStats.saved;
         const eaten = d.insectStats.eaten;
         let karmaTitle = "Garden Observer";
@@ -2944,12 +2882,10 @@ const UIManager = {
         if (d.badges.chopper) karmaTitle = "Air Traffic Controller 🚁";
         if (d.badges.angler) karmaTitle = "The Best in Brixham 🎣";
 
-        // --- CHANGE START: Add Gift Icon ---
         DOM.profile.statsTitle.innerHTML = `${d.username ? d.username + "'s" : "Your"} Stats 
             <span id="profileGiftBtn" class="cursor-pointer ml-2 text-xl hover:scale-125 inline-block transition-transform filter drop-shadow-sm" title="Claim Free Gift">🎁</span>
             <br><span class="text-xs text-indigo-500 font-bold uppercase tracking-widest mt-1 block">${karmaTitle}</span>`;
 
-        // Add Click Listener for the Gift Icon
         setTimeout(() => {
             const giftBtn = document.getElementById('profileGiftBtn');
             if (giftBtn) {
@@ -2960,7 +2896,6 @@ const UIManager = {
                 };
             }
         }, 0);
-        // --- CHANGE END ---
 
 		setTimeout(() => {
             const giftBtn = document.getElementById('profileGiftBtn');
@@ -2972,14 +2907,13 @@ const UIManager = {
                 };
             }
         }, 0);
-
+		
         const totalAvailable = Object.keys(CONFIG.THEME_SECRETS).length + 1;
         const userCount = d.unlockedThemes.length + 1;
         DOM.profile.themes.textContent = `${userCount} / ${totalAvailable}`;
         const streakEl = document.getElementById('streak-display-value');
         if(streakEl) streakEl.textContent = (State.data.longestStreak || 0) + " Words";
-        
-        // --- BADGE DEFINITIONS ---
+		
         const row1 = [
             { k: 'cake', i: '🎂', w: 'CAKE' }, 
             { k: 'llama', i: '🦙', w: 'LLAMA' }, 
@@ -3021,7 +2955,6 @@ const UIManager = {
             { k: 'shepherd', i: '🛟', t: 'Sea Shepherd', d: 'Chose to let 250 fish swim away safely' }
         ];
 
-        // Helper to render badges
         const renderRow = (list) => `<div class="flex flex-wrap justify-center gap-3 text-3xl w-full">` + list.map(x => {
             const un = d.badges[x.k];
             const defTitle = x.k.charAt(0).toUpperCase() + x.k.slice(1);
@@ -3034,7 +2967,6 @@ const UIManager = {
                     >${x.i}</span>`
         }).join('') + `</div>`;
 
-        // Bug Jar Logic
         let bugJarHTML = '';
         if (saved > 0) {
             const bugCount = Math.min(saved, 40);
@@ -3050,8 +2982,7 @@ const UIManager = {
                 ${State.data.currentTheme === 'halloween' ? '<div class="text-[9px] text-green-500 mt-1 italic">Tap a bug to feed the spider!</div>' : ''}
             </div>`;
         }
-        
-// --- BUG STREET LOGIC ---
+
         let bugHotelHTML = '';
         const splattedCount = State.data.insectStats.splatted || 0;
         const collection = State.data.insectStats.collection || [];
@@ -3071,7 +3002,6 @@ const UIManager = {
             let innerHTML = '';
             
             if (isComplete) {
-                // --- COMPLETED STATE ---
                 innerHTML = `<div class="flex justify-center gap-3 filter drop-shadow-sm mb-1">`;
                 
                 bugTypes.forEach(bug => {
@@ -3091,7 +3021,7 @@ const UIManager = {
                 </div>`;
                 
             } else {
-                // --- INCOMPLETE STATE ---
+
                 innerHTML = `<div class="flex justify-center gap-2 flex-wrap">`;
                 
                 bugTypes.forEach(bug => {
@@ -3117,8 +3047,7 @@ const UIManager = {
         }
         
         const b = DOM.profile.badges;
-        // Corrected concatenation order
-        b.innerHTML = 
+        	b.innerHTML = 
             `<div class="text-xs font-bold text-gray-500 uppercase mb-2 mt-2">🏆 Word Badges</div>` + renderRow(row1) + 
             `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🧸 Found Items</div>` + renderRow(row2) + 
             `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🌊 Aquarium</div>` + renderRow(row_fish) + 
@@ -3131,7 +3060,6 @@ const UIManager = {
 
             `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🎖️ Achievements</div>` + renderRow(row3);
 
-        // Tooltip and Listener Logic (Same as before)
         const showTooltip = (targetEl, title, desc) => {
             document.querySelectorAll('.global-badge-tooltip').forEach(t => t.remove());
             const tip = document.createElement('div');
@@ -3355,7 +3283,7 @@ const UIManager = {
         }
     }
 };
-// --- PIN PAD MANAGER (UPDATED WITH ON-SCREEN ALERTS) ---
+	
 const PinPad = {
     input: '',
     mode: 'set', // 'set' or 'verify'
@@ -3404,8 +3332,6 @@ const PinPad = {
     open(mode, onSuccess, onCancel) {
         this.init();
         
-        // --- VISUAL LOCK CHECK ---
-        // Instead of silently returning, we now open the modal but show the "LOCKED" state
         if (mode === 'verify' && this.isLocked()) {
              const remaining = Math.ceil((this.getLockoutTime() - Date.now()) / 1000);
              // Ensure the user sees this
@@ -3472,7 +3398,6 @@ const PinPad = {
             if (this.onSuccess) this.onSuccess(this.input);
             this.close(true);
         } else {
-            // --- VERIFY MODE ---
             
             if (this.isLocked()) {
                 const remaining = Math.ceil((this.getLockoutTime() - Date.now()) / 1000);
@@ -3484,13 +3409,13 @@ const PinPad = {
             const savedPin = State.data.settings.kidsModePin;
             
             if (this.input === savedPin) {
-                // SUCCESS
+
                 Haptics.medium();
                 this.resetSecurity();
                 if (this.onSuccess) this.onSuccess();
                 this.close(true);
             } else {
-                // FAIL
+
                 Haptics.heavy();
                 this.shakeBox();
                 
@@ -3530,7 +3455,6 @@ const PinPad = {
         }
     },
 
-    // --- SECURITY HELPERS ---
     getAttempts() {
         return parseInt(localStorage.getItem('pin_attempts') || 0);
     },
@@ -3908,7 +3832,6 @@ init() {
     }
 };
 
-// --- TIP SUBMISSION MANAGER ---
 const TipManager = {
     serviceID: 'service_b6d75wi',
     templateID: 'template_qody7q7',
@@ -3982,7 +3905,6 @@ send() {
 };
 window.TipManager = TipManager;
 
-// --- CONTACT MANAGER ---
 const ContactManager = {
     serviceID: 'service_b6d75wi',
     templateID: 'template_qody7q7',
@@ -4066,7 +3988,6 @@ const ContactManager = {
 };
 window.ContactManager = ContactManager;
 
-// --- INPUT HANDLER (Swipe & Drag) ---
 const InputHandler = {
     sX: 0, sY: 0, drag: false, scroll: false, raf: null,
     init() {
@@ -4145,9 +4066,7 @@ const InputHandler = {
         c.addEventListener('touchend', e => { endDrag(e.changedTouches[0].clientX); }, false);
     }
 };
-
-
-// --- PROMO MANAGER (FREE KEYRING) ---
+	
 const PromoManager = {
     serviceID: 'service_b6d75wi', 
     templateID: 'template_qody7q7', 
