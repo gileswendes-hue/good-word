@@ -3656,7 +3656,7 @@ init() {
                         </button>
                         <input type="file" id="fileImportInput" accept=".json" style="display:none">
                     </div>
-                    <p class="text-[10px] text-gray-400 mt-2">Save your .json file to move stats to another device.</p>
+                    <p class="text-[10px] text-gray-400 mt-2">Save your .json file to move stats to another device. This feature does not work on facebook browser because it's awful. Never user facebook browser.</p>
                 </div>`;
 
                 // INJECT HTML
