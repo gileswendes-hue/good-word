@@ -18,6 +18,7 @@ const GAME_TIPS = [
     "Tip: Tell Mason he is cute.",
     "Tip: Add your favourite word to the dictionary!",
     "How thick is wall?",
+    "You can back up your 'progress' in the Settings menu.",
     "# Let's get on the roof! Let's get on the roof!",
     "What a terrible word! Let your friends know it must be banished!",
     "Tip: Try saying hello to the spider?",
