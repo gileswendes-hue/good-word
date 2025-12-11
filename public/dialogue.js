@@ -32,7 +32,9 @@ const GAME_DIALOGUE = {
             "Nice poke!",
             "MWAH!",
             "Buy me dinner first!",
-            "My favourite food is French flies"
+            "My favourite food is French flies",
+            "Those fireflies are HOT 🔥",
+            "💤"
         ],
 
         // When clicked (50% chance Grumpy)
