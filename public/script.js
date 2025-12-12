@@ -1061,7 +1061,7 @@ const Physics = {
                             b2.vy = tmpVy * 0.5;
                         }
                     }
-                }
+                
             }
         }
         Physics.balls.forEach(b => {
