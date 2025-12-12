@@ -2493,7 +2493,7 @@ spiderHunt(targetXPercent, targetYPercent, isFood) {
         if (!instEl) {
             instEl = document.createElement('div');
             instEl.id = 'ballpit-instruction';
-            instEl.innerHTML = '⚠️ **BEST IN PORTRAIT** - Please turn off **Auto-Rotate** for stable play!';
+            instEl.innerHTML = '⚠️ Works best with auto-rotate turned off 🕊️';
             Object.assign(instEl.style, {
                 position: 'fixed', bottom: '0', left: '0', right: '0', 
                 backgroundColor: 'rgba(255, 255, 255, 0.9)', 
