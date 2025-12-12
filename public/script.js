@@ -250,7 +250,7 @@ const State = {
         lastMosquitoSpawn: parseInt(localStorage.getItem('lastMosquitoSpawn') || 0),
         daily: {
             streak: parseInt(localStorage.getItem('dailyStreak') || 0),
-            lastDate: localStorage.getItem('dailyLastDate') || ''
+            lastDate: localStorage.getItem('dailyLastDate') || '',
 			progress: parseInt(localStorage.getItem('dailyProgress') || 0)
         }
     },
