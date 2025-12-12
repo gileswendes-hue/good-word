@@ -4382,8 +4382,7 @@ const PromoManager = {
 
 const DAILY_GOAL = 5;
 
-// Hash-based selector for stable daily words
-const getDailyWords = (dateStr, allWords, count) => {
+const getDailyWords = (dateStr, allWords) => {
     // 1. Create a target hash integer from the date string
     let h = 0x811c9dc5;
     for (let i = 0; i < dateStr.length; i++) {
@@ -4393,7 +4392,6 @@ const getDailyWords = (dateStr, allWords, count) => {
     const target = Math.abs(h);
 
     // 2. Map every word to its "distance" from the date target
-    // This ensures that adding 'Apple' doesn't shift 'Zebra' unless 'Apple' is numerically closer to today's hash.
     const candidates = allWords.map(w => {
         let wh = 0x811c9dc5;
         const txt = w.text.toUpperCase();
@@ -4404,11 +4402,11 @@ const getDailyWords = (dateStr, allWords, count) => {
         return { w, dist: Math.abs(Math.abs(wh) - target) };
     });
 
-    // 3. Sort by distance (closest to today's date wins) and pick top N
+    // 3. Sort by distance and pick top 5 (Using DAILY_GOAL instead of count)
     candidates.sort((a, b) => a.dist - b.dist);
-    return candidates.slice(0, count).map(c => c.w);
+    return candidates.slice(0, DAILY_GOAL).map(c => c.w);
 };
-
+// --- END DAILY CHALLENGE LOGIC ---
 const Game = {
 renderGraphs() {
         const w = State.runtime.allWords;
