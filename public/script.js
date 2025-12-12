@@ -1019,25 +1019,27 @@ const Physics = {
         const cylW = Math.min(W, 500),
             minX = (W - cylW) / 2,
             maxX = minX + cylW;
-        for (let s = 0; s < 8; s++) {
+        for (let s = 0; s < 1; s++) {
             Physics.balls.forEach(b => {
                 if (!b.drag) {
-                    b.vx += Physics.gx / 8;
-                    b.vy += Physics.gy / 8;
+                    b.vx += Physics.gx / 1;
+                    b.vy += Physics.gy / 1;
                     b.x += b.vx;
                     b.y += b.vy;
-                    b.vx *= 0.92;
-                    b.vy *= 0.92;
-                    if (b.x < minX) { b.x = minX; b.vx *= -0.2 }
-                    if (b.x > maxX - b.r * 2) { b.x = maxX - b.r * 2; b.vx *= -0.2 }
-                    if (b.y < 0) { b.y = 0; b.vy *= -0.2 }
-                    if (b.y > H - b.r * 2) { b.y = H - b.r * 2; b.vy *= -0.2 }
+                    b.vx *= 0.95;
+                    b.vy *= 0.95;
+                    if (b.x < minX) { b.x = minX; b.vx *= -0.8 }
+                    if (b.x > maxX - b.r * 2) { b.x = maxX - b.r * 2; b.vx *= -0.8 }
+                    if (b.y < 0) { b.y = 0; b.vy *= -0.8}
+                    if (b.y > H - b.r * 2) { b.y = H - b.r * 2; b.vy *= -0.8 }
                 }
             });
             for (let i = 0; i < Physics.balls.length; i++) {
+                for (let i = 0; i < Physics.balls.length; i++) {
                 for (let j = i + 1; j < Physics.balls.length; j++) {
                     const b1 = Physics.balls[i],
                         b2 = Physics.balls[j];
+						
                     const dx = (b2.x + b2.r) - (b1.x + b1.r),
                         dy = (b2.y + b2.r) - (b1.y + b1.r);
                     const dist = Math.sqrt(dx * dx + dy * dy),
@@ -1051,13 +1053,12 @@ const Physics = {
                         b2.x += tx;
                         b2.y += ty;
                         if (!b1.drag && !b2.drag) {
-                            const nx = dx / dist,
-                                ny = dy / dist;
-                            const p = 2 * (b1.vx * nx + b1.vy * ny - b2.vx * nx - b2.vy * ny) / 2;
-                            b1.vx -= p * nx * 0.15;
-                            b1.vy -= p * ny * 0.15;
-                            b2.vx += p * nx * 0.15;
-                            b2.vy += p * ny * 0.15
+                            const tmpVx = b1.vx;
+                            const tmpVy = b1.vy;
+                            b1.vx = b2.vx * 0.5;
+                            b1.vy = b2.vy * 0.5;
+                            b2.vx = tmpVx * 0.5;
+                            b2.vy = tmpVy * 0.5;
                         }
                     }
                 }
