@@ -1008,8 +1008,19 @@ const Physics = {
     handleOrientation(e) {
         const x = e.gamma || 0,
             y = e.beta || 0;
-        const tx = Math.min(Math.max(x / 4, -1), 1);
-        const ty = Math.min(Math.max(y / 4, -1), 1);
+        const currentAngle = (screen.orientation && screen.orientation.angle) || (window.orientation || 0);
+        
+        let tx = 0;
+        let ty = 0;
+
+        if (Math.abs(currentAngle) < 30 || Math.abs(currentAngle) > 150) {
+             tx = Math.min(Math.max(x / 4, -1), 1);
+             ty = Math.min(Math.max((y - 45) / 4, -1), 1);
+        } else {
+             tx = 0; 
+             ty = 0.5;
+        }
+
         Physics.gx += (tx - Physics.gx) * 0.1;
         Physics.gy += (ty - Physics.gy) * 0.1
     },
@@ -1035,7 +1046,6 @@ const Physics = {
                 }
             });
             for (let i = 0; i < Physics.balls.length; i++) {
-                for (let i = 0; i < Physics.balls.length; i++) {
                 for (let j = i + 1; j < Physics.balls.length; j++) {
                     const b1 = Physics.balls[i],
                         b2 = Physics.balls[j];
@@ -1061,7 +1071,7 @@ const Physics = {
                             b2.vy = tmpVy * 0.5;
                         }
                     }
-                
+                }
             }
         }
         Physics.balls.forEach(b => {
@@ -2382,7 +2392,13 @@ spiderHunt(targetXPercent, targetYPercent, isFood) {
     ballpit(active) {
         const c = DOM.theme.effects.ballpit;
         if (this.ballLoop) cancelAnimationFrame(this.ballLoop);
-        if (!active) { c.innerHTML = ''; window.removeEventListener('deviceorientation', Physics.handleOrientation); return }
+        if (!active) { 
+            c.innerHTML = ''; 
+            window.removeEventListener('deviceorientation', Physics.handleOrientation); 
+            const inst = document.getElementById('ballpit-instruction');
+            if (inst) inst.remove();
+            return 
+        }
         window.addEventListener('deviceorientation', Physics.handleOrientation);
         c.innerHTML = '';
         Physics.balls = [];
@@ -2424,6 +2440,10 @@ spiderHunt(targetXPercent, targetYPercent, isFood) {
                 el.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)]
             }
             if (content) el.innerHTML = `<span class="ball-content">${content}</span>`;
+            
+            // Add will-change for performance
+            Object.assign(el.style, { willChange: 'transform' });
+
             c.appendChild(el);
             const b = { el, x: minX + Math.random() * (maxX - minX), y: Math.random() * (H / 2), vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 0.5) * 10, r, drag: false, lastX: 0, lastY: 0, bubble: null, type, content };
             Physics.balls.push(b);
@@ -2448,8 +2468,11 @@ spiderHunt(targetXPercent, targetYPercent, isFood) {
                 }
             }
         };
-        for (let i = 0; i < 80; i++) addBall(Math.random() < 0.005 ? 'rare' : 'normal');
+        
+        // REDUCED BALL COUNT
+        for (let i = 0; i < 25; i++) addBall(Math.random() < 0.005 ? 'rare' : 'normal');
         for (let i = 0; i < 5; i++) addBall('germ');
+        
         window.onmouseup = window.ontouchend = () => { Physics.balls.forEach(b => b.drag = false) };
         window.onmousemove = window.ontouchmove = (e) => {
             const p = e.touches ? e.touches[0] : e;
@@ -2464,6 +2487,23 @@ spiderHunt(targetXPercent, targetYPercent, isFood) {
                 }
             })
         };
+        
+        // ADD INSTRUCTION BANNER
+        let instEl = document.getElementById('ballpit-instruction');
+        if (!instEl) {
+            instEl = document.createElement('div');
+            instEl.id = 'ballpit-instruction';
+            instEl.innerHTML = '⚠️ **BEST IN PORTRAIT** - Please turn off **Auto-Rotate** for stable play!';
+            Object.assign(instEl.style, {
+                position: 'fixed', bottom: '0', left: '0', right: '0', 
+                backgroundColor: 'rgba(255, 255, 255, 0.9)', 
+                color: '#1f2937', padding: '10px', 
+                textAlign: 'center', fontWeight: 'bold', 
+                zIndex: '1000' 
+            });
+            document.body.appendChild(instEl);
+        }
+        
         Physics.run()
     },
     
