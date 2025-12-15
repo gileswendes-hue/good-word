@@ -317,16 +317,10 @@ unlockBadge(n) {
         if (window.StreakManager) StreakManager.showNotification(`🏆 Unlocked: ${cleanName}`, 'success');
         else UIManager.showPostVoteMessage(`Unlocked ${cleanName} badge!`);
     },
-incrementVote() {
+    incrementVote() {
         this.data.voteCount++;
         localStorage.setItem('voteCount', this.data.voteCount);
         if (this.data.voteCount >= 1000) this.unlockBadge('judge');
-        
-        // --- NEW: Submit Total Vote Score Every 50 Votes ---
-        if (this.data.voteCount % 50 === 0) { 
-            // This checks and submits if the score is globally competitive
-            VoteHighScores.checkAndSubmit(this.data.voteCount); 
-        }
     },
 
     incrementContributor() {
@@ -1187,28 +1181,20 @@ const API = {
          return fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${w.toLowerCase()}`);
     },
 	
-	async getGlobalScores(type = 'streak') {
+	async getGlobalScores() {
         try {
-            // Include the type in the URL query string
-            const url = `${CONFIG.SCORE_API_URL}?type=${type}`;
-            const r = await fetch(url);
+            const r = await fetch(CONFIG.SCORE_API_URL);
             if (!r.ok) return [];
             return await r.json();
         } catch (e) { return []; }
     },
 
-    // 2. MODIFIED: Accepts 'type' parameter
-    async submitHighScore(name, score, type = 'streak') {
+    async submitHighScore(name, score) {
         try {
             await fetch(CONFIG.SCORE_API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    name, 
-                    score, 
-                    type, // <-- Pass the score type in the body
-                    userId: State.data.userId 
-                })
+                body: JSON.stringify({ name, score, userId: State.data.userId })
             });
         } catch (e) { console.error("Score submit failed", e); }
     }
@@ -1242,6 +1228,7 @@ const ThemeManager = {
             this.apply(randomTheme);
         } else {
             this.apply(State.data.currentTheme);
+			DOM.theme.chooser.value = randomTheme;
         }
 		
     },
@@ -4901,40 +4888,10 @@ async refreshData(u = true) {
     }
 };
 
-const VoteHighScores = {
-    // Check total votes against the global list and submit if needed
-    async checkAndSubmit(totalVotes) {
-        if (totalVotes < 500) return; // Only start checking for substantial scores
-
-        const name = State.data.username || "PLAYER";
-        if (!name) return;
-
-        try {
-            // Fetch global scores for total votes
-            const globalScores = await API.getGlobalScores('totalVotes');
-            
-            // Check if the current score is greater than the 10th highest score, 
-            // or if the leaderboard is not yet full.
-            const isTopTen = (globalScores.length < 10) || (totalVotes > globalScores[globalScores.length - 1].score);
-            
-            if (isTopTen || totalVotes % 1000 === 0) { 
-                // Submit using the modified API function, specifying the type
-                await API.submitHighScore(name, totalVotes, 'totalVotes'); 
-                
-                if (isTopTen && totalVotes > 500) {
-                    StreakManager.showNotification(`🏆 Global Top 10 Votes Score! (${totalVotes.toLocaleString()})`, "success");
-                }
-            }
-        } catch (e) {
-            console.error("Total Votes score submission failed:", e);
-        }
-    }
-};
-
 const StreakManager = {
     timer: null,
     loopTimer: null, 
-    LIMIT: 15000, 
+    LIMIT: 5500, 
 
     handleSuccess() {
         const now = Date.now();
@@ -5078,7 +5035,7 @@ const StreakManager = {
         }
     },
 
-async showLeaderboard() {
+    async showLeaderboard() {
         if (!document.getElementById('crt-styles')) {
             const s = document.createElement('style');
             s.id = 'crt-styles';
@@ -5114,7 +5071,7 @@ async showLeaderboard() {
                     <div class="crt-overlay"></div>
                     <div class="crt-content">
                         <div class="text-center mb-6">
-                            <h2 class="crt-text crt-title mb-2">HIGH SCORE TERMINAL</h2>
+                            <h2 class="crt-text crt-title mb-2">STREAK HIGH SCORES</h2>
                             <div class="h-1 w-full bg-gradient-to-r from-pink-500 to-cyan-500 shadow-[0_0_10px_white]"></div>
                         </div>
                         <div id="hs-display-area" class="min-h-[340px]">
@@ -5136,96 +5093,53 @@ async showLeaderboard() {
         div.innerHTML = html;
         document.body.appendChild(div.firstElementChild);
 
-        // Define the two pages for the leaderboard
-        let pageIndex = 0;
-        const pages = [
-            // Page 1: Streak High Scores
-            { 
-                title: "STREAK HIGH SCORES", 
-                type: 'streak',
-                color: '#34d399', 
-                local: (State.data.highScores || []).slice(0, 8),
-                formatScore: (score) => score.toString().padStart(4, '0')
-            },
-            // Page 2: Total Votes High Scores
-            { 
-                title: "TOTAL VOTES RANKINGS", 
-                type: 'totalVotes',
-                color: '#3b82f6', 
-                local: null, // No local storage for this, just global
-                formatScore: (score) => score.toLocaleString()
-            }
-        ];
-        
-        const area = document.getElementById('hs-display-area');
-        const indicator = document.getElementById('hs-page-indicator');
+        const globalScores = await API.getGlobalScores();
+        const topGlobal = (globalScores && globalScores.length) ? globalScores.slice(0, 8) : [];
+        const localScores = (State.data.highScores || []).slice(0, 8);
         const username = State.data.username || "PLAYER";
 
-        // Helper to render a single row
-        const renderRow = (s, i, color, formatFn) => {
-            const scoreDisplay = formatFn(s.score);
-            return `
-                <div class="flex justify-between items-center crt-text text-sm py-2 crt-row">
-                    <div class="flex gap-3">
-                        <span class="text-gray-500">#${(i + 1).toString().padStart(2, '0')}</span>
-                        <span class="${color} font-black drop-shadow-[0_0_3px_rgba(255,255,255,0.5)]">${s.name.substring(0, 3).toUpperCase()}</span>
-                    </div>
-                    <span class="text-white tracking-widest text-lg">${scoreDisplay}</span>
-                </div>`;
-        };
+        const renderRow = (s, i, color) => `
+            <div class="flex justify-between items-center crt-text text-sm py-2 crt-row">
+                <div class="flex gap-3">
+                    <span class="text-gray-500">#${(i+1).toString().padStart(2,'0')}</span>
+                    <span class="${color} font-black drop-shadow-[0_0_3px_rgba(255,255,255,0.5)]">${s.name.substring(0,3).toUpperCase()}</span>
+                </div>
+                <span class="text-white tracking-widest text-lg">${s.score.toString().padStart(4,'0')}</span>
+            </div>`;
+
+        const area = document.getElementById('hs-display-area');
+        const indicator = document.getElementById('hs-page-indicator');
         
-        const renderPage = async () => {
-            if (this.loopTimer) clearTimeout(this.loopTimer); // Clear existing timer
+        let showingGlobal = true;
+
+        const renderPage = () => {
             if(!document.getElementById('highScoreModal')) return;
 
             area.style.opacity = '0';
-            const currentPage = pages[pageIndex % pages.length];
-            
-            // Fetch Global Data for the current page
-            const globalScores = await API.getGlobalScores(currentPage.type);
-            
             setTimeout(() => {
-                if (!document.getElementById('highScoreModal')) return;
-                
-                // Render the page content
-                indicator.textContent = `PAGE ${pageIndex % pages.length + 1}/${pages.length} [${currentPage.title.toUpperCase()}]`;
-                indicator.style.color = currentPage.color; 
-                
-                let h = '';
-
-                // 1. Global Scores
-                h += `<div class="mb-6"><div class="text-sm crt-text text-gray-400">GLOBAL TOP 8:</div>`;
-                if (globalScores.length === 0) {
-                     h += '<div class="text-gray-500 text-xs crt-text mt-4 text-center">NO DATA FOUND</div>';
+                if (showingGlobal) {
+                    indicator.textContent = "PAGE 1/2 [GLOBAL]";
+                    indicator.style.color = '#34d399'; 
+                    let h = `<div class="text-cyan-400 text-sm crt-text mb-4 border-b-2 border-cyan-700 pb-1 font-black">GLOBAL RANKINGS</div>`;
+                    if (topGlobal.length === 0) h += '<div class="text-gray-500 text-xs crt-text mt-8 text-center">NO DATA FOUND</div>';
+                    else h += topGlobal.map((s,i) => renderRow(s, i, 'text-cyan-400')).join('');
+                    area.innerHTML = h;
                 } else {
-                     h += globalScores.slice(0, 8).map((s,i) => 
-                         renderRow(s, i, 'text-cyan-400', currentPage.formatScore)).join('');
+                    indicator.textContent = "PAGE 2/2 [LOCAL]";
+                    indicator.style.color = '#fbbf24'; 
+                    let h = `<div class="text-yellow-400 text-sm crt-text mb-4 border-b-2 border-yellow-700 pb-1 font-black">${username.toUpperCase()}'S RECORDS</div>`;
+                    if (localScores.length === 0) h += '<div class="text-gray-500 text-xs crt-text mt-8 text-center">PLAY TO SET SCORES</div>';
+                    else h += localScores.map((s,i) => renderRow(s, i, 'text-yellow-400')).join('');
+                    area.innerHTML = h;
                 }
-                h += '</div>';
-
-                // 2. Local Scores (Only for Streak page)
-                if (currentPage.local) {
-                    h += `<div class="text-sm crt-text text-gray-400">${username.toUpperCase()}'S RECORDS:</div>`;
-                    h += currentPage.local.length === 0 
-                         ? '<div class="text-gray-500 text-xs crt-text mt-4 text-center">PLAY TO SET SCORES</div>'
-                         : currentPage.local.map((s,i) => 
-                             renderRow(s, i, 'text-yellow-400', currentPage.formatScore)).join('');
-                }
-
-                area.innerHTML = h;
                 area.style.transition = 'opacity 0.2s';
                 area.style.opacity = '1';
-
-                // Advance to next page and loop
-                pageIndex++;
-                this.loopTimer = setTimeout(renderPage, 6000); 
-                
+                showingGlobal = !showingGlobal;
+                this.loopTimer = setTimeout(renderPage, 4000);
             }, 200);
         };
-        
-        // START RENDER
         renderPage();
-    }
+    },
     
     closeLeaderboard() {
         const el = document.getElementById('highScoreModal');
