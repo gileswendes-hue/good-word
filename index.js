@@ -16,8 +16,7 @@ mongoose.connect(process.env.MONGODB_URI)
     .then(() => console.log('Connected to MongoDB'))
     .catch(err => console.error('MongoDB connection error:', err));
 
-// --- EXISTING MODELS (Restored) ---
-
+// --- 1. WORD MODEL ---
 const wordSchema = new mongoose.Schema({
     text: { type: String, required: true, unique: true },
     goodVotes: { type: Number, default: 0 },
@@ -28,6 +27,7 @@ const wordSchema = new mongoose.Schema({
 
 const Word = mongoose.model('Word', wordSchema);
 
+// --- 2. SCORE MODEL ---
 const scoreSchema = new mongoose.Schema({
     name: { type: String, required: true },
     score: { type: Number, required: true },
@@ -37,8 +37,7 @@ const scoreSchema = new mongoose.Schema({
 
 const Score = mongoose.model('Score', scoreSchema);
 
-// --- NEW LEADERBOARD MODEL (Added) ---
-
+// --- 3. LEADERBOARD MODEL (This was missing!) ---
 const leaderboardSchema = new mongoose.Schema({
     userId: { type: String, required: true, unique: true },
     username: { type: String, required: true, default: 'Anonymous' },
@@ -51,7 +50,7 @@ const Leaderboard = mongoose.model('Leaderboard', leaderboardSchema);
 
 // --- API ROUTES ---
 
-// 1. Get all words (Restored functionality)
+// GET Words
 app.get('/api/words', async (req, res) => {
     try {
         let words;
@@ -64,12 +63,11 @@ app.get('/api/words', async (req, res) => {
         }
         res.json(words);
     } catch (err) {
-        console.error("Error fetching words:", err);
         res.status(500).json({ message: err.message });
     }
 });
 
-// 2. Submit a new word
+// POST New Word
 app.post('/api/words', async (req, res) => {
     const { text } = req.body;
     
@@ -77,9 +75,15 @@ app.post('/api/words', async (req, res) => {
         return res.status(400).json({ message: 'Invalid word format' });
     }
 
-    const badWords = ['FUCK', 'SHIT', 'CUNT', 'NIGGER', 'FAGGOT', 'RETARD', 'ASSHOLE', 'BASTARD', 'BITCH', 'WHORE', 'SLUT', 'DICK', 'PUSSY', 'COCK', 'WANKER'];
+    // --- AMENDED FILTER ---
+    // General swearing allowed. Hate speech/Gendered slurs banned.
+    const badWords = [
+        'NIGGER', 'FAGGOT', 'RETARD', 'DYKE', 'TRANNIE', 'SHEMALE', 
+        'CUNT', 'BITCH', 'WHORE', 'SLUT', 'PUSSY'
+    ];
+    
     if (badWords.some(bw => text.toUpperCase().includes(bw))) {
-        return res.status(400).json({ message: 'Profanity not allowed.' });
+        return res.status(400).json({ message: 'Hate speech or gendered insults are not allowed.' });
     }
 
     try {
@@ -96,7 +100,7 @@ app.post('/api/words', async (req, res) => {
     }
 });
 
-// 3. Vote on a word
+// PUT Vote
 app.put('/api/words/:id/vote', async (req, res) => {
     const { voteType } = req.body; 
     
@@ -115,7 +119,7 @@ app.put('/api/words/:id/vote', async (req, res) => {
     }
 });
 
-// 4. Get High Scores (Streaks)
+// GET Scores
 app.get('/api/scores', async (req, res) => {
     try {
         const scores = await Score.find().sort({ score: -1 }).limit(10);
@@ -125,7 +129,7 @@ app.get('/api/scores', async (req, res) => {
     }
 });
 
-// 5. Submit High Score
+// POST Score
 app.post('/api/scores', async (req, res) => {
     const { name, score, userId } = req.body;
     try {
@@ -144,9 +148,9 @@ app.post('/api/scores', async (req, res) => {
     }
 });
 
-// --- NEW LEADERBOARD ROUTES ---
+// --- LEADERBOARD ROUTES ---
 
-// 6. GET Global Leaderboard
+// GET Leaderboard (Now safely uses the defined Leaderboard model)
 app.get('/api/leaderboard', async (req, res) => {
     try {
         const topUsers = await Leaderboard.find({})
@@ -160,7 +164,7 @@ app.get('/api/leaderboard', async (req, res) => {
     }
 });
 
-// 7. POST User Stats (Update Vote Count)
+// POST User Stats
 app.post('/api/leaderboard', async (req, res) => {
     const { userId, username, voteCount } = req.body;
 
