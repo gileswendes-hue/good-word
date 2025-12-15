@@ -764,7 +764,7 @@ const MosquitoManager = {
     huntTimer: null, 
     type: '🦟',
     config: {}, 
-    COOLDOWN: 5 * 60 * 1000, 
+    COOLDOWN: 1 * 60 * 1000, 
 
     TYPES: {
         '🐞': { name: 'Ladybird', speed: 0.2, turnRate: 0.005, wobble: 0.01, badge: null },
