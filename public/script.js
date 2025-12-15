@@ -2629,7 +2629,8 @@ const ShareManager = {
             console.error(e);
             UIManager.showPostVoteMessage("Could not generate QR.");
         }
-    },
+	}
+    };
 
     async generateImage() {
         const canvas = document.createElement('canvas');
