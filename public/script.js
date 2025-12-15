@@ -2745,14 +2745,14 @@ const ShareManager = {
             ctx.textAlign = 'center';
             ctx.font = '900 40px Inter, system-ui, sans-serif'; // Heavy font
             ctx.fillStyle = type === 'good' ? '#16a34a' : '#dc2626';
-            ctx.fillText(type === 'good' ? "VOTE GOOD" : "VOTE BAD", width / 2, 55);
+            ctx.fillText(type === 'good' ? "GOOD WORD!" : "BAD WORD!", width / 2, 55);
 
             // 6. Draw QR Code (Centered)
             // y=70 to leave room for header
             ctx.drawImage(qrImg, 0, 70, 400, 400); 
 
             // 7. Draw The Word (Bottom)
-            ctx.font = 'bold 32px Inter, system-ui, sans-serif';
+            ctx.font = 'bold 40px Inter, system-ui, sans-serif';
             ctx.fillStyle = '#1f2937'; // Dark Grey
             
             // Check if word is too long, scale down if needed
