@@ -1286,6 +1286,7 @@ async submitHighScore(name, score) {
         } catch (e) { 
             console.warn("Failed to submit user stats:", e); 
         }
+	};
     
     async fetchLeaderboard() {
         try {
