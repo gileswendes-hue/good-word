@@ -4195,23 +4195,6 @@ const Game = {
         // ==========================================
         // 2. LINE GRAPH (History - Updated)
         // ==========================================
-        renderGraphs() {
-        const w = State.runtime.allWords;
-        if (!w || w.length === 0) return;
-
-        // --- HELPER: Draw Text Centered ---
-        const drawText = (ctx, text, x, y, color = "#666", size = 12) => {
-            ctx.fillStyle = color;
-            ctx.font = `${size}px sans-serif`;
-            ctx.textAlign = "center";
-            ctx.fillText(text, x, y);
-        };
-
-        // ... (SCATTER PLOT logic omitted) ...
-
-        // ==========================================
-        // 2. LINE GRAPH (History - Updated)
-        // ==========================================
         const cvsLine = document.getElementById('lineChartCanvas');
         if (cvsLine) {
             const ctx = cvsLine.getContext('2d');
