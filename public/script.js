@@ -1156,7 +1156,6 @@ const Physics = {
 const API = {
 
     async fetchWords(forceNetwork = false) {
-        // 1. Only use cache if Offline Mode is explicitly enabled by YOU
         if (OfflineManager.isActive() && !forceNetwork) {
             console.log("Serving from Offline Cache 🚇");
             return State.data.offlineCache; 
@@ -1175,7 +1174,6 @@ const API = {
             return await r.json();
 
         } catch (e) {
-            // 3. Only switch to Offline Mode if the internet is actually down
             const isConnectionError = e.name === 'AbortError' || 
                                     e.message === 'Failed to fetch' || 
                                     e.message.toLowerCase().includes('network');
@@ -1222,7 +1220,6 @@ const API = {
     async vote(id, type) {
         if (id === 'temp' || id === 'err') return;
 
-        // 2. Intercept Vote for Offline Mode
         if (OfflineManager.isActive()) {
             const queue = State.data.pendingVotes;
             queue.push({ id, type, time: Date.now() });
@@ -1267,7 +1264,7 @@ const API = {
         } catch (e) { return []; }
     },
 
-async submitHighScore(name, score) {
+    async submitHighScore(name, score) {
         try {
             await fetch(CONFIG.SCORE_API_URL, {
                 method: 'POST',
@@ -1275,7 +1272,7 @@ async submitHighScore(name, score) {
                 body: JSON.stringify({ name, score, userId: State.data.userId })
             });
         } catch (e) { console.error("Score submit failed", e); }
-},
+    }, // <--- FIXED: Added closing brace and comma here
 
     async submitUserVotes(userId, username, voteCount) {
         try {
@@ -1287,7 +1284,7 @@ async submitHighScore(name, score) {
         } catch (e) { 
             console.warn("Failed to submit user stats:", e); 
         }
-	};
+    }, // <--- FIXED: Added closing brace and comma here
     
     async fetchLeaderboard() {
         try {
