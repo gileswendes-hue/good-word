@@ -37,7 +37,7 @@ const scoreSchema = new mongoose.Schema({
 
 const Score = mongoose.model('Score', scoreSchema);
 
-// --- 3. LEADERBOARD MODEL (This was missing!) ---
+// --- 3. LEADERBOARD MODEL ---
 const leaderboardSchema = new mongoose.Schema({
     userId: { type: String, required: true, unique: true },
     username: { type: String, required: true, default: 'Anonymous' },
@@ -50,19 +50,15 @@ const Leaderboard = mongoose.model('Leaderboard', leaderboardSchema);
 
 // --- API ROUTES ---
 
-// GET Words
+// GET Words (FIXED: Returns ALL words, no filter)
 app.get('/api/words', async (req, res) => {
     try {
-        let words;
-        // If query param ?all=true is passed, return everything (for offline cache)
-        if (req.query.all === 'true') {
-             words = await Word.find({});
-        } else {
-             // Default: Filter out words marked as "not a word" heavily
-             words = await Word.find({ notWordVotes: { $lt: 3 } });
-        }
+        // Always return the full dictionary.
+        // The client-side script can handle gameplay filtering if needed.
+        const words = await Word.find({});
         res.json(words);
     } catch (err) {
+        console.error("Error fetching words:", err);
         res.status(500).json({ message: err.message });
     }
 });
@@ -75,8 +71,7 @@ app.post('/api/words', async (req, res) => {
         return res.status(400).json({ message: 'Invalid word format' });
     }
 
-    // --- AMENDED FILTER ---
-    // General swearing allowed. Hate speech/Gendered slurs banned.
+    // --- HATE SPEECH FILTER ---
     const badWords = [
         'NIGGER', 'FAGGOT', 'RETARD', 'DYKE', 'TRANNIE', 'SHEMALE', 
         'CUNT', 'BITCH', 'WHORE', 'SLUT', 'PUSSY'
@@ -150,7 +145,7 @@ app.post('/api/scores', async (req, res) => {
 
 // --- LEADERBOARD ROUTES ---
 
-// GET Leaderboard (Now safely uses the defined Leaderboard model)
+// GET Leaderboard
 app.get('/api/leaderboard', async (req, res) => {
     try {
         const topUsers = await Leaderboard.find({})
