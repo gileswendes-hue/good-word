@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.71', 
+    APP_VERSION: '5.70', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -2961,37 +2961,6 @@ const UIManager = {
         DOM.profile.themes.textContent = `${userCount} / ${totalAvailable}`;
         const streakEl = document.getElementById('streak-display-value');
         if(streakEl) streakEl.textContent = (State.data.longestStreak || 0) + " Words";
-		
-        const lbContainer = DOM.general.voteLeaderboard; 
-        if (lbContainer) { // Check if the element exists first (safety)
-            lbContainer.innerHTML = '<p class="text-xs text-gray-500 mt-2 p-3 text-center">Loading global voters...</p>';
-            
-            (async () => {
-                const topUsers = await API.fetchLeaderboard();
-                
-                if (topUsers.length === 0) {
-                    lbContainer.innerHTML = '<p class="text-xs text-gray-500 mt-2 p-3 text-center">Global leaderboard unavailable or empty.</p>';
-                    return;
-                }
-
-                let html = '<div class="text-xs font-bold text-gray-500 uppercase mb-2 mt-2">👑 Top Voters</div>';
-                
-                topUsers.forEach((user, i) => {
-                    const isYou = d.userId && user.userId === d.userId; 
-                    const rowClass = isYou ? 'bg-yellow-100/50 border-2 border-yellow-300 font-bold' : 'bg-white border border-gray-100';
-                    
-                    html += `
-                        <div class="flex justify-between items-center py-1 px-3 rounded ${rowClass} text-sm mb-1">
-                            <span class="w-6 text-center text-indigo-600">#${i + 1}</span>
-                            <span class="truncate flex-1">${user.username ? user.username.substring(0, 20) : 'Anonymous'}</span>
-                            <span class="text-right text-gray-800">${(user.voteCount || 0).toLocaleString()}</span>
-                        </div>
-                    `;
-                });
-
-                lbContainer.innerHTML = html;
-            })();
-        }
 
         const row1 = [
             { k: 'cake', i: '🎂', w: 'CAKE' }, 
