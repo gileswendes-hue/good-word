@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.71', 
+    APP_VERSION: '5.72', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -337,6 +337,103 @@ unlockBadge(n) {
                 window.location.reload();
             }
         }
+    }
+};
+
+To restore your backup functionality with tamper protection, you need to make edits in three specific locations within your script.js file.
+
+Here is exactly where to put each piece of code.
+
+1. Add DataManager (Line ~248)
+Find where the State object ends (around line 248). It ends with clearAll() { ... } };. Insert the DataManager object immediately after the closing }; of State and before const OfflineManager.
+
+JavaScript
+
+// ... existing State object code ...
+    clearAll() {
+        if (confirm("Clear all local data? Irreversible. I don't back up.")) {
+            if (confirm("Are you really sure? All progress, badges, and stats will be lost forever.")) {
+                localStorage.clear();
+                window.location.reload();
+            }
+        }
+    }
+};
+
+// --- INSERT DATA MANAGER HERE ---
+const DataManager = {
+    SALT: "GBWord_Secure_Salt_v5.71_Protec", 
+
+    generateHash(data) {
+        const str = JSON.stringify(data) + this.SALT;
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; 
+        }
+        return hash.toString(16);
+    },
+
+    exportData() {
+        const data = { ...State.data };
+        const payload = {
+            data: data,
+            hash: this.generateHash(data),
+            timestamp: Date.now(),
+            version: CONFIG.APP_VERSION
+        };
+
+        const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `gbword_backup_${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        UIManager.showPostVoteMessage("Backup saved! 💾");
+    },
+
+    importData(file) {
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const parsed = JSON.parse(e.target.result);
+
+                if (!parsed.hash || !parsed.data) {
+                    alert("Error: Invalid backup file format.");
+                    return;
+                }
+
+                const calculatedHash = this.generateHash(parsed.data);
+                if (calculatedHash !== parsed.hash) {
+                    alert("⚠️ Tamper Protection: This backup file has been modified and cannot be loaded.");
+                    return;
+                }
+
+                if (parsed.version !== CONFIG.APP_VERSION) {
+                    console.warn("Restoring data from a different version.");
+                }
+
+                if (confirm(`Restore data from ${new Date(parsed.timestamp).toLocaleDateString()}? Current progress will be overwritten.`)) {
+                    Object.keys(parsed.data).forEach(key => {
+                        State.save(key, parsed.data[key]);
+                    });
+                    alert("Data restored successfully! Reloading...");
+                    window.location.reload();
+                }
+
+            } catch (err) {
+                console.error(err);
+                alert("Failed to parse backup file.");
+            }
+        };
+        reader.readAsText(file);
     }
 };
 
@@ -3630,6 +3727,25 @@ init() {
                 html += mkTog('toggleLights', '🎄 Christmas Lights', s.showLights, 'text-green-600');
                 html += `</div></div>`;
 
+				html += `<div class="mt-8 pt-4 border-t-2 border-gray-100">
+                    <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Data Management</h3>
+                    <p class="text-xs text-gray-500 mb-4">Please clear local data or back up your game statistics and achievements here.</p>
+                    
+                    <div class="grid grid-cols-2 gap-3 mb-3">
+                        <button id="exportSaveBtn" class="py-2 bg-blue-50 text-blue-600 font-bold rounded-lg border border-blue-100 hover:bg-blue-100 transition flex items-center justify-center gap-2">
+                            💾 Export
+                        </button>
+                        <button id="importSaveBtn" class="py-2 bg-blue-50 text-blue-600 font-bold rounded-lg border border-blue-100 hover:bg-blue-100 transition flex items-center justify-center gap-2">
+                            📂 Import
+                        </button>
+                    </div>
+                    <input type="file" id="importFileInput" accept=".json" class="hidden">
+
+                    <button id="clearAllDataButton" class="w-full py-2 bg-red-50 text-red-600 font-bold rounded-lg border border-red-100 hover:bg-red-100 transition flex items-center justify-center gap-2">
+                        🗑️ Clear All Data
+                    </button>
+                </div>`;
+
                 // INJECT HTML
                 container.innerHTML = html;
                 
@@ -3737,6 +3853,28 @@ init() {
                     State.save('settings', { ...State.data.settings, showLights: e.target.checked });
                     Game.updateLights();
                 };
+				
+				document.getElementById('toggleLights').onchange = e => {
+                    State.save('settings', { ...State.data.settings, showLights: e.target.checked });
+                    Game.updateLights();
+                };
+
+                // --- INSERT NEW LISTENERS HERE ---
+                document.getElementById('exportSaveBtn').onclick = () => DataManager.exportData();
+
+                const importInput = document.getElementById('importFileInput');
+                const importBtn = document.getElementById('importSaveBtn');
+                
+                if (importBtn && importInput) {
+                    importBtn.onclick = () => importInput.click();
+                    importInput.onchange = (e) => {
+                        if (e.target.files.length > 0) {
+                            DataManager.importData(e.target.files[0]);
+                        }
+                        e.target.value = ''; 
+                    };
+                }           
+                document.getElementById('clearAllDataButton').onclick = State.clearAll;
             }
             this.toggle('settings', true)
         };
