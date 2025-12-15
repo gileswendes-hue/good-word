@@ -5399,7 +5399,6 @@ const StreakManager = {
             } catch(e) {
                 UIManager.showPostVoteMessage("Could not share.");
             }
-        }
     },
 
     async showLeaderboard(initialView = 'score') {
