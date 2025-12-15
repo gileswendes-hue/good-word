@@ -197,6 +197,7 @@ const State = {
             teased: parseInt(localStorage.getItem('insectTeased') || 0),
             splatted: parseInt(localStorage.getItem('insectSplatted') || 0),
             collection: JSON.parse(localStorage.getItem('insectCollection') || '[]')
+		},
 
         wordHistory: JSON.parse(localStorage.getItem('wordCountHistory') || '[]'),       
         fishStats: {
@@ -4354,6 +4355,7 @@ const Game = {
         lbContainer.innerHTML = '<div class="text-center text-gray-500 p-4">Loading top voters...</div>';
 
         const topUsers = await API.fetchLeaderboard();
+		const topUsers = allUsers.slice(0, 5);
 
         if (topUsers.length === 0) {
             lbContainer.innerHTML = '<div class="text-center text-gray-500 p-4">Global leaderboard unavailable.</div>';
