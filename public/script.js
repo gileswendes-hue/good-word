@@ -340,9 +340,8 @@ clearAll() {
     }
 };
 
-// --- INSERT DATA MANAGER HERE ---
 const DataManager = {
-    SALT: "GBWord_Secure_Salt_v5.71_Protec", 
+    SALT: "ch34T3r5_N3v3r_wIn",
 
     generateHash(data) {
         const str = JSON.stringify(data) + this.SALT;
@@ -350,13 +349,15 @@ const DataManager = {
         for (let i = 0; i < str.length; i++) {
             const char = str.charCodeAt(i);
             hash = ((hash << 5) - hash) + char;
-            hash = hash & hash; 
+            hash = hash & hash;
         }
         return hash.toString(16);
     },
 
     exportData() {
-        const data = { ...State.data };
+        // Create a deep clone to ensure we get current state
+        const data = JSON.parse(JSON.stringify(State.data));
+        
         const payload = {
             data: data,
             hash: this.generateHash(data),
@@ -396,14 +397,26 @@ const DataManager = {
                     return;
                 }
 
-                if (parsed.version !== CONFIG.APP_VERSION) {
-                    console.warn("Restoring data from a different version.");
-                }
-
                 if (confirm(`Restore data from ${new Date(parsed.timestamp).toLocaleDateString()}? Current progress will be overwritten.`)) {
+                    
+                    // 1. Restore standard keys via State.save
                     Object.keys(parsed.data).forEach(key => {
                         State.save(key, parsed.data[key]);
                     });
+
+                    // 2. FIX: Restore Badges & Found Items manually
+                    // The State.save function doesn't know how to unpack the 'badges' object 
+                    // into individual localStorage keys, so we do it here.
+                    if (parsed.data.badges) {
+                        Object.entries(parsed.data.badges).forEach(([badgeName, isUnlocked]) => {
+                            if (isUnlocked) {
+                                localStorage.setItem(`${badgeName}BadgeUnlocked`, 'true');
+                            } else {
+                                localStorage.removeItem(`${badgeName}BadgeUnlocked`);
+                            }
+                        });
+                    }
+
                     alert("Data restored successfully! Reloading...");
                     window.location.reload();
                 }
@@ -3599,10 +3612,10 @@ init() {
                     
                     <div class="grid grid-cols-2 gap-3 mb-3">
                         <button id="exportSaveBtn" class="py-2 bg-blue-50 text-blue-600 font-bold rounded-lg border border-blue-100 hover:bg-blue-100 transition flex items-center justify-center gap-2">
-                            💾 Export
+                            💾 Back Up!
                         </button>
                         <button id="importSaveBtn" class="py-2 bg-blue-50 text-blue-600 font-bold rounded-lg border border-blue-100 hover:bg-blue-100 transition flex items-center justify-center gap-2">
-                            📂 Import
+                            📂 Back Down!
                         </button>
                     </div>
                     <input type="file" id="importFileInput" accept=".json" class="hidden">
