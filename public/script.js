@@ -2149,8 +2149,6 @@ halloween(active) {
                     
                     setTimeout(() => {
                          if (wrap.classList.contains('hunting')) return;
-                         const phrases = (typeof GAME_DIALOGUE !== 'undefined' && GAME_DIALOGUE.spider && GAME_DIALOGUE.spider.idle) ? GAME_DIALOGUE.spider.idle : ['Boo!', 'Hi!', '🕷️'];
-                         const text = phrases[Math.floor(Math.random() * phrases.length)];
                          
                          // 3. FORCE 'upside-down' flag so text is correct
                          if(wrap.showBubble) wrap.showBubble(text, 'upside-down'); 
@@ -2159,8 +2157,8 @@ halloween(active) {
                              if (wrap.classList.contains('hunting')) return;
                              thread.style.height = '0'; 
                              this.spiderTimeout = setTimeout(runDrop, Math.random() * 5000 + 5000);
-                         }, 2500); 
-                    }, 2500);
+                         }, 2500); // <-- This closes the inner setTimeout (no semicolon yet)
+                    }, 2500); // <-- This closes the outer setTimeout (no semicolon yet)
                 }, 8000);
                 return;
             }
