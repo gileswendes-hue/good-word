@@ -4348,14 +4348,16 @@ const Game = {
         }
     },
 	
-	async renderLeaderboardTable() {
+async renderLeaderboardTable() {
         const lbContainer = DOM.general.voteLeaderboardTable;
         if (!lbContainer) return;
 
         lbContainer.innerHTML = '<div class="text-center text-gray-500 p-4">Loading top voters...</div>';
 
-        const topUsers = await API.fetchLeaderboard();
-		const topUsers = allUsers.slice(0, 5);
+        const allUsers = await API.fetchLeaderboard();
+        
+        // 1. Slice the Top 5
+        const topUsers = allUsers.slice(0, 5);
 
         if (topUsers.length === 0) {
             lbContainer.innerHTML = '<div class="text-center text-gray-500 p-4">Global leaderboard unavailable.</div>';
@@ -4365,6 +4367,7 @@ const Game = {
         const d = State.data;
         let html = '<h3 class="text-lg font-bold text-gray-800 mb-3 mt-4">Top Voters (Global)</h3>';
         
+        // 2. Render Top 5
         topUsers.forEach((user, i) => {
             const isYou = d.userId && user.userId === d.userId;
             const rowClass = isYou 
@@ -4379,6 +4382,26 @@ const Game = {
                 </div>
             `;
         });
+
+        // 3. Check if "You" are missing from the top 5
+        // We look for the user in the FULL list
+        const userRankIndex = allUsers.findIndex(u => u.userId === d.userId);
+        
+        // If user exists, is NOT in the top 5 (index >= 5), render them at the bottom
+        if (userRankIndex >= 5) {
+            const myUser = allUsers[userRankIndex];
+            
+            // Add a little divider dots
+            html += `<div class="text-center text-gray-400 text-xs my-1">...</div>`;
+            
+            html += `
+                <div class="flex justify-between items-center py-2 px-3 rounded bg-indigo-100 border-2 border-indigo-400 font-bold text-indigo-700 text-sm mb-1">
+                    <span class="w-6 text-center">#${userRankIndex + 1}</span>
+                    <span class="truncate flex-1">You (${myUser.username ? myUser.username.substring(0, 15) : 'Anonymous'})</span>
+                    <span class="text-right">${(myUser.voteCount || 0).toLocaleString()} votes</span>
+                </div>
+            `;
+        }
 
         lbContainer.innerHTML = html;
     },
