@@ -5204,6 +5204,7 @@ const StreakManager = {
     }
 };
 
+	window.fEhPVHxCRUFDSHxIT0xJREFZfFNVTnxWQU = API;
     window.onload = Game.init.bind(Game);
 
     console.log("%c Good Word / Bad Word ", "background: #4f46e5; color: #bada55; padding: 4px; border-radius: 4px;");
