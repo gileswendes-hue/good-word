@@ -331,8 +331,8 @@ unlockBadge(n) {
         if (this.data.contributorCount >= 5) this.unlockBadge('bard');
     },
 clearAll() {
-        if (confirm("Clear all local data? Irreversible. I don't back up.")) {
-            if (confirm("Are you really sure? All progress, badges, and stats will be lost forever.")) {
+        if (confirm("⚠️ Are you sure you want to clear all data?\n\nMake sure you have exported a backup first if you want to save your progress!")) {
+            if (confirm("Final Warning: This will wipe all stats, badges, and history. Continue?")) {
                 localStorage.clear();
                 window.location.reload();
             }
@@ -4734,8 +4734,6 @@ if (qrBad) {
 
             // 6. Initialize Managers
             if (DOM.theme.chooser) DOM.theme.chooser.onchange = e => ThemeManager.apply(e.target.value, true);
-            const clearBtn = document.getElementById('clearAllDataButton');
-            if (clearBtn) clearBtn.onclick = State.clearAll;
 
             InputHandler.init();
             ThemeManager.init();
