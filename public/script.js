@@ -1275,6 +1275,7 @@ async submitHighScore(name, score) {
                 body: JSON.stringify({ name, score, userId: State.data.userId })
             });
         } catch (e) { console.error("Score submit failed", e); }
+},
 
     async submitUserVotes(userId, username, voteCount) {
         try {
