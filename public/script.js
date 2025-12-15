@@ -4343,12 +4343,16 @@ const Game = {
 
             // Plot Line and Markers
             if (history.length > 0) {
+                // FIX: Prevent division by zero if there is only 1 data point
+                const xDivisor = history.length > 1 ? history.length - 1 : 1;
+
                 ctx.beginPath();
                 ctx.strokeStyle = "#4f46e5";
                 ctx.lineWidth = 3;
                 
                 history.forEach((h, i) => {
-                    const x = P + (i / (history.length - 1)) * (W - 2 * P);
+                    // Use the safe divisor here
+                    const x = P + (i / xDivisor) * (W - 2 * P);
                     const y = getY(h.count);
                     
                     if (i === 0) ctx.moveTo(x, y);
@@ -4358,7 +4362,8 @@ const Game = {
                 
                 // --- ADD MARKERS FOR EACH DATA POINT ---
                 history.forEach((h, i) => {
-                    const x = P + (i / (history.length - 1)) * (W - 2 * P);
+                    // Use the safe divisor here as well
+                    const x = P + (i / xDivisor) * (W - 2 * P);
                     const y = getY(h.count);
                     
                     ctx.beginPath();
@@ -4375,7 +4380,6 @@ const Game = {
                          ctx.stroke();
                     }
                 });
-                // ----------------------------------------
             }
 
             // Titles
