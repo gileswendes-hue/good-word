@@ -16,7 +16,7 @@ mongoose.connect(process.env.MONGODB_URI)
     .then(() => console.log('Connected to MongoDB'))
     .catch(err => console.error('MongoDB connection error:', err));
 
-// --- EXISTING MODELS ---
+// --- EXISTING MODELS (Restored) ---
 
 const wordSchema = new mongoose.Schema({
     text: { type: String, required: true, unique: true },
@@ -37,7 +37,8 @@ const scoreSchema = new mongoose.Schema({
 
 const Score = mongoose.model('Score', scoreSchema);
 
-// --- NEW LEADERBOARD MODEL (ADDED) ---
+// --- NEW LEADERBOARD MODEL (Added) ---
+
 const leaderboardSchema = new mongoose.Schema({
     userId: { type: String, required: true, unique: true },
     username: { type: String, required: true, default: 'Anonymous' },
@@ -50,7 +51,7 @@ const Leaderboard = mongoose.model('Leaderboard', leaderboardSchema);
 
 // --- API ROUTES ---
 
-// 1. Get all words (or filtered)
+// 1. Get all words (Restored functionality)
 app.get('/api/words', async (req, res) => {
     try {
         let words;
@@ -63,6 +64,7 @@ app.get('/api/words', async (req, res) => {
         }
         res.json(words);
     } catch (err) {
+        console.error("Error fetching words:", err);
         res.status(500).json({ message: err.message });
     }
 });
@@ -71,12 +73,10 @@ app.get('/api/words', async (req, res) => {
 app.post('/api/words', async (req, res) => {
     const { text } = req.body;
     
-    // Basic validation
     if (!text || text.includes(' ') || text.length > 45) {
         return res.status(400).json({ message: 'Invalid word format' });
     }
 
-    // Swear filter (Basic list, expand as needed)
     const badWords = ['FUCK', 'SHIT', 'CUNT', 'NIGGER', 'FAGGOT', 'RETARD', 'ASSHOLE', 'BASTARD', 'BITCH', 'WHORE', 'SLUT', 'DICK', 'PUSSY', 'COCK', 'WANKER'];
     if (badWords.some(bw => text.toUpperCase().includes(bw))) {
         return res.status(400).json({ message: 'Profanity not allowed.' });
@@ -98,7 +98,7 @@ app.post('/api/words', async (req, res) => {
 
 // 3. Vote on a word
 app.put('/api/words/:id/vote', async (req, res) => {
-    const { voteType, userId } = req.body; // userId optional for tracking unique votes later
+    const { voteType } = req.body; 
     
     try {
         const word = await Word.findById(req.params.id);
@@ -132,7 +132,6 @@ app.post('/api/scores', async (req, res) => {
         const newScore = new Score({ name, score, userId });
         await newScore.save();
         
-        // Keep only top 50 to save space
         const count = await Score.countDocuments();
         if (count > 50) {
             const deleteIds = await Score.find().sort({ score: -1 }).skip(50).select('_id');
@@ -145,7 +144,7 @@ app.post('/api/scores', async (req, res) => {
     }
 });
 
-// --- NEW LEADERBOARD ROUTES (ADDED) ---
+// --- NEW LEADERBOARD ROUTES ---
 
 // 6. GET Global Leaderboard
 app.get('/api/leaderboard', async (req, res) => {
