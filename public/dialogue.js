@@ -1,24 +1,27 @@
 const GAME_DIALOGUE = {
     // What the insects say when saved
     insects: {
-        '🐞': "Lucky escape!",
-        '🐝': "Buzz off!",
-        '🦟': "Phew!",
-        '🚁': "GET TO THE CHOPPA!"
+        "🐞": "Lucky escape!",
+        "🐝": "Buzz off!",
+        "🦟": "Phew!",
+        "🚁": "GET TO THE CHOPPA!"
     },
 
     // All spider speech
     spider: {
         // Random idle phrases when dropping down
         idle: [
-            '# Hunting spiders...', 
-            'just hanging', 
-            'looking for snacks', 
-            'nice web right?', 
-            'quiet night...', 
-            '...', 
-            'boo!',
-            'anyone home?'
+            "# Hunting spiders...", 
+            "just hanging", 
+            "looking for snacks", 
+            "nice web right?", 
+            "quiet night...", 
+            "...", 
+            "boo!",
+            "anyone home?",
+            "You can't find me, me spyder.",
+            "# Why don't you ever wanna play?",
+            "# I'm tired of this piece of string..."
         ],
 
         // When clicked (50% chance Happy)
@@ -30,7 +33,10 @@ const GAME_DIALOGUE = {
             "Hi frend!", 
             "Nice poke!",
             "MWAH!",
-            "Buy me dinner first!"
+            "Buy me dinner first!",
+            "My favourite food is French flies",
+            "Those fireflies are HOT 🔥",
+            "💤"
         ],
 
         // When clicked (50% chance Grumpy)
@@ -51,7 +57,9 @@ const GAME_DIALOGUE = {
             "Gotcha!", 
             "Snack detected!", 
             "Incoming!",
-            "NOM"
+            "NOM",
+            "I’ve got butterflies in my stomach",
+            "I need a light snack, got any glowbugs?"
         ],
 
         // When dropped on an empty web (Tricked)
@@ -79,14 +87,25 @@ const GAME_DIALOGUE = {
 
         // Reactions to specific food
         eating: {
-            '🐞': "Crunchy shell!",
-            '🐝': "Spicy snack!",
-            '🦟': "Finally, quiet.",
-            '🚁': "Tastes like metal!",
+            "🐞": "Crunchy shell!",
+            "🐝": "Spicy snack!",
+            "🦟": "Finally, quiet.",
+            "🚁": "Tastes like metal!",
             default: "Yummy!"
         },
 
-        // When the fly is saved before the spider gets there
-        missed: "Too slow! 😠"
+        // When the fly is saved before the spider gets there (Now an Array)
+        missed: [
+            "Too slow! 😠",
+            "My lunch!",
+            "So hungry...",
+            "Rude.",
+            "I was going to eat that.",
+            "Fast food...",
+            "Denied!",
+            "Come back!",
+            "My web is empty.",
+            "Aw, crumbs."
+        ]
     }
 };
