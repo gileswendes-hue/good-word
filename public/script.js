@@ -2439,7 +2439,7 @@ halloween(active) {
         }
     },
     
-    spiderHunt(targetXPercent, targetYPercent, isFood) {
+spiderHunt(targetXPercent, targetYPercent, isFood) {
         const wrap = document.getElementById('spider-wrap');
         if (!wrap) return;
         const thread = wrap.querySelector('#spider-thread');
@@ -2460,7 +2460,6 @@ halloween(active) {
         const currentX = parseFloat(wrap.style.left) || 50;
         const dist = Math.abs(currentX - destX);
         
-        // Slow down hunt slightly (was *8, now *12)
         const moveTime = Math.max(dist * 12, 800); 
         
         wrap.style.transition = `left ${moveTime}ms ease-in-out`;
@@ -2480,7 +2479,9 @@ halloween(active) {
             
             setTimeout(() => {
                 setTimeout(() => {
+                    // --- LOGIC UPDATE HERE ---
                     if (isFood && MosquitoManager.state === 'stuck') {
+                        // Scenario 1: Caught the bug
                         MosquitoManager.eat();
                         if(wrap.showBubble) wrap.showBubble("YUM!");
                         
@@ -2490,7 +2491,20 @@ halloween(active) {
                             this.retreatSpider(thread, wrap, bub, '4s');
                         }, 1000);
                     } 
+                    else if (isFood) {
+                        // Scenario 2: It WAS food, but it's gone (Missed)
+                        const missedPhrases = GAME_DIALOGUE.spider.missed || ["Too slow!", "My lunch!"];
+                        const missedText = missedPhrases[Math.floor(Math.random() * missedPhrases.length)];
+                        if(wrap.showBubble) wrap.showBubble(missedText);
+                        
+                        body.style.animation = 'shake 0.5s ease-in-out'; // Shake in anger
+                        setTimeout(() => {
+                            body.style.animation = '';
+                            this.retreatSpider(thread, wrap, bub, '2s'); // Faster retreat
+                        }, 1500);
+                    }
                     else {
+                        // Scenario 3: Tricked (Empty Web clicked)
                         const angryPhrases = GAME_DIALOGUE.spider.trickedEnd;
                         const angryText = angryPhrases[Math.floor(Math.random() * angryPhrases.length)];
                         if(wrap.showBubble) wrap.showBubble(angryText);
@@ -2716,59 +2730,59 @@ const ShareManager = {
         ];
         const randomMsg = messages[Math.floor(Math.random() * messages.length)];
 
-        // 1. Setup Data
         const targetUrl = `${window.location.origin}/?word=${encodeURIComponent(word)}`;
-        const colorHex = type === 'good' ? '16a34a' : 'dc2626'; // Green or Red
+        const colorHex = type === 'good' ? '16a34a' : 'dc2626'; 
         const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&color=${colorHex}&margin=20&data=${encodeURIComponent(targetUrl)}`;
 
         try {
-            // 2. Fetch the QR Image
             const response = await fetch(apiUrl);
             const qrBlob = await response.blob();
             const qrImg = await createImageBitmap(qrBlob);
 
-            // 3. Create Canvas
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
             
-            // Canvas Dimensions (400px QR + space for text)
+            // Increased height slightly to fit new labels
             const width = 400;
-            const height = 550; 
+            const height = 580; 
             canvas.width = width;
             canvas.height = height;
 
-            // 4. Draw Background
+            // Background
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, width, height);
 
-            // 5. Draw Header Text (VOTE GOOD / BAD)
+            // 1. Header: "GOOD WORD!" or "BAD WORD!"
             ctx.textAlign = 'center';
-            ctx.font = '900 40px Inter, system-ui, sans-serif'; // Heavy font
+            ctx.font = '900 36px Inter, system-ui, sans-serif'; 
             ctx.fillStyle = type === 'good' ? '#16a34a' : '#dc2626';
-            ctx.fillText(type === 'good' ? "GOOD WORD!" : "BAD WORD!", width / 2, 55);
+            ctx.fillText(type === 'good' ? "GOOD WORD!" : "BAD WORD!", width / 2, 50);
 
-            // 6. Draw QR Code (Centered)
-            // y=70 to leave room for header
-            ctx.drawImage(qrImg, 0, 70, 400, 400); 
+            // 2. QR Code
+            ctx.drawImage(qrImg, 0, 60, 400, 400); 
 
-            // 7. Draw The Word (Bottom)
-            ctx.font = 'bold 40px Inter, system-ui, sans-serif';
+            // 3. Label: "Word:"
+            ctx.font = 'bold 16px sans-serif';
+            ctx.fillStyle = '#9ca3af'; // Light grey
+            ctx.fillText('Word:', width / 2, 485);
+
+            // 4. The Word (Extra Bold)
             ctx.fillStyle = '#1f2937'; // Dark Grey
             
-            // Check if word is too long, scale down if needed
+            // Scale logic for long words
+            ctx.font = '900 40px Inter, system-ui, sans-serif'; 
             const textWidth = ctx.measureText(word).width;
             if (textWidth > 360) {
                 const scale = 360 / textWidth;
-                ctx.font = `bold ${Math.floor(32 * scale)}px Inter, system-ui, sans-serif`;
+                ctx.font = `900 ${Math.floor(40 * scale)}px Inter, system-ui, sans-serif`;
             }
-            ctx.fillText(word, width / 2, 510);
+            ctx.fillText(word, width / 2, 530);
 
-            // 8. Footer
-            ctx.font = '14px sans-serif';
-            ctx.fillStyle = '#9ca3af';
-            ctx.fillText('GBword.com', width / 2, 535);
+            // 5. Footer
+            ctx.font = '12px sans-serif';
+            ctx.fillStyle = '#d1d5db';
+            ctx.fillText('GBword.com', width / 2, 560);
 
-            // 9. Convert back to File
             const finalBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
             const file = new File([finalBlob], `${word}_${type}_qr.png`, { type: 'image/png' });
 
@@ -2781,7 +2795,6 @@ const ShareManager = {
             if (navigator.canShare && navigator.canShare(shareData)) {
                 await navigator.share(shareData);
             } else {
-                // Fallback for desktop/unsupported browsers
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(finalBlob);
                 a.download = `${word}_${type}_qr.png`;
@@ -2794,195 +2807,21 @@ const ShareManager = {
         }
     },
 
-    async generateImage() {
+    async generateImage() { 
+        // ... (keep existing generateImage logic) ...
+        // If you need the full code for generateImage again, let me know, 
+        // otherwise just keep the previous version here.
         const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        const width = 1080;
-        const height = 1350;
-        canvas.width = width;
-        canvas.height = height;
-
-        // 1. Background (Gradient)
-        const grad = ctx.createLinearGradient(0, 0, 0, height);
-        grad.addColorStop(0, '#4f46e5');
-        grad.addColorStop(1, '#9333ea');
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, width, height);
-
-        // 2. White Card Container
-        const margin = 60;
-        const cardY = 150;
-        const cardH = height - 280;
-        ctx.fillStyle = '#ffffff';
-        if (ctx.roundRect) {
-            ctx.beginPath();
-            ctx.roundRect(margin, cardY, width - (margin * 2), cardH, 40);
-            ctx.fill();
-        } else {
-            ctx.fillRect(margin, cardY, width - (margin * 2), cardH);
-        }
-
-        // 3. Header Text
-        const name = State.data.username || "Player";
-        ctx.fillStyle = '#1f2937';
-        ctx.font = 'bold 60px Inter, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(`${name.toUpperCase()}'S STATS`, width / 2, cardY + 100);
-
-        ctx.fillStyle = '#6b7280';
-        ctx.font = '30px Inter, sans-serif';
-        ctx.fillText("GOOD WORD / BAD WORD", width / 2, cardY + 150);
-
-        // 4. Primary Stats Grid (Top Half)
-        const stats = [
-            { label: 'Day Streak', val: State.data.daily.streak, icon: '🔥', color: '#fff7ed', text: '#ea580c' },
-            { label: 'Total Votes', val: State.data.voteCount.toLocaleString(), icon: '🗳️', color: '#eff6ff', text: '#2563eb' },
-            { label: 'Words Added', val: State.data.contributorCount.toLocaleString(), icon: '✍️', color: '#f0fdf4', text: '#16a34a' },
-            { label: 'Themes', val: DOM.profile.themes.textContent, icon: '🎨', color: '#faf5ff', text: '#9333ea' }
-        ];
-
-        let gridY = cardY + 220;
-        const boxW = 400;
-        const boxH = 180;
-        const gap = 40;
-        const startX = (width - (boxW * 2 + gap)) / 2;
-
-        stats.forEach((stat, i) => {
-            const col = i % 2;
-            const row = Math.floor(i / 2);
-            const x = startX + (col * (boxW + gap));
-            const y = gridY + (row * (boxH + gap));
-
-            ctx.fillStyle = stat.color;
-            ctx.beginPath();
-            if (ctx.roundRect) ctx.roundRect(x, y, boxW, boxH, 20);
-            else ctx.fillRect(x, y, boxW, boxH);
-            ctx.fill();
-
-            // Icon
-            ctx.font = '50px serif';
-            ctx.textAlign = 'left';
-            ctx.fillText(stat.icon, x + 30, y + 105);
-
-            // Value
-            ctx.fillStyle = stat.text;
-            ctx.font = 'bold 50px Inter, sans-serif';
-            ctx.textAlign = 'right';
-            ctx.fillText(stat.val, x + boxW - 30, y + 90);
-
-            // Label
-            ctx.fillStyle = '#6b7280';
-            ctx.font = 'bold 20px Inter, sans-serif';
-            ctx.fillText(stat.label.toUpperCase(), x + boxW - 30, y + 130);
-        });
-
-        // 5. Collection Progress (Bottom Half - Teaser Style)
-        const progressY = gridY + (2 * (boxH + gap)) + 60;
-
-        // Separator Line
-        ctx.strokeStyle = '#e5e7eb';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(margin + 40, progressY);
-        ctx.lineTo(width - margin - 40, progressY);
-        ctx.stroke();
-
-        ctx.fillStyle = '#374151';
-        ctx.font = 'bold 30px Inter, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText("COLLECTION PROGRESS", width / 2, progressY + 60);
-
-        // Define Categories
-        const catKeys = {
-            words: ['cake', 'llama', 'potato', 'squirrel', 'spider', 'germ', 'bone'],
-            items: ['poop', 'penguin', 'scorpion', 'mushroom', 'needle', 'diamond', 'rock', 'chopper', 'snowman', 'fish', 'tropical', 'puffer', 'shark'],
-            achievements: ['exterminator', 'saint', 'prankster', 'judge', 'bard', 'traveler', 'angler', 'shepherd']
-        };
-
-        const getCount = (keys) => keys.filter(k => State.data.badges[k]).length;
-
-        const collections = [
-            { label: 'Hidden Words', count: getCount(catKeys.words), total: catKeys.words.length, color: '#f59e0b' },
-            { label: 'Secret Items', count: getCount(catKeys.items), total: catKeys.items.length, color: '#ec4899' },
-            { label: 'Achievements', count: getCount(catKeys.achievements), total: catKeys.achievements.length, color: '#10b981' }
-        ];
-
-        let circleX = width / 2 - 300;
-        const circleY = progressY + 180;
-
-        collections.forEach((col, i) => {
-            const x = (width / 4) * (i + 1);
-
-            // Draw Ring Background
-            ctx.beginPath();
-            ctx.arc(x, circleY, 70, 0, 2 * Math.PI);
-            ctx.strokeStyle = '#f3f4f6';
-            ctx.lineWidth = 15;
-            ctx.stroke();
-
-            // Draw Progress Ring
-            const pct = col.count / col.total;
-            ctx.beginPath();
-            ctx.arc(x, circleY, 70, -0.5 * Math.PI, (2 * pct * Math.PI) - 0.5 * Math.PI);
-            ctx.strokeStyle = col.color;
-            ctx.lineWidth = 15;
-            ctx.lineCap = 'round';
-            ctx.stroke();
-
-            // Draw Text
-            ctx.fillStyle = '#1f2937';
-            ctx.font = 'bold 40px Inter, sans-serif';
-            ctx.fillText(`${col.count}/${col.total}`, x, circleY + 15);
-
-            ctx.fillStyle = '#6b7280';
-            ctx.font = 'bold 18px Inter, sans-serif';
-            ctx.fillText(col.label.toUpperCase(), x, circleY + 130);
-        });
-
-        // 6. Footer
-        ctx.fillStyle = '#ffffff';
-        ctx.textAlign = 'center';
-
-        // Teaser Text
-        ctx.font = 'italic 30px serif';
-        ctx.fillStyle = 'rgba(255,255,255,0.9)';
-        ctx.fillText("Can you find them all?", width / 2, height - 120);
-
-        // URL
-        ctx.font = 'bold 40px Inter, sans-serif';
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText("GBword.com", width / 2, height - 60);
-
+        // ... rest of generateImage ...
         return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
     },
 
     async share() {
+        // ... (keep existing share logic) ...
         UIManager.showPostVoteMessage("Generating image...");
         try {
             const blob = await this.generateImage();
-            const file = new File([blob], 'gbword-stats.png', { type: 'image/png' });
-
-            const shareData = {
-                title: 'My Progress',
-                text: `I've found ${Object.values(State.data.badges).filter(Boolean).length} secrets in Good Word / Bad Word! Can you beat my streak? 🗳️`,
-                url: 'http://good-word.onrender.com/',
-                files: [file]
-            };
-
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                await navigator.share(shareData);
-            } else {
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = 'gbword-stats.png';
-                a.click();
-                try {
-                    await navigator.clipboard.writeText('http://good-word.onrender.com/');
-                    UIManager.showPostVoteMessage("Image saved & Link copied!");
-                } catch {
-                    UIManager.showPostVoteMessage("Image downloaded!");
-                }
-            }
+            // ... rest of share ...
         } catch (e) {
             console.error(e);
             UIManager.showPostVoteMessage("Could not share image.");
