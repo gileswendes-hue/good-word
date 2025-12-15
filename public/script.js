@@ -4131,7 +4131,7 @@ const InputHandler = {
 
 // --- MAIN GAME LOGIC ---
 const Game = {
-	
+
 	renderGraphs() {
         const w = State.runtime.allWords;
         if (!w || w.length === 0) return;
@@ -4143,40 +4143,6 @@ const Game = {
             ctx.textAlign = "center";
             ctx.fillText(text, x, y);
         };
-
-async renderLeaderboardTable() {
-        const lbContainer = DOM.general.voteLeaderboardTable;
-        if (!lbContainer) return;
-
-        lbContainer.innerHTML = '<div class="text-center text-gray-500 p-4">Loading top voters...</div>';
-
-        const topUsers = await API.fetchLeaderboard();
-
-        if (topUsers.length === 0) {
-            lbContainer.innerHTML = '<div class="text-center text-gray-500 p-4">Global leaderboard unavailable.</div>';
-            return;
-        }
-        
-        const d = State.data; // Get local user data
-        let html = '<h3 class="text-lg font-bold text-gray-800 mb-3 mt-4">Top Voters (Global)</h3>';
-        
-        topUsers.forEach((user, i) => {
-            const isYou = d.userId && user.userId === d.userId;
-            const rowClass = isYou 
-                ? 'bg-indigo-100 border-2 border-indigo-400 font-bold text-indigo-700' 
-                : 'bg-white border border-gray-200 text-gray-800';
-
-            html += `
-                <div class="flex justify-between items-center py-2 px-3 rounded ${rowClass} text-sm mb-1">
-                    <span class="w-6 text-center">#${i + 1}</span>
-                    <span class="truncate flex-1">${user.username ? user.username.substring(0, 20) : 'Anonymous'}</span>
-                    <span class="text-right">${(user.voteCount || 0).toLocaleString()} votes</span>
-                </div>
-            `;
-        });
-
-        lbContainer.innerHTML = html;
-    },
 
         const cvsScatter = document.getElementById('scatterChartCanvas');
         if (cvsScatter) {
@@ -4452,6 +4418,40 @@ async renderLeaderboardTable() {
                 });
             }
         }
+    },
+	
+	async renderLeaderboardTable() {
+        const lbContainer = DOM.general.voteLeaderboardTable;
+        if (!lbContainer) return;
+
+        lbContainer.innerHTML = '<div class="text-center text-gray-500 p-4">Loading top voters...</div>';
+
+        const topUsers = await API.fetchLeaderboard();
+
+        if (topUsers.length === 0) {
+            lbContainer.innerHTML = '<div class="text-center text-gray-500 p-4">Global leaderboard unavailable.</div>';
+            return;
+        }
+        
+        const d = State.data;
+        let html = '<h3 class="text-lg font-bold text-gray-800 mb-3 mt-4">Top Voters (Global)</h3>';
+        
+        topUsers.forEach((user, i) => {
+            const isYou = d.userId && user.userId === d.userId;
+            const rowClass = isYou 
+                ? 'bg-indigo-100 border-2 border-indigo-400 font-bold text-indigo-700' 
+                : 'bg-white border border-gray-200 text-gray-800';
+
+            html += `
+                <div class="flex justify-between items-center py-2 px-3 rounded ${rowClass} text-sm mb-1">
+                    <span class="w-6 text-center">#${i + 1}</span>
+                    <span class="truncate flex-1">${user.username ? user.username.substring(0, 20) : 'Anonymous'}</span>
+                    <span class="text-right">${(user.voteCount || 0).toLocaleString()} votes</span>
+                </div>
+            `;
+        });
+
+        lbContainer.innerHTML = html;
     },
 	
     cleanStyles(e) {
