@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.70', 
+    APP_VERSION: '5.71', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -144,7 +144,8 @@ const loadDOM = () => ({
     },
     general: {
         version: document.querySelector('.version-indicator'),
-		voteLeaderboard: document.getElementById('leaderboardVotesContainer')
+		voteLeaderboardTable: document.getElementById('voteLeaderboardTable'),
+        voteChartCanvas: document.getElementById('voteChartCanvas')
     }
 });
 
@@ -3890,7 +3891,8 @@ init() {
         if (headerStats) {
             headerStats.onclick = (e) => {
                 e.preventDefault(); 
-                Game.renderGraphs(); 
+                Game.renderGraphs();
+				Game.renderLeaderboardTable();
                 
                 const gm = document.getElementById('graphModalContainer');
                 if (gm) {
@@ -4173,9 +4175,40 @@ const Game = {
             ctx.fillText(text, x, y);
         };
 
-        // ==========================================
-        // 1. SCATTER PLOT (Opinion Landscape)
-        // ==========================================
+async renderLeaderboardTable() {
+        const lbContainer = DOM.general.voteLeaderboardTable;
+        if (!lbContainer) return;
+
+        lbContainer.innerHTML = '<div class="text-center text-gray-500 p-4">Loading top voters...</div>';
+
+        const topUsers = await API.fetchLeaderboard();
+
+        if (topUsers.length === 0) {
+            lbContainer.innerHTML = '<div class="text-center text-gray-500 p-4">Global leaderboard unavailable.</div>';
+            return;
+        }
+        
+        const d = State.data; // Get local user data
+        let html = '<h3 class="text-lg font-bold text-gray-800 mb-3 mt-4">Top Voters (Global)</h3>';
+        
+        topUsers.forEach((user, i) => {
+            const isYou = d.userId && user.userId === d.userId;
+            const rowClass = isYou 
+                ? 'bg-indigo-100 border-2 border-indigo-400 font-bold text-indigo-700' 
+                : 'bg-white border border-gray-200 text-gray-800';
+
+            html += `
+                <div class="flex justify-between items-center py-2 px-3 rounded ${rowClass} text-sm mb-1">
+                    <span class="w-6 text-center">#${i + 1}</span>
+                    <span class="truncate flex-1">${user.username ? user.username.substring(0, 20) : 'Anonymous'}</span>
+                    <span class="text-right">${(user.voteCount || 0).toLocaleString()} votes</span>
+                </div>
+            `;
+        });
+
+        lbContainer.innerHTML = html;
+    },
+
         const cvsScatter = document.getElementById('scatterChartCanvas');
         if (cvsScatter) {
             const ctx = cvsScatter.getContext('2d');
@@ -4248,7 +4281,7 @@ const Game = {
             });
         }
 
-const cvsLine = document.getElementById('lineChartCanvas');
+	const cvsLine = document.getElementById('lineChartCanvas');
         if (cvsLine) {
             const ctx = cvsLine.getContext('2d');
             const W = cvsLine.width;
@@ -4383,9 +4416,6 @@ const cvsLine = document.getElementById('lineChartCanvas');
             ctx.restore();
         }
 
-        // ==========================================
-        // 3. PIE CHART (Classifications)
-        // ==========================================
         const cvsPie = document.getElementById('pieChartCanvas');
         if (cvsPie) {
             const ctx = cvsPie.getContext('2d');
