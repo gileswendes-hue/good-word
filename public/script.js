@@ -4201,6 +4201,8 @@ const Game = {
             const W = cvsLine.width;
             const H = cvsLine.height;
             const P = 40; // Padding
+            const GRAPH_H = H - 2 * P;
+            const Y_MIN = H - P; // Bottom Y position
 
             ctx.clearRect(0, 0, W, H);
 
@@ -4215,71 +4217,105 @@ const Game = {
             const currentMax = Math.max(...history.map(h => h.count), w.length);
             
             // --- MODIFIED SCALE LOGIC ---
-            const MIN_SCALE = 3000;
-            const MAX_DEFAULT = 8000;
+            const SOFT_MAX = 6000;
+            const MIN_START = 3000;
             
-            let maxCount = MAX_DEFAULT;
-            if (currentMax < MIN_SCALE) {
-                // If data is below min, scale max to 1.1x currentMax, but keep min 3000 label on graph
-                const magnitude = Math.pow(10, Math.floor(Math.log10(currentMax || 10)));
-                maxCount = Math.ceil(currentMax * 1.1 / magnitude) * magnitude;
-            }
-            if (currentMax > MAX_DEFAULT) {
-                // If data is above max, scale up to the nearest clean number
-                const magnitude = Math.pow(10, Math.floor(Math.log10(currentMax || 10)));
-                maxCount = Math.ceil(currentMax / magnitude) * magnitude;
-            }
+            let maxCount = SOFT_MAX;
             
-            const minCount = 0;
-            if (currentMax < MIN_SCALE) maxCount = Math.max(MAX_DEFAULT, maxCount);
+            if (currentMax > SOFT_MAX) {
+                // Scale up if data exceeds 6k, rounding to nearest 1000 or 500
+                const magnitude = Math.pow(10, Math.floor(Math.log10(currentMax || 10)));
+                let step = magnitude >= 1000 ? 1000 : 500;
+                maxCount = Math.ceil(currentMax / step) * step;
+            } else if (currentMax < MIN_START) {
+                // If max data is below 3k, we still keep maxCount at 6k to show the desired range
+                maxCount = SOFT_MAX;
+            }
             // ----------------------------
             
             // Draw Axes
             ctx.beginPath();
             ctx.strokeStyle = "#ccc";
             ctx.lineWidth = 1;
-            ctx.moveTo(P, P); ctx.lineTo(P, H - P); ctx.lineTo(W - P, H - P);
+            ctx.moveTo(P, P); ctx.lineTo(P, Y_MIN); ctx.lineTo(W - P, Y_MIN);
             ctx.stroke();
 
-            // Draw Labels (Word Count & Dates)
-            // Y-Axis
+            // Draw Y-Axis Labels
             ctx.textAlign = "right";
             
-            // --- Y-AXIS LABEL CHANGES ---
+            // Helper function for y coordinate calculation
+            const getY = (count) => Y_MIN - (count / maxCount) * GRAPH_H;
+            
+            // Max Label
             drawText(ctx, maxCount.toLocaleString(), P - 5, P + 5, "#666", 10);
-            drawText(ctx, MIN_SCALE.toLocaleString(), P - 5, (H - P) - (MIN_SCALE / maxCount) * (H - 2 * P) + 5, "#666", 10); // 3k Label
-            drawText(ctx, minCount.toLocaleString(), P - 5, H - P, "#666", 10); // 0 Label
-            // ----------------------------
+            
+            // Custom Markers (3k and 6k or scaled equivalent)
+            const markers = [MIN_START, SOFT_MAX];
+            
+            if (maxCount !== SOFT_MAX) {
+                // If scaled up (e.g., 9000), add intermediate markers
+                const step = maxCount / 4; 
+                for (let i = 1; i <= 3; i++) markers.push(Math.round(i * step / 100) * 100);
+            }
+            
+            [...new Set(markers)].sort((a,b)=>a-b).forEach(mark => {
+                if (mark > 0 && mark < maxCount) {
+                    const y = getY(mark);
+                    ctx.strokeStyle = "#e5e7eb";
+                    ctx.beginPath();
+                    ctx.moveTo(P, y); ctx.lineTo(W - P, y);
+                    ctx.stroke();
+                    drawText(ctx, mark.toLocaleString(), P - 5, y + 5, "#666", 10);
+                }
+            });
+            
+            // 0/Origin Label
+            drawText(ctx, "0", P - 5, Y_MIN, "#666", 10); 
 
             // X-Axis
             ctx.textAlign = "center";
             const startDate = history[0].date;
             const endDate = history[history.length - 1].date;
-            drawText(ctx, startDate, P + 20, H - 10, "#666", 10); // Start Date
+            drawText(ctx, startDate, P + 20, H - 10, "#666", 10);
             if (history.length > 1) {
-                drawText(ctx, endDate, W - P - 20, H - 10, "#666", 10); // End Date
+                drawText(ctx, endDate, W - P - 20, H - 10, "#666", 10);
             }
 
-            // Plot Line
-            if (history.length > 1) {
+            // Plot Line and Markers
+            if (history.length > 0) {
                 ctx.beginPath();
                 ctx.strokeStyle = "#4f46e5";
                 ctx.lineWidth = 3;
                 
                 history.forEach((h, i) => {
                     const x = P + (i / (history.length - 1)) * (W - 2 * P);
-                    const y = (H - P) - (h.count / maxCount) * (H - 2 * P);
+                    const y = getY(h.count);
+                    
                     if (i === 0) ctx.moveTo(x, y);
                     else ctx.lineTo(x, y);
                 });
                 ctx.stroke();
-            } else {
-                // Single point - Plot on vertical axis (Left)
-                const y = (H - P) - (history[0].count / maxCount) * (H - 2 * P);
-                ctx.beginPath();
-                ctx.fillStyle = "#4f46e5";
-                ctx.arc(P, y, 5, 0, Math.PI*2); // Plot at x=P (start of axis)
-                ctx.fill();
+                
+                // --- ADD MARKERS FOR EACH DATA POINT ---
+                history.forEach((h, i) => {
+                    const x = P + (i / (history.length - 1)) * (W - 2 * P);
+                    const y = getY(h.count);
+                    
+                    ctx.beginPath();
+                    ctx.fillStyle = "#4f46e5";
+                    ctx.arc(x, y, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Highlight the last/current point
+                    if (i === history.length - 1) {
+                         ctx.beginPath();
+                         ctx.strokeStyle = "#ffffff";
+                         ctx.lineWidth = 2;
+                         ctx.arc(x, y, 6, 0, Math.PI * 2);
+                         ctx.stroke();
+                    }
+                });
+                // ----------------------------------------
             }
 
             // Titles
