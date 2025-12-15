@@ -1093,23 +1093,42 @@ const Physics = {
 const API = {
     // Modified to accept a 'forceNetwork' flag
     async fetchWords(forceNetwork = false) {
-        // 1. If Offline Mode is Active AND we aren't forcing a download
+        // 1. Only use cache if Offline Mode is explicitly enabled by YOU
         if (OfflineManager.isActive() && !forceNetwork) {
             console.log("Serving from Offline Cache 🚇");
             return State.data.offlineCache; 
         }
 
         try {
-            const r = await fetch(CONFIG.API_BASE_URL);
-            if (!r.ok) throw 0;
-            return await r.json();
-        } catch (e) {
-            // Fallback: If network fails but we have cache, use it
-            if (State.data.offlineCache && State.data.offlineCache.length > 0) {
-                UIManager.showPostVoteMessage("Network error. Switched to Offline.");
-                return State.data.offlineCache;
+            // 2. Try to fetch from the server
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000); 
+            
+            const r = await fetch(CONFIG.API_BASE_URL, { signal: controller.signal });
+            clearTimeout(timeoutId);
+            
+            if (!r.ok) {
+                // If server error (e.g. 500), throw error but STAY ONLINE
+                throw new Error(`Server Status ${r.status}`);
             }
-            return null;
+            return await r.json();
+
+        } catch (e) {
+            // 3. Only switch to Offline Mode if the internet is actually down
+            const isConnectionError = e.name === 'AbortError' || 
+                                    e.message === 'Failed to fetch' || 
+                                    e.message.toLowerCase().includes('network');
+
+            if (isConnectionError) {
+                if (State.data.offlineCache && State.data.offlineCache.length > 0) {
+                    UIManager.showPostVoteMessage("Connection lost. Switched to Offline. 🚇");
+                    return State.data.offlineCache;
+                }
+                return null;
+            }
+
+            console.warn("API Error (Still Online):", e);
+            return null; 
         }
     },
 
