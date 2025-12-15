@@ -1174,14 +1174,15 @@ const API = {
          return fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${w.toLowerCase()}`);
     },
 	
-	async getGlobalScores() {
+	async getGlobalScores(type = 'score') {
         try {
-            const r = await fetch(CONFIG.SCORE_API_URL);
+            // Include the type parameter in the API call to request the correct data
+            const r = await fetch(`${CONFIG.SCORE_API_URL}?type=${type}`);
             if (!r.ok) return [];
             return await r.json();
         } catch (e) { return []; }
     },
-
+    
 async submitHighScore(name, score, totalVotes) {
         try {
             await fetch(CONFIG.SCORE_API_URL, {
