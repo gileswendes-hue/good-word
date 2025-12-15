@@ -2821,7 +2821,7 @@ const ShareManager = {
             UIManager.showPostVoteMessage("Could not share image.");
         }
     }
-};
+},
 
 const UIManager = {
     msgTimeout: null,
