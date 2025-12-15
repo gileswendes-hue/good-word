@@ -2704,7 +2704,7 @@ halloween(active) {
 const ShareManager = {
 
     async shareQR(type) {
-        const word = State.runtime.allWords[State.runtime.currentWordIndex].text;
+        const word = State.runtime.allWords[State.runtime.currentWordIndex].text.toUpperCase();
         UIManager.showPostVoteMessage("Generating QR Code... 📷");
 
         const messages = [
@@ -2716,14 +2716,61 @@ const ShareManager = {
         ];
         const randomMsg = messages[Math.floor(Math.random() * messages.length)];
 
+        // 1. Setup Data
         const targetUrl = `${window.location.origin}/?word=${encodeURIComponent(word)}`;
-        const color = type === 'good' ? '16a34a' : 'dc2626';
-        const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&color=${color}&margin=20&data=${encodeURIComponent(targetUrl)}`;
+        const colorHex = type === 'good' ? '16a34a' : 'dc2626'; // Green or Red
+        const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&color=${colorHex}&margin=20&data=${encodeURIComponent(targetUrl)}`;
 
         try {
+            // 2. Fetch the QR Image
             const response = await fetch(apiUrl);
-            const blob = await response.blob();
-            const file = new File([blob], `${word}_${type}_qr.png`, { type: 'image/png' });
+            const qrBlob = await response.blob();
+            const qrImg = await createImageBitmap(qrBlob);
+
+            // 3. Create Canvas
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Canvas Dimensions (400px QR + space for text)
+            const width = 400;
+            const height = 550; 
+            canvas.width = width;
+            canvas.height = height;
+
+            // 4. Draw Background
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, width, height);
+
+            // 5. Draw Header Text (VOTE GOOD / BAD)
+            ctx.textAlign = 'center';
+            ctx.font = '900 40px Inter, system-ui, sans-serif'; // Heavy font
+            ctx.fillStyle = type === 'good' ? '#16a34a' : '#dc2626';
+            ctx.fillText(type === 'good' ? "VOTE GOOD" : "VOTE BAD", width / 2, 55);
+
+            // 6. Draw QR Code (Centered)
+            // y=70 to leave room for header
+            ctx.drawImage(qrImg, 0, 70, 400, 400); 
+
+            // 7. Draw The Word (Bottom)
+            ctx.font = 'bold 32px Inter, system-ui, sans-serif';
+            ctx.fillStyle = '#1f2937'; // Dark Grey
+            
+            // Check if word is too long, scale down if needed
+            const textWidth = ctx.measureText(word).width;
+            if (textWidth > 360) {
+                const scale = 360 / textWidth;
+                ctx.font = `bold ${Math.floor(32 * scale)}px Inter, system-ui, sans-serif`;
+            }
+            ctx.fillText(word, width / 2, 510);
+
+            // 8. Footer
+            ctx.font = '14px sans-serif';
+            ctx.fillStyle = '#9ca3af';
+            ctx.fillText('GBword.com', width / 2, 535);
+
+            // 9. Convert back to File
+            const finalBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+            const file = new File([finalBlob], `${word}_${type}_qr.png`, { type: 'image/png' });
 
             const shareData = {
                 title: `Vote ${type} on ${word}!`,
@@ -2736,7 +2783,7 @@ const ShareManager = {
             } else {
                 // Fallback for desktop/unsupported browsers
                 const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
+                a.href = URL.createObjectURL(finalBlob);
                 a.download = `${word}_${type}_qr.png`;
                 a.click();
                 UIManager.showPostVoteMessage("QR Code downloaded!");
