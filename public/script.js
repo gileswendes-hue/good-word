@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.71', 
+    APP_VERSION: '5.70', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -105,7 +105,6 @@ const loadDOM = () => ({
         settings: document.getElementById('settingsModalContainer'),
         profile: document.getElementById('profileModal'),
         dailyResult: document.getElementById('dailyResultModal'),
-		voteLeaderboard: document.getElementById('leaderboardVotesContainer')
     },
     profile: {
         streak: document.getElementById('profileStreak'),
@@ -144,7 +143,8 @@ const loadDOM = () => ({
         }
     },
     general: {
-        version: document.querySelector('.version-indicator')
+        version: document.querySelector('.version-indicator'),
+		voteLeaderboard: document.getElementById('leaderboardVotesContainer')
     }
 });
 
@@ -2961,8 +2961,8 @@ const UIManager = {
         const streakEl = document.getElementById('streak-display-value');
         if(streakEl) streakEl.textContent = (State.data.longestStreak || 0) + " Words";
 		
-        const lbContainer = DOM.modals.voteLeaderboard;
-        if (lbContainer) {
+        const lbContainer = DOM.general.voteLeaderboard; 
+        if (lbContainer) { // Check if the element exists first (safety)
             lbContainer.innerHTML = '<p class="text-xs text-gray-500 mt-2 p-3 text-center">Loading global voters...</p>';
             
             (async () => {
