@@ -4195,6 +4195,23 @@ const Game = {
         // ==========================================
         // 2. LINE GRAPH (History - Updated)
         // ==========================================
+        renderGraphs() {
+        const w = State.runtime.allWords;
+        if (!w || w.length === 0) return;
+
+        // --- HELPER: Draw Text Centered ---
+        const drawText = (ctx, text, x, y, color = "#666", size = 12) => {
+            ctx.fillStyle = color;
+            ctx.font = `${size}px sans-serif`;
+            ctx.textAlign = "center";
+            ctx.fillText(text, x, y);
+        };
+
+        // ... (SCATTER PLOT logic omitted) ...
+
+        // ==========================================
+        // 2. LINE GRAPH (History - Updated)
+        // ==========================================
         const cvsLine = document.getElementById('lineChartCanvas');
         if (cvsLine) {
             const ctx = cvsLine.getContext('2d');
@@ -4213,9 +4230,26 @@ const Game = {
 
             // Scales
             const currentMax = Math.max(...history.map(h => h.count), w.length);
-            // Round up to nearest nice number (e.g. 100, 1000, 5000)
-            const magnitude = Math.pow(10, Math.floor(Math.log10(currentMax || 10)));
-            const maxCount = Math.ceil(currentMax / magnitude) * magnitude;
+            
+            // --- MODIFIED SCALE LOGIC ---
+            const MIN_SCALE = 3000;
+            const MAX_DEFAULT = 8000;
+            
+            let maxCount = MAX_DEFAULT;
+            if (currentMax < MIN_SCALE) {
+                // If data is below min, scale max to 1.1x currentMax, but keep min 3000 label on graph
+                const magnitude = Math.pow(10, Math.floor(Math.log10(currentMax || 10)));
+                maxCount = Math.ceil(currentMax * 1.1 / magnitude) * magnitude;
+            }
+            if (currentMax > MAX_DEFAULT) {
+                // If data is above max, scale up to the nearest clean number
+                const magnitude = Math.pow(10, Math.floor(Math.log10(currentMax || 10)));
+                maxCount = Math.ceil(currentMax / magnitude) * magnitude;
+            }
+            
+            const minCount = 0;
+            if (currentMax < MIN_SCALE) maxCount = Math.max(MAX_DEFAULT, maxCount);
+            // ----------------------------
             
             // Draw Axes
             ctx.beginPath();
@@ -4227,8 +4261,12 @@ const Game = {
             // Draw Labels (Word Count & Dates)
             // Y-Axis
             ctx.textAlign = "right";
-            drawText(ctx, maxCount.toLocaleString(), P - 5, P + 5, "#666", 10); // Top
-            drawText(ctx, "0", P - 5, H - P, "#666", 10); // Bottom
+            
+            // --- Y-AXIS LABEL CHANGES ---
+            drawText(ctx, maxCount.toLocaleString(), P - 5, P + 5, "#666", 10);
+            drawText(ctx, MIN_SCALE.toLocaleString(), P - 5, (H - P) - (MIN_SCALE / maxCount) * (H - 2 * P) + 5, "#666", 10); // 3k Label
+            drawText(ctx, minCount.toLocaleString(), P - 5, H - P, "#666", 10); // 0 Label
+            // ----------------------------
 
             // X-Axis
             ctx.textAlign = "center";
