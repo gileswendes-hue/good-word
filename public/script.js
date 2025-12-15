@@ -340,16 +340,6 @@ unlockBadge(n) {
     }
 };
 
-To restore your backup functionality with tamper protection, you need to make edits in three specific locations within your script.js file.
-
-Here is exactly where to put each piece of code.
-
-1. Add DataManager (Line ~248)
-Find where the State object ends (around line 248). It ends with clearAll() { ... } };. Insert the DataManager object immediately after the closing }; of State and before const OfflineManager.
-
-JavaScript
-
-// ... existing State object code ...
     clearAll() {
         if (confirm("Clear all local data? Irreversible. I don't back up.")) {
             if (confirm("Are you really sure? All progress, badges, and stats will be lost forever.")) {
