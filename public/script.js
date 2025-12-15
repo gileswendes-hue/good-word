@@ -1200,12 +1200,9 @@ const API = {
     }
 };
 
-
-
-// --- THEME MANAGER ---
 const ThemeManager = {
     wordMap: {},
-   init() {
+    init() {
         const s = document.createElement("style");
         s.innerText = `@keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }`;
         document.head.appendChild(s);
@@ -1222,15 +1219,17 @@ const ThemeManager = {
         
         this.populateChooser();
 
+        let currentThemeToApply = State.data.currentTheme;
+
         if (State.data.settings.randomizeTheme && State.data.unlockedThemes.length > 0) {
             const available = ['default', ...State.data.unlockedThemes];
-            const randomTheme = available[Math.floor(Math.random() * available.length)];
-            this.apply(randomTheme);
+            currentThemeToApply = available[Math.floor(Math.random() * available.length)];
+            this.apply(currentThemeToApply);
         } else {
             this.apply(State.data.currentTheme);
-			DOM.theme.chooser.value = randomTheme;
         }
-		
+        
+        DOM.theme.chooser.value = currentThemeToApply;
     },
     populateChooser() {
         const u = State.data.unlockedThemes,
