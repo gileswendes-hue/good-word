@@ -330,17 +330,7 @@ unlockBadge(n) {
         localStorage.setItem('contributorCount', this.data.contributorCount);
         if (this.data.contributorCount >= 5) this.unlockBadge('bard');
     },
-    clearAll() {
-        if (confirm("Clear all local data? Irreversible. I don't back up.")) {
-            if (confirm("Are you really sure? All progress, badges, and stats will be lost forever.")) {
-                localStorage.clear();
-                window.location.reload();
-            }
-        }
-    }
-};
-
-    clearAll() {
+clearAll() {
         if (confirm("Clear all local data? Irreversible. I don't back up.")) {
             if (confirm("Are you really sure? All progress, badges, and stats will be lost forever.")) {
                 localStorage.clear();
