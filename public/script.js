@@ -1174,20 +1174,20 @@ const API = {
          return fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${w.toLowerCase()}`);
     },
 	
-	async getGlobalScores() {
+async getGlobalScores(type = 'score') { 
         try {
-            const r = await fetch(CONFIG.SCORE_API_URL);
+            const r = await fetch(`${CONFIG.SCORE_API_URL}?type=${type}`);
             if (!r.ok) return [];
             return await r.json();
         } catch (e) { return []; }
     },
-
-    async submitHighScore(name, score) {
+    
+async submitHighScore(name, score, totalVotes) { // <-- ADDED totalVotes parameter
         try {
             await fetch(CONFIG.SCORE_API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, score, userId: State.data.userId })
+                body: JSON.stringify({ name, score, totalVotes, userId: State.data.userId }) // <-- SEND totalVotes
             });
         } catch (e) { console.error("Score submit failed", e); }
     }
@@ -2138,12 +2138,6 @@ halloween(active) {
                 
                 this.spiderTimeout = setTimeout(() => {
                     if (wrap.classList.contains('hunting')) return;
-					
-					const greeting_base = Game.getSpiderGreeting(); // Get time-based greeting
-                         const phrases = (typeof GAME_DIALOGUE !== 'undefined' && GAME_DIALOGUE.spider && GAME_DIALOGUE.spider.idle) ? GAME_DIALOGUE.spider.idle : ['Boo!', 'Hi!', '🕷️'];
-                         const random_phrase = phrases[Math.floor(Math.random() * phrases.length)];
-                         const text = `${greeting_base}, ${random_phrase}`; // Combine greeting and phrase
-					
                     body.classList.remove('scuttling-motion'); // Stop Scuttling
                     
                     // 1. Flip Body UPSIDE DOWN
@@ -2825,7 +2819,7 @@ const ShareManager = {
             UIManager.showPostVoteMessage("Could not share image.");
         }
     }
-};
+},
 
 const UIManager = {
     msgTimeout: null,
@@ -4419,13 +4413,13 @@ const Game = {
 getSpiderGreeting() {
         const currentHour = new Date().getHours();
         if (currentHour >= 5 && currentHour < 12) {
-            return "Wakey wakey!";
+            return "Good morning";
         } else if (currentHour >= 12 && currentHour < 18) {
-            return "What a lovely afternoon. Time for food?";
+            return "Good afternoon";
         } else if (currentHour >= 18 && currentHour <= 23) {
-            return "The evening bugs are the freshest!";
+            return "Good evening";
         } else { // 00:00 to 04:59
-            return "Don't let the bed bugs bite. Bite them.";
+            return "Good night";
         }
     },
 
@@ -5370,16 +5364,23 @@ const StreakManager = {
         div.innerHTML = html;
         document.body.appendChild(div.firstElementChild);
 
-        const saveFn = async () => {
+        cconst saveFn = async () => {
             const name = (document.getElementById('hsNameInput').value || "AAA").toUpperCase();
             const scores = State.data.highScores || [];
-            scores.push({ name, score, date: Date.now() });
+            
+            const totalVotes = State.data.voteCount; // Retrieve total votes
+            
+            scores.push({ name, score, totalVotes, date: Date.now() }); // Include totalVotes in local storage
+            
             scores.sort((a,b) => b.score - a.score); 
             if(scores.length > 8) scores.pop();
             State.save('highScores', scores);
-            API.submitHighScore(name, score);
+            
+            API.submitHighScore(name, score, totalVotes); // Pass totalVotes to API
+            
             document.getElementById('nameEntryModal').remove();
-            this.showLeaderboard();
+            
+            this.showLeaderboard('score'); // Open leaderboard defaulting to 'score' view
         };
         document.getElementById('hsSaveBtn').onclick = saveFn;
     },
@@ -5404,10 +5405,9 @@ const StreakManager = {
             } catch(e) {
                 UIManager.showPostVoteMessage("Could not share.");
             }
-        }
     },
 
-    async showLeaderboard() {
+    async showLeaderboard(initialView = 'score') {
         if (!document.getElementById('crt-styles')) {
             const s = document.createElement('style');
             s.id = 'crt-styles';
@@ -5437,14 +5437,22 @@ const StreakManager = {
             document.head.appendChild(s);
         }
 
-        // --- Z-INDEX CHANGED TO 300 (Higher than spider text) ---
         const html = `
             <div id="highScoreModal" class="fixed inset-0 bg-black/90 z-[300] flex items-center justify-center p-4 backdrop-blur-md" onclick="StreakManager.closeLeaderboard()">
                 <div class="crt-monitor w-full max-w-md transform transition-all scale-100" onclick="event.stopPropagation()">
                     <div class="crt-overlay"></div>
                     <div class="crt-content">
-                        <div class="text-center mb-6">
-                            <h2 class="crt-text crt-title mb-2">STREAK HIGH SCORES</h2>
+                        <div class="text-center mb-4">
+                            <h2 class="crt-text crt-title mb-2">LEADERBOARDS</h2>
+                            
+                            <div class="flex justify-center gap-4 mb-4">
+                                <button id="toggleStreakBtn" onclick="StreakManager.renderPage('score', true)" class="crt-text px-3 py-1 rounded text-lg font-bold transition-colors border-2 border-transparent">
+                                    🔥 STREAK
+                                </button>
+                                <button id="toggleVotesBtn" onclick="StreakManager.renderPage('votes', true)" class="crt-text px-3 py-1 rounded text-lg font-bold transition-colors border-2 border-transparent">
+                                    🗳️ VOTES
+                                </button>
+                            </div>
                             <div class="h-1 w-full bg-gradient-to-r from-pink-500 to-cyan-500 shadow-[0_0_10px_white]"></div>
                         </div>
                         <div id="hs-display-area" class="min-h-[340px]">
@@ -5466,53 +5474,102 @@ const StreakManager = {
         div.innerHTML = html;
         document.body.appendChild(div.firstElementChild);
 
-        const globalScores = await API.getGlobalScores();
-        const topGlobal = (globalScores && globalScores.length) ? globalScores.slice(0, 8) : [];
-        const localScores = (State.data.highScores || []).slice(0, 8);
-        const username = State.data.username || "PLAYER";
-
-        const renderRow = (s, i, color) => `
-            <div class="flex justify-between items-center crt-text py-2 crt-row">
-                <div class="flex gap-3">
-                    <span class="text-gray-500 text-lg">#${(i+1).toString().padStart(2,'0')}</span>
-                    <span class="${color} font-black text-2xl drop-shadow-[0_0_3px_rgba(255,255,255,0.5)]">${s.name.substring(0,3).toUpperCase()}</span>
-                </div>
-                <span class="text-white tracking-widest text-3xl">${s.score.toString().padStart(4,'0')}</span>
-            </div>`;
-
-        const area = document.getElementById('hs-display-area');
-        const indicator = document.getElementById('hs-page-indicator');
-        
-        let showingGlobal = true;
-
-        const renderPage = () => {
+        // --- NEW RENDER PAGE LOGIC ---
+        this.renderPage = async (type = 'score', forceGlobal = false) => {
             if(!document.getElementById('highScoreModal')) return;
 
-            area.style.opacity = '0';
-            setTimeout(() => {
-                if (showingGlobal) {
-                    indicator.textContent = "PAGE 1/2 [WORLD]";
-                    indicator.style.color = '#34d399'; 
-                    let h = `<div class="text-cyan-400 text-sm crt-text mb-4 border-b-2 border-cyan-700 pb-1 font-black">WORLD RANKINGS</div>`;
-                    if (topGlobal.length === 0) h += '<div class="text-gray-500 text-xs crt-text mt-8 text-center">NO DATA FOUND</div>';
-                    else h += topGlobal.map((s,i) => renderRow(s, i, 'text-cyan-400')).join('');
-                    area.innerHTML = h;
-                } else {
-                    indicator.textContent = "PAGE 2/2 [LOCAL]";
-                    indicator.style.color = '#fbbf24'; 
-                    let h = `<div class="text-yellow-400 text-sm crt-text mb-4 border-b-2 border-yellow-700 pb-1 font-black">${username.toUpperCase()}'S RECORDS</div>`;
-                    if (localScores.length === 0) h += '<div class="text-gray-500 text-xs crt-text mt-8 text-center">PLAY TO SET SCORES</div>';
-                    else h += localScores.map((s,i) => renderRow(s, i, 'text-yellow-400')).join('');
-                    area.innerHTML = h;
-                }
-                area.style.transition = 'opacity 0.2s';
-                area.style.opacity = '1';
-                showingGlobal = !showingGlobal;
-                this.loopTimer = setTimeout(renderPage, 4000);
-            }, 200);
+            // Stop any existing loop
+            if (this.loopTimer) clearTimeout(this.loopTimer);
+
+            // Fetch correct global data (assuming backend handles the 'type' param)
+            const globalScores = await API.getGlobalScores(type); 
+            
+            // Sort local scores by the correct key
+            const sortKey = (type === 'score' ? 'score' : 'totalVotes');
+            const localScores = (State.data.highScores || [])
+                .sort((a,b) => b[sortKey] - a[sortKey])
+                .slice(0, 8);
+                
+            const topGlobal = (globalScores && globalScores.length) ? globalScores.slice(0, 8) : [];
+            const username = State.data.username || "PLAYER";
+            const area = document.getElementById('hs-display-area');
+            const indicator = document.getElementById('hs-page-indicator');
+            const toggleStreakBtn = document.getElementById('toggleStreakBtn');
+            const toggleVotesBtn = document.getElementById('toggleVotesBtn');
+
+            const renderRow = (s, i, color, isVotes) => {
+                // Formatting: 4 digits for streak, 5 digits for votes
+                const value = isVotes ? (s.totalVotes || 0).toString().padStart(5,'0') : s.score.toString().padStart(4,'0');
+                return `
+                    <div class="flex justify-between items-center crt-text py-2 crt-row">
+                        <div class="flex gap-3">
+                            <span class="text-gray-500 text-lg">#${(i+1).toString().padStart(2,'0')}</span>
+                            <span class="${color} font-black text-2xl drop-shadow-[0_0_3px_rgba(255,255,255,0.5)]">${s.name.substring(0,3).toUpperCase()}</span>
+                        </div>
+                        <span class="text-white tracking-widest text-3xl">${value}</span>
+                    </div>`;
+            };
+            
+            // Update button styles
+            if (toggleStreakBtn && toggleVotesBtn) {
+                 const inactiveColor = 'text-gray-500 border-gray-700';
+                 if (type === 'score') {
+                    toggleStreakBtn.className = `crt-text px-3 py-1 rounded text-lg font-bold transition-colors border-2 text-pink-400 border-pink-500`;
+                    toggleVotesBtn.className = `crt-text px-3 py-1 rounded text-lg font-bold transition-colors border-2 ${inactiveColor}`;
+                 } else {
+                    toggleVotesBtn.className = `crt-text px-3 py-1 rounded text-lg font-bold transition-colors border-2 text-cyan-400 border-cyan-500`;
+                    toggleStreakBtn.className = `crt-text px-3 py-1 rounded text-lg font-bold transition-colors border-2 ${inactiveColor}`;
+                 }
+             }
+
+            // Loop / Page Logic
+            // If the user manually clicked a button (forceGlobal=true), we start the loop from global.
+            let showingGlobal = forceGlobal || (this._currentLbType !== type) || !this._lastWasLocal; 
+            
+            this._currentLbType = type;
+
+            const loopFn = () => {
+                if(!document.getElementById('highScoreModal')) return;
+
+                area.style.opacity = '0';
+                setTimeout(() => {
+                    const isVotes = type === 'votes';
+                    
+                    if (showingGlobal) {
+                        indicator.textContent = `PAGE 1/2 [WORLD ${isVotes ? 'VOTES' : 'STREAK'}]`;
+                        indicator.style.color = isVotes ? '#22d3ee' : '#f472b6';
+                        let h = `<div class="text-cyan-400 text-sm crt-text mb-4 border-b-2 border-cyan-700 pb-1 font-black">WORLD RANKINGS (${isVotes ? 'VOTES' : 'STREAK'})</div>`;
+                        if (topGlobal.length === 0) h += '<div class="text-gray-500 text-xs crt-text mt-8 text-center">NO DATA FOUND</div>';
+                        else h += topGlobal.map((s,i) => renderRow(s, i, 'text-cyan-400', isVotes)).join('');
+                        area.innerHTML = h;
+                    } else {
+                        indicator.textContent = `PAGE 2/2 [LOCAL ${isVotes ? 'VOTES' : 'STREAK'}]`;
+                        indicator.style.color = '#fbbf24'; 
+                        let h = `<div class="text-yellow-400 text-sm crt-text mb-4 border-b-2 border-yellow-700 pb-1 font-black">${username.toUpperCase()}'S RECORDS (${isVotes ? 'VOTES' : 'STREAK'})</div>`;
+                        if (localScores.length === 0) h += '<div class="text-gray-500 text-xs crt-text mt-8 text-center">PLAY TO SET SCORES</div>';
+                        else h += localScores.map((s,i) => renderRow(s, i, 'text-yellow-400', isVotes)).join('');
+                        area.innerHTML = h;
+                    }
+                    area.style.transition = 'opacity 0.2s';
+                    area.style.opacity = '1';
+                    
+                    this._lastWasLocal = showingGlobal; // Record for next call
+                    showingGlobal = !showingGlobal;
+                    
+                    if (this.loopTimer) clearTimeout(this.loopTimer);
+                    this.loopTimer = setTimeout(loopFn, 4000); // Rerun loop every 4 seconds
+                }, 200);
+            };
+            
+            // Start the initial render loop
+            loopFn();
         };
-        renderPage();
-    },
+        // END NEW RENDER PAGE LOGIC
+        
+        // Start the initial render loop
+        this.renderPage(initialView);
+    }
+    
     
     closeLeaderboard() {
         const el = document.getElementById('highScoreModal');
