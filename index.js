@@ -188,7 +188,6 @@ app.post('/api/scores', async (req, res) => {
             return res.status(400).json({ message: 'Name and score required' });
         }
 
-        // Clean input (force 3 chars, uppercase)
         const cleanName = name.trim().slice(0, 3).toUpperCase();
 
         const newScore = new Score({
@@ -205,14 +204,27 @@ app.post('/api/scores', async (req, res) => {
     }
 });
 
-// Get Top 5 Global High Scores
+app.get('/api/leaderboard', async (req, res) => {
+    try {
+        const topUsers = await Leaderboard.find({})
+            .select('userId username voteCount')
+            .sort({ voteCount: -1 })
+            .limit(10);
+            
+        res.json(topUsers);
+
+    } catch (e) {
+        console.error("Error fetching leaderboard:", e);
+        res.status(500).json([]);
+    }
+});
+
 app.get('/api/scores', async (req, res) => {
     try {
-        // Find all scores, sort by score descending, limit to top 5
         const topScores = await Score.find()
             .sort({ score: -1 })
             .limit(8)
-            .select('name score -_id'); // Only return name and score
+            .select('name score -_id'); 
 
         res.json(topScores);
     } catch (err) {
