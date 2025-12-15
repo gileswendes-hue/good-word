@@ -4928,7 +4928,7 @@ const VoteHighScores = {
         } catch (e) {
             console.error("Total Votes score submission failed:", e);
         }
-    },
+    }
 };
 
 const StreakManager = {
