@@ -5,15 +5,14 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// --- CRITICAL FIX 1: MIDDLEWARE AND BODY PARSING ---
-// 1. Enable JSON body parsing for API requests (Fixes req.body being undefined)
+// 1. CRITICAL MIDDLEWARE FIX: Enable JSON body parsing (Fixes req.body being undefined)
 app.use(express.json());
 
-// 2. Serve static files from the public directory
+// 2. Serve static files from the public directory (assuming your game assets are here)
 app.use(express.static(path.join(__dirname, 'public')));
 
 
-// --- CRITICAL FIX 2: MONGODB CONNECTION AND MODEL DEFINITION ---
+// --- MONGODB CONNECTION AND MODEL DEFINITION ---
 
 // Assuming MongoDB connection setup is here:
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost/goodwordbadword');
@@ -73,6 +72,28 @@ app.get('/api/leaderboard', async (req, res) => {
         console.error("Error fetching leaderboard:", e);
         res.status(500).json([]);
     }
+});
+
+
+// --- PLACEHOLDER ROUTES (Restore these if they were in your original file) ---
+
+// Example: GET /api/words
+app.get('/api/words', (req, res) => {
+    // This should contain logic to fetch your word list from the database
+    // For now, we return a minimal mock list to keep the game running if the database fails
+    // In a real application, replace this with MongoDB/Mongoose logic.
+    const mockWordList = [
+        { _id: '1', text: 'TEST', goodVotes: 50, badVotes: 50 },
+        { _id: '2', text: 'MOIST', goodVotes: 100, badVotes: 10 },
+        { _id: '3', text: 'CAKE', goodVotes: 0, badVotes: 0 },
+    ];
+    res.json(mockWordList); 
+});
+
+// Example: PUT /api/words/:id/vote
+app.put('/api/words/:id/vote', (req, res) => {
+    // This should contain logic to update word votes in the database
+    res.status(200).send({ message: 'Vote recorded' }); 
 });
 
 
