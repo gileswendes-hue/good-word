@@ -2138,6 +2138,12 @@ halloween(active) {
                 
                 this.spiderTimeout = setTimeout(() => {
                     if (wrap.classList.contains('hunting')) return;
+					
+					const greeting_base = Game.getSpiderGreeting(); // Get time-based greeting
+                         const phrases = (typeof GAME_DIALOGUE !== 'undefined' && GAME_DIALOGUE.spider && GAME_DIALOGUE.spider.idle) ? GAME_DIALOGUE.spider.idle : ['Boo!', 'Hi!', '🕷️'];
+                         const random_phrase = phrases[Math.floor(Math.random() * phrases.length)];
+                         const text = `${greeting_base}, ${random_phrase}`; // Combine greeting and phrase
+					
                     body.classList.remove('scuttling-motion'); // Stop Scuttling
                     
                     // 1. Flip Body UPSIDE DOWN
@@ -4408,6 +4414,20 @@ const getDailyWords = (dateStr, allWords) => {
 };
 // --- END DAILY CHALLENGE LOGIC ---
 const Game = {
+
+getSpiderGreeting() {
+        const currentHour = new Date().getHours();
+        if (currentHour >= 5 && currentHour < 12) {
+            return "Wakey wakey!";
+        } else if (currentHour >= 12 && currentHour < 18) {
+            return "What a lovely afternoon. Time for food?";
+        } else if (currentHour >= 18 && currentHour <= 23) {
+            return "The evening bugs are the freshest!";
+        } else { // 00:00 to 04:59
+            return "Don't let the bed bugs bite. Bite them.";
+        }
+    },
+
 renderGraphs() {
         const w = State.runtime.allWords;
         if (!w || w.length === 0) return;
