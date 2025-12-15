@@ -206,6 +206,7 @@ app.post('/api/scores', async (req, res) => {
 
 app.get('/api/leaderboard', async (req, res) => {
     try {
+        // Fetch top 10 users sorted by voteCount descending
         const topUsers = await Leaderboard.find({})
             .select('userId username voteCount')
             .sort({ voteCount: -1 })
@@ -216,6 +217,34 @@ app.get('/api/leaderboard', async (req, res) => {
     } catch (e) {
         console.error("Error fetching leaderboard:", e);
         res.status(500).json([]);
+    }
+});
+
+// 2. POST /api/leaderboard (For client-side submission of user votes)
+app.post('/api/leaderboard', async (req, res) => {
+    const { userId, username, voteCount } = req.body;
+
+    if (!userId || typeof voteCount !== 'number') {
+        return res.status(400).send({ message: "Missing userId or invalid voteCount." });
+    }
+
+    try {
+        // Find by userId and update their record (upsert: true creates if not found)
+        await Leaderboard.findOneAndUpdate(
+            { userId: userId },
+            { 
+                username: username,
+                voteCount: voteCount,
+                lastUpdated: new Date()
+            },
+            { upsert: true, new: true } 
+        );
+        
+        res.status(200).send({ message: "Leaderboard stats updated." });
+
+    } catch (e) {
+        console.error("Error updating leaderboard stats:", e);
+        res.status(500).send({ message: "Server error updating stats." });
     }
 });
 
