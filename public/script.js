@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.72.3', 
+    APP_VERSION: '5.72', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -190,6 +190,7 @@ const State = {
         offlineCache: safeParse('offlineCache', []),
         unlockedThemes: safeParse('unlockedThemes', []),
         seenHistory: safeParse('seenHistory', []),
+		discovered: safeParse('discoveredFeatures', []),
 
         insectStats: {
             saved: parseInt(localStorage.getItem('insectSaved') || 0),
@@ -295,6 +296,7 @@ const State = {
         else if (k === 'settings') s.setItem('userSettings', JSON.stringify(v));
         else if (k === 'unlockedThemes') s.setItem('unlockedThemes', JSON.stringify(v));
         else if (k === 'seenHistory') s.setItem('seenHistory', JSON.stringify(v));
+		else if (k === 'discovered') s.setItem('discoveredFeatures', JSON.stringify(v));
         else if (k === 'daily') {
             s.setItem('dailyStreak', v.streak);
             s.setItem('dailyLastDate', v.lastDate);
@@ -4052,6 +4054,112 @@ const InputHandler = {
     }
 };
 
+const DiscoveryManager = {
+    // Configuration for items to highlight
+    targets: [
+        { id: 'stats', selector: '#userStatsBar', msg: 'View Progress', offset: '110%' },
+        { id: 'rankings', selector: '#headerStatsCard', msg: 'See Graphs', offset: '110%' },
+        { id: 'settings', selector: '#showSettingsButton', msg: 'Options', offset: '110%' },
+        { id: 'qr', selector: '#qrGoodBtn', msg: 'Share', offset: '110%' }
+    ],
+    
+    timer: null,
+
+    init() {
+        if (!document.getElementById('discovery-styles')) {
+            const s = document.createElement('style');
+            s.id = 'discovery-styles';
+            s.innerHTML = `
+                @keyframes radar-pulse {
+                    0% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.6); }
+                    70% { box-shadow: 0 0 0 12px rgba(79, 70, 229, 0); }
+                    100% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0); }
+                }
+                .discovery-halo {
+                    position: relative;
+                    z-index: 40;
+                    animation: radar-pulse 2s infinite;
+                    border-radius: 12px;
+                    transition: all 0.3s;
+                }
+                .discovery-tooltip {
+                    position: absolute;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: #4f46e5;
+                    color: white;
+                    font-size: 11px;
+                    font-weight: 800;
+                    padding: 6px 10px;
+                    border-radius: 6px;
+                    white-space: nowrap;
+                    pointer-events: none;
+                    opacity: 0;
+                    animation: fade-in-up 0.5s forwards;
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+                    z-index: 50;
+                }
+                .discovery-tooltip::after {
+                    content: '';
+                    position: absolute;
+                    bottom: 100%;
+                    left: 50%;
+                    margin-left: -5px;
+                    border-width: 5px;
+                    border-style: solid;
+                    border-color: transparent transparent #4f46e5 transparent;
+                }
+                @keyframes fade-in-up {
+                    from { opacity: 0; transform: translate(-50%, 10px); }
+                    to { opacity: 1; transform: translate(-50%, 0); }
+                }
+            `;
+            document.head.appendChild(s);
+        }
+        setTimeout(() => this.check(), 3000);
+    },
+
+    check() {
+        const nextTarget = this.targets.find(t => !State.data.discovered.includes(t.id));
+        if (nextTarget) {
+            if (State.data.discovered.length === 0 || Math.random() > 0.5) {
+                this.highlight(nextTarget);
+            }
+        }
+    },
+
+    highlight(target) {
+        const el = document.querySelector(target.selector);
+        if (!el || el.offsetParent === null) return; 
+
+        el.classList.add('discovery-halo');
+
+        const tip = document.createElement('div');
+        tip.className = 'discovery-tooltip';
+        tip.textContent = target.msg;
+        tip.style.top = target.offset || '110%';
+        
+        const originalPos = getComputedStyle(el).position;
+        if (originalPos === 'static') el.style.position = 'relative';
+        
+        el.appendChild(tip);
+
+        const onDiscover = (e) => {
+            el.classList.remove('discovery-halo');
+            if (tip) tip.remove();
+            
+            if (!State.data.discovered.includes(target.id)) {
+                State.data.discovered.push(target.id);
+                State.save('discovered', State.data.discovered);
+            }
+            el.removeEventListener('click', onDiscover);
+            setTimeout(() => this.check(), 60000); 
+        };
+
+        el.addEventListener('click', onDiscover);
+    }
+};
+
 // --- MAIN GAME LOGIC ---
 const Game = {
 
@@ -4558,6 +4666,7 @@ if (qrBad) {
             
             // 7. Load Data
             await this.refreshData();
+			DiscoveryManager.init();
 
         } catch(e) {
             console.error("Critical Init Error:", e);
