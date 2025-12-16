@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.72.5', 
+    APP_VERSION: '5.72.6', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4654,6 +4654,38 @@ async renderLeaderboardTable() {
             if (DOM.game.buttons.bad) DOM.game.buttons.bad.onclick = () => this.vote('bad');
             if (DOM.game.buttons.notWord) DOM.game.buttons.notWord.onclick = () => this.vote('notWord');
             if (DOM.game.dailyBanner) DOM.game.dailyBanner.onclick = () => this.activateDailyMode();
+
+		document.addEventListener('keydown', (e) => {
+                // 1. Safety: Don't vote if typing in a text box
+                if (e.target.matches('input, textarea')) return;
+
+                // 2. Safety: Don't vote if buttons are disabled (cooldown, loading, etc)
+                if (DOM.game.buttons.good.disabled) return;
+                
+                // 3. Safety: Don't vote if a modal is open (Settings, Rankings, etc)
+                const openModals = Object.values(DOM.modals).some(m => !m.classList.contains('hidden'));
+                if (openModals) return;
+                
+                // Extra check for dynamic modals (Tip, Contact, PinPad)
+                if (document.getElementById('tipModal') && !document.getElementById('tipModal').classList.contains('hidden')) return;
+                if (document.getElementById('contactModal') && !document.getElementById('contactModal').classList.contains('hidden')) return;
+                if (document.getElementById('pinPadModal') && !document.getElementById('pinPadModal').classList.contains('hidden')) return;
+
+                // 4. Map Keys
+                switch(e.code) {
+                    case 'ArrowLeft': 
+                        this.vote('good'); 
+                        break;
+                    case 'ArrowRight': 
+                        this.vote('bad'); 
+                        break;
+                    case 'ArrowDown':
+                    case 'Space':
+                        e.preventDefault(); // Stop scrolling the page
+                        this.vote('notWord');
+                        break;
+                }
+            });
 
             const qrGood = document.getElementById('qrGoodBtn');
 const qrBad = document.getElementById('qrBadBtn');
