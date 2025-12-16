@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.72.2', 
+    APP_VERSION: '5.72', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4599,8 +4599,6 @@ if (qrBad) {
         DOM.game.dailyBanner.classList.add('daily-locked-mode');
 		DOM.game.buttons.notWord.style.visibility = 'hidden';
 		DOM.game.buttons.custom.style.visibility = 'hidden';
-        DOM.game.buttons.notWord.style.display = 'none';
-        DOM.game.buttons.custom.style.display = 'none';
         UIManager.showMessage('Loading Daily Word...');
         const sortedWords = [...State.runtime.allWords].sort((a, b) => a.text.localeCompare(b.text));
         let seed = 0;
@@ -4628,8 +4626,6 @@ if (qrBad) {
         DOM.game.dailyBanner.classList.remove('daily-locked-mode');
 		DOM.game.buttons.notWord.style.visibility = 'visible';
         DOM.game.buttons.custom.style.visibility = 'visible';
-        DOM.game.buttons.notWord.style.display = 'block';
-        DOM.game.buttons.custom.style.display = 'block';
         this.nextWord()
     },
 	
