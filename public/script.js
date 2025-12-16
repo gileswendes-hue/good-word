@@ -4953,7 +4953,7 @@ async refreshData(u = true) {
 const StreakManager = {
     timer: null,
     loopTimer: null, 
-    LIMIT: 5500, 
+    LIMIT: 6500, 
 	
 	extend(ms) {
         if (this.timer) clearTimeout(this.timer);
