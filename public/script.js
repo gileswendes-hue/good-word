@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.72.7', 
+    APP_VERSION: '5.72.8', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -3089,7 +3089,7 @@ const UIManager = {
         ModalManager.toggle('profile', true);
     },
 	
-    displayWord(w) {
+displayWord(w) {
         if (!w) {
             this.showMessage("No words available!");
             return
@@ -3097,27 +3097,27 @@ const UIManager = {
         const wd = DOM.game.wordDisplay,
             txt = w.text.toUpperCase();
         wd.textContent = txt;
-		
-		if (State.data.settings.controversialOnly) {
-            const g = w.goodVotes || 0;
-            const b = w.badVotes || 0;
-            const total = g + b;
-            if (total > 3) {
-                const ratio = g / total;
-                if (ratio >= 0.4 && ratio <= 0.6) {
-                    const icon = document.createElement('span');
-                    icon.innerHTML = ' ⚔️';
-                    icon.title = "Controversial!";
-                    icon.style.fontSize = "0.6em";
-                    icon.style.verticalAlign = "middle";
-                    wd.appendChild(icon);
-                }
+        
+        // --- NEW: Floating Controversial Badge Logic ---
+        const g = w.goodVotes || 0;
+        const b = w.badVotes || 0;
+        const total = g + b;
+        let isContro = false;
+
+        if (total >= 3) {
+            const ratio = g / total;
+            // Check if between 40% and 60%
+            if (ratio >= 0.40 && ratio <= 0.60) {
+                isContro = true;
             }
         }
-		
+        this.updateControversialIndicator(isContro);
+        // -----------------------------------------------
+        
         wd.className = 'font-extrabold text-gray-900 text-center min-h-[72px]';
         wd.style = '';
         wd.style.opacity = '1';
+        
         const t = State.data.currentTheme;
         if (['dark', 'halloween', 'submarine', 'fire', 'plymouth'].includes(t)) wd.style.color = '#f3f4f6';
         if (t === 'halloween') {
@@ -3169,6 +3169,7 @@ const UIManager = {
         if (!State.runtime.isCoolingDown) this.disableButtons(false);
         wd.style.cursor = 'grab'
     },
+	
     fitText(t) {
         const isLarge = State.data.settings.largeText;
         const baseSize = isLarge ? 140 : 96; 
@@ -3255,6 +3256,18 @@ const UIManager = {
         } else {
             ind.style.opacity = '0';
         }
+    },
+		updateControversialIndicator(active) {
+        let ind = document.getElementById('controversialIndicator');
+        if (!ind) {
+            ind = document.createElement('div');
+            ind.id = 'controversialIndicator';
+            // Floating Pill Style (Bottom Right)
+            ind.className = 'fixed bottom-4 right-4 bg-orange-100 text-orange-900 text-xs font-bold px-3 py-1 rounded-full shadow-lg z-50 transition-opacity duration-500 pointer-events-none border-2 border-orange-500 flex items-center gap-2';
+            ind.innerHTML = '<span class="text-lg">⚔️</span> CONTROVERSIAL';
+            document.body.appendChild(ind);
+        }
+        ind.style.opacity = active ? '1' : '0';
     }
 };
 
