@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.72.4', 
+    APP_VERSION: '5.72.5', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -2064,7 +2064,8 @@ halloween(active) {
             
             const body = wrap.querySelector('#spider-body');
             const thread = wrap.querySelector('#spider-thread');
-            const showSpiderBubble = (text) => {
+			
+	const showSpiderBubble = (text) => {
                 // 1. Cleanup old bubble
                 const old = document.getElementById('spider-bubble-dynamic');
                 if (old) {
@@ -2081,7 +2082,8 @@ halloween(active) {
                     fontFamily: 'sans-serif', whiteSpace: 'nowrap', width: 'max-content',
                     pointerEvents: 'none', opacity: '0', transition: 'opacity 0.2s', 
                     boxShadow: '0 4px 10px rgba(0,0,0,0.3)', border: '2px solid #1f2937',
-                    zIndex: '200', willChange: 'top, left'
+                    zIndex: '110',      
+                    willChange: 'top, left'
                 });
                 b.textContent = text;
 
@@ -4072,12 +4074,12 @@ const InputHandler = {
 };
 
 const DiscoveryManager = {
-    // Configuration for items to highlight
+    // Updated targets: Left of Good, Right of Bad
     targets: [
-        { id: 'stats', selector: '#userStatsBar', msg: 'View Progress', offset: '110%' },
-        { id: 'rankings', selector: '#headerStatsCard', msg: 'See Graphs', offset: '110%' },
-        { id: 'settings', selector: '#showSettingsButton', msg: 'Options', offset: '110%' },
-        { id: 'qr', selector: '#qrGoodBtn', msg: 'Share', offset: '110%' }
+        { id: 'voteGood', selector: '#goodButton', msg: 'Vote Good', pos: 'left' },
+        { id: 'voteBad', selector: '#badButton', msg: 'Vote Bad', pos: 'right' },
+        { id: 'stats', selector: '#userStatsBar', msg: 'View Progress', pos: 'bottom' },
+        { id: 'rankings', selector: '#headerStatsCard', msg: 'See Graphs', pos: 'bottom' }
     ],
     
     timer: null,
@@ -4101,8 +4103,6 @@ const DiscoveryManager = {
                 }
                 .discovery-tooltip {
                     position: absolute;
-                    left: 50%;
-                    transform: translateX(-50%);
                     background: #4f46e5;
                     color: white;
                     font-size: 11px;
@@ -4112,23 +4112,19 @@ const DiscoveryManager = {
                     white-space: nowrap;
                     pointer-events: none;
                     opacity: 0;
-                    animation: fade-in-up 0.5s forwards;
+                    animation: fade-in 0.5s forwards;
                     box-shadow: 0 4px 6px rgba(0,0,0,0.2);
                     z-index: 50;
                 }
                 .discovery-tooltip::after {
                     content: '';
                     position: absolute;
-                    bottom: 100%;
-                    left: 50%;
-                    margin-left: -5px;
                     border-width: 5px;
                     border-style: solid;
-                    border-color: transparent transparent #4f46e5 transparent;
                 }
-                @keyframes fade-in-up {
-                    from { opacity: 0; transform: translate(-50%, 10px); }
-                    to { opacity: 1; transform: translate(-50%, 0); }
+                @keyframes fade-in {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
                 }
             `;
             document.head.appendChild(s);
@@ -4139,6 +4135,7 @@ const DiscoveryManager = {
     check() {
         const nextTarget = this.targets.find(t => !State.data.discovered.includes(t.id));
         if (nextTarget) {
+            // Trigger if new user (no discoveries) or random chance
             if (State.data.discovered.length === 0 || Math.random() > 0.5) {
                 this.highlight(nextTarget);
             }
@@ -4154,7 +4151,48 @@ const DiscoveryManager = {
         const tip = document.createElement('div');
         tip.className = 'discovery-tooltip';
         tip.textContent = target.msg;
-        tip.style.top = target.offset || '110%';
+        
+        // --- NEW: Handle Position Logic (Left/Right/Bottom) ---
+        const pos = target.pos || 'bottom';
+        const arrow = document.createElement('div'); // Create arrow manually for control
+        
+        if (pos === 'left') {
+            tip.style.right = '110%'; // Push to left
+            tip.style.top = '50%';
+            tip.style.transform = 'translateY(-50%)';
+            // Arrow pointing Right (from left side)
+            tip.classList.add('arrow-right'); 
+            Object.assign(tip.style, { right: 'calc(100% + 10px)', top: '50%', transform: 'translateY(-50%)' });
+        } 
+        else if (pos === 'right') {
+            tip.style.left = '110%'; // Push to right
+            tip.style.top = '50%';
+            tip.style.transform = 'translateY(-50%)';
+            // Arrow pointing Left (from right side)
+        }
+        else {
+            // Default Bottom
+            tip.style.top = '115%'; 
+            tip.style.left = '50%';
+            tip.style.transform = 'translateX(-50%)';
+        }
+
+        // Handle Arrow CSS injection based on position
+        const styleId = 'discovery-arrow-' + pos;
+        if (!document.getElementById(styleId)) {
+            const s = document.createElement('style');
+            s.id = styleId;
+            // CSS Arrow Logic
+            if (pos === 'left') {
+                s.innerHTML = `.discovery-tooltip.pos-left::after { top: 50%; left: 100%; margin-top: -5px; border-color: transparent transparent transparent #4f46e5; }`;
+            } else if (pos === 'right') {
+                s.innerHTML = `.discovery-tooltip.pos-right::after { top: 50%; right: 100%; margin-top: -5px; border-color: transparent #4f46e5 transparent transparent; }`;
+            } else {
+                s.innerHTML = `.discovery-tooltip.pos-bottom::after { bottom: 100%; left: 50%; margin-left: -5px; border-color: transparent transparent #4f46e5 transparent; }`;
+            }
+            document.head.appendChild(s);
+        }
+        tip.classList.add('pos-' + pos);
         
         const originalPos = getComputedStyle(el).position;
         if (originalPos === 'static') el.style.position = 'relative';
