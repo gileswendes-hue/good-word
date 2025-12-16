@@ -4597,6 +4597,7 @@ if (qrBad) {
         if (t === State.data.daily.lastDate) return;
         State.runtime.isDailyMode = true;
         DOM.game.dailyBanner.classList.add('daily-locked-mode');
+		DOM.game.buttons.notWord.style.visibility = 'hidden';
         DOM.game.buttons.notWord.style.display = 'none';
         DOM.game.buttons.custom.style.display = 'none';
         UIManager.showMessage('Loading Daily Word...');
@@ -4624,6 +4625,7 @@ if (qrBad) {
     disableDailyMode() {
         State.runtime.isDailyMode = false;
         DOM.game.dailyBanner.classList.remove('daily-locked-mode');
+		DOM.game.buttons.notWord.style.visibility = 'visible';
         DOM.game.buttons.notWord.style.display = 'block';
         DOM.game.buttons.custom.style.display = 'block';
         this.nextWord()
@@ -4863,6 +4865,7 @@ async refreshData(u = true) {
         }
         
         const hSpec = (c, k) => {
+			if (window.StreakManager) window.StreakManager.extend(c.fade + c.dur);
             State.unlockBadge(k);
             Game.cleanStyles(wd);
             wd.className = 'font-extrabold text-gray-900 text-center min-h-[72px]';
@@ -4953,6 +4956,11 @@ const StreakManager = {
     timer: null,
     loopTimer: null, 
     LIMIT: 5500, 
+	
+	extend(ms) {
+        if (this.timer) clearTimeout(this.timer);
+        this.timer = setTimeout(() => this.endStreak(), this.LIMIT + ms);
+    },
 
     handleSuccess() {
         const now = Date.now();
