@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.72.6', 
+    APP_VERSION: '5.72.7', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -174,7 +174,8 @@ const DEFAULT_SETTINGS = {
     offlineMode: false,
     arachnophobiaMode: false,
     randomizeTheme: true,
-	noStreaksMode: false
+	noStreaksMode: false,
+	controversialOnly: false
 };
 
 const State = {
@@ -3096,6 +3097,24 @@ const UIManager = {
         const wd = DOM.game.wordDisplay,
             txt = w.text.toUpperCase();
         wd.textContent = txt;
+		
+		if (State.data.settings.controversialOnly) {
+            const g = w.goodVotes || 0;
+            const b = w.badVotes || 0;
+            const total = g + b;
+            if (total > 3) {
+                const ratio = g / total;
+                if (ratio >= 0.4 && ratio <= 0.6) {
+                    const icon = document.createElement('span');
+                    icon.innerHTML = ' ⚔️';
+                    icon.title = "Controversial!";
+                    icon.style.fontSize = "0.6em";
+                    icon.style.verticalAlign = "middle";
+                    wd.appendChild(icon);
+                }
+            }
+        }
+		
         wd.className = 'font-extrabold text-gray-900 text-center min-h-[72px]';
         wd.style = '';
         wd.style.opacity = '1';
@@ -3486,6 +3505,7 @@ init() {
                 html += mkTog('toggleTips', 'Show Tips & Hints', s.showTips);
                 html += `<button onclick="TipManager.open()" class="w-full mt-2 py-2 bg-indigo-50 text-indigo-600 font-bold rounded-lg border border-indigo-100 hover:bg-indigo-100 transition">💡 Submit Your Own Tip</button>`;
                 html += mkTog('toggleZeroVotes', 'Show Only New Words (0/0)', s.zeroVotesOnly);
+				html += mkTog('toggleControversial', 'Show Only Controversial Words', s.controversialOnly, 'text-orange-600');
                 html += `</div></div>`;
 
                 // 3. ACCESSIBILITY
@@ -3541,7 +3561,28 @@ init() {
                     randBtn.onchange = e => State.save('settings', { ...State.data.settings, randomizeTheme: e.target.checked });
                 }
                 document.getElementById('toggleZeroVotes').onchange = e => {
-                    State.save('settings', { ...State.data.settings, zeroVotesOnly: e.target.checked });
+                    const isChecked = e.target.checked;
+                    // If turning ON, turn OFF controversial
+                    const newSettings = { ...State.data.settings, zeroVotesOnly: isChecked };
+                    if (isChecked) {
+                        newSettings.controversialOnly = false;
+                        const cBtn = document.getElementById('toggleControversial');
+                        if(cBtn) cBtn.checked = false;
+                    }
+                    State.save('settings', newSettings);
+                    Game.refreshData(true);
+                };
+
+                document.getElementById('toggleControversial').onchange = e => {
+                    const isChecked = e.target.checked;
+                    // If turning ON, turn OFF zero votes
+                    const newSettings = { ...State.data.settings, controversialOnly: isChecked };
+                    if (isChecked) {
+                        newSettings.zeroVotesOnly = false;
+                        const zBtn = document.getElementById('toggleZeroVotes');
+                        if(zBtn) zBtn.checked = false;
+                    }
+                    State.save('settings', newSettings);
                     Game.refreshData(true);
                 };
 				
@@ -4146,6 +4187,11 @@ const DiscoveryManager = {
         const el = document.querySelector(target.selector);
         if (!el || el.offsetParent === null) return; 
 
+        const rect = el.getBoundingClientRect();
+        if (rect.top < 0 || rect.bottom > window.innerHeight) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
         el.classList.add('discovery-halo');
 
         const tip = document.createElement('div');
@@ -4675,14 +4721,13 @@ async renderLeaderboardTable() {
                 switch(e.code) {
                     case 'ArrowLeft': 
                         this.vote('good'); 
+                        DOM.game.buttons.good.classList.add('active-press');
+                        setTimeout(() => DOM.game.buttons.good.classList.remove('active-press'), 150);
                         break;
                     case 'ArrowRight': 
                         this.vote('bad'); 
-                        break;
-                    case 'ArrowDown':
-                    case 'Space':
-                        e.preventDefault(); // Stop scrolling the page
-                        this.vote('notWord');
+                        DOM.game.buttons.bad.classList.add('active-press');
+                        setTimeout(() => DOM.game.buttons.bad.classList.remove('active-press'), 150);
                         break;
                 }
             });
@@ -4903,15 +4948,28 @@ async refreshData(u = true) {
         }
     },
 
-    nextWord() {
+	nextWord() {
         let p = State.runtime.allWords;
         if (!p || p.length === 0) return;
 
-        // Smart Filtering
+        // --- UPDATED SMART FILTERING ---
         if (State.data.settings.zeroVotesOnly) {
             const unvoted = p.filter(w => (w.goodVotes || 0) === 0 && (w.badVotes || 0) === 0);
             if (unvoted.length > 0) p = unvoted;
             else UIManager.showPostVoteMessage("No more new words! Showing random.");
+        } 
+        else if (State.data.settings.controversialOnly) {
+            const controversial = p.filter(w => {
+                const g = w.goodVotes || 0;
+                const b = w.badVotes || 0;
+                const total = g + b;
+                if (total < 3) return false; // Needs at least 3 votes to be controversial
+                const ratio = g / total;
+                return ratio >= 0.40 && ratio <= 0.60; // Between 40% and 60% Good
+            });
+
+            if (controversial.length > 0) p = controversial;
+            else UIManager.showPostVoteMessage("No controversial words found! Showing random.");
         }
 
         // Special Words
