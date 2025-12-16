@@ -173,7 +173,8 @@ const DEFAULT_SETTINGS = {
     showLights: false,
     offlineMode: false,
     arachnophobiaMode: false,
-    randomizeTheme: true
+    randomizeTheme: true,
+	noStreaksMode: false
 };
 
 const State = {
@@ -2778,7 +2779,11 @@ const UIManager = {
         const w = State.runtime.allWords;
         if (!w.length) return;
         
-        DOM.header.streak.textContent = State.data.daily.streak;
+        if (State.data.settings.noStreaksMode) {
+             DOM.header.streak.textContent = '-';
+        } else {
+             DOM.header.streak.textContent = State.data.daily.streak;
+        }
         DOM.header.userVotes.textContent = State.data.voteCount.toLocaleString();
         
         const totalGood = w.reduce((a, b) => a + (b.goodVotes || 0), 0);
@@ -3468,6 +3473,10 @@ init() {
  
                 // 2. SETTINGS
                 html += `<div class="mb-6"><h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 border-b border-gray-100 pb-1">Settings</h3><div class="space-y-4">`;
+				
+				html += mkTog('toggleNoStreaks', '🧘 No Streaks, please!', s.noStreaksMode);
+                html += `<p class="text-xs text-gray-400 mt-1 mb-2">Hides timers and streak counters for a relaxed game.</p>`;
+				
 				if (State.data.unlockedThemes.length > 0) {
                      html += mkTog('toggleRandomTheme', '🔀 Randomise Theme on Load', s.randomizeTheme);
                 }
@@ -3533,7 +3542,16 @@ init() {
                     State.save('settings', { ...State.data.settings, zeroVotesOnly: e.target.checked });
                     Game.refreshData(true);
                 };
-
+				
+				document.getElementById('toggleNoStreaks').onchange = e => {
+                    State.save('settings', { ...State.data.settings, noStreaksMode: e.target.checked });
+                    UIManager.updateStats();
+                    
+                    // Remove floating counter if it exists
+                    const floatEl = document.getElementById('streak-floating-counter');
+                    if (floatEl) floatEl.remove();
+                };
+				
                 // Accessibility
                 document.getElementById('toggleColorblind').onchange = e => {
                     State.save('settings', { ...State.data.settings, colorblindMode: e.target.checked });
@@ -3890,7 +3908,6 @@ send() {
 };
 window.TipManager = TipManager;
 
-// --- CONTACT MANAGER ---
 const ContactManager = {
     serviceID: 'service_b6d75wi',
     templateID: 'template_qody7q7',
@@ -5064,12 +5081,15 @@ const StreakManager = {
     loopTimer: null, 
     LIMIT: 6500, 
 	
-	extend(ms) {
+    extend(ms) {
         if (this.timer) clearTimeout(this.timer);
         this.timer = setTimeout(() => this.endStreak(), this.LIMIT + ms);
     },
 
     handleSuccess() {
+        // ✅ FIXED: Check inside the function
+        if (State.data.settings.noStreaksMode) return; 
+
         const now = Date.now();
         if (State.runtime.streak > 0 && (now - State.runtime.lastStreakTime) > this.LIMIT) {
             this.endStreak();
@@ -5116,6 +5136,7 @@ const StreakManager = {
         State.runtime.streak = 0;
     },
 
+    // ... (Keep the rest of your functions: updateScreenCounter, showNotification, etc.) ...
     updateScreenCounter(pulse) {
         let el = document.getElementById('streak-floating-counter');
         if (!el) {
@@ -5198,9 +5219,7 @@ const StreakManager = {
         if (navigator.share) {
             try { 
                 await navigator.share({ title: 'High Scores', text: text, url: url }); 
-            } catch(e) {
-                // Share cancelled
-            }
+            } catch(e) { }
         } else {
             try { 
                 await navigator.clipboard.writeText(`${text} ${url}`); 
