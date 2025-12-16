@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.72', 
+    APP_VERSION: '5.72.3', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -5185,7 +5185,7 @@ const StreakManager = {
             area.style.opacity = '0';
             setTimeout(() => {
                 if (showingGlobal) {
-                    indicator.textContent = "PAGE 1/2 [GLOBAL]";
+                    indicator.textContent = "PAGE 1/2 [WORLD]";
                     indicator.style.color = '#34d399'; 
                     let h = `<div class="text-cyan-400 text-sm crt-text mb-4 border-b-2 border-cyan-700 pb-1 font-black">GLOBAL RANKINGS</div>`;
                     if (topGlobal.length === 0) h += '<div class="text-gray-500 text-xs crt-text mt-8 text-center">NO DATA FOUND</div>';
