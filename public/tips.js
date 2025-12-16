@@ -36,6 +36,8 @@ const GAME_TIPS = [
     "Tip: Cheese 🧀",
     "WE APOLOGIZE FOR THE INCONVENIENCE - God",
     "I know kung fu.",
+    "Tip: Try using the arrow keys to vote!",
+    "Tip: Read the tip balloons!",
     "Tip: Play with friends! Not this, something classic like Tetris or chess.",
     "# Move into the country, eat a lot of peaches 🍑",
     "I wish there was a way to know you're in the good old days, before you've actually left them.",
