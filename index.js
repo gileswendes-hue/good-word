@@ -3,24 +3,22 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
-const http = require('http'); // Import HTTP
-const { Server } = require("socket.io"); // Import Socket.io
+const http = require('http');
+const { Server } = require("socket.io");
 
 const app = express();
-const server = http.createServer(app); // Wrap Express
-const io = new Server(server, { cors: { origin: "*" } }); // Init Socket
+const server = http.createServer(app);
+const io = new Server(server, { cors: { origin: "*" } });
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI)
     .then(() => console.log('Connected to MongoDB'))
     .catch(err => console.error('MongoDB connection error:', err));
 
-// --- 1. WORD MODEL ---
+// --- MODELS ---
 const wordSchema = new mongoose.Schema({
     text: { type: String, required: true, unique: true },
     goodVotes: { type: Number, default: 0 },
@@ -30,7 +28,6 @@ const wordSchema = new mongoose.Schema({
 });
 const Word = mongoose.model('Word', wordSchema);
 
-// --- 2. SCORE MODEL ---
 const scoreSchema = new mongoose.Schema({
     name: { type: String, required: true },
     score: { type: Number, required: true },
@@ -39,7 +36,6 @@ const scoreSchema = new mongoose.Schema({
 });
 const Score = mongoose.model('Score', scoreSchema);
 
-// --- 3. LEADERBOARD MODEL ---
 const leaderboardSchema = new mongoose.Schema({
     userId: { type: String, required: true, unique: true },
     username: { type: String },
@@ -49,15 +45,14 @@ const leaderboardSchema = new mongoose.Schema({
 const Leaderboard = mongoose.model('Leaderboard', leaderboardSchema);
 
 // ------------------------------------------
-// --- REAL-TIME ROOM MANAGER (Socket.io) ---
+// --- ROOM MANAGER (Socket.io) ---
 // ------------------------------------------
 
-const rooms = {}; // Store active rooms in memory
+const rooms = {};
 
 io.on('connection', (socket) => {
-    console.log('User connected:', socket.id);
-
-    // 1. Join/Create Room
+    
+    // 1. Join Room
     socket.on('joinRoom', ({ roomCode, username }) => {
         const code = roomCode.toUpperCase();
         socket.join(code);
@@ -66,31 +61,50 @@ io.on('connection', (socket) => {
             rooms[code] = {
                 host: socket.id,
                 players: [],
-                state: 'lobby', // lobby, playing, results
+                state: 'lobby',
+                mode: 'coop', // 'coop' or 'versus'
                 round: 0,
                 maxRounds: 10,
                 words: [],
                 currentVotes: {},
-                scores: {}
+                scores: { red: 0, blue: 0, coop: 0 }
             };
         }
 
         const room = rooms[code];
-        // Add player if not exists
         if (!room.players.find(p => p.id === socket.id)) {
-            room.players.push({ id: socket.id, name: username || 'Anonymous', score: 0 });
-            room.scores[socket.id] = 0;
+            // Auto-assign team
+            const team = room.players.length % 2 === 0 ? 'red' : 'blue';
+            room.players.push({ 
+                id: socket.id, 
+                name: username || 'Player', 
+                team: team 
+            });
         }
-
-        // Notify room of update
-        io.to(code).emit('roomUpdate', {
-            players: room.players,
-            host: room.host,
-            state: room.state
-        });
+        
+        emitUpdate(code);
     });
 
-    // 2. Start Game
+    // 2. Switch Team
+    socket.on('switchTeam', ({ roomCode, team }) => {
+        const room = rooms[roomCode];
+        if (!room) return;
+        const p = room.players.find(p => p.id === socket.id);
+        if (p) {
+            p.team = team;
+            emitUpdate(roomCode);
+        }
+    });
+
+    // 3. Set Mode
+    socket.on('setMode', ({ roomCode, mode }) => {
+        const room = rooms[roomCode];
+        if (!room || room.host !== socket.id) return;
+        room.mode = mode;
+        emitUpdate(roomCode);
+    });
+
+    // 4. Start Game
     socket.on('startGame', async ({ roomCode, rounds }) => {
         const room = rooms[roomCode];
         if (!room || room.host !== socket.id) return;
@@ -99,74 +113,68 @@ io.on('connection', (socket) => {
         room.maxRounds = rounds || 10;
         room.round = 0;
         room.currentVotes = {};
+        room.scores = { red: 0, blue: 0, coop: 0 };
 
-        // Fetch Random Words from MongoDB
         try {
             const randomWords = await Word.aggregate([{ $sample: { size: room.maxRounds } }]);
             room.words = randomWords;
 
-            io.to(roomCode).emit('gameStarted', { totalRounds: room.maxRounds });
+            io.to(roomCode).emit('gameStarted', { 
+                totalRounds: room.maxRounds,
+                mode: room.mode
+            });
             
-            // Send first word after small delay
             setTimeout(() => sendNextWord(roomCode), 1000);
         } catch (e) {
-            console.error("Error fetching words for room:", e);
+            console.error("Error fetching words:", e);
         }
     });
 
-    // 3. Submit Vote
+    // 5. Submit Vote
     socket.on('submitVote', ({ roomCode, vote }) => {
         const room = rooms[roomCode];
         if (!room || room.state !== 'playing') return;
 
-        // Record vote
         room.currentVotes[socket.id] = vote;
-        
-        // Notify everyone WHO voted (but not WHAT they voted yet)
         io.to(roomCode).emit('playerVoted', { playerId: socket.id });
 
-        // Check if all players have voted
         if (Object.keys(room.currentVotes).length >= room.players.length) {
             finishRound(roomCode);
         }
     });
 
-    // 4. Disconnect
     socket.on('disconnect', () => {
-        // Remove player from all rooms they are in
         for (const code in rooms) {
             const room = rooms[code];
-            const index = room.players.findIndex(p => p.id === socket.id);
-            
-            if (index !== -1) {
-                room.players.splice(index, 1);
-                
-                // If room empty, delete
-                if (room.players.length === 0) {
-                    delete rooms[code];
-                } else {
-                    // If host left, assign new host
-                    if (room.host === socket.id) {
-                        room.host = room.players[0].id;
-                    }
-                    io.to(code).emit('roomUpdate', {
-                        players: room.players,
-                        host: room.host,
-                        state: room.state
-                    });
+            const idx = room.players.findIndex(p => p.id === socket.id);
+            if (idx !== -1) {
+                room.players.splice(idx, 1);
+                if (room.players.length === 0) delete rooms[code];
+                else {
+                    if (room.host === socket.id) room.host = room.players[0].id;
+                    emitUpdate(code);
                 }
             }
         }
     });
 });
 
-// Helper: Send Next Word
+function emitUpdate(code) {
+    if (!rooms[code]) return;
+    io.to(code).emit('roomUpdate', {
+        players: rooms[code].players,
+        host: rooms[code].host,
+        mode: rooms[code].mode,
+        state: rooms[code].state
+    });
+}
+
 function sendNextWord(roomCode) {
     const room = rooms[roomCode];
     if (!room) return;
 
     if (room.round >= room.words.length) {
-        endGame(roomCode);
+        io.to(roomCode).emit('gameOver', { scores: room.scores, mode: room.mode });
         return;
     }
 
@@ -180,162 +188,111 @@ function sendNextWord(roomCode) {
     });
 }
 
-// Helper: Finish Round (Calculate & Reveal)
 function finishRound(roomCode) {
     const room = rooms[roomCode];
     if (!room) return;
 
     const currentWord = room.words[room.round];
-    
-    // Calculate global majority stats for this word from DB
-    // (In a real app, you might query DB fresh here, but we use the fetched snapshot)
-    const g = currentWord.goodVotes || 0;
-    const b = currentWord.badVotes || 0;
-    const majorityVote = g >= b ? 'good' : 'bad'; // Simple majority logic
+    const votes = room.currentVotes;
+    let resultData = {};
 
-    // Calculate Scores (Accuracy)
-    // You get points if you voted with the GLOBAL majority (or room majority? Let's do Global as per prompt)
-    const roundResults = [];
-    
-    room.players.forEach(p => {
-        const pVote = room.currentVotes[p.id];
-        const isCorrect = (pVote === majorityVote);
-        if (isCorrect) room.scores[p.id]++;
+    // --- GAME MODES LOGIC ---
+    if (room.mode === 'versus') {
+        const calcSync = (team) => {
+            const members = room.players.filter(p => p.team === team);
+            if (members.length === 0) return 0;
+            const v = members.map(p => votes[p.id]);
+            const g = v.filter(x => x === 'good').length;
+            const b = v.filter(x => x === 'bad').length;
+            const maj = Math.max(g, b);
+            return Math.round((maj / members.length) * 100);
+        };
+        const redSync = calcSync('red');
+        const blueSync = calcSync('blue');
         
-        roundResults.push({ 
-            id: p.id, 
-            vote: pVote, 
-            isCorrect: isCorrect, 
-            score: room.scores[p.id] 
-        });
-    });
+        if (redSync > blueSync) room.scores.red++;
+        else if (blueSync > redSync) room.scores.blue++;
+        
+        resultData = { redSync, blueSync, redScore: room.scores.red, blueScore: room.scores.blue };
+    } else {
+        // Co-op
+        const all = Object.values(votes);
+        const g = all.filter(x => x === 'good').length;
+        const b = all.filter(x => x === 'bad').length;
+        const maj = Math.max(g, b);
+        const sync = Math.round((maj / all.length) * 100);
+        
+        if (sync >= 100) room.scores.coop += 1;
+        resultData = { sync, score: room.scores.coop };
+    }
 
     io.to(roomCode).emit('roundResult', {
-        results: roundResults,
-        majority: majorityVote,
-        word: currentWord.text
+        mode: room.mode,
+        data: resultData,
+        word: currentWord.text,
+        votes: votes
     });
 
     room.round++;
-    
-    // Wait 3 seconds then next word
-    setTimeout(() => sendNextWord(roomCode), 3000);
-}
-
-// Helper: End Game
-function endGame(roomCode) {
-    const room = rooms[roomCode];
-    if (!room) return;
-    
-    room.state = 'results';
-    io.to(roomCode).emit('gameOver', { scores: room.scores });
+    setTimeout(() => sendNextWord(roomCode), 4000);
 }
 
 // ------------------------------------------
+// --- API ROUTES ---
+// ------------------------------------------
 
-// --- API ROUTES (Keep your existing routes below) ---
-// (Paste your existing GET/POST /api/words, /api/scores routes here...)
-// ...
-
-// GET Random Words
-app.get('/api/words', async (req, res) => {
+// 1. FIXED: Get ALL words (for Dictionary)
+app.get('/api/words/all', async (req, res) => {
     try {
-        const count = await Word.countDocuments();
-        const random = Math.floor(Math.random() * count);
-        const words = await Word.aggregate([{ $sample: { size: 1 } }]);
-        res.json(words);
-    } catch (e) {
-        res.status(500).json({ message: "Error fetching word" });
-    }
-});
-
-// Vote Route
-app.put('/api/words/:id/vote', async (req, res) => {
-    const { id } = req.params;
-    const { voteType } = req.body;
-    
-    if (!['good', 'bad', 'notWord'].includes(voteType)) {
-        return res.status(400).json({ message: "Invalid vote type" });
-    }
-
-    try {
-        const update = {};
-        if (voteType === 'good') update.goodVotes = 1;
-        if (voteType === 'bad') update.badVotes = 1;
-        if (voteType === 'notWord') update.notWordVotes = 1;
-
-        await Word.findByIdAndUpdate(id, { $inc: update });
-        res.json({ message: "Vote recorded" });
-    } catch (e) {
-        res.status(500).json({ message: "Error voting" });
-    }
-});
-
-// Submit Word Route
-app.post('/api/words', async (req, res) => {
-    const { text } = req.body;
-    if (!text) return res.status(400).json({ message: "Text required" });
-    
-    try {
-        const exists = await Word.findOne({ text: new RegExp(`^${text}$`, 'i') });
-        if (exists) return res.status(409).json({ message: "Word already exists" });
-
-        const newWord = new Word({ text });
-        await newWord.save();
-        res.status(201).json(newWord);
-    } catch (e) {
-        res.status(500).json({ message: "Error submitting word" });
-    }
-});
-
-// Leaderboard Routes
-app.get('/api/leaderboard', async (req, res) => {
-    try {
-        const topUsers = await Leaderboard.find({})
-            .select('userId username voteCount')
-            .sort({ voteCount: -1 })
-            .limit(10);
-        res.json(topUsers);
+        const allWords = await Word.find().sort({ createdAt: -1 }).limit(1000);
+        res.json(allWords);
     } catch (e) {
         res.status(500).json([]);
     }
 });
 
-app.post('/api/leaderboard', async (req, res) => {
-    const { userId, username, voteCount } = req.body;
-    if (!userId || typeof voteCount !== 'number') {
-        return res.status(400).send({ message: "Missing data." });
-    }
+// 2. Get Random Word (Game Loop)
+app.get('/api/words', async (req, res) => {
     try {
-        await Leaderboard.findOneAndUpdate(
-            { userId: userId },
-            { username, voteCount, lastUpdated: new Date() },
-            { upsert: true, new: true } 
-        );
-        res.status(200).send({ message: "Updated." });
+        const w = await Word.aggregate([{ $sample: { size: 1 } }]);
+        res.json(w);
     } catch (e) {
-        res.status(500).send({ message: "Error." });
+        res.status(500).json({ message: "Error" });
     }
 });
 
-// Serve High Scores (GET/POST) - Existing...
-app.get('/api/scores', async (req, res) => {
+// 3. Vote
+app.put('/api/words/:id/vote', async (req, res) => {
     try {
-        const s = await Score.find().sort({ score: -1 }).limit(10);
-        res.json(s);
-    } catch(e) { res.status(500).json([]) }
+        const u = {}; 
+        u[req.body.voteType + 'Votes'] = 1;
+        await Word.findByIdAndUpdate(req.params.id, { $inc: u });
+        res.json({ message: "OK" });
+    } catch (e) { res.status(500).json({ message: "Error" }); }
+});
+
+// 4. Submit
+app.post('/api/words', async (req, res) => {
+    try {
+        const n = new Word({ text: req.body.text }); 
+        await n.save(); 
+        res.status(201).json(n);
+    } catch (e) { res.status(500).json({ message: "Error" }); }
+});
+
+// 5. Leaderboards
+app.get('/api/leaderboard', async (req, res) => {
+    try { res.json(await Leaderboard.find().sort({voteCount:-1}).limit(10)); } catch(e) { res.json([]); }
+});
+app.post('/api/leaderboard', async (req, res) => {
+    try { await Leaderboard.findOneAndUpdate({userId:req.body.userId}, req.body, {upsert:true}); res.json({message:"OK"}); } catch(e) { res.status(500).send(); }
+});
+app.get('/api/scores', async (req, res) => {
+    try { res.json(await Score.find().sort({score:-1}).limit(10)); } catch(e) { res.json([]); }
 });
 app.post('/api/scores', async (req, res) => {
-    try {
-        const { name, score, userId } = req.body;
-        const s = new Score({ name, score, userId });
-        await s.save();
-        res.json(s);
-    } catch(e) { res.status(500).json({}) }
+    try { const s = new Score(req.body); await s.save(); res.json(s); } catch(e) { res.json({}); }
 });
 
-// --- CHANGE APP.LISTEN TO SERVER.LISTEN ---
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
+server.listen(PORT, () => console.log(`Server on ${PORT}`));
