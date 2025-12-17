@@ -4333,6 +4333,12 @@ const RoomManager = {
             document.head.appendChild(sc);
         } else { this.connect(); }
         this.injectModal();
+
+        window.addEventListener('beforeunload', () => {
+            if (this.socket && this.roomCode) {
+                this.socket.emit('leaveRoom', { roomCode: this.roomCode });
+            }
+        });
     },
 
     connect() {
@@ -4340,7 +4346,6 @@ const RoomManager = {
         
         this.socket.on('connect', () => { 
             this.playerId = this.socket.id; 
-            // PRE-FILL ONLY, NO AUTO-JOIN
             const savedCode = localStorage.getItem('lastRoomCode');
             const savedName = localStorage.getItem('username');
             if (savedCode && savedName && !this.active) {
@@ -4363,6 +4368,7 @@ const RoomManager = {
                      document.getElementById('lobbyCodeDisplay').textContent = this.roomCode;
                 }
             }
+
             this.isHost = (data.host === this.playerId);
             this.currentMode = data.mode;
             this.currentRounds = data.maxWords; 
@@ -4537,7 +4543,7 @@ const RoomManager = {
 
     showAccusationScreen(mode, players) {
         if(this.isSpectator) return;
-        const roleName = mode === 'saboteur' ? 'SABOTEUR' : 'VIP';
+        const roleName = mode === 'traitor' ? 'TRAITOR' : 'VIP';
         const div = document.createElement('div');
         div.id = 'active-accusation';
         div.className = 'custom-modal-overlay';
@@ -4624,34 +4630,37 @@ const RoomManager = {
     },
 
     leave(force = false) {
-        const performExit = () => {
-            // 1. Clear local storage so we don't auto-join on reload
-            localStorage.removeItem('lastRoomCode'); 
+        const doit = () => {
+            localStorage.removeItem('lastRoomCode');
+            // Send leave signal
+            this.socket.emit('leaveRoom', { roomCode: this.roomCode }, () => {
+                // Server confirmed exit
+            });
             
-            // 2. Define the reload action
-            const goHome = () => window.location.reload();
-
-            // 3. Send leave signal WITH A CALLBACK
-            if (this.socket && this.socket.connected) {
-                // Set a safety timeout: if server doesn't reply in 2s, reload anyway
-                const safetyTimer = setTimeout(goHome, 2000);
-
-                this.socket.emit('leaveRoom', { roomCode: this.roomCode }, () => {
-                    clearTimeout(safetyTimer); // Cancel safety timer
-                    goHome(); // Server confirmed exit, safe to reload
-                });
-            } else {
-                // If not connected, just reload immediately
-                goHome();
-            }
+            // Clean local state without refresh
+            this.active = false;
+            this.roomCode = '';
+            this.isHost = false;
+            this.removeActiveBanner();
+            
+            // Clean UI overlays
+            const ids = ['active-role-alert', 'spectator-banner', 'active-accusation', 'active-vote-reveal', 'active-countdown'];
+            ids.forEach(id => { const el = document.getElementById(id); if(el) el.remove(); });
+            
+            // Reset to Lobby closed state
+            this.closeLobby();
+            
+            // Reset internal State helper if needed
+            State.runtime.isMultiplayer = false;
+            
+            // Reset screens in modal for next time
+            document.getElementById('roomJoinScreen').classList.remove('hidden');
+            document.getElementById('roomLobbyScreen').classList.add('hidden');
+            
+            // If the user wants to join again, they just click the button
         };
-
-        if (force) {
-            performExit();
-        } else {
-            // Use your custom game-style modal instead of browser popup
-            this.showCustomConfirm("LEAVE GAME?", performExit);
-        }
+        if (force) doit();
+        else this.showCustomConfirm("LEAVE GAME?", doit);
     },
 
     playCountdown(mode) {
@@ -4699,13 +4708,12 @@ const RoomManager = {
                 modeOpts += `<option value="${key}" ${data.mode===key?'selected':''}>${val.label}${note}</option>`;
             }
             
-            // --- UPDATED LABELS ---
-            let roundOpts = `<option value="1" ${data.maxWords==1?'selected':''}>🚀 1 Word (Quickie)</option>
-                             <option value="5" ${data.maxWords==5?'selected':''}>Just a quickie! (Five Words)</option>
-                             <option value="10" ${data.maxWords==10?'selected':''}>Ten Word Game</option>
-                             <option value="15" ${data.maxWords==15?'selected':''}>Fifteen Word Game</option>
-                             <option value="20" ${data.maxWords==20?'selected':''}>Twenty Word Game</option>
-                             <option value="30" ${data.maxWords==30?'selected':''}>Marathon (Thirty Words)</option>`;
+            let roundOpts = `<option value="1" ${data.maxWords==1?'selected':''}>Just a quickie! (One Word)</option>
+                             <option value="5" ${data.maxWords==5?'selected':''}>Five Words</option>
+                             <option value="10" ${data.maxWords==10?'selected':''}>Ten Words</option>
+                             <option value="15" ${data.maxWords==15?'selected':''}>Fifteen Words</option>
+                             <option value="20" ${data.maxWords==20?'selected':''}>Twenty Words</option>
+                             <option value="30" ${data.maxWords==30?'selected':''}>Marathon! (Thirty Words)</option>`;
 
             settingsHtml = `
                 <div class="bg-gray-100 p-3 rounded-lg mb-4">
@@ -4803,8 +4811,8 @@ const RoomManager = {
     showFinalResults(data) {
         let roleReveal = "";
         if (data.specialRoleId) {
-            const roleName = (data.mode === 'saboteur') ? 'Saboteur' : 'VIP';
-            const icon = (data.mode === 'saboteur') ? '🕵️' : '👑';
+            const roleName = (data.mode === 'traitor') ? 'Traitor' : 'VIP';
+            const icon = (data.mode === 'traitor') ? '🕵️' : '👑';
             const rolePlayer = data.rankings.find(p => p.id === data.specialRoleId);
             
             if (rolePlayer) {
@@ -4830,10 +4838,40 @@ const RoomManager = {
                 <div class="text-xs text-gray-400 font-bold uppercase mt-4">Round Leaderboard</div>
                 ${rankHtml}
                 <div class="flex gap-2 mt-6">
-                    <button onclick="this.closest('.fixed').remove(); Game.refreshData(false);" class="flex-1 py-3 bg-gray-700 text-white font-bold rounded-xl">Exit</button>
+                    <button onclick="this.closest('.fixed').remove(); RoomManager.leave(true);" class="flex-1 py-3 bg-gray-700 text-white font-bold rounded-xl">Exit</button>
                     <button onclick="this.closest('.fixed').remove(); RoomManager.openLobby()" class="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl">New Game</button>
                 </div>
             </div>`;
+        document.body.appendChild(div);
+    },
+
+    // --- STANDARD LOGIC ---
+
+    kick(id) { 
+        this.showCustomConfirm("Kick this player?", () => {
+            this.socket.emit('kickPlayer', { roomCode: this.roomCode, targetId: id });
+        });
+    },
+
+    showVoteReveal(players, votes) {
+        const div = document.createElement('div');
+        div.id = 'active-vote-reveal';
+        div.className = 'reveal-overlay';
+        div.innerHTML = players.map(p => {
+            if(p.isSpectator) return '';
+            const v = votes[p.id];
+            let style = v === 'good' ? 'vote-good' : (v === 'bad' ? 'vote-bad' : 'vote-none');
+            let icon = v === 'good' ? '👍' : (v === 'bad' ? '👎' : '⏳');
+            if (this.currentMode === 'survival' && p.lives <= 0) { style = 'bg-gray-200 text-gray-400 border-gray-300'; icon = '💀'; }
+            return `<div class="reveal-card ${style}">${icon} ${p.name}</div>`;
+        }).join('');
+        document.body.appendChild(div);
+    },
+
+    showSpectatorBanner() {
+        const div = document.createElement('div');
+        div.id = 'spectator-banner';
+        div.innerHTML = "👁️ SPECTATING";
         document.body.appendChild(div);
     }
 };
