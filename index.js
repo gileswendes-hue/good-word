@@ -91,7 +91,7 @@ io.on('connection', (socket) => {
                 state: 'lobby',
                 mode: 'coop', 
                 wordIndex: 0,
-                maxWords: 10, // Default 10 Words per Game
+                maxWords: 10,
                 words: [],
                 currentVotes: {},
                 currentVoteTimes: {},
@@ -214,9 +214,7 @@ io.on('connection', (socket) => {
 
         try {
             if (room.mode === 'kids') {
-                // Use loaded file words
                 const shuffled = shuffle([...kidsWords]);
-                // Ensure we have enough words, loop if needed
                 let selection = [];
                 while(selection.length < room.maxWords && shuffled.length > 0) {
                     selection = selection.concat(shuffled);
@@ -480,7 +478,7 @@ function finishWord(roomCode) {
 app.get('/kids_words.txt', (req, res) => {
     const p = path.join(__dirname, 'kids_words.txt');
     if (fs.existsSync(p)) res.sendFile(p);
-    else res.status(404).send(""); // Send empty if missing, frontend handles logic
+    else res.status(404).send(""); 
 });
 
 app.get('/api/words/all', async (req, res) => { try { res.json(await Word.find().sort({ createdAt: -1 })); } catch (e) { res.json([]); } });
