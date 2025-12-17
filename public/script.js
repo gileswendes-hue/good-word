@@ -4954,6 +4954,7 @@ async renderLeaderboardTable() {
             window.ContactManager = ContactManager;
             window.PinPad = PinPad;
             window.TipManager = TipManager;
+			window.RoomManager = RoomManager;
 
             // 4. Bind Buttons
             if (DOM.game.buttons.good) DOM.game.buttons.good.onclick = () => this.vote('good');
