@@ -93,7 +93,7 @@ io.on('connection', (socket) => {
         emitUpdate(roomCode);
     });
 
-    socket.on('startGame', async ({ roomCode, rounds }) => {
+	socket.on('startGame', async ({ roomCode, rounds }) => {
         const room = rooms[roomCode];
         if (!room || room.host !== socket.id) return;
 
@@ -101,7 +101,12 @@ io.on('connection', (socket) => {
         room.maxRounds = rounds || 10;
         room.round = 0;
         room.currentVotes = {};
+        
+        // Reset Team Scores per game, BUT KEEP individual player scores!
         room.scores = { red: 0, blue: 0, coop: 0 };
+        
+        // --- DELETED: room.players.forEach(p => p.score = 0); --- 
+        // Now scores persist across rounds!
 
         // Randomize Teams
         if (room.mode === 'versus') {
@@ -117,14 +122,13 @@ io.on('connection', (socket) => {
             const randomWords = await Word.aggregate([{ $sample: { size: room.maxRounds } }]);
             room.words = randomWords;
 
-            // Notify Start (Clients play countdown)
             io.to(roomCode).emit('gameStarted', { 
                 totalRounds: room.maxRounds,
                 mode: room.mode
             });
             
-            // WAIT 5 SECONDS for countdown before sending first word
-            setTimeout(() => sendNextWord(roomCode), 5000);
+            // INCREASED to 6000ms (6 seconds) to allow "GO!" to stay on screen
+            setTimeout(() => sendNextWord(roomCode), 6000);
         } catch (e) { console.error(e); }
     });
 
@@ -250,3 +254,4 @@ app.post('/api/scores', async (req, res) => { try { const s = new Score(req.body
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Server on ${PORT}`));
+
