@@ -4804,6 +4804,7 @@ const RoomManager = {
             rankHtml += `<div class="flex justify-between text-sm py-1 border-b border-gray-700 last:border-0"><span class="text-white">${i+1}. ${p.name}</span><span class="font-bold text-yellow-400">${p.score} pts</span></div>`;
         });
         rankHtml += `</div>`;
+        
         const div = document.createElement('div');
         div.className = 'fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-4';
         div.innerHTML = `
@@ -4819,12 +4820,16 @@ const RoomManager = {
                 </div>
             </div>`;
         document.body.appendChild(div);
-    }
-};
+    }, // <--- CHANGED FROM }; TO },
 
     // --- STANDARD LOGIC ---
 
-    kick(id) { if(confirm("Kick this player?")) this.socket.emit('kickPlayer', { roomCode: this.roomCode, targetId: id }); },
+    kick(id) { 
+        // Updated to use custom modal instead of browser confirm
+        this.showCustomConfirm("Kick this player?", () => {
+            this.socket.emit('kickPlayer', { roomCode: this.roomCode, targetId: id });
+        });
+    },
 
     showVoteReveal(players, votes) {
         const div = document.createElement('div');
