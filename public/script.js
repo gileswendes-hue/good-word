@@ -2977,7 +2977,7 @@ const UIManager = {
                         
                     innerHTML += `<span class="${style}">${bug.char}</span>`;
                 });
-                innerHTML += `</div><div class="text-[9px] text-green-700 mt-1 font-bold uppercase tracking-widest">Monopoly Complete!</div>`;
+                innerHTML += `</div><div class="text-[9px] text-green-700 mt-1 font-bold uppercase tracking-widest">You've won capitalism!</div>`;
                 
                 bugHotelHTML = `<div class="w-full text-center my-4 p-3 bg-green-50 rounded-xl border-2 border-green-500 relative overflow-hidden shadow-md" title="You've completed capitalism">
                     <div class="absolute top-0 right-0 bg-green-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-bl-lg">WINNER</div>
