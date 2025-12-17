@@ -56,12 +56,11 @@ const loadKidsWords = () => {
             kidsWords = data.split('\n').map(w => w.trim().toUpperCase()).filter(w => w.length > 0);
             console.log(`Loaded ${kidsWords.length} kids words.`);
         } else {
-            console.warn("kids_words.txt not found. Kids mode may be empty.");
-            kidsWords = []; 
+            console.warn("kids_words.txt not found. Using fallback.");
+            kidsWords = ["APPLE", "BANANA", "CAT", "DOG", "ELEPHANT", "FROG", "GIRAFFE", "HOUSE", "IGLOO", "JUMP", "KITE", "LION", "MOON", "NOSE", "ORANGE", "PEN", "QUEEN", "RABBIT", "SUN", "TREE", "UMBRELLA", "VAN", "WATER", "XYLOPHONE", "YOYO", "ZEBRA"];
         }
     } catch (e) {
-        console.error("Error loading kids words:", e);
-        kidsWords = [];
+        kidsWords = ["APPLE", "BANANA", "CAT", "DOG"];
     }
 };
 loadKidsWords();
@@ -123,7 +122,7 @@ io.on('connection', (socket) => {
         
         emitUpdate(code);
         
-        if (isSpectator && room.words[room.wordIndex] && room.state === 'playing') {
+        if (isSpectator && room.words[room.wordIndex]) {
             socket.emit('gameStarted', { totalWords: room.maxWords, mode: room.mode });
             socket.emit('nextWord', { 
                 word: room.words[room.wordIndex], 
@@ -133,17 +132,25 @@ io.on('connection', (socket) => {
         }
     });
 
+    // --- UPDATED LEAVE LOGIC ---
     socket.on('leaveRoom', ({ roomCode }) => {
         const room = rooms[roomCode];
         if (!room) return;
+        
         const idx = room.players.findIndex(p => p.id === socket.id);
         if (idx !== -1) {
             const wasHost = (room.host === socket.id);
             room.players.splice(idx, 1);
-            socket.leave(roomCode);
-            if (room.players.length === 0) delete rooms[roomCode];
-            else {
-                if (wasHost) room.host = room.players[0].id;
+            
+            socket.leave(roomCode); 
+            
+            if (room.players.length === 0) {
+                delete rooms[roomCode];
+            } else {
+                if (wasHost) {
+                    // Host Migration
+                    room.host = room.players[0].id;
+                }
                 checkInsufficientPlayers(roomCode);
                 emitUpdate(roomCode);
             }
@@ -256,7 +263,6 @@ io.on('connection', (socket) => {
     socket.on('submitAccusation', ({ roomCode, targetId }) => {
         const room = rooms[roomCode];
         if (!room || room.state !== 'accusation') return;
-        
         room.accusationVotes[socket.id] = targetId;
         const activeCount = room.players.filter(p => !p.isSpectator).length;
         if (Object.keys(room.accusationVotes).length >= activeCount) {
@@ -274,7 +280,7 @@ io.on('connection', (socket) => {
                 if (room.players.length === 0) {
                     delete rooms[code];
                 } else {
-                    if (wasHost) room.host = room.players[0].id;
+                    if (wasHost) room.host = room.players[0].id; // Migration logic
                     checkInsufficientPlayers(code);
                     emitUpdate(code);
                 }
