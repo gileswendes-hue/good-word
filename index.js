@@ -10,10 +10,12 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
+// Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI)
     .then(() => console.log('Connected to MongoDB'))
     .catch(err => console.error('MongoDB connection error:', err));
@@ -45,7 +47,7 @@ const leaderboardSchema = new mongoose.Schema({
 const Leaderboard = mongoose.model('Leaderboard', leaderboardSchema);
 
 // ------------------------------------------
-// --- ROOM MANAGER (Socket.io) ---
+// --- MULTIPLAYER ROOM MANAGER ---
 // ------------------------------------------
 
 const rooms = {};
@@ -72,9 +74,10 @@ io.on('connection', (socket) => {
         }
 
         const room = rooms[code];
+        // Check if player exists, if not add them
         if (!room.players.find(p => p.id === socket.id)) {
-            // Auto-assign team
-            const team = room.players.length % 2 === 0 ? 'red' : 'blue';
+            // Auto-assign team (Alternating)
+            const team = (room.players.length % 2 === 0) ? 'red' : 'blue';
             room.players.push({ 
                 id: socket.id, 
                 name: username || 'Player', 
@@ -116,6 +119,7 @@ io.on('connection', (socket) => {
         room.scores = { red: 0, blue: 0, coop: 0 };
 
         try {
+            // Get random words
             const randomWords = await Word.aggregate([{ $sample: { size: room.maxRounds } }]);
             room.words = randomWords;
 
@@ -196,17 +200,22 @@ function finishRound(roomCode) {
     const votes = room.currentVotes;
     let resultData = {};
 
-    // --- GAME MODES LOGIC ---
+    // --- SCORING LOGIC ---
     if (room.mode === 'versus') {
-        const calcSync = (team) => {
-            const members = room.players.filter(p => p.team === team);
-            if (members.length === 0) return 0;
-            const v = members.map(p => votes[p.id]);
-            const g = v.filter(x => x === 'good').length;
-            const b = v.filter(x => x === 'bad').length;
-            const maj = Math.max(g, b);
-            return Math.round((maj / members.length) * 100);
+        // Calculate Red Sync & Blue Sync
+        const calcSync = (teamName) => {
+            const teamMembers = room.players.filter(p => p.team === teamName);
+            if (teamMembers.length === 0) return 0;
+            const teamVotes = teamMembers.map(p => votes[p.id]);
+            
+            // Count Good vs Bad
+            const g = teamVotes.filter(v => v === 'good').length;
+            const b = teamVotes.filter(v => v === 'bad').length;
+            const majority = Math.max(g, b);
+            
+            return Math.round((majority / teamMembers.length) * 100);
         };
+
         const redSync = calcSync('red');
         const blueSync = calcSync('blue');
         
@@ -214,15 +223,17 @@ function finishRound(roomCode) {
         else if (blueSync > redSync) room.scores.blue++;
         
         resultData = { redSync, blueSync, redScore: room.scores.red, blueScore: room.scores.blue };
+
     } else {
-        // Co-op
-        const all = Object.values(votes);
-        const g = all.filter(x => x === 'good').length;
-        const b = all.filter(x => x === 'bad').length;
-        const maj = Math.max(g, b);
-        const sync = Math.round((maj / all.length) * 100);
+        // CO-OP MODE
+        const allVotes = Object.values(votes);
+        const g = allVotes.filter(v => v === 'good').length;
+        const b = allVotes.filter(v => v === 'bad').length;
+        const majorityCount = Math.max(g, b);
+        const sync = Math.round((majorityCount / allVotes.length) * 100);
         
         if (sync >= 100) room.scores.coop += 1;
+        
         resultData = { sync, score: room.scores.coop };
     }
 
@@ -234,14 +245,14 @@ function finishRound(roomCode) {
     });
 
     room.round++;
-    setTimeout(() => sendNextWord(roomCode), 4000);
+    setTimeout(() => sendNextWord(roomCode), 4000); // 4s to see results
 }
 
 // ------------------------------------------
 // --- API ROUTES ---
 // ------------------------------------------
 
-// 1. FIXED: Get ALL words (for Dictionary)
+// 1. **NEW**: Get ALL words (Fixes Dictionary)
 app.get('/api/words/all', async (req, res) => {
     try {
         const allWords = await Word.find().sort({ createdAt: -1 }).limit(1000);
@@ -251,21 +262,18 @@ app.get('/api/words/all', async (req, res) => {
     }
 });
 
-// 2. Get Random Word (Game Loop)
+// 2. Get Random Word
 app.get('/api/words', async (req, res) => {
     try {
         const w = await Word.aggregate([{ $sample: { size: 1 } }]);
         res.json(w);
-    } catch (e) {
-        res.status(500).json({ message: "Error" });
-    }
+    } catch (e) { res.status(500).json({ message: "Error" }); }
 });
 
 // 3. Vote
 app.put('/api/words/:id/vote', async (req, res) => {
     try {
-        const u = {}; 
-        u[req.body.voteType + 'Votes'] = 1;
+        const u = {}; u[req.body.voteType + 'Votes'] = 1;
         await Word.findByIdAndUpdate(req.params.id, { $inc: u });
         res.json({ message: "OK" });
     } catch (e) { res.status(500).json({ message: "Error" }); }
@@ -274,19 +282,19 @@ app.put('/api/words/:id/vote', async (req, res) => {
 // 4. Submit
 app.post('/api/words', async (req, res) => {
     try {
-        const n = new Word({ text: req.body.text }); 
-        await n.save(); 
-        res.status(201).json(n);
+        const n = new Word({ text: req.body.text }); await n.save(); res.status(201).json(n);
     } catch (e) { res.status(500).json({ message: "Error" }); }
 });
 
-// 5. Leaderboards
+// 5. Leaderboard
 app.get('/api/leaderboard', async (req, res) => {
     try { res.json(await Leaderboard.find().sort({voteCount:-1}).limit(10)); } catch(e) { res.json([]); }
 });
 app.post('/api/leaderboard', async (req, res) => {
     try { await Leaderboard.findOneAndUpdate({userId:req.body.userId}, req.body, {upsert:true}); res.json({message:"OK"}); } catch(e) { res.status(500).send(); }
 });
+
+// 6. Scores
 app.get('/api/scores', async (req, res) => {
     try { res.json(await Score.find().sort({score:-1}).limit(10)); } catch(e) { res.json([]); }
 });
@@ -294,5 +302,6 @@ app.post('/api/scores', async (req, res) => {
     try { const s = new Score(req.body); await s.save(); res.json(s); } catch(e) { res.json({}); }
 });
 
+// Start Server
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Server on ${PORT}`));
