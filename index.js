@@ -354,3 +354,4 @@ app.get('/api/words', async (req, res) => { try { res.json(await Word.aggregate(
 // ... other routes match exactly as before ...
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Server on ${PORT}`));
+
