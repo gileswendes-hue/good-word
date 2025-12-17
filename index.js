@@ -67,7 +67,8 @@ loadKidsWords();
 
 // --- ROOM MANAGER ---
 const rooms = {};
-const MODE_MINS = { 'coop': 2, 'versus': 4, 'vip': 3, 'hipster': 3, 'speed': 2, 'survival': 3, 'saboteur': 3, 'kids': 2 };
+// Updated 'saboteur' to 'traitor'
+const MODE_MINS = { 'coop': 2, 'versus': 4, 'vip': 3, 'hipster': 3, 'speed': 2, 'survival': 3, 'traitor': 3, 'kids': 2 };
 
 function shuffle(array) {
     for (let i = array.length - 1; i > 0; i--) {
@@ -77,10 +78,34 @@ function shuffle(array) {
     return array;
 }
 
+// --- HELPER: CENTRALIZED PLAYER REMOVAL ---
+function removePlayerFromAllRooms(socketId) {
+    for (const code in rooms) {
+        const room = rooms[code];
+        const idx = room.players.findIndex(p => p.id === socketId);
+        
+        if (idx !== -1) {
+            const wasHost = (room.host === socketId);
+            room.players.splice(idx, 1);
+            
+            if (room.players.length === 0) {
+                delete rooms[code];
+            } else {
+                if (wasHost) {
+                    room.host = room.players[0].id;
+                }
+                checkInsufficientPlayers(code);
+                emitUpdate(code);
+            }
+        }
+    }
+}
+
 io.on('connection', (socket) => {
     
     socket.on('joinRoom', ({ roomCode, username }) => {
         const code = roomCode.toUpperCase();
+        removePlayerFromAllRooms(socket.id);
         socket.join(code);
 
         if (!rooms[code]) {
@@ -97,7 +122,7 @@ io.on('connection', (socket) => {
                 accusationVotes: {}, 
                 scores: { red: 0, blue: 0, coop: 0 },
                 vipId: null,
-                saboteurId: null,
+                traitorId: null, // Renamed from saboteurId
                 wordStartTime: 0
             };
         }
@@ -132,33 +157,15 @@ io.on('connection', (socket) => {
         }
     });
 
-	socket.on('leaveRoom', ({ roomCode }, callback) => {
+    socket.on('leaveRoom', ({ roomCode }, callback) => {
         const code = roomCode ? roomCode.toUpperCase() : '';
-        const room = rooms[code];
-        
-        if (!room) {
-            if (typeof callback === 'function') callback(); // Acknowledge even if room gone
-            return;
-        }
-        
-        const idx = room.players.findIndex(p => p.id === socket.id);
-        if (idx !== -1) {
-            const wasHost = (room.host === socket.id);
-            room.players.splice(idx, 1);
-            
-            socket.leave(code); 
-            
-            if (room.players.length === 0) {
-                delete rooms[code];
-            } else {
-                if (wasHost) room.host = room.players[0].id; 
-                checkInsufficientPlayers(code);
-                emitUpdate(code);
-            }
-        }
-        
-        // Tell frontend "OK, I processed your leave, you can reload now"
+        socket.leave(code);
+        removePlayerFromAllRooms(socket.id);
         if (typeof callback === 'function') callback();
+    });
+
+    socket.on('disconnect', () => {
+        removePlayerFromAllRooms(socket.id);
     });
 
     socket.on('updateSettings', ({ roomCode, mode, rounds }) => {
@@ -179,12 +186,7 @@ io.on('connection', (socket) => {
             targetSocket.emit('kicked');
             targetSocket.disconnect();
         }
-        const idx = room.players.findIndex(p => p.id === targetId);
-        if(idx !== -1) {
-            room.players.splice(idx, 1);
-            checkInsufficientPlayers(roomCode);
-        }
-        emitUpdate(roomCode);
+        removePlayerFromAllRooms(targetId);
     });
 
     socket.on('startGame', async ({ roomCode }) => {
@@ -197,7 +199,7 @@ io.on('connection', (socket) => {
         room.currentVoteTimes = {};
         room.accusationVotes = {};
         room.vipId = null;
-        room.saboteurId = null;
+        room.traitorId = null;
 
         room.players.forEach(p => {
             p.lives = 3;
@@ -215,10 +217,10 @@ io.on('connection', (socket) => {
             const r = room.players[Math.floor(Math.random() * room.players.length)];
             room.vipId = r.id;
         }
-        else if (room.mode === 'saboteur') {
+        else if (room.mode === 'traitor') { // Updated key
             const r = room.players[Math.floor(Math.random() * room.players.length)];
-            room.saboteurId = r.id;
-            io.to(room.saboteurId).emit('roleAlert', 'You are the SABOTEUR! Try to make the room fail.');
+            room.traitorId = r.id;
+            io.to(room.traitorId).emit('roleAlert', 'You are the TRAITOR! Try to make the room fail.');
         }
 
         emitUpdate(roomCode);
@@ -273,24 +275,6 @@ io.on('connection', (socket) => {
             processGameEnd(roomCode);
         }
     });
-
-    socket.on('disconnect', () => {
-        for (const code in rooms) {
-            const room = rooms[code];
-            const idx = room.players.findIndex(p => p.id === socket.id);
-            if (idx !== -1) {
-                const wasHost = (room.host === socket.id);
-                room.players.splice(idx, 1); 
-                if (room.players.length === 0) {
-                    delete rooms[code];
-                } else {
-                    if (wasHost) room.host = room.players[0].id;
-                    checkInsufficientPlayers(code);
-                    emitUpdate(code);
-                }
-            }
-        }
-    });
 });
 
 function checkInsufficientPlayers(roomCode) {
@@ -336,7 +320,7 @@ function sendNextWord(roomCode) {
     }
 
     if (room.wordIndex >= room.words.length) {
-        if (room.mode === 'saboteur' || room.mode === 'vip') {
+        if (room.mode === 'traitor' || room.mode === 'vip') {
             room.state = 'accusation';
             io.to(roomCode).emit('startAccusation', { mode: room.mode, players: room.players });
         } else {
@@ -362,7 +346,7 @@ function processGameEnd(roomCode, abortReason = null) {
     if (!room) return;
 
     if (room.state === 'accusation' && !abortReason) {
-        const targetRole = room.mode === 'saboteur' ? room.saboteurId : room.vipId;
+        const targetRole = room.mode === 'traitor' ? room.traitorId : room.vipId;
         for (const [voterId, accusedId] of Object.entries(room.accusationVotes)) {
             if (voterId === targetRole) continue; 
             if (accusedId === targetRole) {
@@ -377,7 +361,7 @@ function processGameEnd(roomCode, abortReason = null) {
         scores: room.scores, 
         mode: room.mode, 
         rankings,
-        specialRoleId: room.vipId || room.saboteurId,
+        specialRoleId: room.vipId || room.traitorId,
         msg: abortReason ? `GAME ENDED: ${abortReason}` : null
     });
 
@@ -445,13 +429,13 @@ function finishWord(roomCode) {
         const allVotes = Object.values(votes);
         const maj = getMajority(allVotes);
         
-        if(room.mode === 'saboteur') {
+        if(room.mode === 'traitor') { // Updated key
              const g = allVotes.filter(x => x === 'good').length;
              const b = allVotes.filter(x => x === 'bad').length;
              const sync = Math.round((Math.max(g, b) / allVotes.length) * 100);
-             if (sync === 100) room.players.forEach(p => { if (p.id !== room.saboteurId && !p.isSpectator) p.score += 2; });
-             else { const s = room.players.find(p=>p.id===room.saboteurId); if(s) s.score+=3; }
-             resultData = { msg: sync===100 ? "100% Sync! Saboteur Failed." : `Sync Broken (${sync}%)! Saboteur Wins.` };
+             if (sync === 100) room.players.forEach(p => { if (p.id !== room.traitorId && !p.isSpectator) p.score += 2; });
+             else { const s = room.players.find(p=>p.id===room.traitorId); if(s) s.score+=3; }
+             resultData = { msg: sync===100 ? "100% Sync! Traitor Failed." : `Sync Broken (${sync}%)! Traitor Wins.` };
         } else if (room.mode === 'survival') {
              if (maj !== 'draw') {
                 room.players.forEach(p => {
