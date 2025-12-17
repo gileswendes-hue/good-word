@@ -5162,7 +5162,7 @@ async refreshData(u = true) {
             if (qrGood) qrGood.style.display = 'none';
             if (qrBad) qrBad.style.display = 'none';
         } else {
-            d = await API.fetchWords();
+            d = await API.getAllWords();
             DOM.game.buttons.custom.style.display = 'block';
             DOM.game.buttons.notWord.style.display = 'block';
             if (compareBtn) compareBtn.classList.remove('hidden');
