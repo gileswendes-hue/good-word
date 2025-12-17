@@ -4,9 +4,13 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
 const http = require('http');
+const fs = require('fs');
 const { Server } = require("socket.io");
 
 const app = express();
+const PORT = process.env.PORT || 3000;
+const MONGO_URI = process.env.MONGODB_URI;
+
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
@@ -14,25 +18,57 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-mongoose.connect(process.env.MONGODB_URI)
-    .then(() => console.log('Connected to MongoDB'))
-    .catch(err => console.error('MongoDB connection error:', err));
+if (!MONGO_URI) {
+    console.error('FATAL ERROR: MONGODB_URI is not defined.');
+} else {
+    mongoose.connect(MONGO_URI)
+        .then(() => console.log('MongoDB connected successfully.'))
+        .catch(err => console.error('FATAL MongoDB connection error:', err));
+}
 
 const wordSchema = new mongoose.Schema({
-    text: { type: String, required: true, unique: true },
+    text: { type: String, required: true, unique: true, trim: true, lowercase: true },
     goodVotes: { type: Number, default: 0 },
     badVotes: { type: Number, default: 0 },
-    notWordVotes: { type: Number, default: 0 }
-});
+    notWordVotes: { type: Number, default: 0 },
+    voters: [{ type: String }]
+}, { timestamps: true });
 const Word = mongoose.model('Word', wordSchema);
-const scoreSchema = new mongoose.Schema({ name: String, score: Number, userId: String, date: { type: Date, default: Date.now } });
+
+const scoreSchema = new mongoose.Schema({
+    name: { type: String, required: true, maxlength: 3 },
+    score: { type: Number, required: true },
+    date: { type: Date, default: Date.now },
+    userId: String
+});
 const Score = mongoose.model('Score', scoreSchema);
+
 const leaderboardSchema = new mongoose.Schema({ userId: { type: String, unique: true }, username: String, voteCount: { type: Number, default: 0 }, lastUpdated: { type: Date, default: Date.now } });
 const Leaderboard = mongoose.model('Leaderboard', leaderboardSchema);
 
+// --- KIDS MODE LOADER ---
+let kidsWords = [];
+const loadKidsWords = () => {
+    try {
+        const p = path.join(__dirname, 'kids_words.txt');
+        if (fs.existsSync(p)) {
+            const data = fs.readFileSync(p, 'utf8');
+            kidsWords = data.split('\n').map(w => w.trim().toUpperCase()).filter(w => w.length > 0);
+            console.log(`Loaded ${kidsWords.length} kids words.`);
+        } else {
+            console.warn("kids_words.txt not found. Kids mode may be empty.");
+            kidsWords = []; 
+        }
+    } catch (e) {
+        console.error("Error loading kids words:", e);
+        kidsWords = [];
+    }
+};
+loadKidsWords();
+
 // --- ROOM MANAGER ---
 const rooms = {};
-const MODE_MINS = { 'coop': 2, 'versus': 4, 'vip': 3, 'hipster': 3, 'speed': 2, 'survival': 3, 'saboteur': 3 };
+const MODE_MINS = { 'coop': 2, 'versus': 4, 'vip': 3, 'hipster': 3, 'speed': 2, 'survival': 3, 'saboteur': 3, 'kids': 2 };
 
 function shuffle(array) {
     for (let i = array.length - 1; i > 0; i--) {
@@ -54,12 +90,12 @@ io.on('connection', (socket) => {
                 players: [],
                 state: 'lobby',
                 mode: 'coop', 
-                round: 0,
-                maxRounds: 10,
+                wordIndex: 0,
+                maxWords: 10, // Default 10 Words per Game
                 words: [],
                 currentVotes: {},
                 currentVoteTimes: {},
-                accusationVotes: {}, // NEW: Track accusations
+                accusationVotes: {}, 
                 scores: { red: 0, blue: 0, coop: 0 },
                 vipId: null,
                 saboteurId: null,
@@ -68,7 +104,7 @@ io.on('connection', (socket) => {
         }
 
         const room = rooms[code];
-        const isSpectator = (room.state === 'playing' || room.state === 'accusation'); // Spectator if game in progress
+        const isSpectator = (room.state === 'playing' || room.state === 'accusation');
 
         const existing = room.players.find(p => p.id === socket.id);
         if (existing) {
@@ -87,14 +123,30 @@ io.on('connection', (socket) => {
         
         emitUpdate(code);
         
-        // Sync late joiners
-        if (isSpectator && room.words[room.round] && room.state === 'playing') {
-            socket.emit('gameStarted', { totalRounds: room.maxRounds, mode: room.mode });
+        if (isSpectator && room.words[room.wordIndex] && room.state === 'playing') {
+            socket.emit('gameStarted', { totalWords: room.maxWords, mode: room.mode });
             socket.emit('nextWord', { 
-                word: room.words[room.round], 
-                roundCurrent: room.round + 1, 
-                roundTotal: room.maxRounds 
+                word: room.words[room.wordIndex], 
+                wordCurrent: room.wordIndex + 1, 
+                wordTotal: room.maxWords 
             });
+        }
+    });
+
+    socket.on('leaveRoom', ({ roomCode }) => {
+        const room = rooms[roomCode];
+        if (!room) return;
+        const idx = room.players.findIndex(p => p.id === socket.id);
+        if (idx !== -1) {
+            const wasHost = (room.host === socket.id);
+            room.players.splice(idx, 1);
+            socket.leave(roomCode);
+            if (room.players.length === 0) delete rooms[roomCode];
+            else {
+                if (wasHost) room.host = room.players[0].id;
+                checkInsufficientPlayers(roomCode);
+                emitUpdate(roomCode);
+            }
         }
     });
 
@@ -102,7 +154,7 @@ io.on('connection', (socket) => {
         const room = rooms[roomCode];
         if (!room || room.host !== socket.id) return;
         if(mode) room.mode = mode;
-        if(rounds) room.maxRounds = parseInt(rounds);
+        if(rounds) room.maxWords = parseInt(rounds);
         emitUpdate(roomCode);
     });
     
@@ -129,18 +181,16 @@ io.on('connection', (socket) => {
         if (!room || room.host !== socket.id) return;
 
         room.state = 'playing';
-        room.round = 0;
+        room.wordIndex = 0;
         room.currentVotes = {};
         room.currentVoteTimes = {};
         room.accusationVotes = {};
-        room.scores = { red: 0, blue: 0, coop: 0 };
         room.vipId = null;
         room.saboteurId = null;
 
         room.players.forEach(p => {
             p.lives = 3;
             p.isSpectator = false;
-            p.score = 0; 
         });
 
         if (room.mode === 'versus') {
@@ -157,17 +207,28 @@ io.on('connection', (socket) => {
         else if (room.mode === 'saboteur') {
             const r = room.players[Math.floor(Math.random() * room.players.length)];
             room.saboteurId = r.id;
-            io.to(room.saboteurId).emit('roleAlert', 'You are The Traitor! Try to make the room fail.');
+            io.to(room.saboteurId).emit('roleAlert', 'You are the SABOTEUR! Try to make the room fail.');
         }
 
         emitUpdate(roomCode);
 
         try {
-            const randomWords = await Word.aggregate([{ $sample: { size: room.maxRounds } }]);
-            room.words = randomWords;
+            if (room.mode === 'kids') {
+                // Use loaded file words
+                const shuffled = shuffle([...kidsWords]);
+                // Ensure we have enough words, loop if needed
+                let selection = [];
+                while(selection.length < room.maxWords && shuffled.length > 0) {
+                    selection = selection.concat(shuffled);
+                }
+                room.words = selection.slice(0, room.maxWords).map(t => ({ text: t }));
+            } else {
+                const randomWords = await Word.aggregate([{ $sample: { size: room.maxWords } }]);
+                room.words = randomWords;
+            }
 
             io.to(roomCode).emit('gameStarted', { 
-                totalRounds: room.maxRounds, 
+                totalWords: room.maxWords, 
                 mode: room.mode,
                 vipId: room.vipId
             });
@@ -190,18 +251,15 @@ io.on('connection', (socket) => {
 
         const activePlayers = room.players.filter(p => !p.isSpectator && (room.mode !== 'survival' || p.lives > 0));
         if (Object.keys(room.currentVotes).length >= activePlayers.length) {
-            finishRound(roomCode);
+            finishWord(roomCode);
         }
     });
 
-    // --- NEW: ACCUSATION HANDLING ---
     socket.on('submitAccusation', ({ roomCode, targetId }) => {
         const room = rooms[roomCode];
         if (!room || room.state !== 'accusation') return;
         
         room.accusationVotes[socket.id] = targetId;
-        
-        // Count active players (excluding spectators)
         const activeCount = room.players.filter(p => !p.isSpectator).length;
         if (Object.keys(room.accusationVotes).length >= activeCount) {
             processGameEnd(roomCode);
@@ -236,24 +294,14 @@ function checkInsufficientPlayers(roomCode) {
     let abort = false;
     let reason = "";
 
-    if (activeCount < minNeeded) {
-        abort = true;
-        reason = "Not enough players remaining!";
-    }
-
+    if (activeCount < minNeeded) { abort = true; reason = "Not enough players remaining!"; }
     if (room.mode === 'versus') {
         const redC = room.players.filter(p => p.team === 'red' && !p.isSpectator).length;
         const blueC = room.players.filter(p => p.team === 'blue' && !p.isSpectator).length;
-        if (redC === 0 || blueC === 0) {
-            abort = true;
-            reason = "One team is empty!";
-        }
+        if (redC === 0 || blueC === 0) { abort = true; reason = "One team is empty!"; }
     }
 
-    if (abort) {
-        // Skip accusation, go straight to end
-        processGameEnd(roomCode, reason);
-    }
+    if (abort) processGameEnd(roomCode, reason);
 }
 
 function emitUpdate(code) {
@@ -262,7 +310,7 @@ function emitUpdate(code) {
         players: rooms[code].players,
         host: rooms[code].host,
         mode: rooms[code].mode,
-        maxRounds: rooms[code].maxRounds,
+        maxWords: rooms[code].maxWords,
         state: rooms[code].state
     });
 }
@@ -279,29 +327,25 @@ function sendNextWord(roomCode) {
         }
     }
 
-    if (room.round >= room.words.length) {
-        // If Hidden Role mode, start Accusation Phase
+    if (room.wordIndex >= room.words.length) {
         if (room.mode === 'saboteur' || room.mode === 'vip') {
             room.state = 'accusation';
-            io.to(roomCode).emit('startAccusation', { 
-                mode: room.mode,
-                players: room.players // Send list so they can pick
-            });
+            io.to(roomCode).emit('startAccusation', { mode: room.mode, players: room.players });
         } else {
             processGameEnd(roomCode);
         }
         return;
     }
 
-    const word = room.words[room.round];
+    const word = room.words[room.wordIndex];
     room.currentVotes = {};
     room.currentVoteTimes = {};
     room.wordStartTime = Date.now();
     
     io.to(roomCode).emit('nextWord', { 
         word: word, 
-        roundCurrent: room.round + 1, 
-        roundTotal: room.maxRounds 
+        wordCurrent: room.wordIndex + 1, 
+        wordTotal: room.maxWords 
     });
 }
 
@@ -309,17 +353,13 @@ function processGameEnd(roomCode, abortReason = null) {
     const room = rooms[roomCode];
     if (!room) return;
 
-    // --- CALCULATE ACCUSATION BONUSES ---
     if (room.state === 'accusation' && !abortReason) {
         const targetRole = room.mode === 'saboteur' ? room.saboteurId : room.vipId;
-        
         for (const [voterId, accusedId] of Object.entries(room.accusationVotes)) {
-            // Can't vote for yourself to get points (optional rule, but good for fairness)
             if (voterId === targetRole) continue; 
-            
             if (accusedId === targetRole) {
                 const p = room.players.find(p => p.id === voterId);
-                if (p) p.score += 5; // BONUS POINTS!
+                if (p) p.score += 5; 
             }
         }
     }
@@ -338,10 +378,10 @@ function processGameEnd(roomCode, abortReason = null) {
     emitUpdate(roomCode);
 }
 
-function finishRound(roomCode) {
+function finishWord(roomCode) {
     const room = rooms[roomCode];
     if (!room) return;
-    const currentWord = room.words[room.round];
+    const currentWord = room.words[room.wordIndex];
     const votes = room.currentVotes;
     
     const getMajority = (voteList) => {
@@ -370,24 +410,16 @@ function finishRound(roomCode) {
         const bSync = calcSync(blueV);
         
         let msgExt = "";
-
         if (rSync > bSync) room.scores.red++;
         else if (bSync > rSync) room.scores.blue++;
         else {
             const getAvg = (members) => {
-                let total = 0;
-                let count = 0;
-                members.forEach(p => {
-                    if(room.currentVoteTimes[p.id]) {
-                        total += (room.currentVoteTimes[p.id] - room.wordStartTime);
-                        count++;
-                    }
-                });
+                let total = 0; let count = 0;
+                members.forEach(p => { if(room.currentVoteTimes[p.id]) { total += (room.currentVoteTimes[p.id] - room.wordStartTime); count++; } });
                 return count ? total/count : 999999;
             };
             const rTime = getAvg(redM);
             const bTime = getAvg(blueM);
-
             if (rTime < bTime) { room.scores.red++; msgExt = "(Red Faster!)"; } 
             else if (bTime < rTime) { room.scores.blue++; msgExt = "(Blue Faster!)"; }
         }
@@ -411,7 +443,7 @@ function finishRound(roomCode) {
              const sync = Math.round((Math.max(g, b) / allVotes.length) * 100);
              if (sync === 100) room.players.forEach(p => { if (p.id !== room.saboteurId && !p.isSpectator) p.score += 2; });
              else { const s = room.players.find(p=>p.id===room.saboteurId); if(s) s.score+=3; }
-             resultData = { msg: sync===100 ? "100% Sync! Traitor Failed." : `Sync Broken (${sync}%)! Traitor Wins.` };
+             resultData = { msg: sync===100 ? "100% Sync! Saboteur Failed." : `Sync Broken (${sync}%)! Saboteur Wins.` };
         } else if (room.mode === 'survival') {
              if (maj !== 'draw') {
                 room.players.forEach(p => {
@@ -441,9 +473,15 @@ function finishRound(roomCode) {
         votes: votes 
     });
 
-    room.round++;
+    room.wordIndex++;
     setTimeout(() => sendNextWord(roomCode), 3000);
 }
+
+app.get('/kids_words.txt', (req, res) => {
+    const p = path.join(__dirname, 'kids_words.txt');
+    if (fs.existsSync(p)) res.sendFile(p);
+    else res.status(404).send(""); // Send empty if missing, frontend handles logic
+});
 
 app.get('/api/words/all', async (req, res) => { try { res.json(await Word.find().sort({ createdAt: -1 })); } catch (e) { res.json([]); } });
 app.get('/api/words', async (req, res) => { try { res.json(await Word.aggregate([{ $sample: { size: 1 } }])); } catch (e) { res.json({message:"Error"}); } });
@@ -454,5 +492,4 @@ app.post('/api/leaderboard', async (req, res) => { try { await Leaderboard.findO
 app.get('/api/scores', async (req, res) => { try { res.json(await Score.find().sort({score:-1}).limit(10)); } catch(e){res.json([])} });
 app.post('/api/scores', async (req, res) => { try { const s = new Score(req.body); await s.save(); res.json(s); } catch(e){res.json({})} });
 
-const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Server on ${PORT}`));
