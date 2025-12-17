@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.72.8', 
+    APP_VERSION: '5.72.9', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4274,6 +4274,253 @@ const DiscoveryManager = {
     }
 };
 
+const RoomManager = {
+    socket: null,
+    active: false,
+    roomCode: '',
+    playerId: null,
+    isHost: false,
+
+    init() {
+        // 1. Inject Socket.io Script dynamically if not present
+        if (!window.io) {
+            const script = document.createElement('script');
+            script.src = "/socket.io/socket.io.js"; // Standard path
+            script.onload = () => this.connect();
+            document.head.appendChild(script);
+        } else {
+            this.connect();
+        }
+
+        // 2. Inject Button
+        const btn = document.createElement('button');
+        btn.id = 'roomBtn';
+        btn.className = 'p-2 rounded-full hover:bg-gray-100 transition relative group';
+        btn.innerHTML = `<span class="text-xl">📡</span>`; // Satellite Dish Icon for Live
+        btn.onclick = () => this.openLobby();
+        const tip = document.createElement('div');
+        tip.className = 'absolute top-full right-0 mt-2 bg-gray-800 text-white text-xs font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-50';
+        tip.textContent = 'Live Room';
+        btn.appendChild(tip);
+        const settingsBtn = document.getElementById('showSettingsButton');
+        if (settingsBtn && settingsBtn.parentNode) settingsBtn.parentNode.insertBefore(btn, settingsBtn);
+        
+        this.injectModal();
+    },
+
+    connect() {
+        this.socket = io();
+        this.socket.on('connect', () => {
+            this.playerId = this.socket.id;
+            console.log("Connected to Live Server", this.playerId);
+        });
+
+        // --- LISTENERS ---
+
+        // 1. Room Update (Lobby)
+        this.socket.on('roomUpdate', (data) => {
+            this.renderLobby(data);
+            this.isHost = (data.host === this.playerId);
+            if (data.state === 'playing') this.closeLobby();
+        });
+
+        // 2. Game Started
+        this.socket.on('gameStarted', (data) => {
+            this.active = true;
+            State.runtime.isMultiplayer = true;
+            this.closeLobby();
+            UIManager.showMessage(`Game Starting! ${data.totalRounds} rounds.`);
+            // Hide daily banner
+            if(DOM.game.dailyBanner) DOM.game.dailyBanner.style.display = 'none';
+        });
+
+        // 3. Next Word (The Server Drives This)
+        this.socket.on('nextWord', (data) => {
+            const { word, roundCurrent, roundTotal } = data;
+            
+            // Clean up previous round visuals
+            this.clearAvatars();
+            
+            // Set word manually
+            const wObj = { 
+                _id: word._id, 
+                text: word.text, 
+                goodVotes: word.goodVotes, 
+                badVotes: word.badVotes 
+            };
+            
+            State.runtime.currentWordIndex = -1; // Prevent local logic interference
+            State.runtime.allWords = [wObj]; // Just this word
+            
+            UIManager.displayWord(wObj);
+            UIManager.showPostVoteMessage(`Round ${roundCurrent}/${roundTotal}`);
+        });
+
+        // 4. Someone Voted
+        this.socket.on('playerVoted', (data) => {
+            // Show a visual indicator (checkmark)
+            const pEl = document.getElementById(`p-avatar-${data.playerId}`);
+            if (pEl) pEl.classList.add('voted-pulse');
+        });
+
+        // 5. Round Result
+        this.socket.on('roundResult', (data) => {
+            const { results, majority, word } = data;
+            
+            // Show result visuals
+            results.forEach(r => {
+                const pEl = document.getElementById(`p-avatar-${r.id}`);
+                if (pEl) {
+                    pEl.innerHTML = r.isCorrect ? '✅' : '❌';
+                    if (r.id === this.playerId) {
+                         const msg = r.isCorrect ? "Sync!" : "Out of sync!";
+                         UIManager.showPostVoteMessage(`${msg} (Majority: ${majority.toUpperCase()})`);
+                    }
+                }
+            });
+        });
+
+        // 6. Game Over
+        this.socket.on('gameOver', (data) => {
+            this.active = false;
+            State.runtime.isMultiplayer = false;
+            this.showFinalResults(data.scores);
+        });
+    },
+
+    openLobby() {
+        const m = document.getElementById('roomModal');
+        if (m) m.classList.remove('hidden');
+    },
+    closeLobby() {
+        const m = document.getElementById('roomModal');
+        if (m) m.classList.add('hidden');
+    },
+    
+    injectModal() {
+        if (document.getElementById('roomModal')) return;
+        const div = document.createElement('div');
+        div.id = 'roomModal';
+        div.className = 'fixed inset-0 bg-gray-900 bg-opacity-95 z-[200] hidden flex items-center justify-center';
+        div.innerHTML = `
+            <div class="bg-white rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl relative">
+                <button onclick="RoomManager.closeLobby()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">✕</button>
+                <div class="text-center mb-6">
+                    <div class="inline-block p-3 bg-indigo-100 rounded-full mb-3 text-2xl">📡</div>
+                    <h3 class="text-2xl font-black text-gray-800">Live Room</h3>
+                    <p class="text-gray-500 text-sm">Real-time sync voting!</p>
+                </div>
+                
+                <div id="roomJoinScreen" class="space-y-4">
+                    <input id="roomCodeInput" type="text" maxlength="6" placeholder="ROOM CODE" class="w-full text-center text-2xl font-black tracking-widest p-3 border-2 border-indigo-100 rounded-xl focus:border-indigo-500 focus:outline-none uppercase text-indigo-600">
+                    <button onclick="RoomManager.join()" class="w-full py-4 bg-indigo-600 text-white font-black rounded-xl text-lg shadow-lg hover:bg-indigo-700">JOIN / CREATE</button>
+                </div>
+
+                <div id="roomLobbyScreen" class="hidden space-y-4">
+                    <div class="bg-gray-50 p-4 rounded-xl text-center">
+                        <div class="text-xs font-bold text-gray-400 uppercase">Room Code</div>
+                        <div id="lobbyCodeDisplay" class="text-3xl font-black text-indigo-600 tracking-widest">---</div>
+                    </div>
+                    
+                    <div>
+                        <div class="text-xs font-bold text-gray-400 uppercase mb-2">Players</div>
+                        <div id="lobbyPlayerList" class="space-y-2 max-h-40 overflow-y-auto"></div>
+                    </div>
+
+                    <button id="roomStartBtn" onclick="RoomManager.start()" class="w-full py-4 bg-green-500 text-white font-black rounded-xl text-lg shadow-lg hover:bg-green-600 hidden">
+                        START GAME
+                    </button>
+                    <div id="roomWaitMsg" class="text-center text-sm text-gray-400 hidden">Waiting for host to start...</div>
+                </div>
+            </div>`;
+        document.body.appendChild(div);
+        
+        // Inject Avatar Bar into Header for Live View
+        const bar = document.createElement('div');
+        bar.id = 'room-avatar-bar';
+        bar.className = 'fixed top-16 left-0 w-full flex justify-center gap-2 pointer-events-none z-50';
+        document.body.appendChild(bar);
+    },
+
+    join() {
+        const inp = document.getElementById('roomCodeInput');
+        const code = inp.value.trim().toUpperCase();
+        if (!code) return;
+        this.roomCode = code;
+        
+        const username = State.data.username || "Anonymous";
+        this.socket.emit('joinRoom', { roomCode: code, username });
+        
+        document.getElementById('roomJoinScreen').classList.add('hidden');
+        document.getElementById('roomLobbyScreen').classList.remove('hidden');
+        document.getElementById('lobbyCodeDisplay').textContent = code;
+    },
+
+    renderLobby(data) {
+        const list = document.getElementById('lobbyPlayerList');
+        list.innerHTML = data.players.map(p => `
+            <div class="flex items-center justify-between bg-white p-2 rounded border border-gray-100">
+                <div class="flex items-center gap-2">
+                    <span class="text-lg">${p.id === data.host ? '👑' : '👤'}</span>
+                    <span class="font-bold text-gray-700 text-sm">${p.name}</span>
+                </div>
+                ${p.id === this.playerId ? '<span class="text-xs bg-indigo-100 text-indigo-600 px-2 rounded-full">YOU</span>' : ''}
+            </div>
+        `).join('');
+        
+        const startBtn = document.getElementById('roomStartBtn');
+        const waitMsg = document.getElementById('roomWaitMsg');
+        
+        if (data.host === this.playerId) {
+            startBtn.classList.remove('hidden');
+            waitMsg.classList.add('hidden');
+        } else {
+            startBtn.classList.add('hidden');
+            waitMsg.classList.remove('hidden');
+        }
+    },
+    
+    start() {
+        this.socket.emit('startGame', { roomCode: this.roomCode, rounds: 10 });
+    },
+    
+    clearAvatars() {
+        // Render players at top of screen
+        const bar = document.getElementById('room-avatar-bar');
+        // We need the latest player list... actually we can just request it or keep local cache.
+        // For simplicity, let's just create generic slots or keep existing ones if possible.
+        // Since we don't have the full list in 'nextWord', we rely on persistent avatars or re-rendering.
+        // Let's rely on persistent avatars created in 'roomUpdate'? No, roomUpdate is for lobby.
+        // Let's just create a simple "Voted" indicator.
+        if(bar) bar.innerHTML = ''; 
+    },
+
+    submitVote(type) {
+        if (!this.active) return;
+        this.socket.emit('submitVote', { roomCode: this.roomCode, vote: type });
+    },
+
+    showFinalResults(scores) {
+        let html = '';
+        Object.entries(scores).sort((a,b) => b[1] - a[1]).forEach(([id, score], i) => {
+            html += `<div class="flex justify-between py-2 border-b border-gray-700">
+                <span class="text-white">${i+1}. ${id === this.playerId ? 'YOU' : 'Player'}</span>
+                <span class="font-bold text-yellow-400">${score} pts</span>
+            </div>`;
+        });
+
+        const div = document.createElement('div');
+        div.className = 'fixed inset-0 bg-black/90 z-[300] flex items-center justify-center p-4';
+        div.innerHTML = `
+            <div class="bg-gray-800 rounded-2xl w-full max-w-md p-6 border-2 border-indigo-500">
+                <h2 class="text-3xl font-black text-white text-center mb-4">GAME OVER</h2>
+                <div class="space-y-2 mb-6">${html}</div>
+                <button onclick="this.closest('.fixed').remove(); RoomManager.openLobby()" class="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl">Back to Lobby</button>
+            </div>`;
+        document.body.appendChild(div);
+    }
+};
+
 // --- MAIN GAME LOGIC ---
 const Game = {
 
@@ -4805,6 +5052,7 @@ if (qrBad) {
             InputHandler.init();
             ThemeManager.init();
             ModalManager.init();
+			RoomManager.init();
             UIManager.updateProfileDisplay();
             MosquitoManager.startMonitoring();
             this.checkDailyStatus();
@@ -4962,6 +5210,7 @@ async refreshData(u = true) {
     },
 
 	nextWord() {
+		if (State.runtime.isMultiplayer) return;
         let p = State.runtime.allWords;
         if (!p || p.length === 0) return;
 
@@ -5092,6 +5341,21 @@ async refreshData(u = true) {
 
     async vote(t, s = false) {
         if (State.runtime.isCoolingDown) return;
+		
+		if (State.runtime.isMultiplayer && typeof RoomManager !== 'undefined' && RoomManager.active) {
+             RoomManager.submitVote(t);
+             // Just show visual feedback locally, but DON'T hit the API or call nextWord()
+             // We wait for the server event instead.
+             UIManager.disableButtons(true); // Lock buttons
+             const wd = DOM.game.wordDisplay;
+             const colors = Accessibility.getColors();
+             if (t === 'good' || t === 'bad') {
+                 wd.style.color = t === 'good' ? colors.good : colors.bad;
+                 wd.style.opacity = '0.5'; // Dim it to show "Waiting"
+             }
+             return; // Stop execution here
+        }
+		
         const n = Date.now();
         if (State.runtime.lastVoteTime > 0 && (n - State.runtime.lastVoteTime) > CONFIG.VOTE.STREAK_WINDOW) {
             State.runtime.mashCount = 1;
