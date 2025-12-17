@@ -31,6 +31,17 @@ const Word = mongoose.model('Word', wordSchema);
 // --- ROOM MANAGER ---
 const rooms = {};
 
+// Mode Requirements (Min Players)
+const MODE_MINS = {
+    'coop': 2,
+    'versus': 4,
+    'vip': 3,
+    'hipster': 3,
+    'speed': 2,
+    'survival': 3,
+    'saboteur': 3
+};
+
 function shuffle(array) {
     for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -55,7 +66,7 @@ io.on('connection', (socket) => {
                 maxRounds: 10,
                 words: [],
                 currentVotes: {},
-                currentVoteTimes: {}, // New: Track speed
+                currentVoteTimes: {},
                 scores: { red: 0, blue: 0, coop: 0 },
                 vipId: null,
                 saboteurId: null,
@@ -64,15 +75,12 @@ io.on('connection', (socket) => {
         }
 
         const room = rooms[code];
-        
-        // OPTION 5: LATE JOIN / SPECTATOR
-        // If game is playing, new players are spectators
         const isSpectator = (room.state === 'playing');
 
         const existing = room.players.find(p => p.id === socket.id);
         if (existing) {
             existing.name = username || 'Player';
-            existing.isSpectator = isSpectator; // Update status
+            existing.isSpectator = isSpectator; 
         } else {
             room.players.push({ 
                 id: socket.id, 
@@ -86,7 +94,6 @@ io.on('connection', (socket) => {
         
         emitUpdate(code);
         
-        // If joining late, send them the current word immediately so they can watch
         if (isSpectator && room.words[room.round]) {
             socket.emit('gameStarted', { totalRounds: room.maxRounds, mode: room.mode });
             socket.emit('nextWord', { 
@@ -105,23 +112,22 @@ io.on('connection', (socket) => {
         emitUpdate(roomCode);
     });
     
-    // OPTION 4: KICK PLAYER
     socket.on('kickPlayer', ({ roomCode, targetId }) => {
         const room = rooms[roomCode];
-        if (!room || room.host !== socket.id) return; // Only host
-        if (targetId === room.host) return; // Can't kick self
+        if (!room || room.host !== socket.id) return;
+        if (targetId === room.host) return;
 
-        // Find socket to disconnect
         const targetSocket = io.sockets.sockets.get(targetId);
         if (targetSocket) {
             targetSocket.emit('kicked');
-            targetSocket.disconnect(); // Force disconnect
+            targetSocket.disconnect();
         }
         
-        // Remove from list
         const idx = room.players.findIndex(p => p.id === targetId);
-        if(idx !== -1) room.players.splice(idx, 1);
-        
+        if(idx !== -1) {
+            room.players.splice(idx, 1);
+            checkInsufficientPlayers(roomCode); // Check if game should end
+        }
         emitUpdate(roomCode);
     });
 
@@ -137,14 +143,12 @@ io.on('connection', (socket) => {
         room.vipId = null;
         room.saboteurId = null;
 
-        // Reset All Players (Clear Spectator Status)
         room.players.forEach(p => {
             p.lives = 3;
-            p.isSpectator = false; // Everyone in lobby plays
-            p.score = 0; // Optional: Reset scores per game?
+            p.isSpectator = false;
+            p.score = 0; 
         });
 
-        // Setup Teams/Roles
         if (room.mode === 'versus') {
             const shuffled = shuffle([...room.players]);
             shuffled.forEach((p, i) => {
@@ -183,12 +187,11 @@ io.on('connection', (socket) => {
         if (!room || room.state !== 'playing') return;
 
         const player = room.players.find(p => p.id === socket.id);
-        // Spectators & Dead players can't vote
         if (!player || player.isSpectator) return;
         if (room.mode === 'survival' && player.lives <= 0) return;
 
         room.currentVotes[socket.id] = vote;
-        room.currentVoteTimes[socket.id] = Date.now(); // Record Time
+        room.currentVoteTimes[socket.id] = Date.now();
         
         io.to(roomCode).emit('playerVoted', { playerId: socket.id });
 
@@ -211,12 +214,56 @@ io.on('connection', (socket) => {
                     delete rooms[code];
                 } else {
                     if (wasHost) room.host = room.players[0].id;
+                    checkInsufficientPlayers(code); // Check if game should end
                     emitUpdate(code);
                 }
             }
         }
     });
 });
+
+// --- NEW HELPER: Check if game is broken ---
+function checkInsufficientPlayers(roomCode) {
+    const room = rooms[roomCode];
+    if (!room || room.state !== 'playing') return;
+
+    const activeCount = room.players.filter(p => !p.isSpectator).length;
+    const minNeeded = MODE_MINS[room.mode] || 2;
+    let abort = false;
+    let reason = "";
+
+    // Rule 1: Not enough humans total
+    if (activeCount < minNeeded) {
+        abort = true;
+        reason = "Not enough players remaining!";
+    }
+
+    // Rule 2: Versus needs both teams
+    if (room.mode === 'versus') {
+        const redC = room.players.filter(p => p.team === 'red' && !p.isSpectator).length;
+        const blueC = room.players.filter(p => p.team === 'blue' && !p.isSpectator).length;
+        if (redC === 0 || blueC === 0) {
+            abort = true;
+            reason = "One team is empty!";
+        }
+    }
+
+    if (abort) {
+        // Trigger Game Over immediately
+        const rankings = [...room.players].sort((a,b) => b.score - a.score);
+        io.to(roomCode).emit('gameOver', { 
+            scores: room.scores, 
+            mode: room.mode, 
+            rankings,
+            specialRoleId: room.vipId || room.saboteurId,
+            msg: `GAME ENDED: ${reason}` // Send reason to frontend
+        });
+        
+        // Reset state
+        room.state = 'lobby';
+        emitUpdate(roomCode);
+    }
+}
 
 function emitUpdate(code) {
     if (!rooms[code]) return;
@@ -240,7 +287,7 @@ function sendNextWord(roomCode) {
                 scores: room.scores, 
                 mode: room.mode, 
                 rankings: room.players.sort((a,b)=>b.score - a.score),
-                specialRoleId: room.vipId || room.saboteurId // OPTION 1: Reveal
+                specialRoleId: room.vipId || room.saboteurId
             });
             return;
         }
@@ -252,7 +299,7 @@ function sendNextWord(roomCode) {
             scores: room.scores, 
             mode: room.mode, 
             rankings,
-            specialRoleId: room.vipId || room.saboteurId // OPTION 1: Reveal
+            specialRoleId: room.vipId || room.saboteurId
         });
         return;
     }
@@ -305,8 +352,6 @@ function finishRound(roomCode) {
         if (rSync > bSync) room.scores.red++;
         else if (bSync > rSync) room.scores.blue++;
         else {
-            // OPTION 8: SPEED TIE BREAKER
-            // Calculate average time
             const getAvg = (members) => {
                 let total = 0;
                 let count = 0;
@@ -331,7 +376,6 @@ function finishRound(roomCode) {
             }
         }
 
-        // Individual Scores
         const rMaj = getMajority(redV);
         const bMaj = getMajority(blueV);
         room.players.forEach(p => {
@@ -342,11 +386,9 @@ function finishRound(roomCode) {
         resultData = { redSync: rSync, blueSync: bSync, msg: msgExt ? `Tie Break! ${msgExt}` : null };
 
     } else {
-        // ... (Other modes logic matches previous turn, but simplified here for brevity)
         const allVotes = Object.values(votes);
         const maj = getMajority(allVotes);
         
-        // --- LOGIC FOR SCORING (Same as before) ---
         if(room.mode === 'saboteur') {
              const g = allVotes.filter(x => x === 'good').length;
              const b = allVotes.filter(x => x === 'bad').length;
@@ -366,7 +408,6 @@ function finishRound(roomCode) {
              }
              resultData = { msg: `Majority: ${maj.toUpperCase()}` };
         } else {
-             // CO-OP
              const g = allVotes.filter(x => x === 'good').length;
              const b = allVotes.filter(x => x === 'bad').length;
              const sync = Math.round((Math.max(g, b) / allVotes.length) * 100);
@@ -381,16 +422,15 @@ function finishRound(roomCode) {
         data: resultData,
         word: currentWord.text,
         players: room.players,
-        votes: votes // OPTION 2: Send votes for reveal
+        votes: votes 
     });
 
     room.round++;
-    // SLOWER PACING: 3 Seconds to see the visual reveal
     setTimeout(() => sendNextWord(roomCode), 3000);
 }
 
 app.get('/api/words/all', async (req, res) => { try { res.json(await Word.find().sort({ createdAt: -1 })); } catch (e) { res.json([]); } });
 app.get('/api/words', async (req, res) => { try { res.json(await Word.aggregate([{ $sample: { size: 1 } }])); } catch (e) { res.json({message:"Error"}); } });
-// ... rest matches previous ...
+
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Server on ${PORT}`));
