@@ -4292,8 +4292,6 @@ const DiscoveryManager = {
     }
 };
 
-// ... (Previous API Object and Code) ...
-
 const RoomManager = {
     socket: null,
     active: false,
@@ -4342,27 +4340,38 @@ const RoomManager = {
         
         this.socket.on('connect', () => { 
             this.playerId = this.socket.id; 
+            
+            // --- FIX: NO AUTO JOIN, JUST PRE-FILL ---
             const savedCode = localStorage.getItem('lastRoomCode');
             const savedName = localStorage.getItem('username');
+            
             if (savedCode && savedName && !this.active) {
-                this.roomCode = savedCode;
-                this.socket.emit('joinRoom', { roomCode: savedCode, username: savedName });
+                // Pre-fill values but DO NOT join automatically
+                if(document.getElementById('roomCodeInput')) {
+                    document.getElementById('roomCodeInput').value = savedCode;
+                }
+                // Open the modal so they see it
+                this.openLobby();
             }
         });
 
         this.socket.on('roomUpdate', (data) => {
+            // Only switch screens if we are actually in the game
             if (!this.active && document.getElementById('roomModal').classList.contains('hidden')) {
+                // If the game is already playing and I just joined, show banner
                 if (data.state === 'playing') {
                      this.active = true;
                      State.runtime.isMultiplayer = true;
                      this.showActiveBanner();
                 } else {
+                     // Otherwise show lobby
                      this.openLobby();
                      document.getElementById('roomJoinScreen').classList.add('hidden');
                      document.getElementById('roomLobbyScreen').classList.remove('hidden');
                      document.getElementById('lobbyCodeDisplay').textContent = this.roomCode;
                 }
             }
+
             this.isHost = (data.host === this.playerId);
             this.currentMode = data.mode;
             this.currentRounds = data.maxWords; 
@@ -4373,6 +4382,7 @@ const RoomManager = {
                 this.myTeam = me.team;
                 this.isSpectator = me.isSpectator;
             } else {
+                // If I'm not in the list, I shouldn't think I'm in the room
                 localStorage.removeItem('lastRoomCode');
             }
         });
@@ -4417,7 +4427,6 @@ const RoomManager = {
             UIManager.displayWord(wObj);
             UIManager.disableButtons(this.isSpectator);
             
-            // TERMINOLOGY FIX: Word x/y
             UIManager.showPostVoteMessage(`Word ${data.wordCurrent}/${data.wordTotal}`);
         });
 
@@ -4633,7 +4642,9 @@ const RoomManager = {
             this.closeLobby();
             const ids = ['active-role-alert', 'spectator-banner', 'active-accusation'];
             ids.forEach(id => { const el = document.getElementById(id); if(el) el.remove(); });
-            setTimeout(() => window.location.reload(), 100);
+            
+            // SMALL DELAY to ensure server gets the leave msg
+            setTimeout(() => window.location.reload(), 200);
         };
         if (force) doit();
         else this.showCustomConfirm("Leave game?", doit);
@@ -4684,13 +4695,12 @@ const RoomManager = {
                 modeOpts += `<option value="${key}" ${data.mode===key?'selected':''}>${val.label}${note}</option>`;
             }
             
-            // --- UPDATED LABELING ---
-            const labels = { 1: 'Just a quickie!', 5: 'Quick Game', 10: 'Ten Word Game', 15: 'Fifteen Word Game', 20: 'Twenty Word Game', 30: 'Marathon' };
-            let roundOpts = `<option value="1" ${data.maxWords==1?'selected':''}>🚀 Just a quickie! (1 Word)</option>`;
-            [5, 10, 15, 20, 30].forEach(r => { 
-                const lbl = labels[r] || `${r} Words`;
-                roundOpts += `<option value="${r}" ${data.maxWords==r?'selected':''}>${lbl} (${r} Words)</option>`; 
-            });
+            // --- FIXED LABELS ---
+            let roundOpts = `<option value="5" ${data.maxWords==5?'selected':''}>Just a quickie! (5 words)</option>
+                             <option value="10" ${data.maxWords==10?'selected':''}>Ten Word Game</option>
+                             <option value="15" ${data.maxWords==15?'selected':''}>Fifteen Word Game</option>
+                             <option value="20" ${data.maxWords==20?'selected':''}>Twenty Word Game</option>
+                             <option value="30" ${data.maxWords==30?'selected':''}>Marathon (30 Words)</option>`;
 
             settingsHtml = `
                 <div class="bg-gray-100 p-3 rounded-lg mb-4">
@@ -4813,268 +4823,6 @@ const RoomManager = {
                 <div class="text-center text-gray-300 text-sm mb-4">${this.modeConfig[data.mode].label}</div>
                 ${roleReveal}
                 <div class="text-xs text-gray-400 font-bold uppercase mt-4">Round Leaderboard</div>
-                ${rankHtml}
-                <div class="flex gap-2 mt-6">
-                    <button onclick="this.closest('.fixed').remove(); Game.refreshData(false);" class="flex-1 py-3 bg-gray-700 text-white font-bold rounded-xl">Exit</button>
-                    <button onclick="this.closest('.fixed').remove(); RoomManager.openLobby()" class="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl">New Game</button>
-                </div>
-            </div>`;
-        document.body.appendChild(div);
-    }, // <--- CHANGED FROM }; TO },
-
-    // --- STANDARD LOGIC ---
-
-    kick(id) { 
-        // Updated to use custom modal instead of browser confirm
-        this.showCustomConfirm("Kick this player?", () => {
-            this.socket.emit('kickPlayer', { roomCode: this.roomCode, targetId: id });
-        });
-    },
-
-    showVoteReveal(players, votes) {
-        const div = document.createElement('div');
-        div.id = 'active-vote-reveal';
-        div.className = 'reveal-overlay';
-        div.innerHTML = players.map(p => {
-            if(p.isSpectator) return '';
-            const v = votes[p.id];
-            let style = v === 'good' ? 'vote-good' : (v === 'bad' ? 'vote-bad' : 'vote-none');
-            let icon = v === 'good' ? '👍' : (v === 'bad' ? '👎' : '⏳');
-            if (this.currentMode === 'survival' && p.lives <= 0) { style = 'bg-gray-200 text-gray-400 border-gray-300'; icon = '💀'; }
-            return `<div class="reveal-card ${style}">${icon} ${p.name}</div>`;
-        }).join('');
-        document.body.appendChild(div);
-    },
-
-    showSpectatorBanner() {
-        const div = document.createElement('div');
-        div.id = 'spectator-banner';
-        div.innerHTML = "👁️ SPECTATING";
-        document.body.appendChild(div);
-    },
-
-    updateSettings() {
-        if(!this.isHost) return;
-        const mode = document.getElementById('hostModeSelect').value;
-        const rounds = document.getElementById('hostRoundSelect').value;
-        this.socket.emit('updateSettings', { roomCode: this.roomCode, mode, rounds });
-    },
-
-    showActiveBanner() {
-        const existing = document.getElementById('room-active-banner');
-        if(existing) existing.remove();
-        const banner = document.createElement('div');
-        banner.id = 'room-active-banner';
-        banner.style.cssText = "position:fixed; top:0; left:0; width:100%; height:60px; background:white; z-index:200; display:flex; align-items:center; justify-content:space-between; padding:0 20px; box-shadow:0 2px 10px rgba(0,0,0,0.1);";
-        let config = this.modeConfig[this.currentMode];
-        banner.innerHTML = `
-            <div class="room-info"><span class="font-mono bg-gray-100 px-1 rounded">${this.roomCode}</span> | ${config.label}</div>
-            <button onclick="RoomManager.leave()" class="leave-btn">Exit</button>
-        `;
-        document.body.appendChild(banner);
-        document.body.style.paddingTop = '60px';
-    },
-
-    removeActiveBanner() {
-        const b = document.getElementById('room-active-banner');
-        if(b) b.remove();
-        document.body.style.paddingTop = '0';
-    },
-
-    leave() { 
-        if(confirm("Leave game?")) {
-            localStorage.removeItem('lastRoomCode'); // Clear save so we don't auto-rejoin
-            window.location.reload(); 
-        }
-    },
-
-    playCountdown(mode) {
-        const config = this.modeConfig[mode];
-        const div = document.createElement('div');
-        div.id = 'active-countdown';
-        div.className = 'countdown-overlay';
-        div.innerHTML = `
-            <div class="text-3xl font-black mb-4 text-center uppercase tracking-widest">${config.label}</div>
-            <div class="text-xl mb-8 text-center text-gray-300 max-w-md">${config.desc}</div>
-            <div id="cd-num" class="countdown-number text-yellow-400">5</div>
-        `;
-        document.body.appendChild(div);
-        let count = 5;
-        const el = document.getElementById('cd-num');
-        const interval = setInterval(() => {
-            count--;
-            if(count > 0) {
-                el.textContent = count;
-                el.classList.remove('countdown-number'); void el.offsetWidth; el.classList.add('countdown-number');
-            } else if (count === 0) {
-                el.textContent = "GO!";
-                el.classList.add('text-green-400'); el.classList.remove('text-yellow-400');
-            } else {
-                clearInterval(interval); div.remove();
-            }
-        }, 1000);
-    },
-
-    setMode(m) { this.socket.emit('setMode', { roomCode: this.roomCode, mode: m }); },
-
-    renderLobby(data) {
-        const list = document.getElementById('lobbyPlayerList');
-        const config = this.modeConfig[data.mode];
-        const playerCount = data.players.length;
-        const minReq = config.min;
-        const enoughPlayers = playerCount >= minReq;
-
-        let settingsHtml = "";
-        
-        if (this.isHost) {
-            let modeOpts = "";
-            for (const [key, val] of Object.entries(this.modeConfig)) {
-                const note = (playerCount < val.min) ? ` (Need ${val.min}+)` : '';
-                modeOpts += `<option value="${key}" ${data.mode===key?'selected':''}>${val.label}${note}</option>`;
-            }
-            let roundOpts = `<option value="1" ${data.maxWords==1?'selected':''}>🚀 1 Word (Quickie)</option>`;
-            [5, 10, 15, 20, 30].forEach(r => { 
-                roundOpts += `<option value="${r}" ${data.maxWords==r?'selected':''}>${r} Words per Game</option>`; 
-            });
-
-            settingsHtml = `
-                <div class="bg-gray-100 p-3 rounded-lg mb-4">
-                    <label class="text-xs font-bold text-gray-400 uppercase">Game Mode</label>
-                    <select id="hostModeSelect" class="mode-select" onchange="RoomManager.updateSettings()">${modeOpts}</select>
-                    <label class="text-xs font-bold text-gray-400 uppercase">Words per Game</label>
-                    <select id="hostRoundSelect" class="round-select" onchange="RoomManager.updateSettings()">${roundOpts}</select>
-                    <div class="text-xs text-center text-gray-500 mt-1">${config.desc}</div>
-                    ${!enoughPlayers ? `<div class="text-xs text-center text-red-500 font-bold mt-2">⚠️ Not enough players (Need ${minReq}+)</div>` : ''}
-                </div>`;
-        } else {
-            // Guest View
-            settingsHtml = `
-                <div class="bg-indigo-50 p-4 rounded-lg mb-4 text-center border-2 border-indigo-100">
-                    <div class="font-black text-indigo-700 text-lg">${config.label}</div>
-                    <div class="text-sm text-gray-500 mb-2">${config.desc}</div>
-                    <div class="inline-block bg-white px-2 py-1 rounded border border-indigo-200 text-xs font-bold text-indigo-400">${data.maxWords} Words</div>
-                    ${!enoughPlayers ? `<div class="text-xs text-center text-red-500 font-bold mt-2">Waiting for more players...</div>` : ''}
-                </div>`;
-        }
-        document.getElementById('lobbyModeArea').innerHTML = settingsHtml;
-
-        list.innerHTML = data.players.map(p => {
-            let extra = "";
-            if (data.mode === 'survival') extra = `<span class="text-xs ml-2">${"❤️".repeat(p.lives)}</span>`;
-            
-            let kickHtml = "";
-            if (this.isHost && p.id !== this.playerId) {
-                kickHtml = `<span class="kick-btn" onclick="RoomManager.kick('${p.id}')">[x]</span>`;
-            }
-
-            return `<div class="flex justify-between items-center p-2 border-b text-sm">
-                <div class="flex items-center"><span class="font-bold text-gray-700">${p.name}</span> ${extra} ${p.id===data.host?'👑':''} ${kickHtml}</div>
-            </div>`;
-        }).join('');
-        
-        const startBtn = document.getElementById('roomStartBtn');
-        const waitMsg = document.getElementById('roomWaitMsg');
-        
-        if (this.isHost) {
-            startBtn.classList.remove('hidden');
-            waitMsg.classList.add('hidden');
-            if (!enoughPlayers) {
-                startBtn.disabled = true;
-                startBtn.classList.add('opacity-50', 'cursor-not-allowed');
-                startBtn.innerText = `NEED ${minReq} PLAYERS`;
-            } else {
-                startBtn.disabled = false;
-                startBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                startBtn.innerText = "START GAME";
-            }
-        } else {
-            startBtn.classList.add('hidden');
-            waitMsg.classList.remove('hidden');
-        }
-    },
-
-    injectModal() {
-        if (document.getElementById('roomModal')) return;
-        const div = document.createElement('div');
-        div.id = 'roomModal';
-        div.className = 'fixed inset-0 bg-gray-900 bg-opacity-95 z-[200] hidden flex items-center justify-center';
-        div.innerHTML = `
-            <div class="bg-white rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl relative">
-                <button onclick="RoomManager.closeLobby()" class="absolute top-4 right-4 text-gray-400">✕</button>
-                <div class="text-center mb-4"><h3 class="text-2xl font-black text-gray-800">MULTIPLAYER</h3></div>
-                <div id="roomJoinScreen" class="space-y-4">
-                    <input id="roomCodeInput" type="text" maxlength="6" placeholder="ROOM CODE" class="w-full text-center text-2xl font-black p-3 border-2 rounded-xl uppercase">
-                    <button onclick="RoomManager.join()" class="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl">JOIN ROOM</button>
-                </div>
-                <div id="roomLobbyScreen" class="hidden space-y-4">
-                    <div class="text-center"><div class="text-xs font-bold text-gray-400">CODE</div><div id="lobbyCodeDisplay" class="text-3xl font-black text-indigo-600 tracking-widest">---</div></div>
-                    <div id="lobbyModeArea"></div>
-                    <div class="bg-gray-50 p-2 rounded-xl h-32 overflow-y-auto" id="lobbyPlayerList"></div>
-                    <button id="roomStartBtn" onclick="RoomManager.start()" class="w-full py-3 bg-green-500 text-white font-bold rounded-xl hidden">START GAME</button>
-                    <div id="roomWaitMsg" class="text-center text-sm text-gray-400 hidden animate-pulse">Waiting for host...</div>
-                </div>
-            </div>`;
-        document.body.appendChild(div);
-    },
-    openLobby() { document.getElementById('roomModal').classList.remove('hidden'); },
-    closeLobby() { document.getElementById('roomModal').classList.add('hidden'); },
-    
-    join() {
-        const proceed = (name) => {
-             State.data.username = name.trim(); 
-             State.save('username', State.data.username); 
-             UIManager.updateProfileDisplay();
-             
-             const c = document.getElementById('roomCodeInput').value.trim().toUpperCase();
-             if(!c) return;
-             this.roomCode = c;
-             // SAVE ROOM CODE FOR AUTO REJOIN
-             localStorage.setItem('lastRoomCode', c);
-             
-             this.socket.emit('joinRoom', { roomCode: c, username: State.data.username });
-             document.getElementById('roomJoinScreen').classList.add('hidden');
-             document.getElementById('roomLobbyScreen').classList.remove('hidden');
-             document.getElementById('lobbyCodeDisplay').textContent = c;
-        };
-
-        if (!State.data.username || State.data.username === "Player" || State.data.username === "") {
-            this.showNameInput(proceed);
-        } else {
-            proceed(State.data.username);
-        }
-    },
-    
-    start() { this.socket.emit('startGame', { roomCode: this.roomCode }); },
-    submitVote(t) { if(this.active) this.socket.emit('submitVote', { roomCode: this.roomCode, vote: t }); },
-    
-    showFinalResults(data) {
-        let roleReveal = "";
-        if (data.specialRoleId) {
-            const roleName = (data.mode === 'saboteur') ? 'Saboteur' : 'VIP';
-            const icon = (data.mode === 'saboteur') ? '🕵️' : '👑';
-            const rolePlayer = data.rankings.find(p => p.id === data.specialRoleId);
-            
-            if (rolePlayer) {
-                roleReveal = `<div class="bg-yellow-100 text-yellow-800 p-2 rounded-lg font-bold text-center mb-4 border border-yellow-300 shadow-sm animate-bounce">
-                    ${icon} The ${roleName} was: <br><span class="text-xl">${rolePlayer.name.toUpperCase()}</span>
-                </div>`;
-            }
-        }
-
-        let rankHtml = `<div class="mt-4 max-h-40 overflow-y-auto bg-gray-900 rounded-lg p-2">`;
-        data.rankings.forEach((p, i) => {
-            rankHtml += `<div class="flex justify-between text-sm py-1 border-b border-gray-700 last:border-0"><span class="text-white">${i+1}. ${p.name}</span><span class="font-bold text-yellow-400">${p.score} pts</span></div>`;
-        });
-        rankHtml += `</div>`;
-        
-        const div = document.createElement('div');
-        div.className = 'fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-4';
-        div.innerHTML = `
-            <div class="bg-gray-800 rounded-2xl w-full max-w-md p-6 border-2 border-indigo-500 relative">
-                <h2 class="text-2xl font-black text-white text-center mb-2 uppercase">Results</h2>
-                <div class="text-center text-gray-300 text-sm mb-4">${this.modeConfig[data.mode].label}</div>
-                ${roleReveal}
-                <div class="text-xs text-gray-400 font-bold uppercase mt-4">Session Leaderboard</div>
                 ${rankHtml}
                 <div class="flex gap-2 mt-6">
                     <button onclick="this.closest('.fixed').remove(); Game.refreshData(false);" class="flex-1 py-3 bg-gray-700 text-white font-bold rounded-xl">Exit</button>
