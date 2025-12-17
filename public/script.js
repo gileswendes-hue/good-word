@@ -4624,18 +4624,34 @@ const RoomManager = {
     },
 
     leave(force = false) {
-        const doit = () => {
+        const performExit = () => {
+            // 1. Clear local storage so we don't auto-join on reload
             localStorage.removeItem('lastRoomCode'); 
-            this.socket.emit('leaveRoom', { roomCode: this.roomCode });
-            this.active = false;
-            this.removeActiveBanner();
-            this.closeLobby();
-            const ids = ['active-role-alert', 'spectator-banner', 'active-accusation'];
-            ids.forEach(id => { const el = document.getElementById(id); if(el) el.remove(); });
-            setTimeout(() => window.location.reload(), 200);
+            
+            // 2. Define the reload action
+            const goHome = () => window.location.reload();
+
+            // 3. Send leave signal WITH A CALLBACK
+            if (this.socket && this.socket.connected) {
+                // Set a safety timeout: if server doesn't reply in 2s, reload anyway
+                const safetyTimer = setTimeout(goHome, 2000);
+
+                this.socket.emit('leaveRoom', { roomCode: this.roomCode }, () => {
+                    clearTimeout(safetyTimer); // Cancel safety timer
+                    goHome(); // Server confirmed exit, safe to reload
+                });
+            } else {
+                // If not connected, just reload immediately
+                goHome();
+            }
         };
-        if (force) doit();
-        else this.showCustomConfirm("Leave game?", doit);
+
+        if (force) {
+            performExit();
+        } else {
+            // Use your custom game-style modal instead of browser popup
+            this.showCustomConfirm("LEAVE GAME?", performExit);
+        }
     },
 
     playCountdown(mode) {
@@ -4685,11 +4701,11 @@ const RoomManager = {
             
             // --- UPDATED LABELS ---
             let roundOpts = `<option value="1" ${data.maxWords==1?'selected':''}>🚀 1 Word (Quickie)</option>
-                             <option value="5" ${data.maxWords==5?'selected':''}>Just a quickie! (5 words)</option>
+                             <option value="5" ${data.maxWords==5?'selected':''}>Just a quickie! (Five Words)</option>
                              <option value="10" ${data.maxWords==10?'selected':''}>Ten Word Game</option>
                              <option value="15" ${data.maxWords==15?'selected':''}>Fifteen Word Game</option>
                              <option value="20" ${data.maxWords==20?'selected':''}>Twenty Word Game</option>
-                             <option value="30" ${data.maxWords==30?'selected':''}>Marathon (30 Words)</option>`;
+                             <option value="30" ${data.maxWords==30?'selected':''}>Marathon (Thirty Words)</option>`;
 
             settingsHtml = `
                 <div class="bg-gray-100 p-3 rounded-lg mb-4">
