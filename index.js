@@ -252,10 +252,10 @@ function finishRound(roomCode) {
 // --- API ROUTES ---
 // ------------------------------------------
 
-// 1. **NEW**: Get ALL words (Fixes Dictionary)
 app.get('/api/words/all', async (req, res) => {
     try {
-        const allWords = await Word.find().sort({ createdAt: -1 }).limit(1000);
+        // Removed .limit(1000) so it fetches everything
+        const allWords = await Word.find().sort({ createdAt: -1 }); 
         res.json(allWords);
     } catch (e) {
         res.status(500).json([]);
@@ -305,3 +305,4 @@ app.post('/api/scores', async (req, res) => {
 // Start Server
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Server on ${PORT}`));
+
