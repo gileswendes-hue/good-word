@@ -4340,27 +4340,38 @@ const RoomManager = {
         
         this.socket.on('connect', () => { 
             this.playerId = this.socket.id; 
+            
+            // --- FIX: NO AUTO JOIN, JUST PRE-FILL ---
             const savedCode = localStorage.getItem('lastRoomCode');
             const savedName = localStorage.getItem('username');
+            
             if (savedCode && savedName && !this.active) {
-                this.roomCode = savedCode;
-                this.socket.emit('joinRoom', { roomCode: savedCode, username: savedName });
+                // Pre-fill values but DO NOT join automatically
+                if(document.getElementById('roomCodeInput')) {
+                    document.getElementById('roomCodeInput').value = savedCode;
+                }
+                // Open the modal so they see it
+                this.openLobby();
             }
         });
 
         this.socket.on('roomUpdate', (data) => {
+            // Only switch screens if we are actually in the game
             if (!this.active && document.getElementById('roomModal').classList.contains('hidden')) {
+                // If the game is already playing and I just joined, show banner
                 if (data.state === 'playing') {
                      this.active = true;
                      State.runtime.isMultiplayer = true;
                      this.showActiveBanner();
                 } else {
+                     // Otherwise show lobby
                      this.openLobby();
                      document.getElementById('roomJoinScreen').classList.add('hidden');
                      document.getElementById('roomLobbyScreen').classList.remove('hidden');
                      document.getElementById('lobbyCodeDisplay').textContent = this.roomCode;
                 }
             }
+
             this.isHost = (data.host === this.playerId);
             this.currentMode = data.mode;
             this.currentRounds = data.maxWords; 
@@ -4371,6 +4382,7 @@ const RoomManager = {
                 this.myTeam = me.team;
                 this.isSpectator = me.isSpectator;
             } else {
+                // If I'm not in the list, I shouldn't think I'm in the room
                 localStorage.removeItem('lastRoomCode');
             }
         });
@@ -4630,7 +4642,9 @@ const RoomManager = {
             this.closeLobby();
             const ids = ['active-role-alert', 'spectator-banner', 'active-accusation'];
             ids.forEach(id => { const el = document.getElementById(id); if(el) el.remove(); });
-            setTimeout(() => window.location.reload(), 100);
+            
+            // SMALL DELAY to ensure server gets the leave msg
+            setTimeout(() => window.location.reload(), 200);
         };
         if (force) doit();
         else this.showCustomConfirm("Leave game?", doit);
@@ -4681,13 +4695,12 @@ const RoomManager = {
                 modeOpts += `<option value="${key}" ${data.mode===key?'selected':''}>${val.label}${note}</option>`;
             }
             
-            // --- CUSTOM LABELS ---
-            const labels = { 1: 'Just a quickie!', 5: 'Quick Game', 10: 'Ten Word Game', 15: 'Fifteen Word Game', 20: 'Twenty Word Game', 30: 'Marathon' };
-            let roundOpts = `<option value="1" ${data.maxWords==1?'selected':''}>🚀 Just a quickie! (1 Word)</option>`;
-            [5, 10, 15, 20, 30].forEach(r => { 
-                const lbl = labels[r] || `${r} Words`;
-                roundOpts += `<option value="${r}" ${data.maxWords==r?'selected':''}>${lbl} (${r} Words)</option>`; 
-            });
+            // --- FIXED LABELS ---
+            let roundOpts = `<option value="5" ${data.maxWords==5?'selected':''}>Just a quickie! (5 words)</option>
+                             <option value="10" ${data.maxWords==10?'selected':''}>Ten Word Game</option>
+                             <option value="15" ${data.maxWords==15?'selected':''}>Fifteen Word Game</option>
+                             <option value="20" ${data.maxWords==20?'selected':''}>Twenty Word Game</option>
+                             <option value="30" ${data.maxWords==30?'selected':''}>Marathon (30 Words)</option>`;
 
             settingsHtml = `
                 <div class="bg-gray-100 p-3 rounded-lg mb-4">
@@ -4816,36 +4829,6 @@ const RoomManager = {
                     <button onclick="this.closest('.fixed').remove(); RoomManager.openLobby()" class="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl">New Game</button>
                 </div>
             </div>`;
-        document.body.appendChild(div);
-    },
-
-    // --- STANDARD LOGIC ---
-
-    kick(id) { 
-        this.showCustomConfirm("Kick this player?", () => {
-            this.socket.emit('kickPlayer', { roomCode: this.roomCode, targetId: id });
-        });
-    },
-
-    showVoteReveal(players, votes) {
-        const div = document.createElement('div');
-        div.id = 'active-vote-reveal';
-        div.className = 'reveal-overlay';
-        div.innerHTML = players.map(p => {
-            if(p.isSpectator) return '';
-            const v = votes[p.id];
-            let style = v === 'good' ? 'vote-good' : (v === 'bad' ? 'vote-bad' : 'vote-none');
-            let icon = v === 'good' ? '👍' : (v === 'bad' ? '👎' : '⏳');
-            if (this.currentMode === 'survival' && p.lives <= 0) { style = 'bg-gray-200 text-gray-400 border-gray-300'; icon = '💀'; }
-            return `<div class="reveal-card ${style}">${icon} ${p.name}</div>`;
-        }).join('');
-        document.body.appendChild(div);
-    },
-
-    showSpectatorBanner() {
-        const div = document.createElement('div');
-        div.id = 'spectator-banner';
-        div.innerHTML = "👁️ SPECTATING";
         document.body.appendChild(div);
     }
 };
