@@ -1159,6 +1159,16 @@ const Physics = {
 
 const API = {
 
+async getAllWords() {
+        try {
+            const res = await fetch('/api/words/all');
+            return await res.json();
+        } catch (e) {
+            console.error("Dictionary load failed", e);
+            return [];
+        }
+    },
+
     async fetchWords(forceNetwork = false) {
         if (OfflineManager.isActive() && !forceNetwork) {
             console.log("Serving from Offline Cache 🚇");
