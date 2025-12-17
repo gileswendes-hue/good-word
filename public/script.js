@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.74', 
+    APP_VERSION: '5.75', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4304,13 +4304,13 @@ const RoomManager = {
     isSpectator: false,
 
     modeConfig: {
-        'coop': { label: '🤝 Co-op Sync', desc: 'Vote together! Get 100% Sync.', min: 2 },
-        'versus': { label: '⚔️ Team Versus', desc: 'Red vs Blue. Best Sync wins.', min: 4 },
+        'coop': { label: '🤝 Co-op Sync', desc: 'Vote together! Stick together.', min: 2 },
+        'versus': { label: '⚔️ Team Versus', desc: 'Red vs Blue. Agree to win!', min: 4 },
         'vip': { label: '👑 Follow the Leader', desc: 'One VIP. Vote exactly like them.', min: 3 },
         'hipster': { label: '🕶️ The Hipster', desc: 'Minority Rules. Be unique!', min: 3 },
-        'speed': { label: '⏱️ Speed Demon', desc: 'Vote fast! Speed + Majority wins.', min: 2 },
-        'survival': { label: '💣 Sudden Death', desc: '3 Lives. Vote with majority or die.', min: 3 },
-        'saboteur': { label: '🕵️ The Saboteur', desc: 'One Traitor tries to ruin sync.', min: 3 },
+        'speed': { label: '⏱️ Speed Demon', desc: 'Vote fast! Fast and accurate to win.', min: 2 },
+        'survival': { label: '💣 Sudden Death', desc: 'Three lives. Vote with majority or die.', min: 3 },
+        'saboteur': { label: '🕵️ The Saboteur', desc: 'One Traitor tries to ruin everything.', min: 3 },
         'kids': { label: '👶 Kids Mode', desc: 'Simple words. Family friendly!', min: 2 }
     },
 
@@ -4340,12 +4340,9 @@ const RoomManager = {
         
         this.socket.on('connect', () => { 
             this.playerId = this.socket.id; 
-            
-            // --- FIX: NO AUTO POPUP ---
-            // We only pre-fill the input box silently. We DO NOT call openLobby().
+            // PRE-FILL ONLY, NO AUTO-JOIN
             const savedCode = localStorage.getItem('lastRoomCode');
             const savedName = localStorage.getItem('username');
-            
             if (savedCode && savedName && !this.active) {
                 if (document.getElementById('roomCodeInput')) {
                     document.getElementById('roomCodeInput').value = savedCode;
@@ -4354,13 +4351,18 @@ const RoomManager = {
         });
 
         this.socket.on('roomUpdate', (data) => {
-            // Only force open if we are actually in the active game state
-            if (!this.active && data.state === 'playing' && document.getElementById('roomModal').classList.contains('hidden')) {
-                 this.active = true;
-                 State.runtime.isMultiplayer = true;
-                 this.showActiveBanner();
+            if (!this.active && document.getElementById('roomModal').classList.contains('hidden')) {
+                if (data.state === 'playing') {
+                     this.active = true;
+                     State.runtime.isMultiplayer = true;
+                     this.showActiveBanner();
+                } else {
+                     this.openLobby();
+                     document.getElementById('roomJoinScreen').classList.add('hidden');
+                     document.getElementById('roomLobbyScreen').classList.remove('hidden');
+                     document.getElementById('lobbyCodeDisplay').textContent = this.roomCode;
+                }
             }
-
             this.isHost = (data.host === this.playerId);
             this.currentMode = data.mode;
             this.currentRounds = data.maxWords; 
@@ -4371,8 +4373,6 @@ const RoomManager = {
                 this.myTeam = me.team;
                 this.isSpectator = me.isSpectator;
             } else {
-                // If I am not in the player list, I am not in the room.
-                // Clear local storage so I don't try to rejoin next time.
                 localStorage.removeItem('lastRoomCode');
             }
         });
@@ -4451,7 +4451,6 @@ const RoomManager = {
         });
     },
 
-    // --- UI HELPERS ---
     injectStyles() {
         if (document.getElementById('room-styles')) return;
         const s = document.createElement('style');
@@ -4627,18 +4626,12 @@ const RoomManager = {
     leave(force = false) {
         const doit = () => {
             localStorage.removeItem('lastRoomCode'); 
-            // Send explicit leave signal
             this.socket.emit('leaveRoom', { roomCode: this.roomCode });
-            
             this.active = false;
             this.removeActiveBanner();
             this.closeLobby();
-            
-            // Clean UI overlays
             const ids = ['active-role-alert', 'spectator-banner', 'active-accusation'];
             ids.forEach(id => { const el = document.getElementById(id); if(el) el.remove(); });
-            
-            // Reload after small delay to allow socket message to send
             setTimeout(() => window.location.reload(), 200);
         };
         if (force) doit();
@@ -4692,11 +4685,11 @@ const RoomManager = {
             
             // --- UPDATED LABELS ---
             let roundOpts = `<option value="1" ${data.maxWords==1?'selected':''}>🚀 1 Word (Quickie)</option>
-                             <option value="5" ${data.maxWords==5?'selected':''}>Just a quickie! (Five Words)</option>
+                             <option value="5" ${data.maxWords==5?'selected':''}>Just a quickie! (5 words)</option>
                              <option value="10" ${data.maxWords==10?'selected':''}>Ten Word Game</option>
                              <option value="15" ${data.maxWords==15?'selected':''}>Fifteen Word Game</option>
                              <option value="20" ${data.maxWords==20?'selected':''}>Twenty Word Game</option>
-                             <option value="30" ${data.maxWords==30?'selected':''}>Marathon (Thirty Words)</option>`;
+                             <option value="30" ${data.maxWords==30?'selected':''}>Marathon (30 Words)</option>`;
 
             settingsHtml = `
                 <div class="bg-gray-100 p-3 rounded-lg mb-4">
