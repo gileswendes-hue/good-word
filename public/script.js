@@ -4291,13 +4291,12 @@ const RoomManager = {
     playerId: null,
     isHost: false,
     currentMode: 'coop',
+    currentRounds: 10,
     myTeam: 'neutral',
-    vipName: '',
     
-    // Config for Modes
     modeConfig: {
         'coop': { label: '🤝 Co-op Sync', desc: 'Vote together! Get 100% Sync.' },
-        'versus': { label: '⚔️ Team Versus', desc: 'Red vs Blue. Beat the other team\'s sync.' },
+        'versus': { label: '⚔️ Team Versus', desc: 'Red vs Blue. Beat the other team.' },
         'vip': { label: '👑 Follow the Leader', desc: 'One VIP. Vote exactly like them.' },
         'hipster': { label: '🕶️ The Hipster', desc: 'Minority Rules. Try to be unique!' },
         'speed': { label: '⏱️ Speed Demon', desc: 'Vote fast! Speed + Majority wins.' },
@@ -4306,12 +4305,11 @@ const RoomManager = {
     },
 
     init() {
-        // Inject Styles (Dropdown & Lives)
         if (!document.getElementById('room-styles')) {
             const s = document.createElement('style');
             s.id = 'room-styles';
             s.innerHTML = `
-                .mode-select { width: 100%; padding: 10px; border-radius: 8px; border: 2px solid #e5e7eb; font-weight: bold; color: #374151; margin-bottom: 10px; }
+                .mode-select, .round-select { width: 100%; padding: 10px; border-radius: 8px; border: 2px solid #e5e7eb; font-weight: bold; color: #374151; margin-bottom: 10px; }
                 .leave-btn { background: #fee2e2; color: #ef4444; border: 1px solid #fecaca; padding: 6px 12px; border-radius: 8px; font-weight: bold; cursor: pointer; }
                 .countdown-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 300; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; }
                 .countdown-number { font-size: 8rem; font-weight: 900; animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite; }
@@ -4322,7 +4320,7 @@ const RoomManager = {
             `;
             document.head.appendChild(s);
         }
-        // (Button injection same as before...)
+
         if (!document.getElementById('roomBtn')) {
             const btn = document.createElement('button');
             btn.id = 'roomBtn';
@@ -4332,12 +4330,14 @@ const RoomManager = {
             const sb = document.getElementById('showSettingsButton');
             if (sb && sb.parentNode) sb.parentNode.insertBefore(btn, sb);
         }
+
         if (!window.io) {
             const sc = document.createElement('script');
             sc.src = "/socket.io/socket.io.js";
             sc.onload = () => this.connect();
             document.head.appendChild(sc);
         } else { this.connect(); }
+        
         this.injectModal();
     },
 
@@ -4346,16 +4346,17 @@ const RoomManager = {
         this.socket.on('connect', () => { this.playerId = this.socket.id; });
 
         this.socket.on('roomUpdate', (data) => {
-            this.renderLobby(data);
             this.isHost = (data.host === this.playerId);
             this.currentMode = data.mode;
+            this.currentRounds = data.maxRounds;
+            this.renderLobby(data);
+            
             const me = data.players.find(p => p.id === this.playerId);
             if (me) this.myTeam = me.team;
         });
 
         this.socket.on('roleAlert', (msg) => {
-            // Private message for Saboteur
-            alert(msg); // Alert or nice toast
+            alert(msg);
             const div = document.createElement('div');
             div.id = 'active-role-alert';
             div.innerText = "🕵️ YOU ARE THE SABOTEUR";
@@ -4367,13 +4368,6 @@ const RoomManager = {
             State.runtime.isMultiplayer = true;
             this.closeLobby();
             this.currentMode = data.mode;
-            
-            // If VIP mode, store VIP name
-            if(data.vipId) {
-                // We need to fetch player list to get name, but for now we wait for next update or just say "VIP"
-                // Ideally backend sends VIP name, but we can infer it later
-            }
-
             State.runtime.allWords = []; 
             this.playCountdown(data.mode);
             this.showActiveBanner();
@@ -4388,17 +4382,10 @@ const RoomManager = {
             UIManager.displayWord(wObj);
             UIManager.disableButtons(false);
             
-            // Check if I am dead (Survival Mode)
-            if (this.currentMode === 'survival') {
-                 // We need to know my lives. Ideally backend sends player data in nextWord or we check roundResult
-                 // For now, if I have 0 lives, disable buttons
-            }
-            
             UIManager.showPostVoteMessage(`Round ${data.roundCurrent}/${data.roundTotal}`);
         });
 
         this.socket.on('roundResult', ({ mode, data, players }) => {
-            // Update my status (Lives)
             const me = players.find(p => p.id === this.playerId);
             if (mode === 'survival' && me && me.lives <= 0) {
                  UIManager.disableButtons(true);
@@ -4406,13 +4393,12 @@ const RoomManager = {
                  return;
             }
 
-            // Show result text
             let msg = "";
             if (mode === 'versus') {
                 const mySync = this.myTeam === 'red' ? data.redSync : data.blueSync;
                 msg = `Your Team: ${mySync}% Sync`;
             } else if (data.msg) {
-                msg = data.msg; // Custom msg from backend
+                msg = data.msg;
             } else {
                 msg = `Room Sync: ${data.sync}%`;
             }
@@ -4429,14 +4415,20 @@ const RoomManager = {
         });
     },
 
-    // --- UI HELPERS ---
+    // --- HOST CONTROLS ---
+    updateSettings() {
+        if(!this.isHost) return;
+        const mode = document.getElementById('hostModeSelect').value;
+        const rounds = document.getElementById('hostRoundSelect').value;
+        this.socket.emit('updateSettings', { roomCode: this.roomCode, mode, rounds });
+    },
+
     showActiveBanner() {
         const existing = document.getElementById('room-active-banner');
         if(existing) existing.remove();
         const banner = document.createElement('div');
         banner.id = 'room-active-banner';
         banner.style.cssText = "position:fixed; top:0; left:0; width:100%; height:60px; background:white; z-index:200; display:flex; align-items:center; justify-content:space-between; padding:0 20px; box-shadow:0 2px 10px rgba(0,0,0,0.1);";
-        
         let config = this.modeConfig[this.currentMode];
         banner.innerHTML = `
             <div class="room-info">
@@ -4498,23 +4490,49 @@ const RoomManager = {
 
     renderLobby(data) {
         const list = document.getElementById('lobbyPlayerList');
-        
-        // Mode Selector (Dropdown)
-        let modeHtml = "";
-        if (this.isHost) {
-            let options = "";
-            for (const [key, val] of Object.entries(this.modeConfig)) {
-                options += `<option value="${key}" ${data.mode===key?'selected':''}>${val.label}</option>`;
-            }
-            modeHtml = `<select class="mode-select" onchange="RoomManager.setMode(this.value)">${options}</select>`;
-            modeHtml += `<div class="text-xs text-gray-400 mb-4 text-center">${this.modeConfig[data.mode].desc}</div>`;
-        } else {
-            modeHtml = `<div class="text-center font-bold text-indigo-600 mb-2">${this.modeConfig[data.mode].label}</div>
-                        <div class="text-xs text-gray-400 mb-4 text-center">${this.modeConfig[data.mode].desc}</div>`;
-        }
-        document.getElementById('lobbyModeArea').innerHTML = modeHtml;
+        const config = this.modeConfig[data.mode];
 
-        // Player List
+        // 1. SETTINGS AREA (Different for Host vs Player)
+        let settingsHtml = "";
+        
+        if (this.isHost) {
+            // -- HOST CONTROLS --
+            let modeOpts = "";
+            for (const [key, val] of Object.entries(this.modeConfig)) {
+                modeOpts += `<option value="${key}" ${data.mode===key?'selected':''}>${val.label}</option>`;
+            }
+            
+            let roundOpts = "";
+            [5, 10, 15, 20, 30].forEach(r => {
+                roundOpts += `<option value="${r}" ${data.maxRounds==r?'selected':''}>${r} Rounds</option>`;
+            });
+
+            settingsHtml = `
+                <div class="bg-gray-100 p-3 rounded-lg mb-4">
+                    <label class="text-xs font-bold text-gray-400 uppercase">Game Mode</label>
+                    <select id="hostModeSelect" class="mode-select" onchange="RoomManager.updateSettings()">${modeOpts}</select>
+                    
+                    <label class="text-xs font-bold text-gray-400 uppercase">Duration</label>
+                    <select id="hostRoundSelect" class="round-select" onchange="RoomManager.updateSettings()">${roundOpts}</select>
+                    
+                    <div class="text-xs text-center text-gray-500 mt-1">${config.desc}</div>
+                </div>
+            `;
+        } else {
+            // -- PLAYER VIEW --
+            settingsHtml = `
+                <div class="bg-indigo-50 p-4 rounded-lg mb-4 text-center border-2 border-indigo-100">
+                    <div class="font-black text-indigo-700 text-lg">${config.label}</div>
+                    <div class="text-sm text-gray-500 mb-2">${config.desc}</div>
+                    <div class="inline-block bg-white px-2 py-1 rounded border border-indigo-200 text-xs font-bold text-indigo-400">
+                        ${data.maxRounds} Rounds
+                    </div>
+                </div>
+            `;
+        }
+        document.getElementById('lobbyModeArea').innerHTML = settingsHtml;
+
+        // 2. PLAYER LIST
         list.innerHTML = data.players.map(p => {
             let extra = "";
             if (data.mode === 'survival') {
@@ -4526,10 +4544,11 @@ const RoomManager = {
             </div>`;
         }).join('');
         
+        // 3. START BUTTON
         const startBtn = document.getElementById('roomStartBtn');
         const waitMsg = document.getElementById('roomWaitMsg');
         
-        if (data.host === this.playerId) {
+        if (this.isHost) {
             startBtn.classList.remove('hidden');
             waitMsg.classList.add('hidden');
         } else {
@@ -4538,7 +4557,6 @@ const RoomManager = {
         }
     },
 
-    // (injectModal, openLobby, closeLobby, join, start, submitVote same as before...)
     injectModal() {
         if (document.getElementById('roomModal')) return;
         const div = document.createElement('div');
@@ -4562,8 +4580,10 @@ const RoomManager = {
             </div>`;
         document.body.appendChild(div);
     },
+
     openLobby() { document.getElementById('roomModal').classList.remove('hidden'); },
     closeLobby() { document.getElementById('roomModal').classList.add('hidden'); },
+    
     join() {
         if (!State.data.username || State.data.username === "Player" || State.data.username === "") {
             let name = prompt("Enter your name:");
@@ -4577,7 +4597,8 @@ const RoomManager = {
         document.getElementById('roomLobbyScreen').classList.remove('hidden');
         document.getElementById('lobbyCodeDisplay').textContent = c;
     },
-    start() { this.socket.emit('startGame', { roomCode: this.roomCode, rounds: 10 }); },
+    
+    start() { this.socket.emit('startGame', { roomCode: this.roomCode }); },
     submitVote(t) { if(this.active) this.socket.emit('submitVote', { roomCode: this.roomCode, vote: t }); },
 
     showFinalResults(data) {
