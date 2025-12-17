@@ -147,7 +147,7 @@ io.on('connection', (socket) => {
             if (room.players.length === 0) {
                 delete rooms[roomCode];
             } else {
-                if (wasHost) room.host = room.players[0].id; // Host Migration
+                if (wasHost) room.host = room.players[0].id;
                 checkInsufficientPlayers(roomCode);
                 emitUpdate(roomCode);
             }
@@ -494,3 +494,4 @@ app.get('/api/scores', async (req, res) => { try { res.json(await Score.find().s
 app.post('/api/scores', async (req, res) => { try { const s = new Score(req.body); await s.save(); res.json(s); } catch(e){res.json({})} });
 
 server.listen(PORT, () => console.log(`Server on ${PORT}`));
+
