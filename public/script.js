@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.73', 
+    APP_VERSION: '5.74', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4341,35 +4341,24 @@ const RoomManager = {
         this.socket.on('connect', () => { 
             this.playerId = this.socket.id; 
             
-            // --- FIX: NO AUTO JOIN, JUST PRE-FILL ---
+            // --- FIX: NO AUTO POPUP ---
+            // We only pre-fill the input box silently. We DO NOT call openLobby().
             const savedCode = localStorage.getItem('lastRoomCode');
             const savedName = localStorage.getItem('username');
             
             if (savedCode && savedName && !this.active) {
-                // Pre-fill values but DO NOT join automatically
-                if(document.getElementById('roomCodeInput')) {
+                if (document.getElementById('roomCodeInput')) {
                     document.getElementById('roomCodeInput').value = savedCode;
                 }
-                // Open the modal so they see it
-                this.openLobby();
             }
         });
 
         this.socket.on('roomUpdate', (data) => {
-            // Only switch screens if we are actually in the game
-            if (!this.active && document.getElementById('roomModal').classList.contains('hidden')) {
-                // If the game is already playing and I just joined, show banner
-                if (data.state === 'playing') {
-                     this.active = true;
-                     State.runtime.isMultiplayer = true;
-                     this.showActiveBanner();
-                } else {
-                     // Otherwise show lobby
-                     this.openLobby();
-                     document.getElementById('roomJoinScreen').classList.add('hidden');
-                     document.getElementById('roomLobbyScreen').classList.remove('hidden');
-                     document.getElementById('lobbyCodeDisplay').textContent = this.roomCode;
-                }
+            // Only force open if we are actually in the active game state
+            if (!this.active && data.state === 'playing' && document.getElementById('roomModal').classList.contains('hidden')) {
+                 this.active = true;
+                 State.runtime.isMultiplayer = true;
+                 this.showActiveBanner();
             }
 
             this.isHost = (data.host === this.playerId);
@@ -4382,7 +4371,8 @@ const RoomManager = {
                 this.myTeam = me.team;
                 this.isSpectator = me.isSpectator;
             } else {
-                // If I'm not in the list, I shouldn't think I'm in the room
+                // If I am not in the player list, I am not in the room.
+                // Clear local storage so I don't try to rejoin next time.
                 localStorage.removeItem('lastRoomCode');
             }
         });
@@ -4461,6 +4451,7 @@ const RoomManager = {
         });
     },
 
+    // --- UI HELPERS ---
     injectStyles() {
         if (document.getElementById('room-styles')) return;
         const s = document.createElement('style');
@@ -4636,14 +4627,18 @@ const RoomManager = {
     leave(force = false) {
         const doit = () => {
             localStorage.removeItem('lastRoomCode'); 
+            // Send explicit leave signal
             this.socket.emit('leaveRoom', { roomCode: this.roomCode });
+            
             this.active = false;
             this.removeActiveBanner();
             this.closeLobby();
+            
+            // Clean UI overlays
             const ids = ['active-role-alert', 'spectator-banner', 'active-accusation'];
             ids.forEach(id => { const el = document.getElementById(id); if(el) el.remove(); });
             
-            // SMALL DELAY to ensure server gets the leave msg
+            // Reload after small delay to allow socket message to send
             setTimeout(() => window.location.reload(), 200);
         };
         if (force) doit();
@@ -4695,12 +4690,13 @@ const RoomManager = {
                 modeOpts += `<option value="${key}" ${data.mode===key?'selected':''}>${val.label}${note}</option>`;
             }
             
-            // --- FIXED LABELS ---
-            let roundOpts = `<option value="5" ${data.maxWords==5?'selected':''}>Just a quickie! (5 words)</option>
+            // --- UPDATED LABELS ---
+            let roundOpts = `<option value="1" ${data.maxWords==1?'selected':''}>🚀 1 Word (Quickie)</option>
+                             <option value="5" ${data.maxWords==5?'selected':''}>Just a quickie! (Five Words)</option>
                              <option value="10" ${data.maxWords==10?'selected':''}>Ten Word Game</option>
                              <option value="15" ${data.maxWords==15?'selected':''}>Fifteen Word Game</option>
                              <option value="20" ${data.maxWords==20?'selected':''}>Twenty Word Game</option>
-                             <option value="30" ${data.maxWords==30?'selected':''}>Marathon (30 Words)</option>`;
+                             <option value="30" ${data.maxWords==30?'selected':''}>Marathon (Thirty Words)</option>`;
 
             settingsHtml = `
                 <div class="bg-gray-100 p-3 rounded-lg mb-4">
