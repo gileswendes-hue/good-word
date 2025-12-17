@@ -4301,7 +4301,20 @@ const RoomManager = {
             s.innerHTML = `
                 .mode-sel { opacity: 0.5; font-weight: bold; padding: 5px 10px; cursor: pointer; }
                 .mode-sel.active { opacity: 1; text-decoration: underline; color: #4f46e5; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-                .countdown-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; }
+                .team-badge { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+                #room-active-banner {
+                    position: fixed; top: 0; left: 0; width: 100%; height: 60px;
+                    background: white; z-index: 200; display: flex; align-items: center; justify-content: space-between;
+                    padding: 0 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); border-bottom: 2px solid #e5e7eb;
+                }
+                .room-info { font-size: 0.9rem; font-weight: bold; color: #374151; }
+                .leave-btn {
+                    background: #fee2e2; color: #ef4444; border: 1px solid #fecaca;
+                    padding: 6px 12px; border-radius: 8px; font-weight: bold; font-size: 0.8rem;
+                    cursor: pointer; transition: all 0.2s;
+                }
+                .leave-btn:hover { background: #fecaca; }
+                .countdown-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 300; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; }
                 .countdown-number { font-size: 8rem; font-weight: 900; animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite; }
                 @keyframes ping { 75%, 100% { transform: scale(2); opacity: 0; } }
             `;
@@ -4347,13 +4360,11 @@ const RoomManager = {
             this.currentMode = data.mode;
             this.scores = { red: 0, blue: 0, coop: 0 };
             State.runtime.allWords = []; 
-            
-            // --- NEW: Play Countdown & Rules ---
             this.playCountdown(data.mode);
+            this.showActiveBanner();
         });
 
         this.socket.on('nextWord', (data) => {
-            // Remove countdown if still there
             const cd = document.getElementById('active-countdown');
             if(cd) cd.remove();
 
@@ -4389,13 +4400,52 @@ const RoomManager = {
         });
 
         this.socket.on('gameOver', (data) => {
+             // 1. Return to Normal Play instantly
              this.active = false;
              State.runtime.isMultiplayer = false;
+             this.removeActiveBanner(); 
+             
+             // 2. Show Results & Options
              this.showFinalResults(data);
         });
     },
 
-    playCountdown(mode) {
+    showActiveBanner() {
+        const existing = document.getElementById('room-active-banner');
+        if(existing) existing.remove();
+
+        const banner = document.createElement('div');
+        banner.id = 'room-active-banner';
+        
+        let infoText = `Room: <span class="font-mono bg-gray-100 px-1 rounded">${this.roomCode}</span>`;
+        if(this.currentMode === 'versus') {
+            const teamColor = this.myTeam === 'red' ? 'text-red-500' : 'text-blue-500';
+            infoText += ` <span class="mx-2">|</span> <span class="${teamColor}">You are ${this.myTeam.toUpperCase()} Team</span>`;
+        } else {
+            infoText += ` <span class="mx-2">|</span> 🤝 Co-op Mode`;
+        }
+
+        banner.innerHTML = `
+            <div class="room-info">${infoText}</div>
+            <button onclick="RoomManager.leave()" class="leave-btn">Exit Room</button>
+        `;
+        document.body.appendChild(banner);
+        document.body.style.paddingTop = '60px';
+    },
+
+    removeActiveBanner() {
+        const b = document.getElementById('room-active-banner');
+        if(b) b.remove();
+        document.body.style.paddingTop = '0';
+    },
+
+    leave() {
+        if(confirm("Are you sure you want to leave the game?")) {
+            window.location.reload();
+        }
+    },
+
+	playCountdown(mode) {
         const rules = mode === 'versus' 
             ? "🔴 RED vs 🔵 BLUE<br><span class='text-sm font-normal'>Teams are randomized.<br>Sync with your team to win!</span>" 
             : "🤝 CO-OP MODE<br><span class='text-sm font-normal'>Everyone vote the same!<br>100% Sync = Bonus Points.</span>";
@@ -4412,19 +4462,30 @@ const RoomManager = {
 
         let count = 5;
         const el = document.getElementById('cd-num');
+        
+        // Run immediately to show 5
+        el.textContent = count;
+
         const interval = setInterval(() => {
             count--;
+            
             if(count > 0) {
+                // Numbers 4, 3, 2, 1
                 el.textContent = count;
-                // Reset animation
                 el.classList.remove('countdown-number');
-                void el.offsetWidth;
+                void el.offsetWidth; // trigger reflow to restart animation
                 el.classList.add('countdown-number');
             } else if (count === 0) {
+                // "GO!" phase
                 el.textContent = "GO!";
                 el.classList.add('text-green-400');
                 el.classList.remove('text-yellow-400');
+                // Ensure animation runs for GO too
+                el.classList.remove('countdown-number');
+                void el.offsetWidth;
+                el.classList.add('countdown-number');
             } else {
+                // End phase (Count is -1) - This creates the pause on GO!
                 clearInterval(interval);
                 div.remove();
             }
@@ -4437,7 +4498,6 @@ const RoomManager = {
         const list = document.getElementById('lobbyPlayerList');
         const isVersus = data.mode === 'versus';
         
-        // Mode Selector
         const modeHtml = this.isHost ? `
             <div class="flex justify-center gap-4 mb-4 text-sm bg-gray-100 p-2 rounded-lg">
                 <button onclick="RoomManager.setMode('coop')" class="mode-sel ${!isVersus?'active':''}">🤝 CO-OP</button>
@@ -4449,10 +4509,8 @@ const RoomManager = {
 
         document.getElementById('lobbyModeArea').innerHTML = modeHtml;
 
-        // Player List
         list.innerHTML = data.players.map(p => {
             let badge = '';
-            // Only show teams if game has started or if assigned
             if (isVersus && p.team !== 'neutral') badge = p.team === 'red' ? '<span class="team-badge bg-red-500"></span>' : '<span class="team-badge bg-blue-500"></span>';
             return `<div class="flex justify-between items-center p-2 border-b text-sm">
                 <div class="flex items-center">${badge} <span class="font-bold text-gray-700">${p.name}</span> ${p.id===data.host?'👑':''}</div>
@@ -4504,7 +4562,6 @@ const RoomManager = {
     closeLobby() { document.getElementById('roomModal').classList.add('hidden'); },
     
     join() {
-        // --- 1. NAME ENFORCER ---
         if (!State.data.username || State.data.username === "Player" || State.data.username === "") {
             let name = prompt("Enter your name to join:");
             if (name && name.trim()) {
@@ -4512,11 +4569,9 @@ const RoomManager = {
                 State.save('username', State.data.username);
                 UIManager.updateProfileDisplay();
             } else {
-                return; // Stop if no name provided
+                return;
             }
         }
-        // ------------------------
-
         const c = document.getElementById('roomCodeInput').value.trim().toUpperCase();
         if(!c) return;
         this.roomCode = c;
@@ -4530,40 +4585,61 @@ const RoomManager = {
     submitVote(t) { if(this.active) this.socket.emit('submitVote', { roomCode: this.roomCode, vote: t }); },
 
     showFinalResults(data) {
-        let html = '';
+        let headerHtml = '';
         const scores = data.scores;
         
         if (data.mode === 'versus') {
-            html += `
+            headerHtml = `
                 <div class="flex justify-between items-center py-4 border-b border-gray-700">
-                    <span class="text-red-400 font-bold text-xl">🔴 RED TEAM</span>
+                    <span class="text-red-400 font-bold text-xl">🔴 RED</span>
                     <span class="text-white font-black text-2xl">${scores.red}</span>
                 </div>
                 <div class="flex justify-between items-center py-4 border-b border-gray-700">
-                    <span class="text-blue-400 font-bold text-xl">🔵 BLUE TEAM</span>
+                    <span class="text-blue-400 font-bold text-xl">🔵 BLUE</span>
                     <span class="text-white font-black text-2xl">${scores.blue}</span>
                 </div>
-                <div class="text-center mt-6 text-gray-400 text-sm">
-                    ${scores.red > scores.blue ? 'RED WINS!' : (scores.blue > scores.red ? 'BLUE WINS!' : 'DRAW!')}
+                <div class="text-center mt-4 text-white font-bold text-lg">
+                    ${scores.red > scores.blue ? '🔴 RED WINS!' : (scores.blue > scores.red ? '🔵 BLUE WINS!' : 'DRAW!')}
                 </div>
             `;
         } else {
-            html += `
+            headerHtml = `
                 <div class="text-center py-6">
                     <div class="text-6xl mb-2">🤝</div>
                     <div class="text-white text-4xl font-black mb-2">${scores.coop}</div>
-                    <div class="text-gray-400 uppercase tracking-widest text-sm">Total Sync Points</div>
+                    <div class="text-gray-400 uppercase tracking-widest text-sm">Sync Points</div>
                 </div>
             `;
         }
 
+        // Generate Ranking List
+        let rankHtml = `<div class="mt-4 max-h-40 overflow-y-auto bg-gray-900 rounded-lg p-2">`;
+        data.rankings.forEach((p, i) => {
+            let color = 'text-white';
+            if(data.mode === 'versus') color = p.team === 'red' ? 'text-red-400' : 'text-blue-400';
+            rankHtml += `
+                <div class="flex justify-between text-sm py-1 border-b border-gray-700 last:border-0">
+                    <span class="${color}">${i+1}. ${p.name}</span>
+                    <span class="font-bold text-yellow-400">${p.score} pts</span>
+                </div>`;
+        });
+        rankHtml += `</div>`;
+
         const div = document.createElement('div');
         div.className = 'fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-4';
         div.innerHTML = `
-            <div class="bg-gray-800 rounded-2xl w-full max-w-md p-6 border-2 border-indigo-500">
-                <h2 class="text-3xl font-black text-white text-center mb-6">GAME OVER</h2>
-                <div class="space-y-2 mb-6">${html}</div>
-                <button onclick="this.closest('.fixed').remove(); RoomManager.openLobby()" class="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-500 transition">Back to Lobby</button>
+            <div class="bg-gray-800 rounded-2xl w-full max-w-md p-6 border-2 border-indigo-500 relative">
+                <h2 class="text-2xl font-black text-white text-center mb-2 uppercase">Match Results</h2>
+                
+                ${headerHtml}
+                
+                <div class="text-xs text-gray-400 font-bold uppercase mt-4">Individual Leaderboard</div>
+                ${rankHtml}
+
+                <div class="flex gap-2 mt-6">
+                    <button onclick="this.closest('.fixed').remove()" class="flex-1 py-3 bg-gray-700 text-white font-bold rounded-xl hover:bg-gray-600 transition">Exit</button>
+                    <button onclick="this.closest('.fixed').remove(); RoomManager.openLobby()" class="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-500 transition">Play New Round</button>
+                </div>
             </div>`;
         document.body.appendChild(div);
     }
