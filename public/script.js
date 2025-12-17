@@ -4316,6 +4316,9 @@ const RoomManager = {
                 .kick-btn { color: #ef4444; font-weight: bold; margin-left: 10px; cursor: pointer; opacity: 0.7; }
                 .kick-btn:hover { opacity: 1; text-decoration: underline; }
                 .countdown-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 300; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; }
+                /* INCREASED FONT SIZE TO 15rem FOR 'REALLY BIG' LOOK */
+                .countdown-number { font-size: 15rem; line-height: 1; font-weight: 900; animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite; text-shadow: 0 0 50px rgba(255,255,255,0.5); }
+                @keyframes ping { 75%, 100% { transform: scale(1.5); opacity: 0; } }
                 .reveal-overlay { position: fixed; top: 80px; left: 0; width: 100%; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; pointer-events: none; z-index: 250; padding: 20px; }
                 .reveal-card { background: white; padding: 5px 10px; border-radius: 8px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.2); font-size: 0.9rem; border-width: 3px; }
                 .vote-good { border-color: #22c55e; color: #15803d; }
@@ -4367,7 +4370,7 @@ const RoomManager = {
             alert(msg);
             const div = document.createElement('div');
             div.id = 'active-role-alert';
-            div.innerText = "🕵️ YOU ARE THE SABOTEUR";
+            div.innerText = "🕵️ YOU ARE THE TRAITOR";
             document.body.appendChild(div);
         });
 
@@ -4378,7 +4381,6 @@ const RoomManager = {
             this.currentMode = data.mode;
             State.runtime.allWords = []; 
             
-            // Check spectator status
             if (this.isSpectator) {
                 UIManager.disableButtons(true);
                 this.showSpectatorBanner();
@@ -4389,7 +4391,6 @@ const RoomManager = {
         });
 
         this.socket.on('nextWord', (data) => {
-            // Remove overlays
             const cd = document.getElementById('active-countdown');
             if(cd) cd.remove();
             const rev = document.getElementById('active-vote-reveal');
@@ -4399,14 +4400,12 @@ const RoomManager = {
             State.runtime.allWords = [wObj]; 
             UIManager.displayWord(wObj);
             
-            // Only enable if playing
             UIManager.disableButtons(this.isSpectator);
             
             UIManager.showPostVoteMessage(`Round ${data.roundCurrent}/${data.roundTotal}`);
         });
 
         this.socket.on('roundResult', ({ mode, data, players, votes }) => {
-            // OPTION 2: VISUAL VOTE REVEAL
             this.showVoteReveal(players, votes);
 
             const me = players.find(p => p.id === this.playerId);
@@ -4420,7 +4419,7 @@ const RoomManager = {
             if (mode === 'versus') {
                 const mySync = this.myTeam === 'red' ? data.redSync : data.blueSync;
                 msg = `Your Team: ${mySync}% Sync`;
-                if(data.msg) msg += ` ${data.msg}`; // Tie break msg
+                if(data.msg) msg += ` ${data.msg}`;
             } else if (data.msg) {
                 msg = data.msg;
             } else {
@@ -4438,11 +4437,16 @@ const RoomManager = {
              const spec = document.getElementById('spectator-banner');
              if(spec) spec.remove();
              
-             this.showFinalResults(data);
+             // Check if game ended due to lack of players
+             if (data.msg && data.msg.startsWith('GAME ENDED:')) {
+                 alert(data.msg);
+                 this.openLobby(); // Go back to lobby instead of results if aborted
+             } else {
+                 this.showFinalResults(data);
+             }
         });
     },
 
-    // --- NEW HELPERS ---
     kick(id) {
         if(confirm("Kick this player?")) this.socket.emit('kickPlayer', { roomCode: this.roomCode, targetId: id });
     },
@@ -4460,7 +4464,6 @@ const RoomManager = {
             if (v === 'bad') style = 'vote-bad';
             
             let icon = v === 'good' ? '👍' : (v === 'bad' ? '👎' : '⏳');
-            // Show Dead status
             if (this.currentMode === 'survival' && p.lives <= 0) {
                  style = 'bg-gray-200 text-gray-400 border-gray-300';
                  icon = '💀';
@@ -4479,7 +4482,6 @@ const RoomManager = {
         document.body.appendChild(div);
     },
 
-    // --- HOST CONTROLS ---
     updateSettings() {
         if(!this.isHost) return;
         const mode = document.getElementById('hostModeSelect').value;
@@ -4557,7 +4559,6 @@ const RoomManager = {
         const minReq = config.min;
         const enoughPlayers = playerCount >= minReq;
 
-        // 1. SETTINGS AREA
         let settingsHtml = "";
         
         if (this.isHost) {
@@ -4566,7 +4567,6 @@ const RoomManager = {
                 const note = (playerCount < val.min) ? ` (Need ${val.min}+)` : '';
                 modeOpts += `<option value="${key}" ${data.mode===key?'selected':''}>${val.label}${note}</option>`;
             }
-            
             let roundOpts = `<option value="1" ${data.maxRounds==1?'selected':''}>🚀 1 Round (Quickie)</option>`;
             [5, 10, 15, 20, 30].forEach(r => {
                 roundOpts += `<option value="${r}" ${data.maxRounds==r?'selected':''}>${r} Rounds</option>`;
@@ -4594,12 +4594,10 @@ const RoomManager = {
         }
         document.getElementById('lobbyModeArea').innerHTML = settingsHtml;
 
-        // 2. PLAYER LIST (OPTION 4: KICK BUTTON)
         list.innerHTML = data.players.map(p => {
             let extra = "";
             if (data.mode === 'survival') extra = `<span class="text-xs ml-2">${"❤️".repeat(p.lives)}</span>`;
             
-            // Kick Button
             let kickHtml = "";
             if (this.isHost && p.id !== this.playerId) {
                 kickHtml = `<span class="kick-btn" onclick="RoomManager.kick('${p.id}')">[x]</span>`;
@@ -4610,7 +4608,6 @@ const RoomManager = {
             </div>`;
         }).join('');
         
-        // 3. START BUTTON
         const startBtn = document.getElementById('roomStartBtn');
         const waitMsg = document.getElementById('roomWaitMsg');
         
@@ -4632,7 +4629,6 @@ const RoomManager = {
         }
     },
 
-    // (Standard Helpers)
     injectModal() {
         if (document.getElementById('roomModal')) return;
         const div = document.createElement('div');
@@ -4674,7 +4670,6 @@ const RoomManager = {
     start() { this.socket.emit('startGame', { roomCode: this.roomCode }); },
     submitVote(t) { if(this.active) this.socket.emit('submitVote', { roomCode: this.roomCode, vote: t }); },
     showFinalResults(data) {
-        // OPTION 1: SABOTEUR/VIP REVEAL
         let roleReveal = "";
         if (data.specialRoleId) {
             const roleName = (data.mode === 'saboteur') ? 'Saboteur' : 'VIP';
