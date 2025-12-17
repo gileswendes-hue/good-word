@@ -132,12 +132,14 @@ io.on('connection', (socket) => {
         }
     });
 
-    // --- FIX: INSTANT REMOVAL ON EXIT ---
-    socket.on('leaveRoom', ({ roomCode }) => {
-        // Force UpperCase to ensure we match the key in 'rooms' object
+	socket.on('leaveRoom', ({ roomCode }, callback) => {
         const code = roomCode ? roomCode.toUpperCase() : '';
         const room = rooms[code];
-        if (!room) return;
+        
+        if (!room) {
+            if (typeof callback === 'function') callback(); // Acknowledge even if room gone
+            return;
+        }
         
         const idx = room.players.findIndex(p => p.id === socket.id);
         if (idx !== -1) {
@@ -149,11 +151,14 @@ io.on('connection', (socket) => {
             if (room.players.length === 0) {
                 delete rooms[code];
             } else {
-                if (wasHost) room.host = room.players[0].id; // Host Migration
+                if (wasHost) room.host = room.players[0].id; 
                 checkInsufficientPlayers(code);
-                emitUpdate(code); // Immediately notify others
+                emitUpdate(code);
             }
         }
+        
+        // Tell frontend "OK, I processed your leave, you can reload now"
+        if (typeof callback === 'function') callback();
     });
 
     socket.on('updateSettings', ({ roomCode, mode, rounds }) => {
