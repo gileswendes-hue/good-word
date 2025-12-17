@@ -4294,14 +4294,15 @@ const RoomManager = {
     currentRounds: 10,
     myTeam: 'neutral',
     
+    // --- 1. NEW: Minimum Player Counts ---
     modeConfig: {
-        'coop': { label: '🤝 Co-op Sync', desc: 'Vote together! Get 100% Sync.' },
-        'versus': { label: '⚔️ Team Versus', desc: 'Red vs Blue. Beat the other team.' },
-        'vip': { label: '👑 Follow the Leader', desc: 'One VIP. Vote exactly like them.' },
-        'hipster': { label: '🕶️ The Hipster', desc: 'Minority Rules. Try to be unique!' },
-        'speed': { label: '⏱️ Speed Demon', desc: 'Vote fast! Speed + Majority wins.' },
-        'survival': { label: '💣 Sudden Death', desc: '3 Lives. Vote with majority or die.' },
-        'saboteur': { label: '🕵️ The Saboteur', desc: 'One Traitor tries to ruin 100% Sync.' }
+        'coop': { label: '🤝 Co-op Sync', desc: 'Vote together! Get 100% Sync.', min: 2 },
+        'versus': { label: '⚔️ Team Versus', desc: 'Red vs Blue. Best Sync wins.', min: 4 }, // Need 2v2 to measure sync
+        'vip': { label: '👑 Follow the Leader', desc: 'One VIP. Vote exactly like them.', min: 3 },
+        'hipster': { label: '🕶️ The Hipster', desc: 'Minority Rules. Be unique!', min: 3 }, // Need 2 vs 1
+        'speed': { label: '⏱️ Speed Demon', desc: 'Vote fast! Speed + Majority wins.', min: 2 },
+        'survival': { label: '💣 Sudden Death', desc: '3 Lives. Vote with majority or die.', min: 3 },
+        'saboteur': { label: '🕵️ The Saboteur', desc: 'One Traitor tries to ruin sync.', min: 3 }
     },
 
     init() {
@@ -4315,7 +4316,6 @@ const RoomManager = {
                 .countdown-number { font-size: 8rem; font-weight: 900; animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite; }
                 @keyframes ping { 75%, 100% { transform: scale(2); opacity: 0; } }
                 .heart-icon { color: #ef4444; margin-right: 2px; }
-                .dead-player { opacity: 0.5; text-decoration: line-through; }
                 #active-role-alert { position: fixed; top: 70px; left: 50%; transform: translateX(-50%); background: #fef08a; color: #854d0e; padding: 5px 15px; border-radius: 20px; font-weight: bold; z-index: 250; font-size: 0.8rem; border: 1px solid #eab308; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
             `;
             document.head.appendChild(s);
@@ -4350,7 +4350,6 @@ const RoomManager = {
             this.currentMode = data.mode;
             this.currentRounds = data.maxRounds;
             this.renderLobby(data);
-            
             const me = data.players.find(p => p.id === this.playerId);
             if (me) this.myTeam = me.team;
         });
@@ -4415,7 +4414,6 @@ const RoomManager = {
         });
     },
 
-    // --- HOST CONTROLS ---
     updateSettings() {
         if(!this.isHost) return;
         const mode = document.getElementById('hostModeSelect').value;
@@ -4446,9 +4444,7 @@ const RoomManager = {
         document.body.style.paddingTop = '0';
     },
 
-    leave() {
-        if(confirm("Leave game?")) window.location.reload();
-    },
+    leave() { if(confirm("Leave game?")) window.location.reload(); },
 
     playCountdown(mode) {
         const config = this.modeConfig[mode];
@@ -4491,18 +4487,23 @@ const RoomManager = {
     renderLobby(data) {
         const list = document.getElementById('lobbyPlayerList');
         const config = this.modeConfig[data.mode];
+        const playerCount = data.players.length;
+        const minReq = config.min;
+        const enoughPlayers = playerCount >= minReq;
 
-        // 1. SETTINGS AREA (Different for Host vs Player)
+        // 1. SETTINGS AREA
         let settingsHtml = "";
         
         if (this.isHost) {
-            // -- HOST CONTROLS --
             let modeOpts = "";
             for (const [key, val] of Object.entries(this.modeConfig)) {
-                modeOpts += `<option value="${key}" ${data.mode===key?'selected':''}>${val.label}</option>`;
+                // Add (Need X+) text to dropdown if not enough players
+                const note = (playerCount < val.min) ? ` (Need ${val.min}+)` : '';
+                modeOpts += `<option value="${key}" ${data.mode===key?'selected':''}>${val.label}${note}</option>`;
             }
             
-            let roundOpts = "";
+            // --- 2. NEW: Added "1 Round" Option ---
+            let roundOpts = `<option value="1" ${data.maxRounds==1?'selected':''}>🚀 Have a Quickie!)</option>`;
             [5, 10, 15, 20, 30].forEach(r => {
                 roundOpts += `<option value="${r}" ${data.maxRounds==r?'selected':''}>${r} Rounds</option>`;
             });
@@ -4516,10 +4517,10 @@ const RoomManager = {
                     <select id="hostRoundSelect" class="round-select" onchange="RoomManager.updateSettings()">${roundOpts}</select>
                     
                     <div class="text-xs text-center text-gray-500 mt-1">${config.desc}</div>
+                    ${!enoughPlayers ? `<div class="text-xs text-center text-red-500 font-bold mt-2">⚠️ Not enough players (Need ${minReq}+)</div>` : ''}
                 </div>
             `;
         } else {
-            // -- PLAYER VIEW --
             settingsHtml = `
                 <div class="bg-indigo-50 p-4 rounded-lg mb-4 text-center border-2 border-indigo-100">
                     <div class="font-black text-indigo-700 text-lg">${config.label}</div>
@@ -4527,16 +4528,17 @@ const RoomManager = {
                     <div class="inline-block bg-white px-2 py-1 rounded border border-indigo-200 text-xs font-bold text-indigo-400">
                         ${data.maxRounds} Rounds
                     </div>
+                    ${!enoughPlayers ? `<div class="text-xs text-center text-red-500 font-bold mt-2">Waiting for more players...</div>` : ''}
                 </div>
             `;
         }
         document.getElementById('lobbyModeArea').innerHTML = settingsHtml;
 
-        // 2. PLAYER LIST
+        // 3. PLAYER LIST
         list.innerHTML = data.players.map(p => {
             let extra = "";
             if (data.mode === 'survival') {
-                let hearts = "❤️".repeat(p.lives);
+                let hearts = " ❤️".repeat(p.lives);
                 extra = `<span class="text-xs ml-2">${hearts}</span>`;
             }
             return `<div class="flex justify-between items-center p-2 border-b text-sm">
@@ -4544,19 +4546,31 @@ const RoomManager = {
             </div>`;
         }).join('');
         
-        // 3. START BUTTON
+        // 4. START BUTTON (Logic to Disable)
         const startBtn = document.getElementById('roomStartBtn');
         const waitMsg = document.getElementById('roomWaitMsg');
         
         if (this.isHost) {
             startBtn.classList.remove('hidden');
             waitMsg.classList.add('hidden');
+            
+            // --- 3. NEW: Disable Button if not enough players ---
+            if (!enoughPlayers) {
+                startBtn.disabled = true;
+                startBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                startBtn.innerText = `NEED ${minReq} PLAYERS`;
+            } else {
+                startBtn.disabled = false;
+                startBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                startBtn.innerText = "START GAME";
+            }
         } else {
             startBtn.classList.add('hidden');
             waitMsg.classList.remove('hidden');
         }
     },
 
+    // (Standard Helpers)
     injectModal() {
         if (document.getElementById('roomModal')) return;
         const div = document.createElement('div');
@@ -4580,10 +4594,8 @@ const RoomManager = {
             </div>`;
         document.body.appendChild(div);
     },
-
     openLobby() { document.getElementById('roomModal').classList.remove('hidden'); },
     closeLobby() { document.getElementById('roomModal').classList.add('hidden'); },
-    
     join() {
         if (!State.data.username || State.data.username === "Player" || State.data.username === "") {
             let name = prompt("Enter your name:");
@@ -4597,17 +4609,14 @@ const RoomManager = {
         document.getElementById('roomLobbyScreen').classList.remove('hidden');
         document.getElementById('lobbyCodeDisplay').textContent = c;
     },
-    
     start() { this.socket.emit('startGame', { roomCode: this.roomCode }); },
     submitVote(t) { if(this.active) this.socket.emit('submitVote', { roomCode: this.roomCode, vote: t }); },
-
     showFinalResults(data) {
         let rankHtml = `<div class="mt-4 max-h-40 overflow-y-auto bg-gray-900 rounded-lg p-2">`;
         data.rankings.forEach((p, i) => {
             rankHtml += `<div class="flex justify-between text-sm py-1 border-b border-gray-700 last:border-0"><span class="text-white">${i+1}. ${p.name}</span><span class="font-bold text-yellow-400">${p.score} pts</span></div>`;
         });
         rankHtml += `</div>`;
-        
         const div = document.createElement('div');
         div.className = 'fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-4';
         div.innerHTML = `
