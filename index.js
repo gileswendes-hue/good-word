@@ -132,9 +132,11 @@ io.on('connection', (socket) => {
         }
     });
 
-    // --- FIX FOR GHOST PLAYERS ---
+    // --- FIX: INSTANT REMOVAL ON EXIT ---
     socket.on('leaveRoom', ({ roomCode }) => {
-        const room = rooms[roomCode];
+        // Force UpperCase to ensure we match the key in 'rooms' object
+        const code = roomCode ? roomCode.toUpperCase() : '';
+        const room = rooms[code];
         if (!room) return;
         
         const idx = room.players.findIndex(p => p.id === socket.id);
@@ -142,14 +144,14 @@ io.on('connection', (socket) => {
             const wasHost = (room.host === socket.id);
             room.players.splice(idx, 1);
             
-            socket.leave(roomCode); 
+            socket.leave(code); 
             
             if (room.players.length === 0) {
-                delete rooms[roomCode];
+                delete rooms[code];
             } else {
-                if (wasHost) room.host = room.players[0].id;
-                checkInsufficientPlayers(roomCode);
-                emitUpdate(roomCode);
+                if (wasHost) room.host = room.players[0].id; // Host Migration
+                checkInsufficientPlayers(code);
+                emitUpdate(code); // Immediately notify others
             }
         }
     });
@@ -277,7 +279,7 @@ io.on('connection', (socket) => {
                 if (room.players.length === 0) {
                     delete rooms[code];
                 } else {
-                    if (wasHost) room.host = room.players[0].id; // Host Migration on disconnect
+                    if (wasHost) room.host = room.players[0].id;
                     checkInsufficientPlayers(code);
                     emitUpdate(code);
                 }
@@ -494,4 +496,3 @@ app.get('/api/scores', async (req, res) => { try { res.json(await Score.find().s
 app.post('/api/scores', async (req, res) => { try { const s = new Score(req.body); await s.save(); res.json(s); } catch(e){res.json({})} });
 
 server.listen(PORT, () => console.log(`Server on ${PORT}`));
-
