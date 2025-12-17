@@ -1205,28 +1205,36 @@ async getAllWords() {
         }
     },
 
-    async fetchKidsWords() {
+async fetchKidsWords() {
         try {
             const listResponse = await fetch(CONFIG.KIDS_LIST_FILE);
             if (!listResponse.ok) throw new Error("Missing kids file");
             const listText = await listResponse.text();
-            const safeList = new Set(listText.split('\n').map(l => l.trim().toUpperCase()).filter(l => l.length > 0));
             
-            let allWords = [];
+            // Create list of safe text strings
+            const safeList = listText.split('\n')
+                .map(l => l.trim().toUpperCase())
+                .filter(l => l.length > 0);
             
-            if (OfflineManager.isActive()) {
-                allWords = State.data.offlineCache || [];
-                if (allWords.length === 0) {
-                     return [{ _id: 'temp', text: 'Offline: No Words', goodVotes: 0, badVotes: 0 }];
-                }
-            } else {
-                allWords = await this.fetchWords(); 
+            // Try to get DB data if possible to show vote counts
+            let dbWords = [];
+            if (!OfflineManager.isActive()) {
+                dbWords = await this.fetchWords() || [];
             }
+            
+            // Map the text file strings to objects. 
+            // If found in DB, use DB object. If NOT found, create a temporary object.
+            // This ensures words load even if the DB is empty.
+            const combinedList = safeList.map(text => {
+                const found = dbWords.find(w => w.text.toUpperCase() === text);
+                return found || { _id: 'kid_' + text, text: text, goodVotes: 0, badVotes: 0 };
+            });
 
-            const safeWords = allWords.filter(w => safeList.has(w.text.toUpperCase()));
-            if (safeWords.length === 0) return [{ _id: 'temp', text: 'No Matching Words', goodVotes: 0, badVotes: 0 }];
-            return safeWords;
+            return combinedList.length > 0 ? combinedList : [{ _id: 'err', text: 'No Words Found', goodVotes: 0, badVotes: 0 }];
+
         } catch (e) {
+            console.error("Kids mode load error:", e);
+            // Fallback object to prevent crash
             return [{ _id: 'err', text: 'Error Loading', goodVotes: 0, badVotes: 0 }];
         }
     },
@@ -4680,17 +4688,27 @@ const RoomManager = {
                 const note = (playerCount < val.min) ? ` (Need ${val.min}+)` : '';
                 modeOpts += `<option value="${key}" ${data.mode===key?'selected':''}>${val.label}${note}</option>`;
             }
-            let roundOpts = `<option value="1" ${data.maxRounds==1?'selected':''}>🚀 1 Round (Quickie)</option>`;
-            [5, 10, 15, 20, 30].forEach(r => { roundOpts += `<option value="${r}" ${data.maxRounds==r?'selected':''}>${r} Rounds</option>`; });
+            let roundOpts = `<option value="1" ${data.maxWords==1?'selected':''}>🚀 1 Word (Quickie)</option>`;
+            [5, 10, 15, 20, 30].forEach(r => { 
+                roundOpts += `<option value="${r}" ${data.maxWords==r?'selected':''}>${r} Words per Game</option>`; 
+            });
 
             settingsHtml = `
                 <div class="bg-gray-100 p-3 rounded-lg mb-4">
                     <label class="text-xs font-bold text-gray-400 uppercase">Game Mode</label>
                     <select id="hostModeSelect" class="mode-select" onchange="RoomManager.updateSettings()">${modeOpts}</select>
-                    <label class="text-xs font-bold text-gray-400 uppercase">Duration</label>
+                    <label class="text-xs font-bold text-gray-400 uppercase">Words per Game</label>
                     <select id="hostRoundSelect" class="round-select" onchange="RoomManager.updateSettings()">${roundOpts}</select>
                     <div class="text-xs text-center text-gray-500 mt-1">${config.desc}</div>
                     ${!enoughPlayers ? `<div class="text-xs text-center text-red-500 font-bold mt-2">⚠️ Not enough players (Need ${minReq}+)</div>` : ''}
+                </div>`;
+        } else {
+            settingsHtml = `
+                <div class="bg-indigo-50 p-4 rounded-lg mb-4 text-center border-2 border-indigo-100">
+                    <div class="font-black text-indigo-700 text-lg">${config.label}</div>
+                    <div class="text-sm text-gray-500 mb-2">${config.desc}</div>
+                    <div class="inline-block bg-white px-2 py-1 rounded border border-indigo-200 text-xs font-bold text-indigo-400">${data.maxWords} Words</div>
+                    ${!enoughPlayers ? `<div class="text-xs text-center text-red-500 font-bold mt-2">Waiting for more players...</div>` : ''}
                 </div>`;
         } else {
             settingsHtml = `
@@ -4798,6 +4816,7 @@ const RoomManager = {
             rankHtml += `<div class="flex justify-between text-sm py-1 border-b border-gray-700 last:border-0"><span class="text-white">${i+1}. ${p.name}</span><span class="font-bold text-yellow-400">${p.score} pts</span></div>`;
         });
         rankHtml += `</div>`;
+        
         const div = document.createElement('div');
         div.className = 'fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-4';
         div.innerHTML = `
@@ -4808,8 +4827,8 @@ const RoomManager = {
                 <div class="text-xs text-gray-400 font-bold uppercase mt-4">Session Leaderboard</div>
                 ${rankHtml}
                 <div class="flex gap-2 mt-6">
-                    <button onclick="this.closest('.fixed').remove()" class="flex-1 py-3 bg-gray-700 text-white font-bold rounded-xl">Exit</button>
-                    <button onclick="this.closest('.fixed').remove(); RoomManager.openLobby()" class="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl">New Round</button>
+                    <button onclick="this.closest('.fixed').remove(); Game.refreshData(false);" class="flex-1 py-3 bg-gray-700 text-white font-bold rounded-xl">Exit</button>
+                    <button onclick="this.closest('.fixed').remove(); RoomManager.openLobby()" class="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl">New Game</button>
                 </div>
             </div>`;
         document.body.appendChild(div);
