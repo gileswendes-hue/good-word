@@ -4703,19 +4703,12 @@ const RoomManager = {
                     ${!enoughPlayers ? `<div class="text-xs text-center text-red-500 font-bold mt-2">⚠️ Not enough players (Need ${minReq}+)</div>` : ''}
                 </div>`;
         } else {
+            // Guest View
             settingsHtml = `
                 <div class="bg-indigo-50 p-4 rounded-lg mb-4 text-center border-2 border-indigo-100">
                     <div class="font-black text-indigo-700 text-lg">${config.label}</div>
                     <div class="text-sm text-gray-500 mb-2">${config.desc}</div>
                     <div class="inline-block bg-white px-2 py-1 rounded border border-indigo-200 text-xs font-bold text-indigo-400">${data.maxWords} Words</div>
-                    ${!enoughPlayers ? `<div class="text-xs text-center text-red-500 font-bold mt-2">Waiting for more players...</div>` : ''}
-                </div>`;
-        } else {
-            settingsHtml = `
-                <div class="bg-indigo-50 p-4 rounded-lg mb-4 text-center border-2 border-indigo-100">
-                    <div class="font-black text-indigo-700 text-lg">${config.label}</div>
-                    <div class="text-sm text-gray-500 mb-2">${config.desc}</div>
-                    <div class="inline-block bg-white px-2 py-1 rounded border border-indigo-200 text-xs font-bold text-indigo-400">${data.maxRounds} Rounds</div>
                     ${!enoughPlayers ? `<div class="text-xs text-center text-red-500 font-bold mt-2">Waiting for more players...</div>` : ''}
                 </div>`;
         }
@@ -4724,22 +4717,35 @@ const RoomManager = {
         list.innerHTML = data.players.map(p => {
             let extra = "";
             if (data.mode === 'survival') extra = `<span class="text-xs ml-2">${"❤️".repeat(p.lives)}</span>`;
-            let kickHtml = (this.isHost && p.id !== this.playerId) ? `<span class="kick-btn" onclick="RoomManager.kick('${p.id}')">[x]</span>` : "";
-            return `<div class="flex justify-between items-center p-2 border-b text-sm"><div class="flex items-center"><span class="font-bold text-gray-700">${p.name}</span> ${extra} ${p.id===data.host?'👑':''} ${kickHtml}</div></div>`;
+            
+            let kickHtml = "";
+            if (this.isHost && p.id !== this.playerId) {
+                kickHtml = `<span class="kick-btn" onclick="RoomManager.kick('${p.id}')">[x]</span>`;
+            }
+
+            return `<div class="flex justify-between items-center p-2 border-b text-sm">
+                <div class="flex items-center"><span class="font-bold text-gray-700">${p.name}</span> ${extra} ${p.id===data.host?'👑':''} ${kickHtml}</div>
+            </div>`;
         }).join('');
         
         const startBtn = document.getElementById('roomStartBtn');
         const waitMsg = document.getElementById('roomWaitMsg');
         
         if (this.isHost) {
-            startBtn.classList.remove('hidden'); waitMsg.classList.add('hidden');
+            startBtn.classList.remove('hidden');
+            waitMsg.classList.add('hidden');
             if (!enoughPlayers) {
-                startBtn.disabled = true; startBtn.classList.add('opacity-50', 'cursor-not-allowed'); startBtn.innerText = `NEED ${minReq} PLAYERS`;
+                startBtn.disabled = true;
+                startBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                startBtn.innerText = `NEED ${minReq} PLAYERS`;
             } else {
-                startBtn.disabled = false; startBtn.classList.remove('opacity-50', 'cursor-not-allowed'); startBtn.innerText = "START GAME";
+                startBtn.disabled = false;
+                startBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                startBtn.innerText = "START GAME";
             }
         } else {
-            startBtn.classList.add('hidden'); waitMsg.classList.remove('hidden');
+            startBtn.classList.add('hidden');
+            waitMsg.classList.remove('hidden');
         }
     },
 
