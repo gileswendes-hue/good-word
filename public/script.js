@@ -4293,16 +4293,17 @@ const RoomManager = {
     currentMode: 'coop',
     currentRounds: 10,
     myTeam: 'neutral',
+    isSpectator: false,
     
     // --- 1. NEW: Minimum Player Counts ---
     modeConfig: {
         'coop': { label: '🤝 Co-op Sync', desc: 'Vote together! Get 100% Sync.', min: 2 },
-        'versus': { label: '⚔️ Team Versus', desc: 'Red vs Blue. Best Sync wins.', min: 4 }, // Need 2v2 to measure sync
+        'versus': { label: '⚔️ Team Versus', desc: 'Red vs Blue. Vote together to win', min: 4 }, // Need 2v2 to measure sync
         'vip': { label: '👑 Follow the Leader', desc: 'One VIP. Vote exactly like them.', min: 3 },
         'hipster': { label: '🕶️ The Hipster', desc: 'Minority Rules. Be unique!', min: 3 }, // Need 2 vs 1
-        'speed': { label: '⏱️ Speed Demon', desc: 'Vote fast! Speed + Majority wins.', min: 2 },
+        'speed': { label: '⏱️ Speed Demon', desc: 'Vote fast! Conform, and quickly, to win.', min: 2 },
         'survival': { label: '💣 Sudden Death', desc: '3 Lives. Vote with majority or die.', min: 3 },
-        'saboteur': { label: '🕵️ The Saboteur', desc: 'One Traitor tries to ruin sync.', min: 3 }
+        'saboteur': { label: '🕵️ Traitor!', desc: 'One Traitor tries to ruin everything.', min: 3 }
     },
 
     init() {
@@ -4312,11 +4313,16 @@ const RoomManager = {
             s.innerHTML = `
                 .mode-select, .round-select { width: 100%; padding: 10px; border-radius: 8px; border: 2px solid #e5e7eb; font-weight: bold; color: #374151; margin-bottom: 10px; }
                 .leave-btn { background: #fee2e2; color: #ef4444; border: 1px solid #fecaca; padding: 6px 12px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+                .kick-btn { color: #ef4444; font-weight: bold; margin-left: 10px; cursor: pointer; opacity: 0.7; }
+                .kick-btn:hover { opacity: 1; text-decoration: underline; }
                 .countdown-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 300; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; }
-                .countdown-number { font-size: 8rem; font-weight: 900; animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite; }
-                @keyframes ping { 75%, 100% { transform: scale(2); opacity: 0; } }
-                .heart-icon { color: #ef4444; margin-right: 2px; }
+                .reveal-overlay { position: fixed; top: 80px; left: 0; width: 100%; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; pointer-events: none; z-index: 250; padding: 20px; }
+                .reveal-card { background: white; padding: 5px 10px; border-radius: 8px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.2); font-size: 0.9rem; border-width: 3px; }
+                .vote-good { border-color: #22c55e; color: #15803d; }
+                .vote-bad { border-color: #ef4444; color: #b91c1c; }
+                .vote-none { border-color: #9ca3af; color: #6b7280; opacity: 0.6; }
                 #active-role-alert { position: fixed; top: 70px; left: 50%; transform: translateX(-50%); background: #fef08a; color: #854d0e; padding: 5px 15px; border-radius: 20px; font-weight: bold; z-index: 250; font-size: 0.8rem; border: 1px solid #eab308; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+                #spectator-banner { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #374151; color: white; padding: 10px 20px; border-radius: 30px; font-weight: bold; box-shadow: 0 5px 15px rgba(0,0,0,0.3); z-index: 400; }
             `;
             document.head.appendChild(s);
         }
@@ -4337,13 +4343,13 @@ const RoomManager = {
             sc.onload = () => this.connect();
             document.head.appendChild(sc);
         } else { this.connect(); }
-        
         this.injectModal();
     },
 
     connect() {
         this.socket = io();
         this.socket.on('connect', () => { this.playerId = this.socket.id; });
+        this.socket.on('kicked', () => { alert("You have been kicked."); window.location.reload(); });
 
         this.socket.on('roomUpdate', (data) => {
             this.isHost = (data.host === this.playerId);
@@ -4351,7 +4357,10 @@ const RoomManager = {
             this.currentRounds = data.maxRounds;
             this.renderLobby(data);
             const me = data.players.find(p => p.id === this.playerId);
-            if (me) this.myTeam = me.team;
+            if (me) {
+                this.myTeam = me.team;
+                this.isSpectator = me.isSpectator;
+            }
         });
 
         this.socket.on('roleAlert', (msg) => {
@@ -4368,23 +4377,38 @@ const RoomManager = {
             this.closeLobby();
             this.currentMode = data.mode;
             State.runtime.allWords = []; 
-            this.playCountdown(data.mode);
+            
+            // Check spectator status
+            if (this.isSpectator) {
+                UIManager.disableButtons(true);
+                this.showSpectatorBanner();
+            } else {
+                this.playCountdown(data.mode);
+            }
             this.showActiveBanner();
         });
 
         this.socket.on('nextWord', (data) => {
+            // Remove overlays
             const cd = document.getElementById('active-countdown');
             if(cd) cd.remove();
+            const rev = document.getElementById('active-vote-reveal');
+            if(rev) rev.remove();
 
             const wObj = { _id: data.word._id, text: data.word.text };
             State.runtime.allWords = [wObj]; 
             UIManager.displayWord(wObj);
-            UIManager.disableButtons(false);
+            
+            // Only enable if playing
+            UIManager.disableButtons(this.isSpectator);
             
             UIManager.showPostVoteMessage(`Round ${data.roundCurrent}/${data.roundTotal}`);
         });
 
-        this.socket.on('roundResult', ({ mode, data, players }) => {
+        this.socket.on('roundResult', ({ mode, data, players, votes }) => {
+            // OPTION 2: VISUAL VOTE REVEAL
+            this.showVoteReveal(players, votes);
+
             const me = players.find(p => p.id === this.playerId);
             if (mode === 'survival' && me && me.lives <= 0) {
                  UIManager.disableButtons(true);
@@ -4396,6 +4420,7 @@ const RoomManager = {
             if (mode === 'versus') {
                 const mySync = this.myTeam === 'red' ? data.redSync : data.blueSync;
                 msg = `Your Team: ${mySync}% Sync`;
+                if(data.msg) msg += ` ${data.msg}`; // Tie break msg
             } else if (data.msg) {
                 msg = data.msg;
             } else {
@@ -4410,10 +4435,51 @@ const RoomManager = {
              this.removeActiveBanner();
              const alert = document.getElementById('active-role-alert');
              if(alert) alert.remove();
+             const spec = document.getElementById('spectator-banner');
+             if(spec) spec.remove();
+             
              this.showFinalResults(data);
         });
     },
 
+    // --- NEW HELPERS ---
+    kick(id) {
+        if(confirm("Kick this player?")) this.socket.emit('kickPlayer', { roomCode: this.roomCode, targetId: id });
+    },
+
+    showVoteReveal(players, votes) {
+        const div = document.createElement('div');
+        div.id = 'active-vote-reveal';
+        div.className = 'reveal-overlay';
+        
+        div.innerHTML = players.map(p => {
+            if(p.isSpectator) return '';
+            const v = votes[p.id];
+            let style = 'vote-none';
+            if (v === 'good') style = 'vote-good';
+            if (v === 'bad') style = 'vote-bad';
+            
+            let icon = v === 'good' ? '👍' : (v === 'bad' ? '👎' : '⏳');
+            // Show Dead status
+            if (this.currentMode === 'survival' && p.lives <= 0) {
+                 style = 'bg-gray-200 text-gray-400 border-gray-300';
+                 icon = '💀';
+            }
+
+            return `<div class="reveal-card ${style}">${icon} ${p.name}</div>`;
+        }).join('');
+        
+        document.body.appendChild(div);
+    },
+
+    showSpectatorBanner() {
+        const div = document.createElement('div');
+        div.id = 'spectator-banner';
+        div.innerHTML = "👁️ SPECTATING (WAITING FOR NEXT GAME)";
+        document.body.appendChild(div);
+    },
+
+    // --- HOST CONTROLS ---
     updateSettings() {
         if(!this.isHost) return;
         const mode = document.getElementById('hostModeSelect').value;
@@ -4497,13 +4563,11 @@ const RoomManager = {
         if (this.isHost) {
             let modeOpts = "";
             for (const [key, val] of Object.entries(this.modeConfig)) {
-                // Add (Need X+) text to dropdown if not enough players
                 const note = (playerCount < val.min) ? ` (Need ${val.min}+)` : '';
                 modeOpts += `<option value="${key}" ${data.mode===key?'selected':''}>${val.label}${note}</option>`;
             }
             
-            // --- 2. NEW: Added "1 Round" Option ---
-            let roundOpts = `<option value="1" ${data.maxRounds==1?'selected':''}>🚀 Have a Quickie!)</option>`;
+            let roundOpts = `<option value="1" ${data.maxRounds==1?'selected':''}>🚀 1 Round (Quickie)</option>`;
             [5, 10, 15, 20, 30].forEach(r => {
                 roundOpts += `<option value="${r}" ${data.maxRounds==r?'selected':''}>${r} Rounds</option>`;
             });
@@ -4512,10 +4576,8 @@ const RoomManager = {
                 <div class="bg-gray-100 p-3 rounded-lg mb-4">
                     <label class="text-xs font-bold text-gray-400 uppercase">Game Mode</label>
                     <select id="hostModeSelect" class="mode-select" onchange="RoomManager.updateSettings()">${modeOpts}</select>
-                    
                     <label class="text-xs font-bold text-gray-400 uppercase">Duration</label>
                     <select id="hostRoundSelect" class="round-select" onchange="RoomManager.updateSettings()">${roundOpts}</select>
-                    
                     <div class="text-xs text-center text-gray-500 mt-1">${config.desc}</div>
                     ${!enoughPlayers ? `<div class="text-xs text-center text-red-500 font-bold mt-2">⚠️ Not enough players (Need ${minReq}+)</div>` : ''}
                 </div>
@@ -4525,36 +4587,36 @@ const RoomManager = {
                 <div class="bg-indigo-50 p-4 rounded-lg mb-4 text-center border-2 border-indigo-100">
                     <div class="font-black text-indigo-700 text-lg">${config.label}</div>
                     <div class="text-sm text-gray-500 mb-2">${config.desc}</div>
-                    <div class="inline-block bg-white px-2 py-1 rounded border border-indigo-200 text-xs font-bold text-indigo-400">
-                        ${data.maxRounds} Rounds
-                    </div>
+                    <div class="inline-block bg-white px-2 py-1 rounded border border-indigo-200 text-xs font-bold text-indigo-400">${data.maxRounds} Rounds</div>
                     ${!enoughPlayers ? `<div class="text-xs text-center text-red-500 font-bold mt-2">Waiting for more players...</div>` : ''}
                 </div>
             `;
         }
         document.getElementById('lobbyModeArea').innerHTML = settingsHtml;
 
-        // 3. PLAYER LIST
+        // 2. PLAYER LIST (OPTION 4: KICK BUTTON)
         list.innerHTML = data.players.map(p => {
             let extra = "";
-            if (data.mode === 'survival') {
-                let hearts = " ❤️".repeat(p.lives);
-                extra = `<span class="text-xs ml-2">${hearts}</span>`;
+            if (data.mode === 'survival') extra = `<span class="text-xs ml-2">${"❤️".repeat(p.lives)}</span>`;
+            
+            // Kick Button
+            let kickHtml = "";
+            if (this.isHost && p.id !== this.playerId) {
+                kickHtml = `<span class="kick-btn" onclick="RoomManager.kick('${p.id}')">[x]</span>`;
             }
+
             return `<div class="flex justify-between items-center p-2 border-b text-sm">
-                <div class="flex items-center"><span class="font-bold text-gray-700">${p.name}</span> ${extra} ${p.id===data.host?'👑':''}</div>
+                <div class="flex items-center"><span class="font-bold text-gray-700">${p.name}</span> ${extra} ${p.id===data.host?'👑':''} ${kickHtml}</div>
             </div>`;
         }).join('');
         
-        // 4. START BUTTON (Logic to Disable)
+        // 3. START BUTTON
         const startBtn = document.getElementById('roomStartBtn');
         const waitMsg = document.getElementById('roomWaitMsg');
         
         if (this.isHost) {
             startBtn.classList.remove('hidden');
             waitMsg.classList.add('hidden');
-            
-            // --- 3. NEW: Disable Button if not enough players ---
             if (!enoughPlayers) {
                 startBtn.disabled = true;
                 startBtn.classList.add('opacity-50', 'cursor-not-allowed');
@@ -4612,6 +4674,20 @@ const RoomManager = {
     start() { this.socket.emit('startGame', { roomCode: this.roomCode }); },
     submitVote(t) { if(this.active) this.socket.emit('submitVote', { roomCode: this.roomCode, vote: t }); },
     showFinalResults(data) {
+        // OPTION 1: SABOTEUR/VIP REVEAL
+        let roleReveal = "";
+        if (data.specialRoleId) {
+            const roleName = (data.mode === 'saboteur') ? 'Saboteur' : 'VIP';
+            const icon = (data.mode === 'saboteur') ? '🕵️' : '👑';
+            const rolePlayer = data.rankings.find(p => p.id === data.specialRoleId);
+            
+            if (rolePlayer) {
+                roleReveal = `<div class="bg-yellow-100 text-yellow-800 p-2 rounded-lg font-bold text-center mb-4 border border-yellow-300 shadow-sm animate-bounce">
+                    ${icon} The ${roleName} was: <br><span class="text-xl">${rolePlayer.name.toUpperCase()}</span>
+                </div>`;
+            }
+        }
+
         let rankHtml = `<div class="mt-4 max-h-40 overflow-y-auto bg-gray-900 rounded-lg p-2">`;
         data.rankings.forEach((p, i) => {
             rankHtml += `<div class="flex justify-between text-sm py-1 border-b border-gray-700 last:border-0"><span class="text-white">${i+1}. ${p.name}</span><span class="font-bold text-yellow-400">${p.score} pts</span></div>`;
@@ -4623,6 +4699,7 @@ const RoomManager = {
             <div class="bg-gray-800 rounded-2xl w-full max-w-md p-6 border-2 border-indigo-500 relative">
                 <h2 class="text-2xl font-black text-white text-center mb-2 uppercase">Results</h2>
                 <div class="text-center text-gray-300 text-sm mb-4">${this.modeConfig[data.mode].label}</div>
+                ${roleReveal}
                 <div class="text-xs text-gray-400 font-bold uppercase mt-4">Session Leaderboard</div>
                 ${rankHtml}
                 <div class="flex gap-2 mt-6">
