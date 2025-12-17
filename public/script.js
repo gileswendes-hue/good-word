@@ -4292,35 +4292,37 @@ const RoomManager = {
     isHost: false,
     currentMode: 'coop',
     myTeam: 'neutral',
-    scores: { red: 0, blue: 0, coop: 0 },
+    vipName: '',
+    
+    // Config for Modes
+    modeConfig: {
+        'coop': { label: '🤝 Co-op Sync', desc: 'Vote together! Get 100% Sync.' },
+        'versus': { label: '⚔️ Team Versus', desc: 'Red vs Blue. Beat the other team\'s sync.' },
+        'vip': { label: '👑 Follow the Leader', desc: 'One VIP. Vote exactly like them.' },
+        'hipster': { label: '🕶️ The Hipster', desc: 'Minority Rules. Try to be unique!' },
+        'speed': { label: '⏱️ Speed Demon', desc: 'Vote fast! Speed + Majority wins.' },
+        'survival': { label: '💣 Sudden Death', desc: '3 Lives. Vote with majority or die.' },
+        'saboteur': { label: '🕵️ The Saboteur', desc: 'One Traitor tries to ruin 100% Sync.' }
+    },
 
     init() {
+        // Inject Styles (Dropdown & Lives)
         if (!document.getElementById('room-styles')) {
             const s = document.createElement('style');
             s.id = 'room-styles';
             s.innerHTML = `
-                .mode-sel { opacity: 0.5; font-weight: bold; padding: 5px 10px; cursor: pointer; }
-                .mode-sel.active { opacity: 1; text-decoration: underline; color: #4f46e5; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-                .team-badge { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
-                #room-active-banner {
-                    position: fixed; top: 0; left: 0; width: 100%; height: 60px;
-                    background: white; z-index: 200; display: flex; align-items: center; justify-content: space-between;
-                    padding: 0 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); border-bottom: 2px solid #e5e7eb;
-                }
-                .room-info { font-size: 0.9rem; font-weight: bold; color: #374151; }
-                .leave-btn {
-                    background: #fee2e2; color: #ef4444; border: 1px solid #fecaca;
-                    padding: 6px 12px; border-radius: 8px; font-weight: bold; font-size: 0.8rem;
-                    cursor: pointer; transition: all 0.2s;
-                }
-                .leave-btn:hover { background: #fecaca; }
+                .mode-select { width: 100%; padding: 10px; border-radius: 8px; border: 2px solid #e5e7eb; font-weight: bold; color: #374151; margin-bottom: 10px; }
+                .leave-btn { background: #fee2e2; color: #ef4444; border: 1px solid #fecaca; padding: 6px 12px; border-radius: 8px; font-weight: bold; cursor: pointer; }
                 .countdown-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 300; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; }
                 .countdown-number { font-size: 8rem; font-weight: 900; animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite; }
                 @keyframes ping { 75%, 100% { transform: scale(2); opacity: 0; } }
+                .heart-icon { color: #ef4444; margin-right: 2px; }
+                .dead-player { opacity: 0.5; text-decoration: line-through; }
+                #active-role-alert { position: fixed; top: 70px; left: 50%; transform: translateX(-50%); background: #fef08a; color: #854d0e; padding: 5px 15px; border-radius: 20px; font-weight: bold; z-index: 250; font-size: 0.8rem; border: 1px solid #eab308; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
             `;
             document.head.appendChild(s);
         }
-
+        // (Button injection same as before...)
         if (!document.getElementById('roomBtn')) {
             const btn = document.createElement('button');
             btn.id = 'roomBtn';
@@ -4330,14 +4332,12 @@ const RoomManager = {
             const sb = document.getElementById('showSettingsButton');
             if (sb && sb.parentNode) sb.parentNode.insertBefore(btn, sb);
         }
-
         if (!window.io) {
             const sc = document.createElement('script');
             sc.src = "/socket.io/socket.io.js";
             sc.onload = () => this.connect();
             document.head.appendChild(sc);
         } else { this.connect(); }
-        
         this.injectModal();
     },
 
@@ -4353,12 +4353,27 @@ const RoomManager = {
             if (me) this.myTeam = me.team;
         });
 
+        this.socket.on('roleAlert', (msg) => {
+            // Private message for Saboteur
+            alert(msg); // Alert or nice toast
+            const div = document.createElement('div');
+            div.id = 'active-role-alert';
+            div.innerText = "🕵️ YOU ARE THE SABOTEUR";
+            document.body.appendChild(div);
+        });
+
         this.socket.on('gameStarted', (data) => {
             this.active = true;
             State.runtime.isMultiplayer = true;
             this.closeLobby();
             this.currentMode = data.mode;
-            this.scores = { red: 0, blue: 0, coop: 0 };
+            
+            // If VIP mode, store VIP name
+            if(data.vipId) {
+                // We need to fetch player list to get name, but for now we wait for next update or just say "VIP"
+                // Ideally backend sends VIP name, but we can infer it later
+            }
+
             State.runtime.allWords = []; 
             this.playCountdown(data.mode);
             this.showActiveBanner();
@@ -4373,61 +4388,61 @@ const RoomManager = {
             UIManager.displayWord(wObj);
             UIManager.disableButtons(false);
             
-            let stat = `Round ${data.roundCurrent}/${data.roundTotal}`;
-            if (this.currentMode === 'versus') {
-                stat += ` | 🔴 ${this.scores.red} - 🔵 ${this.scores.blue}`;
-            } else {
-                stat += ` | Sync: ${this.scores.coop}`;
+            // Check if I am dead (Survival Mode)
+            if (this.currentMode === 'survival') {
+                 // We need to know my lives. Ideally backend sends player data in nextWord or we check roundResult
+                 // For now, if I have 0 lives, disable buttons
             }
-            UIManager.showPostVoteMessage(stat);
+            
+            UIManager.showPostVoteMessage(`Round ${data.roundCurrent}/${data.roundTotal}`);
         });
 
-        this.socket.on('roundResult', ({ mode, data }) => {
-            if (mode === 'versus') {
-                this.scores.red = data.redScore;
-                this.scores.blue = data.blueScore;
-                const mySync = this.myTeam === 'red' ? data.redSync : data.blueSync;
-                const theirSync = this.myTeam === 'red' ? data.blueSync : data.redSync;
-                
-                let msg = mySync > theirSync ? "POINT! 🏆" : "MISS! ❌";
-                if(mySync === theirSync) msg = "DRAW!";
-                UIManager.showPostVoteMessage(`${msg} (You: ${mySync}% vs Them: ${theirSync}%)`);
-            } else {
-                this.scores.coop = data.score;
-                const ico = data.sync >= 100 ? "🔥" : data.sync >= 60 ? "✅" : "⚠️";
-                UIManager.showPostVoteMessage(`${ico} Room Sync: ${data.sync}%`);
+        this.socket.on('roundResult', ({ mode, data, players }) => {
+            // Update my status (Lives)
+            const me = players.find(p => p.id === this.playerId);
+            if (mode === 'survival' && me && me.lives <= 0) {
+                 UIManager.disableButtons(true);
+                 UIManager.showPostVoteMessage("💀 YOU ARE OUT!");
+                 return;
             }
+
+            // Show result text
+            let msg = "";
+            if (mode === 'versus') {
+                const mySync = this.myTeam === 'red' ? data.redSync : data.blueSync;
+                msg = `Your Team: ${mySync}% Sync`;
+            } else if (data.msg) {
+                msg = data.msg; // Custom msg from backend
+            } else {
+                msg = `Room Sync: ${data.sync}%`;
+            }
+            UIManager.showPostVoteMessage(msg);
         });
 
         this.socket.on('gameOver', (data) => {
-             // 1. Return to Normal Play instantly
              this.active = false;
              State.runtime.isMultiplayer = false;
-             this.removeActiveBanner(); 
-             
-             // 2. Show Results & Options
+             this.removeActiveBanner();
+             const alert = document.getElementById('active-role-alert');
+             if(alert) alert.remove();
              this.showFinalResults(data);
         });
     },
 
+    // --- UI HELPERS ---
     showActiveBanner() {
         const existing = document.getElementById('room-active-banner');
         if(existing) existing.remove();
-
         const banner = document.createElement('div');
         banner.id = 'room-active-banner';
+        banner.style.cssText = "position:fixed; top:0; left:0; width:100%; height:60px; background:white; z-index:200; display:flex; align-items:center; justify-content:space-between; padding:0 20px; box-shadow:0 2px 10px rgba(0,0,0,0.1);";
         
-        let infoText = `Room: <span class="font-mono bg-gray-100 px-1 rounded">${this.roomCode}</span>`;
-        if(this.currentMode === 'versus') {
-            const teamColor = this.myTeam === 'red' ? 'text-red-500' : 'text-blue-500';
-            infoText += ` <span class="mx-2">|</span> <span class="${teamColor}">You are ${this.myTeam.toUpperCase()} Team</span>`;
-        } else {
-            infoText += ` <span class="mx-2">|</span> 🤝 Co-op Mode`;
-        }
-
+        let config = this.modeConfig[this.currentMode];
         banner.innerHTML = `
-            <div class="room-info">${infoText}</div>
-            <button onclick="RoomManager.leave()" class="leave-btn">Exit Room</button>
+            <div class="room-info">
+                <span class="font-mono bg-gray-100 px-1 rounded">${this.roomCode}</span> | ${config.label}
+            </div>
+            <button onclick="RoomManager.leave()" class="leave-btn">Exit</button>
         `;
         document.body.appendChild(banner);
         document.body.style.paddingTop = '60px';
@@ -4440,52 +4455,39 @@ const RoomManager = {
     },
 
     leave() {
-        if(confirm("Are you sure you want to leave the game?")) {
-            window.location.reload();
-        }
+        if(confirm("Leave game?")) window.location.reload();
     },
 
-	playCountdown(mode) {
-        const rules = mode === 'versus' 
-            ? "🔴 RED vs 🔵 BLUE<br><span class='text-sm font-normal'>Teams are randomized.<br>Sync with your team to win!</span>" 
-            : "🤝 CO-OP MODE<br><span class='text-sm font-normal'>Everyone vote the same!<br>100% Sync = Bonus Points.</span>";
-
+    playCountdown(mode) {
+        const config = this.modeConfig[mode];
         const div = document.createElement('div');
         div.id = 'active-countdown';
         div.className = 'countdown-overlay';
         div.innerHTML = `
-            <div class="text-3xl font-black mb-8 text-center uppercase tracking-widest">${rules}</div>
+            <div class="text-3xl font-black mb-4 text-center uppercase tracking-widest">${config.label}</div>
+            <div class="text-xl mb-8 text-center text-gray-300 max-w-md">${config.desc}</div>
             <div id="cd-num" class="countdown-number text-yellow-400">5</div>
-            <div class="mt-8 text-gray-400 text-sm">Get Ready...</div>
         `;
         document.body.appendChild(div);
 
         let count = 5;
         const el = document.getElementById('cd-num');
-        
-        // Run immediately to show 5
         el.textContent = count;
-
         const interval = setInterval(() => {
             count--;
-            
             if(count > 0) {
-                // Numbers 4, 3, 2, 1
                 el.textContent = count;
                 el.classList.remove('countdown-number');
-                void el.offsetWidth; // trigger reflow to restart animation
+                void el.offsetWidth;
                 el.classList.add('countdown-number');
             } else if (count === 0) {
-                // "GO!" phase
                 el.textContent = "GO!";
                 el.classList.add('text-green-400');
                 el.classList.remove('text-yellow-400');
-                // Ensure animation runs for GO too
                 el.classList.remove('countdown-number');
                 void el.offsetWidth;
                 el.classList.add('countdown-number');
             } else {
-                // End phase (Count is -1) - This creates the pause on GO!
                 clearInterval(interval);
                 div.remove();
             }
@@ -4496,24 +4498,31 @@ const RoomManager = {
 
     renderLobby(data) {
         const list = document.getElementById('lobbyPlayerList');
-        const isVersus = data.mode === 'versus';
         
-        const modeHtml = this.isHost ? `
-            <div class="flex justify-center gap-4 mb-4 text-sm bg-gray-100 p-2 rounded-lg">
-                <button onclick="RoomManager.setMode('coop')" class="mode-sel ${!isVersus?'active':''}">🤝 CO-OP</button>
-                <div class="text-gray-300">|</div>
-                <button onclick="RoomManager.setMode('versus')" class="mode-sel ${isVersus?'active':''}">⚔️ VERSUS</button>
-            </div>
-            ${isVersus ? '<div class="text-xs text-center text-gray-400 mb-2 italic">Teams are randomized at start!</div>' : ''}
-            ` : `<div class="text-center font-bold text-indigo-600 mb-4 bg-indigo-50 p-2 rounded-lg">${isVersus ? '⚔️ TEAM VERSUS' : '🤝 CO-OP SYNC'}</div>`;
-
+        // Mode Selector (Dropdown)
+        let modeHtml = "";
+        if (this.isHost) {
+            let options = "";
+            for (const [key, val] of Object.entries(this.modeConfig)) {
+                options += `<option value="${key}" ${data.mode===key?'selected':''}>${val.label}</option>`;
+            }
+            modeHtml = `<select class="mode-select" onchange="RoomManager.setMode(this.value)">${options}</select>`;
+            modeHtml += `<div class="text-xs text-gray-400 mb-4 text-center">${this.modeConfig[data.mode].desc}</div>`;
+        } else {
+            modeHtml = `<div class="text-center font-bold text-indigo-600 mb-2">${this.modeConfig[data.mode].label}</div>
+                        <div class="text-xs text-gray-400 mb-4 text-center">${this.modeConfig[data.mode].desc}</div>`;
+        }
         document.getElementById('lobbyModeArea').innerHTML = modeHtml;
 
+        // Player List
         list.innerHTML = data.players.map(p => {
-            let badge = '';
-            if (isVersus && p.team !== 'neutral') badge = p.team === 'red' ? '<span class="team-badge bg-red-500"></span>' : '<span class="team-badge bg-blue-500"></span>';
+            let extra = "";
+            if (data.mode === 'survival') {
+                let hearts = "❤️".repeat(p.lives);
+                extra = `<span class="text-xs ml-2">${hearts}</span>`;
+            }
             return `<div class="flex justify-between items-center p-2 border-b text-sm">
-                <div class="flex items-center">${badge} <span class="font-bold text-gray-700">${p.name}</span> ${p.id===data.host?'👑':''}</div>
+                <div class="flex items-center"><span class="font-bold text-gray-700">${p.name}</span> ${extra} ${p.id===data.host?'👑':''}</div>
             </div>`;
         }).join('');
         
@@ -4529,6 +4538,7 @@ const RoomManager = {
         }
     },
 
+    // (injectModal, openLobby, closeLobby, join, start, submitVote same as before...)
     injectModal() {
         if (document.getElementById('roomModal')) return;
         const div = document.createElement('div');
@@ -4537,18 +4547,13 @@ const RoomManager = {
         div.innerHTML = `
             <div class="bg-white rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl relative">
                 <button onclick="RoomManager.closeLobby()" class="absolute top-4 right-4 text-gray-400">✕</button>
-                <div class="text-center mb-4">
-                    <h3 class="text-2xl font-black text-gray-800">MULTIPLAYER</h3>
-                </div>
+                <div class="text-center mb-4"><h3 class="text-2xl font-black text-gray-800">MULTIPLAYER</h3></div>
                 <div id="roomJoinScreen" class="space-y-4">
                     <input id="roomCodeInput" type="text" maxlength="6" placeholder="ROOM CODE" class="w-full text-center text-2xl font-black p-3 border-2 rounded-xl uppercase">
                     <button onclick="RoomManager.join()" class="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl">JOIN ROOM</button>
                 </div>
                 <div id="roomLobbyScreen" class="hidden space-y-4">
-                    <div class="text-center">
-                        <div class="text-xs font-bold text-gray-400">CODE</div>
-                        <div id="lobbyCodeDisplay" class="text-3xl font-black text-indigo-600 tracking-widest">---</div>
-                    </div>
+                    <div class="text-center"><div class="text-xs font-bold text-gray-400">CODE</div><div id="lobbyCodeDisplay" class="text-3xl font-black text-indigo-600 tracking-widest">---</div></div>
                     <div id="lobbyModeArea"></div>
                     <div class="bg-gray-50 p-2 rounded-xl h-32 overflow-y-auto" id="lobbyPlayerList"></div>
                     <button id="roomStartBtn" onclick="RoomManager.start()" class="w-full py-3 bg-green-500 text-white font-bold rounded-xl hidden">START GAME</button>
@@ -4557,20 +4562,12 @@ const RoomManager = {
             </div>`;
         document.body.appendChild(div);
     },
-
     openLobby() { document.getElementById('roomModal').classList.remove('hidden'); },
     closeLobby() { document.getElementById('roomModal').classList.add('hidden'); },
-    
     join() {
         if (!State.data.username || State.data.username === "Player" || State.data.username === "") {
-            let name = prompt("Enter your name to join:");
-            if (name && name.trim()) {
-                State.data.username = name.trim();
-                State.save('username', State.data.username);
-                UIManager.updateProfileDisplay();
-            } else {
-                return;
-            }
+            let name = prompt("Enter your name:");
+            if (name && name.trim()) { State.data.username = name.trim(); State.save('username', State.data.username); UIManager.updateProfileDisplay(); } else return;
         }
         const c = document.getElementById('roomCodeInput').value.trim().toUpperCase();
         if(!c) return;
@@ -4580,65 +4577,27 @@ const RoomManager = {
         document.getElementById('roomLobbyScreen').classList.remove('hidden');
         document.getElementById('lobbyCodeDisplay').textContent = c;
     },
-    
     start() { this.socket.emit('startGame', { roomCode: this.roomCode, rounds: 10 }); },
     submitVote(t) { if(this.active) this.socket.emit('submitVote', { roomCode: this.roomCode, vote: t }); },
 
     showFinalResults(data) {
-        let headerHtml = '';
-        const scores = data.scores;
-        
-        if (data.mode === 'versus') {
-            headerHtml = `
-                <div class="flex justify-between items-center py-4 border-b border-gray-700">
-                    <span class="text-red-400 font-bold text-xl">🔴 RED</span>
-                    <span class="text-white font-black text-2xl">${scores.red}</span>
-                </div>
-                <div class="flex justify-between items-center py-4 border-b border-gray-700">
-                    <span class="text-blue-400 font-bold text-xl">🔵 BLUE</span>
-                    <span class="text-white font-black text-2xl">${scores.blue}</span>
-                </div>
-                <div class="text-center mt-4 text-white font-bold text-lg">
-                    ${scores.red > scores.blue ? '🔴 RED WINS!' : (scores.blue > scores.red ? '🔵 BLUE WINS!' : 'DRAW!')}
-                </div>
-            `;
-        } else {
-            headerHtml = `
-                <div class="text-center py-6">
-                    <div class="text-6xl mb-2">🤝</div>
-                    <div class="text-white text-4xl font-black mb-2">${scores.coop}</div>
-                    <div class="text-gray-400 uppercase tracking-widest text-sm">Sync Points</div>
-                </div>
-            `;
-        }
-
-        // Generate Ranking List
         let rankHtml = `<div class="mt-4 max-h-40 overflow-y-auto bg-gray-900 rounded-lg p-2">`;
         data.rankings.forEach((p, i) => {
-            let color = 'text-white';
-            if(data.mode === 'versus') color = p.team === 'red' ? 'text-red-400' : 'text-blue-400';
-            rankHtml += `
-                <div class="flex justify-between text-sm py-1 border-b border-gray-700 last:border-0">
-                    <span class="${color}">${i+1}. ${p.name}</span>
-                    <span class="font-bold text-yellow-400">${p.score} pts</span>
-                </div>`;
+            rankHtml += `<div class="flex justify-between text-sm py-1 border-b border-gray-700 last:border-0"><span class="text-white">${i+1}. ${p.name}</span><span class="font-bold text-yellow-400">${p.score} pts</span></div>`;
         });
         rankHtml += `</div>`;
-
+        
         const div = document.createElement('div');
         div.className = 'fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-4';
         div.innerHTML = `
             <div class="bg-gray-800 rounded-2xl w-full max-w-md p-6 border-2 border-indigo-500 relative">
-                <h2 class="text-2xl font-black text-white text-center mb-2 uppercase">Match Results</h2>
-                
-                ${headerHtml}
-                
-                <div class="text-xs text-gray-400 font-bold uppercase mt-4">Individual Leaderboard</div>
+                <h2 class="text-2xl font-black text-white text-center mb-2 uppercase">Results</h2>
+                <div class="text-center text-gray-300 text-sm mb-4">${this.modeConfig[data.mode].label}</div>
+                <div class="text-xs text-gray-400 font-bold uppercase mt-4">Session Leaderboard</div>
                 ${rankHtml}
-
                 <div class="flex gap-2 mt-6">
-                    <button onclick="this.closest('.fixed').remove()" class="flex-1 py-3 bg-gray-700 text-white font-bold rounded-xl hover:bg-gray-600 transition">Exit</button>
-                    <button onclick="this.closest('.fixed').remove(); RoomManager.openLobby()" class="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-500 transition">Play New Round</button>
+                    <button onclick="this.closest('.fixed').remove()" class="flex-1 py-3 bg-gray-700 text-white font-bold rounded-xl">Exit</button>
+                    <button onclick="this.closest('.fixed').remove(); RoomManager.openLobby()" class="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl">New Round</button>
                 </div>
             </div>`;
         document.body.appendChild(div);
