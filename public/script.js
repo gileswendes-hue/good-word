@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.80', 
+    APP_VERSION: '5.80.1', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4912,10 +4912,10 @@ removeActiveBanner() {
         div.innerHTML = `
             <div class="bg-white rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl relative">
                 <button onclick="RoomManager.leave()" class="absolute top-4 right-4 text-gray-400">✕</button>
-                <div class="text-center mb-4"><h3 class="text-2xl font-black text-gray-800">MULTIPLAYER</h3></div>
+                <div class="text-center mb-4"><h3 class="text-2xl font-black text-gray-800">MULTIPLAYER 👨‍👩‍👧‍👦</h3></div>
                 <div id="roomJoinScreen" class="space-y-4">
                     <input id="roomCodeInput" type="text" maxlength="6" placeholder="ROOM CODE" class="w-full text-center text-2xl font-black p-3 border-2 rounded-xl uppercase">
-                    <button onclick="RoomManager.join()" class="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl">JOIN ROOM</button>
+                    <button onclick="RoomManager.join()" class="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl">CREATE/JOIN ROOM</button>
                 </div>
                 <div id="roomLobbyScreen" class="hidden space-y-4">
                     <div class="text-center"><div class="text-xs font-bold text-gray-400">CODE</div><div id="lobbyCodeDisplay" class="text-3xl font-black text-indigo-600 tracking-widest">---</div></div>
