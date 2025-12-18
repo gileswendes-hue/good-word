@@ -98,10 +98,9 @@ function removePlayerFromAllRooms(socketId) {
             } else {
                 if (wasHost) room.host = room.players[0].id;
                 
-                // Unblock drinking phase if stuck
                 if (room.state === 'drinking') checkDrinkingCompletion(code);
                 
-                // Anti-Stall: Check voting completion
+                // Anti-Stall
                 if (room.state === 'playing') {
                     const activePlayers = room.players.filter(p => !p.isSpectator && (room.mode !== 'survival' || p.lives > 0));
                     if (activePlayers.length > 0 && Object.keys(room.currentVotes).length >= activePlayers.length) {
@@ -209,7 +208,6 @@ io.on('connection', (socket) => {
         if(rounds) room.maxWords = parseInt(rounds);
         if (typeof drinking !== 'undefined') room.drinkingMode = drinking;
         
-        // --- FIX: Force Drinking OFF for Traitor AND Kids ---
         if (room.mode === 'traitor' || room.mode === 'kids') room.drinkingMode = false;
 
         emitUpdate(roomCode);
@@ -243,7 +241,6 @@ io.on('connection', (socket) => {
         room.vipId = null;
         room.traitorId = null;
 
-        // --- FIX: Force Drinking OFF for Traitor AND Kids ---
         if (room.mode === 'traitor' || room.mode === 'kids') room.drinkingMode = false;
 
         room.players.forEach(p => {
@@ -526,33 +523,60 @@ function finishWord(roomCode) {
     }
 
     let drinkers = [];
-    if (room.drinkingMode && room.mode !== 'traitor') {
-        let slowestId = null;
-        let slowestTime = 0;
-        
-        for (const [pid, timestamp] of Object.entries(room.currentVoteTimes)) {
-            const dur = timestamp - room.wordStartTime;
-            if (dur > slowestTime) { slowestTime = dur; slowestId = pid; }
-        }
-        
-        // 3 SECOND THRESHOLD
-        if (slowestId && slowestTime > 3000) {
-             const p = room.players.find(pl => pl.id === slowestId);
-             drinkers.push({ id: slowestId, name: p ? p.name : 'Unknown', reason: 'Too Slow!' });
-        }
+    let drinkMsg = "Penalty Round";
 
-        const allVotes = Object.values(votes);
-        const maj = getMajority(allVotes);
-        if (maj !== 'draw') {
-            room.players.forEach(p => {
-                if (p.isSpectator) return;
-                const v = votes[p.id];
-                if (v && v !== maj) {
-                    if (!drinkers.find(d => d.id === p.id)) {
-                        drinkers.push({ id: p.id, name: p.name, reason: 'Minority!' });
-                    }
+    if (room.drinkingMode && room.mode !== 'traitor' && room.mode !== 'kids') {
+        if (Math.random() < 0.1) { // 10% Chance
+            
+            const rand = Math.random();
+            if (rand < 0.7) {
+                // 70% STANDARD (Slow + Minority)
+                let slowestId = null;
+                let slowestTime = 0;
+                for (const [pid, timestamp] of Object.entries(room.currentVoteTimes)) {
+                    const dur = timestamp - room.wordStartTime;
+                    if (dur > slowestTime) { slowestTime = dur; slowestId = pid; }
                 }
-            });
+                
+                if (slowestId && slowestTime > 3000) {
+                     const p = room.players.find(pl => pl.id === slowestId);
+                     drinkers.push({ id: slowestId, name: p ? p.name : 'Unknown', reason: 'Too Slow!', icon: '🐌' });
+                }
+
+                const allVotes = Object.values(votes);
+                const maj = getMajority(allVotes);
+                if (maj !== 'draw') {
+                    room.players.forEach(p => {
+                        if (p.isSpectator) return;
+                        const v = votes[p.id];
+                        if (v && v !== maj) {
+                            if (!drinkers.find(d => d.id === p.id)) {
+                                drinkers.push({ id: p.id, name: p.name, reason: 'Minority Vote!', icon: '🤡' });
+                            }
+                        }
+                    });
+                }
+            } else if (rand < 0.85) {
+                // 15% SOCIAL
+                drinkMsg = "SOCIAL! EVERYONE DRINKS!";
+                room.players.forEach(p => {
+                    if (!p.isSpectator) drinkers.push({ id: p.id, name: p.name, reason: 'Social!', icon: '🍻' });
+                });
+            } else {
+                // 15% NOMINATE
+                drinkMsg = "DEMOCRACY MANIFEST!";
+                let fastestId = null;
+                let fastestTime = Infinity;
+                for (const [pid, timestamp] of Object.entries(room.currentVoteTimes)) {
+                    const dur = timestamp - room.wordStartTime;
+                    if (dur < fastestTime) { fastestTime = dur; fastestId = pid; }
+                }
+                
+                if (fastestId) {
+                     const p = room.players.find(pl => pl.id === fastestId);
+                     drinkers.push({ id: fastestId, name: p ? p.name : 'Unknown', reason: 'NOMINATE SOMEONE!', icon: '🫵' });
+                }
+            }
         }
     }
 
@@ -569,7 +593,7 @@ function finishWord(roomCode) {
     if (drinkers.length > 0) {
         room.state = 'drinking';
         room.readyConfirms = new Set();
-        io.to(roomCode).emit('drinkPenalty', { drinkers });
+        io.to(roomCode).emit('drinkPenalty', { drinkers, msg: drinkMsg });
     } else {
         room.wordTimer = setTimeout(() => sendNextWord(roomCode), 3000);
     }
