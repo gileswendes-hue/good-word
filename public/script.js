@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.80.6', 
+    APP_VERSION: '5.80.8', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4785,24 +4785,17 @@ injectStyles() {
         
         if (typeof DiscoveryManager !== 'undefined') DiscoveryManager.clear();
         
-        // --- UPDATED LIST: HIDE ALL EXTRA UI ---
         const uiIds = [
             'showHelpButton', 'showSettingsButton', 'showDonateButton', 'showContactButton',
-            'qrGoodBtn', 'qrBadBtn',                // Hide QR Buttons
-            'compareWordsButton',                   // Hide Compare Button
-            'headerStatsCard',                      // Hide Rankings/Graph Button
-            'userStatsBar',                         // Hide Profile/Stats Bar
-            'dailyBanner',                          // Hide Daily Mode Banner
-            'customWordButton'                      // Hide Submit Word Button
+            'qrGoodBtn', 'qrBadBtn', 'compareWordsButton', 'headerStatsCard', 
+            'userStatsBar', 'dailyBanner', 'customWordButton'
         ];
         
         uiIds.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.style.display = 'none';
         });
-        // ---------------------------------------
 
-        // Hide the white Theme Card (Container)
         const themeSelect = document.getElementById('themeChooser');
         if (themeSelect) {
             const card = themeSelect.closest('.bg-white') || themeSelect.parentElement;
@@ -4812,13 +4805,16 @@ injectStyles() {
             }
         }
 
-        let teamBadge = '';
+        let infoBadge = ''; // Unified variable for both modes
+
+        // 1. VERSUS BADGE
         if (this.currentMode === 'versus' && this.myTeam) {
             const color = this.myTeam === 'red' ? 'bg-red-500' : (this.myTeam === 'blue' ? 'bg-blue-500' : 'bg-gray-400');
-            teamBadge = `<span class="ml-2 px-2 py-1 rounded text-xs text-white font-bold ${color}">${this.myTeam.toUpperCase()} TEAM</span>`;
+            infoBadge = `<span class="ml-2 px-2 py-1 rounded text-xs text-white font-bold ${color}">${this.myTeam.toUpperCase()} TEAM</span>`;
         }
-		
-		if (this.currentMode === 'vip' && this.vipId && this.players) {
+        
+        // 2. VIP BADGE
+        if (this.currentMode === 'vip' && this.vipId && this.players) {
             const vipPlayer = this.players.find(p => p.id === this.vipId);
             const vipName = vipPlayer ? vipPlayer.name : "Unknown";
             const isMe = this.vipId === this.playerId;
@@ -4829,11 +4825,13 @@ injectStyles() {
         banner.id = 'room-active-banner';
         banner.style.cssText = "position:fixed; top:0; left:0; width:100%; height:60px; background:white; z-index:200; display:flex; align-items:center; justify-content:space-between; padding:0 20px; box-shadow:0 2px 10px rgba(0,0,0,0.1);";
         let config = this.modeConfig[this.currentMode];
+        
+        // Using infoBadge correctly here
         banner.innerHTML = `
             <div class="room-info flex items-center">
                 <span class="font-mono bg-gray-100 px-1 rounded mr-2">${this.roomCode}</span> 
                 <span class="text-sm md:text-base">${config.label}</span>
-                ${teamBadge}
+                ${infoBadge}
             </div>
             <button onclick="RoomManager.leave()" class="leave-btn">Exit</button>
         `;
@@ -5074,12 +5072,18 @@ removeActiveBanner() {
     start() { if(this.socket) this.socket.emit('startGame', { roomCode: this.roomCode }); },
     submitVote(t) { if(this.active && this.socket) this.socket.emit('submitVote', { roomCode: this.roomCode, vote: t }); },
     
-    showFinalResults(data) {
+showFinalResults(data) {
+        // FIX: Use currentMode as fallback to prevent crash if data.mode is missing
+        const mode = data.mode || this.currentMode; 
+
         let roleReveal = "";
         if (data.specialRoleId) {
-            const roleName = (data.mode === 'traitor') ? 'Traitor' : 'VIP';
-            const icon = (data.mode === 'traitor') ? '🕵️' : '👑';
-            const rolePlayer = data.rankings.find(p => p.id === data.specialRoleId);
+            const roleName = (mode === 'traitor') ? 'Traitor' : 'VIP';
+            const icon = (mode === 'traitor') ? '🕵️' : '👑';
+            
+            // FIX: Check if rankings exist before searching
+            const rankings = data.rankings || [];
+            const rolePlayer = rankings.find(p => p.id === data.specialRoleId);
             
             if (rolePlayer) {
                 roleReveal = `<div class="bg-yellow-100 text-yellow-800 p-2 rounded-lg font-bold text-center mb-4 border border-yellow-300 shadow-sm animate-bounce">
@@ -5089,17 +5093,23 @@ removeActiveBanner() {
         }
 
         let rankHtml = `<div class="mt-4 max-h-40 overflow-y-auto bg-gray-900 rounded-lg p-2">`;
-        data.rankings.forEach((p, i) => {
-            rankHtml += `<div class="flex justify-between text-sm py-1 border-b border-gray-700 last:border-0"><span class="text-white">${i+1}. ${p.name}</span><span class="font-bold text-yellow-400">${p.score} pts</span></div>`;
-        });
+        if (data.rankings) {
+            data.rankings.forEach((p, i) => {
+                rankHtml += `<div class="flex justify-between text-sm py-1 border-b border-gray-700 last:border-0"><span class="text-white">${i+1}. ${p.name}</span><span class="font-bold text-yellow-400">${p.score} pts</span></div>`;
+            });
+        }
         rankHtml += `</div>`;
         
         const div = document.createElement('div');
         div.className = 'fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-4';
+        
+        // FIX: Safe config lookup
+        const config = this.modeConfig[mode] || { label: "Game Over" };
+
         div.innerHTML = `
             <div class="bg-gray-800 rounded-2xl w-full max-w-md p-6 border-2 border-indigo-500 relative">
                 <h2 class="text-2xl font-black text-white text-center mb-2 uppercase">Results</h2>
-                <div class="text-center text-gray-300 text-sm mb-4">${this.modeConfig[data.mode].label}</div>
+                <div class="text-center text-gray-300 text-sm mb-4">${config.label}</div>
                 ${roleReveal}
                 <div class="text-xs text-gray-400 font-bold uppercase mt-4">Round Leaderboard</div>
                 ${rankHtml}
