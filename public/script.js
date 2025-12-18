@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.78', 
+    APP_VERSION: '5.79', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1371,10 +1371,15 @@ const ThemeManager = {
         c.value = State.data.currentTheme
     },
     apply(t, m = false) {
-        if (m) State.save('manualTheme', true);
+        // FIX: Handle Temporary Themes (Don't save if m === 'temp')
+        if (m !== 'temp') {
+            State.save('currentTheme', t);
+            if (m === true) State.save('manualTheme', true);
+        }
+
+        // Apply classes carefully to preserve layout
         document.body.className = document.body.className.split(' ').filter(c => !c.startsWith('theme-')).join(' ');
         document.body.classList.add(`theme-${t}`);
-        State.save('currentTheme', t);
         
         if (t === 'banana') {
             if (!document.getElementById('banana-style')) {
@@ -1384,52 +1389,20 @@ const ThemeManager = {
                 s.innerHTML = `
                     body.theme-banana {
                         background-color: #f7e98e !important;
-                        
+                        /* ... (rest of banana styles) ... */
                         background-image: 
-                            /* 1. The "Sugar Spots" (Tiny, sharp, high density but scattered) */
                             radial-gradient(circle at 15% 50%, rgba(92, 64, 51, 0.6) 1px, transparent 1.5px),
                             radial-gradient(circle at 85% 30%, rgba(92, 64, 51, 0.5) 1.5px, transparent 2.5px),
-                            
-                            /* 2. Large Irregular Blotches (The "Ripe" look) */
                             radial-gradient(ellipse at 70% 20%, rgba(70, 45, 30, 0.3) 2px, transparent 10px),
                             radial-gradient(ellipse at 20% 80%, rgba(70, 45, 30, 0.4) 4px, transparent 15px),
-                            
-                            /* 3. Sparse Fibers (Widely spaced vertical lines) */
-                            repeating-linear-gradient(
-                                90deg, 
-                                transparent, 
-                                transparent 59px, 
-                                rgba(139, 69, 19, 0.06) 60px, /* Thin line */
-                                rgba(139, 69, 19, 0.03) 62px, /* Feather edge */
-                                transparent 62px,
-                                transparent 140px /* Large gap */
-                            ),
-                            
-                            /* 4. Subtle background noise */
+                            repeating-linear-gradient(90deg, transparent, transparent 59px, rgba(139, 69, 19, 0.06) 60px, rgba(139, 69, 19, 0.03) 62px, transparent 62px, transparent 140px),
                             radial-gradient(circle at 50% 50%, rgba(139, 69, 19, 0.02) 0%, transparent 50%) !important;
-                        
-                        /* Prime numbers for background-size prevent grid alignment */
-                        background-size: 
-                            103px 103px,    /* Tiny spots A */
-                            263px 263px,    /* Tiny spots B */
-                            499px 499px,    /* Large Blotches A */
-                            379px 379px,    /* Large Blotches B */
-                            100% 100%,      /* Fibers (Fill screen) */
-                            800px 800px     /* Noise */
-                            !important;
-                            
-                        background-position: 
-                            0 0, 
-                            30px 50px, 
-                            100px 20px, 
-                            -50px 150px,
-                            0 0,
-                            0 0 !important;
-                            
+                        background-size: 103px 103px, 263px 263px, 499px 499px, 379px 379px, 100% 100%, 800px 800px !important;
+                        background-position: 0 0, 30px 50px, 100px 20px, -50px 150px, 0 0, 0 0 !important;
                         background-attachment: fixed !important;
                     }
                     body.theme-banana #wordDisplay {
-                        color: #4b3621 !important; /* Dark Coffee Brown */
+                        color: #4b3621 !important;
                         text-shadow: 1px 1px 0px rgba(255,255,255,0.4);
                     }
                 `;
@@ -1471,7 +1444,6 @@ const ThemeManager = {
         Effects.halloween(t === 'halloween');
         if (t !== 'halloween') MosquitoManager.remove();
 
-        
         const cards = document.querySelectorAll('.card, .ranking-card'),
             isR = t === 'rainbow';
         [DOM.game.card, ...cards].forEach(el => {
@@ -1490,6 +1462,7 @@ const ThemeManager = {
         Accessibility.apply();
         TiltManager.refresh();
     },
+	
 checkUnlock(w) {
         const t = this.wordMap[w];
         if (t && !State.data.unlockedThemes.includes(t)) {
@@ -4312,13 +4285,13 @@ const RoomManager = {
     drinkingMode: false,
 
     modeConfig: {
-        'coop': { label: '🤝 Co-op Sync', desc: 'Vote together! Get 100% Sync.', min: 2 },
-        'versus': { label: '⚔️ Team Versus', desc: 'Red vs Blue. Best Sync wins.', min: 4 },
+        'coop': { label: '🤝 Co-op Sync', desc: 'Vote together! Stay together!', min: 2 },
+        'versus': { label: '⚔️ Team Versus', desc: 'Red vs Blue. Best Team wins.', min: 4 },
         'vip': { label: '👑 Follow the Leader', desc: 'One VIP. Vote exactly like them.', min: 3 },
         'hipster': { label: '🕶️ The Hipster', desc: 'Minority Rules. Be unique!', min: 3 },
-        'speed': { label: '⏱️ Speed Demon', desc: 'Vote fast! Speed + Majority wins.', min: 2 },
-        'survival': { label: '💣 Sudden Death', desc: '3 Lives. Vote with majority or die.', min: 3 },
-        'traitor': { label: '🕵️ The Traitor', desc: 'One Traitor tries to ruin sync.', min: 3 },
+        'speed': { label: '⏱️ Speed Demon', desc: 'Vote fast! Speed and accuracy wins.', min: 2 },
+        'survival': { label: '💣 Sudden Death', desc: 'Three Lives. Vote with majority, or die.', min: 3 },
+        'traitor': { label: '🕵️ The Traitor', desc: 'One Traitor tries to ruin everything!', min: 3 },
         'kids': { label: '👶 Kids Mode', desc: 'Simple words. Family friendly!', min: 2 }
     },
 
@@ -4407,7 +4380,7 @@ connect() {
                 this.drinkingMode = data.drinkingMode;
 				
 			if (data.theme && data.theme !== State.data.currentTheme) {
-                    ThemeManager.apply(data.theme); 
+                    ThemeManager.apply(data.theme, 'temp'); 
                 }
 				
                 this.renderLobby(data);
@@ -4519,8 +4492,7 @@ connect() {
         this.removeActiveBanner();
         localStorage.removeItem('lastRoomCode');
         
-        // FIXED: Correctly restore the theme using State.data.currentTheme
-        if (State.data.currentTheme) {
+		if (State.data.currentTheme) {
             ThemeManager.apply(State.data.currentTheme);
         }
         
@@ -4830,12 +4802,12 @@ injectStyles() {
                 modeOpts += `<option value="${key}" ${data.mode===key?'selected':''}>${val.label}${note}</option>`;
             }
             
-            let roundOpts = `<option value="1" ${data.maxWords==1?'selected':''}>Quickie! (1 Word)</option>
-                             <option value="5" ${data.maxWords==5?'selected':''}>5 Words</option>
-                             <option value="10" ${data.maxWords==10?'selected':''}>10 Words</option>
-                             <option value="15" ${data.maxWords==15?'selected':''}>15 Words</option>
-                             <option value="20" ${data.maxWords==20?'selected':''}>20 Words</option>
-                             <option value="30" ${data.maxWords==30?'selected':''}>Marathon! (30 Words)</option>`;
+            let roundOpts = `<option value="1" ${data.maxWords==1?'selected':''}>Just a quickie! (One Word)</option>
+                             <option value="5" ${data.maxWords==5?'selected':''}>Five Words</option>
+                             <option value="10" ${data.maxWords==10?'selected':''}>Ten Words</option>
+                             <option value="15" ${data.maxWords==15?'selected':''}>Fifteen Words</option>
+                             <option value="20" ${data.maxWords==20?'selected':''}>Twenty Words</option>
+                             <option value="30" ${data.maxWords==30?'selected':''}>Marathon! (Thirty Words)</option>`;
 
             const isRestricted = data.mode === 'traitor' || data.mode === 'kids';
             const drinkChecked = data.drinkingMode && !isRestricted ? 'checked' : '';
