@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.77', 
+    APP_VERSION: '5.78', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4315,6 +4315,9 @@ const RoomManager = {
     },
 
   init() {
+        // --- FIX: Expose RoomManager globally so HTML onclicks work ---
+        window.RoomManager = this; 
+
         this.injectStyles();
         if (!document.getElementById('roomBtn')) {
             const btn = document.createElement('button');
@@ -4332,6 +4335,7 @@ const RoomManager = {
             sc.onload = () => this.connect();
             document.head.appendChild(sc);
         } else { this.connect(); }
+        
         this.injectModal();
 
         window.addEventListener('beforeunload', () => {
@@ -4374,17 +4378,14 @@ const RoomManager = {
             this.currentRounds = data.maxWords; 
             this.drinkingMode = data.drinkingMode;
             
-            // --- THEME SYNC ---
-            if (data.theme) {
-                document.body.className = data.theme; 
-            }
+            if (data.theme) document.body.className = data.theme; 
 
             this.renderLobby(data);
             
             const me = data.players.find(p => p.id === this.playerId);
             if (me) {
                 this.myTeam = me.team;
-                this.myLives = me.lives; // UPDATE LIVES
+                this.myLives = me.lives;
                 this.isSpectator = me.isSpectator;
                 if(this.active) this.showActiveBanner(); 
             } else {
@@ -4404,10 +4405,8 @@ const RoomManager = {
         this.socket.on('gameStarted', (data) => {
             this.active = true;
             State.runtime.isMultiplayer = true;
+            if(window.TipManager) window.TipManager.active = false; // Disable tips
             
-            // --- DISABLE TIPS ---
-            if(window.TipManager) window.TipManager.active = false;
-
             this.closeLobby();
             this.currentMode = data.mode;
             State.runtime.allWords = []; 
@@ -4425,8 +4424,12 @@ const RoomManager = {
         });
 
         this.socket.on('drinkingComplete', () => {
+            // FIX: Robust removal of drinking screen
             const el = document.getElementById('active-drink-penalty');
             if(el) el.remove();
+            
+            // Re-enable buttons if it was your turn
+            if(!this.isSpectator) UIManager.disableButtons(false);
         });
 
         this.socket.on('startAccusation', ({ mode, players }) => {
@@ -4446,14 +4449,11 @@ const RoomManager = {
             State.runtime.allWords = [wObj]; 
             UIManager.displayWord(wObj);
             
-            // --- FIX: DISABLE IF DEAD IN SURVIVAL ---
             const isDead = (this.currentMode === 'survival' && this.myLives <= 0);
             UIManager.disableButtons(this.isSpectator || isDead);
-            if (isDead) {
-                UIManager.showPostVoteMessage("👻 YOU ARE DEAD");
-            } else {
-                UIManager.showPostVoteMessage(`Word ${data.wordCurrent}/${data.wordTotal}`);
-            }
+            
+            if (isDead) UIManager.showPostVoteMessage("👻 YOU ARE DEAD");
+            else UIManager.showPostVoteMessage(`Word ${data.wordCurrent}/${data.wordTotal}`);
         });
 
         this.socket.on('roundResult', ({ mode, data, players, votes }) => {
@@ -4502,12 +4502,7 @@ const RoomManager = {
         this.removeActiveBanner();
         localStorage.removeItem('lastRoomCode');
         
-        // --- RESTORE THEME ---
-        if (State.settings && State.settings.theme) {
-            document.body.className = State.settings.theme;
-        }
-        
-        // --- RE-ENABLE TIPS ---
+        if (State.settings && State.settings.theme) document.body.className = State.settings.theme;
         if(window.TipManager) window.TipManager.active = true;
 
         const ids = ['active-role-alert', 'spectator-banner', 'active-accusation', 'active-vote-reveal', 'active-countdown', 'active-drink-penalty'];
@@ -4785,7 +4780,7 @@ const RoomManager = {
                 el.textContent = "GO!";
                 el.classList.add('text-green-400'); el.classList.remove('text-yellow-400');
                 
-                // --- FIX: Scroll to Top Here ---
+                // Scroll Up
                 window.scrollTo({ top: 0, behavior: 'smooth' });
                 
             } else {
@@ -4812,7 +4807,6 @@ const RoomManager = {
                 modeOpts += `<option value="${key}" ${data.mode===key?'selected':''}>${val.label}${note}</option>`;
             }
             
-            // --- UPDATED LABELS FOR MOBILE ---
             let roundOpts = `<option value="1" ${data.maxWords==1?'selected':''}>Quickie! (1 Word)</option>
                              <option value="5" ${data.maxWords==5?'selected':''}>5 Words</option>
                              <option value="10" ${data.maxWords==10?'selected':''}>10 Words</option>
@@ -4857,7 +4851,6 @@ const RoomManager = {
         const refreshHtml = this.isHost ? `<span class="refresh-btn" onclick="RoomManager.refreshLobby()" title="Remove inactive players">🔄</span>` : '';
         let playerHtml = `<div class="text-xs font-bold text-gray-400 mb-2 flex justify-between"><span>PLAYERS (${playerCount})</span> ${refreshHtml}</div>`;
         
-        // --- RESIZABLE LIST (No fixed height) ---
         playerHtml += data.players.map(p => {
             let extra = "";
             if (data.mode === 'survival') extra = `<span class="text-xs ml-2">${"❤️".repeat(p.lives)}</span>`;
