@@ -431,6 +431,8 @@ const OfflineManager = {
     },
 
     async toggle(active) {
+        const roomBtn = document.getElementById('roomBtn'); // <--- ADD THIS LINE
+        
         if (active) {
             UIManager.showMessage("Downloading offline pack... 🚇");
             const success = await this.fillCache();
@@ -439,6 +441,9 @@ const OfflineManager = {
                 State.save('settings', State.data.settings);
                 UIManager.showPostVoteMessage("Offline Mode Ready! 🚇");
                 State.runtime.allWords = State.data.offlineCache; 
+                
+                if(roomBtn) roomBtn.style.display = 'none'; // Now this works
+                
                 Game.nextWord();
             } else {
                 alert("Could not download words. Check connection.");
@@ -450,6 +455,7 @@ const OfflineManager = {
             await this.sync();
             State.data.settings.offlineMode = false;
             State.save('settings', State.data.settings);
+			if(roomBtn) roomBtn.style.display = 'block';
             Game.refreshData(); 
         }
         UIManager.updateOfflineIndicator();
@@ -4328,6 +4334,11 @@ const RoomManager = {
             btn.className = 'p-2 rounded-full hover:bg-gray-100 transition relative group';
             btn.innerHTML = `<span class="text-xl">📡</span>`;
             btn.onclick = () => this.openLobby();
+			
+			if (State.data.settings.offlineMode) {
+                btn.style.display = 'none';
+            }
+			
             const sb = document.getElementById('showSettingsButton');
             if (sb && sb.parentNode) sb.parentNode.insertBefore(btn, sb);
         }
@@ -4394,7 +4405,11 @@ connect() {
                 this.currentMode = data.mode;
                 this.currentRounds = data.maxWords; 
                 this.drinkingMode = data.drinkingMode;
-                if (data.theme) document.body.className = data.theme; 
+				
+			if (data.theme && data.theme !== State.data.currentTheme) {
+                    ThemeManager.apply(data.theme); 
+                }
+				
                 this.renderLobby(data);
                 const me = data.players.find(p => p.id === this.playerId);
                 if (me) {
