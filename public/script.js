@@ -4526,14 +4526,14 @@ connect() {
     },
 
 injectStyles() {
-        if (document.getElementById('room-styles')) return;
+        if (document.getElementById('room-styles-v2')) return;
+        
         const s = document.createElement('style');
-        s.id = 'room-styles';
+        s.id = 'room-styles-v2'; // <--- NEW ID
         s.innerHTML = `
             .hidden { display: none !important; }
             .mode-select, .round-select { width: 100%; padding: 10px; border-radius: 8px; border: 2px solid #e5e7eb; font-weight: bold; color: #374151; margin-bottom: 10px; }
             .leave-btn { background: #fee2e2; color: #ef4444; border: 1px solid #fecaca; padding: 6px 12px; border-radius: 8px; font-weight: bold; cursor: pointer; }
-            /* ... keep the rest of your styles ... */
             .kick-btn { color: #ef4444; font-weight: bold; margin-left: 10px; cursor: pointer; opacity: 0.7; }
             .kick-btn:hover { opacity: 1; text-decoration: underline; }
             .refresh-btn { cursor:pointer; font-size:1rem; margin-left:5px; opacity:0.6; }
