@@ -57,7 +57,7 @@ const loadKidsWords = () => {
             console.log(`Loaded ${kidsWords.length} kids words.`);
         } else {
             console.warn("kids_words.txt not found. Using fallback.");
-            kidsWords = ["APPLE", "BANANA", "CAT", "DOG"];
+            kidsWords = ["APPLE", "BANANA", "CAT", "DOG", "ELEPHANT", "FROG", "GIRAFFE", "HOUSE", "IGLOO", "JUMP", "KITE", "LION", "MOON", "NOSE", "ORANGE", "PEN", "QUEEN", "RABBIT", "SUN", "TREE", "UMBRELLA", "VAN", "WATER", "XYLOPHONE", "YOYO", "ZEBRA"];
         }
     } catch (e) {
         kidsWords = ["APPLE", "BANANA", "CAT", "DOG"];
@@ -77,20 +77,39 @@ function shuffle(array) {
     return array;
 }
 
+// --- CENTRALIZED PLAYER REMOVAL ---
 function removePlayerFromAllRooms(socketId) {
     for (const code in rooms) {
         const room = rooms[code];
         const idx = room.players.findIndex(p => p.id === socketId);
+        
         if (idx !== -1) {
             const wasHost = (room.host === socketId);
             room.players.splice(idx, 1);
+            
+            // Clean up their vote so they don't count towards total
+            if (room.currentVotes && room.currentVotes[socketId]) {
+                delete room.currentVotes[socketId];
+            }
+
             if (room.players.length === 0) {
                 if (room.wordTimer) clearTimeout(room.wordTimer);
                 delete rooms[code];
             } else {
                 if (wasHost) room.host = room.players[0].id;
-                // If in drinking wait state, a disconnection might unblock the game
+                
+                // If paused for drinking, check if we can proceed now
                 if (room.state === 'drinking') checkDrinkingCompletion(code);
+                
+                // --- ANTI-STALL FIX ---
+                // If game is playing, check if remaining players have finished voting
+                if (room.state === 'playing') {
+                    const activePlayers = room.players.filter(p => !p.isSpectator && (room.mode !== 'survival' || p.lives > 0));
+                    if (activePlayers.length > 0 && Object.keys(room.currentVotes).length >= activePlayers.length) {
+                        finishWord(code);
+                    }
+                }
+                
                 checkInsufficientPlayers(code);
                 emitUpdate(code);
             }
@@ -102,7 +121,7 @@ io.on('connection', (socket) => {
     
     socket.on('joinRoom', ({ roomCode, username }) => {
         const code = roomCode.toUpperCase();
-        removePlayerFromAllRooms(socket.id); 
+        removePlayerFromAllRooms(socket.id); // Ensure clean join
         socket.join(code);
 
         if (!rooms[code]) {
@@ -111,14 +130,14 @@ io.on('connection', (socket) => {
                 players: [],
                 state: 'lobby',
                 mode: 'coop', 
-                drinkingMode: false, // NEW: Drinking Mode
+                drinkingMode: false,
                 wordIndex: 0,
                 maxWords: 10,
                 words: [],
                 currentVotes: {},
                 currentVoteTimes: {},
                 accusationVotes: {}, 
-                readyConfirms: new Set(), // NEW: For pausing
+                readyConfirms: new Set(),
                 scores: { red: 0, blue: 0, coop: 0 },
                 vipId: null,
                 traitorId: null,
@@ -128,7 +147,6 @@ io.on('connection', (socket) => {
         }
 
         const room = rooms[code];
-        // Joining late logic: spectator if playing OR drinking
         const isSpectator = (room.state === 'playing' || room.state === 'accusation' || room.state === 'drinking');
 
         const existing = room.players.find(p => p.id === socket.id);
@@ -150,7 +168,6 @@ io.on('connection', (socket) => {
         
         if (isSpectator && room.words[room.wordIndex]) {
             socket.emit('gameStarted', { totalWords: room.maxWords, mode: room.mode });
-            // If drinking, tell late joiner to wait
             if (room.state === 'drinking') {
                 socket.emit('drinkPenalty', { drinkers: [], msg: "Waiting for next word..." });
             } else {
@@ -191,13 +208,7 @@ io.on('connection', (socket) => {
         
         if(mode) room.mode = mode;
         if(rounds) room.maxWords = parseInt(rounds);
-        
-        // Handle Drinking Toggle (Cannot be on for Traitor)
-        if (typeof drinking !== 'undefined') {
-            room.drinkingMode = drinking;
-        }
-        
-        // Enforce rule: No drinking in traitor
+        if (typeof drinking !== 'undefined') room.drinkingMode = drinking;
         if (room.mode === 'traitor') room.drinkingMode = false;
 
         emitUpdate(roomCode);
@@ -231,7 +242,6 @@ io.on('connection', (socket) => {
         room.vipId = null;
         room.traitorId = null;
 
-        // Force disable drinking if traitor
         if (room.mode === 'traitor') room.drinkingMode = false;
 
         room.players.forEach(p => {
@@ -307,7 +317,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    // --- NEW: DRINKING MODE CONFIRMATION ---
     socket.on('confirmReady', ({ roomCode }) => {
         const room = rooms[roomCode];
         if (!room || room.state !== 'drinking') return;
@@ -321,15 +330,12 @@ function checkDrinkingCompletion(roomCode) {
     const room = rooms[roomCode];
     if (!room || room.state !== 'drinking') return;
 
-    // "Carry on only when EVERYONE confirms"
     const activePlayers = room.players.filter(p => !p.isSpectator && (room.mode !== 'survival' || p.lives > 0));
-    
-    // Check if all active players have confirmed
     const allReady = activePlayers.every(p => room.readyConfirms.has(p.id));
 
     if (allReady) {
         room.state = 'playing';
-        io.to(roomCode).emit('drinkingComplete'); // Clear overlays
+        io.to(roomCode).emit('drinkingComplete');
         sendNextWord(roomCode);
     }
 }
@@ -360,7 +366,7 @@ function emitUpdate(code) {
         host: rooms[code].host,
         mode: rooms[code].mode,
         maxWords: rooms[code].maxWords,
-        drinkingMode: rooms[code].drinkingMode, // Send to UI
+        drinkingMode: rooms[code].drinkingMode, // SYNC DRINKING MODE
         state: rooms[code].state
     });
 }
@@ -517,10 +523,8 @@ function finishWord(roomCode) {
         }
     }
 
-    // --- CALCULATE DRINKERS ---
     let drinkers = [];
     if (room.drinkingMode && room.mode !== 'traitor') {
-        // 1. Slowest Voter
         let slowestId = null;
         let slowestTime = 0;
         for (const [pid, timestamp] of Object.entries(room.currentVoteTimes)) {
@@ -529,7 +533,6 @@ function finishWord(roomCode) {
         }
         if (slowestId) drinkers.push({ id: slowestId, reason: 'Too Slow!' });
 
-        // 2. Minority Voters
         const allVotes = Object.values(votes);
         const maj = getMajority(allVotes);
         if (maj !== 'draw') {
@@ -537,7 +540,6 @@ function finishWord(roomCode) {
                 if (p.isSpectator) return;
                 const v = votes[p.id];
                 if (v && v !== maj) {
-                    // Check if already added
                     if (!drinkers.find(d => d.id === p.id)) {
                         drinkers.push({ id: p.id, reason: 'Minority!' });
                     }
@@ -557,12 +559,10 @@ function finishWord(roomCode) {
     room.wordIndex++;
 
     if (drinkers.length > 0) {
-        // DRINKING PAUSE
         room.state = 'drinking';
         room.readyConfirms = new Set();
         io.to(roomCode).emit('drinkPenalty', { drinkers });
     } else {
-        // NORMAL FLOW
         room.wordTimer = setTimeout(() => sendNextWord(roomCode), 3000);
     }
 }
