@@ -4711,18 +4711,29 @@ injectStyles() {
         this.socket.emit('updateSettings', { roomCode: this.roomCode, mode, rounds, drinking });
     },
 
-showActiveBanner() {
+	showActiveBanner() {
         const existing = document.getElementById('room-active-banner');
         if(existing) existing.remove();
         
-        // --- NEW: HIDE UI ELEMENTS ---
-        const uiIds = ['themeChooser', 'showHelpButton', 'showSettingsButton', 'showDonateButton', 'showContactButton'];
+        // --- FIX: HIDE THEME CARD CONTAINER & BUTTONS ---
+        const uiIds = ['showHelpButton', 'showSettingsButton', 'showDonateButton', 'showContactButton'];
         uiIds.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.style.display = 'none';
         });
-        // -----------------------------
-        
+
+        // Hide the specific Theme Card (Container of the chooser)
+        const themeSelect = document.getElementById('themeChooser');
+        if (themeSelect) {
+            // Find the white card container (looks for nearest div with white background)
+            const card = themeSelect.closest('.bg-white') || themeSelect.parentElement;
+            if (card) {
+                card.classList.add('temp-hidden-multiplayer'); // Mark it to find later
+                card.style.display = 'none';
+            }
+        }
+        // ------------------------------------------------
+
         let teamBadge = '';
         if (this.currentMode === 'versus' && this.myTeam) {
             const color = this.myTeam === 'red' ? 'bg-red-500' : (this.myTeam === 'blue' ? 'bg-blue-500' : 'bg-gray-400');
@@ -4750,12 +4761,20 @@ removeActiveBanner() {
         if(b) b.remove();
         document.body.style.paddingTop = '0';
 
-        const uiIds = ['themeChooser', 'showHelpButton', 'showSettingsButton', 'showDonateButton', 'showContactButton'];
+        // --- FIX: RESTORE ALL UI ELEMENTS ---
+        const uiIds = ['showHelpButton', 'showSettingsButton', 'showDonateButton', 'showContactButton'];
         uiIds.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.style.display = '';
         });
 
+        // Restore any cards we hid
+        const hiddenCards = document.querySelectorAll('.temp-hidden-multiplayer');
+        hiddenCards.forEach(c => {
+            c.style.display = '';
+            c.classList.remove('temp-hidden-multiplayer');
+        });
+        // ------------------------------------
     },
 
     leave(force = false) {
