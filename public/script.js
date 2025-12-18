@@ -4409,7 +4409,6 @@ const RoomManager = {
             this.showActiveBanner();
         });
 
-        // --- NEW: Drinking Logic ---
         this.socket.on('drinkPenalty', ({ drinkers, msg }) => {
             this.showDrinkPenalty(drinkers, msg);
         });
@@ -4497,6 +4496,7 @@ const RoomManager = {
         if(join) join.classList.remove('hidden');
         if(lobby) lobby.classList.add('hidden');
 
+        // IMPORTANT: Hide the modal completely so user isn't stuck
         this.closeLobby(); 
     },
 
@@ -4533,7 +4533,6 @@ const RoomManager = {
         document.head.appendChild(s);
     },
 
-    // --- DRINKING MODE UI ---
     showDrinkPenalty(drinkers, msg) {
         if(document.getElementById('active-drink-penalty')) return;
         const div = document.createElement('div');
@@ -4544,26 +4543,8 @@ const RoomManager = {
         if (drinkers && drinkers.length > 0) {
             listHtml = '<div class="drink-list">';
             drinkers.forEach(d => {
-                // Determine name using my own memory of players list isn't easy here 
-                // so we rely on finding it or just showing logic if needed. 
-                // Backend sends {id, reason}. We need to match ID to name?
-                // Actually the backend just sends IDs. Let's fix backend to send Names?
-                // OR simpler: Backend sends { name, reason }!
-                // Wait, I updated backend to send ID. Frontend has data.players.
-                // Let's assume drinkers contains names for simplicity in next step or query DOM.
-                
-                // Let's just fix frontend to find name from lobby list
-                const nameNode = Array.from(document.querySelectorAll('#lobbyPlayerList span.font-bold')).find(el => {
-                    // This is hacky. Better if backend sends names.
-                    // Let's update backend to send {id, name, reason} in next iteration if needed.
-                    // For now, let's just say "Players listed below"
-                });
-                // Actually, let's just assume drinkers objects have names. 
-                // Backend sent {id, reason}.
-                // Let's find name from local state `data`... but `data` isn't global.
-                // WE CAN FIND IT IN `RoomManager` if we stored it? No.
-                // RE-FETCH: `checkDrinkingCompletion` logic implies we wait.
-                // Let's trust backend sends names. I WILL UPDATE BACKEND TO SEND NAMES.
+                const nameNode = Array.from(document.querySelectorAll('#lobbyPlayerList span.font-bold')).find(el => el.textContent === d.name);
+                // Fallback if name is not found in lobby list directly
                 listHtml += `<div>🍺 <b>${d.name || 'Player'}</b> (${d.reason})</div>`;
             });
             listHtml += '</div>';
@@ -4593,7 +4574,6 @@ const RoomManager = {
         };
     },
 
-    // ... [showNameInput, showCustomAlert, showCustomConfirm, showRoleAlert same as before] ...
     showNameInput(callback) {
         if(document.getElementById('nameModal')) return;
         const div = document.createElement('div');
@@ -4802,6 +4782,7 @@ const RoomManager = {
                 modeOpts += `<option value="${key}" ${data.mode===key?'selected':''}>${val.label}${note}</option>`;
             }
             
+            // --- UPDATED LABELS ---
             let roundOpts = `<option value="1" ${data.maxWords==1?'selected':''}>Just a quickie! (One Word)</option>
                              <option value="5" ${data.maxWords==5?'selected':''}>Five Words</option>
                              <option value="10" ${data.maxWords==10?'selected':''}>Ten Words</option>
@@ -4809,7 +4790,6 @@ const RoomManager = {
                              <option value="20" ${data.maxWords==20?'selected':''}>Twenty Words</option>
                              <option value="30" ${data.maxWords==30?'selected':''}>Marathon! (Thirty Words)</option>`;
 
-            // Drinking Toggle (Disable if Traitor)
             const isTraitor = data.mode === 'traitor';
             const drinkChecked = data.drinkingMode && !isTraitor ? 'checked' : '';
             const drinkDisabled = isTraitor ? 'disabled opacity-50' : '';
@@ -4830,7 +4810,6 @@ const RoomManager = {
                     ${!enoughPlayers ? `<div class="text-xs text-center text-red-500 font-bold mt-2">⚠️ Not enough players (Need ${minReq}+)</div>` : ''}
                 </div>`;
         } else {
-            // Guest View
             const drinkBadge = data.drinkingMode ? '<span class="text-red-600 font-bold ml-2">🍺 DRINKING ON</span>' : '';
             settingsHtml = `
                 <div class="bg-indigo-50 p-4 rounded-lg mb-4 text-center border-2 border-indigo-100">
@@ -4845,9 +4824,6 @@ const RoomManager = {
 
         const refreshHtml = this.isHost ? `<span class="refresh-btn" onclick="RoomManager.refreshLobby()" title="Remove inactive players">🔄</span>` : '';
         let playerHtml = `<div class="text-xs font-bold text-gray-400 mb-2 flex justify-between"><span>PLAYERS (${playerCount})</span> ${refreshHtml}</div>`;
-        
-        // --- RESIZABLE LIST (No fixed height) ---
-        // We handle this by setting the class on the parent in injectModal, here we just fill content.
         
         playerHtml += data.players.map(p => {
             let extra = "";
@@ -4871,6 +4847,94 @@ const RoomManager = {
         } else {
             startBtn.classList.add('hidden'); waitMsg.classList.remove('hidden');
         }
+    },
+
+    injectModal() {
+        if (document.getElementById('roomModal')) return;
+        const div = document.createElement('div');
+        div.id = 'roomModal';
+        div.className = 'fixed inset-0 bg-gray-900 bg-opacity-95 z-[200] hidden flex items-center justify-center';
+        div.innerHTML = `
+            <div class="bg-white rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl relative">
+                <button onclick="RoomManager.leave()" class="absolute top-4 right-4 text-gray-400">✕</button>
+                <div class="text-center mb-4"><h3 class="text-2xl font-black text-gray-800">MULTIPLAYER</h3></div>
+                <div id="roomJoinScreen" class="space-y-4">
+                    <input id="roomCodeInput" type="text" maxlength="6" placeholder="ROOM CODE" class="w-full text-center text-2xl font-black p-3 border-2 rounded-xl uppercase">
+                    <button onclick="RoomManager.join()" class="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl">JOIN ROOM</button>
+                </div>
+                <div id="roomLobbyScreen" class="hidden space-y-4">
+                    <div class="text-center"><div class="text-xs font-bold text-gray-400">CODE</div><div id="lobbyCodeDisplay" class="text-3xl font-black text-indigo-600 tracking-widest">---</div></div>
+                    <div id="lobbyModeArea"></div>
+                    <div class="bg-gray-50 p-2 rounded-xl h-32 overflow-y-auto" id="lobbyPlayerList"></div>
+                    <button id="roomStartBtn" onclick="RoomManager.start()" class="w-full py-3 bg-green-500 text-white font-bold rounded-xl hidden">START GAME</button>
+                    <div id="roomWaitMsg" class="text-center text-sm text-gray-400 hidden animate-pulse">Waiting for host...</div>
+                </div>
+            </div>`;
+        document.body.appendChild(div);
+    },
+    openLobby() { document.getElementById('roomModal').classList.remove('hidden'); },
+    closeLobby() { document.getElementById('roomModal').classList.add('hidden'); },
+    
+    join() {
+        const proceed = (name) => {
+             State.data.username = name.trim(); 
+             State.save('username', State.data.username); 
+             UIManager.updateProfileDisplay();
+             const c = document.getElementById('roomCodeInput').value.trim().toUpperCase();
+             if(!c) return;
+             this.roomCode = c;
+             localStorage.setItem('lastRoomCode', c);
+             this.socket.emit('joinRoom', { roomCode: c, username: State.data.username });
+             document.getElementById('roomJoinScreen').classList.add('hidden');
+             document.getElementById('roomLobbyScreen').classList.remove('hidden');
+             document.getElementById('lobbyCodeDisplay').textContent = c;
+        };
+
+        if (!State.data.username || State.data.username === "Player" || State.data.username === "") {
+            this.showNameInput(proceed);
+        } else {
+            proceed(State.data.username);
+        }
+    },
+    
+    start() { this.socket.emit('startGame', { roomCode: this.roomCode }); },
+    submitVote(t) { if(this.active) this.socket.emit('submitVote', { roomCode: this.roomCode, vote: t }); },
+    
+    showFinalResults(data) {
+        let roleReveal = "";
+        if (data.specialRoleId) {
+            const roleName = (data.mode === 'traitor') ? 'Traitor' : 'VIP';
+            const icon = (data.mode === 'traitor') ? '🕵️' : '👑';
+            const rolePlayer = data.rankings.find(p => p.id === data.specialRoleId);
+            
+            if (rolePlayer) {
+                roleReveal = `<div class="bg-yellow-100 text-yellow-800 p-2 rounded-lg font-bold text-center mb-4 border border-yellow-300 shadow-sm animate-bounce">
+                    ${icon} The ${roleName} was: <br><span class="text-xl">${rolePlayer.name.toUpperCase()}</span>
+                </div>`;
+            }
+        }
+
+        let rankHtml = `<div class="mt-4 max-h-40 overflow-y-auto bg-gray-900 rounded-lg p-2">`;
+        data.rankings.forEach((p, i) => {
+            rankHtml += `<div class="flex justify-between text-sm py-1 border-b border-gray-700 last:border-0"><span class="text-white">${i+1}. ${p.name}</span><span class="font-bold text-yellow-400">${p.score} pts</span></div>`;
+        });
+        rankHtml += `</div>`;
+        
+        const div = document.createElement('div');
+        div.className = 'fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-4';
+        div.innerHTML = `
+            <div class="bg-gray-800 rounded-2xl w-full max-w-md p-6 border-2 border-indigo-500 relative">
+                <h2 class="text-2xl font-black text-white text-center mb-2 uppercase">Results</h2>
+                <div class="text-center text-gray-300 text-sm mb-4">${this.modeConfig[data.mode].label}</div>
+                ${roleReveal}
+                <div class="text-xs text-gray-400 font-bold uppercase mt-4">Round Leaderboard</div>
+                ${rankHtml}
+                <div class="flex gap-2 mt-6">
+                    <button onclick="this.closest('.fixed').remove(); RoomManager.leave(true);" class="flex-1 py-3 bg-gray-700 text-white font-bold rounded-xl">Exit</button>
+                    <button onclick="this.closest('.fixed').remove(); RoomManager.openLobby()" class="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl">New Game</button>
+                </div>
+            </div>`;
+        document.body.appendChild(div);
     }
 };
 
