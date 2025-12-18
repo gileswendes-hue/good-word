@@ -4332,8 +4332,6 @@ const RoomManager = {
             sc.onload = () => this.connect();
             document.head.appendChild(sc);
         } else { this.connect(); }
-        
-        // Ensure this function exists below!
         this.injectModal();
 
         window.addEventListener('beforeunload', () => {
@@ -4375,11 +4373,18 @@ const RoomManager = {
             this.currentMode = data.mode;
             this.currentRounds = data.maxWords; 
             this.drinkingMode = data.drinkingMode;
+            
+            // --- THEME SYNC ---
+            if (data.theme) {
+                document.body.className = data.theme; 
+            }
+
             this.renderLobby(data);
             
             const me = data.players.find(p => p.id === this.playerId);
             if (me) {
                 this.myTeam = me.team;
+                this.myLives = me.lives; // UPDATE LIVES
                 this.isSpectator = me.isSpectator;
                 if(this.active) this.showActiveBanner(); 
             } else {
@@ -4399,6 +4404,10 @@ const RoomManager = {
         this.socket.on('gameStarted', (data) => {
             this.active = true;
             State.runtime.isMultiplayer = true;
+            
+            // --- DISABLE TIPS ---
+            if(window.TipManager) window.TipManager.active = false;
+
             this.closeLobby();
             this.currentMode = data.mode;
             State.runtime.allWords = []; 
@@ -4436,9 +4445,15 @@ const RoomManager = {
             const wObj = { _id: data.word._id, text: data.word.text };
             State.runtime.allWords = [wObj]; 
             UIManager.displayWord(wObj);
-            UIManager.disableButtons(this.isSpectator);
             
-            UIManager.showPostVoteMessage(`Word ${data.wordCurrent}/${data.wordTotal}`);
+            // --- FIX: DISABLE IF DEAD IN SURVIVAL ---
+            const isDead = (this.currentMode === 'survival' && this.myLives <= 0);
+            UIManager.disableButtons(this.isSpectator || isDead);
+            if (isDead) {
+                UIManager.showPostVoteMessage("👻 YOU ARE DEAD");
+            } else {
+                UIManager.showPostVoteMessage(`Word ${data.wordCurrent}/${data.wordTotal}`);
+            }
         });
 
         this.socket.on('roundResult', ({ mode, data, players, votes }) => {
@@ -4487,6 +4502,14 @@ const RoomManager = {
         this.removeActiveBanner();
         localStorage.removeItem('lastRoomCode');
         
+        // --- RESTORE THEME ---
+        if (State.settings && State.settings.theme) {
+            document.body.className = State.settings.theme;
+        }
+        
+        // --- RE-ENABLE TIPS ---
+        if(window.TipManager) window.TipManager.active = true;
+
         const ids = ['active-role-alert', 'spectator-banner', 'active-accusation', 'active-vote-reveal', 'active-countdown', 'active-drink-penalty'];
         ids.forEach(id => { const el = document.getElementById(id); if(el) el.remove(); });
         
@@ -4498,7 +4521,6 @@ const RoomManager = {
         if(join) join.classList.remove('hidden');
         if(lobby) lobby.classList.add('hidden');
 
-        // Restore Single Player state so games don't hang
         State.runtime.isMultiplayer = false;
         UIManager.disableButtons(false);
         if (typeof Game !== 'undefined') Game.refreshData(true); 
@@ -4762,7 +4784,10 @@ const RoomManager = {
             } else if (count === 0) {
                 el.textContent = "GO!";
                 el.classList.add('text-green-400'); el.classList.remove('text-yellow-400');
+                
+                // --- FIX: Scroll to Top Here ---
                 window.scrollTo({ top: 0, behavior: 'smooth' });
+                
             } else {
                 clearInterval(interval); div.remove();
             }
@@ -4832,6 +4857,7 @@ const RoomManager = {
         const refreshHtml = this.isHost ? `<span class="refresh-btn" onclick="RoomManager.refreshLobby()" title="Remove inactive players">🔄</span>` : '';
         let playerHtml = `<div class="text-xs font-bold text-gray-400 mb-2 flex justify-between"><span>PLAYERS (${playerCount})</span> ${refreshHtml}</div>`;
         
+        // --- RESIZABLE LIST (No fixed height) ---
         playerHtml += data.players.map(p => {
             let extra = "";
             if (data.mode === 'survival') extra = `<span class="text-xs ml-2">${"❤️".repeat(p.lives)}</span>`;
@@ -4891,7 +4917,7 @@ const RoomManager = {
              if(!c) return;
              this.roomCode = c;
              localStorage.setItem('lastRoomCode', c);
-             this.socket.emit('joinRoom', { roomCode: c, username: State.data.username });
+             this.socket.emit('joinRoom', { roomCode: c, username: State.data.username, theme: State.settings.theme || 'default' });
              document.getElementById('roomJoinScreen').classList.add('hidden');
              document.getElementById('roomLobbyScreen').classList.remove('hidden');
              document.getElementById('lobbyCodeDisplay').textContent = c;
