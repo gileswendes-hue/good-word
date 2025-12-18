@@ -4386,6 +4386,7 @@ connect() {
                 this.currentRounds = data.maxWords; 
                 this.drinkingMode = data.drinkingMode;
 				
+				if (data.players) this.players = data.players;
 				if (data.vipId) this.vipId = data.vipId;
 				
 			if (data.theme && data.theme !== State.data.currentTheme) {
@@ -4499,7 +4500,11 @@ connect() {
                      this.openLobby(); 
                  } else {
                      this.showFinalResults(data);
-                 }
+                    }
+                } catch (e) {
+                    console.error("Game Over Error:", e);
+                    this.openLobby(); // Fallback to lobby if crash occurs
+                }
             });
             this.socket.on('kicked', () => { 
                 this.showCustomAlert("You have been kicked from the room.");
