@@ -4525,14 +4525,15 @@ connect() {
         this.closeLobby(); 
     },
 
-    injectStyles() {
+injectStyles() {
         if (document.getElementById('room-styles')) return;
         const s = document.createElement('style');
         s.id = 'room-styles';
         s.innerHTML = `
-			.hidden { display: none !important; }
+            .hidden { display: none !important; }
             .mode-select, .round-select { width: 100%; padding: 10px; border-radius: 8px; border: 2px solid #e5e7eb; font-weight: bold; color: #374151; margin-bottom: 10px; }
             .leave-btn { background: #fee2e2; color: #ef4444; border: 1px solid #fecaca; padding: 6px 12px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+            /* ... keep the rest of your styles ... */
             .kick-btn { color: #ef4444; font-weight: bold; margin-left: 10px; cursor: pointer; opacity: 0.7; }
             .kick-btn:hover { opacity: 1; text-decoration: underline; }
             .refresh-btn { cursor:pointer; font-size:1rem; margin-left:5px; opacity:0.6; }
@@ -4905,9 +4906,8 @@ connect() {
     openLobby() { document.getElementById('roomModal').classList.remove('hidden'); },
     closeLobby() { document.getElementById('roomModal').classList.add('hidden'); },
     
-join() {
+	join() {
         const proceed = (name) => {
-             console.log("Joining Room..."); // Debug Log
              State.data.username = name.trim(); 
              State.save('username', State.data.username); 
              UIManager.updateProfileDisplay();
@@ -4920,37 +4920,27 @@ join() {
              this.roomCode = c;
              localStorage.setItem('lastRoomCode', c);
              
-             // 1. FORCE UI SWITCH IMMEDIATELY
+             // --- FORCE UI UPDATE IMMEDIATELY ---
              document.getElementById('roomJoinScreen').classList.add('hidden');
              document.getElementById('roomLobbyScreen').classList.remove('hidden');
              document.getElementById('lobbyCodeDisplay').textContent = c;
              document.getElementById('roomWaitMsg').textContent = "Connecting to server...";
-
-             // 2. CONNECT AND EMIT
-             const sendJoin = () => {
-                 console.log("Emitting joinRoom event...");
-                 this.socket.emit('joinRoom', { 
-                     roomCode: c, 
-                     username: State.data.username, 
-                     theme: State.settings.theme || 'default' 
-                 });
-             };
+             // -----------------------------------
 
              if(!this.socket || !this.socket.connected) {
-                 console.log("Socket not connected. Reconnecting...");
                  this.connect();
-                 // Wait 1s for connection then try sending
                  setTimeout(() => {
-                     if (this.socket.connected) sendJoin();
-                     else {
-                         alert("Connection Timeout. Please check internet.");
-                         // Revert UI
+                     if (this.socket && this.socket.connected) {
+                         this.socket.emit('joinRoom', { roomCode: c, username: State.data.username, theme: State.settings.theme || 'default' });
+                     } else {
+                         alert("Connection Failed. Check internet.");
+                         // Go back if failed
                          document.getElementById('roomJoinScreen').classList.remove('hidden');
                          document.getElementById('roomLobbyScreen').classList.add('hidden');
                      }
                  }, 1000);
              } else {
-                 sendJoin();
+                 this.socket.emit('joinRoom', { roomCode: c, username: State.data.username, theme: State.settings.theme || 'default' });
              }
         };
 
