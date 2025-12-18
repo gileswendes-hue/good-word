@@ -81,6 +81,7 @@ function shuffle(array) {
 function removePlayerFromAllRooms(socketId) {
     for (const code in rooms) {
         const room = rooms[code];
+		if (!room || !room.players) continue;
         const idx = room.players.findIndex(p => p.id === socketId);
         
         if (idx !== -1) {
