@@ -56,8 +56,7 @@ const loadKidsWords = () => {
             kidsWords = data.split('\n').map(w => w.trim().toUpperCase()).filter(w => w.length > 0);
             console.log(`Loaded ${kidsWords.length} kids words.`);
         } else {
-            console.warn("kids_words.txt not found. Using fallback.");
-            kidsWords = ["APPLE", "BANANA", "CAT", "DOG", "ELEPHANT", "FROG", "GIRAFFE", "HOUSE", "IGLOO", "JUMP", "KITE", "LION", "MOON", "NOSE", "ORANGE", "PEN", "QUEEN", "RABBIT", "SUN", "TREE", "UMBRELLA", "VAN", "WATER", "XYLOPHONE", "YOYO", "ZEBRA"];
+            kidsWords = ["APPLE", "BANANA", "CAT", "DOG"];
         }
     } catch (e) {
         kidsWords = ["APPLE", "BANANA", "CAT", "DOG"];
@@ -101,7 +100,6 @@ function removePlayerFromAllRooms(socketId) {
                 // If paused for drinking, check if we can proceed now
                 if (room.state === 'drinking') checkDrinkingCompletion(code);
                 
-                // --- ANTI-STALL FIX ---
                 // If game is playing, check if remaining players have finished voting
                 if (room.state === 'playing') {
                     const activePlayers = room.players.filter(p => !p.isSpectator && (room.mode !== 'survival' || p.lives > 0));
@@ -121,7 +119,7 @@ io.on('connection', (socket) => {
     
     socket.on('joinRoom', ({ roomCode, username }) => {
         const code = roomCode.toUpperCase();
-        removePlayerFromAllRooms(socket.id); // Ensure clean join
+        removePlayerFromAllRooms(socket.id); 
         socket.join(code);
 
         if (!rooms[code]) {
@@ -169,6 +167,7 @@ io.on('connection', (socket) => {
         if (isSpectator && room.words[room.wordIndex]) {
             socket.emit('gameStarted', { totalWords: room.maxWords, mode: room.mode });
             if (room.state === 'drinking') {
+                // If joining during drink phase, wait.
                 socket.emit('drinkPenalty', { drinkers: [], msg: "Waiting for next word..." });
             } else {
                 socket.emit('nextWord', { 
@@ -366,7 +365,7 @@ function emitUpdate(code) {
         host: rooms[code].host,
         mode: rooms[code].mode,
         maxWords: rooms[code].maxWords,
-        drinkingMode: rooms[code].drinkingMode, // SYNC DRINKING MODE
+        drinkingMode: rooms[code].drinkingMode, 
         state: rooms[code].state
     });
 }
@@ -531,7 +530,11 @@ function finishWord(roomCode) {
             const dur = timestamp - room.wordStartTime;
             if (dur > slowestTime) { slowestTime = dur; slowestId = pid; }
         }
-        if (slowestId) drinkers.push({ id: slowestId, reason: 'Too Slow!' });
+        if (slowestId) {
+             // FIX: SEND NAME TO FRONTEND
+             const p = room.players.find(pl => pl.id === slowestId);
+             drinkers.push({ id: slowestId, name: p ? p.name : 'Unknown', reason: 'Too Slow!' });
+        }
 
         const allVotes = Object.values(votes);
         const maj = getMajority(allVotes);
@@ -541,7 +544,8 @@ function finishWord(roomCode) {
                 const v = votes[p.id];
                 if (v && v !== maj) {
                     if (!drinkers.find(d => d.id === p.id)) {
-                        drinkers.push({ id: p.id, reason: 'Minority!' });
+                        // FIX: SEND NAME
+                        drinkers.push({ id: p.id, name: p.name, reason: 'Minority!' });
                     }
                 }
             });
