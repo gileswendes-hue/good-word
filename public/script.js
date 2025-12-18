@@ -4386,6 +4386,8 @@ connect() {
                 this.currentRounds = data.maxWords; 
                 this.drinkingMode = data.drinkingMode;
 				
+				if (data.vipId) this.vipId = data.vipId;
+				
 			if (data.theme && data.theme !== State.data.currentTheme) {
                     ThemeManager.apply(data.theme, 'temp'); 
                 }
@@ -4486,6 +4488,7 @@ connect() {
             });
 			
             this.socket.on('gameOver', (data) => {
+				if (!data) return;
                  this.active = false;
                  State.runtime.isMultiplayer = false;
                  this.removeActiveBanner();
