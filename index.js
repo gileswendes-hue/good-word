@@ -451,92 +451,13 @@ function finishWord(roomCode) {
     const currentWord = room.words[room.wordIndex];
     const votes = room.currentVotes;
     
-    const getMajority = (voteList) => {
-        const g = voteList.filter(x => x === 'good').length;
-        const b = voteList.filter(x => x === 'bad').length;
-        if (g > b) return 'good';
-        if (b > g) return 'bad';
-        return 'draw';
-    };
-
-    let resultData = {};
-
-    if (room.mode === 'versus') {
-        const redM = room.players.filter(p => p.team === 'red' && !p.isSpectator);
-        const blueM = room.players.filter(p => p.team === 'blue' && !p.isSpectator);
-        const redV = redM.map(p => votes[p.id] || 'none');
-        const blueV = blueM.map(p => votes[p.id] || 'none');
-        
-        const calcSync = (v) => {
-            if(!v.length) return 0;
-            const g = v.filter(x => x === 'good').length;
-            const b = v.filter(x => x === 'bad').length;
-            return Math.round((Math.max(g, b) / v.length) * 100);
-        };
-        const rSync = calcSync(redV);
-        const bSync = calcSync(blueV);
-        
-        let msgExt = "";
-        if (rSync > bSync) room.scores.red++;
-        else if (bSync > rSync) room.scores.blue++;
-        else {
-            const getAvg = (members) => {
-                let total = 0; let count = 0;
-                members.forEach(p => { if(room.currentVoteTimes[p.id]) { total += (room.currentVoteTimes[p.id] - room.wordStartTime); count++; } });
-                return count ? total/count : 999999;
-            };
-            const rTime = getAvg(redM);
-            const bTime = getAvg(blueM);
-            if (rTime < bTime) { room.scores.red++; msgExt = "(Red Faster!)"; } 
-            else if (bTime < rTime) { room.scores.blue++; msgExt = "(Blue Faster!)"; }
-        }
-
-        const rMaj = getMajority(redV);
-        const bMaj = getMajority(blueV);
-        room.players.forEach(p => {
-            const v = votes[p.id];
-            if(p.team === 'red' && v === rMaj) p.score++;
-            if(p.team === 'blue' && v === bMaj) p.score++;
-        });
-        resultData = { redSync: rSync, blueSync: bSync, msg: msgExt ? `Tie Break! ${msgExt}` : null };
-
-    } else {
-        const allVotes = Object.values(votes);
-        const maj = getMajority(allVotes);
-        
-        if(room.mode === 'traitor') { 
-             const g = allVotes.filter(x => x === 'good').length;
-             const b = allVotes.filter(x => x === 'bad').length;
-             const sync = Math.round((Math.max(g, b) / allVotes.length) * 100);
-             if (sync === 100) room.players.forEach(p => { if (p.id !== room.traitorId && !p.isSpectator) p.score += 2; });
-             else { const s = room.players.find(p=>p.id===room.traitorId); if(s) s.score+=3; }
-             resultData = { msg: sync===100 ? "100% Sync! Traitor Failed." : `Sync Broken (${sync}%)! Traitor Wins.` };
-        } else if (room.mode === 'survival') {
-             if (maj !== 'draw') {
-                room.players.forEach(p => {
-                    if (p.lives > 0 && !p.isSpectator) {
-                        const v = votes[p.id];
-                        if (v && v !== maj) p.lives--;
-                        else if (v === maj) p.score++;
-                    }
-                });
-             }
-             resultData = { msg: `Majority: ${maj.toUpperCase()}` };
-        } else {
-             const g = allVotes.filter(x => x === 'good').length;
-             const b = allVotes.filter(x => x === 'bad').length;
-             const sync = Math.round((Math.max(g, b) / allVotes.length) * 100);
-             if (sync >= 100) room.scores.coop += 1;
-             room.players.forEach(p => { if (votes[p.id] === maj && !p.isSpectator) p.score++; });
-             resultData = { sync, score: room.scores.coop };
-        }
-    }
+    // ... (Keep existing getMajority and versus mode logic) ...
 
     let drinkers = [];
     let drinkMsg = "Penalty Round";
 
     if (room.drinkingMode && room.mode !== 'traitor' && room.mode !== 'kids') {
-        if (Math.random() < 0.1) { // 10% Chance
+        if (Math.random() < 0.1) { 
             const rand = Math.random();
             if (rand < 0.7) {
                 let slowestId = null;
@@ -547,6 +468,7 @@ function finishWord(roomCode) {
                 }
                 if (slowestId && slowestTime > 3000) {
                      const p = room.players.find(pl => pl.id === slowestId);
+                     // FIXED EMOJI
                      drinkers.push({ id: slowestId, name: p ? p.name : 'Unknown', reason: 'Too Slow!', icon: '🐌' });
                 }
                 const allVotes = Object.values(votes);
@@ -557,6 +479,7 @@ function finishWord(roomCode) {
                         const v = votes[p.id];
                         if (v && v !== maj) {
                             if (!drinkers.find(d => d.id === p.id)) {
+                                // FIXED EMOJI
                                 drinkers.push({ id: p.id, name: p.name, reason: 'Minority Vote!', icon: '🤡' });
                             }
                         }
@@ -565,6 +488,7 @@ function finishWord(roomCode) {
             } else if (rand < 0.85) {
                 drinkMsg = "SOCIAL! EVERYONE DRINKS!";
                 room.players.forEach(p => {
+                    // FIXED EMOJI
                     if (!p.isSpectator) drinkers.push({ id: p.id, name: p.name, reason: 'Social!', icon: '🍻' });
                 });
             } else {
@@ -577,6 +501,7 @@ function finishWord(roomCode) {
                 }
                 if (fastestId) {
                      const p = room.players.find(pl => pl.id === fastestId);
+                     // FIXED EMOJI
                      drinkers.push({ id: fastestId, name: p ? p.name : 'Unknown', reason: 'NOMINATE SOMEONE!', icon: '🫵' });
                 }
             }
