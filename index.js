@@ -81,7 +81,11 @@ function shuffle(array) {
 function removePlayerFromAllRooms(socketId) {
     for (const code in rooms) {
         const room = rooms[code];
-		if (!room || !room.players) continue;
+        
+        // --- ADD THIS SAFETY CHECK ---
+        if (!room || !room.players) continue; 
+        // -----------------------------
+
         const idx = room.players.findIndex(p => p.id === socketId);
         
         if (idx !== -1) {
@@ -101,10 +105,10 @@ function removePlayerFromAllRooms(socketId) {
                 
                 if (room.state === 'drinking') checkDrinkingCompletion(code);
                 
-                // Anti-Stall
                 if (room.state === 'playing') {
                     const activePlayers = room.players.filter(p => !p.isSpectator && (room.mode !== 'survival' || p.lives > 0));
-                    if (activePlayers.length > 0 && Object.keys(room.currentVotes).length >= activePlayers.length) {
+                    // Check activePlayers exists to prevent crash
+                    if (activePlayers && activePlayers.length > 0 && Object.keys(room.currentVotes).length >= activePlayers.length) {
                         finishWord(code);
                     }
                 }
