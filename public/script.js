@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.80.2', 
+    APP_VERSION: '5.80.4', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -256,6 +256,7 @@ const State = {
     },
 
     runtime: {
+		currentTheme: 'default',
         allWords: [],
         currentWordIndex: 0,
         streak: 0,
@@ -780,9 +781,10 @@ const MosquitoManager = {
     },
 
     attemptSpawn() {
-        if (State.data.currentTheme !== 'halloween') return; 
+        if (State.runtime.currentTheme !== 'halloween') return; 
         if (this.el) return;
         const now = Date.now();
+		
         const last = State.data.lastMosquitoSpawn;
         if (now - last < this.COOLDOWN) return;
         if (Math.random() > 0.3) return; 
@@ -819,18 +821,18 @@ this.el.onclick = (e) => {
             if (this.state === 'stuck') {
                 if (this.huntTimer) clearTimeout(this.huntTimer);
                 this.splat(); 
-                // -------------------------------------------------
+
             }
             else if (this.state === 'flying') {
                 this.splat();
             }
         };
 
-        document.body.appendChild(this.el);
+	document.body.appendChild(this.el);
         this.state = 'stuck';
         
         setTimeout(() => {
-            if (State.data.currentTheme === 'halloween') {
+            if (State.runtime.currentTheme === 'halloween') {
                 Effects.spiderHunt(this.x, this.y, true);
             }
         }, 100);
@@ -1074,7 +1076,7 @@ const TiltManager = {
     },
     start() {
         if (this.active) return;
-        if (State.data.settings.enableTilt && State.data.currentTheme === 'default') {
+        if (State.data.settings.enableTilt && State.runtime.currentTheme === 'default') {
             this.active = true;
             window.addEventListener('deviceorientation', this.handle, true);
         }
@@ -1371,7 +1373,7 @@ const ThemeManager = {
         c.value = State.data.currentTheme
     },
     apply(t, m = false) {
-        // FIX: Handle Temporary Themes (Don't save if m === 'temp')
+		State.runtime.currentTheme = t;
         if (m !== 'temp') {
             State.save('currentTheme', t);
             if (m === true) State.save('manualTheme', true);
@@ -1535,7 +1537,7 @@ plymouth(a) {
         }
 
         this.spawnPlymouthShooter = () => {
-            if (State.data.currentTheme !== 'plymouth') return;
+            if (State.runtime.currentTheme !== 'plymouth') return;
 
             const s = document.createElement('div');
             s.textContent = '🌠';
@@ -1568,7 +1570,7 @@ plymouth(a) {
         };
 
         this.spawnRealStreak = () => {
-            if (State.data.currentTheme !== 'plymouth') return;
+            if (State.runtime.currentTheme !== 'plymouth') return;
 
             const streak = document.createElement('div');
             const width = Math.random() * 150 + 50;
@@ -1605,7 +1607,7 @@ plymouth(a) {
         };
 
         this.spawnSatellite = () => {
-            if (State.data.currentTheme !== 'plymouth') return;
+            if (State.runtime.currentTheme !== 'plymouth') return;
 
             const sat = document.createElement('div');
             sat.textContent = '🛰️';
@@ -1693,7 +1695,7 @@ spawnFish() {
             document.head.appendChild(style);
         }
 
-        if (State.data.currentTheme !== 'submarine') return;
+        if (State.runtime.currentTheme !== 'submarine') return;
 
         const fishData = {
             '🐟': { k: 'fish', msg: "Gotcha! 🐟", speed: [12, 18] },
@@ -1969,7 +1971,7 @@ spawnFish() {
         }
         if (this.snowmanTimeout) clearTimeout(this.snowmanTimeout);
         const spawnSnowman = () => {
-            if (State.data.currentTheme !== 'winter') return;
+            if (State.runtime.currentTheme !== 'winter') return;
             const sm = document.createElement('div');
             sm.className = 'snow-particle'; 
             sm.textContent = '⛄';
@@ -3115,7 +3117,7 @@ displayWord(w) {
         wd.style = '';
         wd.style.opacity = '1';
         
-        const t = State.data.currentTheme;
+        const t = State.runtime.currentTheme;
         if (['dark', 'halloween', 'submarine', 'fire', 'plymouth'].includes(t)) wd.style.color = '#f3f4f6';
         if (t === 'halloween') {
             wd.style.color = '#FF8C00';
