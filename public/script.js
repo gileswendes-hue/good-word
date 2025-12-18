@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.80.1', 
+    APP_VERSION: '5.80.2', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4184,6 +4184,7 @@ const DiscoveryManager = {
     },
 
     check() {
+		if (State.runtime.isMultiplayer) return;
         const nextTarget = this.targets.find(t => !State.data.discovered.includes(t.id));
         if (nextTarget) {
             // Trigger if new user (no discoveries) or random chance
@@ -4191,6 +4192,11 @@ const DiscoveryManager = {
                 this.highlight(nextTarget);
             }
         }
+    },
+	
+	clear() {
+        document.querySelectorAll('.discovery-halo').forEach(el => el.classList.remove('discovery-halo'));
+        document.querySelectorAll('.discovery-tooltip').forEach(el => el.remove());
     },
 
     highlight(target) {
@@ -4714,25 +4720,25 @@ injectStyles() {
 	showActiveBanner() {
         const existing = document.getElementById('room-active-banner');
         if(existing) existing.remove();
+		
+		if (typeof DiscoveryManager !== 'undefined') DiscoveryManager.clear();
         
-        // --- FIX: HIDE THEME CARD CONTAINER & BUTTONS ---
-        const uiIds = ['showHelpButton', 'showSettingsButton', 'showDonateButton', 'showContactButton'];
+		const uiIds = ['showHelpButton', 'showSettingsButton', 'showDonateButton', 'showContactButton'];
         uiIds.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.style.display = 'none';
         });
 
-        // Hide the specific Theme Card (Container of the chooser)
+        // Hide the white Theme Card (Container)
         const themeSelect = document.getElementById('themeChooser');
         if (themeSelect) {
-            // Find the white card container (looks for nearest div with white background)
+            // Looks for the white box containing the dropdown
             const card = themeSelect.closest('.bg-white') || themeSelect.parentElement;
             if (card) {
-                card.classList.add('temp-hidden-multiplayer'); // Mark it to find later
+                card.classList.add('temp-hidden-multiplayer'); 
                 card.style.display = 'none';
             }
         }
-        // ------------------------------------------------
 
         let teamBadge = '';
         if (this.currentMode === 'versus' && this.myTeam) {
@@ -4761,20 +4767,17 @@ removeActiveBanner() {
         if(b) b.remove();
         document.body.style.paddingTop = '0';
 
-        // --- FIX: RESTORE ALL UI ELEMENTS ---
         const uiIds = ['showHelpButton', 'showSettingsButton', 'showDonateButton', 'showContactButton'];
         uiIds.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.style.display = '';
         });
 
-        // Restore any cards we hid
         const hiddenCards = document.querySelectorAll('.temp-hidden-multiplayer');
         hiddenCards.forEach(c => {
             c.style.display = '';
             c.classList.remove('temp-hidden-multiplayer');
         });
-        // ------------------------------------
     },
 
     leave(force = false) {
