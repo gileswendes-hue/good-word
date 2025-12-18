@@ -4870,7 +4870,6 @@ const RoomManager = {
         }
     },
 
-}, // End of renderLobby
 
     // --- PASTE THIS MISSING SECTION HERE ---
 
