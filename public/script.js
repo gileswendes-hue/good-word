@@ -4870,7 +4870,11 @@ const RoomManager = {
         }
     },
 
-injectModal() {
+}, // End of renderLobby
+
+    // --- PASTE THIS MISSING SECTION HERE ---
+
+    injectModal() {
         if (document.getElementById('roomModal')) return;
         const div = document.createElement('div');
         div.id = 'roomModal';
@@ -4958,7 +4962,7 @@ injectModal() {
             </div>`;
         document.body.appendChild(div);
     }
-};
+}; // <-- This closes RoomManager
 
 // --- MAIN GAME LOGIC ---
 const Game = {
