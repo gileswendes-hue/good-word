@@ -4497,14 +4497,18 @@ connect() {
         }
     },
 
-    resetLocalState() {
+	resetLocalState() {
         this.active = false;
         this.roomCode = '';
         this.isHost = false;
         this.removeActiveBanner();
         localStorage.removeItem('lastRoomCode');
         
-        if (State.settings && State.settings.theme) document.body.className = State.settings.theme;
+        // FIXED: Correctly restore the theme using State.data.currentTheme
+        if (State.data.currentTheme) {
+            document.body.className = `theme-${State.data.currentTheme}`;
+        }
+        
         if(window.TipManager) window.TipManager.active = true;
 
         const ids = ['active-role-alert', 'spectator-banner', 'active-accusation', 'active-vote-reveal', 'active-countdown', 'active-drink-penalty'];
@@ -4931,7 +4935,8 @@ injectStyles() {
                  this.connect();
                  setTimeout(() => {
                      if (this.socket && this.socket.connected) {
-                         this.socket.emit('joinRoom', { roomCode: c, username: State.data.username, theme: State.settings.theme || 'default' });
+                         // FIXED: Changed State.settings.theme to State.data.currentTheme
+                         this.socket.emit('joinRoom', { roomCode: c, username: State.data.username, theme: State.data.currentTheme || 'default' });
                      } else {
                          alert("Connection Failed. Check internet.");
                          // Go back if failed
@@ -4940,7 +4945,8 @@ injectStyles() {
                      }
                  }, 1000);
              } else {
-                 this.socket.emit('joinRoom', { roomCode: c, username: State.data.username, theme: State.settings.theme || 'default' });
+                 // FIXED: Changed State.settings.theme to State.data.currentTheme
+                 this.socket.emit('joinRoom', { roomCode: c, username: State.data.username, theme: State.data.currentTheme || 'default' });
              }
         };
 
