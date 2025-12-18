@@ -50,16 +50,26 @@ const Leaderboard = mongoose.model('Leaderboard', leaderboardSchema);
 let kidsWords = [];
 const loadKidsWords = () => {
     try {
-        const p = path.join(__dirname, 'kids_words.txt');
+        // 1. Try finding it in the 'public' folder first
+        let p = path.join(__dirname, 'public', 'kids_words.txt');
+        
+        // 2. If not there, try the root folder
+        if (!fs.existsSync(p)) {
+            p = path.join(__dirname, 'kids_words.txt');
+        }
+
         if (fs.existsSync(p)) {
             const data = fs.readFileSync(p, 'utf8');
-            kidsWords = data.split('\n').map(w => w.trim().toUpperCase()).filter(w => w.length > 0);
-            console.log(`Loaded ${kidsWords.length} kids words.`);
+            kidsWords = data.split('\n')
+                .map(w => w.trim().toUpperCase())
+                .filter(w => w.length > 0);
+            console.log(`✅ Loaded ${kidsWords.length} kids words from: ${p}`);
         } else {
-            console.warn("kids_words.txt not found. Using fallback.");
-            kidsWords = ["APPLE", "BANANA", "CAT", "DOG"];
+            console.warn("⚠️ kids_words.txt not found. Using fallback.");
+            kidsWords = ["APPLE", "BANANA", "CAT", "DOG", "ELEPHANT", "FISH", "GRAPE", "HAT", "IGLOO", "JELLY"];
         }
     } catch (e) {
+        console.error("❌ Error loading kids words:", e);
         kidsWords = ["APPLE", "BANANA", "CAT", "DOG"];
     }
 };
