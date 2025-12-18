@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.80.4', 
+    APP_VERSION: '5.80.5', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4722,19 +4722,29 @@ injectStyles() {
 	showActiveBanner() {
         const existing = document.getElementById('room-active-banner');
         if(existing) existing.remove();
-		
-		if (typeof DiscoveryManager !== 'undefined') DiscoveryManager.clear();
         
-		const uiIds = ['showHelpButton', 'showSettingsButton', 'showDonateButton', 'showContactButton'];
+        if (typeof DiscoveryManager !== 'undefined') DiscoveryManager.clear();
+        
+        // --- UPDATED LIST: HIDE ALL EXTRA UI ---
+        const uiIds = [
+            'showHelpButton', 'showSettingsButton', 'showDonateButton', 'showContactButton',
+            'qrGoodBtn', 'qrBadBtn',                // Hide QR Buttons
+            'compareWordsButton',                   // Hide Compare Button
+            'headerStatsCard',                      // Hide Rankings/Graph Button
+            'userStatsBar',                         // Hide Profile/Stats Bar
+            'dailyBanner',                          // Hide Daily Mode Banner
+            'customWordButton'                      // Hide Submit Word Button
+        ];
+        
         uiIds.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.style.display = 'none';
         });
+        // ---------------------------------------
 
         // Hide the white Theme Card (Container)
         const themeSelect = document.getElementById('themeChooser');
         if (themeSelect) {
-            // Looks for the white box containing the dropdown
             const card = themeSelect.closest('.bg-white') || themeSelect.parentElement;
             if (card) {
                 card.classList.add('temp-hidden-multiplayer'); 
@@ -4769,11 +4779,22 @@ removeActiveBanner() {
         if(b) b.remove();
         document.body.style.paddingTop = '0';
 
-        const uiIds = ['showHelpButton', 'showSettingsButton', 'showDonateButton', 'showContactButton'];
+        // --- UPDATED LIST: RESTORE ALL UI ---
+        const uiIds = [
+            'showHelpButton', 'showSettingsButton', 'showDonateButton', 'showContactButton',
+            'qrGoodBtn', 'qrBadBtn', 
+            'compareWordsButton', 
+            'headerStatsCard', 
+            'userStatsBar', 
+            'dailyBanner', 
+            'customWordButton'
+        ];
+
         uiIds.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.style.display = '';
         });
+        // ------------------------------------
 
         const hiddenCards = document.querySelectorAll('.temp-hidden-multiplayer');
         hiddenCards.forEach(c => {
