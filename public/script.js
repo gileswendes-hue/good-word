@@ -4844,11 +4844,16 @@ updateSettings() {
             infoBadge = `<span class="ml-2 px-2 py-1 rounded text-xs text-white font-bold ${color}">${this.myTeam.toUpperCase()} TEAM</span>`;
         }
         
-        if (this.currentMode === 'vip' && this.vipId && this.players) {
+if (this.currentMode === 'vip' && this.vipId && this.players) {
             const vipPlayer = this.players.find(p => p.id === this.vipId);
-            const vipName = vipPlayer ? vipPlayer.name : "Unknown";
+            // FIX: Ensure name defaults to 'Unknown' if missing
+            const vipName = (vipPlayer && vipPlayer.name) ? vipPlayer.name : "Unknown"; 
             const isMe = this.vipId === this.playerId;
-            infoBadge = `<span class="ml-2 px-2 py-1 rounded text-xs text-white font-bold bg-yellow-500 border border-yellow-600 shadow-sm">👑 ${isMe ? "YOU ARE LEADER" : "FOLLOW: " + vipName.toUpperCase()}</span>`;
+            
+            // FIX: Safe toUpperCase()
+            const displayName = isMe ? "YOU ARE LEADER" : "FOLLOW: " + vipName.toUpperCase();
+            
+            infoBadge = `<span class="ml-2 px-2 py-1 rounded text-xs text-white font-bold bg-yellow-500 border border-yellow-600 shadow-sm">👑 ${displayName}</span>`;
         }
 
         const banner = document.createElement('div');
@@ -5104,7 +5109,7 @@ removeActiveBanner() {
     submitVote(t) { if(this.active && this.socket) this.socket.emit('submitVote', { roomCode: this.roomCode, vote: t }); },
     
 showFinalResults(data) {
-        // --- FIX: Prevent Crash if mode is missing ---
+        // Fix 1: Fallback to currentMode if data.mode is missing
         const mode = data.mode || this.currentMode || 'versus'; 
         const config = this.modeConfig[mode] || { label: 'Game Over' };
 
@@ -5117,9 +5122,9 @@ showFinalResults(data) {
             const rolePlayer = rankings.find(p => p.id === data.specialRoleId);
             
             if (rolePlayer) {
-                // --- FIX: Safely handle missing names to prevent crash ---
-                const safeName = (rolePlayer.name || 'Unknown').toUpperCase();
-                // --------------------------------------------------------
+                // FIX 2: Safe Name Handling (Prevents Crash)
+                const safeName = (rolePlayer.name || "Unknown").toUpperCase();
+                
                 roleReveal = `<div class="bg-yellow-100 text-yellow-800 p-2 rounded-lg font-bold text-center mb-4 border border-yellow-300 shadow-sm animate-bounce">
                     ${icon} The ${roleName} was: <br><span class="text-xl">${safeName}</span>
                 </div>`;
@@ -5129,7 +5134,8 @@ showFinalResults(data) {
         let rankHtml = `<div class="mt-4 max-h-40 overflow-y-auto bg-gray-900 rounded-lg p-2">`;
         if (data.rankings && Array.isArray(data.rankings)) {
             data.rankings.forEach((p, i) => {
-                const pName = p.name || 'Unknown';
+                // FIX 3: Safe Name Handling in List
+                const pName = (p.name || "Unknown"); 
                 rankHtml += `<div class="flex justify-between text-sm py-1 border-b border-gray-700 last:border-0"><span class="text-white">${i+1}. ${pName}</span><span class="font-bold text-yellow-400">${p.score} pts</span></div>`;
             });
         }
