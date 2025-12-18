@@ -56,6 +56,7 @@ const loadKidsWords = () => {
             kidsWords = data.split('\n').map(w => w.trim().toUpperCase()).filter(w => w.length > 0);
             console.log(`Loaded ${kidsWords.length} kids words.`);
         } else {
+            console.warn("kids_words.txt not found. Using fallback.");
             kidsWords = ["APPLE", "BANANA", "CAT", "DOG"];
         }
     } catch (e) {
@@ -100,7 +101,7 @@ function removePlayerFromAllRooms(socketId) {
                 // If paused for drinking, check if we can proceed now
                 if (room.state === 'drinking') checkDrinkingCompletion(code);
                 
-                // If game is playing, check if remaining players have finished voting
+                // Anti-Stall: If game is playing, check if remaining players have finished voting
                 if (room.state === 'playing') {
                     const activePlayers = room.players.filter(p => !p.isSpectator && (room.mode !== 'survival' || p.lives > 0));
                     if (activePlayers.length > 0 && Object.keys(room.currentVotes).length >= activePlayers.length) {
@@ -167,7 +168,6 @@ io.on('connection', (socket) => {
         if (isSpectator && room.words[room.wordIndex]) {
             socket.emit('gameStarted', { totalWords: room.maxWords, mode: room.mode });
             if (room.state === 'drinking') {
-                // If joining during drink phase, wait.
                 socket.emit('drinkPenalty', { drinkers: [], msg: "Waiting for next word..." });
             } else {
                 socket.emit('nextWord', { 
@@ -526,12 +526,15 @@ function finishWord(roomCode) {
     if (room.drinkingMode && room.mode !== 'traitor') {
         let slowestId = null;
         let slowestTime = 0;
+        
+        // 1. Find Slowest
         for (const [pid, timestamp] of Object.entries(room.currentVoteTimes)) {
             const dur = timestamp - room.wordStartTime;
             if (dur > slowestTime) { slowestTime = dur; slowestId = pid; }
         }
-        if (slowestId) {
-             // FIX: SEND NAME TO FRONTEND
+        
+        // --- FIX: ONLY PUNISH IF SLOW > 3 SECONDS ---
+        if (slowestId && slowestTime > 3000) {
              const p = room.players.find(pl => pl.id === slowestId);
              drinkers.push({ id: slowestId, name: p ? p.name : 'Unknown', reason: 'Too Slow!' });
         }
@@ -544,7 +547,6 @@ function finishWord(roomCode) {
                 const v = votes[p.id];
                 if (v && v !== maj) {
                     if (!drinkers.find(d => d.id === p.id)) {
-                        // FIX: SEND NAME
                         drinkers.push({ id: p.id, name: p.name, reason: 'Minority!' });
                     }
                 }
