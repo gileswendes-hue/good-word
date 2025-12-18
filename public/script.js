@@ -4315,8 +4315,7 @@ const RoomManager = {
     },
 
   init() {
-        // --- FIX: Expose RoomManager globally so HTML onclicks work ---
-        window.RoomManager = this; 
+        window.RoomManager = this; // Fixes "onclick" errors
 
         this.injectStyles();
         if (!document.getElementById('roomBtn')) {
@@ -4336,7 +4335,7 @@ const RoomManager = {
             document.head.appendChild(sc);
         } else { this.connect(); }
         
-        this.injectModal();
+        this.injectModal(); // This function is defined below
 
         window.addEventListener('beforeunload', () => {
             if (this.socket && this.roomCode) {
@@ -4405,7 +4404,7 @@ const RoomManager = {
         this.socket.on('gameStarted', (data) => {
             this.active = true;
             State.runtime.isMultiplayer = true;
-            if(window.TipManager) window.TipManager.active = false; // Disable tips
+            if(window.TipManager) window.TipManager.active = false;
             
             this.closeLobby();
             this.currentMode = data.mode;
@@ -4424,11 +4423,8 @@ const RoomManager = {
         });
 
         this.socket.on('drinkingComplete', () => {
-            // FIX: Robust removal of drinking screen
             const el = document.getElementById('active-drink-penalty');
             if(el) el.remove();
-            
-            // Re-enable buttons if it was your turn
             if(!this.isSpectator) UIManager.disableButtons(false);
         });
 
@@ -4779,10 +4775,7 @@ const RoomManager = {
             } else if (count === 0) {
                 el.textContent = "GO!";
                 el.classList.add('text-green-400'); el.classList.remove('text-yellow-400');
-                
-                // Scroll Up
                 window.scrollTo({ top: 0, behavior: 'smooth' });
-                
             } else {
                 clearInterval(interval); div.remove();
             }
@@ -5538,13 +5531,15 @@ if (qrBad) {
 
     activateDailyMode() {
         if (State.runtime.isDailyMode) return;
-        const now = new Date();
-        const t = now.getFullYear() + '-' + (now.getMonth() + 1) + '-' + now.getDate();
+        
+        // --- FIX: USE UTC TO MATCH SAVED DATA ---
+        const t = new Date().toISOString().split('T')[0];
+        
         if (t === State.data.daily.lastDate) return;
         State.runtime.isDailyMode = true;
         DOM.game.dailyBanner.classList.add('daily-locked-mode');
-		DOM.game.buttons.notWord.style.visibility = 'hidden';
-		DOM.game.buttons.custom.style.visibility = 'hidden';
+        DOM.game.buttons.notWord.style.visibility = 'hidden';
+        DOM.game.buttons.custom.style.visibility = 'hidden';
         UIManager.showMessage('Loading Daily Word...');
         const sortedWords = [...State.runtime.allWords].sort((a, b) => a.text.localeCompare(b.text));
         let seed = 0;
@@ -5566,7 +5561,7 @@ if (qrBad) {
             UIManager.showMessage("No Daily Word Found");
         }
     },
-
+	
     disableDailyMode() {
         State.runtime.isDailyMode = false;
         DOM.game.dailyBanner.classList.remove('daily-locked-mode');
