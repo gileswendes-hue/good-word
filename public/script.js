@@ -4314,7 +4314,7 @@ const RoomManager = {
         'kids': { label: '👶 Kids Mode', desc: 'Simple words. Family friendly!', min: 2 }
     },
 
-    init() {
+   init() {
         this.injectStyles();
         if (!document.getElementById('roomBtn')) {
             const btn = document.createElement('button');
@@ -4478,6 +4478,7 @@ const RoomManager = {
         }
     },
 
+    // --- CRITICAL FIX: RESET STATE CORRECTLY ---
     resetLocalState() {
         this.active = false;
         this.roomCode = '';
@@ -4485,9 +4486,11 @@ const RoomManager = {
         this.removeActiveBanner();
         localStorage.removeItem('lastRoomCode');
         
+        // 1. Clean Overlays
         const ids = ['active-role-alert', 'spectator-banner', 'active-accusation', 'active-vote-reveal', 'active-countdown', 'active-drink-penalty'];
         ids.forEach(id => { const el = document.getElementById(id); if(el) el.remove(); });
         
+        // 2. Reset UI
         const input = document.getElementById('roomCodeInput');
         if(input) input.value = '';
 
@@ -4497,6 +4500,18 @@ const RoomManager = {
         if(lobby) lobby.classList.add('hidden');
 
         this.closeLobby(); 
+
+        // 3. FORCE SINGLE PLAYER RESTORE
+        State.runtime.isMultiplayer = false;
+        UIManager.disableButtons(false); // Unlock buttons
+        
+        // Clear any lingering "Word 10/10" message
+        if (DOM.game && DOM.game.message) DOM.game.message.style.opacity = '0';
+
+        // Load new words from API so we aren't stuck on the last multiplayer word
+        if (typeof Game !== 'undefined') {
+            Game.refreshData(true); 
+        }
     },
 
     injectStyles() {
@@ -4755,10 +4770,7 @@ const RoomManager = {
             } else if (count === 0) {
                 el.textContent = "GO!";
                 el.classList.add('text-green-400'); el.classList.remove('text-yellow-400');
-                
-                // --- FIX: Scroll to Top Here ---
                 window.scrollTo({ top: 0, behavior: 'smooth' });
-                
             } else {
                 clearInterval(interval); div.remove();
             }
@@ -4790,7 +4802,6 @@ const RoomManager = {
                              <option value="20" ${data.maxWords==20?'selected':''}>Twenty Words</option>
                              <option value="30" ${data.maxWords==30?'selected':''}>Marathon! (Thirty Words)</option>`;
 
-            // Drinking Toggle (Disable if Traitor)
             const isTraitor = data.mode === 'traitor';
             const drinkChecked = data.drinkingMode && !isTraitor ? 'checked' : '';
             const drinkDisabled = isTraitor ? 'disabled opacity-50' : '';
@@ -4811,7 +4822,6 @@ const RoomManager = {
                     ${!enoughPlayers ? `<div class="text-xs text-center text-red-500 font-bold mt-2">⚠️ Not enough players (Need ${minReq}+)</div>` : ''}
                 </div>`;
         } else {
-            // Guest View
             const drinkBadge = data.drinkingMode ? '<span class="text-red-600 font-bold ml-2">🍺 DRINKING ON</span>' : '';
             settingsHtml = `
                 <div class="bg-indigo-50 p-4 rounded-lg mb-4 text-center border-2 border-indigo-100">
@@ -4827,7 +4837,6 @@ const RoomManager = {
         const refreshHtml = this.isHost ? `<span class="refresh-btn" onclick="RoomManager.refreshLobby()" title="Remove inactive players">🔄</span>` : '';
         let playerHtml = `<div class="text-xs font-bold text-gray-400 mb-2 flex justify-between"><span>PLAYERS (${playerCount})</span> ${refreshHtml}</div>`;
         
-        // --- RESIZABLE LIST (No fixed height) ---
         playerHtml += data.players.map(p => {
             let extra = "";
             if (data.mode === 'survival') extra = `<span class="text-xs ml-2">${"❤️".repeat(p.lives)}</span>`;
@@ -4868,9 +4877,7 @@ const RoomManager = {
                 <div id="roomLobbyScreen" class="hidden space-y-4">
                     <div class="text-center"><div class="text-xs font-bold text-gray-400">CODE</div><div id="lobbyCodeDisplay" class="text-3xl font-black text-indigo-600 tracking-widest">---</div></div>
                     <div id="lobbyModeArea"></div>
-                    
                     <div class="bg-gray-50 p-2 rounded-xl max-h-[300px] overflow-y-auto" id="lobbyPlayerList"></div>
-                    
                     <button id="roomStartBtn" onclick="RoomManager.start()" class="w-full py-3 bg-green-500 text-white font-bold rounded-xl hidden">START GAME</button>
                     <div id="roomWaitMsg" class="text-center text-sm text-gray-400 hidden animate-pulse">Waiting for host...</div>
                 </div>
