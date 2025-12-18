@@ -4488,24 +4488,29 @@ connect() {
                 UIManager.showPostVoteMessage(msg);
             });
 			
-            this.socket.on('gameOver', (data) => {
-				if (!data) return;
-                 this.active = false;
-                 State.runtime.isMultiplayer = false;
-                 this.removeActiveBanner();
-                 const ids = ['active-role-alert', 'spectator-banner', 'active-accusation', 'active-drink-penalty'];
-                 ids.forEach(id => { const el = document.getElementById(id); if(el) el.remove(); });
-                 if (data.msg && data.msg.startsWith('GAME ENDED:')) {
-                     this.showCustomAlert(data.msg);
-                     this.openLobby(); 
-                 } else {
-                     this.showFinalResults(data);
+this.socket.on('gameOver', (data) => {
+                if (!data) return;
+
+                try {  // <--- THIS WAS MISSING
+                    this.active = false;
+                    State.runtime.isMultiplayer = false;
+                    this.removeActiveBanner();
+                    
+                    const ids = ['active-role-alert', 'spectator-banner', 'active-accusation', 'active-drink-penalty'];
+                    ids.forEach(id => { const el = document.getElementById(id); if(el) el.remove(); });
+                    
+                    if (data.msg && data.msg.startsWith('GAME ENDED:')) {
+                        this.showCustomAlert(data.msg);
+                        this.openLobby(); 
+                    } else {
+                        this.showFinalResults(data);
                     }
                 } catch (e) {
                     console.error("Game Over Error:", e);
                     this.openLobby(); // Fallback to lobby if crash occurs
                 }
             });
+			
             this.socket.on('kicked', () => { 
                 this.showCustomAlert("You have been kicked from the room.");
                 this.leave(true);
