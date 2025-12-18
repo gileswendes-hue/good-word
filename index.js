@@ -56,7 +56,6 @@ const loadKidsWords = () => {
             kidsWords = data.split('\n').map(w => w.trim().toUpperCase()).filter(w => w.length > 0);
             console.log(`Loaded ${kidsWords.length} kids words.`);
         } else {
-            console.warn("kids_words.txt not found. Using fallback.");
             kidsWords = ["APPLE", "BANANA", "CAT", "DOG"];
         }
     } catch (e) {
@@ -86,7 +85,6 @@ function removePlayerFromAllRooms(socketId) {
             const wasHost = (room.host === socketId);
             room.players.splice(idx, 1);
             if (room.players.length === 0) {
-                // If room closes, ensure we kill the timer so it doesn't crash server
                 if (room.wordTimer) clearTimeout(room.wordTimer);
                 delete rooms[code];
             } else {
@@ -102,7 +100,7 @@ io.on('connection', (socket) => {
     
     socket.on('joinRoom', ({ roomCode, username }) => {
         const code = roomCode.toUpperCase();
-        removePlayerFromAllRooms(socket.id); // Ensure clean state
+        removePlayerFromAllRooms(socket.id); // Ensure strictly one room per socket
         socket.join(code);
 
         if (!rooms[code]) {
@@ -121,7 +119,7 @@ io.on('connection', (socket) => {
                 vipId: null,
                 traitorId: null,
                 wordStartTime: 0,
-                wordTimer: null // CRITICAL: Track the timer
+                wordTimer: null 
             };
         }
 
@@ -166,6 +164,19 @@ io.on('connection', (socket) => {
         removePlayerFromAllRooms(socket.id);
     });
 
+    socket.on('refreshLobby', ({ roomCode }) => {
+        const room = rooms[roomCode];
+        if (!room || room.host !== socket.id) return;
+        
+        const initialCount = room.players.length;
+        room.players = room.players.filter(p => {
+            const s = io.sockets.sockets.get(p.id);
+            return s && s.connected;
+        });
+
+        if (room.players.length !== initialCount) emitUpdate(roomCode);
+    });
+
     socket.on('updateSettings', ({ roomCode, mode, rounds }) => {
         const room = rooms[roomCode];
         if (!room || room.host !== socket.id) return;
@@ -177,7 +188,7 @@ io.on('connection', (socket) => {
     socket.on('kickPlayer', ({ roomCode, targetId }) => {
         const room = rooms[roomCode];
         if (!room || room.host !== socket.id) return;
-        if (targetId === room.host) return; // Cannot kick self
+        if (targetId === room.host) return;
 
         const targetSocket = io.sockets.sockets.get(targetId);
         if (targetSocket) {
@@ -191,7 +202,6 @@ io.on('connection', (socket) => {
         const room = rooms[roomCode];
         if (!room || room.host !== socket.id) return;
 
-        // CRITICAL: Clear any existing timers to prevent double-firing
         if (room.wordTimer) clearTimeout(room.wordTimer);
 
         room.state = 'playing';
@@ -207,7 +217,6 @@ io.on('connection', (socket) => {
             p.isSpectator = false;
         });
 
-        // Team Setup
         if (room.mode === 'versus') {
             const shuffled = shuffle([...room.players]);
             shuffled.forEach((p, i) => {
@@ -244,7 +253,6 @@ io.on('connection', (socket) => {
                 vipId: room.vipId
             });
             
-            // Store timer in room object
             room.wordTimer = setTimeout(() => sendNextWord(roomCode), 6000);
         } catch (e) { console.error(e); }
     });
@@ -346,8 +354,6 @@ function processGameEnd(roomCode, abortReason = null) {
     const room = rooms[roomCode];
     if (!room) return;
 
-    // CRITICAL FIX: STOP THE TIMER. 
-    // This prevents "Next Word" from firing after Game Over.
     if (room.wordTimer) clearTimeout(room.wordTimer);
 
     if (room.state === 'accusation' && !abortReason) {
@@ -381,7 +387,6 @@ function finishWord(roomCode) {
     const currentWord = room.words[room.wordIndex];
     const votes = room.currentVotes;
     
-    // ... [Score Logic Same as Before] ...
     const getMajority = (voteList) => {
         const g = voteList.filter(x => x === 'good').length;
         const b = voteList.filter(x => x === 'bad').length;
@@ -435,7 +440,7 @@ function finishWord(roomCode) {
         const allVotes = Object.values(votes);
         const maj = getMajority(allVotes);
         
-        if(room.mode === 'traitor') { // Updated Logic
+        if(room.mode === 'traitor') { 
              const g = allVotes.filter(x => x === 'good').length;
              const b = allVotes.filter(x => x === 'bad').length;
              const sync = Math.round((Math.max(g, b) / allVotes.length) * 100);
@@ -472,7 +477,6 @@ function finishWord(roomCode) {
     });
 
     room.wordIndex++;
-    // Store timer so we can cancel it on crash
     room.wordTimer = setTimeout(() => sendNextWord(roomCode), 3000);
 }
 
