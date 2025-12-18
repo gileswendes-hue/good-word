@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.80.8', 
+    APP_VERSION: '5.80.08', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4771,11 +4771,16 @@ injectStyles() {
         }
     },
 
-    updateSettings() {
+updateSettings() {
         if(!this.isHost) return;
         const mode = document.getElementById('hostModeSelect').value;
-        const rounds = document.getElementById('hostRoundSelect').value;
+        let rounds = document.getElementById('hostRoundSelect').value;
         const drinking = document.getElementById('hostDrinkingToggle') ? document.getElementById('hostDrinkingToggle').checked : false;
+        
+        if (mode === 'survival' && parseInt(rounds) <= 5) {
+            rounds = "10";
+        }
+
         this.socket.emit('updateSettings', { roomCode: this.roomCode, mode, rounds, drinking });
     },
 
@@ -4805,15 +4810,14 @@ injectStyles() {
             }
         }
 
-        let infoBadge = ''; // Unified variable for both modes
+        // --- FIX: Unified Badge Variable ---
+        let infoBadge = ''; 
 
-        // 1. VERSUS BADGE
         if (this.currentMode === 'versus' && this.myTeam) {
             const color = this.myTeam === 'red' ? 'bg-red-500' : (this.myTeam === 'blue' ? 'bg-blue-500' : 'bg-gray-400');
             infoBadge = `<span class="ml-2 px-2 py-1 rounded text-xs text-white font-bold ${color}">${this.myTeam.toUpperCase()} TEAM</span>`;
         }
         
-        // 2. VIP BADGE
         if (this.currentMode === 'vip' && this.vipId && this.players) {
             const vipPlayer = this.players.find(p => p.id === this.vipId);
             const vipName = vipPlayer ? vipPlayer.name : "Unknown";
@@ -4825,8 +4829,6 @@ injectStyles() {
         banner.id = 'room-active-banner';
         banner.style.cssText = "position:fixed; top:0; left:0; width:100%; height:60px; background:white; z-index:200; display:flex; align-items:center; justify-content:space-between; padding:0 20px; box-shadow:0 2px 10px rgba(0,0,0,0.1);";
         let config = this.modeConfig[this.currentMode];
-        
-        // Using infoBadge correctly here
         banner.innerHTML = `
             <div class="room-info flex items-center">
                 <span class="font-mono bg-gray-100 px-1 rounded mr-2">${this.roomCode}</span> 
@@ -4838,7 +4840,7 @@ injectStyles() {
         document.body.appendChild(banner);
         document.body.style.paddingTop = '60px';
     },
-
+	
 removeActiveBanner() {
         const b = document.getElementById('room-active-banner');
         if(b) b.remove();
@@ -4927,8 +4929,11 @@ removeActiveBanner() {
                 modeOpts += `<option value="${key}" ${data.mode===key?'selected':''}>${val.label}${note}</option>`;
             }
             
-            let roundOpts = `<option value="1" ${data.maxWords==1?'selected':''}>Just a quickie! (One Word)</option>
-                             <option value="5" ${data.maxWords==5?'selected':''}>Five Words</option>
+            const isSurv = data.mode === 'survival';
+            const dis = isSurv ? 'disabled style="color:#ccc"' : '';
+            
+            let roundOpts = `<option value="1" ${data.maxWords==1?'selected':''} ${dis}>Just a quickie! (One Word)</option>
+                             <option value="5" ${data.maxWords==5?'selected':''} ${dis}>Five Words</option>
                              <option value="10" ${data.maxWords==10?'selected':''}>Ten Words</option>
                              <option value="15" ${data.maxWords==15?'selected':''}>Fifteen Words</option>
                              <option value="20" ${data.maxWords==20?'selected':''}>Twenty Words</option>
@@ -5072,16 +5077,16 @@ removeActiveBanner() {
     start() { if(this.socket) this.socket.emit('startGame', { roomCode: this.roomCode }); },
     submitVote(t) { if(this.active && this.socket) this.socket.emit('submitVote', { roomCode: this.roomCode, vote: t }); },
     
-showFinalResults(data) {
-        // FIX: Use currentMode as fallback to prevent crash if data.mode is missing
-        const mode = data.mode || this.currentMode; 
+	showFinalResults(data) {
+        // --- FIX: Prevent Crash if mode is missing ---
+        const mode = data.mode || this.currentMode;
+        const config = this.modeConfig[mode] || { label: 'Game Over' };
 
         let roleReveal = "";
         if (data.specialRoleId) {
             const roleName = (mode === 'traitor') ? 'Traitor' : 'VIP';
             const icon = (mode === 'traitor') ? '🕵️' : '👑';
             
-            // FIX: Check if rankings exist before searching
             const rankings = data.rankings || [];
             const rolePlayer = rankings.find(p => p.id === data.specialRoleId);
             
@@ -5102,10 +5107,6 @@ showFinalResults(data) {
         
         const div = document.createElement('div');
         div.className = 'fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-4';
-        
-        // FIX: Safe config lookup
-        const config = this.modeConfig[mode] || { label: "Game Over" };
-
         div.innerHTML = `
             <div class="bg-gray-800 rounded-2xl w-full max-w-md p-6 border-2 border-indigo-500 relative">
                 <h2 class="text-2xl font-black text-white text-center mb-2 uppercase">Results</h2>
