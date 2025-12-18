@@ -87,7 +87,7 @@ function removePlayerFromAllRooms(socketId) {
             const wasHost = (room.host === socketId);
             room.players.splice(idx, 1);
             
-            // Clean up their vote so they don't count towards total
+            // Clean up their vote
             if (room.currentVotes && room.currentVotes[socketId]) {
                 delete room.currentVotes[socketId];
             }
@@ -98,10 +98,10 @@ function removePlayerFromAllRooms(socketId) {
             } else {
                 if (wasHost) room.host = room.players[0].id;
                 
-                // If paused for drinking, check if we can proceed now
+                // Unblock drinking phase if stuck
                 if (room.state === 'drinking') checkDrinkingCompletion(code);
                 
-                // Anti-Stall: If game is playing, check if remaining players have finished voting
+                // Anti-Stall: Check voting completion
                 if (room.state === 'playing') {
                     const activePlayers = room.players.filter(p => !p.isSpectator && (room.mode !== 'survival' || p.lives > 0));
                     if (activePlayers.length > 0 && Object.keys(room.currentVotes).length >= activePlayers.length) {
@@ -208,7 +208,9 @@ io.on('connection', (socket) => {
         if(mode) room.mode = mode;
         if(rounds) room.maxWords = parseInt(rounds);
         if (typeof drinking !== 'undefined') room.drinkingMode = drinking;
-        if (room.mode === 'traitor') room.drinkingMode = false;
+        
+        // --- FIX: Force Drinking OFF for Traitor AND Kids ---
+        if (room.mode === 'traitor' || room.mode === 'kids') room.drinkingMode = false;
 
         emitUpdate(roomCode);
     });
@@ -241,7 +243,8 @@ io.on('connection', (socket) => {
         room.vipId = null;
         room.traitorId = null;
 
-        if (room.mode === 'traitor') room.drinkingMode = false;
+        // --- FIX: Force Drinking OFF for Traitor AND Kids ---
+        if (room.mode === 'traitor' || room.mode === 'kids') room.drinkingMode = false;
 
         room.players.forEach(p => {
             p.lives = 3;
@@ -527,13 +530,12 @@ function finishWord(roomCode) {
         let slowestId = null;
         let slowestTime = 0;
         
-        // 1. Find Slowest
         for (const [pid, timestamp] of Object.entries(room.currentVoteTimes)) {
             const dur = timestamp - room.wordStartTime;
             if (dur > slowestTime) { slowestTime = dur; slowestId = pid; }
         }
         
-        // --- FIX: ONLY PUNISH IF SLOW > 3 SECONDS ---
+        // 3 SECOND THRESHOLD
         if (slowestId && slowestTime > 3000) {
              const p = room.players.find(pl => pl.id === slowestId);
              drinkers.push({ id: slowestId, name: p ? p.name : 'Unknown', reason: 'Too Slow!' });
