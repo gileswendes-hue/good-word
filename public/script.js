@@ -4530,6 +4530,7 @@ connect() {
         const s = document.createElement('style');
         s.id = 'room-styles';
         s.innerHTML = `
+			.hidden { display: none !important; }
             .mode-select, .round-select { width: 100%; padding: 10px; border-radius: 8px; border: 2px solid #e5e7eb; font-weight: bold; color: #374151; margin-bottom: 10px; }
             .leave-btn { background: #fee2e2; color: #ef4444; border: 1px solid #fecaca; padding: 6px 12px; border-radius: 8px; font-weight: bold; cursor: pointer; }
             .kick-btn { color: #ef4444; font-weight: bold; margin-left: 10px; cursor: pointer; opacity: 0.7; }
@@ -4906,6 +4907,7 @@ connect() {
     
 join() {
         const proceed = (name) => {
+             console.log("Joining Room..."); // Debug Log
              State.data.username = name.trim(); 
              State.save('username', State.data.username); 
              UIManager.updateProfileDisplay();
@@ -4913,35 +4915,43 @@ join() {
              const inputEl = document.getElementById('roomCodeInput');
              const c = inputEl ? inputEl.value.trim().toUpperCase() : '';
              
-             // --- FIX: ALERT IF EMPTY ---
-             if(!c) {
-                 alert("Please enter a Room Code first!");
-                 if(inputEl) inputEl.focus();
-                 return;
-             }
+             if(!c) { alert("Please enter a Room Code."); return; }
 
              this.roomCode = c;
              localStorage.setItem('lastRoomCode', c);
              
-             // --- FIX: SAFE CONNECT ---
-             if(!this.socket || !this.socket.connected) {
-                 this.connect();
-                 // Wait a split second for connection
-                 setTimeout(() => {
-                     if (this.socket && this.socket.connected) {
-                         this.socket.emit('joinRoom', { roomCode: c, username: State.data.username, theme: State.settings.theme || 'default' });
-                     } else {
-                         alert("Could not connect to server. Please try again.");
-                     }
-                 }, 500);
-             } else {
-                 this.socket.emit('joinRoom', { roomCode: c, username: State.data.username, theme: State.settings.theme || 'default' });
-             }
-             
-             // Optimistically switch UI (Server will correct if fail)
+             // 1. FORCE UI SWITCH IMMEDIATELY
              document.getElementById('roomJoinScreen').classList.add('hidden');
              document.getElementById('roomLobbyScreen').classList.remove('hidden');
              document.getElementById('lobbyCodeDisplay').textContent = c;
+             document.getElementById('roomWaitMsg').textContent = "Connecting to server...";
+
+             // 2. CONNECT AND EMIT
+             const sendJoin = () => {
+                 console.log("Emitting joinRoom event...");
+                 this.socket.emit('joinRoom', { 
+                     roomCode: c, 
+                     username: State.data.username, 
+                     theme: State.settings.theme || 'default' 
+                 });
+             };
+
+             if(!this.socket || !this.socket.connected) {
+                 console.log("Socket not connected. Reconnecting...");
+                 this.connect();
+                 // Wait 1s for connection then try sending
+                 setTimeout(() => {
+                     if (this.socket.connected) sendJoin();
+                     else {
+                         alert("Connection Timeout. Please check internet.");
+                         // Revert UI
+                         document.getElementById('roomJoinScreen').classList.remove('hidden');
+                         document.getElementById('roomLobbyScreen').classList.add('hidden');
+                     }
+                 }, 1000);
+             } else {
+                 sendJoin();
+             }
         };
 
         if (!State.data.username || State.data.username === "Player" || State.data.username === "") {
