@@ -4496,7 +4496,6 @@ const RoomManager = {
         if(join) join.classList.remove('hidden');
         if(lobby) lobby.classList.add('hidden');
 
-        // IMPORTANT: Hide the modal completely so user isn't stuck
         this.closeLobby(); 
     },
 
@@ -4543,8 +4542,7 @@ const RoomManager = {
         if (drinkers && drinkers.length > 0) {
             listHtml = '<div class="drink-list">';
             drinkers.forEach(d => {
-                const nameNode = Array.from(document.querySelectorAll('#lobbyPlayerList span.font-bold')).find(el => el.textContent === d.name);
-                // Fallback if name is not found in lobby list directly
+                // FIXED: Use name from backend directly
                 listHtml += `<div>🍺 <b>${d.name || 'Player'}</b> (${d.reason})</div>`;
             });
             listHtml += '</div>';
@@ -4782,7 +4780,6 @@ const RoomManager = {
                 modeOpts += `<option value="${key}" ${data.mode===key?'selected':''}>${val.label}${note}</option>`;
             }
             
-            // --- UPDATED LABELS ---
             let roundOpts = `<option value="1" ${data.maxWords==1?'selected':''}>Just a quickie! (One Word)</option>
                              <option value="5" ${data.maxWords==5?'selected':''}>Five Words</option>
                              <option value="10" ${data.maxWords==10?'selected':''}>Ten Words</option>
@@ -4790,6 +4787,7 @@ const RoomManager = {
                              <option value="20" ${data.maxWords==20?'selected':''}>Twenty Words</option>
                              <option value="30" ${data.maxWords==30?'selected':''}>Marathon! (Thirty Words)</option>`;
 
+            // Drinking Toggle (Disable if Traitor)
             const isTraitor = data.mode === 'traitor';
             const drinkChecked = data.drinkingMode && !isTraitor ? 'checked' : '';
             const drinkDisabled = isTraitor ? 'disabled opacity-50' : '';
@@ -4810,6 +4808,7 @@ const RoomManager = {
                     ${!enoughPlayers ? `<div class="text-xs text-center text-red-500 font-bold mt-2">⚠️ Not enough players (Need ${minReq}+)</div>` : ''}
                 </div>`;
         } else {
+            // Guest View
             const drinkBadge = data.drinkingMode ? '<span class="text-red-600 font-bold ml-2">🍺 DRINKING ON</span>' : '';
             settingsHtml = `
                 <div class="bg-indigo-50 p-4 rounded-lg mb-4 text-center border-2 border-indigo-100">
@@ -4825,6 +4824,7 @@ const RoomManager = {
         const refreshHtml = this.isHost ? `<span class="refresh-btn" onclick="RoomManager.refreshLobby()" title="Remove inactive players">🔄</span>` : '';
         let playerHtml = `<div class="text-xs font-bold text-gray-400 mb-2 flex justify-between"><span>PLAYERS (${playerCount})</span> ${refreshHtml}</div>`;
         
+        // --- RESIZABLE LIST (No fixed height) ---
         playerHtml += data.players.map(p => {
             let extra = "";
             if (data.mode === 'survival') extra = `<span class="text-xs ml-2">${"❤️".repeat(p.lives)}</span>`;
@@ -4859,13 +4859,13 @@ const RoomManager = {
                 <button onclick="RoomManager.leave()" class="absolute top-4 right-4 text-gray-400">✕</button>
                 <div class="text-center mb-4"><h3 class="text-2xl font-black text-gray-800">MULTIPLAYER</h3></div>
                 <div id="roomJoinScreen" class="space-y-4">
-                    <input id="roomCodeInput" type="text" maxlength="6" placeholder="ROOM CODE" class="w-full text-center text-2xl font-black p-3 border-2 rounded-xl uppercase">
+                    <input id="roomCodeInput" type="text" maxlength="6" placeholder="ENTER CODE TO JOIN/CREATE" class="w-full text-center text-2xl font-black p-3 border-2 rounded-xl uppercase">
                     <button onclick="RoomManager.join()" class="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl">JOIN ROOM</button>
                 </div>
                 <div id="roomLobbyScreen" class="hidden space-y-4">
                     <div class="text-center"><div class="text-xs font-bold text-gray-400">CODE</div><div id="lobbyCodeDisplay" class="text-3xl font-black text-indigo-600 tracking-widest">---</div></div>
                     <div id="lobbyModeArea"></div>
-                    <div class="bg-gray-50 p-2 rounded-xl h-32 overflow-y-auto" id="lobbyPlayerList"></div>
+                    <div class="bg-gray-50 p-2 rounded-xl" id="lobbyPlayerList"></div>
                     <button id="roomStartBtn" onclick="RoomManager.start()" class="w-full py-3 bg-green-500 text-white font-bold rounded-xl hidden">START GAME</button>
                     <div id="roomWaitMsg" class="text-center text-sm text-gray-400 hidden animate-pulse">Waiting for host...</div>
                 </div>
