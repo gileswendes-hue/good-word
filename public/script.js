@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.79', 
+    APP_VERSION: '5.78', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4711,9 +4711,17 @@ injectStyles() {
         this.socket.emit('updateSettings', { roomCode: this.roomCode, mode, rounds, drinking });
     },
 
-    showActiveBanner() {
+showActiveBanner() {
         const existing = document.getElementById('room-active-banner');
         if(existing) existing.remove();
+        
+        // --- NEW: HIDE UI ELEMENTS ---
+        const uiIds = ['themeChooser', 'showHelpButton', 'showSettingsButton', 'showDonateButton', 'showContactButton'];
+        uiIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        });
+        // -----------------------------
         
         let teamBadge = '';
         if (this.currentMode === 'versus' && this.myTeam) {
@@ -4737,10 +4745,17 @@ injectStyles() {
         document.body.style.paddingTop = '60px';
     },
 
-    removeActiveBanner() {
+removeActiveBanner() {
         const b = document.getElementById('room-active-banner');
         if(b) b.remove();
         document.body.style.paddingTop = '0';
+
+        const uiIds = ['themeChooser', 'showHelpButton', 'showSettingsButton', 'showDonateButton', 'showContactButton'];
+        uiIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = '';
+        });
+
     },
 
     leave(force = false) {
