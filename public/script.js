@@ -4944,7 +4944,7 @@ removeActiveBanner() {
 
     setMode(m) { this.socket.emit('setMode', { roomCode: this.roomCode, mode: m }); },
 
-    renderLobby(data) {
+renderLobby(data) {
         const list = document.getElementById('lobbyPlayerList');
         const config = this.modeConfig[data.mode];
         const playerCount = data.players.length;
@@ -4956,6 +4956,13 @@ removeActiveBanner() {
         if (this.isHost) {
             let modeOpts = "";
             for (const [key, val] of Object.entries(this.modeConfig)) {
+                // --- DISABLE VIP MODE ---
+                if (key === 'vip') {
+                    modeOpts += `<option value="${key}" disabled style="color:#ccc">👑 Follow the Leader (Maintenance)</option>`;
+                    continue;
+                }
+                // ------------------------
+
                 const note = (playerCount < val.min) ? ` (Need ${val.min}+)` : '';
                 modeOpts += `<option value="${key}" ${data.mode===key?'selected':''}>${val.label}${note}</option>`;
             }
@@ -4992,6 +4999,7 @@ removeActiveBanner() {
                     ${!enoughPlayers ? `<div class="text-xs text-center text-red-500 font-bold mt-2">⚠️ Not enough players (Need ${minReq}+)</div>` : ''}
                 </div>`;
         } else {
+            // ... (Keep existing non-host code) ...
             const drinkBadge = data.drinkingMode ? '<span class="text-red-600 font-bold ml-2">🍺 DRINKING ON</span>' : '';
             settingsHtml = `
                 <div class="bg-indigo-50 p-4 rounded-lg mb-4 text-center border-2 border-indigo-100">
@@ -5004,6 +5012,7 @@ removeActiveBanner() {
         }
         document.getElementById('lobbyModeArea').innerHTML = settingsHtml;
 
+        // ... (Keep rest of function exactly as it was) ...
         const refreshHtml = this.isHost ? `<span class="refresh-btn" onclick="RoomManager.refreshLobby()" title="Remove inactive players">🔄</span>` : '';
         let playerHtml = `<div class="text-xs font-bold text-gray-400 mb-2 flex justify-between"><span>PLAYERS (${playerCount})</span> ${refreshHtml}</div>`;
         
