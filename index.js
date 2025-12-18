@@ -56,6 +56,7 @@ const loadKidsWords = () => {
             kidsWords = data.split('\n').map(w => w.trim().toUpperCase()).filter(w => w.length > 0);
             console.log(`Loaded ${kidsWords.length} kids words.`);
         } else {
+            console.warn("kids_words.txt not found. Using fallback.");
             kidsWords = ["APPLE", "BANANA", "CAT", "DOG"];
         }
     } catch (e) {
@@ -76,7 +77,6 @@ function shuffle(array) {
     return array;
 }
 
-// Helper to clean up players
 function removePlayerFromAllRooms(socketId) {
     for (const code in rooms) {
         const room = rooms[code];
@@ -89,6 +89,8 @@ function removePlayerFromAllRooms(socketId) {
                 delete rooms[code];
             } else {
                 if (wasHost) room.host = room.players[0].id;
+                // If in drinking wait state, a disconnection might unblock the game
+                if (room.state === 'drinking') checkDrinkingCompletion(code);
                 checkInsufficientPlayers(code);
                 emitUpdate(code);
             }
@@ -100,7 +102,7 @@ io.on('connection', (socket) => {
     
     socket.on('joinRoom', ({ roomCode, username }) => {
         const code = roomCode.toUpperCase();
-        removePlayerFromAllRooms(socket.id); // Ensure strictly one room per socket
+        removePlayerFromAllRooms(socket.id); 
         socket.join(code);
 
         if (!rooms[code]) {
@@ -109,12 +111,14 @@ io.on('connection', (socket) => {
                 players: [],
                 state: 'lobby',
                 mode: 'coop', 
+                drinkingMode: false, // NEW: Drinking Mode
                 wordIndex: 0,
                 maxWords: 10,
                 words: [],
                 currentVotes: {},
                 currentVoteTimes: {},
                 accusationVotes: {}, 
+                readyConfirms: new Set(), // NEW: For pausing
                 scores: { red: 0, blue: 0, coop: 0 },
                 vipId: null,
                 traitorId: null,
@@ -124,7 +128,8 @@ io.on('connection', (socket) => {
         }
 
         const room = rooms[code];
-        const isSpectator = (room.state === 'playing' || room.state === 'accusation');
+        // Joining late logic: spectator if playing OR drinking
+        const isSpectator = (room.state === 'playing' || room.state === 'accusation' || room.state === 'drinking');
 
         const existing = room.players.find(p => p.id === socket.id);
         if (existing) {
@@ -145,11 +150,16 @@ io.on('connection', (socket) => {
         
         if (isSpectator && room.words[room.wordIndex]) {
             socket.emit('gameStarted', { totalWords: room.maxWords, mode: room.mode });
-            socket.emit('nextWord', { 
-                word: room.words[room.wordIndex], 
-                wordCurrent: room.wordIndex + 1, 
-                wordTotal: room.maxWords 
-            });
+            // If drinking, tell late joiner to wait
+            if (room.state === 'drinking') {
+                socket.emit('drinkPenalty', { drinkers: [], msg: "Waiting for next word..." });
+            } else {
+                socket.emit('nextWord', { 
+                    word: room.words[room.wordIndex], 
+                    wordCurrent: room.wordIndex + 1, 
+                    wordTotal: room.maxWords 
+                });
+            }
         }
     });
 
@@ -167,21 +177,29 @@ io.on('connection', (socket) => {
     socket.on('refreshLobby', ({ roomCode }) => {
         const room = rooms[roomCode];
         if (!room || room.host !== socket.id) return;
-        
         const initialCount = room.players.length;
         room.players = room.players.filter(p => {
             const s = io.sockets.sockets.get(p.id);
             return s && s.connected;
         });
-
         if (room.players.length !== initialCount) emitUpdate(roomCode);
     });
 
-    socket.on('updateSettings', ({ roomCode, mode, rounds }) => {
+    socket.on('updateSettings', ({ roomCode, mode, rounds, drinking }) => {
         const room = rooms[roomCode];
         if (!room || room.host !== socket.id) return;
+        
         if(mode) room.mode = mode;
         if(rounds) room.maxWords = parseInt(rounds);
+        
+        // Handle Drinking Toggle (Cannot be on for Traitor)
+        if (typeof drinking !== 'undefined') {
+            room.drinkingMode = drinking;
+        }
+        
+        // Enforce rule: No drinking in traitor
+        if (room.mode === 'traitor') room.drinkingMode = false;
+
         emitUpdate(roomCode);
     });
     
@@ -209,8 +227,12 @@ io.on('connection', (socket) => {
         room.currentVotes = {};
         room.currentVoteTimes = {};
         room.accusationVotes = {};
+        room.readyConfirms = new Set();
         room.vipId = null;
         room.traitorId = null;
+
+        // Force disable drinking if traitor
+        if (room.mode === 'traitor') room.drinkingMode = false;
 
         room.players.forEach(p => {
             p.lives = 3;
@@ -284,7 +306,33 @@ io.on('connection', (socket) => {
             processGameEnd(roomCode);
         }
     });
+
+    // --- NEW: DRINKING MODE CONFIRMATION ---
+    socket.on('confirmReady', ({ roomCode }) => {
+        const room = rooms[roomCode];
+        if (!room || room.state !== 'drinking') return;
+        
+        room.readyConfirms.add(socket.id);
+        checkDrinkingCompletion(roomCode);
+    });
 });
+
+function checkDrinkingCompletion(roomCode) {
+    const room = rooms[roomCode];
+    if (!room || room.state !== 'drinking') return;
+
+    // "Carry on only when EVERYONE confirms"
+    const activePlayers = room.players.filter(p => !p.isSpectator && (room.mode !== 'survival' || p.lives > 0));
+    
+    // Check if all active players have confirmed
+    const allReady = activePlayers.every(p => room.readyConfirms.has(p.id));
+
+    if (allReady) {
+        room.state = 'playing';
+        io.to(roomCode).emit('drinkingComplete'); // Clear overlays
+        sendNextWord(roomCode);
+    }
+}
 
 function checkInsufficientPlayers(roomCode) {
     const room = rooms[roomCode];
@@ -312,6 +360,7 @@ function emitUpdate(code) {
         host: rooms[code].host,
         mode: rooms[code].mode,
         maxWords: rooms[code].maxWords,
+        drinkingMode: rooms[code].drinkingMode, // Send to UI
         state: rooms[code].state
     });
 }
@@ -468,6 +517,35 @@ function finishWord(roomCode) {
         }
     }
 
+    // --- CALCULATE DRINKERS ---
+    let drinkers = [];
+    if (room.drinkingMode && room.mode !== 'traitor') {
+        // 1. Slowest Voter
+        let slowestId = null;
+        let slowestTime = 0;
+        for (const [pid, timestamp] of Object.entries(room.currentVoteTimes)) {
+            const dur = timestamp - room.wordStartTime;
+            if (dur > slowestTime) { slowestTime = dur; slowestId = pid; }
+        }
+        if (slowestId) drinkers.push({ id: slowestId, reason: 'Too Slow!' });
+
+        // 2. Minority Voters
+        const allVotes = Object.values(votes);
+        const maj = getMajority(allVotes);
+        if (maj !== 'draw') {
+            room.players.forEach(p => {
+                if (p.isSpectator) return;
+                const v = votes[p.id];
+                if (v && v !== maj) {
+                    // Check if already added
+                    if (!drinkers.find(d => d.id === p.id)) {
+                        drinkers.push({ id: p.id, reason: 'Minority!' });
+                    }
+                }
+            });
+        }
+    }
+
     io.to(roomCode).emit('roundResult', {
         mode: room.mode,
         data: resultData,
@@ -477,7 +555,16 @@ function finishWord(roomCode) {
     });
 
     room.wordIndex++;
-    room.wordTimer = setTimeout(() => sendNextWord(roomCode), 3000);
+
+    if (drinkers.length > 0) {
+        // DRINKING PAUSE
+        room.state = 'drinking';
+        room.readyConfirms = new Set();
+        io.to(roomCode).emit('drinkPenalty', { drinkers });
+    } else {
+        // NORMAL FLOW
+        room.wordTimer = setTimeout(() => sendNextWord(roomCode), 3000);
+    }
 }
 
 app.get('/kids_words.txt', (req, res) => {
