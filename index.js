@@ -532,26 +532,19 @@ function finishWord(roomCode) {
     let drinkMsg = "Penalty Round";
 
     if (room.drinkingMode && room.mode !== 'traitor' && room.mode !== 'kids') {
-        
-        // 10% Chance
-        if (Math.random() < 0.1) {
-            
+        if (Math.random() < 0.1) { // 10% Chance
             const rand = Math.random();
-            
             if (rand < 0.7) {
-                // 70% STANDARD (Slow + Minority)
                 let slowestId = null;
                 let slowestTime = 0;
                 for (const [pid, timestamp] of Object.entries(room.currentVoteTimes)) {
                     const dur = timestamp - room.wordStartTime;
                     if (dur > slowestTime) { slowestTime = dur; slowestId = pid; }
                 }
-                
                 if (slowestId && slowestTime > 3000) {
                      const p = room.players.find(pl => pl.id === slowestId);
                      drinkers.push({ id: slowestId, name: p ? p.name : 'Unknown', reason: 'Too Slow!', icon: '🐌' });
                 }
-
                 const allVotes = Object.values(votes);
                 const maj = getMajority(allVotes);
                 if (maj !== 'draw') {
@@ -566,22 +559,18 @@ function finishWord(roomCode) {
                     });
                 }
             } else if (rand < 0.85) {
-                // 15% SOCIAL
                 drinkMsg = "SOCIAL! EVERYONE DRINKS!";
                 room.players.forEach(p => {
                     if (!p.isSpectator) drinkers.push({ id: p.id, name: p.name, reason: 'Social!', icon: '🍻' });
                 });
             } else {
-                // 15% NOMINATE (Fastest chooses)
                 drinkMsg = "DEMOCRACY MANIFEST!";
                 let fastestId = null;
                 let fastestTime = Infinity;
-                
                 for (const [pid, timestamp] of Object.entries(room.currentVoteTimes)) {
                     const dur = timestamp - room.wordStartTime;
                     if (dur < fastestTime) { fastestTime = dur; fastestId = pid; }
                 }
-                
                 if (fastestId) {
                      const p = room.players.find(pl => pl.id === fastestId);
                      drinkers.push({ id: fastestId, name: p ? p.name : 'Unknown', reason: 'NOMINATE SOMEONE!', icon: '🫵' });
