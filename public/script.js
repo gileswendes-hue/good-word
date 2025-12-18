@@ -4304,13 +4304,13 @@ const RoomManager = {
     isSpectator: false,
 
     modeConfig: {
-        'coop': { label: '🤝 Co-op Sync', desc: 'Vote together! Stick together.', min: 2 },
-        'versus': { label: '⚔️ Team Versus', desc: 'Red vs Blue. Agree to win!', min: 4 },
+        'coop': { label: '🤝 Co-op Sync', desc: 'Vote together! Get 100% Sync.', min: 2 },
+        'versus': { label: '⚔️ Team Versus', desc: 'Red vs Blue. Best Sync wins.', min: 4 },
         'vip': { label: '👑 Follow the Leader', desc: 'One VIP. Vote exactly like them.', min: 3 },
         'hipster': { label: '🕶️ The Hipster', desc: 'Minority Rules. Be unique!', min: 3 },
-        'speed': { label: '⏱️ Speed Demon', desc: 'Vote fast! Fast and accurate to win.', min: 2 },
-        'survival': { label: '💣 Sudden Death', desc: 'Three lives. Vote with majority or die.', min: 3 },
-        'saboteur': { label: '🕵️ The Saboteur', desc: 'One Traitor tries to ruin everything.', min: 3 },
+        'speed': { label: '⏱️ Speed Demon', desc: 'Vote fast! Speed + Majority wins.', min: 2 },
+        'survival': { label: '💣 Sudden Death', desc: '3 Lives. Vote with majority or die.', min: 3 },
+        'traitor': { label: '🕵️ The Traitor', desc: 'One Traitor tries to ruin sync.', min: 3 },
         'kids': { label: '👶 Kids Mode', desc: 'Simple words. Family friendly!', min: 2 }
     },
 
@@ -4346,6 +4346,7 @@ const RoomManager = {
         
         this.socket.on('connect', () => { 
             this.playerId = this.socket.id; 
+            // Only pre-fill, do NOT auto-open lobby
             const savedCode = localStorage.getItem('lastRoomCode');
             const savedName = localStorage.getItem('username');
             if (savedCode && savedName && !this.active) {
@@ -4356,17 +4357,18 @@ const RoomManager = {
         });
 
         this.socket.on('roomUpdate', (data) => {
+            // Only switch screens if we are active or looking at lobby
             if (!this.active && document.getElementById('roomModal').classList.contains('hidden')) {
-                if (data.state === 'playing') {
-                     this.active = true;
-                     State.runtime.isMultiplayer = true;
-                     this.showActiveBanner();
-                } else {
-                     this.openLobby();
-                     document.getElementById('roomJoinScreen').classList.add('hidden');
-                     document.getElementById('roomLobbyScreen').classList.remove('hidden');
-                     document.getElementById('lobbyCodeDisplay').textContent = this.roomCode;
-                }
+                // Ignore background updates unless we are joining
+                return; 
+            }
+            
+            // If the game started and I'm just sitting in lobby
+            if (!this.active && data.state === 'playing') {
+                 this.active = true;
+                 State.runtime.isMultiplayer = true;
+                 this.showActiveBanner();
+                 this.closeLobby(); // Close lobby modal, show banner
             }
 
             this.isHost = (data.host === this.playerId);
@@ -4378,8 +4380,13 @@ const RoomManager = {
             if (me) {
                 this.myTeam = me.team;
                 this.isSpectator = me.isSpectator;
+                // If I am in the list, show lobby screen
+                document.getElementById('roomJoinScreen').classList.add('hidden');
+                document.getElementById('roomLobbyScreen').classList.remove('hidden');
+                document.getElementById('lobbyCodeDisplay').textContent = this.roomCode;
             } else {
-                localStorage.removeItem('lastRoomCode');
+                // If I was kicked or room closed, reset local
+                this.resetLocalState();
             }
         });
 
@@ -4414,6 +4421,9 @@ const RoomManager = {
         });
 
         this.socket.on('nextWord', (data) => {
+            // Safety check: don't render if we aren't active
+            if(!this.active) return; 
+
             const cd = document.getElementById('active-countdown'); if(cd) cd.remove();
             const rev = document.getElementById('active-vote-reveal'); if(rev) rev.remove();
             const acc = document.getElementById('active-accusation'); if(acc) acc.remove();
@@ -4427,6 +4437,7 @@ const RoomManager = {
         });
 
         this.socket.on('roundResult', ({ mode, data, players, votes }) => {
+            if(!this.active) return;
             this.showVoteReveal(players, votes);
             const me = players.find(p => p.id === this.playerId);
             if (mode === 'survival' && me && me.lives <= 0) {
@@ -4443,18 +4454,43 @@ const RoomManager = {
         });
 
         this.socket.on('gameOver', (data) => {
+             // Stop Game State
              this.active = false;
              State.runtime.isMultiplayer = false;
              this.removeActiveBanner();
              const ids = ['active-role-alert', 'spectator-banner', 'active-accusation'];
              ids.forEach(id => { const el = document.getElementById(id); if(el) el.remove(); });
+             
              if (data.msg && data.msg.startsWith('GAME ENDED:')) {
                  this.showCustomAlert(data.msg);
+                 // On crash/end, go back to lobby view if room still exists, else join view
                  this.openLobby(); 
              } else {
                  this.showFinalResults(data);
              }
         });
+    },
+
+    // --- FIX: LOCAL STATE RESET WITHOUT RELOAD ---
+    resetLocalState() {
+        this.active = false;
+        this.roomCode = '';
+        this.isHost = false;
+        this.removeActiveBanner();
+        localStorage.removeItem('lastRoomCode');
+        
+        // Clear Overlays
+        const ids = ['active-role-alert', 'spectator-banner', 'active-accusation', 'active-vote-reveal', 'active-countdown'];
+        ids.forEach(id => { const el = document.getElementById(id); if(el) el.remove(); });
+        
+        // Reset UI to Join Screen
+        const join = document.getElementById('roomJoinScreen');
+        const lobby = document.getElementById('roomLobbyScreen');
+        if(join) join.classList.remove('hidden');
+        if(lobby) lobby.classList.add('hidden');
+        
+        // Optionally close main modal or keep it open for quick re-join
+        // this.closeLobby(); 
     },
 
     injectStyles() {
@@ -4631,33 +4667,11 @@ const RoomManager = {
 
     leave(force = false) {
         const doit = () => {
-            localStorage.removeItem('lastRoomCode');
-            // Send leave signal
-            this.socket.emit('leaveRoom', { roomCode: this.roomCode }, () => {
-                // Server confirmed exit
-            });
+            // Signal Backend
+            this.socket.emit('leaveRoom', { roomCode: this.roomCode });
             
-            // Clean local state without refresh
-            this.active = false;
-            this.roomCode = '';
-            this.isHost = false;
-            this.removeActiveBanner();
-            
-            // Clean UI overlays
-            const ids = ['active-role-alert', 'spectator-banner', 'active-accusation', 'active-vote-reveal', 'active-countdown'];
-            ids.forEach(id => { const el = document.getElementById(id); if(el) el.remove(); });
-            
-            // Reset to Lobby closed state
-            this.closeLobby();
-            
-            // Reset internal State helper if needed
-            State.runtime.isMultiplayer = false;
-            
-            // Reset screens in modal for next time
-            document.getElementById('roomJoinScreen').classList.remove('hidden');
-            document.getElementById('roomLobbyScreen').classList.add('hidden');
-            
-            // If the user wants to join again, they just click the button
+            // Clean Frontend IMMEDIATELY
+            this.resetLocalState();
         };
         if (force) doit();
         else this.showCustomConfirm("LEAVE GAME?", doit);
@@ -4708,6 +4722,7 @@ const RoomManager = {
                 modeOpts += `<option value="${key}" ${data.mode===key?'selected':''}>${val.label}${note}</option>`;
             }
             
+            // --- UPDATED LABELS ---
             let roundOpts = `<option value="1" ${data.maxWords==1?'selected':''}>Just a quickie! (One Word)</option>
                              <option value="5" ${data.maxWords==5?'selected':''}>Five Words</option>
                              <option value="10" ${data.maxWords==10?'selected':''}>Ten Words</option>
@@ -4842,36 +4857,6 @@ const RoomManager = {
                     <button onclick="this.closest('.fixed').remove(); RoomManager.openLobby()" class="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl">New Game</button>
                 </div>
             </div>`;
-        document.body.appendChild(div);
-    },
-
-    // --- STANDARD LOGIC ---
-
-    kick(id) { 
-        this.showCustomConfirm("Kick this player?", () => {
-            this.socket.emit('kickPlayer', { roomCode: this.roomCode, targetId: id });
-        });
-    },
-
-    showVoteReveal(players, votes) {
-        const div = document.createElement('div');
-        div.id = 'active-vote-reveal';
-        div.className = 'reveal-overlay';
-        div.innerHTML = players.map(p => {
-            if(p.isSpectator) return '';
-            const v = votes[p.id];
-            let style = v === 'good' ? 'vote-good' : (v === 'bad' ? 'vote-bad' : 'vote-none');
-            let icon = v === 'good' ? '👍' : (v === 'bad' ? '👎' : '⏳');
-            if (this.currentMode === 'survival' && p.lives <= 0) { style = 'bg-gray-200 text-gray-400 border-gray-300'; icon = '💀'; }
-            return `<div class="reveal-card ${style}">${icon} ${p.name}</div>`;
-        }).join('');
-        document.body.appendChild(div);
-    },
-
-    showSpectatorBanner() {
-        const div = document.createElement('div');
-        div.id = 'spectator-banner';
-        div.innerHTML = "👁️ SPECTATING";
         document.body.appendChild(div);
     }
 };
