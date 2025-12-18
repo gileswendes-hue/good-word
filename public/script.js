@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.80.5', 
+    APP_VERSION: '5.80.6', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4369,7 +4369,6 @@ connect() {
             });
 
             this.socket.on('roomUpdate', (data) => {
-                // ... (Keep existing roomUpdate logic) ...
                 if (!this.active && document.getElementById('roomModal').classList.contains('hidden')) {
                     if (data.state === 'playing') {
                          this.active = true;
@@ -4403,12 +4402,17 @@ connect() {
                 }
             });
             
-            this.socket.on('gameStarted', (data) => {
+			this.socket.on('gameStarted', (data) => {
                 this.active = true;
                 State.runtime.isMultiplayer = true;
                 if(window.TipManager) window.TipManager.active = false;
                 this.closeLobby();
                 this.currentMode = data.mode;
+                
+                if (data.vipId) this.vipId = data.vipId; 
+                if (data.players) this.players = data.players;
+				if (data.vipId) this.vipId = data.vipId;
+
                 State.runtime.allWords = []; 
                 if (this.isSpectator) {
                     UIManager.disableButtons(true);
@@ -4417,25 +4421,31 @@ connect() {
                     this.playCountdown(data.mode);
                 }
                 this.showActiveBanner();
+                
+                if (this.currentMode === 'survival') this.updateHearts();
+                // -------------------------------------
             });
 
-            this.socket.on('drinkPenalty', ({ drinkers, msg }) => { this.showDrinkPenalty(drinkers, msg); });
-            this.socket.on('drinkingComplete', () => {
-                const el = document.getElementById('active-drink-penalty');
-                if(el) el.remove();
-                if(!this.isSpectator) UIManager.disableButtons(false);
-            });
             this.socket.on('startAccusation', ({ mode, players }) => {
+                if (this.currentMode === 'vip') return;
+                // --------------------------------------------------
+
                 const cd = document.getElementById('active-countdown'); if(cd) cd.remove();
                 const rev = document.getElementById('active-vote-reveal'); if(rev) rev.remove();
                 this.showAccusationScreen(mode, players);
             });
-            this.socket.on('nextWord', (data) => {
+			
+			this.socket.on('nextWord', (data) => {
                 if(!this.active) return;
                 const cd = document.getElementById('active-countdown'); if(cd) cd.remove();
                 const rev = document.getElementById('active-vote-reveal'); if(rev) rev.remove();
                 const acc = document.getElementById('active-accusation'); if(acc) acc.remove();
                 const drnk = document.getElementById('active-drink-penalty'); if(drnk) drnk.remove();
+                
+                // --- FIX: Refresh Hearts ---
+                if (this.currentMode === 'survival') this.updateHearts();
+                // ---------------------------
+
                 const wObj = { _id: data.word._id, text: data.word.text };
                 State.runtime.allWords = [wObj]; 
                 UIManager.displayWord(wObj);
@@ -4444,15 +4454,29 @@ connect() {
                 if (isDead) UIManager.showPostVoteMessage("👻 YOU ARE DEAD");
                 else UIManager.showPostVoteMessage(`Word ${data.wordCurrent}/${data.wordTotal}`);
             });
+
             this.socket.on('roundResult', ({ mode, data, players, votes }) => {
                 if(!this.active) return;
-                this.showVoteReveal(players, votes);
+                
+                // Update local player data (lives)
+                if (players) this.players = players; // Keep player list fresh
                 const me = players.find(p => p.id === this.playerId);
-                if (mode === 'survival' && me && me.lives <= 0) {
-                     UIManager.disableButtons(true);
-                     UIManager.showPostVoteMessage("💀 YOU ARE OUT!");
-                     return;
+                if (me) this.myLives = me.lives;
+
+                this.showVoteReveal(players, votes);
+                
+                // --- FIX: Handle Survival Death & Hearts ---
+                if (mode === 'survival') {
+                    this.updateHearts();
+                    if (me && me.lives <= 0) {
+                         UIManager.disableButtons(true);
+                         this.showSpectatorBanner(); // Force visual change
+                         UIManager.showPostVoteMessage("💀 YOU ARE OUT!");
+                         return;
+                    }
                 }
+                // -------------------------------------------
+
                 let msg = data.msg ? data.msg : (mode === 'versus' ? `Sync Score` : `Room Sync: ${data.sync}%`);
                 if (mode === 'versus' && !data.msg) {
                      const mySync = this.myTeam === 'red' ? data.redSync : data.blueSync;
@@ -4460,6 +4484,7 @@ connect() {
                 }
                 UIManager.showPostVoteMessage(msg);
             });
+			
             this.socket.on('gameOver', (data) => {
                  this.active = false;
                  State.runtime.isMultiplayer = false;
@@ -4506,7 +4531,7 @@ connect() {
         
         if(window.TipManager) window.TipManager.active = true;
 
-        const ids = ['active-role-alert', 'spectator-banner', 'active-accusation', 'active-vote-reveal', 'active-countdown', 'active-drink-penalty'];
+		const ids = ['active-role-alert', 'spectator-banner', 'active-accusation', 'active-vote-reveal', 'active-countdown', 'active-drink-penalty', 'survival-hearts']; // Added survival-hearts
         ids.forEach(id => { const el = document.getElementById(id); if(el) el.remove(); });
         
         const input = document.getElementById('roomCodeInput');
@@ -4710,6 +4735,41 @@ injectStyles() {
         div.innerHTML = "👁️ SPECTATING";
         document.body.appendChild(div);
     },
+	
+	updateHearts() {
+        const existing = document.getElementById('survival-hearts');
+        if (this.currentMode !== 'survival') {
+            if (existing) existing.remove();
+            return;
+        }
+
+        let container = existing;
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'survival-hearts';
+            container.style.cssText = "position:fixed; top:70px; left:50%; transform:translateX(-50%); z-index:150; display:flex; gap:8px; pointer-events:none;";
+            document.body.appendChild(container);
+        }
+
+        container.innerHTML = '';
+        const maxLives = 3; 
+        const lives = this.myLives !== undefined ? this.myLives : 3;
+
+        for (let i = 0; i < maxLives; i++) {
+            const heart = document.createElement('span');
+            heart.style.fontSize = "1.5rem";
+            // Active hearts are red, lost hearts are black/transparent
+            if (i < lives) {
+                heart.textContent = "❤️";
+                heart.style.filter = "drop-shadow(0 2px 2px rgba(0,0,0,0.3))";
+                heart.style.animation = "pulse 1s infinite alternate";
+            } else {
+                heart.textContent = "🖤";
+                heart.style.opacity = "0.3";
+            }
+            container.appendChild(heart);
+        }
+    },
 
     updateSettings() {
         if(!this.isHost) return;
@@ -4756,6 +4816,13 @@ injectStyles() {
         if (this.currentMode === 'versus' && this.myTeam) {
             const color = this.myTeam === 'red' ? 'bg-red-500' : (this.myTeam === 'blue' ? 'bg-blue-500' : 'bg-gray-400');
             teamBadge = `<span class="ml-2 px-2 py-1 rounded text-xs text-white font-bold ${color}">${this.myTeam.toUpperCase()} TEAM</span>`;
+        }
+		
+		if (this.currentMode === 'vip' && this.vipId && this.players) {
+            const vipPlayer = this.players.find(p => p.id === this.vipId);
+            const vipName = vipPlayer ? vipPlayer.name : "Unknown";
+            const isMe = this.vipId === this.playerId;
+            infoBadge = `<span class="ml-2 px-2 py-1 rounded text-xs text-white font-bold bg-yellow-500 border border-yellow-600 shadow-sm">👑 ${isMe ? "YOU ARE LEADER" : "FOLLOW: " + vipName.toUpperCase()}</span>`;
         }
 
         const banner = document.createElement('div');
