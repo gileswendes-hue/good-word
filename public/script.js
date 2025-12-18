@@ -4368,12 +4368,23 @@ connect() {
                 UIManager.showPostVoteMessage("Connection Failed ⚠️");
             });
 
-            this.socket.on('roomUpdate', (data) => {
+this.socket.on('roomUpdate', (data) => {
+                // --- FIX: SAVE DATA FIRST (Before drawing anything) ---
+                this.isHost = (data.host === this.playerId);
+                this.currentMode = data.mode;
+                this.currentRounds = data.maxWords; 
+                this.drinkingMode = data.drinkingMode;
+                
+                if (data.players) this.players = data.players; // Now saved immediately!
+                if (data.vipId) this.vipId = data.vipId;       // Now saved immediately!
+                // -----------------------------------------------------
+
+                // Now it is safe to draw the banner because we have the data
                 if (!this.active && document.getElementById('roomModal').classList.contains('hidden')) {
                     if (data.state === 'playing') {
                          this.active = true;
                          State.runtime.isMultiplayer = true;
-                         this.showActiveBanner();
+                         this.showActiveBanner(); // Will now successfully find the Leader
                     } else {
                          this.openLobby();
                          document.getElementById('roomJoinScreen').classList.add('hidden');
@@ -4381,24 +4392,18 @@ connect() {
                          document.getElementById('lobbyCodeDisplay').textContent = this.roomCode;
                     }
                 }
-                this.isHost = (data.host === this.playerId);
-                this.currentMode = data.mode;
-                this.currentRounds = data.maxWords; 
-                this.drinkingMode = data.drinkingMode;
-				
-				if (data.players) this.players = data.players;
-				if (data.vipId) this.vipId = data.vipId;
-				
-			if (data.theme && data.theme !== State.data.currentTheme) {
+
+                if (data.theme && data.theme !== State.data.currentTheme) {
                     ThemeManager.apply(data.theme, 'temp'); 
                 }
-				
+                
                 this.renderLobby(data);
                 const me = data.players.find(p => p.id === this.playerId);
                 if (me) {
                     this.myTeam = me.team;
                     this.myLives = me.lives;
                     this.isSpectator = me.isSpectator;
+                    // Only update banner if active (prevents flickering in lobby)
                     if(this.active) this.showActiveBanner(); 
                 } else {
                     this.resetLocalState();
