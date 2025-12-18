@@ -5105,7 +5105,7 @@ removeActiveBanner() {
     
 showFinalResults(data) {
         // --- FIX: Prevent Crash if mode is missing ---
-        const mode = data.mode || this.currentMode || 'versus'; // Fallback to current or versus
+        const mode = data.mode || this.currentMode || 'versus'; 
         const config = this.modeConfig[mode] || { label: 'Game Over' };
 
         let roleReveal = "";
@@ -5113,13 +5113,15 @@ showFinalResults(data) {
             const roleName = (mode === 'traitor') ? 'Traitor' : 'VIP';
             const icon = (mode === 'traitor') ? '🕵️' : '👑';
             
-            // FIX: Ensure rankings array exists
             const rankings = data.rankings || [];
             const rolePlayer = rankings.find(p => p.id === data.specialRoleId);
             
             if (rolePlayer) {
+                // --- FIX: Safely handle missing names to prevent crash ---
+                const safeName = (rolePlayer.name || 'Unknown').toUpperCase();
+                // --------------------------------------------------------
                 roleReveal = `<div class="bg-yellow-100 text-yellow-800 p-2 rounded-lg font-bold text-center mb-4 border border-yellow-300 shadow-sm animate-bounce">
-                    ${icon} The ${roleName} was: <br><span class="text-xl">${rolePlayer.name.toUpperCase()}</span>
+                    ${icon} The ${roleName} was: <br><span class="text-xl">${safeName}</span>
                 </div>`;
             }
         }
@@ -5127,7 +5129,8 @@ showFinalResults(data) {
         let rankHtml = `<div class="mt-4 max-h-40 overflow-y-auto bg-gray-900 rounded-lg p-2">`;
         if (data.rankings && Array.isArray(data.rankings)) {
             data.rankings.forEach((p, i) => {
-                rankHtml += `<div class="flex justify-between text-sm py-1 border-b border-gray-700 last:border-0"><span class="text-white">${i+1}. ${p.name}</span><span class="font-bold text-yellow-400">${p.score} pts</span></div>`;
+                const pName = p.name || 'Unknown';
+                rankHtml += `<div class="flex justify-between text-sm py-1 border-b border-gray-700 last:border-0"><span class="text-white">${i+1}. ${pName}</span><span class="font-bold text-yellow-400">${p.score} pts</span></div>`;
             });
         }
         rankHtml += `</div>`;
@@ -5147,7 +5150,7 @@ showFinalResults(data) {
                 </div>
             </div>`;
         document.body.appendChild(div);
-    }
+    },
 };
 
 // --- MAIN GAME LOGIC ---
