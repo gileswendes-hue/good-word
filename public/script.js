@@ -4307,19 +4307,21 @@ const RoomManager = {
 
     modeConfig: {
         'coop': { label: '🤝 Co-op Sync', desc: 'Vote together! Get 100% Sync.', min: 2 },
-        'versus': { label: '⚔️ Team Versus', desc: 'Red vs Blue. Most in tune team wins!', min: 4 },
+        'versus': { label: '⚔️ Team Versus', desc: 'Red vs Blue. Best Sync wins.', min: 4 },
         'vip': { label: '👑 Follow the Leader', desc: 'One VIP. Vote exactly like them.', min: 3 },
         'hipster': { label: '🕶️ The Hipster', desc: 'Minority Rules. Be unique!', min: 3 },
-        'speed': { label: '⏱️ Speed Demon', desc: 'Vote fast! Speed and accuracy wins.', min: 2 },
-        'survival': { label: '💣 Sudden Death', desc: 'Only three lives. Vote with majority or die.', min: 3 },
-        'traitor': { label: '🕵️ The Traitor', desc: 'One Traitor tries to ruin everything!', min: 3 },
+        'speed': { label: '⏱️ Speed Demon', desc: 'Vote fast! Speed + Majority wins.', min: 2 },
+        'survival': { label: '💣 Sudden Death', desc: '3 Lives. Vote with majority or die.', min: 3 },
+        'traitor': { label: '🕵️ The Traitor', desc: 'One Traitor tries to ruin sync.', min: 3 },
         'kids': { label: '👶 Kids Mode', desc: 'Simple words. Family friendly!', min: 2 }
     },
 
-  init() {
-        window.RoomManager = this; // Fixes "onclick" errors
+    init() {
+        window.RoomManager = this; // Vital for HTML buttons
 
         this.injectStyles();
+        
+        // Inject button if missing
         if (!document.getElementById('roomBtn')) {
             const btn = document.createElement('button');
             btn.id = 'roomBtn';
@@ -4330,14 +4332,18 @@ const RoomManager = {
             if (sb && sb.parentNode) sb.parentNode.insertBefore(btn, sb);
         }
 
+        // Attempt Connection
         if (!window.io) {
             const sc = document.createElement('script');
             sc.src = "/socket.io/socket.io.js";
             sc.onload = () => this.connect();
+            sc.onerror = () => console.error("Socket.io failed to load");
             document.head.appendChild(sc);
-        } else { this.connect(); }
+        } else { 
+            this.connect(); 
+        }
         
-        this.injectModal(); 
+        this.injectModal();
 
         window.addEventListener('beforeunload', () => {
             if (this.socket && this.roomCode) {
@@ -4347,144 +4353,153 @@ const RoomManager = {
     },
 
     connect() {
-        this.socket = io();
-        
-        this.socket.on('connect', () => { 
-            this.playerId = this.socket.id; 
-            const savedCode = localStorage.getItem('lastRoomCode');
-            const savedName = localStorage.getItem('username');
-            if (savedCode && savedName && !this.active) {
-                if (document.getElementById('roomCodeInput')) {
-                    document.getElementById('roomCodeInput').value = savedCode;
+        try {
+            this.socket = io();
+            
+            this.socket.on('connect', () => { 
+                console.log("Connected to Multiplayer Server");
+                this.playerId = this.socket.id; 
+                const savedCode = localStorage.getItem('lastRoomCode');
+                const savedName = localStorage.getItem('username');
+                if (savedCode && savedName && !this.active) {
+                    const input = document.getElementById('roomCodeInput');
+                    if (input) input.value = savedCode;
                 }
-            }
-        });
+            });
 
-        this.socket.on('roomUpdate', (data) => {
-            if (!this.active && document.getElementById('roomModal').classList.contains('hidden')) {
-                if (data.state === 'playing') {
-                     this.active = true;
-                     State.runtime.isMultiplayer = true;
-                     this.showActiveBanner();
+            this.socket.on('connect_error', (err) => {
+                console.error("Connection Failed:", err);
+                UIManager.showPostVoteMessage("Multiplayer Unavailable ⚠️");
+            });
+
+            this.socket.on('roomUpdate', (data) => {
+                if (!this.active && document.getElementById('roomModal').classList.contains('hidden')) {
+                    if (data.state === 'playing') {
+                         this.active = true;
+                         State.runtime.isMultiplayer = true;
+                         this.showActiveBanner();
+                    } else {
+                         this.openLobby();
+                         document.getElementById('roomJoinScreen').classList.add('hidden');
+                         document.getElementById('roomLobbyScreen').classList.remove('hidden');
+                         document.getElementById('lobbyCodeDisplay').textContent = this.roomCode;
+                    }
+                }
+
+                this.isHost = (data.host === this.playerId);
+                this.currentMode = data.mode;
+                this.currentRounds = data.maxWords; 
+                this.drinkingMode = data.drinkingMode;
+                
+                if (data.theme) document.body.className = data.theme; 
+
+                this.renderLobby(data);
+                
+                const me = data.players.find(p => p.id === this.playerId);
+                if (me) {
+                    this.myTeam = me.team;
+                    this.myLives = me.lives;
+                    this.isSpectator = me.isSpectator;
+                    if(this.active) this.showActiveBanner(); 
                 } else {
-                     this.openLobby();
-                     document.getElementById('roomJoinScreen').classList.add('hidden');
-                     document.getElementById('roomLobbyScreen').classList.remove('hidden');
-                     document.getElementById('lobbyCodeDisplay').textContent = this.roomCode;
+                    this.resetLocalState();
                 }
-            }
+            });
 
-            this.isHost = (data.host === this.playerId);
-            this.currentMode = data.mode;
-            this.currentRounds = data.maxWords; 
-            this.drinkingMode = data.drinkingMode;
-            
-            if (data.theme) document.body.className = data.theme; 
+            this.socket.on('kicked', () => { 
+                this.showCustomAlert("You have been kicked from the room.");
+                this.leave(true);
+            });
 
-            this.renderLobby(data);
-            
-            const me = data.players.find(p => p.id === this.playerId);
-            if (me) {
-                this.myTeam = me.team;
-                this.myLives = me.lives;
-                this.isSpectator = me.isSpectator;
-                if(this.active) this.showActiveBanner(); 
-            } else {
-                this.resetLocalState();
-            }
-        });
+            this.socket.on('roleAlert', (msg) => {
+                this.showRoleAlert(msg, "🕵️ YOU ARE THE TRAITOR");
+            });
 
-        this.socket.on('kicked', () => { 
-            this.showCustomAlert("You have been kicked from the room.");
-            this.leave(true);
-        });
+            this.socket.on('gameStarted', (data) => {
+                this.active = true;
+                State.runtime.isMultiplayer = true;
+                if(window.TipManager) window.TipManager.active = false;
+                
+                this.closeLobby();
+                this.currentMode = data.mode;
+                State.runtime.allWords = []; 
+                if (this.isSpectator) {
+                    UIManager.disableButtons(true);
+                    this.showSpectatorBanner();
+                } else {
+                    this.playCountdown(data.mode);
+                }
+                this.showActiveBanner();
+            });
 
-        this.socket.on('roleAlert', (msg) => {
-            this.showRoleAlert(msg, "🕵️ YOU ARE THE TRAITOR");
-        });
+            this.socket.on('drinkPenalty', ({ drinkers, msg }) => {
+                this.showDrinkPenalty(drinkers, msg);
+            });
 
-        this.socket.on('gameStarted', (data) => {
-            this.active = true;
-            State.runtime.isMultiplayer = true;
-            if(window.TipManager) window.TipManager.active = false;
-            
-            this.closeLobby();
-            this.currentMode = data.mode;
-            State.runtime.allWords = []; 
-            if (this.isSpectator) {
-                UIManager.disableButtons(true);
-                this.showSpectatorBanner();
-            } else {
-                this.playCountdown(data.mode);
-            }
-            this.showActiveBanner();
-        });
+            this.socket.on('drinkingComplete', () => {
+                const el = document.getElementById('active-drink-penalty');
+                if(el) el.remove();
+                if(!this.isSpectator) UIManager.disableButtons(false);
+            });
 
-        this.socket.on('drinkPenalty', ({ drinkers, msg }) => {
-            this.showDrinkPenalty(drinkers, msg);
-        });
+            this.socket.on('startAccusation', ({ mode, players }) => {
+                const cd = document.getElementById('active-countdown'); if(cd) cd.remove();
+                const rev = document.getElementById('active-vote-reveal'); if(rev) rev.remove();
+                this.showAccusationScreen(mode, players);
+            });
 
-        this.socket.on('drinkingComplete', () => {
-            const el = document.getElementById('active-drink-penalty');
-            if(el) el.remove();
-            if(!this.isSpectator) UIManager.disableButtons(false);
-        });
+            this.socket.on('nextWord', (data) => {
+                if(!this.active) return;
+                const cd = document.getElementById('active-countdown'); if(cd) cd.remove();
+                const rev = document.getElementById('active-vote-reveal'); if(rev) rev.remove();
+                const acc = document.getElementById('active-accusation'); if(acc) acc.remove();
+                const drnk = document.getElementById('active-drink-penalty'); if(drnk) drnk.remove();
 
-        this.socket.on('startAccusation', ({ mode, players }) => {
-            const cd = document.getElementById('active-countdown'); if(cd) cd.remove();
-            const rev = document.getElementById('active-vote-reveal'); if(rev) rev.remove();
-            this.showAccusationScreen(mode, players);
-        });
+                const wObj = { _id: data.word._id, text: data.word.text };
+                State.runtime.allWords = [wObj]; 
+                UIManager.displayWord(wObj);
+                
+                const isDead = (this.currentMode === 'survival' && this.myLives <= 0);
+                UIManager.disableButtons(this.isSpectator || isDead);
+                
+                if (isDead) UIManager.showPostVoteMessage("👻 YOU ARE DEAD");
+                else UIManager.showPostVoteMessage(`Word ${data.wordCurrent}/${data.wordTotal}`);
+            });
 
-        this.socket.on('nextWord', (data) => {
-            if(!this.active) return;
-            const cd = document.getElementById('active-countdown'); if(cd) cd.remove();
-            const rev = document.getElementById('active-vote-reveal'); if(rev) rev.remove();
-            const acc = document.getElementById('active-accusation'); if(acc) acc.remove();
-            const drnk = document.getElementById('active-drink-penalty'); if(drnk) drnk.remove();
+            this.socket.on('roundResult', ({ mode, data, players, votes }) => {
+                if(!this.active) return;
+                this.showVoteReveal(players, votes);
+                const me = players.find(p => p.id === this.playerId);
+                if (mode === 'survival' && me && me.lives <= 0) {
+                     UIManager.disableButtons(true);
+                     UIManager.showPostVoteMessage("💀 YOU ARE OUT!");
+                     return;
+                }
+                let msg = data.msg ? data.msg : (mode === 'versus' ? `Sync Score` : `Room Sync: ${data.sync}%`);
+                if (mode === 'versus' && !data.msg) {
+                     const mySync = this.myTeam === 'red' ? data.redSync : data.blueSync;
+                     msg = `Your Team: ${mySync}% Sync`;
+                }
+                UIManager.showPostVoteMessage(msg);
+            });
 
-            const wObj = { _id: data.word._id, text: data.word.text };
-            State.runtime.allWords = [wObj]; 
-            UIManager.displayWord(wObj);
-            
-            const isDead = (this.currentMode === 'survival' && this.myLives <= 0);
-            UIManager.disableButtons(this.isSpectator || isDead);
-            
-            if (isDead) UIManager.showPostVoteMessage("👻 YOU ARE DEAD");
-            else UIManager.showPostVoteMessage(`Word ${data.wordCurrent}/${data.wordTotal}`);
-        });
-
-        this.socket.on('roundResult', ({ mode, data, players, votes }) => {
-            if(!this.active) return;
-            this.showVoteReveal(players, votes);
-            const me = players.find(p => p.id === this.playerId);
-            if (mode === 'survival' && me && me.lives <= 0) {
-                 UIManager.disableButtons(true);
-                 UIManager.showPostVoteMessage("💀 YOU ARE OUT!");
-                 return;
-            }
-            let msg = data.msg ? data.msg : (mode === 'versus' ? `Sync Score` : `Room Sync: ${data.sync}%`);
-            if (mode === 'versus' && !data.msg) {
-                 const mySync = this.myTeam === 'red' ? data.redSync : data.blueSync;
-                 msg = `Your Team: ${mySync}% Sync`;
-            }
-            UIManager.showPostVoteMessage(msg);
-        });
-
-        this.socket.on('gameOver', (data) => {
-             this.active = false;
-             State.runtime.isMultiplayer = false;
-             this.removeActiveBanner();
-             const ids = ['active-role-alert', 'spectator-banner', 'active-accusation', 'active-drink-penalty'];
-             ids.forEach(id => { const el = document.getElementById(id); if(el) el.remove(); });
-             
-             if (data.msg && data.msg.startsWith('GAME ENDED:')) {
-                 this.showCustomAlert(data.msg);
-                 this.openLobby(); 
-             } else {
-                 this.showFinalResults(data);
-             }
-        });
+            this.socket.on('gameOver', (data) => {
+                 this.active = false;
+                 State.runtime.isMultiplayer = false;
+                 this.removeActiveBanner();
+                 const ids = ['active-role-alert', 'spectator-banner', 'active-accusation', 'active-drink-penalty'];
+                 ids.forEach(id => { const el = document.getElementById(id); if(el) el.remove(); });
+                 
+                 if (data.msg && data.msg.startsWith('GAME ENDED:')) {
+                     this.showCustomAlert(data.msg);
+                     this.openLobby(); 
+                 } else {
+                     this.showFinalResults(data);
+                 }
+            });
+        } catch(e) {
+            console.error("Socket Connect Error", e);
+        }
     },
 
     refreshLobby() {
@@ -4777,7 +4792,10 @@ const RoomManager = {
             } else if (count === 0) {
                 el.textContent = "GO!";
                 el.classList.add('text-green-400'); el.classList.remove('text-yellow-400');
+                
+                // Scroll to top
                 window.scrollTo({ top: 0, behavior: 'smooth' });
+                
             } else {
                 clearInterval(interval); div.remove();
             }
@@ -4870,9 +4888,6 @@ const RoomManager = {
         }
     },
 
-
-    // --- PASTE THIS MISSING SECTION HERE ---
-
     injectModal() {
         if (document.getElementById('roomModal')) return;
         const div = document.createElement('div');
@@ -4909,7 +4924,12 @@ const RoomManager = {
              if(!c) return;
              this.roomCode = c;
              localStorage.setItem('lastRoomCode', c);
-             this.socket.emit('joinRoom', { roomCode: c, username: State.data.username, theme: State.settings.theme || 'default' });
+             if(!this.socket) {
+                 this.connect();
+                 setTimeout(() => this.socket.emit('joinRoom', { roomCode: c, username: State.data.username, theme: State.settings.theme || 'default' }), 500);
+             } else {
+                 this.socket.emit('joinRoom', { roomCode: c, username: State.data.username, theme: State.settings.theme || 'default' });
+             }
              document.getElementById('roomJoinScreen').classList.add('hidden');
              document.getElementById('roomLobbyScreen').classList.remove('hidden');
              document.getElementById('lobbyCodeDisplay').textContent = c;
@@ -4922,8 +4942,8 @@ const RoomManager = {
         }
     },
     
-    start() { this.socket.emit('startGame', { roomCode: this.roomCode }); },
-    submitVote(t) { if(this.active) this.socket.emit('submitVote', { roomCode: this.roomCode, vote: t }); },
+    start() { if(this.socket) this.socket.emit('startGame', { roomCode: this.roomCode }); },
+    submitVote(t) { if(this.active && this.socket) this.socket.emit('submitVote', { roomCode: this.roomCode, vote: t }); },
     
     showFinalResults(data) {
         let roleReveal = "";
@@ -4961,7 +4981,7 @@ const RoomManager = {
             </div>`;
         document.body.appendChild(div);
     }
-}; // <-- This closes RoomManager
+};
 
 // --- MAIN GAME LOGIC ---
 const Game = {
