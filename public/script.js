@@ -4870,7 +4870,7 @@ const RoomManager = {
         }
     },
 
-    injectModal() {
+injectModal() {
         if (document.getElementById('roomModal')) return;
         const div = document.createElement('div');
         div.id = 'roomModal';
@@ -4893,6 +4893,7 @@ const RoomManager = {
             </div>`;
         document.body.appendChild(div);
     },
+
     openLobby() { document.getElementById('roomModal').classList.remove('hidden'); },
     closeLobby() { document.getElementById('roomModal').classList.add('hidden'); },
     
