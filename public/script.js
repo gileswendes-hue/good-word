@@ -431,7 +431,7 @@ const OfflineManager = {
     },
 
     async toggle(active) {
-        const roomBtn = document.getElementById('roomBtn'); // <--- ADD THIS LINE
+		const roomBtn = document.getElementById('roomBtn');
         
         if (active) {
             UIManager.showMessage("Downloading offline pack... 🚇");
@@ -4521,7 +4521,7 @@ connect() {
         
         // FIXED: Correctly restore the theme using State.data.currentTheme
         if (State.data.currentTheme) {
-            document.body.className = `theme-${State.data.currentTheme}`;
+            ThemeManager.apply(State.data.currentTheme);
         }
         
         if(window.TipManager) window.TipManager.active = true;
