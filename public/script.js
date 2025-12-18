@@ -4429,9 +4429,8 @@ connect() {
                 // -------------------------------------
             });
 
-            this.socket.on('startAccusation', ({ mode, players }) => {
-                if (this.currentMode === 'vip') return;
-                // --------------------------------------------------
+			this.socket.on('startAccusation', ({ mode, players }) => {
+                if (this.currentMode === 'vip' || mode === 'vip') return;
 
                 const cd = document.getElementById('active-countdown'); if(cd) cd.remove();
                 const rev = document.getElementById('active-vote-reveal'); if(rev) rev.remove();
@@ -4496,8 +4495,17 @@ this.socket.on('gameOver', (data) => {
                     State.runtime.isMultiplayer = false;
                     this.removeActiveBanner();
                     
-                    const ids = ['active-role-alert', 'spectator-banner', 'active-accusation', 'active-drink-penalty'];
+                    // --- FIX: Remove ALL overlay screens, including Vote Reveal ---
+                    const ids = [
+                        'active-role-alert', 
+                        'spectator-banner', 
+                        'active-accusation', 
+                        'active-drink-penalty', 
+                        'active-vote-reveal', // <--- WAS MISSING (The Cause of the "Crash")
+                        'active-countdown'    // <--- WAS MISSING
+                    ];
                     ids.forEach(id => { const el = document.getElementById(id); if(el) el.remove(); });
+                    // --------------------------------------------------------------
                     
                     if (data.msg && data.msg.startsWith('GAME ENDED:')) {
                         this.showCustomAlert(data.msg);
@@ -4507,7 +4515,7 @@ this.socket.on('gameOver', (data) => {
                     }
                 } catch (e) {
                     console.error("Game Over Error:", e);
-                    this.openLobby(); // If it fails, just go back to lobby
+                    this.openLobby(); 
                 }
             });
 			
