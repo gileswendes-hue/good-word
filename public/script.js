@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.76', 
+    APP_VERSION: '5.77', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4334,7 +4334,6 @@ const RoomManager = {
         } else { this.connect(); }
         this.injectModal();
 
-        // Fix for "Ghost Players" on refresh
         window.addEventListener('beforeunload', () => {
             if (this.socket && this.roomCode) {
                 this.socket.emit('leaveRoom', { roomCode: this.roomCode });
@@ -4347,7 +4346,6 @@ const RoomManager = {
         
         this.socket.on('connect', () => { 
             this.playerId = this.socket.id; 
-            // Pre-fill code but DO NOT auto-open
             const savedCode = localStorage.getItem('lastRoomCode');
             const savedName = localStorage.getItem('username');
             if (savedCode && savedName && !this.active) {
@@ -4498,7 +4496,7 @@ const RoomManager = {
         if(join) join.classList.remove('hidden');
         if(lobby) lobby.classList.add('hidden');
 
-        // Restore Single Player
+        // FORCE SINGLE PLAYER RESTORE
         State.runtime.isMultiplayer = false;
         UIManager.disableButtons(false);
         if (typeof Game !== 'undefined') Game.refreshData(true); 
@@ -4549,7 +4547,8 @@ const RoomManager = {
         if (drinkers && drinkers.length > 0) {
             listHtml = '<div class="drink-list">';
             drinkers.forEach(d => {
-                listHtml += `<div>🍺 <b>${d.name || 'Player'}</b> (${d.reason})</div>`;
+                // FIXED: Use name from backend and icon
+                listHtml += `<div>${d.icon || '🍺'} <b>${d.name || 'Player'}</b> (${d.reason})</div>`;
             });
             listHtml += '</div>';
         }
@@ -4762,10 +4761,7 @@ const RoomManager = {
             } else if (count === 0) {
                 el.textContent = "GO!";
                 el.classList.add('text-green-400'); el.classList.remove('text-yellow-400');
-                
-                // Scroll to top
                 window.scrollTo({ top: 0, behavior: 'smooth' });
-                
             } else {
                 clearInterval(interval); div.remove();
             }
@@ -4795,7 +4791,7 @@ const RoomManager = {
                              <option value="10" ${data.maxWords==10?'selected':''}>Ten Words</option>
                              <option value="15" ${data.maxWords==15?'selected':''}>Fifteen Words</option>
                              <option value="20" ${data.maxWords==20?'selected':''}>Twenty Words</option>
-                             <option value="30" ${data.maxWords==30?'selected':''}>Marathon! (Thirty Words)</option>`;
+                             <option value="30" ${data.maxWords==30?'selected':''}>Marathon! (30 Words)</option>`;
 
             const isRestricted = data.mode === 'traitor' || data.mode === 'kids';
             const drinkChecked = data.drinkingMode && !isRestricted ? 'checked' : '';
@@ -4805,15 +4801,17 @@ const RoomManager = {
                 <div class="bg-gray-100 p-3 rounded-lg mb-4">
                     <label class="text-xs font-bold text-gray-400 uppercase">Game Mode</label>
                     <select id="hostModeSelect" class="mode-select" onchange="RoomManager.updateSettings()">${modeOpts}</select>
-                    <label class="text-xs font-bold text-gray-400 uppercase">Words per Game</label>
+                    
+                    <div class="text-xs text-center text-gray-500 mt-2 italic">${config.desc}</div>
+
+                    <label class="text-xs font-bold text-gray-400 uppercase mt-2 block">Words per Game</label>
                     <select id="hostRoundSelect" class="round-select" onchange="RoomManager.updateSettings()">${roundOpts}</select>
                     
                     <label class="flex items-center gap-2 mt-3 cursor-pointer ${drinkDisabled}">
-                        <input type="checkbox" id="hostDrinkingToggle" ${drinkChecked} onchange="RoomManager.updateSettings()" class="w-5 h-5">
+                        <input type="checkbox" id="hostDrinkingToggle" ${drinkChecked} onchange="RoomManager.updateSettings()" class="w-5 h-5" ${isRestricted ? 'disabled' : ''}>
                         <span class="font-bold text-red-600">🍺 Drinking Mode</span>
                     </label>
 
-                    <div class="text-xs text-center text-gray-500 mt-2">${config.desc}</div>
                     ${!enoughPlayers ? `<div class="text-xs text-center text-red-500 font-bold mt-2">⚠️ Not enough players (Need ${minReq}+)</div>` : ''}
                 </div>`;
         } else {
@@ -4854,94 +4852,6 @@ const RoomManager = {
         } else {
             startBtn.classList.add('hidden'); waitMsg.classList.remove('hidden');
         }
-    },
-
-    injectModal() {
-        if (document.getElementById('roomModal')) return;
-        const div = document.createElement('div');
-        div.id = 'roomModal';
-        div.className = 'fixed inset-0 bg-gray-900 bg-opacity-95 z-[200] hidden flex items-center justify-center';
-        div.innerHTML = `
-            <div class="bg-white rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl relative">
-                <button onclick="RoomManager.leave()" class="absolute top-4 right-4 text-gray-400">✕</button>
-                <div class="text-center mb-4"><h3 class="text-2xl font-black text-gray-800">MULTIPLAYER</h3></div>
-                <div id="roomJoinScreen" class="space-y-4">
-                    <input id="roomCodeInput" type="text" maxlength="6" placeholder="ROOM CODE" class="w-full text-center text-2xl font-black p-3 border-2 rounded-xl uppercase">
-                    <button onclick="RoomManager.join()" class="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl">JOIN ROOM</button>
-                </div>
-                <div id="roomLobbyScreen" class="hidden space-y-4">
-                    <div class="text-center"><div class="text-xs font-bold text-gray-400">CODE</div><div id="lobbyCodeDisplay" class="text-3xl font-black text-indigo-600 tracking-widest">---</div></div>
-                    <div id="lobbyModeArea"></div>
-                    <div class="bg-gray-50 p-2 rounded-xl max-h-[300px] overflow-y-auto" id="lobbyPlayerList"></div>
-                    <button id="roomStartBtn" onclick="RoomManager.start()" class="w-full py-3 bg-green-500 text-white font-bold rounded-xl hidden">START GAME</button>
-                    <div id="roomWaitMsg" class="text-center text-sm text-gray-400 hidden animate-pulse">Waiting for host...</div>
-                </div>
-            </div>`;
-        document.body.appendChild(div);
-    },
-    openLobby() { document.getElementById('roomModal').classList.remove('hidden'); },
-    closeLobby() { document.getElementById('roomModal').classList.add('hidden'); },
-    
-    join() {
-        const proceed = (name) => {
-             State.data.username = name.trim(); 
-             State.save('username', State.data.username); 
-             UIManager.updateProfileDisplay();
-             const c = document.getElementById('roomCodeInput').value.trim().toUpperCase();
-             if(!c) return;
-             this.roomCode = c;
-             localStorage.setItem('lastRoomCode', c);
-             this.socket.emit('joinRoom', { roomCode: c, username: State.data.username });
-             document.getElementById('roomJoinScreen').classList.add('hidden');
-             document.getElementById('roomLobbyScreen').classList.remove('hidden');
-             document.getElementById('lobbyCodeDisplay').textContent = c;
-        };
-
-        if (!State.data.username || State.data.username === "Player" || State.data.username === "") {
-            this.showNameInput(proceed);
-        } else {
-            proceed(State.data.username);
-        }
-    },
-    
-    start() { this.socket.emit('startGame', { roomCode: this.roomCode }); },
-    submitVote(t) { if(this.active) this.socket.emit('submitVote', { roomCode: this.roomCode, vote: t }); },
-    
-    showFinalResults(data) {
-        let roleReveal = "";
-        if (data.specialRoleId) {
-            const roleName = (data.mode === 'traitor') ? 'Traitor' : 'VIP';
-            const icon = (data.mode === 'traitor') ? '🕵️' : '👑';
-            const rolePlayer = data.rankings.find(p => p.id === data.specialRoleId);
-            
-            if (rolePlayer) {
-                roleReveal = `<div class="bg-yellow-100 text-yellow-800 p-2 rounded-lg font-bold text-center mb-4 border border-yellow-300 shadow-sm animate-bounce">
-                    ${icon} The ${roleName} was: <br><span class="text-xl">${rolePlayer.name.toUpperCase()}</span>
-                </div>`;
-            }
-        }
-
-        let rankHtml = `<div class="mt-4 max-h-40 overflow-y-auto bg-gray-900 rounded-lg p-2">`;
-        data.rankings.forEach((p, i) => {
-            rankHtml += `<div class="flex justify-between text-sm py-1 border-b border-gray-700 last:border-0"><span class="text-white">${i+1}. ${p.name}</span><span class="font-bold text-yellow-400">${p.score} pts</span></div>`;
-        });
-        rankHtml += `</div>`;
-        
-        const div = document.createElement('div');
-        div.className = 'fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-4';
-        div.innerHTML = `
-            <div class="bg-gray-800 rounded-2xl w-full max-w-md p-6 border-2 border-indigo-500 relative">
-                <h2 class="text-2xl font-black text-white text-center mb-2 uppercase">Results</h2>
-                <div class="text-center text-gray-300 text-sm mb-4">${this.modeConfig[data.mode].label}</div>
-                ${roleReveal}
-                <div class="text-xs text-gray-400 font-bold uppercase mt-4">Round Leaderboard</div>
-                ${rankHtml}
-                <div class="flex gap-2 mt-6">
-                    <button onclick="this.closest('.fixed').remove(); RoomManager.leave(true);" class="flex-1 py-3 bg-gray-700 text-white font-bold rounded-xl">Exit</button>
-                    <button onclick="this.closest('.fixed').remove(); RoomManager.openLobby()" class="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl">New Game</button>
-                </div>
-            </div>`;
-        document.body.appendChild(div);
     }
 };
 
