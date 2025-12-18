@@ -4491,7 +4491,7 @@ connect() {
 this.socket.on('gameOver', (data) => {
                 if (!data) return;
 
-                try {  // <--- THIS WAS MISSING
+                try {
                     this.active = false;
                     State.runtime.isMultiplayer = false;
                     this.removeActiveBanner();
@@ -4507,7 +4507,7 @@ this.socket.on('gameOver', (data) => {
                     }
                 } catch (e) {
                     console.error("Game Over Error:", e);
-                    this.openLobby(); // Fallback to lobby if crash occurs
+                    this.openLobby(); // If it fails, just go back to lobby
                 }
             });
 			
@@ -5090,9 +5090,9 @@ removeActiveBanner() {
     start() { if(this.socket) this.socket.emit('startGame', { roomCode: this.roomCode }); },
     submitVote(t) { if(this.active && this.socket) this.socket.emit('submitVote', { roomCode: this.roomCode, vote: t }); },
     
-	showFinalResults(data) {
+showFinalResults(data) {
         // --- FIX: Prevent Crash if mode is missing ---
-        const mode = data.mode || this.currentMode;
+        const mode = data.mode || this.currentMode || 'versus'; // Fallback to current or versus
         const config = this.modeConfig[mode] || { label: 'Game Over' };
 
         let roleReveal = "";
@@ -5100,6 +5100,7 @@ removeActiveBanner() {
             const roleName = (mode === 'traitor') ? 'Traitor' : 'VIP';
             const icon = (mode === 'traitor') ? '🕵️' : '👑';
             
+            // FIX: Ensure rankings array exists
             const rankings = data.rankings || [];
             const rolePlayer = rankings.find(p => p.id === data.specialRoleId);
             
@@ -5111,7 +5112,7 @@ removeActiveBanner() {
         }
 
         let rankHtml = `<div class="mt-4 max-h-40 overflow-y-auto bg-gray-900 rounded-lg p-2">`;
-        if (data.rankings) {
+        if (data.rankings && Array.isArray(data.rankings)) {
             data.rankings.forEach((p, i) => {
                 rankHtml += `<div class="flex justify-between text-sm py-1 border-b border-gray-700 last:border-0"><span class="text-white">${i+1}. ${p.name}</span><span class="font-bold text-yellow-400">${p.score} pts</span></div>`;
             });
