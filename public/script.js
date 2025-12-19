@@ -2723,6 +2723,79 @@ const ShareManager = {
             UIManager.showPostVoteMessage("Could not generate QR.");
         }
     },
+	
+	async shareCompatibility(p1, p2, score) {
+        UIManager.showPostVoteMessage("Printing coupon... 💘");
+        
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const width = 600;
+        const height = 400;
+        canvas.width = width;
+        canvas.height = height;
+
+        // 1. Pink Gradient Background
+        const grd = ctx.createLinearGradient(0, 0, 0, height);
+        grd.addColorStop(0, "#fce7f3"); // light pink
+        grd.addColorStop(1, "#fbcfe8"); // slightly darker pink
+        ctx.fillStyle = grd;
+        ctx.fillRect(0, 0, width, height);
+
+        // 2. Decorative Border
+        ctx.strokeStyle = "#db2777"; // pink-600
+        ctx.lineWidth = 8;
+        ctx.strokeRect(10, 10, width-20, height-20);
+        
+        ctx.strokeStyle = "#fdf2f8"; // white inner line
+        ctx.lineWidth = 4;
+        ctx.strokeRect(18, 18, width-36, height-36);
+
+        // 3. Title
+        ctx.fillStyle = "#be185d"; // pink-700
+        ctx.font = "900 24px system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("OFFICIAL COMPATIBILITY REPORT", width/2, 60);
+
+        // 4. Names
+        ctx.fillStyle = "#1f2937"; // dark gray
+        ctx.font = "bold 32px system-ui, sans-serif";
+        ctx.fillText(`${p1}  +  ${p2}`, width/2, 120);
+
+        // 5. The Score
+        ctx.fillStyle = "#db2777"; // pink-600
+        ctx.font = "900 140px system-ui, sans-serif";
+        ctx.fillText(`${score}%`, width/2, 260);
+        
+        // 6. Footer
+        ctx.fillStyle = "#9d174d";
+        ctx.font = "bold 18px system-ui, sans-serif";
+        ctx.fillText("Certified by OK Stoopid (GBword.com)", width/2, 350);
+
+        // 7. Share Logic
+        try {
+            const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+            const file = new File([blob], 'compatibility_test.png', { type: 'image/png' });
+            
+            const shareData = {
+                title: 'Compatibility Result',
+                text: `We are ${score}% compatible! 💘 Test your relationship on GBword.com`,
+                files: [file]
+            };
+
+            if (navigator.canShare && navigator.canShare(shareData)) {
+                await navigator.share(shareData);
+            } else {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'ok_stoopid_result.png';
+                a.click();
+                UIManager.showPostVoteMessage("Coupon downloaded! 📸");
+            }
+        } catch (e) {
+            console.error(e);
+            UIManager.showPostVoteMessage("Could not share image.");
+        }
+    },
 
     async generateImage() { 
         // ... (keep existing generateImage logic) ...
@@ -4411,16 +4484,22 @@ this.socket.on('roomUpdate', (data) => {
                 }
             });
             
-			this.socket.on('gameStarted', (data) => {
+		this.socket.on('gameStarted', (data) => {
                 this.active = true;
                 State.runtime.isMultiplayer = true;
                 if(window.TipManager) window.TipManager.active = false;
-                this.closeLobby();
-                this.currentMode = data.mode;
                 
+                this.closeLobby();
+                
+                // --- FIX: Remove all "Game Over" or "Results" screens immediately ---
+                document.querySelectorAll('.fixed').forEach(el => {
+                    if (el.id !== 'roomModal') el.remove(); 
+                });
+                // -------------------------------------------------------------------
+
+                this.currentMode = data.mode;
                 if (data.vipId) this.vipId = data.vipId; 
                 if (data.players) this.players = data.players;
-				if (data.vipId) this.vipId = data.vipId;
 
                 State.runtime.allWords = []; 
                 if (this.isSpectator) {
@@ -4432,7 +4511,6 @@ this.socket.on('roomUpdate', (data) => {
                 this.showActiveBanner();
                 
                 if (this.currentMode === 'survival') this.updateHearts();
-                // -------------------------------------
             });
 
 			this.socket.on('startAccusation', ({ mode, players }) => {
@@ -4507,8 +4585,8 @@ this.socket.on('gameOver', (data) => {
                         'spectator-banner', 
                         'active-accusation', 
                         'active-drink-penalty', 
-                        'active-vote-reveal', // <--- WAS MISSING (The Cause of the "Crash")
-                        'active-countdown'    // <--- WAS MISSING
+                        'active-vote-reveal', 
+                        'active-countdown'    
                     ];
                     ids.forEach(id => { const el = document.getElementById(id); if(el) el.remove(); });
                     // --------------------------------------------------------------
@@ -5111,68 +5189,99 @@ for (const [key, val] of Object.entries(this.modeConfig)) {
     submitVote(t) { if(this.active && this.socket) this.socket.emit('submitVote', { roomCode: this.roomCode, vote: t }); },
     
 showFinalResults(data) {
-        // Fallback to prevent crash if mode is missing
-        const mode = data.mode || this.currentMode || 'versus'; 
-        const config = this.modeConfig[mode] || { label: 'Game Over' };
+        try {
+            // Fallback to prevent crash if mode is missing
+            const mode = data.mode || this.currentMode || 'versus'; 
+            const config = this.modeConfig[mode] || { label: 'Game Over' };
 
-        let roleReveal = "";
-        
-        // --- VIP / TRAITOR LOGIC ---
-        if (data.specialRoleId) {
-            const roleName = (mode === 'traitor') ? 'Traitor' : 'VIP';
-            const icon = (mode === 'traitor') ? '🕵️' : '👑';
+            let roleReveal = "";
             
-            const rankings = data.rankings || [];
-            const rolePlayer = rankings.find(p => p.id === data.specialRoleId);
-            
-            if (rolePlayer) {
-                // FIX: Safety check for name to prevent crash
-                const safeName = (rolePlayer.name || 'Unknown').toUpperCase();
+            // --- VIP / TRAITOR LOGIC ---
+            if (data.specialRoleId) {
+                const roleName = (mode === 'traitor') ? 'Traitor' : 'VIP';
+                const icon = (mode === 'traitor') ? '🕵️' : '👑';
                 
-                roleReveal = `<div class="bg-yellow-100 text-yellow-800 p-2 rounded-lg font-bold text-center mb-4 border border-yellow-300 shadow-sm animate-bounce">
-                    ${icon} The ${roleName} was: <br><span class="text-xl">${safeName}</span>
-                </div>`;
+                const rankings = data.rankings || [];
+                // Safer ID check (convert to string to be sure)
+                const rolePlayer = rankings.find(p => String(p.id) === String(data.specialRoleId));
+                
+                if (rolePlayer) {
+                    // FIX: Safer Name Handling
+                    const rawName = rolePlayer.name || 'Unknown';
+                    const safeName = String(rawName).toUpperCase();
+                    
+                    roleReveal = `<div class="bg-yellow-100 text-yellow-800 p-2 rounded-lg font-bold text-center mb-4 border border-yellow-300 shadow-sm animate-bounce">
+                        ${icon} The ${roleName} was: <br><span class="text-xl">${safeName}</span>
+                    </div>`;
+                }
             }
-        }
 
-        // --- NEW: OK STOOPID COMPATIBILITY DISPLAY ---
-        if (mode === 'okstoopid') {
-             // Use the sync score (passed in data.sync or derived from rankings)
-             // Assuming Co-op logic puts the score in the rankings or data.sync
-             const score = data.sync !== undefined ? data.sync : (data.rankings[0] ? data.rankings[0].score : 0);
-             roleReveal = `<div class="bg-pink-100 text-pink-800 p-4 rounded-xl font-black text-center mb-4 border-2 border-pink-300 shadow-sm">
-                <div class="text-sm uppercase tracking-widest mb-1">COMPATIBILITY RATING</div>
-                <div class="text-5xl">💘 ${score}%</div>
-             </div>`;
-        }
-        // ---------------------------------------------
+            // --- OK STOOPID / CO-OP LOGIC (Compatibility %) ---
+            if (mode === 'okstoopid' || mode === 'coop') {
+                 // 1. Get Base Score (Matches)
+                 let score = data.sync !== undefined ? data.sync : (data.rankings[0] ? data.rankings[0].score : 0);
+                 
+                 // 2. Get Total Words (Defaults to 10 if missing)
+                 const total = parseInt(this.currentRounds) || 10;
+                 
+                 // 3. Calculate Base Percentage
+                 let pct = Math.floor((score / total) * 100);
+                 
+                 // 4. Add "Speed Jitter"
+                 const seed = (this.roomCode || "A").charCodeAt(0);
+                 const jitter = (seed + score * 3) % 9; 
+                 
+                 if (pct > 0 && pct < 100) pct += jitter;
+                 if (pct > 100) pct = 100;
 
-        let rankHtml = `<div class="mt-4 max-h-40 overflow-y-auto bg-gray-900 rounded-lg p-2">`;
-        if (data.rankings && Array.isArray(data.rankings)) {
-            data.rankings.forEach((p, i) => {
-                // FIX: Skip null players
-                if (!p) return;
-                const pName = p.name || 'Unknown';
-                rankHtml += `<div class="flex justify-between text-sm py-1 border-b border-gray-700 last:border-0"><span class="text-white">${i+1}. ${pName}</span><span class="font-bold text-yellow-400">${p.score} pts</span></div>`;
-            });
+                 // 5. Get Player Names for the Certificate
+                 const p1 = (data.rankings && data.rankings[0]) ? data.rankings[0].name : "Player 1";
+                 const p2 = (data.rankings && data.rankings[1]) ? data.rankings[1].name : "Player 2";
+
+                 // 6. Render Card with Share Button
+                 roleReveal = `
+                 <div class="bg-pink-100 text-pink-800 p-4 rounded-xl font-black text-center mb-4 border-2 border-pink-300 shadow-sm">
+                    <div class="text-sm uppercase tracking-widest mb-1">COMPATIBILITY RATING</div>
+                    <div class="text-5xl mb-2">💘 ${pct}%</div>
+                    <button onclick="ShareManager.shareCompatibility('${p1.replace(/'/g, "\\'")}', '${p2.replace(/'/g, "\\'")}', ${pct})" class="w-full py-2 bg-pink-500 text-white text-sm font-bold rounded-lg shadow hover:bg-pink-600 transition flex items-center justify-center gap-2">
+                        <span>📸</span> SHARE COUPON
+                    </button>
+                    <div class="text-xs font-normal mt-3 opacity-75">${score}/${total} Matches + Speed Bonus</div>
+                 </div>`;
+            }
+            // ---------------------------------------------
+
+            let rankHtml = `<div class="mt-4 max-h-40 overflow-y-auto bg-gray-900 rounded-lg p-2">`;
+            if (data.rankings && Array.isArray(data.rankings)) {
+                data.rankings.forEach((p, i) => {
+                    if (!p) return;
+                    const pName = p.name || 'Unknown';
+                    rankHtml += `<div class="flex justify-between text-sm py-1 border-b border-gray-700 last:border-0"><span class="text-white">${i+1}. ${pName}</span><span class="font-bold text-yellow-400">${p.score} pts</span></div>`;
+                });
+            }
+            rankHtml += `</div>`;
+            
+            const div = document.createElement('div');
+            div.className = 'fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-4';
+            div.innerHTML = `
+                <div class="bg-gray-800 rounded-2xl w-full max-w-md p-6 border-2 border-indigo-500 relative">
+                    <h2 class="text-2xl font-black text-white text-center mb-2 uppercase">Results</h2>
+                    <div class="text-center text-gray-300 text-sm mb-4">${config.label}</div>
+                    ${roleReveal}
+                    <div class="text-xs text-gray-400 font-bold uppercase mt-4">Round Leaderboard</div>
+                    ${rankHtml}
+                    <div class="flex gap-2 mt-6">
+                        <button onclick="this.closest('.fixed').remove(); RoomManager.leave(true);" class="flex-1 py-3 bg-gray-700 text-white font-bold rounded-xl">Exit</button>
+                        <button onclick="this.closest('.fixed').remove(); RoomManager.openLobby()" class="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl">New Game</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(div);
+
+        } catch(e) {
+            console.error("Results Crash Prevented:", e);
+            // Fallback: If results crash, just go to lobby so game isn't stuck
+            this.openLobby();
         }
-        rankHtml += `</div>`;
-        
-        const div = document.createElement('div');
-        div.className = 'fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-4';
-        div.innerHTML = `
-            <div class="bg-gray-800 rounded-2xl w-full max-w-md p-6 border-2 border-indigo-500 relative">
-                <h2 class="text-2xl font-black text-white text-center mb-2 uppercase">Results</h2>
-                <div class="text-center text-gray-300 text-sm mb-4">${config.label}</div>
-                ${roleReveal}
-                <div class="text-xs text-gray-400 font-bold uppercase mt-4">Round Leaderboard</div>
-                ${rankHtml}
-                <div class="flex gap-2 mt-6">
-                    <button onclick="this.closest('.fixed').remove(); RoomManager.leave(true);" class="flex-1 py-3 bg-gray-700 text-white font-bold rounded-xl">Exit</button>
-                    <button onclick="this.closest('.fixed').remove(); RoomManager.openLobby()" class="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl">New Game</button>
-                </div>
-            </div>`;
-        document.body.appendChild(div);
     },
 };
 
