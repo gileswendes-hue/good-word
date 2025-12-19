@@ -4452,12 +4452,10 @@ connect() {
         try {
             if (typeof io === 'undefined') return;
             
-            // 1. Establish connection if missing
             if (!this.socket) {
                 this.socket = io();
             }
 
-            // 2. STOP DUPLICATE LISTENERS (The Rejoin Fix)
             if (this.listenersAttached) {
                 console.log("⚡ Listeners already attached. Skipping init.");
                 return;
@@ -4484,7 +4482,6 @@ connect() {
                 
                 if (data.players) this.players = data.players;
 
-                // Only render lobby if we are NOT playing
                 if (!this.active) {
                     if (document.getElementById('roomModal').classList.contains('hidden')) {
                          this.openLobby();
@@ -4507,7 +4504,6 @@ connect() {
                     this.myLives = me.lives;
                     this.isSpectator = me.isSpectator;
                 } else {
-                    // Only reset if we were previously active to avoid flickering
                     if (this.active) this.resetLocalState();
                 }
             });
@@ -4529,13 +4525,11 @@ connect() {
                 this.vipId = data.vipId; 
                 if (data.players) this.players = data.players;
 
-                // Dictionary Check
                 if (!State.runtime.allWords || State.runtime.allWords.length < 50) {
                     const all = await API.getAllWords();
                     State.runtime.allWords = all;
                 }
 
-                // Deterministic Shuffle
                 let wordsToShuffle = [...State.runtime.allWords];
                 const seed = data.gameSeed || this.roomCode;
                 State.runtime.allWords = SeededShuffle.shuffle(wordsToShuffle, seed);
@@ -4557,8 +4551,11 @@ connect() {
             this.socket.on('roundResult', ({ mode, data, players, votes }) => {
                 if(!this.active) return;
                 
-                if (players) this.players = players; 
-                const me = players.find(p => p.id === this.playerId);
+                // --- CRASH FIXES ---
+                data = data || {}; // Ensure data exists
+                if (players) this.players = players; // Update locals if server sent new list
+                
+                const me = this.players.find(p => p.id === this.playerId);
                 if (me) this.myLives = me.lives;
 
                 if (votes) {
@@ -4567,7 +4564,8 @@ connect() {
                     this.roundHistory.push({ match: isMatch, count: validVotes.length });
                 }
 
-                this.showVoteReveal(players, votes);
+                // USE LOCAL PLAYERS (Prevents crash if server didn't send 'players' arg)
+                this.showVoteReveal(this.players, votes);
                 
                 if (mode === 'survival') {
                     this.updateHearts();
@@ -4579,15 +4577,15 @@ connect() {
                     }
                 }
 
-                let msg = data.msg ? data.msg : (mode === 'versus' ? `Sync Score` : `Room Sync: ${data.sync}%`);
+                let msg = data.msg ? data.msg : (mode === 'versus' ? `Sync Score` : `Room Sync: ${data.sync || 0}%`);
                 if (mode === 'versus' && !data.msg) {
-                     const mySync = this.myTeam === 'red' ? data.redSync : data.blueSync;
+                     const mySync = this.myTeam === 'red' ? (data.redSync || 0) : (data.blueSync || 0);
                      msg = `Your Team: ${mySync}% Sync`;
                 }
                 UIManager.showPostVoteMessage(msg);
 
                 setTimeout(() => {
-                    if (!this.active) return; // Stop if game ended
+                    if (!this.active) return;
 
                     const rev = document.getElementById('active-vote-reveal'); 
                     if(rev) rev.remove();
@@ -5132,13 +5130,16 @@ showFinalResults(data) {
             this.socket.emit('kickPlayer', { roomCode: this.roomCode, targetId: id });
         });
     },
-    showVoteReveal(players, votes) {
+	
+showVoteReveal(players, votes) {
+        if (!players || !Array.isArray(players)) return; // Safety Check
+        
         const div = document.createElement('div');
         div.id = 'active-vote-reveal';
         div.className = 'reveal-overlay';
         div.innerHTML = players.map(p => {
             if(p.isSpectator) return '';
-            const v = votes[p.id];
+            const v = votes ? votes[p.id] : null;
             let style = v === 'good' ? 'vote-good' : (v === 'bad' ? 'vote-bad' : 'vote-none');
             let icon = v === 'good' ? '👍' : (v === 'bad' ? '👎' : '⏳');
             if (this.currentMode === 'survival' && p.lives <= 0) { style = 'bg-gray-200 text-gray-400 border-gray-300'; icon = '💀'; }
@@ -5146,6 +5147,7 @@ showFinalResults(data) {
         }).join('');
         document.body.appendChild(div);
     },
+	
     showSpectatorBanner() {
         const div = document.createElement('div');
         div.id = 'spectator-banner';
