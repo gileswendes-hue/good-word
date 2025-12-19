@@ -4294,6 +4294,7 @@ const RoomManager = {
 
     modeConfig: {
         'coop': { label: '🤝 Co-op Sync', desc: 'Vote together! Stay together!', min: 2 },
+		'okstoopid': { label: '💘 OK Stoopid', desc: 'Couples Mode. Test your compatibility!', min: 2 },
         'versus': { label: '⚔️ Team Versus', desc: 'Red vs Blue. Best Team wins.', min: 4 },
         'vip': { label: '👑 Follow the Leader', desc: 'One VIP. Vote exactly like them.', min: 3 },
         'hipster': { label: '🕶️ The Hipster', desc: 'Minority Rules. Be unique!', min: 3 },
@@ -4365,7 +4366,7 @@ connect() {
 
             this.socket.on('connect_error', (err) => {
                 console.error("Connection Failed:", err);
-                UIManager.showPostVoteMessage("Connection Failed ⚠️");
+                UIManager.showPostVoteMessage("Connecting... ⚠️");
             });
 
 this.socket.on('roomUpdate', (data) => {
@@ -4844,14 +4845,13 @@ updateSettings() {
             infoBadge = `<span class="ml-2 px-2 py-1 rounded text-xs text-white font-bold ${color}">${this.myTeam.toUpperCase()} TEAM</span>`;
         }
         
-if (this.currentMode === 'vip' && this.vipId && this.players) {
-            const vipPlayer = this.players.find(p => p.id === this.vipId);
-            // FIX: Ensure name defaults to 'Unknown' if missing
-            const vipName = (vipPlayer && vipPlayer.name) ? vipPlayer.name : "Unknown"; 
+            if (this.currentMode === 'vip' && this.vipId && this.players) {
+            const vipPlayer = this.players.find(p => p && p.id === this.vipId);
+            
+            const rawName = (vipPlayer && vipPlayer.name) ? vipPlayer.name : "Unknown";
             const isMe = this.vipId === this.playerId;
             
-            // FIX: Safe toUpperCase()
-            const displayName = isMe ? "YOU ARE LEADER" : "FOLLOW: " + vipName.toUpperCase();
+            const displayName = isMe ? "YOU ARE LEADER" : "FOLLOW: " + String(rawName).toUpperCase();
             
             infoBadge = `<span class="ml-2 px-2 py-1 rounded text-xs text-white font-bold bg-yellow-500 border border-yellow-600 shadow-sm">👑 ${displayName}</span>`;
         }
@@ -4955,14 +4955,8 @@ renderLobby(data) {
         
         if (this.isHost) {
             let modeOpts = "";
-            for (const [key, val] of Object.entries(this.modeConfig)) {
-                // --- DISABLE VIP MODE ---
-                if (key === 'vip') {
-                    modeOpts += `<option value="${key}" disabled style="color:#ccc">👑 Follow the Leader (Maintenance)</option>`;
-                    continue;
-                }
-                // ------------------------
-
+			
+for (const [key, val] of Object.entries(this.modeConfig)) {
                 const note = (playerCount < val.min) ? ` (Need ${val.min}+)` : '';
                 modeOpts += `<option value="${key}" ${data.mode===key?'selected':''}>${val.label}${note}</option>`;
             }
@@ -5092,7 +5086,6 @@ renderLobby(data) {
                  this.connect();
                  setTimeout(() => {
                      if (this.socket && this.socket.connected) {
-                         // FIXED: Changed State.settings.theme to State.data.currentTheme
                          this.socket.emit('joinRoom', { roomCode: c, username: State.data.username, theme: State.data.currentTheme || 'default' });
                      } else {
                          alert("Connection Failed. Check internet.");
@@ -5118,11 +5111,13 @@ renderLobby(data) {
     submitVote(t) { if(this.active && this.socket) this.socket.emit('submitVote', { roomCode: this.roomCode, vote: t }); },
     
 showFinalResults(data) {
-        // Fix 1: Fallback to currentMode if data.mode is missing
+        // Fallback to prevent crash if mode is missing
         const mode = data.mode || this.currentMode || 'versus'; 
         const config = this.modeConfig[mode] || { label: 'Game Over' };
 
         let roleReveal = "";
+        
+        // --- VIP / TRAITOR LOGIC ---
         if (data.specialRoleId) {
             const roleName = (mode === 'traitor') ? 'Traitor' : 'VIP';
             const icon = (mode === 'traitor') ? '🕵️' : '👑';
@@ -5131,8 +5126,8 @@ showFinalResults(data) {
             const rolePlayer = rankings.find(p => p.id === data.specialRoleId);
             
             if (rolePlayer) {
-                // FIX 2: Safe Name Handling (Prevents Crash)
-                const safeName = (rolePlayer.name || "Unknown").toUpperCase();
+                // FIX: Safety check for name to prevent crash
+                const safeName = (rolePlayer.name || 'Unknown').toUpperCase();
                 
                 roleReveal = `<div class="bg-yellow-100 text-yellow-800 p-2 rounded-lg font-bold text-center mb-4 border border-yellow-300 shadow-sm animate-bounce">
                     ${icon} The ${roleName} was: <br><span class="text-xl">${safeName}</span>
@@ -5140,11 +5135,24 @@ showFinalResults(data) {
             }
         }
 
+        // --- NEW: OK STOOPID COMPATIBILITY DISPLAY ---
+        if (mode === 'okstoopid') {
+             // Use the sync score (passed in data.sync or derived from rankings)
+             // Assuming Co-op logic puts the score in the rankings or data.sync
+             const score = data.sync !== undefined ? data.sync : (data.rankings[0] ? data.rankings[0].score : 0);
+             roleReveal = `<div class="bg-pink-100 text-pink-800 p-4 rounded-xl font-black text-center mb-4 border-2 border-pink-300 shadow-sm">
+                <div class="text-sm uppercase tracking-widest mb-1">COMPATIBILITY RATING</div>
+                <div class="text-5xl">💘 ${score}%</div>
+             </div>`;
+        }
+        // ---------------------------------------------
+
         let rankHtml = `<div class="mt-4 max-h-40 overflow-y-auto bg-gray-900 rounded-lg p-2">`;
         if (data.rankings && Array.isArray(data.rankings)) {
             data.rankings.forEach((p, i) => {
-                // FIX 3: Safe Name Handling in List
-                const pName = (p.name || "Unknown"); 
+                // FIX: Skip null players
+                if (!p) return;
+                const pName = p.name || 'Unknown';
                 rankHtml += `<div class="flex justify-between text-sm py-1 border-b border-gray-700 last:border-0"><span class="text-white">${i+1}. ${pName}</span><span class="font-bold text-yellow-400">${p.score} pts</span></div>`;
             });
         }
@@ -5994,16 +6002,20 @@ async refreshData(u = true) {
 		
 		if (State.runtime.isMultiplayer && typeof RoomManager !== 'undefined' && RoomManager.active) {
              RoomManager.submitVote(t);
-             // Just show visual feedback locally, but DON'T hit the API or call nextWord()
-             // We wait for the server event instead.
-             UIManager.disableButtons(true); // Lock buttons
+			 
+			 const w = State.runtime.allWords[State.runtime.currentWordIndex];
+             if (w && w._id) {
+                 API.vote(w._id, t).catch(e => console.warn("Background vote sync failed", e));
+             }
+			 
+             UIManager.disableButtons(true); 
              const wd = DOM.game.wordDisplay;
              const colors = Accessibility.getColors();
              if (t === 'good' || t === 'bad') {
                  wd.style.color = t === 'good' ? colors.good : colors.bad;
-                 wd.style.opacity = '0.5'; // Dim it to show "Waiting"
+                 wd.style.opacity = '0.5'; 
              }
-             return; // Stop execution here
+             return; 
         }
 		
         const n = Date.now();
