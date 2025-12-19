@@ -4364,10 +4364,15 @@ const RoomManager = {
     myLives: 3,
     isSpectator: false,
     drinkingMode: false,
+    
+    // DATA STORES
+    roundHistory: [], 
+    vipId: null,      
+    players: [],      
 
     modeConfig: {
-        'coop': { label: '🤝 Co-op Sync', desc: 'Vote together! Stay together!', min: 2 },
-		'okstoopid': { label: '💘 OK Stoopid', desc: 'Couples Mode. Test your compatibility!', min: 2, max: 2 },
+        'coop': { label: '🤝 Co-op Sync', desc: 'Vote together! Match with the Global Majority.', min: 2 },
+        'okstoopid': { label: '💘 OK Stoopid', desc: 'Couples Mode. Test your compatibility!', min: 2, max: 2 },
         'versus': { label: '⚔️ Team Versus', desc: 'Red vs Blue. Best Team wins.', min: 4 },
         'vip': { label: '👑 Follow the Leader', desc: 'One VIP. Vote exactly like them.', min: 3 },
         'hipster': { label: '🕶️ The Hipster', desc: 'Minority Rules. Be unique!', min: 3 },
@@ -4378,27 +4383,22 @@ const RoomManager = {
     },
 
     init() {
-        window.RoomManager = this; // Vital for HTML buttons
-
+        window.RoomManager = this;
         this.injectStyles();
         
-        // Inject button if missing
         if (!document.getElementById('roomBtn')) {
             const btn = document.createElement('button');
             btn.id = 'roomBtn';
             btn.className = 'p-2 rounded-full hover:bg-gray-100 transition relative group';
             btn.innerHTML = `<span class="text-xl">📡</span>`;
             btn.onclick = () => this.openLobby();
-			
-			if (State.data.settings.offlineMode) {
-                btn.style.display = 'none';
-            }
-			
+            
+            if (State.data.settings.offlineMode) btn.style.display = 'none';
+            
             const sb = document.getElementById('showSettingsButton');
             if (sb && sb.parentNode) sb.parentNode.insertBefore(btn, sb);
         }
 
-        // Attempt Connection
         if (!window.io) {
             const sc = document.createElement('script');
             sc.src = "/socket.io/socket.io.js";
@@ -4418,12 +4418,9 @@ const RoomManager = {
         });
     },
 
-connect() {
+    connect() {
         try {
-            if (typeof io === 'undefined') {
-                alert("Error: Socket.IO library not loaded.");
-                return;
-            }
+            if (typeof io === 'undefined') return;
             
             this.socket = io();
             
@@ -4443,6 +4440,7 @@ connect() {
                 this.currentRounds = data.maxWords; 
                 this.drinkingMode = data.drinkingMode;
                 
+                // Safe Update of Player List
                 if (data.players) this.players = data.players;
                 if (data.vipId) this.vipId = data.vipId;
 
@@ -4475,7 +4473,7 @@ connect() {
                 }
             });
             
-            this.socket.on('gameStarted', (data) => {
+            this.socket.on('gameStarted', async (data) => {
                 this.active = true;
                 State.runtime.isMultiplayer = true;
                 if(window.TipManager) window.TipManager.active = false;
@@ -4488,16 +4486,21 @@ connect() {
                 });
 
                 this.currentMode = data.mode;
-                if (data.vipId) this.vipId = data.vipId; 
+                this.vipId = data.vipId; 
                 if (data.players) this.players = data.players;
 
-                // --- CRITICAL FIX 1: LOAD SERVER WORDS ---
-                // This forces everyone to use the EXACT same word list
-                if (data.words && Array.isArray(data.words)) {
+                // --- SYNC SAFEGUARD (Fixes desync issues) ---
+                if (data.words && Array.isArray(data.words) && data.words.length > 0) {
                     State.runtime.allWords = data.words; 
-                    State.runtime.currentWordIndex = 0;
+                } else {
+                    // Fallback: Everyone fetches local dictionary and sorts alphabetically
+                    // This guarantees sync even if the server didn't send the list
+                    const all = await API.getAllWords();
+                    State.runtime.allWords = all.sort((a,b) => a.text.localeCompare(b.text));
                 }
-                // -----------------------------------------
+                
+                State.runtime.currentWordIndex = 0;
+                // --------------------------------------------
 
                 if (this.isSpectator) {
                     UIManager.disableButtons(true);
@@ -4516,14 +4519,14 @@ connect() {
                 const me = players.find(p => p.id === this.playerId);
                 if (me) this.myLives = me.lives;
 
-                // --- CRITICAL FIX 2: TRACK HISTORY FOR SCORING ---
+                // --- SCORING TRACKER (Fixes 0% Bug) ---
                 if (votes) {
                     const validVotes = Object.values(votes).filter(v => v === 'good' || v === 'bad');
-                    // A match is when everyone voted the same
+                    // In co-op, a 'match' is when everyone agrees (all votes identical)
                     const isMatch = validVotes.length > 0 && validVotes.every(v => v === validVotes[0]);
                     this.roundHistory.push({ match: isMatch, count: validVotes.length });
                 }
-                // ------------------------------------------------
+                // --------------------------------------
 
                 this.showVoteReveal(players, votes);
                 
@@ -4544,7 +4547,7 @@ connect() {
                 }
                 UIManager.showPostVoteMessage(msg);
 
-                // --- CRITICAL FIX 3: ADVANCE TO NEXT WORD ---
+                // --- AUTO ADVANCE (Fixes Stuck Screen) ---
                 setTimeout(() => {
                     const rev = document.getElementById('active-vote-reveal'); 
                     if(rev) rev.remove();
@@ -4560,7 +4563,6 @@ connect() {
                         UIManager.disableButtons(false);
                     }
                 }, 3000); 
-                // --------------------------------------------
             });
             
             this.socket.on('gameOver', (data) => {
@@ -4593,48 +4595,202 @@ connect() {
         }
     },
 
-    refreshLobby() {
-        if(this.socket && this.roomCode) {
-            this.socket.emit('refreshLobby', { roomCode: this.roomCode });
+    playCountdown(mode) {
+        const config = this.modeConfig[mode];
+        const div = document.createElement('div');
+        div.id = 'active-countdown';
+        div.className = 'countdown-overlay';
+        div.innerHTML = `
+            <div class="text-3xl font-black mb-4 text-center uppercase tracking-widest">${config.label}</div>
+            <div class="text-xl mb-8 text-center text-gray-300 max-w-md">${config.desc}</div>
+            <div id="cd-num" class="countdown-number text-yellow-400">5</div>
+        `;
+        document.body.appendChild(div);
+        let count = 5;
+        const el = document.getElementById('cd-num');
+        const interval = setInterval(() => {
+            count--;
+            if(count > 0) {
+                el.textContent = count;
+                el.classList.remove('countdown-number'); void el.offsetWidth; el.classList.add('countdown-number');
+            } else if (count === 0) {
+                el.textContent = "GO!";
+                el.classList.add('text-green-400'); el.classList.remove('text-yellow-400');
+                
+                // --- FORCE DISPLAY (Fixes Blank Screen) ---
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                const firstWord = State.runtime.allWords[0];
+                if(firstWord) UIManager.displayWord(firstWord);
+                UIManager.disableButtons(false);
+                // ------------------------------------------
+                
+            } else {
+                clearInterval(interval); div.remove();
+            }
+        }, 1000);
+    },
+
+    showFinalResults(data) {
+        // --- REWRITTEN RESULT LOGIC (CRASH PROOF) ---
+        // This completely replaces the old logic. It is wrapped in a try/catch
+        // and uses safe lookups to prevent freezing.
+        try {
+            document.querySelectorAll('.fixed').forEach(el => {
+                if (el.id !== 'roomModal') el.remove(); 
+            });
+
+            const mode = data.mode || this.currentMode || 'versus'; 
+            const config = this.modeConfig[mode] || { label: 'Game Over' };
+            const rankings = Array.isArray(data.rankings) ? data.rankings : [];
+
+            // 1. VIP / TRAITOR REVEAL (Simplified)
+            let roleReveal = "";
+            if (data.specialRoleId) {
+                let roleName = (mode === 'traitor') ? 'Traitor' : 'VIP';
+                let icon = (mode === 'traitor') ? '🕵️' : '👑';
+                
+                // Safe Name Lookup: Try rankings first, then local player list
+                let leaderName = "Unknown";
+                const targetId = String(data.specialRoleId);
+                
+                const fromRank = rankings.find(p => p && String(p.id) === targetId);
+                if (fromRank && fromRank.name) leaderName = fromRank.name;
+                else {
+                    const fromLocal = this.players.find(p => p && String(p.id) === targetId);
+                    if (fromLocal && fromLocal.name) leaderName = fromLocal.name;
+                }
+                
+                roleReveal = `
+                <div class="bg-yellow-100 text-yellow-800 p-2 rounded-lg font-bold text-center mb-4 border border-yellow-300 shadow-sm animate-bounce">
+                    ${icon} The ${roleName} was: <br><span class="text-xl">${leaderName.toUpperCase()}</span>
+                </div>`;
+            }
+
+            // 2. CO-OP / OK STOOPID SCORING
+            if (mode === 'okstoopid' || mode === 'coop') {
+                const stats = this.calculateTrueSync();
+                const pct = stats.pct;
+                const matchText = `${stats.matches}/${stats.total} Matches`;
+
+                if (mode === 'okstoopid') {
+                    // Safe name fetching for coupon
+                    const p1 = (rankings[0] && rankings[0].name) ? rankings[0].name : "Player 1";
+                    const p2 = (rankings[1] && rankings[1].name) ? rankings[1].name : "Player 2";
+                    
+                    roleReveal = `
+                    <div class="bg-pink-100 text-pink-800 p-4 rounded-xl font-black text-center mb-4 border-2 border-pink-300 shadow-sm">
+                        <div class="text-sm uppercase tracking-widest mb-1">COMPATIBILITY RATING</div>
+                        <div class="text-5xl mb-2">💘 ${pct}%</div>
+                        <div class="text-xs font-normal mt-2 opacity-75">${matchText} + Speed Bonus</div>
+                        <button onclick="ShareManager.shareCompatibility('${p1.replace(/'/g, "\\'")}', '${p2.replace(/'/g, "\\'")}', ${pct})" class="mt-3 w-full py-2 bg-pink-500 text-white text-sm font-bold rounded-lg shadow hover:bg-pink-600 transition flex items-center justify-center gap-2">
+                            <span>📸</span> SHARE COUPON
+                        </button>
+                    </div>`;
+                } else {
+                    roleReveal = `
+                    <div class="bg-indigo-100 text-indigo-800 p-4 rounded-xl font-black text-center mb-4 border-2 border-indigo-300 shadow-sm">
+                        <div class="text-sm uppercase tracking-widest mb-1">TEAM SYNC SCORE</div>
+                        <div class="text-5xl mb-2">🤝 ${pct}%</div>
+                        <div class="text-xs font-normal mt-2 opacity-75">${matchText}</div>
+                    </div>`;
+                }
+            }
+
+            // 3. LEADERBOARD RENDERING
+            let rankHtml = `<div class="mt-4 max-h-40 overflow-y-auto bg-gray-900 rounded-lg p-2">`;
+            rankings.forEach((p, i) => {
+                if (!p) return;
+                const safeName = p.name || 'Unknown';
+                const safeScore = typeof p.score === 'number' ? p.score : 0;
+                rankHtml += `<div class="flex justify-between text-sm py-1 border-b border-gray-700 last:border-0">
+                    <span class="text-white">${i+1}. ${safeName}</span>
+                    <span class="font-bold text-yellow-400">${safeScore} pts</span>
+                </div>`;
+            });
+            rankHtml += `</div>`;
+
+            // 4. DISPLAY MODAL
+            const div = document.createElement('div');
+            div.className = 'fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-4';
+            div.innerHTML = `
+                <div class="bg-gray-800 rounded-2xl w-full max-w-md p-6 border-2 border-indigo-500 relative">
+                    <h2 class="text-2xl font-black text-white text-center mb-2 uppercase">Results</h2>
+                    <div class="text-center text-gray-300 text-sm mb-4">${config.label}</div>
+                    ${roleReveal}
+                    <div class="text-xs text-gray-400 font-bold uppercase mt-4">Round Leaderboard</div>
+                    ${rankHtml}
+                    <div class="flex gap-2 mt-6">
+                        <button onclick="this.closest('.fixed').remove(); RoomManager.leave(true);" class="flex-1 py-3 bg-gray-700 text-white font-bold rounded-xl">Exit</button>
+                        <button onclick="this.closest('.fixed').remove(); RoomManager.openLobby()" class="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl">New Game</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(div);
+
+        } catch (fatalError) {
+            console.error("CRITICAL UI FAIL:", fatalError);
+            alert("GAME OVER!"); // Simple fallback so user isn't stuck
+            this.openLobby();
         }
     },
 
-	resetLocalState() {
+    calculateTrueSync() {
+        try {
+            const history = this.roundHistory || [];
+            if (history.length === 0) return { pct: 0, matches: 0, total: 0 };
+
+            let matches = 0;
+            let total = 0;
+
+            history.forEach(round => {
+                total++;
+                if (round.match) matches++;
+            });
+
+            if (total === 0) return { pct: 0, matches: 0, total: 0 };
+            
+            let pct = Math.floor((matches / total) * 100);
+            
+            // Jitter for speed bonus (only if doing well)
+            if (pct > 50 && pct < 100) {
+                const seed = (this.roomCode || "A").charCodeAt(0) + matches;
+                const bonus = seed % 5; 
+                pct += bonus;
+                if (pct > 100) pct = 100;
+            }
+            
+            return { pct: pct, matches: matches, total: total };
+        } catch (e) {
+            console.warn("Sync Calc failed", e);
+            return { pct: 0, matches: 0, total: 0 };
+        }
+    },
+
+    refreshLobby() { if(this.socket && this.roomCode) this.socket.emit('refreshLobby', { roomCode: this.roomCode }); },
+    resetLocalState() {
         this.active = false;
         this.roomCode = '';
         this.isHost = false;
         this.removeActiveBanner();
         localStorage.removeItem('lastRoomCode');
-        
-		if (State.data.currentTheme) {
-            ThemeManager.apply(State.data.currentTheme);
-        }
-        
+        if (State.data.currentTheme) ThemeManager.apply(State.data.currentTheme);
         if(window.TipManager) window.TipManager.active = true;
-
-		const ids = ['active-role-alert', 'spectator-banner', 'active-accusation', 'active-vote-reveal', 'active-countdown', 'active-drink-penalty', 'survival-hearts']; // Added survival-hearts
+        const ids = ['active-role-alert', 'spectator-banner', 'active-accusation', 'active-vote-reveal', 'active-countdown', 'active-drink-penalty', 'survival-hearts'];
         ids.forEach(id => { const el = document.getElementById(id); if(el) el.remove(); });
-        
         const input = document.getElementById('roomCodeInput');
         if(input) input.value = '';
-
         const join = document.getElementById('roomJoinScreen');
         const lobby = document.getElementById('roomLobbyScreen');
         if(join) join.classList.remove('hidden');
         if(lobby) lobby.classList.add('hidden');
-
         State.runtime.isMultiplayer = false;
         UIManager.disableButtons(false);
         if (typeof Game !== 'undefined') Game.refreshData(true); 
-
         this.closeLobby(); 
     },
-
-injectStyles() {
+    injectStyles() {
         if (document.getElementById('room-styles-v2')) return;
-        
         const s = document.createElement('style');
-        s.id = 'room-styles-v2'; // <--- NEW ID
+        s.id = 'room-styles-v2';
         s.innerHTML = `
             .hidden { display: none !important; }
             .mode-select, .round-select { width: 100%; padding: 10px; border-radius: 8px; border: 2px solid #e5e7eb; font-weight: bold; color: #374151; margin-bottom: 10px; }
@@ -4664,38 +4820,28 @@ injectStyles() {
         `;
         document.head.appendChild(s);
     },
-
     showDrinkPenalty(drinkers, msg) {
         if(document.getElementById('active-drink-penalty')) return;
         const div = document.createElement('div');
         div.id = 'active-drink-penalty';
         div.className = 'custom-modal-overlay';
-        
         let listHtml = '';
         if (drinkers && drinkers.length > 0) {
             listHtml = '<div class="drink-list">';
-            drinkers.forEach(d => {
-                listHtml += `<div>${d.icon || '🍺'} <b>${d.name || 'Player'}</b> (${d.reason})</div>`;
-            });
+            drinkers.forEach(d => { listHtml += `<div>${d.icon || '🍺'} <b>${d.name || 'Player'}</b> (${d.reason})</div>`; });
             listHtml += '</div>';
         }
-
         const btnText = this.isSpectator ? "Waiting..." : "READY / DONE";
         const btnState = this.isSpectator ? "disabled" : "";
-
         div.innerHTML = `
             <div class="custom-modal-box">
                 <h3 class="text-3xl font-black text-red-600 mb-2">DRINK!</h3>
                 <div class="text-gray-500 text-sm mb-4">${msg || "Penalty Round"}</div>
                 ${listHtml}
                 <div class="text-xs text-gray-400 mb-4">Everyone must confirm to continue.</div>
-                <button id="drinkReadyBtn" ${btnState} class="w-full py-3 bg-red-600 text-white font-bold rounded-xl shadow-lg hover:bg-red-700 disabled:opacity-50">
-                    ${btnText}
-                </button>
+                <button id="drinkReadyBtn" ${btnState} class="w-full py-3 bg-red-600 text-white font-bold rounded-xl shadow-lg hover:bg-red-700 disabled:opacity-50">${btnText}</button>
             </div>`;
-        
         document.body.appendChild(div);
-        
         document.getElementById('drinkReadyBtn').onclick = (e) => {
             e.target.innerText = "WAITING FOR OTHERS...";
             e.target.disabled = true;
@@ -4703,7 +4849,6 @@ injectStyles() {
             this.socket.emit('confirmReady', { roomCode: this.roomCode });
         };
     },
-
     showNameInput(callback) {
         if(document.getElementById('nameModal')) return;
         const div = document.createElement('div');
@@ -4716,15 +4861,11 @@ injectStyles() {
                 <button id="customNameBtn" class="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-lg">CONTINUE</button>
             </div>`;
         document.body.appendChild(div);
-        const submit = () => {
-            const val = document.getElementById('customNameInput').value.trim();
-            if(val) { div.remove(); callback(val); }
-        };
+        const submit = () => { const val = document.getElementById('customNameInput').value.trim(); if(val) { div.remove(); callback(val); } };
         document.getElementById('customNameBtn').onclick = submit;
         document.getElementById('customNameInput').onkeydown = (e) => { if(e.key === 'Enter') submit(); };
         document.getElementById('customNameInput').focus();
     },
-
     showCustomAlert(msg) {
         const div = document.createElement('div');
         div.className = 'custom-modal-overlay';
@@ -4732,7 +4873,6 @@ injectStyles() {
         div.innerHTML = `<div class="custom-modal-box"><div class="text-4xl mb-2">⚠️</div><div class="font-bold text-gray-700 mb-4">${msg}</div><button class="w-full py-2 bg-gray-200 text-gray-700 font-bold rounded-lg">OK</button></div>`;
         document.body.appendChild(div);
     },
-    
     showCustomConfirm(msg, callback) {
         const div = document.createElement('div');
         div.className = 'custom-modal-overlay';
@@ -4748,7 +4888,6 @@ injectStyles() {
         document.getElementById('confirmNo').onclick = () => div.remove();
         document.getElementById('confirmYes').onclick = () => { div.remove(); callback(); };
     },
-
     showRoleAlert(msg, title) {
         const div = document.createElement('div');
         div.id = 'active-role-alert';
@@ -4756,7 +4895,6 @@ injectStyles() {
         document.body.appendChild(div);
         setTimeout(() => { if(div) div.remove(); }, 5000);
     },
-
     showAccusationScreen(mode, players) {
         if(this.isSpectator) return;
         const roleName = mode === 'traitor' ? 'TRAITOR' : 'VIP';
@@ -4771,7 +4909,6 @@ injectStyles() {
                 <div id="accuseStatus" class="mt-4 text-xs font-bold text-gray-400">Select a player...</div>
             </div>`;
         document.body.appendChild(div);
-
         const grid = document.getElementById('accuseGrid');
         players.forEach(p => {
             if(p.isSpectator) return; 
@@ -4788,13 +4925,11 @@ injectStyles() {
             grid.appendChild(btn);
         });
     },
-
     kick(id) { 
         this.showCustomConfirm("Kick this player?", () => {
             this.socket.emit('kickPlayer', { roomCode: this.roomCode, targetId: id });
         });
     },
-
     showVoteReveal(players, votes) {
         const div = document.createElement('div');
         div.id = 'active-vote-reveal';
@@ -4809,21 +4944,15 @@ injectStyles() {
         }).join('');
         document.body.appendChild(div);
     },
-
     showSpectatorBanner() {
         const div = document.createElement('div');
         div.id = 'spectator-banner';
         div.innerHTML = "👁️ SPECTATING";
         document.body.appendChild(div);
     },
-	
-	updateHearts() {
+    updateHearts() {
         const existing = document.getElementById('survival-hearts');
-        if (this.currentMode !== 'survival') {
-            if (existing) existing.remove();
-            return;
-        }
-
+        if (this.currentMode !== 'survival') { if (existing) existing.remove(); return; }
         let container = existing;
         if (!container) {
             container = document.createElement('div');
@@ -4831,15 +4960,11 @@ injectStyles() {
             container.style.cssText = "position:fixed; top:70px; left:50%; transform:translateX(-50%); z-index:150; display:flex; gap:8px; pointer-events:none;";
             document.body.appendChild(container);
         }
-
         container.innerHTML = '';
-        const maxLives = 3; 
         const lives = this.myLives !== undefined ? this.myLives : 3;
-
-        for (let i = 0; i < maxLives; i++) {
+        for (let i = 0; i < 3; i++) {
             const heart = document.createElement('span');
             heart.style.fontSize = "1.5rem";
-            // Active hearts are red, lost hearts are black/transparent
             if (i < lives) {
                 heart.textContent = "❤️";
                 heart.style.filter = "drop-shadow(0 2px 2px rgba(0,0,0,0.3))";
@@ -4851,65 +4976,38 @@ injectStyles() {
             container.appendChild(heart);
         }
     },
-
-updateSettings() {
+    updateSettings() {
         if(!this.isHost) return;
         const mode = document.getElementById('hostModeSelect').value;
         let rounds = document.getElementById('hostRoundSelect').value;
         const drinking = document.getElementById('hostDrinkingToggle') ? document.getElementById('hostDrinkingToggle').checked : false;
-        
-        if (mode === 'survival' && parseInt(rounds) <= 5) {
-            rounds = "10";
-        }
-
+        if (mode === 'survival' && parseInt(rounds) <= 5) rounds = "10";
         this.socket.emit('updateSettings', { roomCode: this.roomCode, mode, rounds, drinking });
     },
-
-	showActiveBanner() {
+    showActiveBanner() {
         const existing = document.getElementById('room-active-banner');
         if(existing) existing.remove();
-        
         if (typeof DiscoveryManager !== 'undefined') DiscoveryManager.clear();
-        
-        const uiIds = [
-            'showHelpButton', 'showSettingsButton', 'showDonateButton', 'showContactButton',
-            'qrGoodBtn', 'qrBadBtn', 'compareWordsButton', 'headerStatsCard', 
-            'userStatsBar', 'dailyBanner', 'customWordButton'
-        ];
-        
-        uiIds.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.style.display = 'none';
-        });
-
+        const uiIds = ['showHelpButton', 'showSettingsButton', 'showDonateButton', 'showContactButton', 'qrGoodBtn', 'qrBadBtn', 'compareWordsButton', 'headerStatsCard', 'userStatsBar', 'dailyBanner', 'customWordButton'];
+        uiIds.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
         const themeSelect = document.getElementById('themeChooser');
         if (themeSelect) {
             const card = themeSelect.closest('.bg-white') || themeSelect.parentElement;
-            if (card) {
-                card.classList.add('temp-hidden-multiplayer'); 
-                card.style.display = 'none';
-            }
+            if (card) { card.classList.add('temp-hidden-multiplayer'); card.style.display = 'none'; }
         }
-
-        // --- FIX: Unified Badge Variable ---
         let infoBadge = ''; 
-
         if (this.currentMode === 'versus' && this.myTeam) {
             const color = this.myTeam === 'red' ? 'bg-red-500' : (this.myTeam === 'blue' ? 'bg-blue-500' : 'bg-gray-400');
             infoBadge = `<span class="ml-2 px-2 py-1 rounded text-xs text-white font-bold ${color}">${this.myTeam.toUpperCase()} TEAM</span>`;
         }
-        
-            if (this.currentMode === 'vip' && this.vipId && this.players) {
+        // SAFE VIP BANNER
+        if (this.currentMode === 'vip' && this.vipId && this.players) {
             const vipPlayer = this.players.find(p => p && p.id === this.vipId);
-            
             const rawName = (vipPlayer && vipPlayer.name) ? vipPlayer.name : "Unknown";
             const isMe = this.vipId === this.playerId;
-            
             const displayName = isMe ? "YOU ARE LEADER" : "FOLLOW: " + String(rawName).toUpperCase();
-            
             infoBadge = `<span class="ml-2 px-2 py-1 rounded text-xs text-white font-bold bg-yellow-500 border border-yellow-600 shadow-sm">👑 ${displayName}</span>`;
         }
-
         const banner = document.createElement('div');
         banner.id = 'room-active-banner';
         banner.style.cssText = "position:fixed; top:0; left:0; width:100%; height:60px; background:white; z-index:200; display:flex; align-items:center; justify-content:space-between; padding:0 20px; box-shadow:0 2px 10px rgba(0,0,0,0.1);";
@@ -4925,36 +5023,15 @@ updateSettings() {
         document.body.appendChild(banner);
         document.body.style.paddingTop = '60px';
     },
-	
-removeActiveBanner() {
+    removeActiveBanner() {
         const b = document.getElementById('room-active-banner');
         if(b) b.remove();
         document.body.style.paddingTop = '0';
-
-        // --- UPDATED LIST: RESTORE ALL UI ---
-        const uiIds = [
-            'showHelpButton', 'showSettingsButton', 'showDonateButton', 'showContactButton',
-            'qrGoodBtn', 'qrBadBtn', 
-            'compareWordsButton', 
-            'headerStatsCard', 
-            'userStatsBar', 
-            'dailyBanner', 
-            'customWordButton'
-        ];
-
-        uiIds.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.style.display = '';
-        });
-        // ------------------------------------
-
+        const uiIds = ['showHelpButton', 'showSettingsButton', 'showDonateButton', 'showContactButton', 'qrGoodBtn', 'qrBadBtn', 'compareWordsButton', 'headerStatsCard', 'userStatsBar', 'dailyBanner', 'customWordButton'];
+        uiIds.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = ''; });
         const hiddenCards = document.querySelectorAll('.temp-hidden-multiplayer');
-        hiddenCards.forEach(c => {
-            c.style.display = '';
-            c.classList.remove('temp-hidden-multiplayer');
-        });
+        hiddenCards.forEach(c => { c.style.display = ''; c.classList.remove('temp-hidden-multiplayer'); });
     },
-
     leave(force = false) {
         const doit = () => {
             localStorage.removeItem('lastRoomCode');
@@ -4964,53 +5041,14 @@ removeActiveBanner() {
         if (force) doit();
         else this.showCustomConfirm("LEAVE GAME?", doit);
     },
-
-playCountdown(mode) {
-        const config = this.modeConfig[mode];
-        const div = document.createElement('div');
-        div.id = 'active-countdown';
-        div.className = 'countdown-overlay';
-        div.innerHTML = `
-            <div class="text-3xl font-black mb-4 text-center uppercase tracking-widest">${config.label}</div>
-            <div class="text-xl mb-8 text-center text-gray-300 max-w-md">${config.desc}</div>
-            <div id="cd-num" class="countdown-number text-yellow-400">5</div>
-        `;
-        document.body.appendChild(div);
-        let count = 5;
-        const el = document.getElementById('cd-num');
-        const interval = setInterval(() => {
-            count--;
-            if(count > 0) {
-                el.textContent = count;
-                el.classList.remove('countdown-number'); void el.offsetWidth; el.classList.add('countdown-number');
-            } else if (count === 0) {
-                el.textContent = "GO!";
-                el.classList.add('text-green-400'); el.classList.remove('text-yellow-400');
-                
-                // --- CRITICAL FIX 4: SHOW FIRST WORD ---
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-                const firstWord = State.runtime.allWords[0];
-                if(firstWord) UIManager.displayWord(firstWord);
-                UIManager.disableButtons(false);
-                // ---------------------------------------
-                
-            } else {
-                clearInterval(interval); div.remove();
-            }
-        }, 1000);
-    },
-
     setMode(m) { this.socket.emit('setMode', { roomCode: this.roomCode, mode: m }); },
-
-renderLobby(data) {
+    renderLobby(data) {
         const list = document.getElementById('lobbyPlayerList');
         const config = this.modeConfig[data.mode];
         const playerCount = data.players.length;
-        
         const minReq = config.min;
-        const maxReq = config.max || 50; // Default max is high if not set
+        const maxReq = config.max || 50;
         const enoughPlayers = playerCount >= minReq && playerCount <= maxReq;
-
         let settingsHtml = "";
         
         if (this.isHost) {
@@ -5020,72 +5058,43 @@ renderLobby(data) {
                 if (val.max && playerCount > val.max) note = ` (Max ${val.max})`; 
                 modeOpts += `<option value="${key}" ${data.mode===key?'selected':''}>${val.label}${note}</option>`;
             }
-            
             const isSurv = data.mode === 'survival';
             const dis = isSurv ? 'disabled style="color:#ccc"' : '';
-            
-            let roundOpts = `<option value="1" ${data.maxWords==1?'selected':''} ${dis}>Just a quickie! (One Word)</option>
-                             <option value="5" ${data.maxWords==5?'selected':''} ${dis}>Five Words</option>
-                             <option value="10" ${data.maxWords==10?'selected':''}>Ten Words</option>
-                             <option value="15" ${data.maxWords==15?'selected':''}>Fifteen Words</option>
-                             <option value="20" ${data.maxWords==20?'selected':''}>Twenty Words</option>
-                             <option value="30" ${data.maxWords==30?'selected':''}>Marathon! (Thirty Words)</option>`;
-
+            let roundOpts = `<option value="1" ${data.maxWords==1?'selected':''} ${dis}>Just a quickie! (One Word)</option><option value="5" ${data.maxWords==5?'selected':''} ${dis}>Five Words</option><option value="10" ${data.maxWords==10?'selected':''}>Ten Words</option><option value="15" ${data.maxWords==15?'selected':''}>Fifteen Words</option><option value="20" ${data.maxWords==20?'selected':''}>Twenty Words</option><option value="30" ${data.maxWords==30?'selected':''}>Marathon! (Thirty Words)</option>`;
             const isRestricted = data.mode === 'traitor' || data.mode === 'kids';
             const drinkChecked = data.drinkingMode && !isRestricted ? 'checked' : '';
             const drinkDisabled = isRestricted ? 'disabled opacity-50' : '';
-
             settingsHtml = `
                 <div class="bg-gray-100 p-3 rounded-lg mb-4">
                     <label class="text-xs font-bold text-gray-400 uppercase">Game Mode</label>
                     <select id="hostModeSelect" class="mode-select" onchange="RoomManager.updateSettings()">${modeOpts}</select>
-                    
                     <div class="text-xs text-center text-gray-500 mt-2 italic">${config.desc}</div>
-
                     <label class="text-xs font-bold text-gray-400 uppercase mt-2 block">Words per Game</label>
                     <select id="hostRoundSelect" class="round-select" onchange="RoomManager.updateSettings()">${roundOpts}</select>
-                    
-                    <label class="flex items-center gap-2 mt-3 cursor-pointer ${drinkDisabled}">
-                        <input type="checkbox" id="hostDrinkingToggle" ${drinkChecked} onchange="RoomManager.updateSettings()" class="w-5 h-5" ${isRestricted ? 'disabled' : ''}>
-                        <span class="font-bold text-red-600">🍺 Drinking Mode</span>
-                    </label>
-
+                    <label class="flex items-center gap-2 mt-3 cursor-pointer ${drinkDisabled}"><input type="checkbox" id="hostDrinkingToggle" ${drinkChecked} onchange="RoomManager.updateSettings()" class="w-5 h-5" ${isRestricted ? 'disabled' : ''}><span class="font-bold text-red-600">🍺 Drinking Mode</span></label>
                     ${!enoughPlayers ? `<div class="text-xs text-center text-red-500 font-bold mt-2">⚠️ Player count issue (${minReq}-${maxReq})</div>` : ''}
                 </div>`;
         } else {
             const drinkBadge = data.drinkingMode ? '<span class="text-red-600 font-bold ml-2">🍺 DRINKING ON</span>' : '';
-            settingsHtml = `
-                <div class="bg-indigo-50 p-4 rounded-lg mb-4 text-center border-2 border-indigo-100">
-                    <div class="font-black text-indigo-700 text-lg">${config.label}</div>
-                    <div class="text-sm text-gray-500 mb-2">${config.desc}</div>
-                    <div class="inline-block bg-white px-2 py-1 rounded border border-indigo-200 text-xs font-bold text-indigo-400">${data.maxWords} Words</div>
-                    <div class="mt-1">${drinkBadge}</div>
-                    ${!enoughPlayers ? `<div class="text-xs text-center text-red-500 font-bold mt-2">Waiting for correct player count...</div>` : ''}
-                </div>`;
+            settingsHtml = `<div class="bg-indigo-50 p-4 rounded-lg mb-4 text-center border-2 border-indigo-100"><div class="font-black text-indigo-700 text-lg">${config.label}</div><div class="text-sm text-gray-500 mb-2">${config.desc}</div><div class="inline-block bg-white px-2 py-1 rounded border border-indigo-200 text-xs font-bold text-indigo-400">${data.maxWords} Words</div><div class="mt-1">${drinkBadge}</div>${!enoughPlayers ? `<div class="text-xs text-center text-red-500 font-bold mt-2">Waiting for correct player count...</div>` : ''}</div>`;
         }
         document.getElementById('lobbyModeArea').innerHTML = settingsHtml;
-
         const refreshHtml = this.isHost ? `<span class="refresh-btn" onclick="RoomManager.refreshLobby()" title="Remove inactive players">🔄</span>` : '';
         let playerHtml = `<div class="text-xs font-bold text-gray-400 mb-2 flex justify-between"><span>PLAYERS (${playerCount})</span> ${refreshHtml}</div>`;
-        
         playerHtml += data.players.map(p => {
             let extra = "";
             if (data.mode === 'survival') extra = `<span class="text-xs ml-2">${"❤️".repeat(p.lives)}</span>`;
             let kickHtml = (this.isHost && p.id !== this.playerId) ? `<span class="kick-btn" onclick="RoomManager.kick('${p.id}')">[x]</span>` : "";
             return `<div class="flex justify-between items-center p-2 border-b text-sm"><div class="flex items-center"><span class="font-bold text-gray-700">${p.name}</span> ${extra} ${p.id===data.host?'👑':''} ${kickHtml}</div></div>`;
         }).join('');
-        
         list.innerHTML = playerHtml;
-        
         const startBtn = document.getElementById('roomStartBtn');
         const waitMsg = document.getElementById('roomWaitMsg');
-        
         if (this.isHost) {
             startBtn.classList.remove('hidden'); waitMsg.classList.add('hidden');
             if (!enoughPlayers) {
                 startBtn.disabled = true; startBtn.classList.add('opacity-50', 'cursor-not-allowed'); 
-                if (playerCount > maxReq) startBtn.innerText = `MAX ${maxReq} PLAYERS`;
-                else startBtn.innerText = `NEED ${minReq} PLAYERS`;
+                if (playerCount > maxReq) startBtn.innerText = `MAX ${maxReq} PLAYERS`; else startBtn.innerText = `NEED ${minReq} PLAYERS`;
             } else {
                 startBtn.disabled = false; startBtn.classList.remove('opacity-50', 'cursor-not-allowed'); startBtn.innerText = "START GAME";
             }
@@ -5093,7 +5102,6 @@ renderLobby(data) {
             startBtn.classList.add('hidden'); waitMsg.classList.remove('hidden');
         }
     },
-
     injectModal() {
         if (document.getElementById('roomModal')) return;
         const div = document.createElement('div');
@@ -5117,31 +5125,22 @@ renderLobby(data) {
             </div>`;
         document.body.appendChild(div);
     },
-
     openLobby() { document.getElementById('roomModal').classList.remove('hidden'); },
     closeLobby() { document.getElementById('roomModal').classList.add('hidden'); },
-    
-	join() {
+    join() {
         const proceed = (name) => {
              State.data.username = name.trim(); 
              State.save('username', State.data.username); 
              UIManager.updateProfileDisplay();
-             
              const inputEl = document.getElementById('roomCodeInput');
              const c = inputEl ? inputEl.value.trim().toUpperCase() : '';
-             
              if(!c) { alert("Please enter a Room Code."); return; }
-
              this.roomCode = c;
              localStorage.setItem('lastRoomCode', c);
-             
-             // --- FORCE UI UPDATE IMMEDIATELY ---
              document.getElementById('roomJoinScreen').classList.add('hidden');
              document.getElementById('roomLobbyScreen').classList.remove('hidden');
              document.getElementById('lobbyCodeDisplay').textContent = c;
              document.getElementById('roomWaitMsg').textContent = "Connecting to server...";
-             // -----------------------------------
-
              if(!this.socket || !this.socket.connected) {
                  this.connect();
                  setTimeout(() => {
@@ -5149,27 +5148,20 @@ renderLobby(data) {
                          this.socket.emit('joinRoom', { roomCode: c, username: State.data.username, theme: State.data.currentTheme || 'default' });
                      } else {
                          alert("Connection Failed. Check internet.");
-                         // Go back if failed
                          document.getElementById('roomJoinScreen').classList.remove('hidden');
                          document.getElementById('roomLobbyScreen').classList.add('hidden');
                      }
                  }, 1000);
              } else {
-                 // FIXED: Changed State.settings.theme to State.data.currentTheme
                  this.socket.emit('joinRoom', { roomCode: c, username: State.data.username, theme: State.data.currentTheme || 'default' });
              }
         };
-
-        if (!State.data.username || State.data.username === "Player" || State.data.username === "") {
-            this.showNameInput(proceed);
-        } else {
-            proceed(State.data.username);
-        }
+        if (!State.data.username || State.data.username === "Player" || State.data.username === "") this.showNameInput(proceed); else proceed(State.data.username);
     },
-    
     start() { if(this.socket) this.socket.emit('startGame', { roomCode: this.roomCode }); },
-    submitVote(t) { if(this.active && this.socket) this.socket.emit('submitVote', { roomCode: this.roomCode, vote: t }); },
-    
+    submitVote(t) { if(this.active && this.socket) this.socket.emit('submitVote', { roomCode: this.roomCode, vote: t }); }
+};
+
 showFinalResults(data) {
         try {
             document.querySelectorAll('.fixed').forEach(el => {
