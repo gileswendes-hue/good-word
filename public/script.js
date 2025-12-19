@@ -4393,7 +4393,8 @@ const RoomManager = {
     myLives: 3,
     isSpectator: false,
     drinkingMode: false,
-    
+    listenersAttached: false,
+
     // DATA STORES
     roundHistory: [], 
     vipId: null,      
@@ -4403,7 +4404,7 @@ const RoomManager = {
         'coop': { label: '🤝 Co-op Sync', desc: 'Vote together! Match with the Global Majority.', min: 2 },
         'okstoopid': { label: '💘 OK Stoopid', desc: 'Couples Mode. Test your compatibility!', min: 2, max: 2 },
         'versus': { label: '⚔️ Team Versus', desc: 'Red vs Blue. Best Team wins.', min: 4 },
-        'vip': { label: '👑 Follow the Leader', desc: 'One VIP. Vote exactly like them.', min: 3 },
+        // VIP MODE REMOVED HERE
         'hipster': { label: '🕶️ The Hipster', desc: 'Minority Rules. Be unique!', min: 3 },
         'speed': { label: '⏱️ Speed Demon', desc: 'Vote fast! Speed and accuracy wins.', min: 2 },
         'survival': { label: '💣 Sudden Death', desc: 'Three Lives. Vote with majority, or die.', min: 3 },
@@ -4450,7 +4451,18 @@ const RoomManager = {
 connect() {
         try {
             if (typeof io === 'undefined') return;
-            this.socket = io();
+            
+            // 1. Establish connection if missing
+            if (!this.socket) {
+                this.socket = io();
+            }
+
+            // 2. STOP DUPLICATE LISTENERS (The Rejoin Fix)
+            if (this.listenersAttached) {
+                console.log("⚡ Listeners already attached. Skipping init.");
+                return;
+            }
+            this.listenersAttached = true;
             
             this.socket.on('connect', () => { 
                 console.log("✅ Socket Connected", this.socket.id);
@@ -4472,7 +4484,7 @@ connect() {
                 
                 if (data.players) this.players = data.players;
 
-                // Optimization: Only update DOM if specific data changed to reduce lag
+                // Only render lobby if we are NOT playing
                 if (!this.active) {
                     if (document.getElementById('roomModal').classList.contains('hidden')) {
                          this.openLobby();
@@ -4495,7 +4507,8 @@ connect() {
                     this.myLives = me.lives;
                     this.isSpectator = me.isSpectator;
                 } else {
-                    this.resetLocalState();
+                    // Only reset if we were previously active to avoid flickering
+                    if (this.active) this.resetLocalState();
                 }
             });
             
@@ -4516,17 +4529,15 @@ connect() {
                 this.vipId = data.vipId; 
                 if (data.players) this.players = data.players;
 
-                // --- DICTIONARY SYNC ---
+                // Dictionary Check
                 if (!State.runtime.allWords || State.runtime.allWords.length < 50) {
-                    console.log("📚 Loading Dictionary...");
                     const all = await API.getAllWords();
                     State.runtime.allWords = all;
                 }
 
-                // --- DETERMINISTIC SHUFFLE ---
+                // Deterministic Shuffle
                 let wordsToShuffle = [...State.runtime.allWords];
                 const seed = data.gameSeed || this.roomCode;
-                console.log("🎲 Shuffling with Seed:", seed);
                 State.runtime.allWords = SeededShuffle.shuffle(wordsToShuffle, seed);
                 
                 State.runtime.currentWordIndex = 0;
@@ -4545,7 +4556,6 @@ connect() {
 
             this.socket.on('roundResult', ({ mode, data, players, votes }) => {
                 if(!this.active) return;
-                console.log("🗳️ Round Result:", data);
                 
                 if (players) this.players = players; 
                 const me = players.find(p => p.id === this.playerId);
@@ -4576,16 +4586,9 @@ connect() {
                 }
                 UIManager.showPostVoteMessage(msg);
 
-                // --- NEXT WORD TIMER ---
                 setTimeout(() => {
-                    // CRITICAL FIX: Check if game is still active before advancing!
-                    // If 'gameOver' fired during this 3s wait, 'this.active' will be false.
-                    if (!this.active) {
-                        console.log("🛑 Timer finished but game is over. Stopping.");
-                        return; 
-                    }
+                    if (!this.active) return; // Stop if game ended
 
-                    console.log("➡️ Advancing to next word");
                     const rev = document.getElementById('active-vote-reveal'); 
                     if(rev) rev.remove();
                     
@@ -4598,17 +4601,14 @@ connect() {
                         wd.style.color = ''; 
                         wd.style.opacity = '1';
                         UIManager.disableButtons(false);
-                    } else {
-                        console.warn("⚠️ No next word found (Index out of bounds)");
                     }
                 }, 3000); 
             });
             
             this.socket.on('gameOver', (data) => {
-                console.log("🏁 Game Over Event Received", data);
                 if (!data) return;
                 
-                this.active = false; // <--- This flag stops the roundResult timer above
+                this.active = false; 
                 State.runtime.isMultiplayer = false;
                 this.removeActiveBanner();
 
@@ -4624,7 +4624,6 @@ connect() {
             });
             
             this.socket.on('kicked', () => { 
-                console.log("🚫 Kicked");
                 this.showCustomAlert("You have been kicked from the room.");
                 this.leave(true);
             });
@@ -4638,34 +4637,26 @@ connect() {
     },
 
 updateBannerInfo() {
-    const banner = document.getElementById('room-active-banner');
-    if (!banner) return;
-    
-    const infoDiv = banner.querySelector('.room-info');
-    if (!infoDiv) return;
+        const banner = document.getElementById('room-active-banner');
+        if (!banner) return;
+        
+        const infoDiv = banner.querySelector('.room-info');
+        if (!infoDiv) return;
 
-    let infoBadge = ''; 
-    if (this.currentMode === 'versus' && this.myTeam) {
-        const color = this.myTeam === 'red' ? 'bg-red-500' : (this.myTeam === 'blue' ? 'bg-blue-500' : 'bg-gray-400');
-        infoBadge = `<span class="ml-2 px-2 py-1 rounded text-xs text-white font-bold ${color}">${this.myTeam.toUpperCase()} TEAM</span>`;
-    }
-    
-    // VIP LOGIC FIX
-    if (this.currentMode === 'vip' && this.vipId) {
-        const vipPlayer = this.players.find(p => p && p.id === this.vipId);
-        const isMe = this.vipId === this.playerId;
-        const displayName = isMe ? "YOU ARE LEADER" : "FOLLOW: " + (vipPlayer ? vipPlayer.name.toUpperCase() : "LEADER");
-        infoBadge = `<span class="ml-2 px-2 py-1 rounded text-xs text-white font-bold bg-yellow-500 border border-yellow-600 shadow-sm animate-pulse">👑 ${displayName}</span>`;
-    }
-
-    const config = this.modeConfig[this.currentMode] || { label: 'Multiplayer' };
-    
-    infoDiv.innerHTML = `
-        <span class="font-mono bg-gray-100 px-1 rounded mr-2 text-gray-800 font-bold">${this.roomCode}</span> 
-        <span class="text-sm md:text-base font-bold text-gray-700">${config.label}</span>
-        ${infoBadge}
-    `;
-},
+        let infoBadge = ''; 
+        if (this.currentMode === 'versus' && this.myTeam) {
+            const color = this.myTeam === 'red' ? 'bg-red-500' : (this.myTeam === 'blue' ? 'bg-blue-500' : 'bg-gray-400');
+            infoBadge = `<span class="ml-2 px-2 py-1 rounded text-xs text-white font-bold ${color}">${this.myTeam.toUpperCase()} TEAM</span>`;
+        }
+        
+        const config = this.modeConfig[this.currentMode] || { label: 'Multiplayer' };
+        
+        infoDiv.innerHTML = `
+            <span class="font-mono bg-gray-100 px-1 rounded mr-2 text-gray-800 font-bold">${this.roomCode}</span> 
+            <span class="text-sm md:text-base font-bold text-gray-700">${config.label}</span>
+            ${infoBadge}
+        `;
+    },
 
     showActiveBanner() {
         const existing = document.getElementById('room-active-banner');
@@ -4846,7 +4837,7 @@ updateBannerInfo() {
     start() { if(this.socket) this.socket.emit('startGame', { roomCode: this.roomCode }); },
     submitVote(t) { if(this.active && this.socket) this.socket.emit('submitVote', { roomCode: this.roomCode, vote: t }); },
 
-    showFinalResults(data) {
+showFinalResults(data) {
         try {
             document.querySelectorAll('.fixed').forEach(el => {
                 if (el.id !== 'roomModal') el.remove(); 
@@ -4856,12 +4847,9 @@ updateBannerInfo() {
             const config = this.modeConfig[mode] || { label: 'Game Over' };
             const rankings = Array.isArray(data.rankings) ? data.rankings : [];
 
-            // 1. VIP / TRAITOR REVEAL
+            // 1. TRAITOR REVEAL ONLY (VIP Removed)
             let roleReveal = "";
-            if (data.specialRoleId) {
-                let roleName = (mode === 'traitor') ? 'Traitor' : 'VIP';
-                let icon = (mode === 'traitor') ? '🕵️' : '👑';
-                
+            if (data.specialRoleId && mode === 'traitor') {
                 let leaderName = "Unknown";
                 const targetId = String(data.specialRoleId);
                 
@@ -4874,7 +4862,7 @@ updateBannerInfo() {
                 
                 roleReveal = `
                 <div class="bg-yellow-100 text-yellow-800 p-2 rounded-lg font-bold text-center mb-4 border border-yellow-300 shadow-sm animate-bounce">
-                    ${icon} The ${roleName} was: <br><span class="text-xl">${leaderName.toUpperCase()}</span>
+                    🕵️ The Traitor was: <br><span class="text-xl">${leaderName.toUpperCase()}</span>
                 </div>`;
             }
 
@@ -4942,6 +4930,7 @@ updateBannerInfo() {
             this.openLobby();
         }
     },
+	
     calculateTrueSync() {
         try {
             const history = this.roundHistory || [];
