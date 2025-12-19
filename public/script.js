@@ -4573,33 +4573,22 @@ this.socket.on('roomUpdate', (data) => {
 			
 this.socket.on('gameOver', (data) => {
                 if (!data) return;
+                
+                // 1. Force state reset
+                this.active = false;
+                State.runtime.isMultiplayer = false;
+                this.removeActiveBanner();
 
-                try {
-                    this.active = false;
-                    State.runtime.isMultiplayer = false;
-                    this.removeActiveBanner();
-                    
-                    // --- FIX: Remove ALL overlay screens, including Vote Reveal ---
-                    const ids = [
-                        'active-role-alert', 
-                        'spectator-banner', 
-                        'active-accusation', 
-                        'active-drink-penalty', 
-                        'active-vote-reveal', 
-                        'active-countdown'    
-                    ];
-                    ids.forEach(id => { const el = document.getElementById(id); if(el) el.remove(); });
-                    // --------------------------------------------------------------
-                    
-                    if (data.msg && data.msg.startsWith('GAME ENDED:')) {
-                        this.showCustomAlert(data.msg);
-                        this.openLobby(); 
-                    } else {
-                        this.showFinalResults(data);
-                    }
-                } catch (e) {
-                    console.error("Game Over Error:", e);
-                    this.openLobby(); 
+                // 2. Clear overlays to prevent "Freeze" visual
+                const ids = ['active-role-alert', 'spectator-banner', 'active-accusation', 'active-drink-penalty', 'active-vote-reveal', 'active-countdown'];
+                ids.forEach(id => { const el = document.getElementById(id); if(el) el.remove(); });
+
+                // 3. Show Results
+                if (data.msg && data.msg.startsWith('GAME ENDED:')) {
+                    this.showCustomAlert(data.msg);
+                    this.openLobby();
+                } else {
+                    this.showFinalResults(data);
                 }
             });
 			
@@ -5191,105 +5180,144 @@ renderLobby(data) {
     submitVote(t) { if(this.active && this.socket) this.socket.emit('submitVote', { roomCode: this.roomCode, vote: t }); },
     
 showFinalResults(data) {
-        // Safe defaults
-        const mode = data.mode || this.currentMode || 'versus'; 
-        const config = this.modeConfig[mode] || { label: 'Game Over' };
+        // --- FAILSAFE START ---
+        try {
+            // 1. Clean up any existing overlays immediately
+            document.querySelectorAll('.fixed').forEach(el => {
+                if (el.id !== 'roomModal') el.remove(); 
+            });
 
-        let roleReveal = "";
-        
-        // --- 1. VIP / TRAITOR LOGIC (Wrapped in Try-Catch to prevent crash) ---
-        if (data.specialRoleId) {
-            try {
-                const roleName = (mode === 'traitor') ? 'Traitor' : 'VIP';
-                const icon = (mode === 'traitor') ? '🕵️' : '👑';
-                
-                const rankings = Array.isArray(data.rankings) ? data.rankings : [];
-                // Check 'p' exists before accessing ID to stop crashes
-                const rolePlayer = rankings.find(p => p && String(p.id) === String(data.specialRoleId));
-                
-                if (rolePlayer) {
-                    const rawName = rolePlayer.name || 'Unknown';
-                    const safeName = String(rawName).toUpperCase();
+            const mode = data.mode || this.currentMode || 'versus'; 
+            const config = this.modeConfig[mode] || { label: 'Game Over' };
+            const rankings = Array.isArray(data.rankings) ? data.rankings : [];
+
+            // --- LOGIC: VIP / TRAITOR IDENTIFICATION ---
+            let roleReveal = "";
+            if (data.specialRoleId) {
+                let roleName = (mode === 'traitor') ? 'Traitor' : 'VIP';
+                let icon = (mode === 'traitor') ? '🕵️' : '👑';
+                let leaderName = "Unknown";
+
+                // Attempt to find leader in rankings, fallback to local player list
+                const leaderInRank = rankings.find(p => String(p.id) === String(data.specialRoleId));
+                if (leaderInRank && leaderInRank.name) {
+                    leaderName = leaderInRank.name;
+                } else if (this.players) {
+                    const leaderInLocal = this.players.find(p => String(p.id) === String(data.specialRoleId));
+                    if (leaderInLocal && leaderInLocal.name) leaderName = leaderInLocal.name;
+                }
+
+                roleReveal = `
+                <div class="bg-yellow-100 text-yellow-800 p-2 rounded-lg font-bold text-center mb-4 border border-yellow-300 shadow-sm animate-bounce">
+                    ${icon} The ${roleName} was: <br><span class="text-xl">${String(leaderName).toUpperCase()}</span>
+                </div>`;
+            }
+
+            // --- LOGIC: CO-OP / OK STOOPID (Client-Side Verification) ---
+            if (mode === 'okstoopid' || mode === 'coop') {
+                // Fix 100% Bug: Calculate true match % locally
+                const stats = this.calculateTrueSync();
+                const pct = stats.pct;
+                const matchText = `${stats.matches}/${stats.total} Matches`;
+
+                if (mode === 'okstoopid') {
+                    // COUPLES MODE
+                    const p1 = rankings[0] ? rankings[0].name : "Player 1";
+                    const p2 = rankings[1] ? rankings[1].name : "Player 2";
                     
-                    roleReveal = `<div class="bg-yellow-100 text-yellow-800 p-2 rounded-lg font-bold text-center mb-4 border border-yellow-300 shadow-sm animate-bounce">
-                        ${icon} The ${roleName} was: <br><span class="text-xl">${safeName}</span>
+                    roleReveal = `
+                    <div class="bg-pink-100 text-pink-800 p-4 rounded-xl font-black text-center mb-4 border-2 border-pink-300 shadow-sm">
+                        <div class="text-sm uppercase tracking-widest mb-1">COMPATIBILITY RATING</div>
+                        <div class="text-5xl mb-2">💘 ${pct}%</div>
+                        <div class="text-xs font-normal mt-2 opacity-75">${matchText}</div>
+                        <button onclick="ShareManager.shareCompatibility('${p1.replace(/'/g, "\\'")}', '${p2.replace(/'/g, "\\'")}', ${pct})" class="mt-3 w-full py-2 bg-pink-500 text-white text-sm font-bold rounded-lg shadow hover:bg-pink-600 transition flex items-center justify-center gap-2">
+                            <span>📸</span> SHARE COUPON
+                        </button>
                     </div>`;
                 } else {
-                    // Fallback if player left
-                    roleReveal = `<div class="bg-yellow-100 text-yellow-800 p-2 rounded-lg font-bold text-center mb-4 border border-yellow-300 shadow-sm">
-                        ${icon} The ${roleName} has left.
+                    // CO-OP TEAM MODE
+                    roleReveal = `
+                    <div class="bg-indigo-100 text-indigo-800 p-4 rounded-xl font-black text-center mb-4 border-2 border-indigo-300 shadow-sm">
+                        <div class="text-sm uppercase tracking-widest mb-1">TEAM SYNC SCORE</div>
+                        <div class="text-5xl mb-2">🤝 ${pct}%</div>
+                        <div class="text-xs font-normal mt-2 opacity-75">${matchText}</div>
                     </div>`;
                 }
-            } catch (err) {
-                console.warn("VIP Banner Error:", err);
-                // Swallow error so the results screen still shows
             }
-        }
 
-        // --- 2. CO-OP vs OK STOOPID (Separated Styles) ---
-        if (mode === 'okstoopid' || mode === 'coop') {
-             // Shared Calculation
-             let score = data.sync !== undefined ? data.sync : (data.rankings[0] ? data.rankings[0].score : 0);
-             const total = parseInt(this.currentRounds) || 10;
-             let pct = Math.floor((score / total) * 100);
-             
-             // Speed Jitter (so 7/10 isn't always 70%)
-             const seed = (this.roomCode || "A").charCodeAt(0);
-             const jitter = (seed + score * 3) % 9; 
-             if (pct > 0 && pct < 100) pct += jitter;
-             if (pct > 100) pct = 100;
-
-             if (mode === 'okstoopid') {
-                 // --- COUPLES MODE (Pink, Hearts, Share Button) ---
-                 const p1 = (data.rankings && data.rankings[0]) ? data.rankings[0].name : "Player 1";
-                 const p2 = (data.rankings && data.rankings[1]) ? data.rankings[1].name : "Player 2";
-
-                 roleReveal = `
-                 <div class="bg-pink-100 text-pink-800 p-4 rounded-xl font-black text-center mb-4 border-2 border-pink-300 shadow-sm">
-                    <div class="text-sm uppercase tracking-widest mb-1">COMPATIBILITY RATING</div>
-                    <div class="text-5xl mb-2">💘 ${pct}%</div>
-                    <button onclick="ShareManager.shareCompatibility('${p1.replace(/'/g, "\\'")}', '${p2.replace(/'/g, "\\'")}', ${pct})" class="w-full py-2 bg-pink-500 text-white text-sm font-bold rounded-lg shadow hover:bg-pink-600 transition flex items-center justify-center gap-2">
-                        <span>📸</span> SHARE COUPON
-                    </button>
-                    <div class="text-xs font-normal mt-3 opacity-75">${score}/${total} Matches + Speed Bonus</div>
-                 </div>`;
-                 
-             } else {
-                 // --- TEAM CO-OP MODE (Blue, Handshake, No Share) ---
-                 roleReveal = `
-                 <div class="bg-indigo-100 text-indigo-800 p-4 rounded-xl font-black text-center mb-4 border-2 border-indigo-300 shadow-sm">
-                    <div class="text-sm uppercase tracking-widest mb-1">TEAM SYNC SCORE</div>
-                    <div class="text-5xl mb-2">🤝 ${pct}%</div>
-                    <div class="text-xs font-normal mt-3 opacity-75">${score}/${total} Matches</div>
-                 </div>`;
-             }
-        }
-
-        let rankHtml = `<div class="mt-4 max-h-40 overflow-y-auto bg-gray-900 rounded-lg p-2">`;
-        if (data.rankings && Array.isArray(data.rankings)) {
-            data.rankings.forEach((p, i) => {
+            // --- LOGIC: LEADERBOARD RENDERING ---
+            let rankHtml = `<div class="mt-4 max-h-40 overflow-y-auto bg-gray-900 rounded-lg p-2">`;
+            rankings.forEach((p, i) => {
                 if (!p) return;
-                const pName = p.name || 'Unknown';
-                rankHtml += `<div class="flex justify-between text-sm py-1 border-b border-gray-700 last:border-0"><span class="text-white">${i+1}. ${pName}</span><span class="font-bold text-yellow-400">${p.score} pts</span></div>`;
+                const safeName = p.name || 'Unknown';
+                const safeScore = typeof p.score === 'number' ? p.score : 0;
+                rankHtml += `<div class="flex justify-between text-sm py-1 border-b border-gray-700 last:border-0">
+                    <span class="text-white">${i+1}. ${safeName}</span>
+                    <span class="font-bold text-yellow-400">${safeScore} pts</span>
+                </div>`;
             });
+            rankHtml += `</div>`;
+
+            // --- RENDER MODAL ---
+            const div = document.createElement('div');
+            div.className = 'fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-4';
+            div.innerHTML = `
+                <div class="bg-gray-800 rounded-2xl w-full max-w-md p-6 border-2 border-indigo-500 relative">
+                    <h2 class="text-2xl font-black text-white text-center mb-2 uppercase">Results</h2>
+                    <div class="text-center text-gray-300 text-sm mb-4">${config.label}</div>
+                    ${roleReveal}
+                    <div class="text-xs text-gray-400 font-bold uppercase mt-4">Round Leaderboard</div>
+                    ${rankHtml}
+                    <div class="flex gap-2 mt-6">
+                        <button onclick="this.closest('.fixed').remove(); RoomManager.leave(true);" class="flex-1 py-3 bg-gray-700 text-white font-bold rounded-xl">Exit</button>
+                        <button onclick="this.closest('.fixed').remove(); RoomManager.openLobby()" class="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl">New Game</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(div);
+
+        } catch (fatalError) {
+            console.error("CRITICAL UI FAIL:", fatalError);
+            // Fallback: If the fancy UI fails, show a browser alert so the user isn't stuck
+            alert("GAME OVER! (Display Error)\nCheck console for details.");
+            this.openLobby();
         }
-        rankHtml += `</div>`;
-        
-        const div = document.createElement('div');
-        div.className = 'fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-4';
-        div.innerHTML = `
-            <div class="bg-gray-800 rounded-2xl w-full max-w-md p-6 border-2 border-indigo-500 relative">
-                <h2 class="text-2xl font-black text-white text-center mb-2 uppercase">Results</h2>
-                <div class="text-center text-gray-300 text-sm mb-4">${config.label}</div>
-                ${roleReveal}
-                <div class="text-xs text-gray-400 font-bold uppercase mt-4">Round Leaderboard</div>
-                ${rankHtml}
-                <div class="flex gap-2 mt-6">
-                    <button onclick="this.closest('.fixed').remove(); RoomManager.leave(true);" class="flex-1 py-3 bg-gray-700 text-white font-bold rounded-xl">Exit</button>
-                    <button onclick="this.closest('.fixed').remove(); RoomManager.openLobby()" class="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl">Next Game</button>
-                </div>
-            </div>`;
-        document.body.appendChild(div);
+    },
+	
+	calculateTrueSync() {
+        try {
+            const words = State.runtime.allWords || [];
+            if (words.length === 0) return { pct: 0, matches: 0, total: 0 };
+
+            let matches = 0;
+            let validWords = 0;
+
+            words.forEach(w => {
+                const good = w.goodVotes || 0;
+                const bad = w.badVotes || 0;
+                const totalVotes = good + bad;
+
+                if (totalVotes > 0) {
+                    validWords++;
+                    // A "Match" in Co-op means everyone voted the same way.
+                    // i.e., Either 0 Good votes OR 0 Bad votes.
+                    if (good === 0 || bad === 0) {
+                        matches++;
+                    }
+                }
+            });
+
+            if (validWords === 0) return { pct: 0, matches: 0, total: 0 };
+            
+            // Calculate strict percentage
+            return {
+                pct: Math.floor((matches / validWords) * 100),
+                matches: matches,
+                total: validWords
+            };
+        } catch (e) {
+            console.warn("Sync Calc failed", e);
+            return { pct: 0, matches: 0, total: 0 };
+        }
     },
 };
 
