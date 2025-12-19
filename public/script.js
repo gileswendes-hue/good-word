@@ -5181,8 +5181,7 @@ updateBannerInfo() {
         const drinking = document.getElementById('hostDrinkingToggle') ? document.getElementById('hostDrinkingToggle').checked : false;
         if (mode === 'survival' && parseInt(rounds) <= 5) rounds = "10";
         this.socket.emit('updateSettings', { roomCode: this.roomCode, mode, rounds, drinking });
-    }
-};
+    },
 
     showFinalResults(data) {
         try {
