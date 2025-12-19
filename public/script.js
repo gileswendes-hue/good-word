@@ -4471,6 +4471,13 @@ connect() {
                     if (input) input.value = savedCode;
                 }
             });
+			
+			this.socket.on('disconnect', () => {
+                console.warn("❌ Socket Disconnected");
+                if (this.active) {
+                    UIManager.showPostVoteMessage("Connection Lost. Reconnecting...");
+                }
+            });
 
             this.socket.on('roomUpdate', (data) => {
                 console.log("📥 Room Update:", data);
@@ -4534,7 +4541,7 @@ connect() {
                 // 2. SURGICAL FIX: REMOVED .sort() 
                 // Using the existing order + shuffle prevents the "Same First Word" loop
                 // caused by sorting identical lists with a static Room Code seed.
-                let wordsToShuffle = [...State.runtime.allWords];
+               let wordsToShuffle = [...State.runtime.allWords].sort((a, b) => a.text.localeCompare(b.text));
                 
                 // 3. Apply Seeded Shuffle
                 const seed = data.gameSeed || this.roomCode;
@@ -4559,18 +4566,16 @@ connect() {
                 // ... (previous code unchanged) ...
                 UIManager.showPostVoteMessage(msg);
 
-                // --- SURGICAL FIX: WRAP-AROUND & UNLOCK ---
-                setTimeout(() => {
+		setTimeout(() => {
                     try {
                         if (!this.active) return;
 
                         const rev = document.getElementById('active-vote-reveal'); 
                         if(rev) rev.remove();
                         
-                        // Increment Index
                         State.runtime.currentWordIndex++;
                         
-                        // SAFETY: Loop back to start if we run out of words
+                        // SAFETY: Loop back to start if we run out of words (Fixes specific freezing case)
                         if (State.runtime.currentWordIndex >= State.runtime.allWords.length) {
                             State.runtime.currentWordIndex = 0;
                         }
@@ -4579,26 +4584,27 @@ connect() {
                         
                         if (nextW) {
                             UIManager.displayWord(nextW);
-                            // Ensure display opacity is reset
+                            // Ensure opacity is reset
                             const wd = DOM.game.wordDisplay;
                             if (wd) {
                                 wd.style.color = ''; 
                                 wd.style.opacity = '1';
                             }
                         } else {
-                            // Fallback if list is somehow empty
                             console.warn("Word list empty/corrupt");
                             UIManager.displayWord({text: "Loading..."});
                         }
                     } catch(err) {
                         console.error("Round transition error:", err);
+                        UIManager.showMessage("Recovering round...");
                     } finally {
-                        // ALWAYS UNLOCK BUTTONS
+                        // CRITICAL: Always unlock buttons to prevent freezing
                         if (this.active && !this.isSpectator) {
                             UIManager.disableButtons(false);
                         }
                     }
                 }, 3000); 
+                // ---------------------------------------------
             });
             
             this.socket.on('gameOver', (data) => {
@@ -5930,7 +5936,6 @@ if (qrBad) {
     },
 	
 async refreshData(u = true) {
-	
 		if (State.runtime.isMultiplayer) {
             console.log("Skipping refreshData during multiplayer match.");
             return; 
