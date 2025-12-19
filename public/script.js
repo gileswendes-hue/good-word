@@ -5028,7 +5028,7 @@ renderLobby(data) {
         const playerCount = data.players.length;
         
         const minReq = config.min;
-        const maxReq = config.max || 50; // Default to 50 if no max set
+        const maxReq = config.max || 50; // Default max is high if not set
         const enoughPlayers = playerCount >= minReq && playerCount <= maxReq;
 
         let settingsHtml = "";
@@ -5037,7 +5037,7 @@ renderLobby(data) {
             let modeOpts = "";
             for (const [key, val] of Object.entries(this.modeConfig)) {
                 let note = (playerCount < val.min) ? ` (Need ${val.min}+)` : '';
-                if (val.max && playerCount > val.max) note = ` (Max ${val.max})`; // Warning if too many
+                if (val.max && playerCount > val.max) note = ` (Max ${val.max})`; 
                 modeOpts += `<option value="${key}" ${data.mode===key?'selected':''}>${val.label}${note}</option>`;
             }
             
@@ -5104,9 +5104,8 @@ renderLobby(data) {
             startBtn.classList.remove('hidden'); waitMsg.classList.add('hidden');
             if (!enoughPlayers) {
                 startBtn.disabled = true; startBtn.classList.add('opacity-50', 'cursor-not-allowed'); 
-                // Detailed Button Text
-                if (playerCount < minReq) startBtn.innerText = `NEED ${minReq} PLAYERS`;
-                else if (playerCount > maxReq) startBtn.innerText = `MAX ${maxReq} PLAYERS`;
+                if (playerCount > maxReq) startBtn.innerText = `MAX ${maxReq} PLAYERS`;
+                else startBtn.innerText = `NEED ${minReq} PLAYERS`;
             } else {
                 startBtn.disabled = false; startBtn.classList.remove('opacity-50', 'cursor-not-allowed'); startBtn.innerText = "START GAME";
             }
@@ -5192,22 +5191,21 @@ renderLobby(data) {
     submitVote(t) { if(this.active && this.socket) this.socket.emit('submitVote', { roomCode: this.roomCode, vote: t }); },
     
 showFinalResults(data) {
-        try {
-            const mode = data.mode || this.currentMode || 'versus'; 
-            const config = this.modeConfig[mode] || { label: 'Game Over' };
+        // Safe defaults
+        const mode = data.mode || this.currentMode || 'versus'; 
+        const config = this.modeConfig[mode] || { label: 'Game Over' };
 
-            let roleReveal = "";
-            
-            // --- VIP / TRAITOR LOGIC ---
-            if (data.specialRoleId) {
+        let roleReveal = "";
+        
+        // --- 1. VIP / TRAITOR LOGIC (Wrapped in Try-Catch to prevent crash) ---
+        if (data.specialRoleId) {
+            try {
                 const roleName = (mode === 'traitor') ? 'Traitor' : 'VIP';
                 const icon = (mode === 'traitor') ? '🕵️' : '👑';
                 
-                const rankings = data.rankings || [];
-                
-                // --- CRITICAL FIX: Check if 'p' exists (p && ...) to prevent crash on null entries ---
+                const rankings = Array.isArray(data.rankings) ? data.rankings : [];
+                // Check 'p' exists before accessing ID to stop crashes
                 const rolePlayer = rankings.find(p => p && String(p.id) === String(data.specialRoleId));
-                // -------------------------------------------------------------------------------------
                 
                 if (rolePlayer) {
                     const rawName = rolePlayer.name || 'Unknown';
@@ -5216,19 +5214,33 @@ showFinalResults(data) {
                     roleReveal = `<div class="bg-yellow-100 text-yellow-800 p-2 rounded-lg font-bold text-center mb-4 border border-yellow-300 shadow-sm animate-bounce">
                         ${icon} The ${roleName} was: <br><span class="text-xl">${safeName}</span>
                     </div>`;
+                } else {
+                    // Fallback if player left
+                    roleReveal = `<div class="bg-yellow-100 text-yellow-800 p-2 rounded-lg font-bold text-center mb-4 border border-yellow-300 shadow-sm">
+                        ${icon} The ${roleName} has left.
+                    </div>`;
                 }
+            } catch (err) {
+                console.warn("VIP Banner Error:", err);
+                // Swallow error so the results screen still shows
             }
+        }
 
-            if (mode === 'okstoopid' || mode === 'coop') {
-                 let score = data.sync !== undefined ? data.sync : (data.rankings[0] ? data.rankings[0].score : 0);
-                 const total = parseInt(this.currentRounds) || 10;
-                 let pct = Math.floor((score / total) * 100);
-                 
-                 const seed = (this.roomCode || "A").charCodeAt(0);
-                 const jitter = (seed + score * 3) % 9; 
-                 if (pct > 0 && pct < 100) pct += jitter;
-                 if (pct > 100) pct = 100;
+        // --- 2. CO-OP vs OK STOOPID (Separated Styles) ---
+        if (mode === 'okstoopid' || mode === 'coop') {
+             // Shared Calculation
+             let score = data.sync !== undefined ? data.sync : (data.rankings[0] ? data.rankings[0].score : 0);
+             const total = parseInt(this.currentRounds) || 10;
+             let pct = Math.floor((score / total) * 100);
+             
+             // Speed Jitter (so 7/10 isn't always 70%)
+             const seed = (this.roomCode || "A").charCodeAt(0);
+             const jitter = (seed + score * 3) % 9; 
+             if (pct > 0 && pct < 100) pct += jitter;
+             if (pct > 100) pct = 100;
 
+             if (mode === 'okstoopid') {
+                 // --- COUPLES MODE (Pink, Hearts, Share Button) ---
                  const p1 = (data.rankings && data.rankings[0]) ? data.rankings[0].name : "Player 1";
                  const p2 = (data.rankings && data.rankings[1]) ? data.rankings[1].name : "Player 2";
 
@@ -5237,42 +5249,47 @@ showFinalResults(data) {
                     <div class="text-sm uppercase tracking-widest mb-1">COMPATIBILITY RATING</div>
                     <div class="text-5xl mb-2">💘 ${pct}%</div>
                     <button onclick="ShareManager.shareCompatibility('${p1.replace(/'/g, "\\'")}', '${p2.replace(/'/g, "\\'")}', ${pct})" class="w-full py-2 bg-pink-500 text-white text-sm font-bold rounded-lg shadow hover:bg-pink-600 transition flex items-center justify-center gap-2">
-                        <span>📸</span> SHARE RESULTS
+                        <span>📸</span> SHARE COUPON
                     </button>
                     <div class="text-xs font-normal mt-3 opacity-75">${score}/${total} Matches + Speed Bonus</div>
                  </div>`;
-            }
-
-            let rankHtml = `<div class="mt-4 max-h-40 overflow-y-auto bg-gray-900 rounded-lg p-2">`;
-            if (data.rankings && Array.isArray(data.rankings)) {
-                data.rankings.forEach((p, i) => {
-                    if (!p) return;
-                    const pName = p.name || 'Unknown';
-                    rankHtml += `<div class="flex justify-between text-sm py-1 border-b border-gray-700 last:border-0"><span class="text-white">${i+1}. ${pName}</span><span class="font-bold text-yellow-400">${p.score} pts</span></div>`;
-                });
-            }
-            rankHtml += `</div>`;
-            
-            const div = document.createElement('div');
-            div.className = 'fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-4';
-            div.innerHTML = `
-                <div class="bg-gray-800 rounded-2xl w-full max-w-md p-6 border-2 border-indigo-500 relative">
-                    <h2 class="text-2xl font-black text-white text-center mb-2 uppercase">Results</h2>
-                    <div class="text-center text-gray-300 text-sm mb-4">${config.label}</div>
-                    ${roleReveal}
-                    <div class="text-xs text-gray-400 font-bold uppercase mt-4">Round Leaderboard</div>
-                    ${rankHtml}
-                    <div class="flex gap-2 mt-6">
-                        <button onclick="this.closest('.fixed').remove(); RoomManager.leave(true);" class="flex-1 py-3 bg-gray-700 text-white font-bold rounded-xl">Exit</button>
-                        <button onclick="this.closest('.fixed').remove(); RoomManager.openLobby()" class="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl">New Game</button>
-                    </div>
-                </div>`;
-            document.body.appendChild(div);
-
-        } catch(e) {
-            console.error("Results Crash Prevented:", e);
-            this.openLobby();
+                 
+             } else {
+                 // --- TEAM CO-OP MODE (Blue, Handshake, No Share) ---
+                 roleReveal = `
+                 <div class="bg-indigo-100 text-indigo-800 p-4 rounded-xl font-black text-center mb-4 border-2 border-indigo-300 shadow-sm">
+                    <div class="text-sm uppercase tracking-widest mb-1">TEAM SYNC SCORE</div>
+                    <div class="text-5xl mb-2">🤝 ${pct}%</div>
+                    <div class="text-xs font-normal mt-3 opacity-75">${score}/${total} Matches</div>
+                 </div>`;
+             }
         }
+
+        let rankHtml = `<div class="mt-4 max-h-40 overflow-y-auto bg-gray-900 rounded-lg p-2">`;
+        if (data.rankings && Array.isArray(data.rankings)) {
+            data.rankings.forEach((p, i) => {
+                if (!p) return;
+                const pName = p.name || 'Unknown';
+                rankHtml += `<div class="flex justify-between text-sm py-1 border-b border-gray-700 last:border-0"><span class="text-white">${i+1}. ${pName}</span><span class="font-bold text-yellow-400">${p.score} pts</span></div>`;
+            });
+        }
+        rankHtml += `</div>`;
+        
+        const div = document.createElement('div');
+        div.className = 'fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-4';
+        div.innerHTML = `
+            <div class="bg-gray-800 rounded-2xl w-full max-w-md p-6 border-2 border-indigo-500 relative">
+                <h2 class="text-2xl font-black text-white text-center mb-2 uppercase">Results</h2>
+                <div class="text-center text-gray-300 text-sm mb-4">${config.label}</div>
+                ${roleReveal}
+                <div class="text-xs text-gray-400 font-bold uppercase mt-4">Round Leaderboard</div>
+                ${rankHtml}
+                <div class="flex gap-2 mt-6">
+                    <button onclick="this.closest('.fixed').remove(); RoomManager.leave(true);" class="flex-1 py-3 bg-gray-700 text-white font-bold rounded-xl">Exit</button>
+                    <button onclick="this.closest('.fixed').remove(); RoomManager.openLobby()" class="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl">Next Game</button>
+                </div>
+            </div>`;
+        document.body.appendChild(div);
     },
 };
 
