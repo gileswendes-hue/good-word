@@ -4451,10 +4451,10 @@ connect() {
         try {
             if (typeof io === 'undefined') return;
             this.socket = io();
-
-            this.socket.on('connect', () => {
-                console.log("Connected");
-                this.playerId = this.socket.id;
+            
+            this.socket.on('connect', () => { 
+                console.log("✅ Socket Connected", this.socket.id);
+                this.playerId = this.socket.id; 
                 const savedCode = localStorage.getItem('lastRoomCode');
                 if (savedCode && !this.active) {
                     const input = document.getElementById('roomCodeInput');
@@ -4463,32 +4463,32 @@ connect() {
             });
 
             this.socket.on('roomUpdate', (data) => {
+                console.log("📥 Room Update:", data);
                 this.isHost = (data.host === this.playerId);
                 this.currentMode = data.mode;
-                this.currentRounds = data.maxWords;
+                this.currentRounds = data.maxWords; 
                 this.drinkingMode = data.drinkingMode;
-                this.vipId = data.vipId;
-
+                this.vipId = data.vipId; 
+                
                 if (data.players) this.players = data.players;
 
-                // LAG FIX: Only re-render Lobby if we are NOT playing
+                // Optimization: Only update DOM if specific data changed to reduce lag
                 if (!this.active) {
                     if (document.getElementById('roomModal').classList.contains('hidden')) {
-                        this.openLobby();
-                        document.getElementById('roomJoinScreen').classList.add('hidden');
-                        document.getElementById('roomLobbyScreen').classList.remove('hidden');
-                        document.getElementById('lobbyCodeDisplay').textContent = this.roomCode;
+                         this.openLobby();
+                         document.getElementById('roomJoinScreen').classList.add('hidden');
+                         document.getElementById('roomLobbyScreen').classList.remove('hidden');
+                         document.getElementById('lobbyCodeDisplay').textContent = this.roomCode;
                     }
                     this.renderLobby(data);
                 } else {
-                    // If playing, just update the top banner (Sync/VIP status)
-                    this.updateBannerInfo();
+                    this.updateBannerInfo(); 
                 }
 
                 if (data.theme && data.theme !== State.data.currentTheme) {
-                    ThemeManager.apply(data.theme, 'temp');
+                    ThemeManager.apply(data.theme, 'temp'); 
                 }
-
+                
                 const me = data.players.find(p => p.id === this.playerId);
                 if (me) {
                     this.myTeam = me.team;
@@ -4498,40 +4498,40 @@ connect() {
                     this.resetLocalState();
                 }
             });
-
+            
             this.socket.on('gameStarted', async (data) => {
+                console.log("🚀 Game Started", data);
                 this.active = true;
                 State.runtime.isMultiplayer = true;
-                if (window.TipManager) window.TipManager.active = false;
-
+                if(window.TipManager) window.TipManager.active = false;
+                
                 this.closeLobby();
-                this.roundHistory = [];
-
+                this.roundHistory = []; 
+                
                 document.querySelectorAll('.fixed').forEach(el => {
-                    if (el.id !== 'roomModal') el.remove();
+                    if (el.id !== 'roomModal') el.remove(); 
                 });
 
                 this.currentMode = data.mode;
-                this.vipId = data.vipId;
+                this.vipId = data.vipId; 
                 if (data.players) this.players = data.players;
 
-                // --- FIXED DETERMINISTIC SHUFFLE ---
-                // 1. Ensure we have the full dictionary loaded first
+                // --- DICTIONARY SYNC ---
                 if (!State.runtime.allWords || State.runtime.allWords.length < 50) {
+                    console.log("📚 Loading Dictionary...");
                     const all = await API.getAllWords();
                     State.runtime.allWords = all;
                 }
 
-                // 2. Clone the array to avoid messing up single player order
+                // --- DETERMINISTIC SHUFFLE ---
                 let wordsToShuffle = [...State.runtime.allWords];
-
-                // 3. Shuffle using the roomCode as the seed (Everyone gets same order)
                 const seed = data.gameSeed || this.roomCode;
+                console.log("🎲 Shuffling with Seed:", seed);
                 State.runtime.allWords = SeededShuffle.shuffle(wordsToShuffle, seed);
-
+                
                 State.runtime.currentWordIndex = 0;
 
-                this.showActiveBanner();
+                this.showActiveBanner(); 
 
                 if (this.isSpectator) {
                     UIManager.disableButtons(true);
@@ -4539,14 +4539,15 @@ connect() {
                 } else {
                     this.playCountdown(data.mode);
                 }
-
+                
                 if (this.currentMode === 'survival') this.updateHearts();
             });
 
             this.socket.on('roundResult', ({ mode, data, players, votes }) => {
-                if (!this.active) return;
-
-                if (players) this.players = players;
+                if(!this.active) return;
+                console.log("🗳️ Round Result:", data);
+                
+                if (players) this.players = players; 
                 const me = players.find(p => p.id === this.playerId);
                 if (me) this.myLives = me.lives;
 
@@ -4557,49 +4558,62 @@ connect() {
                 }
 
                 this.showVoteReveal(players, votes);
-
+                
                 if (mode === 'survival') {
                     this.updateHearts();
                     if (me && me.lives <= 0) {
-                        UIManager.disableButtons(true);
-                        this.showSpectatorBanner();
-                        UIManager.showPostVoteMessage("💀 YOU ARE OUT!");
-                        return;
+                         UIManager.disableButtons(true);
+                         this.showSpectatorBanner();
+                         UIManager.showPostVoteMessage("💀 YOU ARE OUT!");
+                         return;
                     }
                 }
 
                 let msg = data.msg ? data.msg : (mode === 'versus' ? `Sync Score` : `Room Sync: ${data.sync}%`);
                 if (mode === 'versus' && !data.msg) {
-                    const mySync = this.myTeam === 'red' ? data.redSync : data.blueSync;
-                    msg = `Your Team: ${mySync}% Sync`;
+                     const mySync = this.myTeam === 'red' ? data.redSync : data.blueSync;
+                     msg = `Your Team: ${mySync}% Sync`;
                 }
                 UIManager.showPostVoteMessage(msg);
 
+                // --- NEXT WORD TIMER ---
                 setTimeout(() => {
-                    const rev = document.getElementById('active-vote-reveal');
-                    if (rev) rev.remove();
+                    // CRITICAL FIX: Check if game is still active before advancing!
+                    // If 'gameOver' fired during this 3s wait, 'this.active' will be false.
+                    if (!this.active) {
+                        console.log("🛑 Timer finished but game is over. Stopping.");
+                        return; 
+                    }
 
+                    console.log("➡️ Advancing to next word");
+                    const rev = document.getElementById('active-vote-reveal'); 
+                    if(rev) rev.remove();
+                    
                     State.runtime.currentWordIndex++;
                     const nextW = State.runtime.allWords[State.runtime.currentWordIndex];
-
+                    
                     if (nextW) {
                         UIManager.displayWord(nextW);
                         const wd = DOM.game.wordDisplay;
-                        wd.style.color = '';
+                        wd.style.color = ''; 
                         wd.style.opacity = '1';
                         UIManager.disableButtons(false);
+                    } else {
+                        console.warn("⚠️ No next word found (Index out of bounds)");
                     }
-                }, 3000);
+                }, 3000); 
             });
-
+            
             this.socket.on('gameOver', (data) => {
+                console.log("🏁 Game Over Event Received", data);
                 if (!data) return;
-                this.active = false;
+                
+                this.active = false; // <--- This flag stops the roundResult timer above
                 State.runtime.isMultiplayer = false;
                 this.removeActiveBanner();
 
                 const ids = ['active-role-alert', 'spectator-banner', 'active-accusation', 'active-drink-penalty', 'active-vote-reveal', 'active-countdown'];
-                ids.forEach(id => { const el = document.getElementById(id); if (el) el.remove(); });
+                ids.forEach(id => { const el = document.getElementById(id); if(el) el.remove(); });
 
                 if (data.msg && data.msg.startsWith('GAME ENDED:')) {
                     this.showCustomAlert(data.msg);
@@ -4608,8 +4622,9 @@ connect() {
                     this.showFinalResults(data);
                 }
             });
-
-            this.socket.on('kicked', () => {
+            
+            this.socket.on('kicked', () => { 
+                console.log("🚫 Kicked");
                 this.showCustomAlert("You have been kicked from the room.");
                 this.leave(true);
             });
@@ -4617,7 +4632,7 @@ connect() {
                 this.showRoleAlert(msg, "🕵️ YOU ARE THE TRAITOR");
             });
 
-        } catch (e) {
+        } catch(e) {
             console.error("Socket Connect Error", e);
         }
     },
@@ -4879,7 +4894,7 @@ updateBannerInfo() {
                         <div class="text-5xl mb-2">💘 ${pct}%</div>
                         <div class="text-xs font-normal mt-2 opacity-75">${matchText} + Speed Bonus</div>
                         <button onclick="ShareManager.shareCompatibility('${p1.replace(/'/g, "\\'")}', '${p2.replace(/'/g, "\\'")}', ${pct})" class="mt-3 w-full py-2 bg-pink-500 text-white text-sm font-bold rounded-lg shadow hover:bg-pink-600 transition flex items-center justify-center gap-2">
-                            <span>📸</span> SHARE COUPON
+                            <span>📸</span> SHARE RESULT
                         </button>
                     </div>`;
                 } else {
@@ -4916,7 +4931,7 @@ updateBannerInfo() {
                     ${rankHtml}
                     <div class="flex gap-2 mt-6">
                         <button onclick="this.closest('.fixed').remove(); RoomManager.leave(true);" class="flex-1 py-3 bg-gray-700 text-white font-bold rounded-xl">Exit</button>
-                        <button onclick="this.closest('.fixed').remove(); RoomManager.openLobby()" class="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl">New Game</button>
+                        <button onclick="this.closest('.fixed').remove(); RoomManager.openLobby()" class="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl">Next Game!</button>
                     </div>
                 </div>`;
             document.body.appendChild(div);
@@ -5268,7 +5283,7 @@ updateBannerInfo() {
                     ${rankHtml}
                     <div class="flex gap-2 mt-6">
                         <button onclick="this.closest('.fixed').remove(); RoomManager.leave(true);" class="flex-1 py-3 bg-gray-700 text-white font-bold rounded-xl">Exit</button>
-                        <button onclick="this.closest('.fixed').remove(); RoomManager.openLobby()" class="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl">New Game</button>
+                        <button onclick="this.closest('.fixed').remove(); RoomManager.openLobby()" class="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl">Next Game!</button>
                     </div>
                 </div>`;
             document.body.appendChild(div);
