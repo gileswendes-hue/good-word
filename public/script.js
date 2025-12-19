@@ -4440,7 +4440,6 @@ const RoomManager = {
                 this.currentRounds = data.maxWords; 
                 this.drinkingMode = data.drinkingMode;
                 
-                // Safe Update of Player List
                 if (data.players) this.players = data.players;
                 if (data.vipId) this.vipId = data.vipId;
 
@@ -4489,18 +4488,15 @@ const RoomManager = {
                 this.vipId = data.vipId; 
                 if (data.players) this.players = data.players;
 
-                // --- SYNC SAFEGUARD (Fixes desync issues) ---
+                // --- SYNC SAFEGUARD ---
                 if (data.words && Array.isArray(data.words) && data.words.length > 0) {
                     State.runtime.allWords = data.words; 
                 } else {
-                    // Fallback: Everyone fetches local dictionary and sorts alphabetically
-                    // This guarantees sync even if the server didn't send the list
                     const all = await API.getAllWords();
                     State.runtime.allWords = all.sort((a,b) => a.text.localeCompare(b.text));
                 }
                 
                 State.runtime.currentWordIndex = 0;
-                // --------------------------------------------
 
                 if (this.isSpectator) {
                     UIManager.disableButtons(true);
@@ -4519,14 +4515,11 @@ const RoomManager = {
                 const me = players.find(p => p.id === this.playerId);
                 if (me) this.myLives = me.lives;
 
-                // --- SCORING TRACKER (Fixes 0% Bug) ---
                 if (votes) {
                     const validVotes = Object.values(votes).filter(v => v === 'good' || v === 'bad');
-                    // In co-op, a 'match' is when everyone agrees (all votes identical)
                     const isMatch = validVotes.length > 0 && validVotes.every(v => v === validVotes[0]);
                     this.roundHistory.push({ match: isMatch, count: validVotes.length });
                 }
-                // --------------------------------------
 
                 this.showVoteReveal(players, votes);
                 
@@ -4547,7 +4540,6 @@ const RoomManager = {
                 }
                 UIManager.showPostVoteMessage(msg);
 
-                // --- AUTO ADVANCE (Fixes Stuck Screen) ---
                 setTimeout(() => {
                     const rev = document.getElementById('active-vote-reveal'); 
                     if(rev) rev.remove();
@@ -4617,12 +4609,10 @@ const RoomManager = {
                 el.textContent = "GO!";
                 el.classList.add('text-green-400'); el.classList.remove('text-yellow-400');
                 
-                // --- FORCE DISPLAY (Fixes Blank Screen) ---
                 window.scrollTo({ top: 0, behavior: 'smooth' });
                 const firstWord = State.runtime.allWords[0];
                 if(firstWord) UIManager.displayWord(firstWord);
                 UIManager.disableButtons(false);
-                // ------------------------------------------
                 
             } else {
                 clearInterval(interval); div.remove();
@@ -4630,163 +4620,6 @@ const RoomManager = {
         }, 1000);
     },
 
-    showFinalResults(data) {
-        // --- REWRITTEN RESULT LOGIC (CRASH PROOF) ---
-        // This completely replaces the old logic. It is wrapped in a try/catch
-        // and uses safe lookups to prevent freezing.
-        try {
-            document.querySelectorAll('.fixed').forEach(el => {
-                if (el.id !== 'roomModal') el.remove(); 
-            });
-
-            const mode = data.mode || this.currentMode || 'versus'; 
-            const config = this.modeConfig[mode] || { label: 'Game Over' };
-            const rankings = Array.isArray(data.rankings) ? data.rankings : [];
-
-            // 1. VIP / TRAITOR REVEAL (Simplified)
-            let roleReveal = "";
-            if (data.specialRoleId) {
-                let roleName = (mode === 'traitor') ? 'Traitor' : 'VIP';
-                let icon = (mode === 'traitor') ? '🕵️' : '👑';
-                
-                // Safe Name Lookup: Try rankings first, then local player list
-                let leaderName = "Unknown";
-                const targetId = String(data.specialRoleId);
-                
-                const fromRank = rankings.find(p => p && String(p.id) === targetId);
-                if (fromRank && fromRank.name) leaderName = fromRank.name;
-                else {
-                    const fromLocal = this.players.find(p => p && String(p.id) === targetId);
-                    if (fromLocal && fromLocal.name) leaderName = fromLocal.name;
-                }
-                
-                roleReveal = `
-                <div class="bg-yellow-100 text-yellow-800 p-2 rounded-lg font-bold text-center mb-4 border border-yellow-300 shadow-sm animate-bounce">
-                    ${icon} The ${roleName} was: <br><span class="text-xl">${leaderName.toUpperCase()}</span>
-                </div>`;
-            }
-
-            // 2. CO-OP / OK STOOPID SCORING
-            if (mode === 'okstoopid' || mode === 'coop') {
-                const stats = this.calculateTrueSync();
-                const pct = stats.pct;
-                const matchText = `${stats.matches}/${stats.total} Matches`;
-
-                if (mode === 'okstoopid') {
-                    // Safe name fetching for coupon
-                    const p1 = (rankings[0] && rankings[0].name) ? rankings[0].name : "Player 1";
-                    const p2 = (rankings[1] && rankings[1].name) ? rankings[1].name : "Player 2";
-                    
-                    roleReveal = `
-                    <div class="bg-pink-100 text-pink-800 p-4 rounded-xl font-black text-center mb-4 border-2 border-pink-300 shadow-sm">
-                        <div class="text-sm uppercase tracking-widest mb-1">COMPATIBILITY RATING</div>
-                        <div class="text-5xl mb-2">💘 ${pct}%</div>
-                        <div class="text-xs font-normal mt-2 opacity-75">${matchText} + Speed Bonus</div>
-                        <button onclick="ShareManager.shareCompatibility('${p1.replace(/'/g, "\\'")}', '${p2.replace(/'/g, "\\'")}', ${pct})" class="mt-3 w-full py-2 bg-pink-500 text-white text-sm font-bold rounded-lg shadow hover:bg-pink-600 transition flex items-center justify-center gap-2">
-                            <span>📸</span> SHARE COUPON
-                        </button>
-                    </div>`;
-                } else {
-                    roleReveal = `
-                    <div class="bg-indigo-100 text-indigo-800 p-4 rounded-xl font-black text-center mb-4 border-2 border-indigo-300 shadow-sm">
-                        <div class="text-sm uppercase tracking-widest mb-1">TEAM SYNC SCORE</div>
-                        <div class="text-5xl mb-2">🤝 ${pct}%</div>
-                        <div class="text-xs font-normal mt-2 opacity-75">${matchText}</div>
-                    </div>`;
-                }
-            }
-
-            // 3. LEADERBOARD RENDERING
-            let rankHtml = `<div class="mt-4 max-h-40 overflow-y-auto bg-gray-900 rounded-lg p-2">`;
-            rankings.forEach((p, i) => {
-                if (!p) return;
-                const safeName = p.name || 'Unknown';
-                const safeScore = typeof p.score === 'number' ? p.score : 0;
-                rankHtml += `<div class="flex justify-between text-sm py-1 border-b border-gray-700 last:border-0">
-                    <span class="text-white">${i+1}. ${safeName}</span>
-                    <span class="font-bold text-yellow-400">${safeScore} pts</span>
-                </div>`;
-            });
-            rankHtml += `</div>`;
-
-            // 4. DISPLAY MODAL
-            const div = document.createElement('div');
-            div.className = 'fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-4';
-            div.innerHTML = `
-                <div class="bg-gray-800 rounded-2xl w-full max-w-md p-6 border-2 border-indigo-500 relative">
-                    <h2 class="text-2xl font-black text-white text-center mb-2 uppercase">Results</h2>
-                    <div class="text-center text-gray-300 text-sm mb-4">${config.label}</div>
-                    ${roleReveal}
-                    <div class="text-xs text-gray-400 font-bold uppercase mt-4">Round Leaderboard</div>
-                    ${rankHtml}
-                    <div class="flex gap-2 mt-6">
-                        <button onclick="this.closest('.fixed').remove(); RoomManager.leave(true);" class="flex-1 py-3 bg-gray-700 text-white font-bold rounded-xl">Exit</button>
-                        <button onclick="this.closest('.fixed').remove(); RoomManager.openLobby()" class="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl">New Game</button>
-                    </div>
-                </div>`;
-            document.body.appendChild(div);
-
-        } catch (fatalError) {
-            console.error("CRITICAL UI FAIL:", fatalError);
-            alert("GAME OVER!"); // Simple fallback so user isn't stuck
-            this.openLobby();
-        }
-    },
-
-    calculateTrueSync() {
-        try {
-            const history = this.roundHistory || [];
-            if (history.length === 0) return { pct: 0, matches: 0, total: 0 };
-
-            let matches = 0;
-            let total = 0;
-
-            history.forEach(round => {
-                total++;
-                if (round.match) matches++;
-            });
-
-            if (total === 0) return { pct: 0, matches: 0, total: 0 };
-            
-            let pct = Math.floor((matches / total) * 100);
-            
-            // Jitter for speed bonus (only if doing well)
-            if (pct > 50 && pct < 100) {
-                const seed = (this.roomCode || "A").charCodeAt(0) + matches;
-                const bonus = seed % 5; 
-                pct += bonus;
-                if (pct > 100) pct = 100;
-            }
-            
-            return { pct: pct, matches: matches, total: total };
-        } catch (e) {
-            console.warn("Sync Calc failed", e);
-            return { pct: 0, matches: 0, total: 0 };
-        }
-    },
-
-    refreshLobby() { if(this.socket && this.roomCode) this.socket.emit('refreshLobby', { roomCode: this.roomCode }); },
-    resetLocalState() {
-        this.active = false;
-        this.roomCode = '';
-        this.isHost = false;
-        this.removeActiveBanner();
-        localStorage.removeItem('lastRoomCode');
-        if (State.data.currentTheme) ThemeManager.apply(State.data.currentTheme);
-        if(window.TipManager) window.TipManager.active = true;
-        const ids = ['active-role-alert', 'spectator-banner', 'active-accusation', 'active-vote-reveal', 'active-countdown', 'active-drink-penalty', 'survival-hearts'];
-        ids.forEach(id => { const el = document.getElementById(id); if(el) el.remove(); });
-        const input = document.getElementById('roomCodeInput');
-        if(input) input.value = '';
-        const join = document.getElementById('roomJoinScreen');
-        const lobby = document.getElementById('roomLobbyScreen');
-        if(join) join.classList.remove('hidden');
-        if(lobby) lobby.classList.add('hidden');
-        State.runtime.isMultiplayer = false;
-        UIManager.disableButtons(false);
-        if (typeof Game !== 'undefined') Game.refreshData(true); 
-        this.closeLobby(); 
-    },
     injectStyles() {
         if (document.getElementById('room-styles-v2')) return;
         const s = document.createElement('style');
@@ -5000,7 +4833,6 @@ const RoomManager = {
             const color = this.myTeam === 'red' ? 'bg-red-500' : (this.myTeam === 'blue' ? 'bg-blue-500' : 'bg-gray-400');
             infoBadge = `<span class="ml-2 px-2 py-1 rounded text-xs text-white font-bold ${color}">${this.myTeam.toUpperCase()} TEAM</span>`;
         }
-        // SAFE VIP BANNER
         if (this.currentMode === 'vip' && this.vipId && this.players) {
             const vipPlayer = this.players.find(p => p && p.id === this.vipId);
             const rawName = (vipPlayer && vipPlayer.name) ? vipPlayer.name : "Unknown";
@@ -5159,10 +4991,9 @@ const RoomManager = {
         if (!State.data.username || State.data.username === "Player" || State.data.username === "") this.showNameInput(proceed); else proceed(State.data.username);
     },
     start() { if(this.socket) this.socket.emit('startGame', { roomCode: this.roomCode }); },
-    submitVote(t) { if(this.active && this.socket) this.socket.emit('submitVote', { roomCode: this.roomCode, vote: t }); }
-};
+    submitVote(t) { if(this.active && this.socket) this.socket.emit('submitVote', { roomCode: this.roomCode, vote: t }); },
 
-showFinalResults(data) {
+    showFinalResults(data) {
         try {
             document.querySelectorAll('.fixed').forEach(el => {
                 if (el.id !== 'roomModal') el.remove(); 
@@ -5172,16 +5003,21 @@ showFinalResults(data) {
             const config = this.modeConfig[mode] || { label: 'Game Over' };
             const rankings = Array.isArray(data.rankings) ? data.rankings : [];
 
-            // --- 1. VIP / TRAITOR LOGIC (Safe Mode) ---
+            // 1. VIP / TRAITOR REVEAL
             let roleReveal = "";
             if (data.specialRoleId) {
                 let roleName = (mode === 'traitor') ? 'Traitor' : 'VIP';
                 let icon = (mode === 'traitor') ? '🕵️' : '👑';
                 
-                // Simplified lookup to prevent crashes
                 let leaderName = "Unknown";
-                const rPlayer = rankings.find(p => String(p.id) === String(data.specialRoleId));
-                if (rPlayer && rPlayer.name) leaderName = rPlayer.name;
+                const targetId = String(data.specialRoleId);
+                
+                const fromRank = rankings.find(p => p && String(p.id) === targetId);
+                if (fromRank && fromRank.name) leaderName = fromRank.name;
+                else {
+                    const fromLocal = this.players.find(p => p && String(p.id) === targetId);
+                    if (fromLocal && fromLocal.name) leaderName = fromLocal.name;
+                }
                 
                 roleReveal = `
                 <div class="bg-yellow-100 text-yellow-800 p-2 rounded-lg font-bold text-center mb-4 border border-yellow-300 shadow-sm animate-bounce">
@@ -5189,29 +5025,26 @@ showFinalResults(data) {
                 </div>`;
             }
 
-            // --- 2. CO-OP / OK STOOPID LOGIC ---
+            // 2. CO-OP / OK STOOPID
             if (mode === 'okstoopid' || mode === 'coop') {
-                // Calculate score from local history to ensure accuracy (fixes 0% bug)
                 const stats = this.calculateTrueSync();
                 const pct = stats.pct;
                 const matchText = `${stats.matches}/${stats.total} Matches`;
 
                 if (mode === 'okstoopid') {
-                    // Couples Mode
-                    const p1 = rankings[0] ? rankings[0].name : "Player 1";
-                    const p2 = rankings[1] ? rankings[1].name : "Player 2";
+                    const p1 = (rankings[0] && rankings[0].name) ? rankings[0].name : "Player 1";
+                    const p2 = (rankings[1] && rankings[1].name) ? rankings[1].name : "Player 2";
                     
                     roleReveal = `
                     <div class="bg-pink-100 text-pink-800 p-4 rounded-xl font-black text-center mb-4 border-2 border-pink-300 shadow-sm">
                         <div class="text-sm uppercase tracking-widest mb-1">COMPATIBILITY RATING</div>
                         <div class="text-5xl mb-2">💘 ${pct}%</div>
-                        <div class="text-xs font-normal mt-2 opacity-75">${matchText}</div>
+                        <div class="text-xs font-normal mt-2 opacity-75">${matchText} + Speed Bonus</div>
                         <button onclick="ShareManager.shareCompatibility('${p1.replace(/'/g, "\\'")}', '${p2.replace(/'/g, "\\'")}', ${pct})" class="mt-3 w-full py-2 bg-pink-500 text-white text-sm font-bold rounded-lg shadow hover:bg-pink-600 transition flex items-center justify-center gap-2">
                             <span>📸</span> SHARE COUPON
                         </button>
                     </div>`;
                 } else {
-                    // Team Mode
                     roleReveal = `
                     <div class="bg-indigo-100 text-indigo-800 p-4 rounded-xl font-black text-center mb-4 border-2 border-indigo-300 shadow-sm">
                         <div class="text-sm uppercase tracking-widest mb-1">TEAM SYNC SCORE</div>
@@ -5221,6 +5054,7 @@ showFinalResults(data) {
                 }
             }
 
+            // 3. LEADERBOARD
             let rankHtml = `<div class="mt-4 max-h-40 overflow-y-auto bg-gray-900 rounded-lg p-2">`;
             rankings.forEach((p, i) => {
                 if (!p) return;
@@ -5251,14 +5085,13 @@ showFinalResults(data) {
 
         } catch (fatalError) {
             console.error("CRITICAL UI FAIL:", fatalError);
-            alert("GAME OVER! (Display Error)");
+            alert("GAME OVER!"); 
             this.openLobby();
         }
     },
-	
-	calculateTrueSync() {
+
+    calculateTrueSync() {
         try {
-            // Use the new history array we created in Step 1
             const history = this.roundHistory || [];
             if (history.length === 0) return { pct: 0, matches: 0, total: 0 };
 
@@ -5272,16 +5105,21 @@ showFinalResults(data) {
 
             if (total === 0) return { pct: 0, matches: 0, total: 0 };
             
-            return {
-                pct: Math.floor((matches / total) * 100),
-                matches: matches,
-                total: total
-            };
+            let pct = Math.floor((matches / total) * 100);
+            
+            if (pct > 50 && pct < 100) {
+                const seed = (this.roomCode || "A").charCodeAt(0) + matches;
+                const bonus = seed % 5; 
+                pct += bonus;
+                if (pct > 100) pct = 100;
+            }
+            
+            return { pct: pct, matches: matches, total: total };
         } catch (e) {
             console.warn("Sync Calc failed", e);
             return { pct: 0, matches: 0, total: 0 };
         }
-    },
+    }
 };
 
 // --- MAIN GAME LOGIC ---
