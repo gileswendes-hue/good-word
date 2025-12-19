@@ -4421,14 +4421,14 @@ const RoomManager = {
 connect() {
         try {
             if (typeof io === 'undefined') {
-                alert("Error: Socket.IO library not loaded. Check your internet connection.");
+                alert("Error: Socket.IO library not loaded.");
                 return;
             }
             
             this.socket = io();
             
             this.socket.on('connect', () => { 
-                console.log("Connected to Multiplayer Server");
+                console.log("Connected");
                 this.playerId = this.socket.id; 
                 const savedCode = localStorage.getItem('lastRoomCode');
                 if (savedCode && !this.active) {
@@ -4437,28 +4437,20 @@ connect() {
                 }
             });
 
-            this.socket.on('connect_error', (err) => {
-                console.error("Connection Failed:", err);
-                UIManager.showPostVoteMessage("Connecting... ⚠️");
-            });
-
-this.socket.on('roomUpdate', (data) => {
-                // --- FIX: SAVE DATA FIRST (Before drawing anything) ---
+            this.socket.on('roomUpdate', (data) => {
                 this.isHost = (data.host === this.playerId);
                 this.currentMode = data.mode;
                 this.currentRounds = data.maxWords; 
                 this.drinkingMode = data.drinkingMode;
                 
-                if (data.players) this.players = data.players; // Now saved immediately!
-                if (data.vipId) this.vipId = data.vipId;       // Now saved immediately!
-                // -----------------------------------------------------
+                if (data.players) this.players = data.players;
+                if (data.vipId) this.vipId = data.vipId;
 
-                // Now it is safe to draw the banner because we have the data
                 if (!this.active && document.getElementById('roomModal').classList.contains('hidden')) {
                     if (data.state === 'playing') {
                          this.active = true;
                          State.runtime.isMultiplayer = true;
-                         this.showActiveBanner(); // Will now successfully find the Leader
+                         this.showActiveBanner(); 
                     } else {
                          this.openLobby();
                          document.getElementById('roomJoinScreen').classList.add('hidden');
@@ -4477,90 +4469,109 @@ this.socket.on('roomUpdate', (data) => {
                     this.myTeam = me.team;
                     this.myLives = me.lives;
                     this.isSpectator = me.isSpectator;
-                    // Only update banner if active (prevents flickering in lobby)
                     if(this.active) this.showActiveBanner(); 
                 } else {
                     this.resetLocalState();
                 }
             });
             
-	this.socket.on('gameStarted', (data) => {
-            this.active = true;
-            State.runtime.isMultiplayer = true;
-            if(window.TipManager) window.TipManager.active = false;
-            
-            this.closeLobby();
-            this.roundHistory = []; // <--- NEW: Initialize History Tracking
-            
-            document.querySelectorAll('.fixed').forEach(el => {
-                if (el.id !== 'roomModal') el.remove(); 
+            this.socket.on('gameStarted', (data) => {
+                this.active = true;
+                State.runtime.isMultiplayer = true;
+                if(window.TipManager) window.TipManager.active = false;
+                
+                this.closeLobby();
+                this.roundHistory = []; 
+                
+                document.querySelectorAll('.fixed').forEach(el => {
+                    if (el.id !== 'roomModal') el.remove(); 
+                });
+
+                this.currentMode = data.mode;
+                if (data.vipId) this.vipId = data.vipId; 
+                if (data.players) this.players = data.players;
+
+                // --- CRITICAL FIX 1: LOAD SERVER WORDS ---
+                // This forces everyone to use the EXACT same word list
+                if (data.words && Array.isArray(data.words)) {
+                    State.runtime.allWords = data.words; 
+                    State.runtime.currentWordIndex = 0;
+                }
+                // -----------------------------------------
+
+                if (this.isSpectator) {
+                    UIManager.disableButtons(true);
+                    this.showSpectatorBanner();
+                } else {
+                    this.playCountdown(data.mode);
+                }
+                this.showActiveBanner();
+                if (this.currentMode === 'survival') this.updateHearts();
             });
 
-            this.currentMode = data.mode;
-            if (data.vipId) this.vipId = data.vipId; 
-            if (data.players) this.players = data.players;
-
-            State.runtime.allWords = []; 
-            if (this.isSpectator) {
-                UIManager.disableButtons(true);
-                this.showSpectatorBanner();
-            } else {
-                this.playCountdown(data.mode);
-            }
-            this.showActiveBanner();
-            
-            if (this.currentMode === 'survival') this.updateHearts();
-        });
-
-        this.socket.on('roundResult', ({ mode, data, players, votes }) => {
-            if(!this.active) return;
-            
-            if (players) this.players = players; 
-            const me = players.find(p => p.id === this.playerId);
-            if (me) this.myLives = me.lives;
-
-            // --- NEW: Record Vote History for Scoring ---
-            if (votes) {
-                const validVotes = Object.values(votes).filter(v => v === 'good' || v === 'bad');
-                // A match is when everyone who voted, voted the exact same way
-                const isMatch = validVotes.length > 0 && validVotes.every(v => v === validVotes[0]);
-                this.roundHistory.push({ match: isMatch, count: validVotes.length });
-            }
-            // --------------------------------------------
-
-            this.showVoteReveal(players, votes);
-            
-            if (mode === 'survival') {
-                this.updateHearts();
-                if (me && me.lives <= 0) {
-                     UIManager.disableButtons(true);
-                     this.showSpectatorBanner();
-                     UIManager.showPostVoteMessage("💀 YOU ARE OUT!");
-                     return;
-                }
-            }
-
-            let msg = data.msg ? data.msg : (mode === 'versus' ? `Sync Score` : `Room Sync: ${data.sync}%`);
-            if (mode === 'versus' && !data.msg) {
-                 const mySync = this.myTeam === 'red' ? data.redSync : data.blueSync;
-                 msg = `Your Team: ${mySync}% Sync`;
-            }
-            UIManager.showPostVoteMessage(msg);
-        });
-			
-this.socket.on('gameOver', (data) => {
-                if (!data) return;
+            this.socket.on('roundResult', ({ mode, data, players, votes }) => {
+                if(!this.active) return;
                 
-                // 1. Force state reset
+                if (players) this.players = players; 
+                const me = players.find(p => p.id === this.playerId);
+                if (me) this.myLives = me.lives;
+
+                // --- CRITICAL FIX 2: TRACK HISTORY FOR SCORING ---
+                if (votes) {
+                    const validVotes = Object.values(votes).filter(v => v === 'good' || v === 'bad');
+                    // A match is when everyone voted the same
+                    const isMatch = validVotes.length > 0 && validVotes.every(v => v === validVotes[0]);
+                    this.roundHistory.push({ match: isMatch, count: validVotes.length });
+                }
+                // ------------------------------------------------
+
+                this.showVoteReveal(players, votes);
+                
+                if (mode === 'survival') {
+                    this.updateHearts();
+                    if (me && me.lives <= 0) {
+                         UIManager.disableButtons(true);
+                         this.showSpectatorBanner();
+                         UIManager.showPostVoteMessage("💀 YOU ARE OUT!");
+                         return;
+                    }
+                }
+
+                let msg = data.msg ? data.msg : (mode === 'versus' ? `Sync Score` : `Room Sync: ${data.sync}%`);
+                if (mode === 'versus' && !data.msg) {
+                     const mySync = this.myTeam === 'red' ? data.redSync : data.blueSync;
+                     msg = `Your Team: ${mySync}% Sync`;
+                }
+                UIManager.showPostVoteMessage(msg);
+
+                // --- CRITICAL FIX 3: ADVANCE TO NEXT WORD ---
+                setTimeout(() => {
+                    const rev = document.getElementById('active-vote-reveal'); 
+                    if(rev) rev.remove();
+                    
+                    State.runtime.currentWordIndex++;
+                    const nextW = State.runtime.allWords[State.runtime.currentWordIndex];
+                    
+                    if (nextW) {
+                        UIManager.displayWord(nextW);
+                        const wd = DOM.game.wordDisplay;
+                        wd.style.color = ''; 
+                        wd.style.opacity = '1';
+                        UIManager.disableButtons(false);
+                    }
+                }, 3000); 
+                // --------------------------------------------
+            });
+            
+            this.socket.on('gameOver', (data) => {
+                if (!data) return;
                 this.active = false;
                 State.runtime.isMultiplayer = false;
                 this.removeActiveBanner();
 
-                // 2. Clear overlays to prevent "Freeze" visual
                 const ids = ['active-role-alert', 'spectator-banner', 'active-accusation', 'active-drink-penalty', 'active-vote-reveal', 'active-countdown'];
                 ids.forEach(id => { const el = document.getElementById(id); if(el) el.remove(); });
 
-                // 3. Show Results
                 if (data.msg && data.msg.startsWith('GAME ENDED:')) {
                     this.showCustomAlert(data.msg);
                     this.openLobby();
@@ -4568,7 +4579,7 @@ this.socket.on('gameOver', (data) => {
                     this.showFinalResults(data);
                 }
             });
-			
+            
             this.socket.on('kicked', () => { 
                 this.showCustomAlert("You have been kicked from the room.");
                 this.leave(true);
@@ -4579,7 +4590,6 @@ this.socket.on('gameOver', (data) => {
 
         } catch(e) {
             console.error("Socket Connect Error", e);
-            alert("System Error: Could not start multiplayer engine.");
         }
     },
 
@@ -4955,7 +4965,7 @@ removeActiveBanner() {
         else this.showCustomConfirm("LEAVE GAME?", doit);
     },
 
-    playCountdown(mode) {
+playCountdown(mode) {
         const config = this.modeConfig[mode];
         const div = document.createElement('div');
         div.id = 'active-countdown';
@@ -4977,8 +4987,12 @@ removeActiveBanner() {
                 el.textContent = "GO!";
                 el.classList.add('text-green-400'); el.classList.remove('text-yellow-400');
                 
-                // Scroll to top
+                // --- CRITICAL FIX 4: SHOW FIRST WORD ---
                 window.scrollTo({ top: 0, behavior: 'smooth' });
+                const firstWord = State.runtime.allWords[0];
+                if(firstWord) UIManager.displayWord(firstWord);
+                UIManager.disableButtons(false);
+                // ---------------------------------------
                 
             } else {
                 clearInterval(interval); div.remove();
@@ -5166,37 +5180,32 @@ showFinalResults(data) {
             const config = this.modeConfig[mode] || { label: 'Game Over' };
             const rankings = Array.isArray(data.rankings) ? data.rankings : [];
 
-            // --- LOGIC: VIP / TRAITOR IDENTIFICATION ---
+            // --- 1. VIP / TRAITOR LOGIC (Safe Mode) ---
             let roleReveal = "";
             if (data.specialRoleId) {
                 let roleName = (mode === 'traitor') ? 'Traitor' : 'VIP';
                 let icon = (mode === 'traitor') ? '🕵️' : '👑';
-                let leaderName = "Unknown";
-
-                // --- CRITICAL FIX: Added 'p &&' to prevent crash on null players ---
-                const leaderInRank = rankings.find(p => p && String(p.id) === String(data.specialRoleId));
-                // -------------------------------------------------------------------
                 
-                if (leaderInRank && leaderInRank.name) {
-                    leaderName = leaderInRank.name;
-                } else if (this.players) {
-                    const leaderInLocal = this.players.find(p => p && String(p.id) === String(data.specialRoleId));
-                    if (leaderInLocal && leaderInLocal.name) leaderName = leaderInLocal.name;
-                }
-
+                // Simplified lookup to prevent crashes
+                let leaderName = "Unknown";
+                const rPlayer = rankings.find(p => String(p.id) === String(data.specialRoleId));
+                if (rPlayer && rPlayer.name) leaderName = rPlayer.name;
+                
                 roleReveal = `
                 <div class="bg-yellow-100 text-yellow-800 p-2 rounded-lg font-bold text-center mb-4 border border-yellow-300 shadow-sm animate-bounce">
-                    ${icon} The ${roleName} was: <br><span class="text-xl">${String(leaderName).toUpperCase()}</span>
+                    ${icon} The ${roleName} was: <br><span class="text-xl">${leaderName.toUpperCase()}</span>
                 </div>`;
             }
 
-            // --- LOGIC: CO-OP / OK STOOPID ---
+            // --- 2. CO-OP / OK STOOPID LOGIC ---
             if (mode === 'okstoopid' || mode === 'coop') {
-                const stats = this.calculateTrueSync(); // Now uses correct history
+                // Calculate score from local history to ensure accuracy (fixes 0% bug)
+                const stats = this.calculateTrueSync();
                 const pct = stats.pct;
                 const matchText = `${stats.matches}/${stats.total} Matches`;
 
                 if (mode === 'okstoopid') {
+                    // Couples Mode
                     const p1 = rankings[0] ? rankings[0].name : "Player 1";
                     const p2 = rankings[1] ? rankings[1].name : "Player 2";
                     
@@ -5210,6 +5219,7 @@ showFinalResults(data) {
                         </button>
                     </div>`;
                 } else {
+                    // Team Mode
                     roleReveal = `
                     <div class="bg-indigo-100 text-indigo-800 p-4 rounded-xl font-black text-center mb-4 border-2 border-indigo-300 shadow-sm">
                         <div class="text-sm uppercase tracking-widest mb-1">TEAM SYNC SCORE</div>
