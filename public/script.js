@@ -4508,10 +4508,10 @@ connect() {
                 }
             });
             
-            this.socket.on('gameStarted', async (data) => {
+			this.socket.on('gameStarted', async (data) => {
                 console.log("🚀 Game Started", data);
                 this.active = true;
-                State.runtime.isMultiplayer = true;
+                State.runtime.isMultiplayer = true; 
                 if(window.TipManager) window.TipManager.active = false;
                 
                 this.closeLobby();
@@ -4525,18 +4525,24 @@ connect() {
                 this.vipId = data.vipId; 
                 if (data.players) this.players = data.players;
 
+                // 1. Ensure we have words
                 if (!State.runtime.allWords || State.runtime.allWords.length < 50) {
                     const all = await API.getAllWords();
                     State.runtime.allWords = all;
                 }
 
-                let wordsToShuffle = [...State.runtime.allWords];
+                // 2. SURGICAL TWEAK: Sort words alphabetically first!
+                // This ensures Player A (who played before) and Player B (fresh load)
+                // both start with the EXACT same list before applying the seed.
+                let wordsToShuffle = [...State.runtime.allWords].sort((a, b) => a.text.localeCompare(b.text));
+                
+                // 3. Apply Seeded Shuffle
                 const seed = data.gameSeed || this.roomCode;
                 State.runtime.allWords = SeededShuffle.shuffle(wordsToShuffle, seed);
                 
                 State.runtime.currentWordIndex = 0;
 
-                this.showActiveBanner(); 
+                this.showActiveBanner();
 
                 if (this.isSpectator) {
                     UIManager.disableButtons(true);
@@ -4550,11 +4556,8 @@ connect() {
 
             this.socket.on('roundResult', ({ mode, data, players, votes }) => {
                 if(!this.active) return;
-                
-                // --- CRASH FIXES ---
-                data = data || {}; // Ensure data exists
-                if (players) this.players = players; // Update locals if server sent new list
-                
+				
+			if (players) this.players = players; 
                 const me = this.players.find(p => p.id === this.playerId);
                 if (me) this.myLives = me.lives;
 
@@ -4564,7 +4567,6 @@ connect() {
                     this.roundHistory.push({ match: isMatch, count: validVotes.length });
                 }
 
-                // USE LOCAL PLAYERS (Prevents crash if server didn't send 'players' arg)
                 this.showVoteReveal(this.players, votes);
                 
                 if (mode === 'survival') {
@@ -4584,21 +4586,33 @@ connect() {
                 }
                 UIManager.showPostVoteMessage(msg);
 
-                setTimeout(() => {
-                    if (!this.active) return;
+			setTimeout(() => {
+                    // Try/Finally ensures buttons are ALWAYS unlocked, even if display fails
+                    try {
+                        if (!this.active) return;
 
-                    const rev = document.getElementById('active-vote-reveal'); 
-                    if(rev) rev.remove();
-                    
-                    State.runtime.currentWordIndex++;
-                    const nextW = State.runtime.allWords[State.runtime.currentWordIndex];
-                    
-                    if (nextW) {
-                        UIManager.displayWord(nextW);
-                        const wd = DOM.game.wordDisplay;
-                        wd.style.color = ''; 
-                        wd.style.opacity = '1';
-                        UIManager.disableButtons(false);
+                        const rev = document.getElementById('active-vote-reveal'); 
+                        if(rev) rev.remove();
+                        
+                        State.runtime.currentWordIndex++;
+                        const nextW = State.runtime.allWords[State.runtime.currentWordIndex];
+                        
+                        // Check if game ended (nextW undefined) - wait for gameOver event
+                        if (nextW) {
+                            UIManager.displayWord(nextW);
+                            const wd = DOM.game.wordDisplay;
+                            if (wd) {
+                                wd.style.color = ''; 
+                                wd.style.opacity = '1';
+                            }
+                        }
+                    } catch(err) {
+                        console.error("Round transition error:", err);
+                    } finally {
+                        // ALWAYS ENABLE BUTTONS TO PREVENT FREEZE
+                        if (this.active && !this.isSpectator) {
+                            UIManager.disableButtons(false);
+                        }
                     }
                 }, 3000); 
             });
@@ -5932,6 +5946,12 @@ if (qrBad) {
     },
 	
 async refreshData(u = true) {
+	
+		if (State.runtime.isMultiplayer) {
+            console.log("Skipping refreshData during multiplayer match.");
+            return; 
+        }
+	
         if (u) UIManager.showMessage(State.data.settings.kidsMode ? "Loading Kids Mode..." : "Loading...");
         let d = [];
         const compareBtn = document.getElementById('compareWordsButton');
