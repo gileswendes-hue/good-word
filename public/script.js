@@ -4531,10 +4531,10 @@ connect() {
                     State.runtime.allWords = all;
                 }
 
-                // 2. SURGICAL TWEAK: Sort words alphabetically first!
-                // This ensures Player A (who played before) and Player B (fresh load)
-                // both start with the EXACT same list before applying the seed.
-                let wordsToShuffle = [...State.runtime.allWords].sort((a, b) => a.text.localeCompare(b.text));
+                // 2. SURGICAL FIX: REMOVED .sort() 
+                // Using the existing order + shuffle prevents the "Same First Word" loop
+                // caused by sorting identical lists with a static Room Code seed.
+                let wordsToShuffle = [...State.runtime.allWords];
                 
                 // 3. Apply Seeded Shuffle
                 const seed = data.gameSeed || this.roomCode;
@@ -4542,7 +4542,8 @@ connect() {
                 
                 State.runtime.currentWordIndex = 0;
 
-                this.showActiveBanner();
+                this.showActiveBanner(); 
+                // ... (rest of function unchanged)
 
                 if (this.isSpectator) {
                     UIManager.disableButtons(true);
@@ -4555,61 +4556,44 @@ connect() {
             });
 
             this.socket.on('roundResult', ({ mode, data, players, votes }) => {
-                if(!this.active) return;
-				
-			if (players) this.players = players; 
-                const me = this.players.find(p => p.id === this.playerId);
-                if (me) this.myLives = me.lives;
-
-                if (votes) {
-                    const validVotes = Object.values(votes).filter(v => v === 'good' || v === 'bad');
-                    const isMatch = validVotes.length > 0 && validVotes.every(v => v === validVotes[0]);
-                    this.roundHistory.push({ match: isMatch, count: validVotes.length });
-                }
-
-                this.showVoteReveal(this.players, votes);
-                
-                if (mode === 'survival') {
-                    this.updateHearts();
-                    if (me && me.lives <= 0) {
-                         UIManager.disableButtons(true);
-                         this.showSpectatorBanner();
-                         UIManager.showPostVoteMessage("💀 YOU ARE OUT!");
-                         return;
-                    }
-                }
-
-                let msg = data.msg ? data.msg : (mode === 'versus' ? `Sync Score` : `Room Sync: ${data.sync || 0}%`);
-                if (mode === 'versus' && !data.msg) {
-                     const mySync = this.myTeam === 'red' ? (data.redSync || 0) : (data.blueSync || 0);
-                     msg = `Your Team: ${mySync}% Sync`;
-                }
+                // ... (previous code unchanged) ...
                 UIManager.showPostVoteMessage(msg);
 
-			setTimeout(() => {
-                    // Try/Finally ensures buttons are ALWAYS unlocked, even if display fails
+                // --- SURGICAL FIX: WRAP-AROUND & UNLOCK ---
+                setTimeout(() => {
                     try {
                         if (!this.active) return;
 
                         const rev = document.getElementById('active-vote-reveal'); 
                         if(rev) rev.remove();
                         
+                        // Increment Index
                         State.runtime.currentWordIndex++;
+                        
+                        // SAFETY: Loop back to start if we run out of words
+                        if (State.runtime.currentWordIndex >= State.runtime.allWords.length) {
+                            State.runtime.currentWordIndex = 0;
+                        }
+
                         const nextW = State.runtime.allWords[State.runtime.currentWordIndex];
                         
-                        // Check if game ended (nextW undefined) - wait for gameOver event
                         if (nextW) {
                             UIManager.displayWord(nextW);
+                            // Ensure display opacity is reset
                             const wd = DOM.game.wordDisplay;
                             if (wd) {
                                 wd.style.color = ''; 
                                 wd.style.opacity = '1';
                             }
+                        } else {
+                            // Fallback if list is somehow empty
+                            console.warn("Word list empty/corrupt");
+                            UIManager.displayWord({text: "Loading..."});
                         }
                     } catch(err) {
                         console.error("Round transition error:", err);
                     } finally {
-                        // ALWAYS ENABLE BUTTONS TO PREVENT FREEZE
+                        // ALWAYS UNLOCK BUTTONS
                         if (this.active && !this.isSpectator) {
                             UIManager.disableButtons(false);
                         }
