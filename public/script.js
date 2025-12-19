@@ -4367,7 +4367,7 @@ const RoomManager = {
 
     modeConfig: {
         'coop': { label: '🤝 Co-op Sync', desc: 'Vote together! Stay together!', min: 2 },
-		'okstoopid': { label: '💘 OK Stoopid', desc: 'Couples Mode. Test your compatibility!', min: 2 },
+		'okstoopid': { label: '💘 OK Stoopid', desc: 'Couples Mode. Test your compatibility!', min: 2, max: 2 },
         'versus': { label: '⚔️ Team Versus', desc: 'Red vs Blue. Best Team wins.', min: 4 },
         'vip': { label: '👑 Follow the Leader', desc: 'One VIP. Vote exactly like them.', min: 3 },
         'hipster': { label: '🕶️ The Hipster', desc: 'Minority Rules. Be unique!', min: 3 },
@@ -5026,16 +5026,18 @@ renderLobby(data) {
         const list = document.getElementById('lobbyPlayerList');
         const config = this.modeConfig[data.mode];
         const playerCount = data.players.length;
+        
         const minReq = config.min;
-        const enoughPlayers = playerCount >= minReq;
+        const maxReq = config.max || 50; // Default to 50 if no max set
+        const enoughPlayers = playerCount >= minReq && playerCount <= maxReq;
 
         let settingsHtml = "";
         
         if (this.isHost) {
             let modeOpts = "";
-			
-for (const [key, val] of Object.entries(this.modeConfig)) {
-                const note = (playerCount < val.min) ? ` (Need ${val.min}+)` : '';
+            for (const [key, val] of Object.entries(this.modeConfig)) {
+                let note = (playerCount < val.min) ? ` (Need ${val.min}+)` : '';
+                if (val.max && playerCount > val.max) note = ` (Max ${val.max})`; // Warning if too many
                 modeOpts += `<option value="${key}" ${data.mode===key?'selected':''}>${val.label}${note}</option>`;
             }
             
@@ -5068,10 +5070,9 @@ for (const [key, val] of Object.entries(this.modeConfig)) {
                         <span class="font-bold text-red-600">🍺 Drinking Mode</span>
                     </label>
 
-                    ${!enoughPlayers ? `<div class="text-xs text-center text-red-500 font-bold mt-2">⚠️ Not enough players (Need ${minReq}+)</div>` : ''}
+                    ${!enoughPlayers ? `<div class="text-xs text-center text-red-500 font-bold mt-2">⚠️ Player count issue (${minReq}-${maxReq})</div>` : ''}
                 </div>`;
         } else {
-            // ... (Keep existing non-host code) ...
             const drinkBadge = data.drinkingMode ? '<span class="text-red-600 font-bold ml-2">🍺 DRINKING ON</span>' : '';
             settingsHtml = `
                 <div class="bg-indigo-50 p-4 rounded-lg mb-4 text-center border-2 border-indigo-100">
@@ -5079,12 +5080,11 @@ for (const [key, val] of Object.entries(this.modeConfig)) {
                     <div class="text-sm text-gray-500 mb-2">${config.desc}</div>
                     <div class="inline-block bg-white px-2 py-1 rounded border border-indigo-200 text-xs font-bold text-indigo-400">${data.maxWords} Words</div>
                     <div class="mt-1">${drinkBadge}</div>
-                    ${!enoughPlayers ? `<div class="text-xs text-center text-red-500 font-bold mt-2">Waiting for more players...</div>` : ''}
+                    ${!enoughPlayers ? `<div class="text-xs text-center text-red-500 font-bold mt-2">Waiting for correct player count...</div>` : ''}
                 </div>`;
         }
         document.getElementById('lobbyModeArea').innerHTML = settingsHtml;
 
-        // ... (Keep rest of function exactly as it was) ...
         const refreshHtml = this.isHost ? `<span class="refresh-btn" onclick="RoomManager.refreshLobby()" title="Remove inactive players">🔄</span>` : '';
         let playerHtml = `<div class="text-xs font-bold text-gray-400 mb-2 flex justify-between"><span>PLAYERS (${playerCount})</span> ${refreshHtml}</div>`;
         
@@ -5103,7 +5103,10 @@ for (const [key, val] of Object.entries(this.modeConfig)) {
         if (this.isHost) {
             startBtn.classList.remove('hidden'); waitMsg.classList.add('hidden');
             if (!enoughPlayers) {
-                startBtn.disabled = true; startBtn.classList.add('opacity-50', 'cursor-not-allowed'); startBtn.innerText = `NEED ${minReq} PLAYERS`;
+                startBtn.disabled = true; startBtn.classList.add('opacity-50', 'cursor-not-allowed'); 
+                // Detailed Button Text
+                if (playerCount < minReq) startBtn.innerText = `NEED ${minReq} PLAYERS`;
+                else if (playerCount > maxReq) startBtn.innerText = `MAX ${maxReq} PLAYERS`;
             } else {
                 startBtn.disabled = false; startBtn.classList.remove('opacity-50', 'cursor-not-allowed'); startBtn.innerText = "START GAME";
             }
@@ -5190,7 +5193,6 @@ for (const [key, val] of Object.entries(this.modeConfig)) {
     
 showFinalResults(data) {
         try {
-            // Fallback to prevent crash if mode is missing
             const mode = data.mode || this.currentMode || 'versus'; 
             const config = this.modeConfig[mode] || { label: 'Game Over' };
 
@@ -5202,11 +5204,12 @@ showFinalResults(data) {
                 const icon = (mode === 'traitor') ? '🕵️' : '👑';
                 
                 const rankings = data.rankings || [];
-                // Safer ID check (convert to string to be sure)
-                const rolePlayer = rankings.find(p => String(p.id) === String(data.specialRoleId));
+                
+                // --- CRITICAL FIX: Check if 'p' exists (p && ...) to prevent crash on null entries ---
+                const rolePlayer = rankings.find(p => p && String(p.id) === String(data.specialRoleId));
+                // -------------------------------------------------------------------------------------
                 
                 if (rolePlayer) {
-                    // FIX: Safer Name Handling
                     const rawName = rolePlayer.name || 'Unknown';
                     const safeName = String(rawName).toUpperCase();
                     
@@ -5216,40 +5219,29 @@ showFinalResults(data) {
                 }
             }
 
-            // --- OK STOOPID / CO-OP LOGIC (Compatibility %) ---
             if (mode === 'okstoopid' || mode === 'coop') {
-                 // 1. Get Base Score (Matches)
                  let score = data.sync !== undefined ? data.sync : (data.rankings[0] ? data.rankings[0].score : 0);
-                 
-                 // 2. Get Total Words (Defaults to 10 if missing)
                  const total = parseInt(this.currentRounds) || 10;
-                 
-                 // 3. Calculate Base Percentage
                  let pct = Math.floor((score / total) * 100);
                  
-                 // 4. Add "Speed Jitter"
                  const seed = (this.roomCode || "A").charCodeAt(0);
                  const jitter = (seed + score * 3) % 9; 
-                 
                  if (pct > 0 && pct < 100) pct += jitter;
                  if (pct > 100) pct = 100;
 
-                 // 5. Get Player Names for the Certificate
                  const p1 = (data.rankings && data.rankings[0]) ? data.rankings[0].name : "Player 1";
                  const p2 = (data.rankings && data.rankings[1]) ? data.rankings[1].name : "Player 2";
 
-                 // 6. Render Card with Share Button
                  roleReveal = `
                  <div class="bg-pink-100 text-pink-800 p-4 rounded-xl font-black text-center mb-4 border-2 border-pink-300 shadow-sm">
                     <div class="text-sm uppercase tracking-widest mb-1">COMPATIBILITY RATING</div>
                     <div class="text-5xl mb-2">💘 ${pct}%</div>
                     <button onclick="ShareManager.shareCompatibility('${p1.replace(/'/g, "\\'")}', '${p2.replace(/'/g, "\\'")}', ${pct})" class="w-full py-2 bg-pink-500 text-white text-sm font-bold rounded-lg shadow hover:bg-pink-600 transition flex items-center justify-center gap-2">
-                        <span>📸</span> SHARE COUPON
+                        <span>📸</span> SHARE RESULTS
                     </button>
                     <div class="text-xs font-normal mt-3 opacity-75">${score}/${total} Matches + Speed Bonus</div>
                  </div>`;
             }
-            // ---------------------------------------------
 
             let rankHtml = `<div class="mt-4 max-h-40 overflow-y-auto bg-gray-900 rounded-lg p-2">`;
             if (data.rankings && Array.isArray(data.rankings)) {
@@ -5279,7 +5271,6 @@ showFinalResults(data) {
 
         } catch(e) {
             console.error("Results Crash Prevented:", e);
-            // Fallback: If results crash, just go to lobby so game isn't stuck
             this.openLobby();
         }
     },
