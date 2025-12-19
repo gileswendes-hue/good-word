@@ -4484,92 +4484,69 @@ this.socket.on('roomUpdate', (data) => {
                 }
             });
             
-		this.socket.on('gameStarted', (data) => {
-                this.active = true;
-                State.runtime.isMultiplayer = true;
-                if(window.TipManager) window.TipManager.active = false;
-                
-                this.closeLobby();
-                
-                // --- FIX: Remove all "Game Over" or "Results" screens immediately ---
-                document.querySelectorAll('.fixed').forEach(el => {
-                    if (el.id !== 'roomModal') el.remove(); 
-                });
-                // -------------------------------------------------------------------
+	this.socket.on('gameStarted', (data) => {
+            this.active = true;
+            State.runtime.isMultiplayer = true;
+            if(window.TipManager) window.TipManager.active = false;
+            
+            this.closeLobby();
+            this.roundHistory = []; // <--- NEW: Initialize History Tracking
+            
+            document.querySelectorAll('.fixed').forEach(el => {
+                if (el.id !== 'roomModal') el.remove(); 
+            });
 
-                this.currentMode = data.mode;
-                if (data.vipId) this.vipId = data.vipId; 
-                if (data.players) this.players = data.players;
+            this.currentMode = data.mode;
+            if (data.vipId) this.vipId = data.vipId; 
+            if (data.players) this.players = data.players;
 
-                State.runtime.allWords = []; 
-                if (this.isSpectator) {
-                    UIManager.disableButtons(true);
-                    this.showSpectatorBanner();
-                } else {
-                    this.playCountdown(data.mode);
+            State.runtime.allWords = []; 
+            if (this.isSpectator) {
+                UIManager.disableButtons(true);
+                this.showSpectatorBanner();
+            } else {
+                this.playCountdown(data.mode);
+            }
+            this.showActiveBanner();
+            
+            if (this.currentMode === 'survival') this.updateHearts();
+        });
+
+        this.socket.on('roundResult', ({ mode, data, players, votes }) => {
+            if(!this.active) return;
+            
+            if (players) this.players = players; 
+            const me = players.find(p => p.id === this.playerId);
+            if (me) this.myLives = me.lives;
+
+            // --- NEW: Record Vote History for Scoring ---
+            if (votes) {
+                const validVotes = Object.values(votes).filter(v => v === 'good' || v === 'bad');
+                // A match is when everyone who voted, voted the exact same way
+                const isMatch = validVotes.length > 0 && validVotes.every(v => v === validVotes[0]);
+                this.roundHistory.push({ match: isMatch, count: validVotes.length });
+            }
+            // --------------------------------------------
+
+            this.showVoteReveal(players, votes);
+            
+            if (mode === 'survival') {
+                this.updateHearts();
+                if (me && me.lives <= 0) {
+                     UIManager.disableButtons(true);
+                     this.showSpectatorBanner();
+                     UIManager.showPostVoteMessage("💀 YOU ARE OUT!");
+                     return;
                 }
-                this.showActiveBanner();
-                
-                if (this.currentMode === 'survival') this.updateHearts();
-            });
+            }
 
-			this.socket.on('startAccusation', ({ mode, players }) => {
-                if (this.currentMode === 'vip' || mode === 'vip') return;
-
-                const cd = document.getElementById('active-countdown'); if(cd) cd.remove();
-                const rev = document.getElementById('active-vote-reveal'); if(rev) rev.remove();
-                this.showAccusationScreen(mode, players);
-            });
-			
-			this.socket.on('nextWord', (data) => {
-                if(!this.active) return;
-                const cd = document.getElementById('active-countdown'); if(cd) cd.remove();
-                const rev = document.getElementById('active-vote-reveal'); if(rev) rev.remove();
-                const acc = document.getElementById('active-accusation'); if(acc) acc.remove();
-                const drnk = document.getElementById('active-drink-penalty'); if(drnk) drnk.remove();
-                
-                // --- FIX: Refresh Hearts ---
-                if (this.currentMode === 'survival') this.updateHearts();
-                // ---------------------------
-
-                const wObj = { _id: data.word._id, text: data.word.text };
-                State.runtime.allWords = [wObj]; 
-                UIManager.displayWord(wObj);
-                const isDead = (this.currentMode === 'survival' && this.myLives <= 0);
-                UIManager.disableButtons(this.isSpectator || isDead);
-                if (isDead) UIManager.showPostVoteMessage("👻 YOU ARE DEAD");
-                else UIManager.showPostVoteMessage(`Word ${data.wordCurrent}/${data.wordTotal}`);
-            });
-
-            this.socket.on('roundResult', ({ mode, data, players, votes }) => {
-                if(!this.active) return;
-                
-                // Update local player data (lives)
-                if (players) this.players = players; // Keep player list fresh
-                const me = players.find(p => p.id === this.playerId);
-                if (me) this.myLives = me.lives;
-
-                this.showVoteReveal(players, votes);
-                
-                // --- FIX: Handle Survival Death & Hearts ---
-                if (mode === 'survival') {
-                    this.updateHearts();
-                    if (me && me.lives <= 0) {
-                         UIManager.disableButtons(true);
-                         this.showSpectatorBanner(); // Force visual change
-                         UIManager.showPostVoteMessage("💀 YOU ARE OUT!");
-                         return;
-                    }
-                }
-                // -------------------------------------------
-
-                let msg = data.msg ? data.msg : (mode === 'versus' ? `Sync Score` : `Room Sync: ${data.sync}%`);
-                if (mode === 'versus' && !data.msg) {
-                     const mySync = this.myTeam === 'red' ? data.redSync : data.blueSync;
-                     msg = `Your Team: ${mySync}% Sync`;
-                }
-                UIManager.showPostVoteMessage(msg);
-            });
+            let msg = data.msg ? data.msg : (mode === 'versus' ? `Sync Score` : `Room Sync: ${data.sync}%`);
+            if (mode === 'versus' && !data.msg) {
+                 const mySync = this.myTeam === 'red' ? data.redSync : data.blueSync;
+                 msg = `Your Team: ${mySync}% Sync`;
+            }
+            UIManager.showPostVoteMessage(msg);
+        });
 			
 this.socket.on('gameOver', (data) => {
                 if (!data) return;
@@ -5180,9 +5157,7 @@ renderLobby(data) {
     submitVote(t) { if(this.active && this.socket) this.socket.emit('submitVote', { roomCode: this.roomCode, vote: t }); },
     
 showFinalResults(data) {
-        // --- FAILSAFE START ---
         try {
-            // 1. Clean up any existing overlays immediately
             document.querySelectorAll('.fixed').forEach(el => {
                 if (el.id !== 'roomModal') el.remove(); 
             });
@@ -5198,12 +5173,14 @@ showFinalResults(data) {
                 let icon = (mode === 'traitor') ? '🕵️' : '👑';
                 let leaderName = "Unknown";
 
-                // Attempt to find leader in rankings, fallback to local player list
-                const leaderInRank = rankings.find(p => String(p.id) === String(data.specialRoleId));
+                // --- CRITICAL FIX: Added 'p &&' to prevent crash on null players ---
+                const leaderInRank = rankings.find(p => p && String(p.id) === String(data.specialRoleId));
+                // -------------------------------------------------------------------
+                
                 if (leaderInRank && leaderInRank.name) {
                     leaderName = leaderInRank.name;
                 } else if (this.players) {
-                    const leaderInLocal = this.players.find(p => String(p.id) === String(data.specialRoleId));
+                    const leaderInLocal = this.players.find(p => p && String(p.id) === String(data.specialRoleId));
                     if (leaderInLocal && leaderInLocal.name) leaderName = leaderInLocal.name;
                 }
 
@@ -5213,15 +5190,13 @@ showFinalResults(data) {
                 </div>`;
             }
 
-            // --- LOGIC: CO-OP / OK STOOPID (Client-Side Verification) ---
+            // --- LOGIC: CO-OP / OK STOOPID ---
             if (mode === 'okstoopid' || mode === 'coop') {
-                // Fix 100% Bug: Calculate true match % locally
-                const stats = this.calculateTrueSync();
+                const stats = this.calculateTrueSync(); // Now uses correct history
                 const pct = stats.pct;
                 const matchText = `${stats.matches}/${stats.total} Matches`;
 
                 if (mode === 'okstoopid') {
-                    // COUPLES MODE
                     const p1 = rankings[0] ? rankings[0].name : "Player 1";
                     const p2 = rankings[1] ? rankings[1].name : "Player 2";
                     
@@ -5235,7 +5210,6 @@ showFinalResults(data) {
                         </button>
                     </div>`;
                 } else {
-                    // CO-OP TEAM MODE
                     roleReveal = `
                     <div class="bg-indigo-100 text-indigo-800 p-4 rounded-xl font-black text-center mb-4 border-2 border-indigo-300 shadow-sm">
                         <div class="text-sm uppercase tracking-widest mb-1">TEAM SYNC SCORE</div>
@@ -5245,7 +5219,6 @@ showFinalResults(data) {
                 }
             }
 
-            // --- LOGIC: LEADERBOARD RENDERING ---
             let rankHtml = `<div class="mt-4 max-h-40 overflow-y-auto bg-gray-900 rounded-lg p-2">`;
             rankings.forEach((p, i) => {
                 if (!p) return;
@@ -5258,7 +5231,6 @@ showFinalResults(data) {
             });
             rankHtml += `</div>`;
 
-            // --- RENDER MODAL ---
             const div = document.createElement('div');
             div.className = 'fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-4';
             div.innerHTML = `
@@ -5277,42 +5249,31 @@ showFinalResults(data) {
 
         } catch (fatalError) {
             console.error("CRITICAL UI FAIL:", fatalError);
-            // Fallback: If the fancy UI fails, show a browser alert so the user isn't stuck
-            alert("GAME OVER! (Display Error)\nCheck console for details.");
+            alert("GAME OVER! (Display Error)");
             this.openLobby();
         }
     },
 	
 	calculateTrueSync() {
         try {
-            const words = State.runtime.allWords || [];
-            if (words.length === 0) return { pct: 0, matches: 0, total: 0 };
+            // Use the new history array we created in Step 1
+            const history = this.roundHistory || [];
+            if (history.length === 0) return { pct: 0, matches: 0, total: 0 };
 
             let matches = 0;
-            let validWords = 0;
+            let total = 0;
 
-            words.forEach(w => {
-                const good = w.goodVotes || 0;
-                const bad = w.badVotes || 0;
-                const totalVotes = good + bad;
-
-                if (totalVotes > 0) {
-                    validWords++;
-                    // A "Match" in Co-op means everyone voted the same way.
-                    // i.e., Either 0 Good votes OR 0 Bad votes.
-                    if (good === 0 || bad === 0) {
-                        matches++;
-                    }
-                }
+            history.forEach(round => {
+                total++;
+                if (round.match) matches++;
             });
 
-            if (validWords === 0) return { pct: 0, matches: 0, total: 0 };
+            if (total === 0) return { pct: 0, matches: 0, total: 0 };
             
-            // Calculate strict percentage
             return {
-                pct: Math.floor((matches / validWords) * 100),
+                pct: Math.floor((matches / total) * 100),
                 matches: matches,
-                total: validWords
+                total: total
             };
         } catch (e) {
             console.warn("Sync Calc failed", e);
