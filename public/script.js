@@ -4515,9 +4515,6 @@ connect() {
                      this.renderLobby(data);
                 }
             });
-            // -----------------------------
-
-            this.socket.on('gameStarted', async (data) => {
             
 this.socket.on('gameStarted', async (data) => {
     console.log("🚀 Game Started - Syncing Word Lists");
