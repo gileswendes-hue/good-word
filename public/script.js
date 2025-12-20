@@ -4623,26 +4623,27 @@ connect() {
 }
 
 updateBannerInfo() {
-        const banner = document.getElementById('room-active-banner');
-        if (!banner) return;
-        
-        const infoDiv = banner.querySelector('.room-info');
-        if (!infoDiv) return;
+    const banner = document.getElementById('room-active-banner');
+    if (!banner) return;
+    
+    // FIX: This line was incomplete in your snippet
+    const infoDiv = banner.querySelector('.room-info');
+    if (!infoDiv) return;
 
-        let infoBadge = ''; 
-        if (this.currentMode === 'versus' && this.myTeam) {
-            const color = this.myTeam === 'red' ? 'bg-red-500' : (this.myTeam === 'blue' ? 'bg-blue-500' : 'bg-gray-400');
-            infoBadge = `<span class="ml-2 px-2 py-1 rounded text-xs text-white font-bold ${color}">${this.myTeam.toUpperCase()} TEAM</span>`;
-        }
-        
-        const config = this.modeConfig[this.currentMode] || { label: 'Multiplayer' };
-        
-        infoDiv.innerHTML = `
-            <span class="font-mono bg-gray-100 px-1 rounded mr-2 text-gray-800 font-bold">${this.roomCode}</span> 
-            <span class="text-sm md:text-base font-bold text-gray-700">${config.label}</span>
-            ${infoBadge}
-        `;
-    },
+    let infoBadge = ''; 
+    if (this.currentMode === 'versus' && this.myTeam) {
+        const color = this.myTeam === 'red' ? 'bg-red-500' : (this.myTeam === 'blue' ? 'bg-blue-500' : 'bg-gray-400');
+        infoBadge = `<span class="ml-2 px-2 py-1 rounded text-xs text-white font-bold ${color}">${this.myTeam.toUpperCase()} TEAM</span>`;
+    }
+    
+    const config = this.modeConfig[this.currentMode] || { label: 'Multiplayer' };
+    
+    infoDiv.innerHTML = `
+        <span class="font-mono bg-gray-100 px-1 rounded mr-2 text-gray-800 font-bold">${this.roomCode}</span> 
+        <span class="text-sm md:text-base font-bold text-gray-700">${config.label}</span>
+        ${infoBadge}
+    `;
+},
 
     showActiveBanner() {
         const existing = document.getElementById('room-active-banner');
