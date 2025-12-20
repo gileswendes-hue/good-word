@@ -4620,7 +4620,7 @@ connect() {
     } catch(e) {
         console.error("Socket Error", e);
     }
-}
+},
 
 updateBannerInfo() {
     const banner = document.getElementById('room-active-banner');
