@@ -1402,9 +1402,9 @@ openLobby() {
             UIManager.showPostVoteMessage("Forcing reconnection...");
             this.socket.disconnect();
             setTimeout(() => this.socket.connect(), 500);
-        }
+}
     }
-
+};
 const ThemeManager = {
     wordMap: {},
     init() {
@@ -4727,60 +4727,112 @@ connect() {
     },
 
 updateBannerInfo() {
-    const banner = document.getElementById('room-active-banner');
-    if (!banner) return;
-    
-    const infoDiv = banner.querySelector('.room-info');
-    let infoBadge = '';
-    
-    if (this.currentMode === 'vip') infoBadge = '<span class="ml-2 bg-yellow-500 text-black text-xs px-2 py-0.5 rounded font-black">VIP</span>';
-    else if (this.currentMode === 'okstoopid') infoBadge = '<span class="ml-2 bg-pink-500 text-white text-xs px-2 py-0.5 rounded font-black">💘</span>';
-
-    const config = this.modeConfig[this.currentMode] || { label: 'Unknown Mode' };
-
-    infoDiv.innerHTML = `
-        <span class="font-mono bg-gray-100 px-1 rounded mr-2 text-gray-800 font-bold">${this.roomCode}</span>
-        <span class="text-sm md:text-base font-bold text-gray-700">${config.label}</span>
-        ${infoBadge}
-        <button onclick="RoomManager.reconnect()" class="ml-3 px-2 py-0.5 bg-yellow-400 text-yellow-900 text-xs font-bold rounded shadow hover:bg-yellow-300 transition" title="Force Reconnect">
-            ⚡ RESET
-        </button>
-    `;
-},
-
-    showActiveBanner() {
-        const existing = document.getElementById('room-active-banner');
-        if(existing) existing.remove();
-        if (typeof DiscoveryManager !== 'undefined') DiscoveryManager.clear();
+        const banner = document.getElementById('room-active-banner');
+        if (!banner) return;
         
-        const uiIds = ['showHelpButton', 'showSettingsButton', 'showDonateButton', 'showContactButton', 'qrGoodBtn', 'qrBadBtn', 'compareWordsButton', 'headerStatsCard', 'userStatsBar', 'dailyBanner', 'customWordButton'];
-        uiIds.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+        const infoDiv = banner.querySelector('.room-info');
+        let infoBadge = '';
         
-        const themeSelect = document.getElementById('themeChooser');
-        if (themeSelect) {
-            const card = themeSelect.closest('.bg-white') || themeSelect.parentElement;
-            if (card) { card.classList.add('temp-hidden-multiplayer'); card.style.display = 'none'; }
-        }
+        if (this.currentMode === 'vip') infoBadge = '<span class="ml-2 bg-yellow-500 text-black text-xs px-2 py-0.5 rounded font-black">VIP</span>';
+        else if (this.currentMode === 'okstoopid') infoBadge = '<span class="ml-2 bg-pink-500 text-white text-xs px-2 py-0.5 rounded font-black">💘</span>';
 
-        const banner = document.createElement('div');
-        banner.id = 'room-active-banner';
-        banner.style.cssText = "position:fixed; top:0; left:0; width:100%; height:60px; background:white; z-index:200; display:flex; align-items:center; justify-content:space-between; padding:0 20px; box-shadow:0 2px 10px rgba(0,0,0,0.1); border-bottom: 1px solid #e5e7eb;";
-        
-        banner.innerHTML = `<div class="room-info flex items-center"></div><button onclick="RoomManager.leave()" class="leave-btn">Exit</button>`;
-        document.body.appendChild(banner);
-        document.body.style.paddingTop = '60px';
-        
-        this.updateBannerInfo(); // Populate content
+        const config = this.modeConfig[this.currentMode] || { label: 'Unknown Mode' };
+
+        // Banner with RESET button
+        infoDiv.innerHTML = `
+            <span class="font-mono bg-gray-100 px-1 rounded mr-2 text-gray-800 font-bold">${this.roomCode}</span>
+            <span class="text-sm md:text-base font-bold text-gray-700">${config.label}</span>
+            ${infoBadge}
+            <button onclick="RoomManager.reconnect()" class="ml-3 px-2 py-0.5 bg-yellow-400 text-yellow-900 text-xs font-bold rounded shadow hover:bg-yellow-300 transition" title="Force Reconnect">
+                ⚡ RESET
+            </button>
+        `;
     },
 
-reconnect() {
-    if (this.socket) {
-        console.log("⚡ Manual Reconnect Triggered");
-        UIManager.showPostVoteMessage("Forcing reconnection...");
-        this.socket.disconnect();
-        setTimeout(() => this.socket.connect(), 500);
+    openLobby() {
+        const modal = document.getElementById('roomModal');
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            // Clear input
+            if(document.getElementById('roomCodeInput')) document.getElementById('roomCodeInput').value = '';
+            this.updateLobbyUI();
+        }
+    },
+
+    leave() {
+        const modal = document.getElementById('roomModal');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+        // Disconnect logic
+        if (this.active && this.socket) {
+            this.socket.emit('leaveRoom', { roomCode: this.roomCode });
+            this.active = false;
+            this.isHost = false;
+            this.roomCode = null;
+            this.showActiveBanner(); 
+            UIManager.showPostVoteMessage("Left Room");
+        }
+    },
+    
+updateLobbyUI() {
+        const pList = document.getElementById('lobbyPlayerList');
+        const sBtn = document.getElementById('startGameBtn');
+        const wMsg = document.getElementById('waitingMessage');
+        const rCode = document.getElementById('displayRoomCode');
+        
+        // 1. Update Room Code
+        if (rCode && this.roomCode) rCode.textContent = this.roomCode;
+
+        // 2. Render Players
+        if (pList && this.players) {
+            pList.innerHTML = this.players.map(p => 
+                `<div class="p-2 border-b border-gray-700 flex justify-between">
+                    <span>${p.username} ${p.id === this.playerId ? '(You)' : ''}</span>
+                    ${p.isHost ? '<span class="text-yellow-400 text-xs">HOST</span>' : ''}
+                </div>`
+            ).join('');
+        }
+
+        // 3. FORCE START BUTTON CONNECTION
+        if (sBtn) {
+            // This connects the click to the function below
+            sBtn.onclick = () => this.startGame(); 
+            
+            if (this.isHost) {
+                sBtn.classList.remove('hidden');
+                sBtn.style.display = 'block'; 
+                if (wMsg) wMsg.classList.add('hidden');
+            } else {
+                sBtn.classList.add('hidden');
+                sBtn.style.display = 'none';
+                if (wMsg) wMsg.classList.remove('hidden');
+            }
+        }
+    },
+
+    startGame() {
+        console.log("🚀 Start Game Button Clicked");
+        if (this.socket && this.isHost) {
+            this.socket.emit('startGame', { roomCode: this.roomCode });
+        } else {
+            console.warn("❌ Cannot start: You are not the host.");
+        }
+    },
+
+    reconnect() {
+        if (this.socket) {
+            UIManager.showPostVoteMessage("Forcing reconnection...");
+            this.socket.disconnect();
+            setTimeout(() => this.socket.connect(), 500);
+        }
     }
-},
+}; // <--- CLOSES THE ROOMMANAGER OBJECT
+
+// CRITICAL: This allows the HTML buttons to see the code
+window.RoomManager = RoomManager;
 
 openLobby() {
         const modal = document.getElementById('roomModal');
@@ -6282,14 +6334,10 @@ async refreshData(u = true) {
 
         // --- MULTIPLAYER LOGIC ---
         if (State.runtime.isMultiplayer && typeof RoomManager !== 'undefined' && RoomManager.active) {
-            
-            // 1. Submit to Server
             RoomManager.submitVote(t);
-            
-            // 2. Lock Buttons
             UIManager.disableButtons(true);
 
-            // 3. SAFETY TIMER (Prevent Freezing)
+            // SAFETY TIMER: Prevents infinite freezing
             if (this.voteSafetyTimer) clearTimeout(this.voteSafetyTimer);
             this.voteSafetyTimer = setTimeout(() => {
                 if (State.runtime.isMultiplayer) {
@@ -6297,7 +6345,13 @@ async refreshData(u = true) {
                     UIManager.disableButtons(false);
                     UIManager.showPostVoteMessage("⚠️ Network delay. Try again?");
                 }
-            }, 8000); // 8 seconds max wait
+            }, 8000); 
+            return;
+        }
+
+        // --- SINGLE PLAYER LOGIC (Keep your existing code below) ---
+        // ...
+    },
             
             // 4. Background Sync (Optional but good)
             const w = State.runtime.allWords[State.runtime.currentWordIndex];
