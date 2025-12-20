@@ -1328,6 +1328,83 @@ async fetchKidsWords() {
     } 
 };
 
+openLobby() {
+        const modal = document.getElementById('roomModal');
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            if(document.getElementById('roomCodeInput')) document.getElementById('roomCodeInput').value = '';
+            this.updateLobbyUI();
+        }
+    },
+
+    leave() {
+        const modal = document.getElementById('roomModal');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+        if (this.active && this.socket) {
+            this.socket.emit('leaveRoom', { roomCode: this.roomCode });
+            this.active = false;
+            this.isHost = false;
+            this.roomCode = null;
+            this.showActiveBanner(); 
+            UIManager.showPostVoteMessage("Left Room");
+        }
+    },
+
+    updateLobbyUI() {
+        const pList = document.getElementById('lobbyPlayerList');
+        const sBtn = document.getElementById('startGameBtn');
+        const wMsg = document.getElementById('waitingMessage');
+        const rCode = document.getElementById('displayRoomCode');
+        
+        // 1. Update Room Code
+        if (rCode && this.roomCode) rCode.textContent = this.roomCode;
+
+        // 2. Update Player List
+        if (pList && this.players) {
+            pList.innerHTML = this.players.map(p => 
+                `<div class="p-2 border-b border-gray-700 flex justify-between">
+                    <span>${p.username} ${p.id === this.playerId ? '(You)' : ''}</span>
+                    ${p.isHost ? '<span class="text-yellow-400 text-xs">HOST</span>' : ''}
+                </div>`
+            ).join('');
+        }
+
+        // 3. FORCE THE START BUTTON TO WORK
+        if (sBtn) {
+            sBtn.onclick = () => this.startGame(); 
+            
+            if (this.isHost) {
+                sBtn.classList.remove('hidden'); 
+                sBtn.style.display = 'block';
+            } else {
+                sBtn.classList.add('hidden');    
+                sBtn.style.display = 'none';
+                if (wMsg) wMsg.classList.remove('hidden');
+            }
+        }
+    },
+
+    startGame() {
+        console.log("🚀 Attempting to start game...");
+        if (this.socket && this.isHost) {
+            this.socket.emit('startGame', { roomCode: this.roomCode });
+        } else {
+            console.warn("❌ Click ignored: You are not the host.");
+        }
+    },
+
+    reconnect() {
+        if (this.socket) {
+            UIManager.showPostVoteMessage("Forcing reconnection...");
+            this.socket.disconnect();
+            setTimeout(() => this.socket.connect(), 500);
+        }
+    }
+
 const ThemeManager = {
     wordMap: {},
     init() {
@@ -4732,6 +4809,8 @@ openLobby() {
             UIManager.showPostVoteMessage("Left Room");
         }
     },
+
+
 
     startGame() {
         if (this.socket && this.isHost) {
