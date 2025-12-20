@@ -4449,71 +4449,52 @@ const RoomManager = {
     },
 
 connect() {
-        try {
-            if (typeof io === 'undefined') return;
+    try {
+        if (typeof io === 'undefined') return;
+        
+        // --- CRITICAL FIX: Force Websocket Transport ---
+        // This prevents the "400 Bad Request" errors on Render/Heroku
+        if (!this.socket) {
+            this.socket = io({
+                transports: ['websocket'], // 1. Disable polling completely
+                upgrade: false,            // 2. Do not try to upgrade, start as WS
+                reconnectionAttempts: 10   // 3. Limit retry spam
+            });
+        }
+
+        if (this.listenersAttached) {
+            console.log("⚡ Listeners already attached. Skipping init.");
+            return;
+        }
+        this.listenersAttached = true;
+        
+        // --- Connection Handlers ---
+        this.socket.on('connect_error', (err) => {
+            console.warn("⚠️ Connection Error:", err);
+        });
+
+        this.socket.on('connect', () => { 
+            console.log("✅ Socket Connected (Websocket)", this.socket.id);
+            this.playerId = this.socket.id; 
             
-            if (!this.socket) {
-                this.socket = io();
+            // Auto-fill room code if available
+            const savedCode = localStorage.getItem('lastRoomCode');
+            if (savedCode && !this.active) {
+                const input = document.getElementById('roomCodeInput');
+                if (input) input.value = savedCode;
             }
-
-            if (this.listenersAttached) {
-                console.log("⚡ Listeners already attached. Skipping init.");
-                return;
-            }
-            this.listenersAttached = true;
             
-            this.socket.on('connect', () => { 
-                console.log("✅ Socket Connected", this.socket.id);
-                this.playerId = this.socket.id; 
-                const savedCode = localStorage.getItem('lastRoomCode');
-                if (savedCode && !this.active) {
-                    const input = document.getElementById('roomCodeInput');
-                    if (input) input.value = savedCode;
-                }
-            });
-			
-			this.socket.on('disconnect', () => {
-                console.warn("❌ Socket Disconnected");
-                if (this.active) {
-                    UIManager.showPostVoteMessage("Connection Lost. Reconnecting...");
-                }
-            });
+            // If we reconnected mid-game, try to rejoin automatically
+            if (this.roomCode && State.data.username) {
+                 this.socket.emit('joinRoom', { 
+                    roomCode: this.roomCode, 
+                    username: State.data.username, 
+                    theme: State.data.currentTheme || 'default' 
+                 });
+            }
+        });
 
-            this.socket.on('roomUpdate', (data) => {
-                console.log("📥 Room Update:", data);
-                this.isHost = (data.host === this.playerId);
-                this.currentMode = data.mode;
-                this.currentRounds = data.maxWords; 
-                this.drinkingMode = data.drinkingMode;
-                this.vipId = data.vipId; 
-                
-                if (data.players) this.players = data.players;
-
-                if (!this.active) {
-                    if (document.getElementById('roomModal').classList.contains('hidden')) {
-                         this.openLobby();
-                         document.getElementById('roomJoinScreen').classList.add('hidden');
-                         document.getElementById('roomLobbyScreen').classList.remove('hidden');
-                         document.getElementById('lobbyCodeDisplay').textContent = this.roomCode;
-                    }
-                    this.renderLobby(data);
-                } else {
-                    this.updateBannerInfo(); 
-                }
-
-                if (data.theme && data.theme !== State.data.currentTheme) {
-                    ThemeManager.apply(data.theme, 'temp'); 
-                }
-                
-                const me = data.players.find(p => p.id === this.playerId);
-                if (me) {
-                    this.myTeam = me.team;
-                    this.myLives = me.lives;
-                    this.isSpectator = me.isSpectator;
-                } else {
-                    if (this.active) this.resetLocalState();
-                }
-            });
+        // ... (Keep your existing disconnect, roomUpdate, gameStarted, etc. listeners below) ...
             
 this.socket.on('gameStarted', async (data) => {
     console.log("🚀 Game Started - Syncing Word Lists");
