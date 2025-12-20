@@ -4494,7 +4494,30 @@ connect() {
             }
         });
 
-        // ... (Keep your existing disconnect, roomUpdate, gameStarted, etc. listeners below) ...
+ // --- PASTE THIS BLOCK HERE ---
+            this.socket.on('roomUpdate', (data) => {
+                // 1. If we are playing a game, ignore lobby updates to prevent crashes
+                if (this.active) {
+                    this.updateBannerInfo(); 
+                    return; 
+                }
+
+                // 2. Update local data
+                this.isHost = (data.host === this.playerId);
+                this.currentMode = data.mode;
+                this.currentRounds = data.maxWords; 
+                this.drinkingMode = data.drinkingMode;
+                if (data.players) this.players = data.players;
+
+                // 3. Render the Lobby UI
+                // Only render if the lobby screen is actually visible
+                if (!document.getElementById('roomModal').classList.contains('hidden')) {
+                     this.renderLobby(data);
+                }
+            });
+            // -----------------------------
+
+            this.socket.on('gameStarted', async (data) => {
             
 this.socket.on('gameStarted', async (data) => {
     console.log("🚀 Game Started - Syncing Word Lists");
