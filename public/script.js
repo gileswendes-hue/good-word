@@ -4733,6 +4733,12 @@ openLobby() {
         }
     },
 
+    startGame() {
+        if (this.socket && this.isHost) {
+            this.socket.emit('startGame', { roomCode: this.roomCode });
+        }
+    },
+
     removeActiveBanner() {
         const b = document.getElementById('room-active-banner');
         if(b) b.remove();
