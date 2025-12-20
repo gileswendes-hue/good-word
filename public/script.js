@@ -4944,30 +4944,32 @@ showFinalResults(data) {
         }
     },
 	
-    calculateTrueSync() {
-        try {
-            const history = this.roundHistory || [];
-            if (history.length === 0) return { pct: 0, matches: 0, total: 0 };
-            let matches = 0;
-            let total = 0;
-            history.forEach(round => {
-                total++;
-                if (round.match) matches++;
-            });
-            if (total === 0) return { pct: 0, matches: 0, total: 0 };
-            let pct = Math.floor((matches / total) * 100);
-            if (pct > 50 && pct < 100) {
-                const seed = (this.roomCode || "A").charCodeAt(0) + matches;
-                const bonus = seed % 5; 
-                pct += bonus;
-                if (pct > 100) pct = 100;
-            }
-            return { pct: pct, matches: matches, total: total };
-        } catch (e) {
-            console.warn("Sync Calc failed", e);
-            return { pct: 0, matches: 0, total: 0 };
+  calculateTrueSync() {
+    try {
+        const history = this.roundHistory || [];
+        const total = history.length;
+        
+        if (total === 0) return { pct: 0, matches: 0, total: 0 };
+
+        // Strictly count matches where 'match' is true
+        let matches = history.filter(h => h.match === true).length;
+        
+        // Accurate percentage calculation
+        let pct = Math.floor((matches / total) * 100);
+        
+        // UX Boost (Optional: adds slight variety to scores)
+        if (pct > 0 && pct < 100) {
+            const seed = (this.roomCode || "A").charCodeAt(0) + matches;
+            const bonus = seed % 5; 
+            pct = Math.min(100, pct + bonus);
         }
-    },
+        
+        return { pct: pct, matches: matches, total: total };
+    } catch (e) {
+        console.error("Sync Error:", e);
+        return { pct: 0, matches: 0, total: 0 };
+    }
+}
     // ... Copy `playCountdown`, `injectStyles`, `showDrinkPenalty`, `showNameInput`, `showCustomAlert`, `showCustomConfirm`, `showRoleAlert`, `showAccusationScreen`, `kick`, `showVoteReveal`, `showSpectatorBanner`, `updateHearts`, `updateSettings` from previous code ...
     playCountdown(mode) {
         const config = this.modeConfig[mode];
