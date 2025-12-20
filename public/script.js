@@ -4464,20 +4464,31 @@ connect() {
             
             this.socket.on('connect', () => { 
                 console.log("✅ Socket Connected", this.socket.id);
-                this.playerId = this.socket.id; 
-                const savedCode = localStorage.getItem('lastRoomCode');
-                if (savedCode && !this.active) {
-                    const input = document.getElementById('roomCodeInput');
-                    if (input) input.value = savedCode;
-                }
+                // IMPROVED REJOIN LOGIC
+        const savedCode = localStorage.getItem('lastRoomCode');
+        
+        // If we were active before the disconnect, or have a saved code
+        if (this.active || savedCode) {
+            const codeToJoin = this.roomCode || savedCode;
+            console.log("🔄 Attempting reliable rejoin to:", codeToJoin);
+            
+            // Re-emit join event explicitly
+            this.socket.emit('joinRoom', { 
+                roomCode: codeToJoin, 
+                username: State.data.username 
             });
-			
-			this.socket.on('disconnect', () => {
-                console.warn("❌ Socket Disconnected");
-                if (this.active) {
-                    UIManager.showPostVoteMessage("Connection Lost. Reconnecting...");
-                }
-            });
+            
+            // Visual feedback
+            UIManager.showPostVoteMessage("Reconnected! Syncing...");
+        }
+    });
+
+    this.socket.on('disconnect', () => {
+        // Don't just log it, tell the user
+        UIManager.showPostVoteMessage("❌ Connection Lost. Reconnecting...");
+        // Optionally disable buttons so they don't vote into the void
+        UIManager.disableButtons(true); 
+    });
 
             this.socket.on('roomUpdate', (data) => {
                 console.log("📥 Room Update:", data);
@@ -4563,7 +4574,7 @@ connect() {
             });
 
             this.socket.on('roundResult', ({ mode, data, players, votes }) => {
-                // ... (previous code unchanged) ...
+                if (Game.voteSafetyTimer) clearTimeout(Game.voteSafetyTimer);
                 UIManager.showPostVoteMessage(msg);
 
 		setTimeout(() => {
@@ -4639,26 +4650,26 @@ connect() {
     },
 
 updateBannerInfo() {
-        const banner = document.getElementById('room-active-banner');
-        if (!banner) return;
-        
-        const infoDiv = banner.querySelector('.room-info');
-        if (!infoDiv) return;
+    const banner = document.getElementById('room-active-banner');
+    if (!banner) return;
+    
+    const infoDiv = banner.querySelector('.room-info');
+    let infoBadge = '';
+    
+    if (this.currentMode === 'vip') infoBadge = '<span class="ml-2 bg-yellow-500 text-black text-xs px-2 py-0.5 rounded font-black">VIP</span>';
+    else if (this.currentMode === 'okstoopid') infoBadge = '<span class="ml-2 bg-pink-500 text-white text-xs px-2 py-0.5 rounded font-black">💘</span>';
 
-        let infoBadge = ''; 
-        if (this.currentMode === 'versus' && this.myTeam) {
-            const color = this.myTeam === 'red' ? 'bg-red-500' : (this.myTeam === 'blue' ? 'bg-blue-500' : 'bg-gray-400');
-            infoBadge = `<span class="ml-2 px-2 py-1 rounded text-xs text-white font-bold ${color}">${this.myTeam.toUpperCase()} TEAM</span>`;
-        }
-        
-        const config = this.modeConfig[this.currentMode] || { label: 'Multiplayer' };
-        
-        infoDiv.innerHTML = `
-            <span class="font-mono bg-gray-100 px-1 rounded mr-2 text-gray-800 font-bold">${this.roomCode}</span> 
-            <span class="text-sm md:text-base font-bold text-gray-700">${config.label}</span>
-            ${infoBadge}
-        `;
-    },
+    const config = this.modeConfig[this.currentMode] || { label: 'Unknown Mode' };
+
+    infoDiv.innerHTML = `
+        <span class="font-mono bg-gray-100 px-1 rounded mr-2 text-gray-800 font-bold">${this.roomCode}</span>
+        <span class="text-sm md:text-base font-bold text-gray-700">${config.label}</span>
+        ${infoBadge}
+        <button onclick="RoomManager.reconnect()" class="ml-3 px-2 py-0.5 bg-yellow-400 text-yellow-900 text-xs font-bold rounded shadow hover:bg-yellow-300 transition" title="Force Reconnect">
+            ⚡ RESET
+        </button>
+    `;
+},
 
     showActiveBanner() {
         const existing = document.getElementById('room-active-banner');
@@ -4684,6 +4695,15 @@ updateBannerInfo() {
         
         this.updateBannerInfo(); // Populate content
     },
+
+reconnect() {
+    if (this.socket) {
+        console.log("⚡ Manual Reconnect Triggered");
+        UIManager.showPostVoteMessage("Forcing reconnection...");
+        this.socket.disconnect();
+        setTimeout(() => this.socket.connect(), 500);
+    }
+},
 
     // ... (removeActiveBanner, leave, setMode, renderLobby, injectModal, openLobby, closeLobby, join, start, submitVote, showFinalResults, calculateTrueSync, injectStyles, etc. - keep existing implementations from previous script) ...
     // Copy the rest of the existing methods here.
@@ -6148,27 +6168,38 @@ async refreshData(u = true) {
         }, 1000);
     },
 
-    async vote(t, s = false) {
+ async vote(t, s = false) {
         if (State.runtime.isCoolingDown) return;
-		
-		if (State.runtime.isMultiplayer && typeof RoomManager !== 'undefined' && RoomManager.active) {
-             RoomManager.submitVote(t);
-			 
-			 const w = State.runtime.allWords[State.runtime.currentWordIndex];
-             if (w && w._id) {
-                 API.vote(w._id, t).catch(e => console.warn("Background vote sync failed", e));
-             }
-			 
-             UIManager.disableButtons(true); 
-             const wd = DOM.game.wordDisplay;
-             const colors = Accessibility.getColors();
-             if (t === 'good' || t === 'bad') {
-                 wd.style.color = t === 'good' ? colors.good : colors.bad;
-                 wd.style.opacity = '0.5'; 
-             }
-             return; 
+
+        // --- MULTIPLAYER LOGIC ---
+        if (State.runtime.isMultiplayer && typeof RoomManager !== 'undefined' && RoomManager.active) {
+            
+            // 1. Submit to Server
+            RoomManager.submitVote(t);
+            
+            // 2. Lock Buttons
+            UIManager.disableButtons(true);
+
+            // 3. SAFETY TIMER (Prevent Freezing)
+            if (this.voteSafetyTimer) clearTimeout(this.voteSafetyTimer);
+            this.voteSafetyTimer = setTimeout(() => {
+                if (State.runtime.isMultiplayer) {
+                    console.warn("⚠️ Server timeout. Unlocking buttons.");
+                    UIManager.disableButtons(false);
+                    UIManager.showPostVoteMessage("⚠️ Network delay. Try again?");
+                }
+            }, 8000); // 8 seconds max wait
+            
+            // 4. Background Sync (Optional but good)
+            const w = State.runtime.allWords[State.runtime.currentWordIndex];
+            if (w && w._id) {
+                API.vote(w._id, t).catch(e => console.warn("Background vote sync failed", e));
+            }
+            
+            return; // STOP HERE (Don't run single player logic)
         }
-		
+
+        // --- SINGLE PLAYER LOGIC ---
         const n = Date.now();
         if (State.runtime.lastVoteTime > 0 && (n - State.runtime.lastVoteTime) > CONFIG.VOTE.STREAK_WINDOW) {
             State.runtime.mashCount = 1;
