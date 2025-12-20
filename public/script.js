@@ -4705,10 +4705,34 @@ reconnect() {
     }
 },
 
-    // ... (removeActiveBanner, leave, setMode, renderLobby, injectModal, openLobby, closeLobby, join, start, submitVote, showFinalResults, calculateTrueSync, injectStyles, etc. - keep existing implementations from previous script) ...
-    // Copy the rest of the existing methods here.
-    
-    // --- COPY THE REST OF THE METHODS BELOW FROM YOUR PREVIOUS SCRIPT ---
+openLobby() {
+        const modal = document.getElementById('roomModal');
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            // Reset lobby UI
+            if(document.getElementById('roomCodeInput')) document.getElementById('roomCodeInput').value = '';
+            this.updateLobbyUI();
+        }
+    },
+
+    leave() {
+        const modal = document.getElementById('roomModal');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+        // Disconnect if we are currently in a room
+        if (this.active && this.socket) {
+            this.socket.emit('leaveRoom', { roomCode: this.roomCode });
+            this.active = false;
+            this.isHost = false;
+            this.roomCode = null;
+            this.showActiveBanner(); // Updates UI
+            UIManager.showPostVoteMessage("Left Room");
+        }
+    },
+
     removeActiveBanner() {
         const b = document.getElementById('room-active-banner');
         if(b) b.remove();
