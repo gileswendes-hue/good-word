@@ -4553,15 +4553,41 @@ connect() {
             }
         });
 
-        this.socket.on('roundResult', ({ mode, data, players, votes }) => {
+ this.socket.on('roundResult', ({ mode, data, players, votes }) => {
+            // Safety: Ensure history array exists
+            if (!this.roundHistory) this.roundHistory = [];
+
+            let isMatch = false;
+            let validData = false;
+
+            // 1. Try to get result from Server
             if (data && typeof data.match !== 'undefined') {
-                this.roundHistory.push({ match: !!data.match });
+                isMatch = !!data.match;
+                validData = true;
+            } 
+            // 2. Fallback: Calculate Match Locally (Fixes 0% Bug)
+            else if (votes) {
+                const vals = Object.values(votes).filter(v => v);
+                // In OK Stoopid (2 players), if both votes are identical, it's a match
+                if (vals.length >= 2) {
+                    const first = vals[0];
+                    isMatch = vals.every(v => v === first);
+                    validData = true;
+                }
+            }
+
+            // 3. Save to History
+            if (validData) {
+                this.roundHistory.push({ match: isMatch });
             }
 
             this.showVoteReveal(players, votes);
-            const msg = data.msg || (data.match ? "IT'S A MATCH! 💘" : "MISMATCH! 💔");
+            
+            // Use local isMatch for message if data.msg is missing
+            const msg = data.msg || (isMatch ? "IT'S A MATCH! 💘" : "MISMATCH! 💔");
             UIManager.showPostVoteMessage(msg);
 
+            // 4. Transition to next word
             setTimeout(() => {
                 try {
                     if (!this.active) return;
@@ -4918,30 +4944,35 @@ showFinalResults(data) {
         }
     },
 	
-    calculateTrueSync() {
+calculateTrueSync() {
         try {
             const history = this.roundHistory || [];
+            console.log("Calculating Compatibility. Rounds:", history.length); // Debug Log
+
             if (history.length === 0) return { pct: 0, matches: 0, total: 0 };
+
             let matches = 0;
-            let total = 0;
+            const total = history.length;
+
             history.forEach(round => {
-                total++;
                 if (round.match) matches++;
             });
-            if (total === 0) return { pct: 0, matches: 0, total: 0 };
+
             let pct = Math.floor((matches / total) * 100);
-            if (pct > 50 && pct < 100) {
+
+            // Small bonus for "OK Stoopid" flavor (Optional)
+            if (pct > 0 && pct < 100) {
                 const seed = (this.roomCode || "A").charCodeAt(0) + matches;
                 const bonus = seed % 5; 
-                pct += bonus;
-                if (pct > 100) pct = 100;
+                pct = Math.min(100, pct + bonus);
             }
+            
             return { pct: pct, matches: matches, total: total };
         } catch (e) {
-            console.warn("Sync Calc failed", e);
+            console.error("Sync Calc failed", e);
             return { pct: 0, matches: 0, total: 0 };
         }
-    },
+    }, 
     // ... Copy `playCountdown`, `injectStyles`, `showDrinkPenalty`, `showNameInput`, `showCustomAlert`, `showCustomConfirm`, `showRoleAlert`, `showAccusationScreen`, `kick`, `showVoteReveal`, `showSpectatorBanner`, `updateHearts`, `updateSettings` from previous code ...
     playCountdown(mode) {
         const config = this.modeConfig[mode];
