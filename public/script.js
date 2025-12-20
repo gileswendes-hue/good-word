@@ -1397,14 +1397,15 @@ openLobby() {
         }
     },
 
-    reconnect() {
+ reconnect() {
         if (this.socket) {
             UIManager.showPostVoteMessage("Forcing reconnection...");
             this.socket.disconnect();
             setTimeout(() => this.socket.connect(), 500);
-}
+        }
     }
 };
+
 const ThemeManager = {
     wordMap: {},
     init() {
@@ -4776,7 +4777,7 @@ updateBannerInfo() {
             UIManager.showPostVoteMessage("Left Room");
         }
     },
-    
+
 updateLobbyUI() {
         const pList = document.getElementById('lobbyPlayerList');
         const sBtn = document.getElementById('startGameBtn');
