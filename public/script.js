@@ -4515,97 +4515,98 @@ connect() {
                 }
             });
             
-			this.socket.on('gameStarted', async (data) => {
-                console.log("🚀 Game Started", data);
-                this.active = true;
-                State.runtime.isMultiplayer = true; 
-                if(window.TipManager) window.TipManager.active = false;
-                
-                this.closeLobby();
-                this.roundHistory = []; 
-                
-                document.querySelectorAll('.fixed').forEach(el => {
-                    if (el.id !== 'roomModal') el.remove(); 
-                });
+	this.socket.on('gameStarted', async (data) => {
+    this.active = true;
+    State.runtime.isMultiplayer = true; 
+    if(window.TipManager) window.TipManager.active = false;
+    
+    this.closeLobby();
+    this.roundHistory = []; 
+    
+    // Clear any previous game UI overlays
+    ['active-role-alert', 'spectator-banner', 'active-accusation', 'active-drink-penalty', 'active-vote-reveal', 'active-countdown'].forEach(id => {
+        const el = document.getElementById(id); if(el) el.remove();
+    });
 
-                this.currentMode = data.mode;
-                this.vipId = data.vipId; 
-                if (data.players) this.players = data.players;
+    this.currentMode = data.mode;
+    this.vipId = data.vipId; 
+    if (data.players) this.players = data.players;
 
-                // 1. Ensure we have words
-                if (!State.runtime.allWords || State.runtime.allWords.length < 50) {
-                    const all = await API.getAllWords();
-                    State.runtime.allWords = all;
-                }
+    // Ensure words are loaded
+    if (!State.runtime.allWords || State.runtime.allWords.length < 50) {
+        State.runtime.allWords = await API.getAllWords();
+    }
 
-                // 2. SURGICAL FIX: REMOVED .sort() 
-                // Using the existing order + shuffle prevents the "Same First Word" loop
-                // caused by sorting identical lists with a static Room Code seed.
-               let wordsToShuffle = [...State.runtime.allWords].sort((a, b) => a.text.localeCompare(b.text));
-                
-                // 3. Apply Seeded Shuffle
-                const seed = data.gameSeed || this.roomCode;
-                State.runtime.allWords = SeededShuffle.shuffle(wordsToShuffle, seed);
-                
+    // SYNC FIX: Sort by _id (or text if _id missing) so every player's "base" list is identical
+    let wordsToShuffle = [...State.runtime.allWords].sort((a, b) => {
+        const idA = a._id || a.text;
+        const idB = b._id || b.text;
+        return idA.localeCompare(idB);
+    });
+    
+    // Shuffle the identical list using the server's seed
+    State.runtime.allWords = SeededShuffle.shuffle(wordsToShuffle, data.gameSeed || this.roomCode);
+    State.runtime.currentWordIndex = 0;
+
+    this.showActiveBanner(); 
+
+    if (this.isSpectator) {
+        UIManager.disableButtons(true);
+        this.showSpectatorBanner();
+    } else {
+        UIManager.disableButtons(false); // Force unlock for countdown
+        this.playCountdown(data.mode);
+    }
+    
+    if (this.currentMode === 'survival') this.updateHearts();
+});
+
+ this.socket.on('roundResult', ({ mode, data, players, votes }) => {
+    // Save results for compatibility score calculation
+    if (data && data.match !== undefined) {
+        this.roundHistory.push({ match: data.match });
+    }
+
+    this.showVoteReveal(players, votes);
+    const msg = data.msg || (data.match ? "IT'S A MATCH! 💘" : "MISMATCH! 💔");
+    UIManager.showPostVoteMessage(msg);
+
+    // ROUND TRANSITION FIX
+    setTimeout(() => {
+        try {
+            if (!this.active) return;
+
+            const rev = document.getElementById('active-vote-reveal'); 
+            if(rev) rev.remove();
+            
+            State.runtime.currentWordIndex++; // Advance to the next word
+            
+            // Safety loop if the match lasts longer than the word list
+            if (State.runtime.currentWordIndex >= State.runtime.allWords.length) {
                 State.runtime.currentWordIndex = 0;
+            }
 
-                this.showActiveBanner(); 
-                // ... (rest of function unchanged)
-
-                if (this.isSpectator) {
-                    UIManager.disableButtons(true);
-                    this.showSpectatorBanner();
-                } else {
-                    this.playCountdown(data.mode);
+            const nextW = State.runtime.allWords[State.runtime.currentWordIndex];
+            if (nextW) {
+                UIManager.displayWord(nextW);
+                // Reset visual styles so the word isn't "invisible" or stuck off-screen
+                const wd = DOM.game.wordDisplay;
+                if (wd) {
+                    wd.style.color = ''; 
+                    wd.style.opacity = '1';
+                    wd.style.transform = 'none';
                 }
-                
-                if (this.currentMode === 'survival') this.updateHearts();
-            });
-
-            this.socket.on('roundResult', ({ mode, data, players, votes }) => {
-                // ... (previous code unchanged) ...
-                UIManager.showPostVoteMessage(msg);
-
-		setTimeout(() => {
-                    try {
-                        if (!this.active) return;
-
-                        const rev = document.getElementById('active-vote-reveal'); 
-                        if(rev) rev.remove();
-                        
-                        State.runtime.currentWordIndex++;
-                        
-                        // SAFETY: Loop back to start if we run out of words (Fixes specific freezing case)
-                        if (State.runtime.currentWordIndex >= State.runtime.allWords.length) {
-                            State.runtime.currentWordIndex = 0;
-                        }
-
-                        const nextW = State.runtime.allWords[State.runtime.currentWordIndex];
-                        
-                        if (nextW) {
-                            UIManager.displayWord(nextW);
-                            // Ensure opacity is reset
-                            const wd = DOM.game.wordDisplay;
-                            if (wd) {
-                                wd.style.color = ''; 
-                                wd.style.opacity = '1';
-                            }
-                        } else {
-                            console.warn("Word list empty/corrupt");
-                            UIManager.displayWord({text: "Loading..."});
-                        }
-                    } catch(err) {
-                        console.error("Round transition error:", err);
-                        UIManager.showMessage("Recovering round...");
-                    } finally {
-                        // CRITICAL: Always unlock buttons to prevent freezing
-                        if (this.active && !this.isSpectator) {
-                            UIManager.disableButtons(false);
-                        }
-                    }
-                }, 3000); 
-                // ---------------------------------------------
-            });
+            }
+        } catch(err) {
+            console.error("Transition failed:", err);
+        } finally {
+            // CRITICAL: Re-enable buttons no matter what to prevent UI freezing
+            if (this.active && !this.isSpectator) {
+                UIManager.disableButtons(false);
+            }
+        }
+    }, 3000); // 3-second reveal window
+});
             
             this.socket.on('gameOver', (data) => {
                 if (!data) return;
