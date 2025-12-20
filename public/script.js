@@ -4515,50 +4515,48 @@ connect() {
                 }
             });
             
-	this.socket.on('gameStarted', async (data) => {
+this.socket.on('gameStarted', async (data) => {
+    console.log("🚀 Game Started - Syncing Word Lists");
     this.active = true;
     State.runtime.isMultiplayer = true; 
-    if(window.TipManager) window.TipManager.active = false;
     
-    this.closeLobby();
-    this.roundHistory = []; 
-    
-    // Clear any previous game UI overlays
-    ['active-role-alert', 'spectator-banner', 'active-accusation', 'active-drink-penalty', 'active-vote-reveal', 'active-countdown'].forEach(id => {
-        const el = document.getElementById(id); if(el) el.remove();
-    });
+    // 1. CLEAR OVERLAYS
+    const ids = ['active-role-alert', 'spectator-banner', 'active-accusation', 'active-drink-penalty', 'active-vote-reveal', 'active-countdown'];
+    ids.forEach(id => { const el = document.getElementById(id); if(el) el.remove(); });
 
+    // 2. DATA ASSIGNMENT
     this.currentMode = data.mode;
     this.vipId = data.vipId; 
     if (data.players) this.players = data.players;
 
-    // Ensure words are loaded
+    // 3. ENFORCE WORD LIST CONSISTENCY
     if (!State.runtime.allWords || State.runtime.allWords.length < 50) {
         State.runtime.allWords = await API.getAllWords();
     }
 
-    // SYNC FIX: Sort by _id (or text if _id missing) so every player's "base" list is identical
-    let wordsToShuffle = [...State.runtime.allWords].sort((a, b) => {
-        const idA = a._id || a.text;
-        const idB = b._id || b.text;
+    // 4. CRITICAL SYNC FIX: Sort by _id to create a 100% identical base array
+    let syncBaseList = [...State.runtime.allWords].sort((a, b) => {
+        const idA = String(a._id || a.text);
+        const idB = String(b._id || b.text);
         return idA.localeCompare(idB);
     });
     
-    // Shuffle the identical list using the server's seed
-    State.runtime.allWords = SeededShuffle.shuffle(wordsToShuffle, data.gameSeed || this.roomCode);
+    // 5. USE SERVER SEED ONLY: Avoid fallback to roomCode if possible to ensure match
+    const sharedSeed = data.gameSeed || this.roomCode; 
+    State.runtime.allWords = SeededShuffle.shuffle(syncBaseList, sharedSeed);
+    
+    // 6. RESET INDEX FOR ALL PLAYERS
     State.runtime.currentWordIndex = 0;
 
-    this.showActiveBanner(); 
+    this.showActiveBanner();
 
     if (this.isSpectator) {
         UIManager.disableButtons(true);
         this.showSpectatorBanner();
     } else {
-        UIManager.disableButtons(false); // Force unlock for countdown
+        UIManager.disableButtons(false);
         this.playCountdown(data.mode);
     }
-    
-    if (this.currentMode === 'survival') this.updateHearts();
 });
 
  this.socket.on('roundResult', ({ mode, data, players, votes }) => {
