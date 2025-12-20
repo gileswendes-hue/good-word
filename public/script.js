@@ -1302,7 +1302,7 @@ async fetchKidsWords() {
                 body: JSON.stringify({ name, score, userId: State.data.userId })
             });
         } catch (e) { console.error("Score submit failed", e); }
-    }, // <--- FIXED: Added closing brace and comma here
+    }, 
 
     async submitUserVotes(userId, username, voteCount) {
         try {
@@ -1314,7 +1314,7 @@ async fetchKidsWords() {
         } catch (e) { 
             console.warn("Failed to submit user stats:", e); 
         }
-    }, // <--- FIXED: Added closing brace and comma here
+    }, 
     
     async fetchLeaderboard() {
         try {
@@ -1327,6 +1327,8 @@ async fetchKidsWords() {
         }
     } 
 };
+
+const RoomManager = {
 
 openLobby() {
         const modal = document.getElementById('roomModal');
@@ -4823,17 +4825,16 @@ updateLobbyUI() {
         }
     },
 
-    reconnect() {
+reconnect() {
         if (this.socket) {
             UIManager.showPostVoteMessage("Forcing reconnection...");
             this.socket.disconnect();
             setTimeout(() => this.socket.connect(), 500);
         }
     }
-}; // <--- CLOSES THE ROOMMANAGER OBJECT
+}; 
 
-// CRITICAL: This allows the HTML buttons to see the code
-window.RoomManager = RoomManager;
+if (typeof RoomManager !== 'undefined') window.RoomManager = RoomManager;
 
 openLobby() {
         const modal = document.getElementById('roomModal');
