@@ -4516,61 +4516,49 @@ connect() {
             });
             
 this.socket.on('gameStarted', async (data) => {
-    console.log("🚀 Game Starting: " + data.mode);
-    
-    // 1. FORCE STATE INITIALIZATION
+    console.log("🚀 Game Started - Syncing Word Lists");
     this.active = true;
-    State.runtime.isMultiplayer = true;
-    if(window.TipManager) window.TipManager.active = false;
-
-    // 2. IMMEDIATE UI CLEANUP 
-    this.closeLobby();
-    this.roundHistory = []; 
+    State.runtime.isMultiplayer = true; 
     
-    // Remove any lingering overlays to prevent "Ghost" lobby elements
-    ['active-role-alert', 'spectator-banner', 'active-accusation', 'active-drink-penalty', 'active-vote-reveal', 'active-countdown'].forEach(id => {
-        const el = document.getElementById(id); if(el) el.remove();
-    });
+    // 1. CLEAR OVERLAYS
+    const ids = ['active-role-alert', 'spectator-banner', 'active-accusation', 'active-drink-penalty', 'active-vote-reveal', 'active-countdown'];
+    ids.forEach(id => { const el = document.getElementById(id); if(el) el.remove(); });
 
+    // 2. DATA ASSIGNMENT
     this.currentMode = data.mode;
     this.vipId = data.vipId; 
     if (data.players) this.players = data.players;
 
-    // 3. WORD LIST CONSOLIDATION
-    // Fetch all words if local runtime list is missing
-    if (!State.runtime.allWords || State.runtime.allWords.length === 0) {
+    // 3. ENFORCE WORD LIST CONSISTENCY
+    if (!State.runtime.allWords || State.runtime.allWords.length < 50) {
         State.runtime.allWords = await API.getAllWords();
     }
 
-    // 4. CRITICAL SYNC: Ensure every player has the IDENTICAL word order
-    // Sort by ID to create a stable base
-    let syncList = [...State.runtime.allWords].sort((a, b) => {
+    // 4. CRITICAL SYNC FIX: Sort by _id to create a 100% identical base array
+    let syncBaseList = [...State.runtime.allWords].sort((a, b) => {
         const idA = String(a._id || a.text);
         const idB = String(b._id || b.text);
         return idA.localeCompare(idB);
     });
     
-    // Shuffle using the server-provided seed
-    const sharedSeed = data.gameSeed || this.roomCode;
-    State.runtime.allWords = SeededShuffle.shuffle(syncList, sharedSeed);
+    // 5. USE SERVER SEED ONLY: Avoid fallback to roomCode if possible to ensure match
+    const sharedSeed = data.gameSeed || this.roomCode; 
+    State.runtime.allWords = SeededShuffle.shuffle(syncBaseList, sharedSeed);
     
-    // Reset index to 0
-    State.runtime.currentWordIndex = 0; 
+    // 6. RESET INDEX FOR ALL PLAYERS
+    State.runtime.currentWordIndex = 0;
 
-    // 5. SHOW MULTIPLAYER HEADER
     this.showActiveBanner();
 
-    // 6. START COUNTDOWN
     if (this.isSpectator) {
         UIManager.disableButtons(true);
         this.showSpectatorBanner();
     } else {
-        // We unlock buttons JUST before the countdown ends inside playCountdown
+        UIManager.disableButtons(false);
         this.playCountdown(data.mode);
     }
-    
-    if (this.currentMode === 'survival') this.updateHearts();
 });
+
  this.socket.on('roundResult', ({ mode, data, players, votes }) => {
     // Save results for compatibility score calculation
     if (data && data.match !== undefined) {
