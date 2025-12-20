@@ -4452,39 +4452,32 @@ connect() {
     try {
         if (typeof io === 'undefined') return;
         
-        // --- CRITICAL FIX: Force Websocket Transport ---
-        // This prevents the "400 Bad Request" errors on Render/Heroku
+        // 1. Force Websocket to prevent 400 errors
         if (!this.socket) {
             this.socket = io({
-                transports: ['websocket'], // 1. Disable polling completely
-                upgrade: false,            // 2. Do not try to upgrade, start as WS
-                reconnectionAttempts: 10   // 3. Limit retry spam
+                transports: ['websocket'],
+                upgrade: false,
+                reconnectionAttempts: 10
             });
         }
 
         if (this.listenersAttached) {
-            console.log("⚡ Listeners already attached. Skipping init.");
+            console.log("⚡ Listeners already attached.");
             return;
         }
         this.listenersAttached = true;
         
-        // --- Connection Handlers ---
-        this.socket.on('connect_error', (err) => {
-            console.warn("⚠️ Connection Error:", err);
-        });
+        this.socket.on('connect_error', (err) => console.warn("⚠️ Connection Error:", err));
 
         this.socket.on('connect', () => { 
-            console.log("✅ Socket Connected (Websocket)", this.socket.id);
+            console.log("✅ Socket Connected", this.socket.id);
             this.playerId = this.socket.id; 
             
-            // Auto-fill room code if available
             const savedCode = localStorage.getItem('lastRoomCode');
             if (savedCode && !this.active) {
                 const input = document.getElementById('roomCodeInput');
                 if (input) input.value = savedCode;
             }
-            
-            // If we reconnected mid-game, try to rejoin automatically
             if (this.roomCode && State.data.username) {
                  this.socket.emit('joinRoom', { 
                     roomCode: this.roomCode, 
@@ -4494,149 +4487,140 @@ connect() {
             }
         });
 
- // --- PASTE THIS BLOCK HERE ---
-            this.socket.on('roomUpdate', (data) => {
-                // 1. If we are playing a game, ignore lobby updates to prevent crashes
-                if (this.active) {
-                    this.updateBannerInfo(); 
-                    return; 
-                }
+        // --- CRITICAL FIX: ROOM UPDATE LISTENER ---
+        this.socket.on('roomUpdate', (data) => {
+            // Update local data
+            this.isHost = (data.host === this.playerId);
+            this.currentMode = data.mode;
+            this.currentRounds = data.maxWords; 
+            this.drinkingMode = data.drinkingMode;
+            if (data.players) this.players = data.players;
 
-                // 2. Update local data
-                this.isHost = (data.host === this.playerId);
-                this.currentMode = data.mode;
-                this.currentRounds = data.maxWords; 
-                this.drinkingMode = data.drinkingMode;
-                if (data.players) this.players = data.players;
+            // 1. If we are playing, NEVER touch the lobby UI
+            if (this.active) {
+                this.updateBannerInfo(); 
+                return; 
+            }
 
-                // 3. Render the Lobby UI
-                // Only render if the lobby screen is actually visible
-                if (!document.getElementById('roomModal').classList.contains('hidden')) {
-                     this.renderLobby(data);
-                }
+            // 2. Only render lobby if it is ALREADY visible. 
+            // We removed the line that forced 'openLobby()' here.
+            if (!document.getElementById('roomModal').classList.contains('hidden')) {
+                 this.renderLobby(data);
+            }
+        });
+
+        this.socket.on('gameStarted', async (data) => {
+            console.log("🚀 Game Started");
+            this.active = true; // Lock state immediately
+            State.runtime.isMultiplayer = true; 
+            
+            this.closeLobby(); // Hide lobby
+            this.roundHistory = []; 
+            
+            // Clear all overlays
+            ['active-role-alert', 'spectator-banner', 'active-accusation', 'active-drink-penalty', 'active-vote-reveal', 'active-countdown'].forEach(id => {
+                const el = document.getElementById(id); if(el) el.remove();
+            });
+
+            this.currentMode = data.mode;
+            this.vipId = data.vipId; 
+            if (data.players) this.players = data.players;
+
+            // Ensure words are loaded
+            if (!State.runtime.allWords || State.runtime.allWords.length < 50) {
+                State.runtime.allWords = await API.getAllWords();
+            }
+
+            // Sync Words
+            let syncBase = [...State.runtime.allWords].sort((a, b) => {
+                const idA = String(a._id || a.text);
+                const idB = String(b._id || b.text);
+                return idA.localeCompare(idB);
             });
             
-this.socket.on('gameStarted', async (data) => {
-    console.log("🚀 Game Started - Syncing Word Lists");
-    this.active = true;
-    State.runtime.isMultiplayer = true; 
-    
-    // 1. CLEAR OVERLAYS
-    const ids = ['active-role-alert', 'spectator-banner', 'active-accusation', 'active-drink-penalty', 'active-vote-reveal', 'active-countdown'];
-    ids.forEach(id => { const el = document.getElementById(id); if(el) el.remove(); });
+            const seed = data.gameSeed || this.roomCode;
+            State.runtime.allWords = SeededShuffle.shuffle(syncBase, seed);
+            State.runtime.currentWordIndex = 0;
 
-    // 2. DATA ASSIGNMENT
-    this.currentMode = data.mode;
-    this.vipId = data.vipId; 
-    if (data.players) this.players = data.players;
+            this.showActiveBanner(); 
 
-    // 3. ENFORCE WORD LIST CONSISTENCY
-    if (!State.runtime.allWords || State.runtime.allWords.length < 50) {
-        State.runtime.allWords = await API.getAllWords();
-    }
-
-    // 4. CRITICAL SYNC FIX: Sort by _id to create a 100% identical base array
-    let syncBaseList = [...State.runtime.allWords].sort((a, b) => {
-        const idA = String(a._id || a.text);
-        const idB = String(b._id || b.text);
-        return idA.localeCompare(idB);
-    });
-    
-    // 5. USE SERVER SEED ONLY: Avoid fallback to roomCode if possible to ensure match
-    const sharedSeed = data.gameSeed || this.roomCode; 
-    State.runtime.allWords = SeededShuffle.shuffle(syncBaseList, sharedSeed);
-    
-    // 6. RESET INDEX FOR ALL PLAYERS
-    State.runtime.currentWordIndex = 0;
-
-    this.showActiveBanner();
-
-    if (this.isSpectator) {
-        UIManager.disableButtons(true);
-        this.showSpectatorBanner();
-    } else {
-        UIManager.disableButtons(false);
-        this.playCountdown(data.mode);
-    }
-});
-
- this.socket.on('roundResult', ({ mode, data, players, votes }) => {
-    // Save results for compatibility score calculation
-    if (data && data.match !== undefined) {
-        this.roundHistory.push({ match: data.match });
-    }
-
-    this.showVoteReveal(players, votes);
-    const msg = data.msg || (data.match ? "IT'S A MATCH! 💘" : "MISMATCH! 💔");
-    UIManager.showPostVoteMessage(msg);
-
-    // ROUND TRANSITION FIX
-    setTimeout(() => {
-        try {
-            if (!this.active) return;
-
-            const rev = document.getElementById('active-vote-reveal'); 
-            if(rev) rev.remove();
-            
-            State.runtime.currentWordIndex++; // Advance to the next word
-            
-            // Safety loop if the match lasts longer than the word list
-            if (State.runtime.currentWordIndex >= State.runtime.allWords.length) {
-                State.runtime.currentWordIndex = 0;
-            }
-
-            const nextW = State.runtime.allWords[State.runtime.currentWordIndex];
-            if (nextW) {
-                UIManager.displayWord(nextW);
-                // Reset visual styles so the word isn't "invisible" or stuck off-screen
-                const wd = DOM.game.wordDisplay;
-                if (wd) {
-                    wd.style.color = ''; 
-                    wd.style.opacity = '1';
-                    wd.style.transform = 'none';
-                }
-            }
-        } catch(err) {
-            console.error("Transition failed:", err);
-        } finally {
-            // CRITICAL: Re-enable buttons no matter what to prevent UI freezing
-            if (this.active && !this.isSpectator) {
+            if (this.isSpectator) {
+                UIManager.disableButtons(true);
+                this.showSpectatorBanner();
+            } else {
                 UIManager.disableButtons(false);
+                this.playCountdown(data.mode);
             }
-        }
-    }, 3000); // 3-second reveal window
-});
-            
-            this.socket.on('gameOver', (data) => {
-                if (!data) return;
-                
-                this.active = false; 
-                State.runtime.isMultiplayer = false;
-                this.removeActiveBanner();
+        });
 
-                const ids = ['active-role-alert', 'spectator-banner', 'active-accusation', 'active-drink-penalty', 'active-vote-reveal', 'active-countdown'];
-                ids.forEach(id => { const el = document.getElementById(id); if(el) el.remove(); });
+        this.socket.on('roundResult', ({ mode, data, players, votes }) => {
+            if (data && typeof data.match !== 'undefined') {
+                this.roundHistory.push({ match: !!data.match });
+            }
 
-                if (data.msg && data.msg.startsWith('GAME ENDED:')) {
-                    this.showCustomAlert(data.msg);
-                    this.openLobby();
-                } else {
-                    this.showFinalResults(data);
+            this.showVoteReveal(players, votes);
+            const msg = data.msg || (data.match ? "IT'S A MATCH! 💘" : "MISMATCH! 💔");
+            UIManager.showPostVoteMessage(msg);
+
+            setTimeout(() => {
+                try {
+                    if (!this.active) return;
+                    const rev = document.getElementById('active-vote-reveal'); 
+                    if(rev) rev.remove();
+                    
+                    State.runtime.currentWordIndex++;
+                    if (State.runtime.currentWordIndex >= State.runtime.allWords.length) {
+                        State.runtime.currentWordIndex = 0;
+                    }
+
+                    const nextW = State.runtime.allWords[State.runtime.currentWordIndex];
+                    if (nextW) {
+                        UIManager.displayWord(nextW);
+                        const wd = DOM.game.wordDisplay;
+                        if (wd) {
+                            wd.style.color = ''; 
+                            wd.style.opacity = '1';
+                            wd.style.transform = 'none';
+                        }
+                    }
+                } finally {
+                    if (this.active && !this.isSpectator) {
+                        UIManager.disableButtons(false);
+                    }
                 }
-            });
-            
-            this.socket.on('kicked', () => { 
-                this.showCustomAlert("You have been kicked from the room.");
-                this.leave(true);
-            });
-            this.socket.on('roleAlert', (msg) => {
-                this.showRoleAlert(msg, "🕵️ YOU ARE THE TRAITOR");
+            }, 3000);
+        });
+        
+        this.socket.on('gameOver', (data) => {
+            this.active = false; 
+            State.runtime.isMultiplayer = false;
+            this.removeActiveBanner();
+
+            ['active-role-alert', 'spectator-banner', 'active-accusation', 'active-drink-penalty', 'active-vote-reveal', 'active-countdown'].forEach(id => {
+                const el = document.getElementById(id); if(el) el.remove();
             });
 
-        } catch(e) {
-            console.error("Socket Connect Error", e);
-        }
-    },
+            if (data && data.msg && data.msg.startsWith('GAME ENDED:')) {
+                this.showCustomAlert(data.msg);
+                this.openLobby();
+            } else {
+                this.showFinalResults(data);
+            }
+        });
+        
+        this.socket.on('kicked', () => { 
+            this.showCustomAlert("You have been kicked from the room.");
+            this.leave(true);
+        });
+        
+        this.socket.on('roleAlert', (msg) => {
+            this.showRoleAlert(msg, "🕵️ YOU ARE THE TRAITOR");
+        });
+
+    } catch(e) {
+        console.error("Socket Error", e);
+    }
+}
 
 updateBannerInfo() {
         const banner = document.getElementById('room-active-banner');
