@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.80.09', 
+    APP_VERSION: '5.80.08', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4708,7 +4708,7 @@ updateBannerInfo() {
         document.body.appendChild(banner);
         document.body.style.paddingTop = '60px';
         
-        this.updateBannerInfo(); /
+        this.updateBannerInfo();
     },
 
     removeActiveBanner() {
