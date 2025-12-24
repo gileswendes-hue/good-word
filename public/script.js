@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.80.14', 
+    APP_VERSION: '5.80.15', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4462,7 +4462,7 @@ const RoomManager = {
         });
     },
 
-    connect() {
+ connect() {
         try {
             if (typeof io === 'undefined') return;
 
@@ -4510,6 +4510,30 @@ const RoomManager = {
             this.socket.on('roleAlert', (data) => {
                 this.showRoleAlert(data.message, data.title);
             });
+
+            // --- 📢 MISSING LISTENERS ADDED HERE ---
+            
+            this.socket.on('startCountdown', (data) => {
+                this.playCountdown(data.mode);
+            });
+
+            this.socket.on('revealVotes', (data) => {
+                this.showVoteReveal(data.players, data.votes);
+            });
+
+            this.socket.on('startAccusation', (data) => {
+                this.showAccusationScreen(data.mode, data.players);
+            });
+
+            this.socket.on('drinkPenalty', (data) => {
+                this.showDrinkPenalty(data.drinkers, data.message);
+            });
+
+            this.socket.on('gameOver', (data) => {
+                this.showFinalResults(data);
+            });
+
+            // ---------------------------------------
 
             this.socket.on('gameStarted', async (data) => {
                 console.log("🚀 Game Started");
