@@ -4464,204 +4464,103 @@ init() {
     },
 
 connect() {
-    try {
-        if (typeof io === 'undefined') return;
-        
-        // 1. Force Websocket to prevent 400 errors
-        if (!this.socket) {
-            this.socket = io({
-                transports: ['websocket'],
-                upgrade: false,
-                reconnectionAttempts: 10
-            });
-        }
+        try {
+            if (typeof io === 'undefined') return;
 
-        if (this.listenersAttached) {
-            console.log("⚡ Listeners already attached.");
-            return;
-        }
-        this.listenersAttached = true;
-        
-        this.socket.on('connect_error', (err) => console.warn("⚠️ Connection Error:", err));
-
-        this.socket.on('connect', () => { 
-            console.log("✅ Socket Connected", this.socket.id);
-            this.playerId = this.socket.id; 
-            
-            const savedCode = localStorage.getItem('lastRoomCode');
-            if (savedCode && !this.active) {
-                const input = document.getElementById('roomCodeInput');
-                if (input) input.value = savedCode;
-            }
-            if (this.roomCode && State.data.username) {
-                 this.socket.emit('joinRoom', { 
-                    roomCode: this.roomCode, 
-                    username: State.data.username, 
-                    theme: State.data.currentTheme || 'default' 
-                 });
-            }
-        });
-
-        // --- CRITICAL FIX: ROOM UPDATE LISTENER ---
-        this.socket.on('roomUpdate', (data) => {
-            // Update local data
-            this.isHost = (data.host === this.playerId);
-            this.currentMode = data.mode;
-            this.currentRounds = data.maxWords; 
-            this.drinkingMode = data.drinkingMode;
-            if (data.players) this.players = data.players;
-
-            // 1. If we are playing, NEVER touch the lobby UI
-            if (this.active) {
-                this.updateBannerInfo(); 
-                return; 
+            // 1. Force Websocket
+            if (!this.socket) {
+                this.socket = io({ transports: ['websocket'], upgrade: false, reconnectionAttempts: 10 });
             }
 
-            // 2. Only render lobby if it is ALREADY visible. 
-            // We removed the line that forced 'openLobby()' here.
-            if (!document.getElementById('roomModal').classList.contains('hidden')) {
-                 this.renderLobby(data);
+            if (this.listenersAttached) {
+                console.log("⚡ Listeners already attached.");
+                return;
             }
-        });
+            this.listenersAttached = true;
 
-        this.socket.on('gameStarted', async (data) => {
-            console.log("🚀 Game Started");
-            this.active = true; // Lock state immediately
-            State.runtime.isMultiplayer = true; 
-            
-            this.closeLobby(); // Hide lobby
-            this.roundHistory = []; 
-            
-            // Clear all overlays
-            ['active-role-alert', 'spectator-banner', 'active-accusation', 'active-drink-penalty', 'active-vote-reveal', 'active-countdown'].forEach(id => {
-                const el = document.getElementById(id); if(el) el.remove();
-            });
-
-            this.currentMode = data.mode;
-            this.vipId = data.vipId; 
-            if (data.players) this.players = data.players;
-
-            // Ensure words are loaded
-            if (!State.runtime.allWords || State.runtime.allWords.length < 50) {
-                State.runtime.allWords = await API.getAllWords();
-            }
-
-            // Sync Words
-            let syncBase = [...State.runtime.allWords].sort((a, b) => {
-                const idA = String(a._id || a.text);
-                const idB = String(b._id || b.text);
-                return idA.localeCompare(idB);
-            });
-            
-            const seed = data.gameSeed || this.roomCode;
-            State.runtime.allWords = SeededShuffle.shuffle(syncBase, seed);
-            State.runtime.currentWordIndex = 0;
-
-            this.showActiveBanner(); 
-
-            if (this.isSpectator) {
-                UIManager.disableButtons(true);
-                this.showSpectatorBanner();
-            } else {
-                UIManager.disableButtons(false);
-                this.playCountdown(data.mode);
-            }
-        });
-
- this.socket.on('roundResult', ({ mode, data, players, votes }) => {
-            // Safety: Ensure history array exists
-            if (!this.roundHistory) this.roundHistory = [];
-
-            let isMatch = false;
-            let validData = false;
-
-            // 1. Try to get result from Server
-            if (data && typeof data.match !== 'undefined') {
-                isMatch = !!data.match;
-                validData = true;
-            } 
-            // 2. Fallback: Calculate Match Locally (Fixes 0% Bug)
-            else if (votes) {
-                const vals = Object.values(votes).filter(v => v);
-                // In OK Stoopid (2 players), if both votes are identical, it's a match
-                if (vals.length >= 2) {
-                    const first = vals[0];
-                    isMatch = vals.every(v => v === first);
-                    validData = true;
+            this.socket.on('connect_error', (err) => console.warn("⚠️ Connection Error:", err));
+            this.socket.on('connect', () => {
+                console.log("✅ Socket Connected", this.socket.id);
+                this.playerId = this.socket.id;
+                const savedCode = localStorage.getItem('lastRoomCode');
+                if (savedCode && !this.active) {
+                    const input = document.getElementById('roomCodeInput');
+                    if (input) input.value = savedCode;
                 }
-            }
-
-            // 3. Save to History
-            if (validData) {
-                this.roundHistory.push({ match: isMatch });
-            }
-
-            this.showVoteReveal(players, votes);
-            
-            // Use local isMatch for message if data.msg is missing
-            const msg = data.msg || (isMatch ? "IT'S A MATCH! 💘" : "MISMATCH! 💔");
-            UIManager.showPostVoteMessage(msg);
-
-            // 4. Transition to next word
-            setTimeout(() => {
-                try {
-                    if (!this.active) return;
-                    const rev = document.getElementById('active-vote-reveal'); 
-                    if(rev) rev.remove();
-                    
-                    State.runtime.currentWordIndex++;
-                    if (State.runtime.currentWordIndex >= State.runtime.allWords.length) {
-                        State.runtime.currentWordIndex = 0;
-                    }
-
-                    const nextW = State.runtime.allWords[State.runtime.currentWordIndex];
-                    if (nextW) {
-                        UIManager.displayWord(nextW);
-                        const wd = DOM.game.wordDisplay;
-                        if (wd) {
-                            wd.style.color = ''; 
-                            wd.style.opacity = '1';
-                            wd.style.transform = 'none';
-                        }
-                    }
-                } finally {
-                    if (this.active && !this.isSpectator) {
-                        UIManager.disableButtons(false);
-                    }
+                if (this.roomCode && State.data.username) {
+                    this.socket.emit('joinRoom', { roomCode: this.roomCode, username: State.data.username, theme: State.data.currentTheme || 'default' });
                 }
-            }, 3000);
-        });
-        
-        this.socket.on('gameOver', (data) => {
-            this.active = false; 
-            State.runtime.isMultiplayer = false;
-            this.removeActiveBanner();
-
-            ['active-role-alert', 'spectator-banner', 'active-accusation', 'active-drink-penalty', 'active-vote-reveal', 'active-countdown'].forEach(id => {
-                const el = document.getElementById(id); if(el) el.remove();
             });
 
-            if (data && data.msg && data.msg.startsWith('GAME ENDED:')) {
-                this.showCustomAlert(data.msg);
-                this.openLobby();
-            } else {
-                this.showFinalResults(data);
-            }
-        });
-        
-        this.socket.on('kicked', () => { 
-            this.showCustomAlert("You have been kicked from the room.");
-            this.leave(true);
-        });
-        
-        this.socket.on('roleAlert', (msg) => {
-            this.showRoleAlert(msg, "🕵️ YOU ARE THE TRAITOR");
-        });
+            this.socket.on('roomUpdate', (data) => {
+                this.isHost = (data.host === this.playerId);
+                this.currentMode = data.mode;
+                this.currentRounds = data.maxWords;
+                this.drinkingMode = data.drinkingMode;
+                if (data.players) this.players = data.players;
 
-    } catch(e) {
-        console.error("Socket Error", e);
-    }
-},
+                if (this.active) {
+                    this.updateBannerInfo();
+                    return;
+                }
+                
+                if (!document.getElementById('roomModal').classList.contains('hidden')) {
+                    this.renderLobby(data);
+                }
+            });
+
+            // Traitor Alert Listener
+            this.socket.on('roleAlert', (data) => {
+                this.showRoleAlert(data.message, data.title);
+            });
+
+            this.socket.on('gameStarted', async (data) => {
+                console.log("🚀 Game Started");
+                this.active = true;
+                State.runtime.isMultiplayer = true;
+
+                // ✅ FIX: CLEARS DAILY CHALLENGE STATUS TO PREVENT BUGS
+                State.runtime.isDailyChallenge = false; 
+
+                this.closeLobby();
+                this.roundHistory = [];
+                
+                ['active-role-alert', 'spectator-banner', 'active-accusation', 'active-drink-penalty', 'active-vote-reveal', 'active-countdown'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if(el) el.remove();
+                });
+
+                this.currentMode = data.mode;
+                this.vipId = data.vipId;
+                if (data.players) this.players = data.players;
+
+                if (!State.runtime.allWords || State.runtime.allWords.length < 50) {
+                    State.runtime.allWords = await API.getAllWords();
+                }
+
+                let syncBase = [...State.runtime.allWords].sort((a, b) => {
+                    const idA = String(a._id || a.text);
+                    const idB = String(b._id || b.text);
+                    return idA.localeCompare(idB);
+                });
+
+                const seed = data.seed || 12345;
+                const rng = SeededShuffle.create(String(seed));
+                
+                for (let i = syncBase.length - 1; i > 0; i--) {
+                    const j = Math.floor(rng() * (i + 1));
+                    [syncBase[i], syncBase[j]] = [syncBase[j], syncBase[i]];
+                }
+
+                State.runtime.allWords = syncBase;
+                State.runtime.currentWordIndex = 0;
+                
+                Game.updateWordDisplay();
+                this.updateBannerInfo();
+            });
+
+        } catch (e) { console.error(e); }
+    },
 
 updateBannerInfo() {
     const banner = document.getElementById('room-active-banner');
@@ -4766,21 +4665,22 @@ updateHeat(val) {
     },
 
 updateSettings() {
-    if (!this.isHost) return;
-    const mode = document.getElementById('hostModeSelect').value;
-    const count = document.getElementById('hostWordCount').value; 
-    
-    // Fix: Capture Drinking Mode state so it doesn't get reset
-    const drinkEl = document.getElementById('hostDrinkingToggle');
-    const drinking = drinkEl ? drinkEl.checked : false;
+        if (!this.isHost) return;
+        const mode = document.getElementById('hostModeSelect').value;
+        const count = document.getElementById('hostWordCount').value; 
+        
+        // Fix: Capture Drinking Mode state
+        const drinkEl = document.getElementById('hostDrinkingToggle');
+        const drinking = drinkEl ? drinkEl.checked : false;
 
-    this.socket.emit('updateSettings', { 
-        roomCode: this.roomCode, 
-        mode: mode, 
-        maxWords: count,
-        drinkingMode: drinking 
-    });
-},
+        // FIX: Use parseInt(count) so the server receives a Number, not a String
+        this.socket.emit('updateSettings', { 
+            roomCode: this.roomCode, 
+            mode: mode, 
+            maxWords: parseInt(count, 10), 
+            drinkingMode: drinking 
+        });
+    },
 
     showRoleAlert(msg, title) {
         const existing = document.getElementById('role-alert-overlay');
@@ -4812,13 +4712,26 @@ updateSettings() {
         setTimeout(() => { if(div.isConnected) div.remove(); }, 5000);
     },
 
+leave() {
+        if (confirm("Leave the multiplayer lobby?")) {
+            if (this.socket) this.socket.disconnect();
+            // Reloading is the safest way to clear all multiplayer state
+            window.location.href = window.location.pathname;
+        }
+    },
+    
 renderLobby(data) {
+        // ✅ 1. FOCUS GUARD: PREVENTS SLIDER BOUNCING
+        if (this.isHost && document.activeElement && document.activeElement.id === 'hostWordCount') {
+            return;
+        }
+
         const lobby = document.getElementById('roomLobbyScreen');
         const joinScreen = document.getElementById('roomJoinScreen');
         if (lobby) lobby.classList.remove('hidden');
         if (joinScreen) joinScreen.classList.add('hidden');
         
-        // 1. Render Players
+        // 2. Render Players
         const playerHtml = data.players.map(p => {
             const isMe = p.id === State.data.userId;
             const kickBtn = (this.isHost && !p.isHost) ? `<button onclick="RoomManager.kick('${p.id}')" class="text-xs text-red-400 hover:text-red-600 font-bold ml-2">KICK</button>` : '';
@@ -4828,11 +4741,11 @@ renderLobby(data) {
             </div>`;
         }).join('');
 
-        // 2. Generate QR Code
+        // 3. Generate QR Code
         const joinUrl = window.location.origin + "?room=" + this.roomCode;
         const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(joinUrl)}`;
 
-        // 3. Settings UI (Slider + Heat Levels)
+        // 4. RESTORED SETTINGS UI (Slider + Drinking Mode)
         let settingsHtml = '';
         const playerCount = data.players.length;
         const minReq = this.modeConfig[data.mode]?.min || 2;
@@ -4843,14 +4756,12 @@ renderLobby(data) {
                 modeOpts += `<option value="${key}" ${data.mode===key?'selected':''}>${val.label}</option>`;
             }
             
-            // Fix: Include Slider AND Drinking Mode Toggle
             settingsHtml = `
                 <div class="bg-gray-100 p-3 rounded-lg mb-4 space-y-3">
                     <div>
                         <label class="text-xs font-bold text-gray-400 uppercase">Game Mode</label>
                         <select id="hostModeSelect" class="w-full p-2 rounded border font-bold" onchange="RoomManager.updateSettings()">${modeOpts}</select>
                     </div>
-                    
                     <div>
                         <div class="flex justify-between mb-1">
                             <label class="text-xs font-bold text-gray-400 uppercase">Intensity</label>
@@ -4861,7 +4772,6 @@ renderLobby(data) {
                             oninput="RoomManager.updateHeat(this.value)" onchange="RoomManager.updateSettings()">
                         <div id="heatText" class="text-center text-xs font-black mt-1 text-green-500">MILD</div>
                     </div>
-
                     <div>
                         <label class="flex items-center gap-2 cursor-pointer">
                             <input type="checkbox" id="hostDrinkingToggle" ${data.drinkingMode ? 'checked' : ''} onchange="RoomManager.updateSettings()" class="w-5 h-5 accent-red-500">
@@ -4870,7 +4780,6 @@ renderLobby(data) {
                     </div>
                 </div>`;
         } else {
-            // Waiting Screen
             const drinkBadge = data.drinkingMode ? '<div class="text-red-500 font-bold text-xs mt-1">🍺 DRINKING MODE</div>' : '';
             settingsHtml = `
                 <div class="bg-gray-50 p-4 rounded-xl text-center mb-4 border-2 border-dashed border-gray-200">
@@ -4881,11 +4790,10 @@ renderLobby(data) {
                 </div>`;
         }
 
-        // 4. Start Button
+        // 5. Start Button Logic
         let actionBtn = '';
         if (this.isHost) {
             if (playerCount >= minReq) {
-                // Uses RoomManager.startGame() - ensure this method exists!
                 actionBtn = `<button onclick="RoomManager.startGame()" class="w-full py-4 bg-indigo-600 text-white font-black text-xl rounded-xl shadow-lg hover:bg-indigo-700 transform hover:scale-[1.02] transition">START GAME</button>`;
             } else {
                 actionBtn = `<button disabled class="w-full py-3 bg-gray-300 text-gray-500 font-bold rounded-xl cursor-not-allowed">NEED ${minReq} PLAYERS</button>`;
@@ -4894,10 +4802,13 @@ renderLobby(data) {
              actionBtn = `<div class="text-center text-gray-400 animate-pulse text-sm font-bold">Host will start the game...</div>`;
         }
 
-        // 5. Inject HTML
+        // 6. Inject HTML (Includes Exit Button)
         lobby.innerHTML = `
-            <div class="flex flex-col items-center mb-4">
-                <div class="bg-white p-2 rounded-xl shadow-sm border border-gray-100 mb-2">
+            <div class="relative flex flex-col items-center mb-4">
+                <button onclick="RoomManager.leave()" class="absolute left-0 top-0 p-2 text-gray-400 hover:text-gray-700 transition" title="Leave Lobby">
+                    ⬅️
+                </button>
+                <div class="bg-white p-2 rounded-xl shadow-sm border border-gray-100 mb-2 mt-2">
                     <img src="${qrUrl}" class="w-32 h-32 rounded-lg" alt="Room QR">
                 </div>
                 <h2 class="text-4xl font-black text-indigo-600 tracking-widest">${this.roomCode}</h2>
@@ -5379,14 +5290,6 @@ updateHeat(val) {
             text.className = `text-center text-xs font-black mt-1 ${color}`;
         }
         
-        // Update slider track color background if supported, or just keep simple
-    },
-
-    updateSettings() {
-        if (!this.isHost) return;
-        const mode = document.getElementById('hostModeSelect').value;
-        const count = document.getElementById('hostWordCount').value; // Get value from slider
-        this.socket.emit('updateSettings', { roomCode: this.roomCode, mode: mode, maxWords: count });
     },
 
     showFinalResults(data) {
