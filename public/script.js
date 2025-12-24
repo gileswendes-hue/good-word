@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.80.13', 
+    APP_VERSION: '5.80.15', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4401,10 +4401,9 @@ const RoomManager = {
     players: [],
 
     modeConfig: {
-        // Lowered 'min' players to 2 for easier testing
         'coop': { label: '🤝 Co-op Sync', desc: 'Vote together! Match with the Global Majority.', min: 2 },
         'okstoopid': { label: '💘 OK Stoopid', desc: 'Couples Mode. Test your compatibility!', min: 2, max: 2 },
-        'versus': { label: '⚔️ Team Versus', desc: 'Red vs Blue. Best Team wins.', min: 2 }, 
+        'versus': { label: '⚔️ Team Versus', desc: 'Red vs Blue. Best Team wins.', min: 4 }, 
         'hipster': { label: '🕶️ The Hipster', desc: 'Minority Rules. Be unique!', min: 3 },
         'speed': { label: '⏱️ Speed Demon', desc: 'Vote fast! Speed and accuracy wins.', min: 2 },
         'survival': { label: '💣 Sudden Death', desc: 'Three Lives. Vote with majority, or die.', min: 3 },
@@ -4512,7 +4511,6 @@ const RoomManager = {
                 this.showRoleAlert(data.message, data.title);
             });
 
-            // --- LISTENERS THAT WERE MISSING ---
             this.socket.on('startCountdown', (data) => {
                 this.playCountdown(data.mode);
             });
@@ -4532,7 +4530,6 @@ const RoomManager = {
             this.socket.on('gameOver', (data) => {
                 this.showFinalResults(data);
             });
-            // -----------------------------------
 
             this.socket.on('gameStarted', async (data) => {
                 console.log("🚀 Game Started");
@@ -4573,7 +4570,10 @@ const RoomManager = {
                 State.runtime.allWords = syncBase;
                 State.runtime.currentWordIndex = 0;
 
-                Game.updateWordDisplay();
+                if (UIManager && UIManager.displayWord) {
+                    UIManager.displayWord(State.runtime.allWords[0]);
+                }
+                
                 this.updateBannerInfo();
             });
 
@@ -5255,7 +5255,6 @@ const RoomManager = {
         }
     }
 };
-
 
 const Game = {
 
