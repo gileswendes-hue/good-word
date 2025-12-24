@@ -4540,7 +4540,8 @@ const RoomManager = {
                 this.closeLobby();
                 this.roundHistory = [];
 
-                ['active-role-alert', 'spectator-banner', 'active-accusation', 'active-drink-penalty', 'active-vote-reveal', 'active-countdown'].forEach(id => {
+                // --- FIX: Removed 'active-role-alert' and 'active-countdown' from removal list ---
+                ['spectator-banner', 'active-accusation', 'active-drink-penalty', 'active-vote-reveal'].forEach(id => {
                     const el = document.getElementById(id);
                     if (el) el.remove();
                 });
@@ -4696,22 +4697,24 @@ const RoomManager = {
 
         const div = document.createElement('div');
         div.id = 'role-alert-overlay';
-        div.className = 'fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-6 animate-in fade-in duration-300';
+        div.className = 'fixed inset-0 flex items-center justify-center p-6 animate-in fade-in duration-300';
+        // --- FIX: Forced High Z-Index & Background ---
+        div.style.cssText = "background: rgba(0,0,0,0.95); z-index: 9999; position: fixed; inset: 0;";
         div.onclick = () => div.remove();
 
         const isTraitor = msg.toLowerCase().includes('traitor');
         const icon = isTraitor ? '🕵️' : '😇';
-        const color = isTraitor ? 'text-red-500' : 'text-blue-400';
+        const color = isTraitor ? '#ef4444' : '#60a5fa';
 
         div.innerHTML = `
-            <div class="text-center max-w-sm w-full transform transition-all scale-100">
-                <div class="text-8xl mb-6 animate-bounce">${icon}</div>
-                <h1 class="text-white text-3xl font-black mb-2 uppercase tracking-widest">${title || "SECRET ROLE"}</h1>
-                <div class="${color} text-2xl font-bold mb-8 px-4 py-2 border-2 border-current rounded-xl inline-block">
+            <div style="text-align: center; transform:scale(1); transition:transform 0.3s;">
+                <div style="font-size:6rem; margin-bottom:1.5rem; animation:bounce 1s infinite;">${icon}</div>
+                <h1 style="color:white; font-size:2rem; font-weight:900; margin-bottom:0.5rem; text-transform:uppercase; letter-spacing:0.1em;">${title || "SECRET ROLE"}</h1>
+                <div style="color:${color}; font-size:1.5rem; font-weight:bold; margin-bottom:2rem; border:2px solid currentColor; padding:10px 20px; border-radius:15px; display:inline-block;">
                     ${msg}
                 </div>
-                <p class="text-gray-400 text-sm mb-8">Tap anywhere to begin</p>
-                <button onclick="this.parentElement.parentElement.remove()" class="bg-white text-black font-black py-4 px-10 rounded-full hover:bg-gray-200 transition shadow-xl">
+                <p style="color:#9ca3af; font-size:0.9rem; margin-bottom:2rem;">Tap anywhere to begin</p>
+                <button onclick="this.parentElement.parentElement.remove()" style="background:white; color:black; font-weight:900; padding:15px 40px; border-radius:999px; border:none; cursor:pointer; font-size:1rem; box-shadow:0 10px 25px rgba(0,0,0,0.2);">
                     GOT IT
                 </button>
             </div>
