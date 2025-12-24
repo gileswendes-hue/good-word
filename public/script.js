@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.80.08', 
+    APP_VERSION: '5.80.09', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4412,10 +4412,11 @@ const RoomManager = {
         'kids': { label: '👶 Kids Mode', desc: 'Simple words. Family friendly!', min: 2 }
     },
 
-    init() {
+init() {
         window.RoomManager = this;
         this.injectStyles();
         
+        // 1. Setup Button
         if (!document.getElementById('roomBtn')) {
             const btn = document.createElement('button');
             btn.id = 'roomBtn';
@@ -4423,24 +4424,38 @@ const RoomManager = {
             btn.innerHTML = `<span class="text-xl">📡</span>`;
             btn.onclick = () => this.openLobby();
             
-            // Hide in offline mode
             if (State.data.settings.offlineMode) btn.style.display = 'none';
-            
             const sb = document.getElementById('showSettingsButton');
             if (sb && sb.parentNode) sb.parentNode.insertBefore(btn, sb);
         }
 
+        // 2. Connect Socket
         if (!window.io) {
             const sc = document.createElement('script');
             sc.src = "/socket.io/socket.io.js";
             sc.onload = () => this.connect();
             sc.onerror = () => console.error("Socket.io failed to load");
             document.head.appendChild(sc);
-        } else { 
-            this.connect(); 
+        } else {
+            this.connect();
         }
-        
+
         this.injectModal();
+
+        // 3. NEW: Handle Auto-Join via URL (QR Code)
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomParam = urlParams.get('room');
+        if (roomParam) {
+            setTimeout(() => {
+                this.openLobby();
+                const input = document.getElementById('roomCodeInput');
+                if(input) {
+                    input.value = roomParam;
+                    this.join();
+                }
+            }, 500);
+        }
+
         window.addEventListener('beforeunload', () => {
             if (this.socket && this.roomCode) {
                 this.socket.emit('leaveRoom', { roomCode: this.roomCode });
@@ -4693,13 +4708,9 @@ updateBannerInfo() {
         document.body.appendChild(banner);
         document.body.style.paddingTop = '60px';
         
-        this.updateBannerInfo(); // Populate content
+        this.updateBannerInfo(); /
     },
 
-    // ... (removeActiveBanner, leave, setMode, renderLobby, injectModal, openLobby, closeLobby, join, start, submitVote, showFinalResults, calculateTrueSync, injectStyles, etc. - keep existing implementations from previous script) ...
-    // Copy the rest of the existing methods here.
-    
-    // --- COPY THE REST OF THE METHODS BELOW FROM YOUR PREVIOUS SCRIPT ---
     removeActiveBanner() {
         const b = document.getElementById('room-active-banner');
         if(b) b.remove();
@@ -4731,66 +4742,184 @@ updateBannerInfo() {
         if(startBtn) startBtn.classList.add('hidden');
     },
     setMode(m) { this.socket.emit('setMode', { roomCode: this.roomCode, mode: m }); },
-    renderLobby(data) {
-        const list = document.getElementById('lobbyPlayerList');
-        const config = this.modeConfig[data.mode];
-        const playerCount = data.players.length;
-        const minReq = config.min;
-        const maxReq = config.max || 50;
-        const enoughPlayers = playerCount >= minReq && playerCount <= maxReq;
-        let settingsHtml = "";
+
+updateHeat(val) {
+        const label = document.getElementById('heatLabel');
+        const text = document.getElementById('heatText');
+        const slider = document.getElementById('hostWordCount');
         
+        if (label) label.innerText = `${val} Words`;
+        
+        let heat = "MILD";
+        let color = "text-green-500";
+        
+        if (val > 5) { heat = "MEDIUM"; color = "text-yellow-500"; }
+        if (val > 10) { heat = "SPICY"; color = "text-orange-500"; }
+        if (val > 15) { heat = "HOT"; color = "text-red-500"; }
+        if (val > 20) { heat = "INFERNO"; color = "text-red-700"; }
+        if (val > 25) { heat = "NUCLEAR"; color = "text-purple-600"; }
+
+        if (text) {
+            text.innerText = heat;
+            text.className = `text-center text-xs font-black mt-1 ${color}`;
+        }
+    },
+
+updateSettings() {
+    if (!this.isHost) return;
+    const mode = document.getElementById('hostModeSelect').value;
+    const count = document.getElementById('hostWordCount').value; 
+    
+    // Fix: Capture Drinking Mode state so it doesn't get reset
+    const drinkEl = document.getElementById('hostDrinkingToggle');
+    const drinking = drinkEl ? drinkEl.checked : false;
+
+    this.socket.emit('updateSettings', { 
+        roomCode: this.roomCode, 
+        mode: mode, 
+        maxWords: count,
+        drinkingMode: drinking 
+    });
+},
+
+    showRoleAlert(msg, title) {
+        const existing = document.getElementById('role-alert-overlay');
+        if (existing) existing.remove();
+
+        const div = document.createElement('div');
+        div.id = 'role-alert-overlay';
+        div.className = 'fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-6 animate-in fade-in duration-300';
+        div.onclick = () => div.remove(); 
+
+        const isTraitor = msg.toLowerCase().includes('traitor');
+        const icon = isTraitor ? '🕵️' : '😇';
+        const color = isTraitor ? 'text-red-500' : 'text-blue-400';
+
+        div.innerHTML = `
+            <div class="text-center max-w-sm w-full transform transition-all scale-100">
+                <div class="text-8xl mb-6 animate-bounce">${icon}</div>
+                <h1 class="text-white text-3xl font-black mb-2 uppercase tracking-widest">${title || "SECRET ROLE"}</h1>
+                <div class="${color} text-2xl font-bold mb-8 px-4 py-2 border-2 border-current rounded-xl inline-block">
+                    ${msg}
+                </div>
+                <p class="text-gray-400 text-sm mb-8">Tap anywhere to begin</p>
+                <button onclick="this.parentElement.parentElement.remove()" class="bg-white text-black font-black py-4 px-10 rounded-full hover:bg-gray-200 transition shadow-xl">
+                    GOT IT
+                </button>
+            </div>
+        `;
+        document.body.appendChild(div);
+        setTimeout(() => { if(div.isConnected) div.remove(); }, 5000);
+    },
+
+renderLobby(data) {
+        const lobby = document.getElementById('roomLobbyScreen');
+        const joinScreen = document.getElementById('roomJoinScreen');
+        if (lobby) lobby.classList.remove('hidden');
+        if (joinScreen) joinScreen.classList.add('hidden');
+        
+        // 1. Render Players
+        const playerHtml = data.players.map(p => {
+            const isMe = p.id === State.data.userId;
+            const kickBtn = (this.isHost && !p.isHost) ? `<button onclick="RoomManager.kick('${p.id}')" class="text-xs text-red-400 hover:text-red-600 font-bold ml-2">KICK</button>` : '';
+            return `<div class="flex items-center justify-between bg-gray-50 p-2 rounded mb-1 border ${isMe ? 'border-indigo-200 bg-indigo-50' : 'border-gray-100'}">
+                <span class="font-bold text-gray-700 truncate">${p.isHost ? '👑 ' : ''}${p.name} ${isMe ? '(YOU)' : ''}</span>
+                <div class="flex items-center">${kickBtn}</div>
+            </div>`;
+        }).join('');
+
+        // 2. Generate QR Code
+        const joinUrl = window.location.origin + "?room=" + this.roomCode;
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(joinUrl)}`;
+
+        // 3. Settings UI (Slider + Heat Levels)
+        let settingsHtml = '';
+        const playerCount = data.players.length;
+        const minReq = this.modeConfig[data.mode]?.min || 2;
+
         if (this.isHost) {
             let modeOpts = "";
             for (const [key, val] of Object.entries(this.modeConfig)) {
-                let note = (playerCount < val.min) ? ` (Need ${val.min}+)` : '';
-                if (val.max && playerCount > val.max) note = ` (Max ${val.max})`; 
-                modeOpts += `<option value="${key}" ${data.mode===key?'selected':''}>${val.label}${note}</option>`;
+                modeOpts += `<option value="${key}" ${data.mode===key?'selected':''}>${val.label}</option>`;
             }
-            const isSurv = data.mode === 'survival';
-            const dis = isSurv ? 'disabled style="color:#ccc"' : '';
-            let roundOpts = `<option value="1" ${data.maxWords==1?'selected':''} ${dis}>Just a quickie! (One Word)</option><option value="5" ${data.maxWords==5?'selected':''} ${dis}>Five Words</option><option value="10" ${data.maxWords==10?'selected':''}>Ten Words</option><option value="15" ${data.maxWords==15?'selected':''}>Fifteen Words</option><option value="20" ${data.maxWords==20?'selected':''}>Twenty Words</option><option value="30" ${data.maxWords==30?'selected':''}>Marathon! (Thirty Words)</option>`;
-            const isRestricted = data.mode === 'traitor' || data.mode === 'kids';
-            const drinkChecked = data.drinkingMode && !isRestricted ? 'checked' : '';
-            const drinkDisabled = isRestricted ? 'disabled opacity-50' : '';
+            
+            // Fix: Include Slider AND Drinking Mode Toggle
             settingsHtml = `
-                <div class="bg-gray-100 p-3 rounded-lg mb-4">
-                    <label class="text-xs font-bold text-gray-400 uppercase">Game Mode</label>
-                    <select id="hostModeSelect" class="mode-select" onchange="RoomManager.updateSettings()">${modeOpts}</select>
-                    <div class="text-xs text-center text-gray-500 mt-2 italic">${config.desc}</div>
-                    <label class="text-xs font-bold text-gray-400 uppercase mt-2 block">Words per Game</label>
-                    <select id="hostRoundSelect" class="round-select" onchange="RoomManager.updateSettings()">${roundOpts}</select>
-                    <label class="flex items-center gap-2 mt-3 cursor-pointer ${drinkDisabled}"><input type="checkbox" id="hostDrinkingToggle" ${drinkChecked} onchange="RoomManager.updateSettings()" class="w-5 h-5" ${isRestricted ? 'disabled' : ''}><span class="font-bold text-red-600">🍺 Drinking Mode</span></label>
-                    ${!enoughPlayers ? `<div class="text-xs text-center text-red-500 font-bold mt-2">⚠️ Player count issue (${minReq}-${maxReq})</div>` : ''}
+                <div class="bg-gray-100 p-3 rounded-lg mb-4 space-y-3">
+                    <div>
+                        <label class="text-xs font-bold text-gray-400 uppercase">Game Mode</label>
+                        <select id="hostModeSelect" class="w-full p-2 rounded border font-bold" onchange="RoomManager.updateSettings()">${modeOpts}</select>
+                    </div>
+                    
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <label class="text-xs font-bold text-gray-400 uppercase">Intensity</label>
+                            <span id="heatLabel" class="text-xs font-bold text-indigo-600">${data.maxWords || 5} Words</span>
+                        </div>
+                        <input type="range" id="hostWordCount" min="3" max="30" value="${data.maxWords || 5}" 
+                            class="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                            oninput="RoomManager.updateHeat(this.value)" onchange="RoomManager.updateSettings()">
+                        <div id="heatText" class="text-center text-xs font-black mt-1 text-green-500">MILD</div>
+                    </div>
+
+                    <div>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="hostDrinkingToggle" ${data.drinkingMode ? 'checked' : ''} onchange="RoomManager.updateSettings()" class="w-5 h-5 accent-red-500">
+                            <span class="font-bold text-red-600">🍺 Drinking Mode</span>
+                        </label>
+                    </div>
                 </div>`;
         } else {
-            const drinkBadge = data.drinkingMode ? '<span class="text-red-600 font-bold ml-2">🍺 DRINKING ON</span>' : '';
-            settingsHtml = `<div class="bg-indigo-50 p-4 rounded-lg mb-4 text-center border-2 border-indigo-100"><div class="font-black text-indigo-700 text-lg">${config.label}</div><div class="text-sm text-gray-500 mb-2">${config.desc}</div><div class="inline-block bg-white px-2 py-1 rounded border border-indigo-200 text-xs font-bold text-indigo-400">${data.maxWords} Words</div><div class="mt-1">${drinkBadge}</div>${!enoughPlayers ? `<div class="text-xs text-center text-red-500 font-bold mt-2">Waiting for correct player count...</div>` : ''}</div>`;
+            // Waiting Screen
+            const drinkBadge = data.drinkingMode ? '<div class="text-red-500 font-bold text-xs mt-1">🍺 DRINKING MODE</div>' : '';
+            settingsHtml = `
+                <div class="bg-gray-50 p-4 rounded-xl text-center mb-4 border-2 border-dashed border-gray-200">
+                    <div class="text-gray-400 text-sm font-bold uppercase mb-1">WAITING FOR HOST</div>
+                    <div class="text-indigo-600 font-black text-xl">${this.modeConfig[data.mode]?.label || data.mode}</div>
+                    <div class="text-xs text-gray-500">${data.maxWords} Words</div>
+                    ${drinkBadge}
+                </div>`;
         }
-        document.getElementById('lobbyModeArea').innerHTML = settingsHtml;
-        const refreshHtml = this.isHost ? `<span class="refresh-btn" onclick="RoomManager.refreshLobby()" title="Remove inactive players">🔄</span>` : '';
-        let playerHtml = `<div class="text-xs font-bold text-gray-400 mb-2 flex justify-between"><span>PLAYERS (${playerCount})</span> ${refreshHtml}</div>`;
-        playerHtml += data.players.map(p => {
-            let extra = "";
-            if (data.mode === 'survival') extra = `<span class="text-xs ml-2">${"❤️".repeat(p.lives)}</span>`;
-            let kickHtml = (this.isHost && p.id !== this.playerId) ? `<span class="kick-btn" onclick="RoomManager.kick('${p.id}')">[x]</span>` : "";
-            return `<div class="flex justify-between items-center p-2 border-b text-sm"><div class="flex items-center"><span class="font-bold text-gray-700">${p.name}</span> ${extra} ${p.id===data.host?'👑':''} ${kickHtml}</div></div>`;
-        }).join('');
-        list.innerHTML = playerHtml;
-        const startBtn = document.getElementById('roomStartBtn');
-        const waitMsg = document.getElementById('roomWaitMsg');
+
+        // 4. Start Button
+        let actionBtn = '';
         if (this.isHost) {
-            startBtn.classList.remove('hidden'); waitMsg.classList.add('hidden');
-            if (!enoughPlayers) {
-                startBtn.disabled = true; startBtn.classList.add('opacity-50', 'cursor-not-allowed'); 
-                if (playerCount > maxReq) startBtn.innerText = `MAX ${maxReq} PLAYERS`; else startBtn.innerText = `NEED ${minReq} PLAYERS`;
+            if (playerCount >= minReq) {
+                // Uses RoomManager.startGame() - ensure this method exists!
+                actionBtn = `<button onclick="RoomManager.startGame()" class="w-full py-4 bg-indigo-600 text-white font-black text-xl rounded-xl shadow-lg hover:bg-indigo-700 transform hover:scale-[1.02] transition">START GAME</button>`;
             } else {
-                startBtn.disabled = false; startBtn.classList.remove('opacity-50', 'cursor-not-allowed'); startBtn.innerText = "START GAME";
+                actionBtn = `<button disabled class="w-full py-3 bg-gray-300 text-gray-500 font-bold rounded-xl cursor-not-allowed">NEED ${minReq} PLAYERS</button>`;
             }
         } else {
-            startBtn.classList.add('hidden'); waitMsg.classList.remove('hidden');
+             actionBtn = `<div class="text-center text-gray-400 animate-pulse text-sm font-bold">Host will start the game...</div>`;
         }
+
+        // 5. Inject HTML
+        lobby.innerHTML = `
+            <div class="flex flex-col items-center mb-4">
+                <div class="bg-white p-2 rounded-xl shadow-sm border border-gray-100 mb-2">
+                    <img src="${qrUrl}" class="w-32 h-32 rounded-lg" alt="Room QR">
+                </div>
+                <h2 class="text-4xl font-black text-indigo-600 tracking-widest">${this.roomCode}</h2>
+                <div class="text-xs font-bold text-gray-400 uppercase tracking-widest">ROOM CODE</div>
+            </div>
+
+            <div class="mb-4">
+                <div class="flex justify-between items-end mb-2">
+                    <span class="text-xs font-bold text-gray-400 uppercase">Players (${playerCount})</span>
+                </div>
+                <div class="max-h-40 overflow-y-auto space-y-1 custom-scrollbar">
+                    ${playerHtml}
+                </div>
+            </div>
+
+            ${settingsHtml}
+            ${actionBtn}
+        `;
+        
+        if(this.isHost) this.updateHeat(data.maxWords || 5);
     },
+
     injectModal() {
         if (document.getElementById('roomModal')) return;
         const div = document.createElement('div');
@@ -5108,13 +5237,40 @@ calculateTrueSync() {
         document.getElementById('confirmNo').onclick = () => div.remove();
         document.getElementById('confirmYes').onclick = () => { div.remove(); callback(); };
     },
-    showRoleAlert(msg, title) {
+showRoleAlert(msg, title) {
+        // Remove existing alert if any
+        const existing = document.getElementById('role-alert-overlay');
+        if (existing) existing.remove();
+
         const div = document.createElement('div');
-        div.id = 'active-role-alert';
-        div.innerHTML = `<div>${title}</div><div class="text-xs font-normal mt-1 opacity-80">${msg}</div>`;
+        div.id = 'role-alert-overlay';
+        div.className = 'fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-6 animate-in fade-in duration-300';
+        div.onclick = () => div.remove(); // Allow click to dismiss
+
+        // Determine style based on role
+        const isTraitor = msg.toLowerCase().includes('traitor');
+        const icon = isTraitor ? '🕵️' : '😇';
+        const color = isTraitor ? 'text-red-500' : 'text-blue-400';
+
+        div.innerHTML = `
+            <div class="text-center max-w-sm w-full transform transition-all scale-100">
+                <div class="text-8xl mb-6 animate-bounce">${icon}</div>
+                <h1 class="text-white text-3xl font-black mb-2 uppercase tracking-widest">${title || "SECRET ROLE"}</h1>
+                <div class="${color} text-2xl font-bold mb-8 px-4 py-2 border-2 border-current rounded-xl inline-block">
+                    ${msg}
+                </div>
+                <p class="text-gray-400 text-sm mb-8">Tap anywhere to begin</p>
+                <button onclick="this.parentElement.parentElement.remove()" class="bg-white text-black font-black py-4 px-10 rounded-full hover:bg-gray-200 transition shadow-xl">
+                    GOT IT
+                </button>
+            </div>
+        `;
         document.body.appendChild(div);
-        setTimeout(() => { if(div) div.remove(); }, 5000);
+        
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => { if(div.isConnected) div.remove(); }, 5000);
     },
+    
     showAccusationScreen(mode, players) {
         if(this.isSpectator) return;
         const roleName = mode === 'traitor' ? 'TRAITOR' : 'VIP';
@@ -5200,13 +5356,37 @@ showVoteReveal(players, votes) {
             container.appendChild(heart);
         }
     },
+
+updateHeat(val) {
+        const label = document.getElementById('heatLabel');
+        const text = document.getElementById('heatText');
+        const slider = document.getElementById('hostWordCount');
+        
+        if (label) label.innerText = `${val} Words`;
+        
+        // Heat Levels logic
+        let heat = "MILD";
+        let color = "text-green-500";
+        
+        if (val > 5) { heat = "MEDIUM"; color = "text-yellow-500"; }
+        if (val > 10) { heat = "SPICY"; color = "text-orange-500"; }
+        if (val > 15) { heat = "HOT"; color = "text-red-500"; }
+        if (val > 20) { heat = "INFERNO"; color = "text-red-700"; }
+        if (val > 25) { heat = "NUCLEAR"; color = "text-purple-600"; }
+
+        if (text) {
+            text.innerText = heat;
+            text.className = `text-center text-xs font-black mt-1 ${color}`;
+        }
+        
+        // Update slider track color background if supported, or just keep simple
+    },
+
     updateSettings() {
-        if(!this.isHost) return;
+        if (!this.isHost) return;
         const mode = document.getElementById('hostModeSelect').value;
-        let rounds = document.getElementById('hostRoundSelect').value;
-        const drinking = document.getElementById('hostDrinkingToggle') ? document.getElementById('hostDrinkingToggle').checked : false;
-        if (mode === 'survival' && parseInt(rounds) <= 5) rounds = "10";
-        this.socket.emit('updateSettings', { roomCode: this.roomCode, mode, rounds, drinking });
+        const count = document.getElementById('hostWordCount').value; // Get value from slider
+        this.socket.emit('updateSettings', { roomCode: this.roomCode, mode: mode, maxWords: count });
     },
 
     showFinalResults(data) {
