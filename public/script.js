@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.80.10', 
+    APP_VERSION: '5.80.08', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4467,7 +4467,6 @@ connect() {
         try {
             if (typeof io === 'undefined') return;
 
-            // 1. Force Websocket
             if (!this.socket) {
                 this.socket = io({ transports: ['websocket'], upgrade: false, reconnectionAttempts: 10 });
             }
@@ -4509,7 +4508,6 @@ connect() {
                 }
             });
 
-            // Traitor Alert Listener
             this.socket.on('roleAlert', (data) => {
                 this.showRoleAlert(data.message, data.title);
             });
@@ -4519,7 +4517,7 @@ connect() {
                 this.active = true;
                 State.runtime.isMultiplayer = true;
 
-                // ✅ FIX: CLEARS DAILY CHALLENGE STATUS TO PREVENT BUGS
+                // ✅ FIX: PREVENT DAILY CHALLENGE BUG
                 State.runtime.isDailyChallenge = false; 
 
                 this.closeLobby();
@@ -4719,7 +4717,65 @@ leave() {
             window.location.href = window.location.pathname;
         }
     },
-    
+
+// ✅ RESTORED MISSING FUNCTIONS
+    startGame() {
+        if (!this.isHost) return;
+        this.socket.emit('startGame', { roomCode: this.roomCode });
+    },
+
+    kick(playerId) {
+        if (!this.isHost) return;
+        if (confirm('Kick this player?')) {
+            this.socket.emit('kickPlayer', { roomCode: this.roomCode, playerId: playerId });
+        }
+    },
+
+    leave() {
+        if (confirm("Leave the multiplayer lobby?")) {
+            if (this.socket) this.socket.disconnect();
+            window.location.href = window.location.pathname;
+        }
+    },
+
+    updateSettings() {
+        if (!this.isHost) return;
+        const mode = document.getElementById('hostModeSelect').value;
+        const count = document.getElementById('hostWordCount').value; 
+        
+        const drinkEl = document.getElementById('hostDrinkingToggle');
+        const drinking = drinkEl ? drinkEl.checked : false;
+
+        // ✅ PARSE INT FIX: Ensures slider works
+        this.socket.emit('updateSettings', { 
+            roomCode: this.roomCode, 
+            mode: mode, 
+            maxWords: parseInt(count, 10), 
+            drinkingMode: drinking 
+        });
+    },
+
+    updateHeat(val) {
+        const label = document.getElementById('heatLabel');
+        const text = document.getElementById('heatText');
+        
+        if (label) label.innerText = `${val} Words`;
+        
+        let heat = "MILD";
+        let color = "text-green-500";
+        
+        if (val > 5) { heat = "MEDIUM"; color = "text-yellow-500"; }
+        if (val > 10) { heat = "SPICY"; color = "text-orange-500"; }
+        if (val > 15) { heat = "HOT"; color = "text-red-500"; }
+        if (val > 20) { heat = "INFERNO"; color = "text-red-700"; }
+        if (val > 25) { heat = "NUCLEAR"; color = "text-purple-600"; }
+
+        if (text) {
+            text.innerText = heat;
+            text.className = `text-center text-xs font-black mt-1 ${color}`;
+        }
+    },
+
 renderLobby(data) {
         // ✅ 1. FOCUS GUARD: PREVENTS SLIDER BOUNCING
         if (this.isHost && document.activeElement && document.activeElement.id === 'hostWordCount') {
@@ -4731,10 +4787,14 @@ renderLobby(data) {
         if (lobby) lobby.classList.remove('hidden');
         if (joinScreen) joinScreen.classList.add('hidden');
         
-        // 2. Render Players
+        // 2. Render Players (With Self-Kick Prevention)
         const playerHtml = data.players.map(p => {
             const isMe = p.id === State.data.userId;
-            const kickBtn = (this.isHost && !p.isHost) ? `<button onclick="RoomManager.kick('${p.id}')" class="text-xs text-red-400 hover:text-red-600 font-bold ml-2">KICK</button>` : '';
+            
+            // ✅ FIX: Only show kick button if I am Host AND target is NOT me
+            const showKick = this.isHost && p.id !== State.data.userId;
+            const kickBtn = showKick ? `<button onclick="RoomManager.kick('${p.id}')" class="text-xs text-red-400 hover:text-red-600 font-bold ml-2">KICK</button>` : '';
+            
             return `<div class="flex items-center justify-between bg-gray-50 p-2 rounded mb-1 border ${isMe ? 'border-indigo-200 bg-indigo-50' : 'border-gray-100'}">
                 <span class="font-bold text-gray-700 truncate">${p.isHost ? '👑 ' : ''}${p.name} ${isMe ? '(YOU)' : ''}</span>
                 <div class="flex items-center">${kickBtn}</div>
@@ -4745,7 +4805,7 @@ renderLobby(data) {
         const joinUrl = window.location.origin + "?room=" + this.roomCode;
         const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(joinUrl)}`;
 
-        // 4. RESTORED SETTINGS UI (Slider + Drinking Mode)
+        // 4. Settings UI
         let settingsHtml = '';
         const playerCount = data.players.length;
         const minReq = this.modeConfig[data.mode]?.min || 2;
@@ -4790,7 +4850,7 @@ renderLobby(data) {
                 </div>`;
         }
 
-        // 5. Start Button Logic
+        // 5. Start Button
         let actionBtn = '';
         if (this.isHost) {
             if (playerCount >= minReq) {
@@ -4802,7 +4862,7 @@ renderLobby(data) {
              actionBtn = `<div class="text-center text-gray-400 animate-pulse text-sm font-bold">Host will start the game...</div>`;
         }
 
-        // 6. Inject HTML (Includes Exit Button)
+        // 6. Inject HTML (With Exit Button)
         lobby.innerHTML = `
             <div class="relative flex flex-col items-center mb-4">
                 <button onclick="RoomManager.leave()" class="absolute left-0 top-0 p-2 text-gray-400 hover:text-gray-700 transition" title="Leave Lobby">
