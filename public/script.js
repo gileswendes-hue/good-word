@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.80.15', 
+    APP_VERSION: '5.80.13', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4401,13 +4401,14 @@ const RoomManager = {
     players: [],
 
     modeConfig: {
+        // Lowered 'min' players to 2 for easier testing
         'coop': { label: '🤝 Co-op Sync', desc: 'Vote together! Match with the Global Majority.', min: 2 },
         'okstoopid': { label: '💘 OK Stoopid', desc: 'Couples Mode. Test your compatibility!', min: 2, max: 2 },
-        'versus': { label: '⚔️ Team Versus', desc: 'Red vs Blue. Best Team wins.', min: 4 },
+        'versus': { label: '⚔️ Team Versus', desc: 'Red vs Blue. Best Team wins.', min: 2 }, 
         'hipster': { label: '🕶️ The Hipster', desc: 'Minority Rules. Be unique!', min: 3 },
         'speed': { label: '⏱️ Speed Demon', desc: 'Vote fast! Speed and accuracy wins.', min: 2 },
         'survival': { label: '💣 Sudden Death', desc: 'Three Lives. Vote with majority, or die.', min: 3 },
-        'traitor': { label: '🕵️ The Traitor', desc: 'One Traitor tries to ruin everything!', min: 3 },
+        'traitor': { label: '🕵️ The Traitor', desc: 'One Traitor tries to ruin everything!', min: 3 }, 
         'kids': { label: '👶 Kids Mode', desc: 'Simple words. Family friendly!', min: 2 }
     },
 
@@ -4462,7 +4463,7 @@ const RoomManager = {
         });
     },
 
- connect() {
+    connect() {
         try {
             if (typeof io === 'undefined') return;
 
@@ -4511,8 +4512,7 @@ const RoomManager = {
                 this.showRoleAlert(data.message, data.title);
             });
 
-            // --- 📢 MISSING LISTENERS ADDED HERE ---
-            
+            // --- LISTENERS THAT WERE MISSING ---
             this.socket.on('startCountdown', (data) => {
                 this.playCountdown(data.mode);
             });
@@ -4532,8 +4532,7 @@ const RoomManager = {
             this.socket.on('gameOver', (data) => {
                 this.showFinalResults(data);
             });
-
-            // ---------------------------------------
+            // -----------------------------------
 
             this.socket.on('gameStarted', async (data) => {
                 console.log("🚀 Game Started");
@@ -4727,7 +4726,7 @@ const RoomManager = {
             if (this.socket) this.socket.emit('leaveRoom', { roomCode: this.roomCode }, () => { });
             if (this.socket) this.socket.disconnect();
             this.resetLocalState();
-            window.location.href = window.location.pathname; // Reload to clear state
+            window.location.href = window.location.pathname; 
         };
         if (force) doit();
         else this.showCustomConfirm("LEAVE GAME?", doit);
