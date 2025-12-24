@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.80.11', 
+    APP_VERSION: '5.80.12', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4984,7 +4984,7 @@ const RoomManager = {
         try {
             const history = this.roundHistory || [];
             if (history.length === 0) return { pct: 0, matches: 0, total: 0 };
-
+        }
             let matches = 0;
             let total = 0;
 
