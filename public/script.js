@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.81.1', 
+    APP_VERSION: '5.81.2', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4521,14 +4521,12 @@ connect() {
                 this.active = true;
                 State.runtime.isMultiplayer = true;
 
-                // --- FIX: Clear any lingering timers immediately ---
                 if (this.roundTimer) clearTimeout(this.roundTimer);
-                // --------------------------------------------------
 
                 this.closeLobby();
                 this.roundHistory = [];
 
-                // Clear all overlays
+                // Clear previous overlays
                 ['active-role-alert', 'spectator-banner', 'active-accusation', 'active-drink-penalty', 'active-vote-reveal', 'active-countdown'].forEach(id => {
                     const el = document.getElementById(id); if (el) el.remove();
                 });
@@ -4536,13 +4534,6 @@ connect() {
                 this.currentMode = data.mode;
                 this.vipId = data.vipId;
                 if (data.players) this.players = data.players;
-
-                // Traitor / VIP Alert Logic
-                if (data.mode === 'traitor' && this.playerId === data.vipId) {
-                    this.showRoleAlert("You are the Traitor! Try to lose the game without getting caught.", "🕵️ YOU ARE THE TRAITOR");
-                } else if (data.mode === 'hipster' && this.playerId === data.vipId) {
-                    this.showRoleAlert("You are the Hipster! Vote against the majority.", "🕶️ YOU ARE THE HIPSTER");
-                }
 
                 if (!State.runtime.allWords || State.runtime.allWords.length < 50) {
                     State.runtime.allWords = await API.getAllWords();
@@ -4560,6 +4551,7 @@ connect() {
 
                 this.showActiveBanner();
 
+                // 1. Show Game UI (Countdown or Spectator)
                 if (this.isSpectator) {
                     UIManager.disableButtons(true);
                     this.showSpectatorBanner();
@@ -4567,9 +4559,23 @@ connect() {
                     UIManager.disableButtons(false);
                     this.playCountdown(data.mode);
                 }
+
+                // 2. Show Role Alert AFTER Countdown starts (Fixes the "Flash" bug)
+                // We delay by 100ms to ensure the Countdown DOM is fully rendered first,
+                // so the Alert appends AFTER it (on top of it).
+                setTimeout(() => {
+                    if (data.mode === 'traitor' && this.playerId === data.vipId) {
+                        this.showRoleAlert("You are the Traitor! Try to lose the game without getting caught.", "🕵️ YOU ARE THE TRAITOR");
+                    } else if (data.mode === 'hipster' && this.playerId === data.vipId) {
+                        this.showRoleAlert("You are the Hipster! Vote against the majority.", "🕶️ YOU ARE THE HIPSTER");
+                    }
+                }, 200);
             });
 
             this.socket.on('roundResult', ({ mode, data, players, votes }) => {
+                // Prevent round logic if game is already over (Fixes race condition)
+                if (!this.active) return;
+
                 if (!this.roundHistory) this.roundHistory = [];
 
                 let isMatch = false;
@@ -4597,11 +4603,10 @@ connect() {
                 const msg = data.msg || (isMatch ? "IT'S A MATCH! 💘" : "MISMATCH! 💔");
                 UIManager.showPostVoteMessage(msg);
 
-                // --- FIX: Assign to this.roundTimer so we can kill it if Game Over happens ---
                 if (this.roundTimer) clearTimeout(this.roundTimer);
                 this.roundTimer = setTimeout(() => {
                     try {
-                        if (!this.active) return; // Stop if game ended
+                        if (!this.active) return;
                         const rev = document.getElementById('active-vote-reveal');
                         if (rev) rev.remove();
 
@@ -4626,20 +4631,19 @@ connect() {
                         }
                     }
                 }, 3000);
-                // --------------------------------------------------------------------------
             });
 
             this.socket.on('gameOver', (data) => {
-                console.log("🏁 Game Over Event Received");
+                console.log("🏁 Game Over");
                 
-                // --- CRITICAL FIX: STOP THE GAME LOOP IMMEDIATELY ---
+                // STOP everything immediately
                 if (this.roundTimer) clearTimeout(this.roundTimer);
                 this.active = false;
                 State.runtime.isMultiplayer = false;
-                // --------------------------------------------------
 
                 this.removeActiveBanner();
 
+                // Specific ID removal instead of generic class removal (Fixes Freeze)
                 ['active-role-alert', 'spectator-banner', 'active-accusation', 'active-drink-penalty', 'active-vote-reveal', 'active-countdown'].forEach(id => {
                     const el = document.getElementById(id); if (el) el.remove();
                 });
@@ -4648,8 +4652,8 @@ connect() {
                     this.showCustomAlert(data.msg);
                     this.openLobby();
                 } else {
-                    // Added safety delay to ensure DOM is clean before showing results
-                    requestAnimationFrame(() => this.showFinalResults(data));
+                    // Delay slightly to ensure clean DOM
+                    setTimeout(() => this.showFinalResults(data), 100);
                 }
             });
 
@@ -5074,21 +5078,23 @@ calculateTrueSync() {
         document.getElementById('confirmNo').onclick = () => div.remove();
         document.getElementById('confirmYes').onclick = () => { div.remove(); callback(); };
     },
+
 showRoleAlert(msg, title) {
         const div = document.createElement('div');
         div.id = 'active-role-alert';
-        // Increased z-index to 500 to sit above countdown (which is usually 300)
-        div.style.cssText = "position: fixed; top: 100px; left: 50%; transform: translateX(-50%); background: #fef08a; color: #854d0e; padding: 15px 25px; border-radius: 30px; font-weight: 900; z-index: 500; font-size: 1.1rem; border: 4px solid #eab308; box-shadow: 0 10px 25px rgba(0,0,0,0.5); text-align: center; cursor: pointer;";
+        // Z-Index 9999 ensures it floats above the Countdown (300) and everything else
+        div.style.cssText = "position: fixed; top: 100px; left: 50%; transform: translateX(-50%); background: #fef08a; color: #854d0e; padding: 15px 25px; border-radius: 30px; font-weight: 900; z-index: 9999; font-size: 1.1rem; border: 4px solid #eab308; box-shadow: 0 10px 25px rgba(0,0,0,0.5); text-align: center; cursor: pointer; pointer-events: auto;";
         
         div.innerHTML = `<div class="text-2xl mb-1">🤫</div><div class="uppercase tracking-widest border-b-2 border-yellow-600 pb-1 mb-1">${title}</div><div class="text-sm font-bold opacity-90">${msg}</div><div class="text-[10px] mt-2 text-yellow-700">(Tap to dismiss)</div>`;
         
-        div.onclick = () => div.remove(); // Allow clicking to dismiss early
+        div.onclick = () => div.remove();
         
         document.body.appendChild(div);
         
-        // --- CHANGE: Increased to 10 seconds (10000ms) ---
-        setTimeout(() => { if(div) div.remove(); }, 10000);
+        // 10 Seconds duration
+        setTimeout(() => { if(div && div.parentNode) div.remove(); }, 10000);
     },
+
     showAccusationScreen(mode, players) {
         if(this.isSpectator) return;
         const roleName = mode === 'traitor' ? 'TRAITOR' : 'VIP';
@@ -5183,11 +5189,11 @@ showVoteReveal(players, votes) {
         this.socket.emit('updateSettings', { roomCode: this.roomCode, mode, rounds, drinking });
     },
 
-    showFinalResults(data) {
+ showFinalResults(data) {
         try {
-            // Force remove any lingering UI elements that might block the view
-            document.querySelectorAll('.fixed').forEach(el => {
-                if (el.id !== 'roomModal') el.remove(); 
+            // Clean up only specific game elements, NOT 'roomModal' or the results themselves
+            ['active-role-alert', 'spectator-banner', 'active-accusation', 'active-vote-reveal', 'active-countdown'].forEach(id => {
+                const el = document.getElementById(id); if (el) el.remove();
             });
 
             const mode = data.mode || this.currentMode || 'versus'; 
@@ -5259,8 +5265,8 @@ showVoteReveal(players, votes) {
             rankHtml += `</div>`;
 
             const div = document.createElement('div');
-            // HIGH Z-INDEX TO PREVENT FREEZE/OVERLAP
-            div.className = 'fixed inset-0 bg-black/95 z-[2000] flex items-center justify-center p-4';
+            // Z-Index 9999 guarantees it sits on top of everything
+            div.className = 'fixed inset-0 bg-black/95 z-[9999] flex items-center justify-center p-4';
             div.innerHTML = `
                 <div class="bg-gray-800 rounded-2xl w-full max-w-md p-6 border-2 border-indigo-500 relative shadow-2xl">
                     <h2 class="text-2xl font-black text-white text-center mb-2 uppercase">Results</h2>
@@ -5277,41 +5283,9 @@ showVoteReveal(players, votes) {
 
         } catch (fatalError) {
             console.error("CRITICAL UI FAIL:", fatalError);
-            // Fallback to lobby if something explodes
             this.openLobby();
         }
     },
-
-    calculateTrueSync() {
-        try {
-            const history = this.roundHistory || [];
-            if (history.length === 0) return { pct: 0, matches: 0, total: 0 };
-
-            let matches = 0;
-            let total = 0;
-
-            history.forEach(round => {
-                total++;
-                if (round.match) matches++;
-            });
-
-            if (total === 0) return { pct: 0, matches: 0, total: 0 };
-            
-            let pct = Math.floor((matches / total) * 100);
-            
-            if (pct > 50 && pct < 100) {
-                const seed = (this.roomCode || "A").charCodeAt(0) + matches;
-                const bonus = seed % 5; 
-                pct += bonus;
-                if (pct > 100) pct = 100;
-            }
-            
-            return { pct: pct, matches: matches, total: total };
-        } catch (e) {
-            console.warn("Sync Calc failed", e);
-            return { pct: 0, matches: 0, total: 0 };
-        }
-    }
 };
 
 // --- MAIN GAME LOGIC ---
