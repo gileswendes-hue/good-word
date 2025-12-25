@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.80.18', 
+    APP_VERSION: '5.80.15', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4393,6 +4393,7 @@ const RoomManager = {
     listenersAttached: false,
     roundHistory: [],
     players: [],
+    isSpectator: false,
 
     modeConfig: {
         'coop': { label: '🤝 Co-op Sync', desc: 'Vote together! Match with the Global Majority.', min: 2 },
@@ -4407,14 +4408,12 @@ const RoomManager = {
 
     init() {
         window.RoomManager = this;
-        this.injectStyles();
         if (!document.getElementById('roomBtn')) {
             const btn = document.createElement('button');
             btn.id = 'roomBtn';
             btn.className = 'p-2 rounded-full hover:bg-gray-100 transition relative group';
             btn.innerHTML = `<span class="text-xl">📡</span>`;
             btn.onclick = () => this.openLobby();
-            if (State.data.settings.offlineMode) btn.style.display = 'none';
             const sb = document.getElementById('showSettingsButton');
             if (sb && sb.parentNode) sb.parentNode.insertBefore(btn, sb);
         }
@@ -4423,18 +4422,8 @@ const RoomManager = {
             sc.src = "/socket.io/socket.io.js";
             sc.onload = () => this.connect();
             document.head.appendChild(sc);
-        } else {
-            this.connect();
-        }
+        } else { this.connect(); }
         this.injectModal();
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('room')) {
-            setTimeout(() => {
-                this.openLobby();
-                const input = document.getElementById('roomCodeInput');
-                if (input) { input.value = urlParams.get('room'); this.join(); }
-            }, 500);
-        }
     },
 
     connect() {
@@ -4443,31 +4432,32 @@ const RoomManager = {
         if (this.listenersAttached) return;
         this.listenersAttached = true;
 
-        this.socket.on('connect', () => {
-            this.playerId = this.socket.id;
-            const saved = localStorage.getItem('lastRoomCode');
-            if (saved && !this.active) {
-                const i = document.getElementById('roomCodeInput');
-                if (i) i.value = saved;
-            }
-        });
-
+        this.socket.on('connect', () => { this.playerId = this.socket.id; });
+        
         this.socket.on('roomUpdate', (data) => {
             this.isHost = (data.host === this.playerId);
             this.currentMode = data.mode;
             this.currentRounds = data.maxWords;
             this.drinkingMode = data.drinkingMode;
+            this.isSpectator = !!data.isSpectator;
             if (data.players) this.players = data.players;
+            
+            // --- SYNC THEME ---
+            if (data.theme && State.runtime.currentTheme !== data.theme) {
+                ThemeManager.apply(data.theme, 'temp');
+            }
+
             if (this.active) this.updateBannerInfo();
             else if (!document.getElementById('roomModal').classList.contains('hidden')) this.renderLobby(data);
         });
 
+        // --- GAME EVENTS (Forced High Visibility) ---
         this.socket.on('roleAlert', (data) => this.showRoleAlert(data.message, data.title));
         this.socket.on('startCountdown', (data) => this.playCountdown(data.mode));
-        this.socket.on('revealVotes', (data) => this.showVoteReveal(data.players, data.votes));
         this.socket.on('startAccusation', (data) => this.showAccusationScreen(data.mode, data.players));
-        this.socket.on('drinkPenalty', (data) => this.showDrinkPenalty(data.drinkers, data.message));
         this.socket.on('gameOver', (data) => this.showFinalResults(data));
+        this.socket.on('revealVotes', (data) => this.showVoteReveal(data.players, data.votes));
+        this.socket.on('drinkPenalty', (data) => this.showDrinkPenalty(data.drinkers, data.message));
         
         this.socket.on('nextWord', (data) => {
             State.runtime.currentWordIndex = data.index || (State.runtime.currentWordIndex + 1);
@@ -4481,22 +4471,19 @@ const RoomManager = {
             State.runtime.isMultiplayer = true;
             this.closeLobby();
             this.roundHistory = [];
+            this.showActiveBanner();
             
-            // FIX: Don't remove 'active-role-alert' or 'active-countdown' here
-            ['spectator-banner', 'active-accusation', 'active-vote-reveal'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.remove();
+            // CLEANUP (Crucial: Do NOT remove alerts/countdown here)
+            ['spectator-banner', 'active-accusation', 'active-vote-reveal', 'active-drink-penalty'].forEach(id => {
+                const el = document.getElementById(id); if (el) el.remove();
             });
 
             this.currentMode = data.mode;
-            this.vipId = data.vipId;
-            if (data.players) this.players = data.players;
-
             if (!State.runtime.allWords || State.runtime.allWords.length < 50) {
                 State.runtime.allWords = await API.getAllWords();
             }
 
-            // FIX: Robust Shuffle (Mulberry32) for perfect sync
+            // ROBUST SHUFFLE (Fixes "AIT" bug)
             let syncBase = [...State.runtime.allWords].sort((a, b) => String(a._id).localeCompare(String(b._id)));
             let m = (Number(data.seed) || 12345) + 0x6D2B79F5;
             const random = () => {
@@ -4504,61 +4491,35 @@ const RoomManager = {
                 m = (m + t) | 0;
                 return ((t ^ m ^ (t >>> 16)) >>> 0) / 4294967296;
             };
-
             for (let i = syncBase.length - 1; i > 0; i--) {
                 const j = Math.floor(random() * (i + 1));
                 [syncBase[i], syncBase[j]] = [syncBase[j], syncBase[i]];
             }
-            
             State.runtime.allWords = syncBase;
             State.runtime.currentWordIndex = 0;
-
             if (UIManager && UIManager.displayWord) UIManager.displayWord(State.runtime.allWords[0]);
             this.updateBannerInfo();
         });
     },
 
-    updateBannerInfo() {
-        const b = document.getElementById('room-active-banner');
-        if (b) b.querySelector('.room-info').innerHTML = `<span class="font-mono bg-gray-100 px-1 rounded mr-2 text-gray-800 font-bold">${this.roomCode}</span><span class="font-bold text-gray-700">${(this.modeConfig[this.currentMode] || {}).label || 'Multiplayer'}</span>`;
-    },
-
-    showActiveBanner() {
-        const existing = document.getElementById('room-active-banner');
-        if (existing) existing.remove();
-        const banner = document.createElement('div');
-        banner.id = 'room-active-banner';
-        banner.style.cssText = "position:fixed; top:0; left:0; width:100%; height:60px; background:white; z-index:200; display:flex; align-items:center; justify-content:space-between; padding:0 20px; box-shadow:0 2px 10px rgba(0,0,0,0.1); border-bottom: 1px solid #e5e7eb;";
-        banner.innerHTML = `<div class="room-info flex items-center"></div><button onclick="RoomManager.leave()" style="background:#fee2e2; color:#ef4444; border-radius:8px; padding:5px 12px; font-weight:bold;">Exit</button>`;
-        document.body.appendChild(banner);
-        document.body.style.paddingTop = '60px';
-        this.updateBannerInfo();
-    },
-
+    // --- VISUALS (Z-Index 99999 ensures visibility) ---
     playCountdown(mode) {
         const config = this.modeConfig[mode] || { label: "GET READY", desc: "Game Starting..." };
         const div = document.createElement('div');
         div.id = 'active-countdown';
-        div.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white;";
-        div.innerHTML = `
-            <div style="font-size: 2rem; font-weight: 900; margin-bottom: 1rem; text-transform: uppercase;">${config.label}</div>
-            <div style="font-size: 1.2rem; margin-bottom: 2rem; color: #ccc;">${config.desc}</div>
-            <div id="cd-num" style="font-size: 8rem; font-weight: 900; color: #facc15;">5</div>
-        `;
+        div.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white;";
+        div.innerHTML = `<div style="font-size: 2rem; font-weight: 900; margin-bottom: 1rem; text-transform: uppercase;">${config.label}</div><div style="font-size: 1.2rem; margin-bottom: 2rem; color: #ccc;">${config.desc}</div><div id="cd-num" style="font-size: 8rem; font-weight: 900; color: #facc15;">5</div>`;
         document.body.appendChild(div);
         let count = 5;
-        const el = document.getElementById('cd-num');
         const interval = setInterval(() => {
             count--;
+            const el = document.getElementById('cd-num');
+            if (!el) { clearInterval(interval); return; }
             if (count > 0) el.textContent = count;
             else if (count === 0) {
-                el.textContent = "GO!";
-                el.style.color = "#4ade80";
+                el.textContent = "GO!"; el.style.color = "#4ade80";
                 UIManager.disableButtons(false);
-            } else {
-                clearInterval(interval);
-                div.remove();
-            }
+            } else { clearInterval(interval); div.remove(); }
         }, 1000);
     },
 
@@ -4567,77 +4528,137 @@ const RoomManager = {
         if (existing) existing.remove();
         const div = document.createElement('div');
         div.id = 'role-alert-overlay';
-        div.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 10001; display: flex; align-items: center; justify-content: center; padding: 20px;";
-        
+        div.style.cssText = "position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 99999; display: flex; align-items: center; justify-content: center; padding: 20px;";
         const isTraitor = msg.toLowerCase().includes('traitor');
         const color = isTraitor ? '#ef4444' : '#60a5fa';
-        div.innerHTML = `
-            <div style="text-align:center; animation: bounce 0.5s;">
-                <div style="font-size: 5rem; margin-bottom: 20px;">${isTraitor ? '🕵️' : '😇'}</div>
-                <h1 style="color:white; font-size:2rem; font-weight:900; margin-bottom:10px;">${title || "SECRET ROLE"}</h1>
-                <div style="color:${color}; font-size:1.5rem; font-weight:bold; border:3px solid ${color}; padding:15px; border-radius:15px; background:rgba(255,255,255,0.1); margin-bottom:30px;">${msg}</div>
-                <button onclick="this.parentElement.parentElement.remove()" style="background:white; color:black; font-weight:900; padding:15px 40px; border-radius:50px; border:none; font-size:1.2rem; cursor:pointer;">GOT IT</button>
-            </div>`;
+        div.innerHTML = `<div style="text-align:center;"><div style="font-size: 5rem; margin-bottom: 20px;">${isTraitor ? '🕵️' : '😇'}</div><h1 style="color:white; font-size:2rem; font-weight:900; margin-bottom:10px;">${title || "SECRET ROLE"}</h1><div style="color:${color}; font-size:1.5rem; font-weight:bold; border:3px solid ${color}; padding:15px; border-radius:15px; background:rgba(255,255,255,0.1); margin-bottom:30px;">${msg}</div><button onclick="this.parentElement.parentElement.remove()" style="background:white; color:black; font-weight:900; padding:15px 40px; border-radius:50px; border:none; font-size:1.2rem; cursor:pointer;">GOT IT</button></div>`;
         document.body.appendChild(div);
         setTimeout(() => { if (div.isConnected) div.remove(); }, 5000);
     },
 
-    setMode(m) { this.socket.emit('setMode', { roomCode: this.roomCode, mode: m }); },
-    updateHeat(val) { 
-        const l = document.getElementById('heatLabel'); 
-        const t = document.getElementById('heatText');
-        if(l) l.innerText = `${val} Words`; 
-        if(t) {
-            let heat = "MILD", color = "text-green-500";
-            if (val > 5) { heat = "MEDIUM"; color = "text-yellow-500"; }
-            if (val > 10) { heat = "SPICY"; color = "text-orange-500"; }
-            if (val > 15) { heat = "HOT"; color = "text-red-500"; }
-            if (val > 20) { heat = "INFERNO"; color = "text-red-700"; }
-            if (val > 25) { heat = "NUCLEAR"; color = "text-purple-600"; }
-            t.innerText = heat;
-            t.className = `text-center text-xs font-black mt-1 ${color}`;
+    renderLobby(data) {
+        if (this.isHost && document.activeElement && document.activeElement.id === 'hostWordCount') return;
+        const lobby = document.getElementById('roomLobbyScreen');
+        const joinScreen = document.getElementById('roomJoinScreen');
+        if (lobby) lobby.classList.remove('hidden');
+        if (joinScreen) joinScreen.classList.add('hidden');
+        const joinUrl = window.location.origin + "?room=" + this.roomCode;
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(joinUrl)}`;
+        const playerHtml = data.players.map(p => `<div style="display:flex; justify-content:space-between; background:#f9fafb; padding:8px; border-radius:8px; margin-bottom:4px; border:1px solid #e5e7eb"><span style="font-weight:bold">${p.isHost?'👑 ':''}${p.name}${p.id===this.playerId?' (YOU)':''}</span></div>`).join('');
+        
+        let settingsHtml = '';
+        if (this.isHost) {
+            // THEME SELECTOR ADDED HERE
+            let modeOpts = Object.entries(this.modeConfig).map(([k,v]) => `<option value="${k}" ${data.mode===k?'selected':''}>${v.label}</option>`).join('');
+            let themeOpts = ['default', ...State.data.unlockedThemes].map(t => `<option value="${t}" ${data.theme===t?'selected':''}>${t.toUpperCase()}</option>`).join('');
+            
+            settingsHtml = `<div style="background:#f3f4f6; padding:15px; border-radius:12px; margin-bottom:15px">
+                <div style="margin-bottom:10px">
+                    <label style="font-size:10px; font-weight:bold; color:#9ca3af; text-transform:uppercase">Game Mode</label>
+                    <select id="hostModeSelect" onchange="RoomManager.updateSettings()" style="width:100%; padding:8px; border-radius:8px; font-weight:bold">${modeOpts}</select>
+                </div>
+                <div style="margin-bottom:10px">
+                    <label style="font-size:10px; font-weight:bold; color:#9ca3af; text-transform:uppercase">Room Theme</label>
+                    <select id="hostThemeSelect" onchange="RoomManager.updateSettings()" style="width:100%; padding:8px; border-radius:8px; font-weight:bold">${themeOpts}</select>
+                </div>
+                <div>
+                    <div style="display:flex; justify-content:space-between"><label style="font-size:10px; font-weight:bold; color:#9ca3af">Words</label><span id="heatLabel" style="font-size:10px; font-weight:bold; color:#4f46e5">${data.maxWords}</span></div>
+                    <input type="range" id="hostWordCount" min="3" max="30" value="${data.maxWords}" oninput="RoomManager.updateHeat(this.value)" onchange="RoomManager.updateSettings()" style="width:100%; margin-bottom:10px">
+                </div>
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer"><input type="checkbox" id="hostDrinkingToggle" ${data.drinkingMode?'checked':''} onchange="RoomManager.updateSettings()"> <span style="font-weight:bold; color:#ef4444">🍺 Drinking Mode</span></label>
+            </div>`;
+        } else {
+            settingsHtml = `<div style="background:#f9fafb; padding:20px; border-radius:12px; text-align:center; border:2px dashed #e5e7eb; margin-bottom:15px"><div style="color:#9ca3af; font-size:12px; font-weight:bold">WAITING FOR HOST</div><div style="color:#4f46e5; font-size:1.2rem; font-weight:900">${this.modeConfig[data.mode].label}</div></div>`;
         }
+
+        const minReq = this.modeConfig[data.mode].min;
+        const actionBtn = this.isHost ? (data.players.length >= minReq ? `<button onclick="RoomManager.startGame()" style="width:100%; padding:15px; background:#4f46e5; color:white; border:none; border-radius:12px; font-weight:900; font-size:1.1rem; cursor:pointer">START GAME</button>` : `<button disabled style="width:100%; padding:15px; background:#d1d5db; color:#9ca3af; border:none; border-radius:12px; font-weight:bold">NEED ${minReq} PLAYERS</button>`) : `<div style="text-align:center; color:#9ca3af; font-weight:bold; animation:pulse 2s infinite">Host will start...</div>`;
+
+        lobby.innerHTML = `<div style="text-align:center; margin-bottom:15px"><div style="background:white; padding:10px; display:inline-block; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,0.05); margin-bottom:10px"><img src="${qrUrl}" style="width:120px; height:120px"></div><h2 style="font-size:2rem; font-weight:900; color:#4f46e5; letter-spacing:4px">${this.roomCode}</h2></div><div style="margin-bottom:15px"><div style="font-size:10px; font-weight:bold; color:#9ca3af; margin-bottom:5px">PLAYERS (${data.players.length})</div>${playerHtml}</div>${settingsHtml}${actionBtn}`;
     },
+
     updateSettings() {
         if (!this.isHost) return;
+        // Collect all settings including THEME
         this.socket.emit('updateSettings', {
             roomCode: this.roomCode,
             mode: document.getElementById('hostModeSelect').value,
+            theme: document.getElementById('hostThemeSelect') ? document.getElementById('hostThemeSelect').value : 'default',
             maxWords: parseInt(document.getElementById('hostWordCount').value, 10),
             drinkingMode: document.getElementById('hostDrinkingToggle').checked
         });
     },
-    startGame() { if (this.isHost) this.socket.emit('startGame', { roomCode: this.roomCode }); },
-    leave() {
-        localStorage.removeItem('lastRoomCode');
-        if (this.socket) this.socket.disconnect();
-        this.active = false;
-        window.location.reload();
+
+    showAccusationScreen(m, p) {
+        if(this.isSpectator) return;
+        const div = document.createElement('div');
+        div.id = 'active-accusation';
+        div.style.cssText = "position:fixed; inset:0; background:rgba(0,0,0,0.95); z-index:99999; flex-direction:column; align-items:center; justify-content:center; display:flex;";
+        div.innerHTML = `<h2 style="color:white; font-size:2rem; margin-bottom:20px; font-weight:900;">WHO IS THE TRAITOR?</h2><div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">${p.map(pl => pl.id!==this.playerId?`<button onclick="RoomManager.socket.emit('submitAccusation', {roomCode:RoomManager.roomCode, targetId:'${pl.id}'}); this.parentElement.innerHTML='<div style=color:white;font-weight:bold>VOTE SENT!</div>'" style="padding:15px; font-size:1.2rem; font-weight:bold; border-radius:10px; background:white; color:black; border:none;">${pl.name}</button>`:'').join('')}</div>`;
+        document.body.appendChild(div);
     },
+
+    showFinalResults(d) {
+        const div = document.createElement('div');
+        div.style.cssText = "position:fixed; inset:0; background:rgba(0,0,0,0.95); z-index:99999; display:flex; align-items:center; justify-content:center; padding:20px;";
+        const roleName = d.mode === 'traitor' ? 'TRAITOR' : 'VIP';
+        const who = (this.players.find(p => p.id === d.specialRoleId) || {}).name || "Unknown";
+        const roleHTML = `<div style="background:#fef3c7; color:#92400e; padding:10px; border-radius:8px; font-weight:bold; text-align:center; margin-bottom:15px;">THE ${roleName} WAS: ${who}</div>`;
+        div.innerHTML = `<div style="background:#1f2937; border:2px solid #6366f1; border-radius:15px; padding:25px; width:100%; max-width:400px; color:white;"><h2 style="font-size:1.5rem; font-weight:900; text-align:center; margin-bottom:15px;">GAME OVER</h2>${roleHTML}<div style="margin-bottom:20px;">${(d.rankings || []).map((p,i) => `<div style="display:flex; justify-content:space-between; border-bottom:1px solid #374151; padding:5px 0;"><span>${i+1}. ${p.name}</span><span style="color:#fbbf24; font-weight:bold;">${p.score} pts</span></div>`).join('')}</div><div style="display:flex; gap:10px;"><button onclick="location.reload()" style="flex:1; padding:12px; background:#4b5563; border-radius:8px; border:none; color:white; font-weight:bold; cursor:pointer;">EXIT</button></div></div>`;
+        document.body.appendChild(div);
+    },
+
+    updateBannerInfo() {
+        const b = document.getElementById('room-active-banner');
+        if (b) b.querySelector('.room-info').innerHTML = `<span style="font-family:monospace; background:#f3f4f6; padding:2px 4px; border-radius:4px; margin-right:8px; color:#1f2937; font-weight:bold;">${this.roomCode}</span><span style="font-weight:bold; color:#374151;">${(this.modeConfig[this.currentMode] || {}).label || 'Multiplayer'}</span>`;
+    },
+
+    showActiveBanner() {
+        const existing = document.getElementById('room-active-banner');
+        if (existing) existing.remove();
+        const banner = document.createElement('div');
+        banner.id = 'room-active-banner';
+        banner.style.cssText = "position:fixed; top:0; left:0; width:100%; height:60px; background:white; z-index:200; display:flex; align-items:center; justify-content:space-between; padding:0 20px; box-shadow:0 2px 10px rgba(0,0,0,0.1); border-bottom: 1px solid #e5e7eb;";
+        banner.innerHTML = `<div class="room-info flex items-center"></div><button onclick="RoomManager.leave()" style="background:#fee2e2; color:#ef4444; border-radius:8px; padding:5px 12px; font-weight:bold; border:none; cursor:pointer">Exit</button>`;
+        document.body.appendChild(banner);
+        document.body.style.paddingTop = '60px';
+        this.updateBannerInfo();
+    },
+
+    updateHeat(val) { 
+        const l = document.getElementById('heatLabel'); 
+        if(l) l.innerText = val; 
+    },
+    startGame() { if (this.isHost) this.socket.emit('startGame', { roomCode: this.roomCode }); },
     openLobby() { document.getElementById('roomModal').classList.remove('hidden'); },
     closeLobby() { document.getElementById('roomModal').classList.add('hidden'); },
+    leave() { location.reload(); },
     join() {
         const u = State.data.username;
-        if (!u) { this.showNameInput(n => { State.data.username = n; State.save('username', n); this.join(); }); return; }
+        if (!u) { const n = prompt("Enter Name:"); if(n) { State.save('username', n); this.join(); } return; }
         const c = document.getElementById('roomCodeInput').value.trim().toUpperCase();
         if(!c) return alert("Code?");
         this.roomCode = c;
-        localStorage.setItem('lastRoomCode', c);
-        document.getElementById('roomJoinScreen').classList.add('hidden');
-        document.getElementById('roomLobbyScreen').classList.remove('hidden');
-        document.getElementById('lobbyCodeDisplay').textContent = c;
         if (!this.socket.connected) this.connect();
-        else this.socket.emit('joinRoom', { roomCode: c, username: u });
+        this.socket.emit('joinRoom', { roomCode: c, username: u });
     },
-    injectStyles() {},
     injectModal() {
         if (document.getElementById('roomModal')) return;
         const div = document.createElement('div');
         div.id = 'roomModal';
-        div.className = 'hidden fixed inset-0 bg-gray-900 bg-opacity-95 z-50 flex items-center justify-center';
-        div.innerHTML = `<div class="bg-white rounded-xl p-6 w-full max-w-sm mx-4 relative"><button onclick="RoomManager.leave()" class="absolute top-4 right-4">✕</button><div id="roomJoinScreen" class="space-y-4"><input id="roomCodeInput" class="w-full text-center text-2xl font-black p-3 border-2 rounded-xl uppercase" placeholder="CODE"><button onclick="RoomManager.join()" class="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl">JOIN</button></div><div id="roomLobbyScreen" class="hidden"><div id="lobbyCodeDisplay" class="text-3xl font-black text-center mb-4"></div><div id="lobbyPlayerList" class="bg-gray-50 p-2 rounded mb-4"></div><button id="roomStartBtn" onclick="RoomManager.startGame()" class="hidden w-full py-3 bg-green-500 text-white font-bold rounded-xl">START</button></div></div>`;
+        div.className = 'hidden fixed inset-0 bg-gray-900 bg-opacity-95 z-[500] flex items-center justify-center';
+        div.innerHTML = `<div style="background:white; border-radius:20px; padding:30px; width:100%; max-width:360px; position:relative; margin:20px">
+            <button onclick="RoomManager.closeLobby()" style="position:absolute; top:15px; right:15px; background:none; border:none; font-size:20px; color:#9ca3af; cursor:pointer">✕</button>
+            <div id="roomJoinScreen" style="display:flex; flex-direction:column; gap:15px">
+                <h3 style="text-align:center; font-weight:900; font-size:1.5rem">MULTIPLAYER</h3>
+                <input id="roomCodeInput" style="text-align:center; font-size:2rem; font-weight:900; padding:15px; border:2px solid #e5e7eb; border-radius:15px; text-transform:uppercase" placeholder="CODE" maxlength="6">
+                <button onclick="RoomManager.join()" style="padding:15px; background:#4f46e5; color:white; border:none; border-radius:15px; font-weight:900; cursor:pointer">JOIN ROOM</button>
+            </div>
+            <div id="roomLobbyScreen" class="hidden"></div>
+        </div>`;
         document.body.appendChild(div);
     },
+    submitVote(t) { if (this.active && this.socket) this.socket.emit('submitVote', { roomCode: this.roomCode, vote: t }); },
     showVoteReveal(p, v) {
         const div = document.createElement('div');
         div.id = 'active-vote-reveal';
@@ -4649,113 +4670,14 @@ const RoomManager = {
         }).join('');
         document.body.appendChild(div);
     },
-    showAccusationScreen(m, p) {
-        if(this.isSpectator) return;
-        const div = document.createElement('div');
-        div.id = 'active-accusation';
-        div.style.cssText = "position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:2000; flex-direction:column; align-items:center; justify-content:center; display:flex;";
-        div.innerHTML = `<h2 style="color:white; font-size:2rem; margin-bottom:20px;">WHO IS THE TRAITOR?</h2><div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">${p.map(pl => `<button onclick="RoomManager.socket.emit('submitAccusation', {roomCode:RoomManager.roomCode, targetId:'${pl.id}'}); this.parentElement.innerHTML='WAITING...'" style="padding:15px; font-size:1.2rem; font-weight:bold; border-radius:10px;">${pl.name}</button>`).join('')}</div>`;
-        document.body.appendChild(div);
-    },
     showDrinkPenalty(d, m) {
         if(document.getElementById('active-drink-penalty')) return;
         const div = document.createElement('div');
         div.id = 'active-drink-penalty';
-        div.style.cssText = "position:fixed; inset:0; background:rgba(0,0,0,0.95); z-index:5000; display:flex; flex-direction:column; align-items:center; justify-content:center; color:white;";
+        div.style.cssText = "position:fixed; inset:0; background:rgba(0,0,0,0.95); z-index:99999; display:flex; flex-direction:column; align-items:center; justify-content:center; color:white;";
         div.innerHTML = `<h1 style="color:#ef4444; font-size:3rem; font-weight:900;">DRINK!</h1><p>${m || "Penalty Round"}</p><div style="margin:20px 0; font-size:1.5rem;">${d.map(p => `<div>🍺 ${p.name}</div>`).join('')}</div><button onclick="RoomManager.socket.emit('confirmReady', {roomCode:RoomManager.roomCode}); this.innerText='WAITING...'" style="padding:15px 30px; background:#ef4444; color:white; border:none; border-radius:10px; font-weight:bold;">DONE</button>`;
         document.body.appendChild(div);
-    },
-    showFinalResults(d) {
-        const div = document.createElement('div');
-        div.className = 'fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-4';
-        
-        let roleHTML = '';
-        if(d.specialRoleId) {
-            const roleName = d.mode === 'traitor' ? 'TRAITOR' : 'VIP';
-            const who = this.players.find(p => p.id === d.specialRoleId)?.name || "Unknown";
-            roleHTML = `<div class="bg-yellow-100 text-yellow-800 p-2 rounded font-bold text-center mb-4">THE ${roleName} WAS: ${who}</div>`;
-        }
-
-        div.innerHTML = `
-            <div class="bg-gray-800 rounded-xl w-full max-w-md p-6 border-2 border-indigo-500 relative text-white">
-                <h2 class="text-2xl font-black text-center mb-2">GAME OVER</h2>
-                ${roleHTML}
-                <div class="space-y-2 mb-4">
-                    ${(d.rankings || []).map((p,i) => `<div class="flex justify-between border-b border-gray-700 py-1"><span>${i+1}. ${p.name}</span><span class="text-yellow-400 font-bold">${p.score} pts</span></div>`).join('')}
-                </div>
-                <div class="flex gap-2">
-                    <button onclick="this.closest('.fixed').remove(); RoomManager.leave()" class="flex-1 py-3 bg-gray-700 rounded-xl font-bold">EXIT</button>
-                    <button onclick="this.closest('.fixed').remove(); RoomManager.openLobby()" class="flex-1 py-3 bg-indigo-600 rounded-xl font-bold">NEXT GAME</button>
-                </div>
-            </div>`;
-        document.body.appendChild(div);
-    },
-    renderLobby(data) {
-        if (this.isHost && document.activeElement && document.activeElement.id === 'hostWordCount') return;
-
-        const lobby = document.getElementById('roomLobbyScreen');
-        const joinScreen = document.getElementById('roomJoinScreen');
-        if (lobby) lobby.classList.remove('hidden');
-        if (joinScreen) joinScreen.classList.add('hidden');
-
-        const joinUrl = window.location.origin + "?room=" + this.roomCode;
-        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(joinUrl)}`;
-
-        const playerHtml = data.players.map(p => {
-            const isMe = p.id === State.data.userId;
-            const showKick = this.isHost && p.id !== State.data.userId;
-            const kickBtn = showKick ? `<button onclick="RoomManager.kick('${p.id}')" class="text-xs text-red-400 hover:text-red-600 font-bold ml-2">KICK</button>` : '';
-            return `<div class="flex items-center justify-between bg-gray-50 p-2 rounded mb-1 border ${isMe ? 'border-indigo-200 bg-indigo-50' : 'border-gray-100'}">
-                <span class="font-bold text-gray-700 truncate">${p.isHost ? '👑 ' : ''}${p.name} ${isMe ? '(YOU)' : ''}</span>
-                <div class="flex items-center">${kickBtn}</div>
-            </div>`;
-        }).join('');
-
-        let settingsHtml = '';
-        if (this.isHost) {
-            let modeOpts = "";
-            for (const [key, val] of Object.entries(this.modeConfig)) {
-                modeOpts += `<option value="${key}" ${data.mode === key ? 'selected' : ''}>${val.label}</option>`;
-            }
-            settingsHtml = `
-                <div class="bg-gray-100 p-3 rounded-lg mb-4 space-y-3">
-                    <div><label class="text-xs font-bold text-gray-400 uppercase">Game Mode</label><select id="hostModeSelect" class="w-full p-2 rounded border font-bold" onchange="RoomManager.updateSettings()">${modeOpts}</select></div>
-                    <div>
-                        <div class="flex justify-between mb-1"><label class="text-xs font-bold text-gray-400 uppercase">Intensity</label><span id="heatLabel" class="text-xs font-bold text-indigo-600">${data.maxWords || 5} Words</span></div>
-                        <input type="range" id="hostWordCount" min="3" max="30" value="${data.maxWords || 5}" class="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-indigo-600" oninput="RoomManager.updateHeat(this.value)" onchange="RoomManager.updateSettings()">
-                        <div id="heatText" class="text-center text-xs font-black mt-1 text-green-500">MILD</div>
-                    </div>
-                    <div><label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="hostDrinkingToggle" ${data.drinkingMode ? 'checked' : ''} onchange="RoomManager.updateSettings()" class="w-5 h-5 accent-red-500"><span class="font-bold text-red-600">🍺 Drinking Mode</span></label></div>
-                </div>`;
-        } else {
-            settingsHtml = `<div class="bg-gray-50 p-4 rounded-xl text-center mb-4 border-2 border-dashed border-gray-200"><div class="text-gray-400 text-sm font-bold uppercase mb-1">WAITING FOR HOST</div><div class="text-indigo-600 font-black text-xl">${this.modeConfig[data.mode]?.label || data.mode}</div><div class="text-xs text-gray-500">${data.maxWords} Words</div>${data.drinkingMode ? '<div class="text-red-500 font-bold text-xs mt-1">🍺 DRINKING MODE</div>' : ''}</div>`;
-        }
-
-        const minReq = this.modeConfig[data.mode]?.min || 2;
-        let actionBtn = this.isHost ? (data.players.length >= minReq ? `<button onclick="RoomManager.startGame()" class="w-full py-4 bg-indigo-600 text-white font-black text-xl rounded-xl shadow-lg hover:bg-indigo-700 transform hover:scale-[1.02] transition">START GAME</button>` : `<button disabled class="w-full py-3 bg-gray-300 text-gray-500 font-bold rounded-xl cursor-not-allowed">NEED ${minReq} PLAYERS</button>`) : `<div class="text-center text-gray-400 animate-pulse text-sm font-bold">Host will start the game...</div>`;
-
-        lobby.innerHTML = `
-            <div class="relative flex flex-col items-center mb-4">
-                <button onclick="RoomManager.leave()" class="absolute left-0 top-0 p-2 text-gray-400 hover:text-gray-700 transition">⬅️</button>
-                <div class="bg-white p-2 rounded-xl shadow-sm border border-gray-100 mb-2 mt-2"><img src="${qrUrl}" class="w-32 h-32 rounded-lg" alt="Room QR"></div>
-                <h2 class="text-4xl font-black text-indigo-600 tracking-widest">${this.roomCode}</h2>
-                <div class="text-xs font-bold text-gray-400 uppercase tracking-widest">ROOM CODE</div>
-            </div>
-            <div class="mb-4"><div class="flex justify-between items-end mb-2"><span class="text-xs font-bold text-gray-400 uppercase">Players (${data.players.length})</span></div><div class="max-h-40 overflow-y-auto space-y-1 custom-scrollbar">${playerHtml}</div></div>
-            ${settingsHtml}${actionBtn}
-        `;
-        if (this.isHost) this.updateHeat(data.maxWords || 5);
-    },
-    
-    kick(playerId) { if (this.isHost && confirm('Kick this player?')) this.socket.emit('kickPlayer', { roomCode: this.roomCode, targetId: playerId }); },
-    submitVote(t) { if (this.active && this.socket) this.socket.emit('submitVote', { roomCode: this.roomCode, vote: t }); },
-    calculateTrueSync() { return { pct: 0, matches: 0, total: 0 }; }, // Stub for now
-    injectStyles() { },
-    showNameInput(cb) { const n = prompt("Enter Name:"); if(n) cb(n); },
-    showCustomAlert(msg) { alert(msg); },
-    showCustomConfirm(msg, cb) { if(confirm(msg)) cb(); },
-    showSpectatorBanner() { /* Handled by HTML/CSS */ },
-    updateHearts() { /* Handled by gameStarted */ }
+    }
 };
 
 const Game = {
