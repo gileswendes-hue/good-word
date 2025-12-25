@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.80.08', 
+    APP_VERSION: '5.81', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4430,7 +4430,7 @@ const RoomManager = {
             if (sb && sb.parentNode) sb.parentNode.insertBefore(btn, sb);
         }
 
-        if (!window.io) {
+if (!window.io) {
             const sc = document.createElement('script');
             sc.src = "/socket.io/socket.io.js";
             sc.onload = () => this.connect();
@@ -4446,6 +4446,17 @@ const RoomManager = {
                 this.socket.emit('leaveRoom', { roomCode: this.roomCode });
             }
         });
+
+const params = new URLSearchParams(window.location.search);
+        const urlRoom = params.get('room');
+        if (urlRoom) {
+            this.roomCode = urlRoom.trim().toUpperCase();
+            // Wait briefly for socket/DOM to be ready
+            setTimeout(() => {
+                if (State.data.username) this.join();
+                else this.openLobby(); // Will trigger name input then join
+            }, 500);
+        }
     },
 
 connect() {
@@ -4509,15 +4520,14 @@ connect() {
             }
         });
 
-        this.socket.on('gameStarted', async (data) => {
+   this.socket.on('gameStarted', async (data) => {
             console.log("🚀 Game Started");
-            this.active = true; // Lock state immediately
+            this.active = true; 
             State.runtime.isMultiplayer = true; 
             
-            this.closeLobby(); // Hide lobby
+            this.closeLobby(); 
             this.roundHistory = []; 
             
-            // Clear all overlays
             ['active-role-alert', 'spectator-banner', 'active-accusation', 'active-drink-penalty', 'active-vote-reveal', 'active-countdown'].forEach(id => {
                 const el = document.getElementById(id); if(el) el.remove();
             });
@@ -4526,13 +4536,19 @@ connect() {
             this.vipId = data.vipId; 
             if (data.players) this.players = data.players;
 
-            // Ensure words are loaded
+            // --- CHANGE: Traitor / VIP Alert Logic ---
+            if (data.mode === 'traitor' && this.playerId === data.vipId) {
+                 this.showRoleAlert("You are the Traitor! Try to lose the game without getting caught.", "🕵️ YOU ARE THE TRAITOR");
+            } else if (data.mode === 'hipster' && this.playerId === data.vipId) {
+                 this.showRoleAlert("You are the Hipster! Vote against the majority.", "🕶️ YOU ARE THE HIPSTER");
+            }
+            // ----------------------------------------
+
             if (!State.runtime.allWords || State.runtime.allWords.length < 50) {
                 State.runtime.allWords = await API.getAllWords();
             }
 
-            // Sync Words
-            let syncBase = [...State.runtime.allWords].sort((a, b) => {
+           let syncBase = [...State.runtime.allWords].sort((a, b) => {
                 const idA = String(a._id || a.text);
                 const idB = String(b._id || b.text);
                 return idA.localeCompare(idB);
@@ -4671,6 +4687,31 @@ updateBannerInfo() {
     `;
 },
 
+async shareRoomQR() {
+        if (!this.roomCode) return;
+        const url = `${window.location.origin}/?room=${this.roomCode}`;
+        
+        // Construct a clean QR image using the API
+        const qrApi = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&color=4f46e5&margin=10&data=${encodeURIComponent(url)}`;
+        
+        const div = document.createElement('div');
+        div.className = 'custom-modal-overlay';
+        div.onclick = (e) => { if(e.target === div) div.remove(); };
+        
+        div.innerHTML = `
+            <div class="custom-modal-box bg-white p-6 rounded-xl shadow-2xl relative max-w-sm w-full mx-4">
+                <button onclick="this.closest('.custom-modal-overlay').remove()" class="absolute top-2 right-2 text-gray-400 hover:text-gray-600 text-xl font-bold px-2">✕</button>
+                <h3 class="text-xl font-black text-indigo-600 mb-2">JOIN ROOM</h3>
+                <div class="text-4xl font-black text-gray-800 mb-4 tracking-widest bg-gray-100 py-2 rounded-lg select-all">${this.roomCode}</div>
+                <div class="flex justify-center mb-4">
+                    <img src="${qrApi}" alt="Room QR" class="rounded-lg border-2 border-indigo-100" style="width:200px; height:200px;">
+                </div>
+                <p class="text-xs text-gray-400 mb-4 break-all">${url}</p>
+                <button onclick="navigator.clipboard.writeText('${url}'); this.innerText='COPIED!';" class="w-full py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition">COPY LINK</button>
+            </div>`;
+        document.body.appendChild(div);
+    },
+
     showActiveBanner() {
         const existing = document.getElementById('room-active-banner');
         if(existing) existing.remove();
@@ -4696,10 +4737,6 @@ updateBannerInfo() {
         this.updateBannerInfo(); // Populate content
     },
 
-    // ... (removeActiveBanner, leave, setMode, renderLobby, injectModal, openLobby, closeLobby, join, start, submitVote, showFinalResults, calculateTrueSync, injectStyles, etc. - keep existing implementations from previous script) ...
-    // Copy the rest of the existing methods here.
-    
-    // --- COPY THE REST OF THE METHODS BELOW FROM YOUR PREVIOUS SCRIPT ---
     removeActiveBanner() {
         const b = document.getElementById('room-active-banner');
         if(b) b.remove();
@@ -4735,6 +4772,21 @@ updateBannerInfo() {
         const list = document.getElementById('lobbyPlayerList');
         const config = this.modeConfig[data.mode];
         const playerCount = data.players.length;
+
+document.getElementById('roomJoinScreen').classList.add('hidden');
+        document.getElementById('roomLobbyScreen').classList.remove('hidden');
+        
+        // Update Code Display with QR Button
+        const codeDisplay = document.getElementById('lobbyCodeDisplay');
+        codeDisplay.innerHTML = `
+            <div class="flex items-center justify-center gap-3">
+                <span>${this.roomCode}</span>
+                <button onclick="RoomManager.shareRoomQR()" class="text-sm bg-indigo-100 text-indigo-600 px-2 py-1 rounded hover:bg-indigo-200 transition" title="Show QR Code">
+                    📷
+                </button>
+            </div>
+        `;
+
         const minReq = config.min;
         const maxReq = config.max || 50;
         const enoughPlayers = playerCount >= minReq && playerCount <= maxReq;
@@ -4821,8 +4873,12 @@ updateBannerInfo() {
              State.data.username = name.trim(); 
              State.save('username', State.data.username); 
              UIManager.updateProfileDisplay();
-             const inputEl = document.getElementById('roomCodeInput');
-             const c = inputEl ? inputEl.value.trim().toUpperCase() : '';
+
+let c = this.roomCode;
+             if (!c) {
+                 const inputEl = document.getElementById('roomCodeInput');
+                 c = inputEl ? inputEl.value.trim().toUpperCase() : '';
+             }
              if(!c) { alert("Please enter a Room Code."); return; }
              this.roomCode = c;
              localStorage.setItem('lastRoomCode', c);
