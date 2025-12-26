@@ -4813,11 +4813,19 @@ const RoomManager = {
         document.head.appendChild(s);
     },
 
-    injectModal() {
+injectModal() {
         if (document.getElementById('roomModal')) return;
         const m = document.createElement('div');
         m.id = 'roomModal';
-        m.className = 'hidden fixed inset-0 z-[100] items-center justify-center room-modal-bg p-4';
+        // UPDATED: z-[3000] ensures it's on top of everything
+        m.className = 'hidden fixed inset-0 z-[3000] items-center justify-center room-modal-bg p-4';
+        
+        // UPDATED: Prevent clicks from reaching the game logic (InputHandler)
+        const stop = (e) => e.stopPropagation();
+        m.addEventListener('touchstart', stop);
+        m.addEventListener('mousedown', stop);
+        m.addEventListener('click', stop);
+
         m.innerHTML = `
             <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
                 <div class="p-6 bg-indigo-600 text-white flex justify-between items-center">
