@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.81.13', 
+    APP_VERSION: '5.81.14', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4413,19 +4413,19 @@ const RoomManager = {
     },
 
     init() {
-        window.RoomManager = this;
+        window.RoomManager = this; // Ensure global access immediately
         this.injectStyles();
         
-        // Add Multiplayer Button if missing
+        // Add Multiplayer Button
         if (!document.getElementById('roomBtn')) {
             const btn = document.createElement('button');
             btn.id = 'roomBtn';
             btn.className = 'p-2 rounded-full hover:bg-gray-100 transition relative group';
             btn.innerHTML = `<span class="text-xl">📡</span>`;
-            btn.onclick = (e) => {
-                e.stopPropagation(); // Prevent swipe trigger
-                this.openLobby();
-            };
+            
+            // Stop propagation immediately on the trigger button
+            btn.setAttribute('onclick', 'event.preventDefault(); event.stopPropagation(); RoomManager.openLobby();');
+            btn.setAttribute('onmousedown', 'event.stopPropagation();');
             
             if (State.data.settings.offlineMode) btn.style.display = 'none';
             
@@ -4433,7 +4433,6 @@ const RoomManager = {
             if (sb && sb.parentNode) sb.parentNode.insertBefore(btn, sb);
         }
 
-        // Initialize Socket
         if (!window.io) {
             const sc = document.createElement('script');
             sc.src = "/socket.io/socket.io.js";
@@ -4485,15 +4484,6 @@ const RoomManager = {
                     const input = document.getElementById('roomCodeInput');
                     if (input) input.value = savedCode;
                 }
-                
-                // Rejoin if relevant
-                if (this.roomCode && State.data.username) {
-                    this.socket.emit('joinRoom', { 
-                        roomCode: this.roomCode, 
-                        username: State.data.username,
-                        theme: State.data.currentTheme || 'default'
-                    });
-                }
             });
 
             this.socket.on('roomUpdate', (data) => {
@@ -4532,7 +4522,7 @@ const RoomManager = {
                     this.vipId = data.vipId;
                     if (data.players) this.players = data.players;
 
-                    // 1. SYNC WORDS
+                    // SYNC WORDS
                     if (!State.runtime.allWords || State.runtime.allWords.length < 50) {
                         State.runtime.allWords = await API.getAllWords();
                     }
@@ -4549,7 +4539,7 @@ const RoomManager = {
 
                     this.showActiveBanner();
                     
-                    // 2. NOTIFICATIONS & ROLES
+                    // ROLES
                     if (data.mode === 'traitor' && this.playerId === data.vipId) {
                         this.showRoleAlert("You are the Traitor! Try to lose.", "🕵️ YOU ARE THE TRAITOR", 1000);
                     } else if (data.mode === 'hipster' && this.playerId === data.vipId) {
@@ -4637,7 +4627,6 @@ const RoomManager = {
                     if (this.roundTimer) clearTimeout(this.roundTimer);
                     this.active = false;
                     State.runtime.isMultiplayer = false;
-                    
                     this.removeActiveBanner();
                     
                     ['active-role-alert', 'spectator-banner', 'active-accusation', 'active-drink-penalty', 'active-vote-reveal', 'active-countdown'].forEach(id => {
@@ -4808,50 +4797,50 @@ const RoomManager = {
         const m = document.createElement('div');
         m.id = 'roomModal';
         
-        // --- FIX: High Z-Index & Stop Propagation ---
-        m.className = 'hidden fixed inset-0 z-[3000] items-center justify-center room-modal-bg p-4';
+        // Force Z-Index and Events
+        m.setAttribute('style', 'z-index: 9999 !important; pointer-events: auto !important;');
+        m.className = 'hidden fixed inset-0 items-center justify-center room-modal-bg p-4';
         
-        // This prevents the game "swipe" logic from stealing your clicks
-        const stop = (e) => e.stopPropagation();
-        ['mousedown', 'touchstart', 'click', 'pointerdown'].forEach(evt => 
-            m.addEventListener(evt, stop)
-        );
+        // Container stops propagation, but we also put handlers on buttons directly
+        const stop = (e) => { e.stopPropagation(); };
+        ['mousedown', 'touchstart', 'click', 'pointerdown'].forEach(evt => m.addEventListener(evt, stop));
 
+        // Use onclick attributes in HTML to ensure functions are found
         m.innerHTML = `
             <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
                 <div class="p-6 bg-indigo-600 text-white flex justify-between items-center">
                     <h2 class="text-2xl font-black">MULTIPLAYER</h2>
-                    <button onclick="RoomManager.closeLobby()" class="text-white hover:text-indigo-200 text-xl">✕</button>
+                    <button onclick="RoomManager.closeLobby()" onmousedown="event.stopPropagation()" class="text-white hover:text-indigo-200 text-xl">✕</button>
                 </div>
                 <div class="p-6 overflow-y-auto flex-1 space-y-6">
-                    <div class="space-y-4">
+                    <div id="join-panel" class="space-y-4">
                         <div>
                             <label class="text-xs font-bold text-gray-500 uppercase">Username</label>
-                            <input type="text" id="roomUsernameInput" class="w-full bg-gray-50 border-2 border-gray-200 rounded-xl px-4 py-3 font-bold text-lg focus:border-indigo-500 outline-none" placeholder="Your Name" maxlength="12">
+                            <input type="text" id="roomUsernameInput" onmousedown="event.stopPropagation()" class="w-full bg-gray-50 border-2 border-gray-200 rounded-xl px-4 py-3 font-bold text-lg focus:border-indigo-500 outline-none" placeholder="Your Name" maxlength="12">
                         </div>
                         <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <label class="text-xs font-bold text-gray-500 uppercase">Room Code</label>
-                                <input type="text" id="roomCodeInput" class="w-full bg-gray-50 border-2 border-gray-200 rounded-xl px-4 py-3 font-mono font-bold text-lg focus:border-indigo-500 outline-none uppercase" placeholder="ABCD" maxlength="5">
+                                <input type="text" id="roomCodeInput" onmousedown="event.stopPropagation()" class="w-full bg-gray-50 border-2 border-gray-200 rounded-xl px-4 py-3 font-mono font-bold text-lg focus:border-indigo-500 outline-none uppercase" placeholder="ABCD" maxlength="5">
                             </div>
-                            <button onclick="RoomManager.join()" class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold mt-5 shadow-lg active:scale-95 transition">JOIN ROOM</button>
+                            <button onclick="RoomManager.join()" onmousedown="event.stopPropagation()" class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold mt-5 shadow-lg active:scale-95 transition">JOIN ROOM</button>
                         </div>
                         <div class="relative flex py-2 items-center">
                             <div class="flex-grow border-t border-gray-200"></div>
                             <span class="flex-shrink-0 mx-4 text-gray-400 text-xs font-bold">OR CREATE NEW</span>
                             <div class="flex-grow border-t border-gray-200"></div>
                         </div>
-                        <button onclick="RoomManager.create()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl font-bold transition">CREATE ROOM</button>
+                        <button onclick="RoomManager.create()" onmousedown="event.stopPropagation()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl font-bold transition">CREATE ROOM</button>
                     </div>
 
                     <div id="lobby-panel" class="hidden flex-col space-y-4">
                         <div class="bg-indigo-50 rounded-xl p-4 border-2 border-indigo-100">
                             <div class="text-center mb-2">
                                 <span class="text-xs font-bold text-indigo-400">ROOM CODE</span>
-                                <div class="text-4xl font-black text-indigo-700 tracking-widest font-mono select-all cursor-pointer" onclick="RoomManager.shareRoomQR()">${this.roomCode || '....'}</div>
+                                <div id="roomCodeDisplay" onclick="RoomManager.shareRoomQR()" onmousedown="event.stopPropagation()" class="text-4xl font-black text-indigo-700 tracking-widest font-mono select-all cursor-pointer">....</div>
                             </div>
                             <div class="flex justify-center">
-                                <button onclick="RoomManager.shareRoomQR()" class="text-xs bg-white border border-indigo-200 px-2 py-1 rounded text-indigo-600 font-bold hover:bg-indigo-50">📋 COPY LINK</button>
+                                <button onclick="RoomManager.shareRoomQR()" onmousedown="event.stopPropagation()" class="text-xs bg-white border border-indigo-200 px-2 py-1 rounded text-indigo-600 font-bold hover:bg-indigo-50">📋 COPY LINK</button>
                             </div>
                         </div>
                         
@@ -4868,7 +4857,7 @@ const RoomManager = {
                             <div id="room-player-list" class="space-y-2"></div>
                         </div>
 
-                        <button id="start-game-btn" onclick="RoomManager.requestStart()" class="w-full bg-green-500 hover:bg-green-600 text-white py-4 rounded-xl font-black text-xl shadow-lg active:scale-95 transition hidden">START GAME 🚀</button>
+                        <button id="start-game-btn" onclick="RoomManager.requestStart()" onmousedown="event.stopPropagation()" class="w-full bg-green-500 hover:bg-green-600 text-white py-4 rounded-xl font-black text-xl shadow-lg active:scale-95 transition hidden">START GAME 🚀</button>
                          <div id="host-msg" class="text-center text-gray-400 text-xs hidden">Waiting for host to start...</div>
                     </div>
                 </div>
@@ -4898,16 +4887,16 @@ const RoomManager = {
     renderLobby(data) {
         this.roomCode = data.roomCode;
         const lobbyPanel = document.getElementById('lobby-panel');
-        const codeDisplay = lobbyPanel.querySelector('.font-mono');
+        const codeDisplay = document.getElementById('roomCodeDisplay');
         if(codeDisplay) codeDisplay.textContent = this.roomCode;
         
         lobbyPanel.classList.remove('hidden');
-        document.getElementById('roomCodeInput').closest('.space-y-4').style.display = 'none';
+        document.getElementById('join-panel').style.display = 'none';
 
         const modeSel = document.getElementById('mode-selector');
         if (modeSel && this.isHost) {
             modeSel.innerHTML = Object.entries(this.modeConfig).map(([k, v]) => `
-                <button onclick="RoomManager.setMode('${k}')" class="${this.currentMode === k ? 'bg-indigo-600 text-white ring-2 ring-indigo-300' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'} p-2 rounded-lg text-xs font-bold transition flex flex-col items-center justify-center h-16">
+                <button onclick="RoomManager.setMode('${k}')" onmousedown="event.stopPropagation()" class="${this.currentMode === k ? 'bg-indigo-600 text-white ring-2 ring-indigo-300' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'} p-2 rounded-lg text-xs font-bold transition flex flex-col items-center justify-center h-16">
                     <span class="text-lg block mb-1">${v.label.split(' ')[0]}</span>
                     <span>${v.label.split(' ').slice(1).join(' ')}</span>
                 </button>
@@ -5020,9 +5009,11 @@ const RoomManager = {
         const url = window.location.origin + window.location.pathname + '?room=' + this.roomCode;
         navigator.clipboard.writeText(url).then(() => {
             const btn = document.querySelector('#lobby-panel button');
-            const old = btn.textContent;
-            btn.textContent = 'COPIED! ✅';
-            setTimeout(() => btn.textContent = old, 2000);
+            if(btn) {
+                const old = btn.textContent;
+                btn.textContent = 'COPIED! ✅';
+                setTimeout(() => btn.textContent = old, 2000);
+            }
         });
     },
 
