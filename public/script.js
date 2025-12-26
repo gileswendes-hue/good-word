@@ -4422,7 +4422,10 @@ const RoomManager = {
             btn.id = 'roomBtn';
             btn.className = 'p-2 rounded-full hover:bg-gray-100 transition relative group';
             btn.innerHTML = `<span class="text-xl">📡</span>`;
-            btn.onclick = () => this.openLobby();
+            btn.onclick = (e) => {
+                e.stopPropagation(); // Prevent swipe trigger
+                this.openLobby();
+            };
             
             if (State.data.settings.offlineMode) btn.style.display = 'none';
             
@@ -4540,7 +4543,6 @@ const RoomManager = {
                         return idA.localeCompare(idB);
                     });
 
-                    // Use consistent seed for all players
                     const seed = data.gameSeed || (this.roomCode + "default");
                     State.runtime.allWords = SeededShuffle.shuffle(syncBase, seed);
                     State.runtime.currentWordIndex = 0;
@@ -4549,7 +4551,6 @@ const RoomManager = {
                     
                     // 2. NOTIFICATIONS & ROLES
                     if (data.mode === 'traitor' && this.playerId === data.vipId) {
-                        // Traitor gets 1 second notification
                         this.showRoleAlert("You are the Traitor! Try to lose.", "🕵️ YOU ARE THE TRAITOR", 1000);
                     } else if (data.mode === 'hipster' && this.playerId === data.vipId) {
                         this.showRoleAlert("You are the Hipster! Vote against the majority.", "🕶️ YOU ARE THE HIPSTER", 3000);
@@ -4561,7 +4562,6 @@ const RoomManager = {
                         UIManager.disableButtons(true);
                         this.showSpectatorBanner();
                     } else {
-                        // 3. COUNTDOWN TIMER
                         this.playCountdown(data.mode);
                     }
                 } catch (e) {
@@ -4589,11 +4589,9 @@ const RoomManager = {
                     this.roundHistory.push({ match: isMatch });
                     this.showVoteReveal(players, votes);
 
-                    // 4. RESULTS & BONUS DISPLAY
                     let msg = data.msg || (isMatch ? "IT'S A MATCH! 💘" : "MISMATCH! 💔");
                     
                     if (mode === 'okstoopid' && scoreUpdate) {
-                         // Check for speed bonus / combo bonus
                         if (scoreUpdate.bonus || scoreUpdate.speedBonus) {
                              msg = `MATCH! +${scoreUpdate.points} (SPEED BONUS! ⚡)`;
                         } else if (isMatch) {
@@ -4651,7 +4649,6 @@ const RoomManager = {
                         this.showCustomAlert(data.msg);
                         this.openLobby();
                     } else {
-                        // 6. SAFE RESULTS LOADING
                         setTimeout(() => this.showFinalResults(data), 100);
                     }
                 } catch(e) {
@@ -4678,7 +4675,6 @@ const RoomManager = {
         if (!this.active || !this.socket) return;
         const word = State.runtime.allWords[State.runtime.currentWordIndex];
         
-        // Disable immediately to prevent double votes
         UIManager.disableButtons(true);
         
         this.socket.emit('vote', {
@@ -4686,12 +4682,11 @@ const RoomManager = {
             vote: voteType,
             wordId: word._id,
             wordText: word.text,
-            timestamp: Date.now() // Critical for OK Stoopid Speed Bonus
+            timestamp: Date.now() 
         });
     },
 
     playCountdown(mode) {
-        // Remove existing
         const old = document.getElementById('active-countdown');
         if (old) old.remove();
 
@@ -4699,11 +4694,9 @@ const RoomManager = {
         overlay.id = 'active-countdown';
         overlay.className = 'fixed inset-0 bg-black/80 z-[200] flex items-center justify-center flex-col select-none';
         
-        // Initial State
         overlay.innerHTML = `<div class="text-6xl font-black text-white animate-bounce">READY?</div>`;
         document.body.appendChild(overlay);
         
-        // Ensure inputs are locked
         UIManager.disableButtons(true);
         
         let count = 3;
@@ -4719,7 +4712,6 @@ const RoomManager = {
                 
                 setTimeout(() => {
                     overlay.remove();
-                    // Display the first word officially here to ensure sync
                     const word = State.runtime.allWords[0];
                     if(word) UIManager.displayWord(word);
                     UIManager.disableButtons(false);
@@ -4761,7 +4753,6 @@ const RoomManager = {
             infoBadge = `<span class="ml-2 px-2 py-1 rounded text-xs text-white font-bold ${color}">${this.myTeam.toUpperCase()} TEAM</span>`;
         }
 
-        // Show VIP in banner so ALL USERS know who it is
         if (this.vipId) {
             const vipPlayer = this.players.find(p => p.id === this.vipId);
             const vipName = vipPlayer ? vipPlayer.name : 'Unknown';
@@ -4789,7 +4780,6 @@ const RoomManager = {
         document.body.appendChild(b);
         this.updateBannerInfo();
         
-        // Adjust header to not overlap
         const h = document.querySelector('header');
         if (h) h.style.marginTop = '40px';
     },
@@ -4813,18 +4803,19 @@ const RoomManager = {
         document.head.appendChild(s);
     },
 
-injectModal() {
+    injectModal() {
         if (document.getElementById('roomModal')) return;
         const m = document.createElement('div');
         m.id = 'roomModal';
-        // UPDATED: z-[3000] ensures it's on top of everything
+        
+        // --- FIX: High Z-Index & Stop Propagation ---
         m.className = 'hidden fixed inset-0 z-[3000] items-center justify-center room-modal-bg p-4';
         
-        // UPDATED: Prevent clicks from reaching the game logic (InputHandler)
+        // This prevents the game "swipe" logic from stealing your clicks
         const stop = (e) => e.stopPropagation();
-        m.addEventListener('touchstart', stop);
-        m.addEventListener('mousedown', stop);
-        m.addEventListener('click', stop);
+        ['mousedown', 'touchstart', 'click', 'pointerdown'].forEach(evt => 
+            m.addEventListener(evt, stop)
+        );
 
         m.innerHTML = `
             <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
@@ -4866,8 +4857,7 @@ injectModal() {
                         
                         <div>
                              <label class="text-xs font-bold text-gray-500 uppercase mb-2 block">Game Mode</label>
-                             <div class="grid grid-cols-2 gap-2" id="mode-selector">
-                                 </div>
+                             <div class="grid grid-cols-2 gap-2" id="mode-selector"></div>
                         </div>
 
                         <div>
@@ -4912,10 +4902,8 @@ injectModal() {
         if(codeDisplay) codeDisplay.textContent = this.roomCode;
         
         lobbyPanel.classList.remove('hidden');
-        // Hide join inputs if in lobby
         document.getElementById('roomCodeInput').closest('.space-y-4').style.display = 'none';
 
-        // Render Modes (only for host)
         const modeSel = document.getElementById('mode-selector');
         if (modeSel && this.isHost) {
             modeSel.innerHTML = Object.entries(this.modeConfig).map(([k, v]) => `
@@ -4929,7 +4917,6 @@ injectModal() {
             modeSel.innerHTML = `<div class="col-span-2 bg-gray-100 p-3 rounded-lg text-center font-bold text-gray-600">${cur ? cur.label : this.currentMode}</div>`;
         }
 
-        // Render Players
         const list = document.getElementById('room-player-list');
         list.innerHTML = data.players.map(p => `
             <div class="flex items-center justify-between p-2 bg-gray-50 rounded-lg border border-gray-100">
@@ -5081,7 +5068,7 @@ injectModal() {
         document.body.appendChild(d);
     }
 };
-
+window.RoomManager = RoomManager;
 
 const Game = {
 
