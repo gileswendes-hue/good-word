@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.81.16', 
+    APP_VERSION: '5.81.17', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4388,11 +4388,10 @@ const RoomManager = {
     playerId: null,
     isHost: false,
     currentMode: 'coop',
-    currentRounds: 10,
     players: [],
     listenersAttached: false,
-    
-    // Configuration for Game Modes
+
+    // Define Game Modes
     modeConfig: {
         'coop': { label: '🤝 Co-op Sync', desc: 'Vote together! Match with the Global Majority.', min: 2 },
         'okstoopid': { label: '💘 OK Stoopid', desc: 'Couples Mode. Test your compatibility!', min: 2, max: 2 },
@@ -4406,22 +4405,25 @@ const RoomManager = {
 
     init() {
         window.RoomManager = this;
-        
-        // 1. Create the Main Multiplayer Button if it's missing
-        if (!document.getElementById('roomBtn')) {
-            const btn = document.createElement('button');
+
+        // 1. Create/Move the Multiplayer Button (LEFT SIDE)
+        let btn = document.getElementById('roomBtn');
+        if (!btn) {
+            btn = document.createElement('button');
             btn.id = 'roomBtn';
-            btn.className = 'fixed top-4 right-16 p-2 bg-white rounded-full shadow-md hover:bg-gray-50 transition z-50';
+            // Positioned fixed top-left to be on the "other side" of the logo
+            btn.className = 'fixed top-3 left-3 z-[60] p-2 bg-white rounded-full shadow-lg hover:bg-gray-50 transition transform hover:scale-110 border border-gray-200';
             btn.innerHTML = `<span class="text-xl">📡</span>`;
+            
             btn.onclick = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                this.openMenu(); // Open the Host/Join Menu
+                this.openMenu();
             };
             document.body.appendChild(btn);
         }
 
-        // 2. Load Socket.io
+        // 2. Initialize Socket
         if (!window.io) {
             const sc = document.createElement('script');
             sc.src = "/socket.io/socket.io.js";
@@ -4431,20 +4433,20 @@ const RoomManager = {
             this.connect();
         }
 
-        // 3. Check URL for auto-join
+        // 3. Auto-join from URL
         const params = new URLSearchParams(window.location.search);
         const urlRoom = params.get('room');
         if (urlRoom) {
             this.roomCode = urlRoom.trim().toUpperCase();
             setTimeout(() => {
                 if (State.data.username) this.join(this.roomCode);
-                else this.openMenu(); // Ask for username first if missing
+                else this.openMenu();
             }, 500);
         }
     },
 
     connect() {
-        if (!window.io) return;
+        if (typeof io === 'undefined') return;
         if (!this.socket) {
             this.socket = io({ transports: ['websocket'], upgrade: false });
         }
@@ -4452,188 +4454,220 @@ const RoomManager = {
         this.listenersAttached = true;
 
         this.socket.on('connect', () => {
-            console.log("✅ Connected to Server");
+            console.log("✅ Socket Connected");
             this.playerId = this.socket.id;
         });
 
-        // Handle Lobby Updates (Players joining, mode changes)
+        // Listen for Lobby Updates
         this.socket.on('roomUpdate', (data) => {
             this.isHost = (data.host === this.playerId);
             this.currentMode = data.mode;
             this.players = data.players || [];
             
-            // Re-render the lobby if it's open
-            const lobby = document.getElementById('lobbyModal');
-            if (lobby) this.renderLobby(data);
+            // If the lobby modal is open, redraw it with new data
+            if (document.getElementById('lobbyModal')) {
+                this.renderLobby(data);
+            }
         });
 
-        // Handle Game Start
+        // Listen for Game Start
         this.socket.on('gameStarted', (data) => {
+            console.log("🚀 Game Started!", data);
             this.closeLobby();
             this.active = true;
             State.runtime.isMultiplayer = true;
-            // Trigger your existing game start logic here
-            // e.g., Game.startMultiplayer(data);
-            alert("Game Started! (Ensure Game.startMultiplayer is connected)");
+            
+            // Ensure we have a start handler
+            if (Game && Game.startMultiplayer) {
+                Game.startMultiplayer(data);
+            } else {
+                alert("Game started! (Game.startMultiplayer function missing)");
+            }
         });
     },
 
-    // --- MENUS & UI ---
+    // --- MENUS ---
 
     openMenu() {
-        // Simple Host or Join Selection
+        const existing = document.getElementById('mpMenu');
+        if (existing) existing.remove();
+
         const html = `
-        <div id="mpMenu" class="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center backdrop-blur-sm">
-            <div class="bg-white p-6 rounded-xl shadow-2xl text-center max-w-sm w-full">
-                <h2 class="text-2xl font-black mb-6 text-gray-800">MULTIPLAYER</h2>
+        <div id="mpMenu" class="fixed inset-0 bg-black/80 z-[70] flex items-center justify-center backdrop-blur-sm p-4">
+            <div class="bg-white p-6 rounded-2xl shadow-2xl text-center max-w-sm w-full animate-pop">
+                <h2 class="text-3xl font-black mb-8 text-gray-800 tracking-tight">MULTIPLAYER</h2>
                 
-                <button onclick="RoomManager.createRoom()" class="w-full py-3 bg-indigo-600 text-white rounded-lg font-bold mb-4 hover:bg-indigo-700 shadow-lg transform hover:scale-105 transition">
-                    HOST GAME
+                <button onclick="RoomManager.createRoom()" class="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold mb-6 text-lg shadow-lg hover:bg-indigo-700 transform hover:scale-[1.02] transition">
+                    HOST NEW GAME
                 </button>
                 
-                <div class="relative flex py-2 items-center">
+                <div class="relative flex py-2 items-center mb-6">
                     <div class="flex-grow border-t border-gray-300"></div>
-                    <span class="flex-shrink mx-4 text-gray-400">OR</span>
+                    <span class="flex-shrink mx-4 text-gray-400 text-sm font-bold">OR</span>
                     <div class="flex-grow border-t border-gray-300"></div>
                 </div>
 
-                <button onclick="RoomManager.joinWithCode()" class="w-full py-3 bg-white border-2 border-gray-200 text-gray-700 rounded-lg font-bold mb-2 hover:bg-gray-50 hover:border-gray-400 transition">
+                <button onclick="RoomManager.joinWithCode()" class="w-full py-4 bg-white border-2 border-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-50 hover:border-gray-400 transition text-lg">
                     JOIN WITH CODE
                 </button>
 
-                <button onclick="document.getElementById('mpMenu').remove()" class="mt-4 text-sm text-gray-500 underline">Cancel</button>
+                <button onclick="document.getElementById('mpMenu').remove()" class="mt-6 text-gray-400 text-sm hover:text-gray-600 font-medium">Cancel</button>
             </div>
         </div>`;
-        
-        const existing = document.getElementById('mpMenu');
-        if (existing) existing.remove();
         document.body.insertAdjacentHTML('beforeend', html);
     },
 
     // --- ACTIONS ---
 
     createRoom() {
+        if (!this.socket) return;
         this.socket.emit('createRoom', { username: State.data.username }, (response) => {
-            if (response.success) {
+            if (response && response.success) {
                 this.roomCode = response.roomCode;
                 this.isHost = true;
-                this.renderLobby({ players: [State.data.username], mode: 'coop', roomCode: this.roomCode });
+                this.currentMode = 'coop'; // Default
                 document.getElementById('mpMenu')?.remove();
+                // Initial render
+                this.renderLobby({ 
+                    roomCode: this.roomCode, 
+                    players: [{ username: State.data.username, host: true, ready: true }], 
+                    mode: 'coop' 
+                });
+            } else {
+                alert("Failed to create room.");
             }
         });
     },
 
     joinWithCode() {
-        const code = prompt("Enter 4-Letter Room Code:")?.toUpperCase();
-        if (code && code.length === 4) {
-            this.join(code);
+        // Free entry: No length check, just needs to exist
+        const code = prompt("Enter Room Code:");
+        if (code && code.trim().length > 0) {
+            this.join(code.trim().toUpperCase());
             document.getElementById('mpMenu')?.remove();
         }
     },
 
     join(code) {
+        if (!this.socket) return;
         this.socket.emit('joinRoom', { roomCode: code, username: State.data.username }, (response) => {
-            if (response.success) {
+            if (response && response.success) {
                 this.roomCode = code;
                 this.renderLobby(response.roomData);
             } else {
-                alert("Could not join room: " + response.message);
+                alert("Could not join: " + (response ? response.message : "Unknown error"));
             }
         });
     },
 
     updateMode(newMode) {
         if (!this.isHost) return;
+        this.currentMode = newMode;
         this.socket.emit('updateRoom', { roomCode: this.roomCode, mode: newMode });
     },
 
     startGame() {
         if (!this.isHost) return;
-        // Validate player count based on mode config
+        // Basic check
         const config = this.modeConfig[this.currentMode];
         if (this.players.length < config.min) {
-            alert(`Need at least ${config.min} players for this mode!`);
-            return;
+            if(!confirm(`This mode is designed for ${config.min} players. Start anyway?`)) return;
         }
         this.socket.emit('startGame', { roomCode: this.roomCode });
     },
 
-    // --- LOBBY RENDERING ---
+    // --- LOBBY UI ---
 
     renderLobby(data) {
         const existing = document.getElementById('lobbyModal');
         if (existing) existing.remove();
 
-        // 1. Generate QR Code URL (Using public API for ease)
         const joinUrl = `${window.location.origin}?room=${data.roomCode}`;
+        // Using a reliable public QR API
         const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(joinUrl)}`;
 
-        // 2. Build Player List HTML
-        const playersHtml = data.players.map(p => 
-            `<div class="flex items-center space-x-2 bg-gray-50 p-2 rounded mb-1">
-                <div class="w-2 h-2 rounded-full ${p.ready ? 'bg-green-500' : 'bg-gray-300'}"></div>
-                <span class="font-medium text-gray-700">${p.username || 'Unknown'}</span>
-                ${p.host ? '👑' : ''}
+        // Build Player List
+        const playersHtml = (data.players || []).map(p => 
+            `<div class="flex items-center space-x-3 bg-white border border-gray-100 p-2 rounded-lg mb-2 shadow-sm">
+                <div class="w-3 h-3 rounded-full ${p.ready ? 'bg-green-500' : 'bg-gray-300'} animate-pulse"></div>
+                <span class="font-bold text-gray-700 truncate flex-1">${p.username || 'Unknown'}</span>
+                ${p.host ? '<span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-bold">HOST</span>' : ''}
             </div>`
         ).join('');
 
-        // 3. Build Mode Selection Buttons (Clickable only for Host)
+        // Build Mode Buttons
         let modesHtml = '';
         Object.entries(this.modeConfig).forEach(([key, conf]) => {
             const isSelected = (data.mode === key);
-            const activeClass = isSelected ? 'bg-indigo-600 text-white shadow-md ring-2 ring-indigo-300' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50';
-            
+            // Host gets clickable buttons, Guests get disabled ones
+            const clickAction = this.isHost ? `onclick="RoomManager.updateMode('${key}')"` : '';
+            const cursorClass = this.isHost ? 'cursor-pointer hover:shadow-md' : 'cursor-default opacity-80';
+            const activeClass = isSelected 
+                ? 'bg-indigo-600 text-white ring-4 ring-indigo-200 border-transparent transform scale-[1.02]' 
+                : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50';
+
             modesHtml += `
-                <button 
-                    onclick="RoomManager.updateMode('${key}')"
-                    ${!this.isHost ? 'disabled' : ''}
-                    class="flex flex-col items-start p-3 rounded-lg transition-all w-full text-left mb-2 ${activeClass} ${!this.isHost ? 'opacity-80 cursor-default' : ''}">
-                    <span class="font-bold text-sm">${conf.label}</span>
-                    <span class="text-xs opacity-80">${conf.desc}</span>
-                </button>
+                <div ${clickAction} class="flex flex-col p-3 rounded-xl border transition-all duration-200 ${activeClass} ${cursorClass}">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="font-bold text-sm">${conf.label}</span>
+                        ${isSelected ? '✅' : ''}
+                    </div>
+                    <span class="text-xs ${isSelected ? 'text-indigo-100' : 'text-gray-400'} leading-tight">${conf.desc}</span>
+                </div>
             `;
         });
 
-        // 4. Assemble the Modal
         const html = `
-        <div id="lobbyModal" class="fixed inset-0 bg-gray-900 z-[100] flex flex-col md:flex-row">
+        <div id="lobbyModal" class="fixed inset-0 bg-gray-900 z-[80] flex flex-col md:flex-row font-sans">
             
-            <div class="w-full md:w-1/3 bg-white p-6 flex flex-col border-r border-gray-200">
+            <div class="w-full md:w-1/3 bg-white p-6 flex flex-col border-r border-gray-200 overflow-hidden">
                 <div class="text-center mb-6">
-                    <div class="text-gray-400 text-sm font-bold tracking-widest uppercase mb-1">Room Code</div>
-                    <div class="text-5xl font-black text-indigo-600 tracking-wider font-mono">${data.roomCode}</div>
+                    <div class="text-xs font-bold text-gray-400 tracking-widest uppercase mb-1">Room Code</div>
+                    <div class="text-6xl font-black text-indigo-600 tracking-widest font-mono">${data.roomCode}</div>
                 </div>
 
                 <div class="flex justify-center mb-6">
-                    <img src="${qrSrc}" class="rounded-lg shadow-lg border-4 border-white" alt="Scan to Join">
+                    <div class="p-2 bg-white rounded-xl shadow-lg border border-gray-100">
+                        <img src="${qrSrc}" class="rounded-lg w-32 h-32" alt="QR Code">
+                    </div>
                 </div>
                 
-                <div class="flex-grow overflow-y-auto">
-                    <h3 class="font-bold text-gray-400 text-xs uppercase mb-2">Players (${data.players.length})</h3>
+                <div class="flex-grow overflow-y-auto pr-2 custom-scrollbar">
+                    <h3 class="font-bold text-gray-400 text-xs uppercase mb-3 flex justify-between items-center">
+                        <span>Players</span>
+                        <span class="bg-gray-100 text-gray-600 px-2 rounded-full">${data.players.length}</span>
+                    </h3>
                     ${playersHtml}
                 </div>
 
-                <button onclick="location.reload()" class="mt-4 p-3 text-red-500 font-bold hover:bg-red-50 rounded text-center">
-                    Leave Room
+                <button onclick="location.reload()" class="mt-4 w-full py-3 text-red-500 font-bold hover:bg-red-50 rounded-xl transition text-sm">
+                    Exit Lobby
                 </button>
             </div>
 
-            <div class="w-full md:w-2/3 bg-gray-50 p-6 flex flex-col">
-                <h2 class="text-2xl font-bold text-gray-800 mb-4">Select Game Mode</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 overflow-y-auto mb-4">
+            <div class="w-full md:w-2/3 bg-gray-50 p-6 flex flex-col h-full">
+                <h2 class="text-2xl font-black text-gray-800 mb-4 flex items-center">
+                    <span class="mr-2">🎮</span> Select Game Mode
+                </h2>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 overflow-y-auto mb-4 pr-2 flex-grow">
                     ${modesHtml}
                 </div>
 
-                ${this.isHost ? `
-                    <button onclick="RoomManager.startGame()" class="mt-auto w-full py-4 bg-green-500 hover:bg-green-600 text-white text-xl font-black rounded-xl shadow-xl transform transition active:scale-95 flex items-center justify-center space-x-2">
-                        <span>START GAME</span>
-                        <span>🚀</span>
-                    </button>
-                ` : `
-                    <div class="mt-auto w-full py-4 bg-gray-200 text-gray-400 text-xl font-bold rounded-xl text-center">
-                        Waiting for Host to Start...
-                    </div>
-                `}
+                <div class="mt-auto pt-4 border-t border-gray-200">
+                    ${this.isHost ? `
+                        <button onclick="RoomManager.startGame()" class="w-full py-4 bg-green-500 hover:bg-green-600 text-white text-2xl font-black rounded-2xl shadow-xl transform transition active:scale-[0.98] flex items-center justify-center space-x-3">
+                            <span>START GAME</span>
+                            <span class="text-3xl">🚀</span>
+                        </button>
+                        <p class="text-center text-xs text-gray-400 mt-2">Only you (Host) can start the game.</p>
+                    ` : `
+                        <div class="w-full py-4 bg-gray-200 text-gray-400 text-xl font-bold rounded-2xl text-center flex flex-col items-center justify-center">
+                            <span>Waiting for Host...</span>
+                            <span class="text-xs font-normal mt-1">They are selecting the game mode</span>
+                        </div>
+                    `}
+                </div>
             </div>
         </div>`;
 
