@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.81.25', 
+    APP_VERSION: '5.81.26', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4649,8 +4649,6 @@ renderLobby(data) {
 
     closeLobby() { document.getElementById('lobbyModal')?.remove(); document.getElementById('mpMenu')?.remove(); }
 };
-
-const Game = {
 
 const Game = {
     resetGame() {
