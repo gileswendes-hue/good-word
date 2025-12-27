@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.81.30', 
+    APP_VERSION: '5.81.31', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4438,9 +4438,13 @@ const RoomManager = {
             return `Guest_${Math.floor(Math.random()*1000)}`;
         },
 
-        connect() {
+      connect() {
             if (typeof io === 'undefined') return;
             if (!this.socket) this.socket = io({ transports: ['websocket'], upgrade: false });
+            
+            // FIX: Ensure playerId is set even if we reconnect or are already connected
+            if (this.socket.connected) this.playerId = this.socket.id;
+            
             if (this.listenersAttached) return;
             this.listenersAttached = true;
 
@@ -4449,22 +4453,28 @@ const RoomManager = {
             this.socket.on('roomUpdate', (data) => {
                 this.roomCode = data.roomCode || this.roomCode;
                 
-                // FIXED: Robust Mode & Count Sync
                 if (data.mode) this.currentMode = data.mode;
                 if (data.settings && data.settings.wordCount) this.currentWordCount = parseInt(data.settings.wordCount);
                 else if (data.wordCount) this.currentWordCount = parseInt(data.wordCount);
 
                 this.players = data.players || [];
-                this.isHost = (data.host === this.playerId) || (this.players.length > 0 && this.players[0].id === this.playerId);
+                
+                // Host logic
+                this.isHost = (data.host === this.playerId);
+                if(this.players.length > 0 && this.players[0].id === this.playerId) this.isHost = true;
 
                 document.getElementById('mpMenu')?.remove();
+
+                // Only render if we aren't already playing
                 if (!this.active) this.renderLobby(data);
             });
 
             this.socket.on('gameStarted', (data) => {
                 this.closeLobby();
                 this.active = true;
-                if (Game && Game.startMultiplayer) Game.startMultiplayer(data);
+                if (Game && Game.startMultiplayer) {
+                    Game.startMultiplayer(data);
+                }
             });
         },
 
@@ -4534,7 +4544,7 @@ submitEntry() {
                 }
             });
         },
-        
+
         startGame() {
             if (!this.isHost) return;
             // FIX 2: Explicitly send Mode and Word Count
@@ -4559,21 +4569,30 @@ submitEntry() {
 
             const safeCode = data.roomCode || this.roomCode || '...';
             const playersList = data.players || this.players || [];
+            
             const joinUrl = `${window.location.origin}?room=${safeCode}`;
             const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(joinUrl)}`;
 
-            const playersHtml = playersList.map(p => 
-                `<div class="flex items-center space-x-3 bg-white border border-gray-100 p-3 rounded-lg mb-2 shadow-sm">
+            const playersHtml = playersList.map(p => {
+                // FIX: Force correct name for SELF if server sends 'Guest'
+                let displayName = p.username || 'Guest';
+                if (p.id === this.playerId) {
+                     // If it's me, and the name is Guest or missing, use my local name
+                    if (!p.username || p.username === 'Guest' || p.username.startsWith('Guest_')) {
+                        displayName = State.data.username || localStorage.getItem('username') || displayName;
+                    }
+                }
+
+                return `<div class="flex items-center space-x-3 bg-white border border-gray-100 p-3 rounded-lg mb-2 shadow-sm">
                     <div class="w-3 h-3 rounded-full ${p.ready !== false ? 'bg-green-500' : 'bg-gray-300'}"></div>
-                    <span class="font-bold text-gray-700 truncate flex-1">${p.username || 'Guest'}</span>
+                    <span class="font-bold text-gray-700 truncate flex-1">${displayName}</span>
                     ${p.host ? '<span class="text-xs bg-indigo-100 text-indigo-700 px-2 rounded-full">HOST</span>' : ''}
-                </div>`
-            ).join('');
+                </div>`;
+            }).join('');
 
             let modesHtml = '';
             Object.entries(this.modeConfig).forEach(([key, conf]) => {
                 const isSelected = (activeMode === key);
-                // On mobile, keep list clean: if not host, only show selected
                 if (!this.isHost && !isSelected) return;
 
                 const clickAttr = this.isHost ? `onclick="window.RoomManager.updateMode('${key}')"` : '';
@@ -4596,7 +4615,7 @@ submitEntry() {
 
             const html = `
             <div id="lobbyModal" class="fixed inset-0 bg-gray-900 z-[9999] flex flex-col md:flex-row font-sans h-full">
-                <div class="w-full md:w-1/3 bg-white p-4 md:p-6 flex flex-col border-b md:border-b-0 md:border-r border-gray-200 z-10 shadow-md md:shadow-none h-1/3 md:h-full">
+                <div class="w-full md:w-1/3 bg-white p-4 md:p-6 flex flex-col border-b md:border-b-0 md:border-r border-gray-200 z-10 shadow-md md:shadow-none shrink-0 md:h-full max-h-[35%] md:max-h-full overflow-hidden">
                     <div class="flex justify-between md:block items-center mb-2 md:mb-6">
                         <div class="text-left md:text-center">
                             <div class="text-xs text-gray-400 font-bold">ROOM CODE</div>
@@ -4609,10 +4628,10 @@ submitEntry() {
                     <button onclick="location.reload()" class="mt-2 md:mt-4 w-full py-2 md:py-3 text-red-500 font-bold bg-red-50 hover:bg-red-100 rounded-xl transition text-sm">Leave</button>
                 </div>
                 
-                <div class="w-full md:w-2/3 bg-gray-50 p-4 md:p-6 flex flex-col relative h-2/3 md:h-full overflow-hidden">
-                    <h2 class="text-xl md:text-2xl font-black text-gray-800 mb-2 md:mb-4">Game Settings</h2>
+                <div class="w-full md:w-2/3 bg-gray-50 p-4 md:p-6 flex flex-col relative h-full overflow-hidden">
+                    <h2 class="text-xl md:text-2xl font-black text-gray-800 mb-2 md:mb-4 shrink-0">Game Settings</h2>
                     
-                    <div class="bg-white p-3 md:p-4 rounded-xl shadow-sm border border-gray-200 mb-3 md:mb-6 ${sliderOpacity} flex-shrink-0">
+                    <div class="bg-white p-3 md:p-4 rounded-xl shadow-sm border border-gray-200 mb-3 md:mb-6 ${sliderOpacity} shrink-0">
                         <div class="flex justify-between items-center mb-2">
                             <label class="font-bold text-sm md:text-base text-gray-700">Words per Round</label>
                             <span id="lobbyWordCountDisplay" class="font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-lg text-sm">${activeWordCount} Words</span>
@@ -4622,23 +4641,19 @@ submitEntry() {
                             class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
                     </div>
 
-                    <div class="font-bold text-gray-700 mb-2 text-sm md:text-base">${this.isHost ? 'Select Mode' : 'Current Mode'}</div>
+                    <div class="font-bold text-gray-700 mb-2 text-sm md:text-base shrink-0">${this.isHost ? 'Select Mode' : 'Current Mode'}</div>
                     
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3 overflow-y-auto custom-scrollbar flex-1 pb-24">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3 overflow-y-auto custom-scrollbar flex-1 pb-24 min-h-0">
                         ${modesHtml}
                     </div>
 
-                    <div class="absolute bottom-0 left-0 right-0 p-4 md:p-6 bg-white border-t flex items-center justify-between shadow-[0_-5px_15px_rgba(0,0,0,0.05)] z-20">
+                    <div class="absolute bottom-0 left-0 right-0 p-4 md:p-6 bg-white border-t flex items-center justify-between shadow-[0_-5px_15px_rgba(0,0,0,0.05)] z-20 shrink-0">
                         <div class="text-xs md:text-sm text-gray-500 hidden sm:block">
                             ${this.isHost ? 'You are the Host.' : 'Waiting for Host...'}
                         </div>
                         ${this.isHost ? 
-                            `<button onclick="window.RoomManager.startGame()" class="w-full sm:w-auto px-6 py-3 md:px-8 md:py-4 bg-green-500 hover:bg-green-600 text-white text-lg md:text-xl font-black rounded-xl shadow-lg transform transition active:scale-95 flex items-center justify-center gap-2">
-                                <span>START GAME</span> 🚀
-                            </button>` : 
-                            `<div class="w-full sm:w-auto px-6 py-3 md:px-8 md:py-4 bg-gray-100 text-gray-400 text-lg md:text-xl font-bold rounded-xl border border-gray-200 flex items-center justify-center gap-2 cursor-not-allowed">
-                                <span>WAITING...</span> ⏳
-                            </div>`
+                            `<button onclick="window.RoomManager.startGame()" class="w-full sm:w-auto px-6 py-3 md:px-8 md:py-4 bg-green-500 hover:bg-green-600 text-white text-lg md:text-xl font-black rounded-xl shadow-lg transform transition active:scale-95 flex items-center justify-center gap-2"><span>START GAME</span> 🚀</button>` : 
+                            `<div class="w-full sm:w-auto px-6 py-3 md:px-8 md:py-4 bg-gray-100 text-gray-400 text-lg md:text-xl font-bold rounded-xl border border-gray-200 flex items-center justify-center gap-2 cursor-not-allowed"><span>WAITING...</span> ⏳</div>`
                         }
                     </div>
                 </div>
