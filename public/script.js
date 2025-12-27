@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.81.28', 
+    APP_VERSION: '5.81.29', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4496,18 +4496,23 @@ submitEntry() {
             
             if (!codeInput) return;
             const code = codeInput.value.trim().toUpperCase();
-            const nameToUse = nameInput && nameInput.value.trim() ? nameInput.value.trim() : null;
+            
+            // FIX 1: Capture name directly and pass it explicitly
+            // This prevents the 'Guest' fallback from triggering
+            const nameToUse = (nameInput && nameInput.value.trim()) 
+                ? nameInput.value.trim() 
+                : this.getUsername();
 
-            if (nameToUse) {
-                State.save('username', nameToUse); // Save for next time
-                if(DOM.inputs.username) DOM.inputs.username.value = nameToUse;
+            if (nameToUse !== 'Guest') {
+                localStorage.setItem('username', nameToUse);
+                State.data.username = nameToUse;
             }
 
             if (code.length > 0) this.attemptJoinOrCreate(code, nameToUse);
         },
 
+        // Update signature to accept the explicit name
         attemptJoinOrCreate(code, explicitName = null) {
-            // Priority: Explicit Name (just typed) > Stored Name > Guest
             const user = explicitName || this.getUsername();
             this.roomCode = code; 
 
@@ -4516,6 +4521,7 @@ submitEntry() {
                     this.socket.emit('createRoom', { roomCode: code, username: user }, (cRes) => {
                         if (cRes && cRes.success) {
                             this.isHost = true;
+                            // Force immediate update with correct name
                             this.renderLobby({ 
                                 roomCode: code, 
                                 players: [{username: user, host:true, id: this.playerId}], 
@@ -4528,20 +4534,10 @@ submitEntry() {
             });
         },
 
-  updateMode(newMode) {
+        startGame() {
             if (!this.isHost) return;
-            this.currentMode = newMode;
-            // Send update to server immediately
-            this.socket.emit('updateRoom', { 
-                roomCode: this.roomCode, 
-                mode: newMode, 
-                settings: { wordCount: this.currentWordCount } 
-            });
-        },
-
-startGame() {
-            if (!this.isHost) return;
-            // FIX: Explicitly send the mode and word count so the server knows what to play
+            // FIX 2: Explicitly send Mode and Word Count
+            // This ensures the server knows exactly what game to load
             this.socket.emit('startGame', { 
                 roomCode: this.roomCode,
                 mode: this.currentMode,
@@ -4549,16 +4545,14 @@ startGame() {
             });
         },
 
-        renderLobby(data) {
+ renderLobby(data) {
             document.getElementById('lobbyModal')?.remove();
             
-            // Prioritize Server Data > Local State > Default
             const activeMode = data.mode || this.currentMode || 'coop';
             const activeWordCount = (data.settings && data.settings.wordCount) 
                 ? parseInt(data.settings.wordCount) 
                 : (this.currentWordCount || 10);
             
-            // Sync local state to ensure consistency
             this.currentMode = activeMode;
             this.currentWordCount = activeWordCount;
 
@@ -4578,70 +4572,70 @@ startGame() {
             let modesHtml = '';
             Object.entries(this.modeConfig).forEach(([key, conf]) => {
                 const isSelected = (activeMode === key);
-                
-                // FIXED: If user is NOT host, HIDE non-selected modes entirely
+                // On mobile, keep list clean: if not host, only show selected
                 if (!this.isHost && !isSelected) return;
 
                 const clickAttr = this.isHost ? `onclick="window.RoomManager.updateMode('${key}')"` : '';
-                
-                // Styling: Highlight selected, dim others (for host)
                 let styleClass = isSelected 
                     ? 'bg-indigo-50 border-indigo-500 ring-2 ring-indigo-200 shadow-md transform scale-[1.02]' 
                     : 'bg-white border-gray-200 hover:bg-gray-50 cursor-pointer';
 
                 modesHtml += `
-                    <div ${clickAttr} class="flex flex-col p-3 rounded-xl border transition-all duration-200 ${styleClass}">
+                    <div ${clickAttr} class="flex flex-col p-3 rounded-xl border transition-all duration-200 ${styleClass} min-h-[80px]">
                         <div class="flex justify-between items-center mb-1">
                             <span class="font-bold text-sm ${isSelected ? 'text-indigo-700' : 'text-gray-700'}">${conf.label}</span>
                             ${isSelected ? '✅' : ''}
                         </div>
-                        <span class="text-xs text-gray-500">${conf.desc}</span>
+                        <span class="text-xs text-gray-500 leading-tight">${conf.desc}</span>
                     </div>`;
             });
 
-            // Slider: Disabled for non-hosts
             const sliderDisabled = !this.isHost ? 'disabled' : '';
             const sliderOpacity = !this.isHost ? 'opacity-70' : '';
 
             const html = `
-            <div id="lobbyModal" class="fixed inset-0 bg-gray-900 z-[9999] flex flex-col md:flex-row font-sans">
-                <div class="w-full md:w-1/3 bg-white p-6 flex flex-col border-r border-gray-200 z-10">
-                    <div class="text-center mb-6">
-                        <div class="text-sm text-gray-400 font-bold mb-1">ROOM CODE</div>
-                        <div class="text-6xl font-black text-indigo-600 font-mono tracking-widest">${safeCode}</div>
+            <div id="lobbyModal" class="fixed inset-0 bg-gray-900 z-[9999] flex flex-col md:flex-row font-sans h-full">
+                <div class="w-full md:w-1/3 bg-white p-4 md:p-6 flex flex-col border-b md:border-b-0 md:border-r border-gray-200 z-10 shadow-md md:shadow-none h-1/3 md:h-full">
+                    <div class="flex justify-between md:block items-center mb-2 md:mb-6">
+                        <div class="text-left md:text-center">
+                            <div class="text-xs text-gray-400 font-bold">ROOM CODE</div>
+                            <div class="text-4xl md:text-6xl font-black text-indigo-600 font-mono tracking-widest">${safeCode}</div>
+                        </div>
+                        <img src="${qrSrc}" class="rounded-lg w-16 h-16 md:w-32 md:h-32 border shadow-inner ml-4 md:ml-0 md:mx-auto">
                     </div>
-                    <div class="flex justify-center mb-6"><img src="${qrSrc}" class="rounded-lg w-32 h-32 border shadow-inner"></div>
-                    <div class="flex-grow overflow-y-auto custom-scrollbar p-1">${playersHtml}</div>
-                    <button onclick="location.reload()" class="mt-4 w-full py-3 text-red-500 font-bold bg-red-50 hover:bg-red-100 rounded-xl transition">Leave Room</button>
+                    <div class="text-xs font-bold text-gray-400 uppercase mb-2">Players</div>
+                    <div class="flex-grow overflow-y-auto custom-scrollbar p-1 border rounded-lg md:border-0">${playersHtml}</div>
+                    <button onclick="location.reload()" class="mt-2 md:mt-4 w-full py-2 md:py-3 text-red-500 font-bold bg-red-50 hover:bg-red-100 rounded-xl transition text-sm">Leave</button>
                 </div>
                 
-                <div class="w-full md:w-2/3 bg-gray-50 p-6 flex flex-col relative">
-                    <h2 class="text-2xl font-black text-gray-800 mb-4">Game Settings</h2>
+                <div class="w-full md:w-2/3 bg-gray-50 p-4 md:p-6 flex flex-col relative h-2/3 md:h-full overflow-hidden">
+                    <h2 class="text-xl md:text-2xl font-black text-gray-800 mb-2 md:mb-4">Game Settings</h2>
                     
-                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6 ${sliderOpacity}">
+                    <div class="bg-white p-3 md:p-4 rounded-xl shadow-sm border border-gray-200 mb-3 md:mb-6 ${sliderOpacity} flex-shrink-0">
                         <div class="flex justify-between items-center mb-2">
-                            <label class="font-bold text-gray-700">Words per Round</label>
-                            <span id="lobbyWordCountDisplay" class="font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-lg">${activeWordCount} Words</span>
+                            <label class="font-bold text-sm md:text-base text-gray-700">Words per Round</label>
+                            <span id="lobbyWordCountDisplay" class="font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-lg text-sm">${activeWordCount} Words</span>
                         </div>
                         <input type="range" min="5" max="50" step="5" value="${activeWordCount}" ${sliderDisabled}
                             oninput="document.getElementById('lobbyWordCountDisplay').innerText = this.value + ' Words'; window.RoomManager.updateWordCount(this.value)"
                             class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
                     </div>
 
-                    <div class="font-bold text-gray-700 mb-3">${this.isHost ? 'Select Mode' : 'Current Mode'}</div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 overflow-y-auto pb-24 custom-scrollbar">
+                    <div class="font-bold text-gray-700 mb-2 text-sm md:text-base">${this.isHost ? 'Select Mode' : 'Current Mode'}</div>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3 overflow-y-auto custom-scrollbar flex-1 pb-24">
                         ${modesHtml}
                     </div>
 
-                    <div class="absolute bottom-0 left-0 right-0 p-6 bg-white border-t flex items-center justify-between shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
-                        <div class="text-sm text-gray-500 hidden sm:block">
-                            ${this.isHost ? 'You are the Host.' : 'Waiting for Host to start...'}
+                    <div class="absolute bottom-0 left-0 right-0 p-4 md:p-6 bg-white border-t flex items-center justify-between shadow-[0_-5px_15px_rgba(0,0,0,0.05)] z-20">
+                        <div class="text-xs md:text-sm text-gray-500 hidden sm:block">
+                            ${this.isHost ? 'You are the Host.' : 'Waiting for Host...'}
                         </div>
                         ${this.isHost ? 
-                            `<button onclick="window.RoomManager.startGame()" class="w-full sm:w-auto px-8 py-4 bg-green-500 hover:bg-green-600 text-white text-xl font-black rounded-xl shadow-lg transform transition active:scale-95 flex items-center justify-center gap-2">
+                            `<button onclick="window.RoomManager.startGame()" class="w-full sm:w-auto px-6 py-3 md:px-8 md:py-4 bg-green-500 hover:bg-green-600 text-white text-lg md:text-xl font-black rounded-xl shadow-lg transform transition active:scale-95 flex items-center justify-center gap-2">
                                 <span>START GAME</span> 🚀
                             </button>` : 
-                            `<div class="w-full sm:w-auto px-8 py-4 bg-gray-100 text-gray-400 text-xl font-bold rounded-xl border border-gray-200 flex items-center justify-center gap-2 cursor-not-allowed">
+                            `<div class="w-full sm:w-auto px-6 py-3 md:px-8 md:py-4 bg-gray-100 text-gray-400 text-lg md:text-xl font-bold rounded-xl border border-gray-200 flex items-center justify-center gap-2 cursor-not-allowed">
                                 <span>WAITING...</span> ⏳
                             </div>`
                         }
@@ -4649,13 +4643,13 @@ startGame() {
                 </div>
             </div>`;
             document.body.insertAdjacentHTML('beforeend', html);
-        }, // <--- THIS COMMA WAS MISSING, NOW IT IS FIXED
+        },
 
         closeLobby() { document.getElementById('lobbyModal')?.remove(); document.getElementById('mpMenu')?.remove(); }
     };
 
 const Game = {
-    // ADD THIS FUNCTION
+    // FIX 4: Add the missing reset function so the game can start
     resetGame() {
         State.runtime.currentWordIndex = 0;
         State.runtime.streak = 0;
