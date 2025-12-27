@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.81.22', 
+    APP_VERSION: '5.81.23', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4603,59 +4603,6 @@ const RoomManager = {
 };
 
 const Game = {
-
-    // Ensure Game Object exists, then attach Multiplayer Logic
-if (typeof Game !== 'undefined') {
-    
-    Game.startMultiplayer = function(data) {
-        // 1. Setup State
-        RoomManager.closeLobby();
-        State.runtime.isMultiplayer = true;
-        State.runtime.mpMode = data.mode;
-        State.runtime.mpRoom = data.roomCode;
-        
-        // 2. Setup Mode Specifics
-        console.log(`🎮 Starting Mode: ${data.mode}`);
-        
-        // Display Mode Banner
-        const banner = document.createElement('div');
-        banner.className = 'fixed top-20 left-1/2 transform -translate-x-1/2 bg-indigo-600 text-white px-6 py-2 rounded-full shadow-lg z-50 font-bold animate-bounce';
-        banner.innerHTML = RoomManager.modeConfig[data.mode]?.label || "Multiplayer";
-        document.body.appendChild(banner);
-        setTimeout(() => banner.remove(), 4000);
-
-        // 3. Apply Rules based on Mode
-        switch (data.mode) {
-            case 'kids':
-                // For kids mode, we might want to filter words locally if the server didn't
-                console.log("Baby mode activated");
-                // If you have a separate list, load it here. Otherwise, rely on server words.
-                break;
-                
-            case 'okstoopid':
-                // Couples mode logic
-                break;
-
-            case 'survival':
-                State.runtime.lives = 3; // Give lives
-                break;
-
-            // Add other cases as needed
-        }
-
-        // 4. Load Words and Start
-        // If server provided a word list (optimized for the mode), use it
-        if (data.words && data.words.length > 0) {
-            State.runtime.allWords = data.words;
-            // Shuffle them just in case
-            State.runtime.allWords.sort(() => Math.random() - 0.5);
-        }
-
-        // 5. Reset UI and Start Flow
-        this.resetGame(); // Standard Game reset
-        this.nextWord();  // Start the first word
-    };
-}
 
 	renderGraphs() {
         const w = State.runtime.allWords;
