@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.81.29', 
+    APP_VERSION: '5.81.30', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4497,23 +4497,24 @@ submitEntry() {
             if (!codeInput) return;
             const code = codeInput.value.trim().toUpperCase();
             
-            // FIX 1: Capture name directly and pass it explicitly
-            // This prevents the 'Guest' fallback from triggering
-            const nameToUse = (nameInput && nameInput.value.trim()) 
-                ? nameInput.value.trim() 
-                : this.getUsername();
+            // 1. Get the name directly from the input user just typed
+            const nameToUse = nameInput ? nameInput.value.trim() : '';
 
-            if (nameToUse !== 'Guest') {
-                localStorage.setItem('username', nameToUse);
-                State.data.username = nameToUse;
+            // 2. Save it (standard logic)
+            if (nameToUse) {
+                State.save('username', nameToUse); 
+                if(DOM.inputs.username) DOM.inputs.username.value = nameToUse;
             }
 
+            // 3. Pass the specific name to the join function
             if (code.length > 0) this.attemptJoinOrCreate(code, nameToUse);
         },
 
-        // Update signature to accept the explicit name
-        attemptJoinOrCreate(code, explicitName = null) {
-            const user = explicitName || this.getUsername();
+// Add 'nameOverride' argument
+        attemptJoinOrCreate(code, nameOverride = null) {
+            // Use the passed name if it exists; otherwise fallback to the old getter
+            const user = nameOverride || this.getUsername();
+            
             this.roomCode = code; 
 
             this.socket.emit('joinRoom', { roomCode: code, username: user }, (res) => {
@@ -4521,7 +4522,7 @@ submitEntry() {
                     this.socket.emit('createRoom', { roomCode: code, username: user }, (cRes) => {
                         if (cRes && cRes.success) {
                             this.isHost = true;
-                            // Force immediate update with correct name
+                            // Ensure the lobby renders with the correct user immediately
                             this.renderLobby({ 
                                 roomCode: code, 
                                 players: [{username: user, host:true, id: this.playerId}], 
@@ -4533,7 +4534,7 @@ submitEntry() {
                 }
             });
         },
-
+        
         startGame() {
             if (!this.isHost) return;
             // FIX 2: Explicitly send Mode and Word Count
