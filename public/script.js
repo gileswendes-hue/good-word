@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.81.31', 
+    APP_VERSION: '5.81.32', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4545,6 +4545,29 @@ submitEntry() {
             });
         },
 
+// ADD THESE TWO FUNCTIONS TO ENABLE HOST CONTROLS
+        updateMode(newMode) {
+            if (!this.isHost) return;
+            this.currentMode = newMode;
+            // Emit to server so others see the change
+            this.socket.emit('updateRoom', { 
+                roomCode: this.roomCode, 
+                mode: newMode, 
+                settings: { wordCount: this.currentWordCount } 
+            });
+        },
+
+        updateWordCount(count) {
+            if (!this.isHost) return;
+            this.currentWordCount = parseInt(count);
+            // Emit to server so others see the slider move
+            this.socket.emit('updateRoom', { 
+                roomCode: this.roomCode, 
+                mode: this.currentMode, 
+                settings: { wordCount: this.currentWordCount } 
+            });
+        },
+
         startGame() {
             if (!this.isHost) return;
             // FIX 2: Explicitly send Mode and Word Count
@@ -4559,25 +4582,25 @@ submitEntry() {
  renderLobby(data) {
             document.getElementById('lobbyModal')?.remove();
             
+            // 1. REAL-TIME SYNC: Use Server Data if available
             const activeMode = data.mode || this.currentMode || 'coop';
             const activeWordCount = (data.settings && data.settings.wordCount) 
                 ? parseInt(data.settings.wordCount) 
                 : (this.currentWordCount || 10);
             
+            // Update local state to match server
             this.currentMode = activeMode;
             this.currentWordCount = activeWordCount;
 
             const safeCode = data.roomCode || this.roomCode || '...';
             const playersList = data.players || this.players || [];
-            
             const joinUrl = `${window.location.origin}?room=${safeCode}`;
             const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(joinUrl)}`;
 
             const playersHtml = playersList.map(p => {
-                // FIX: Force correct name for SELF if server sends 'Guest'
+                // 2. USERNAME FIX: Preserve your fix for the "Me" player
                 let displayName = p.username || 'Guest';
                 if (p.id === this.playerId) {
-                     // If it's me, and the name is Guest or missing, use my local name
                     if (!p.username || p.username === 'Guest' || p.username.startsWith('Guest_')) {
                         displayName = State.data.username || localStorage.getItem('username') || displayName;
                     }
@@ -4593,6 +4616,7 @@ submitEntry() {
             let modesHtml = '';
             Object.entries(this.modeConfig).forEach(([key, conf]) => {
                 const isSelected = (activeMode === key);
+                // Guests only see the active mode
                 if (!this.isHost && !isSelected) return;
 
                 const clickAttr = this.isHost ? `onclick="window.RoomManager.updateMode('${key}')"` : '';
@@ -4613,6 +4637,7 @@ submitEntry() {
             const sliderDisabled = !this.isHost ? 'disabled' : '';
             const sliderOpacity = !this.isHost ? 'opacity-70' : '';
 
+            // 3. MOBILE FIX: h-full and overflow-hidden to prevent cut-off
             const html = `
             <div id="lobbyModal" class="fixed inset-0 bg-gray-900 z-[9999] flex flex-col md:flex-row font-sans h-full">
                 <div class="w-full md:w-1/3 bg-white p-4 md:p-6 flex flex-col border-b md:border-b-0 md:border-r border-gray-200 z-10 shadow-md md:shadow-none shrink-0 md:h-full max-h-[35%] md:max-h-full overflow-hidden">
