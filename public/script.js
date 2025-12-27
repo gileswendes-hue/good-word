@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.81.20', 
+    APP_VERSION: '5.81.21', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4386,7 +4386,7 @@ const RoomManager = {
     active: false,
     roomCode: '',
     playerId: null,
-    isHost: false,
+    isHost: false, // Will be auto-detected
     currentMode: 'coop',
     players: [],
     listenersAttached: false,
@@ -4412,7 +4412,6 @@ const RoomManager = {
         
         btn = document.createElement('button');
         btn.id = 'roomBtn';
-        // High Z-index (60) to sit above other headers
         btn.className = 'fixed top-3 left-3 z-[60] p-3 bg-white rounded-full shadow-lg hover:bg-gray-50 transition transform hover:scale-110 border-2 border-indigo-100';
         btn.innerHTML = `<span class="text-2xl">📡</span>`;
         
@@ -4423,7 +4422,7 @@ const RoomManager = {
         };
         document.body.appendChild(btn);
 
-        // 2. Load Socket.io if missing
+        // 2. Load Socket.io
         if (!window.io) {
             const sc = document.createElement('script');
             sc.src = "/socket.io/socket.io.js";
@@ -4440,11 +4439,19 @@ const RoomManager = {
         if (urlRoom) {
             this.roomCode = urlRoom.trim().toUpperCase();
             setTimeout(() => {
-                // Try to join automatically if we have a username, otherwise show menu
-                if (State.data.username) this.attemptJoinOrCreate(this.roomCode);
-                else this.openMenu(); 
+                this.attemptJoinOrCreate(this.roomCode);
             }, 500);
         }
+    },
+
+    // Helper to get a valid username
+    getUsername() {
+        if (State && State.data && State.data.username && State.data.username !== 'Unknown') {
+            return State.data.username;
+        }
+        // Generate a random Guest name if none exists
+        const randomId = Math.floor(Math.random() * 1000);
+        return `Guest_${randomId}`;
     },
 
     connect() {
@@ -4464,17 +4471,23 @@ const RoomManager = {
         this.socket.on('roomUpdate', (data) => {
             console.log("Room Update Received:", data);
             
-            // 1. Update Local State
-            // Fallback: If data.roomCode is missing, keep existing, or try data.id
-            this.roomCode = data.roomCode || data.id || this.roomCode; 
-            this.isHost = (data.host === this.playerId);
+            // 1. Sync Data
+            this.roomCode = data.roomCode || this.roomCode;
             this.currentMode = data.mode || 'coop';
             this.players = data.players || [];
             
-            // 2. Close the Entry Menu (if open)
+            // 2. Determine Host Status (More Robust)
+            // If server says we are host OR if we are the first/only player
+            if (data.host === this.playerId || (this.players.length > 0 && this.players[0].id === this.playerId)) {
+                this.isHost = true;
+            } else {
+                this.isHost = (data.host === this.playerId);
+            }
+
+            // 3. Close Entry Menu
             document.getElementById('mpMenu')?.remove();
 
-            // 3. Render the Lobby (if we aren't already playing the game)
+            // 4. Render Lobby
             if (!this.active) {
                 this.renderLobby(data);
             }
@@ -4489,15 +4502,11 @@ const RoomManager = {
             if (Game && Game.startMultiplayer) {
                 Game.startMultiplayer(data);
             } else {
-                // Fallback for testing
+                // Fallback
                 alert("Game Started! Mode: " + data.mode);
                 State.runtime.allWords = data.words || State.runtime.allWords; 
                 Game.nextWord(); 
             }
-        });
-        
-        this.socket.on('error', (err) => {
-            alert("Connection Error: " + err);
         });
     },
 
@@ -4533,8 +4542,6 @@ const RoomManager = {
         setTimeout(() => document.getElementById('menuRoomCodeInput')?.focus(), 100);
     },
 
-    // --- ACTIONS ---
-
     submitEntry() {
         const input = document.getElementById('menuRoomCodeInput');
         if (!input) return;
@@ -4547,23 +4554,28 @@ const RoomManager = {
     attemptJoinOrCreate(code) {
         if (!this.socket) { alert("Not connected"); return; }
         
-        const username = State.data.username || 'Guest';
+        const username = this.getUsername();
+        this.roomCode = code; // Force local set immediately
 
         // 1. Try to JOIN
         this.socket.emit('joinRoom', { roomCode: code, username: username }, (response) => {
             if (response && response.success) {
-                // Success! roomUpdate will handle the UI.
-                console.log("Joined successfully");
+                // Success - roomUpdate will handle UI
             } else {
-                // 2. If Join Failed, assume room doesn't exist -> CREATE IT
-                // We pass the desired 'roomCode' in case the server supports custom codes
-                console.log("Join failed, attempting create...");
+                // 2. If Join Failed -> CREATE
+                console.log("Join failed, creating room: " + code);
                 this.socket.emit('createRoom', { roomCode: code, username: username }, (createResponse) => {
                     if (createResponse && createResponse.success) {
-                        console.log("Room created");
+                        this.isHost = true; // We created it, so we are host
+                        // Manually trigger lobby render just in case socket event lags
+                        this.renderLobby({
+                            roomCode: code,
+                            players: [{ username: username, host: true, ready: true }],
+                            mode: 'coop',
+                            host: this.playerId
+                        });
                     } else {
-                        // Real error (e.g., server full, invalid code format)
-                        alert("Could not join or create room: " + (createResponse ? createResponse.message : "Unknown Error"));
+                        alert("Error: " + (createResponse ? createResponse.message : "Unknown"));
                     }
                 });
             }
@@ -4571,49 +4583,65 @@ const RoomManager = {
     },
 
     updateMode(newMode) {
-        if (!this.isHost) return;
-        console.log("Updating mode to:", newMode);
+        if (!this.isHost) {
+            console.warn("Not Host - cannot change mode");
+            return;
+        }
         this.currentMode = newMode;
+        // Optimistic UI update (update locally immediately)
+        this.renderLobby({
+            roomCode: this.roomCode,
+            players: this.players,
+            mode: newMode,
+            host: this.playerId
+        });
+        
         this.socket.emit('updateRoom', { roomCode: this.roomCode, mode: newMode });
     },
 
     startGame() {
         if (!this.isHost) return;
-        const config = this.modeConfig[this.currentMode];
-        if (this.players.length < config.min) {
-            if(!confirm(`This mode usually requires ${config.min} players. Start anyway?`)) return;
-        }
         this.socket.emit('startGame', { roomCode: this.roomCode });
     },
 
     // --- LOBBY RENDERER ---
 
     renderLobby(data) {
-        // Remove existing lobby
         const existing = document.getElementById('lobbyModal');
         if (existing) existing.remove();
 
-        // Safe Defaults
-        const safeCode = data.roomCode || this.roomCode || '???';
-        const joinUrl = `${window.location.origin}?room=${safeCode}`;
+        // 1. Fallback for Room Code to prevent '???'
+        const displayCode = data.roomCode || this.roomCode || 'LOADING...';
+        
+        // 2. Ensure Players list is valid
+        const playersList = data.players || this.players || [];
+        // If empty (rare), add self
+        if (playersList.length === 0) {
+            playersList.push({ username: this.getUsername(), host: true, ready: true });
+        }
+
+        const joinUrl = `${window.location.origin}?room=${displayCode}`;
         const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(joinUrl)}`;
 
-        // Players List
-        const playersHtml = (data.players || []).map(p => 
+        const playersHtml = playersList.map(p => 
             `<div class="flex items-center space-x-3 bg-white border border-gray-100 p-3 rounded-lg mb-2 shadow-sm">
                 <div class="w-3 h-3 rounded-full ${p.ready !== false ? 'bg-green-500' : 'bg-gray-300'} animate-pulse"></div>
-                <span class="font-bold text-gray-700 truncate flex-1">${p.username || 'Unknown'}</span>
+                <span class="font-bold text-gray-700 truncate flex-1">${p.username || 'Guest'}</span>
                 ${p.host ? '<span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-bold">HOST</span>' : ''}
             </div>`
         ).join('');
 
-        // Game Mode Buttons
+        // 3. Determine Mode
+        const activeMode = data.mode || this.currentMode || 'coop';
+
+        // 4. Build Mode Buttons
         let modesHtml = '';
         Object.entries(this.modeConfig).forEach(([key, conf]) => {
-            const isSelected = (data.mode === key);
-            // NOTE: We specifically bind the ID for click handlers
-            const clickAttr = this.isHost ? `onclick="RoomManager.updateMode('${key}')"` : '';
-            const cursorClass = this.isHost ? 'cursor-pointer hover:shadow-md hover:border-indigo-300' : 'cursor-default opacity-70 grayscale-[0.5]';
+            const isSelected = (activeMode === key);
+            // We use global function call for onclick to ensure scope reach
+            const clickAttr = this.isHost ? `onclick="window.RoomManager.updateMode('${key}')"` : '';
+            
+            const cursorClass = this.isHost ? 'cursor-pointer hover:shadow-md hover:border-indigo-300' : 'cursor-default opacity-60 grayscale';
             const activeClass = isSelected 
                 ? 'bg-indigo-600 text-white ring-4 ring-indigo-200 border-transparent shadow-lg transform scale-[1.02] grayscale-0' 
                 : 'bg-white text-gray-600 border-gray-200';
@@ -4629,51 +4657,40 @@ const RoomManager = {
             `;
         });
 
-        // Full Modal HTML (Z-Index 9999 ensures it's on top)
+        // 5. Render Modal (High Z-Index)
         const html = `
         <div id="lobbyModal" class="fixed inset-0 bg-gray-900 z-[9999] flex flex-col md:flex-row font-sans animate-fade-in">
-            
             <div class="w-full md:w-1/3 bg-white p-6 flex flex-col border-r border-gray-200 shadow-xl z-10">
                 <div class="text-center mb-6">
                     <div class="text-xs font-bold text-gray-400 tracking-widest uppercase mb-1">Room Code</div>
-                    <div class="text-6xl font-black text-indigo-600 tracking-widest font-mono select-all cursor-pointer" onclick="navigator.clipboard.writeText('${safeCode}'); alert('Copied!')">${safeCode}</div>
+                    <div class="text-6xl font-black text-indigo-600 tracking-widest font-mono select-all">${displayCode}</div>
                 </div>
-
                 <div class="flex justify-center mb-6">
                     <div class="p-2 bg-white rounded-xl shadow-lg border border-gray-100">
-                        <img src="${qrSrc}" class="rounded-lg w-32 h-32" alt="Scan to Join">
+                        <img src="${qrSrc}" class="rounded-lg w-32 h-32" alt="QR Code">
                     </div>
                 </div>
-                
                 <div class="flex-grow overflow-y-auto pr-2">
                     <h3 class="font-bold text-gray-400 text-xs uppercase mb-3 flex justify-between items-center">
-                        <span>Players</span>
-                        <span class="bg-gray-100 text-gray-600 px-2 rounded-full">${(data.players || []).length}</span>
+                        <span>Players (${playersList.length})</span>
                     </h3>
                     ${playersHtml}
                 </div>
-
-                <button onclick="location.reload()" class="mt-4 w-full py-3 text-red-500 font-bold hover:bg-red-50 rounded-xl transition text-sm">
-                    Leave Lobby
-                </button>
+                <button onclick="location.reload()" class="mt-4 w-full py-3 text-red-500 font-bold hover:bg-red-50 rounded-xl transition text-sm">Exit Lobby</button>
             </div>
 
             <div class="w-full md:w-2/3 bg-gray-50 p-6 flex flex-col h-full relative">
                 <h2 class="text-2xl font-black text-gray-800 mb-4 flex items-center gap-2">
-                    <span>🎮</span> Select Game Mode
+                    <span>🎮</span> Game Mode
                 </h2>
-                
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 overflow-y-auto mb-20 pr-2">
                     ${modesHtml}
                 </div>
-
-                <div class="absolute bottom-0 left-0 right-0 p-6 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+                <div class="absolute bottom-0 left-0 right-0 p-6 bg-white border-t border-gray-200 shadow-lg">
                     ${this.isHost ? `
-                        <button onclick="RoomManager.startGame()" class="w-full py-4 bg-green-500 hover:bg-green-600 text-white text-2xl font-black rounded-2xl shadow-xl transform transition active:scale-[0.98] flex items-center justify-center gap-3">
-                            <span>START GAME</span>
-                            <span class="text-3xl">🚀</span>
+                        <button onclick="window.RoomManager.startGame()" class="w-full py-4 bg-green-500 hover:bg-green-600 text-white text-2xl font-black rounded-2xl shadow-xl transform transition active:scale-[0.98] flex items-center justify-center gap-3">
+                            <span>START GAME</span> <span class="text-3xl">🚀</span>
                         </button>
-                        <p class="text-center text-xs text-gray-400 mt-2">You are the Host.</p>
                     ` : `
                         <div class="w-full py-4 bg-gray-200 text-gray-400 text-xl font-bold rounded-2xl text-center flex flex-col items-center justify-center">
                             <span>Waiting for Host...</span>
