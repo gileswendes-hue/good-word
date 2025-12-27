@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.81.23', 
+    APP_VERSION: '5.81.24', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4434,12 +4434,22 @@ const RoomManager = {
     },
 
     // Get stored username or fallback
-    getUsername() {
-        if (typeof State !== 'undefined' && State.data && State.data.username && State.data.username !== 'Unknown') {
-            return State.data.username;
-        }
-        return `Guest_${Math.floor(Math.random()*1000)}`;
-    },
+getUsername() {
+    // 1. Try DOM Input first (User just typed it in the menu)
+    if (DOM.inputs && DOM.inputs.username && DOM.inputs.username.value) {
+        return DOM.inputs.username.value.trim();
+    }
+    // 2. Try State (Saved previously in the session)
+    if (State.data.username && State.data.username !== 'Unknown') {
+        return State.data.username;
+    }
+    // 3. Try LocalStorage directly (Persistent save)
+    const lsName = localStorage.getItem('username');
+    if (lsName) return lsName;
+
+    // 4. Fallback if everything fails
+    return `Guest_${Math.floor(Math.random()*1000)}`;
+},
 
     connect() {
         if (typeof io === 'undefined') return;
@@ -4545,64 +4555,163 @@ const RoomManager = {
         this.socket.emit('startGame', { roomCode: this.roomCode });
     },
 
-    renderLobby(data) {
-        document.getElementById('lobbyModal')?.remove();
+renderLobby(data) {
+    document.getElementById('lobbyModal')?.remove();
+    
+    // PRIORITIZE Server Data, fallback to Local
+    const activeMode = data.mode || this.currentMode || 'coop';
+    const activeWordCount = data.settings?.wordCount || data.wordCount || this.currentWordCount || 10;
+    const safeCode = data.roomCode || this.roomCode || '...';
+    const playersList = data.players || this.players || [];
+    
+    const joinUrl = `${window.location.origin}?room=${safeCode}`;
+    const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(joinUrl)}`;
+
+    // ... [Player list generation code remains same] ...
+    const playersHtml = playersList.map(p => 
+        `<div class="flex items-center space-x-3 bg-white border border-gray-100 p-3 rounded-lg mb-2 shadow-sm">
+            <div class="w-3 h-3 rounded-full ${p.ready !== false ? 'bg-green-500' : 'bg-gray-300'}"></div>
+            <span class="font-bold text-gray-700 truncate flex-1">${p.username || 'Guest'}</span>
+            ${p.host ? '<span class="text-xs bg-indigo-100 text-indigo-700 px-2 rounded-full">HOST</span>' : ''}
+        </div>`
+    ).join('');
+
+    // ... [Mode selection generation code remains same] ...
+    let modesHtml = '';
+    Object.entries(this.modeConfig).forEach(([key, conf]) => {
+        const isSelected = (activeMode === key);
+        // Only Host can click
+        const clickAttr = this.isHost ? `onclick="window.RoomManager.updateMode('${key}')"` : '';
         
-        // Use Server Data for Mode, fallback to local
-        const activeMode = data.mode || this.currentMode || 'coop';
-        const safeCode = data.roomCode || this.roomCode || '...';
-        const playersList = data.players || this.players || [];
+        let styleClass = isSelected ? 'bg-indigo-50 border-indigo-500 ring-2 ring-indigo-200' : 'bg-white border-gray-200';
+        if (!this.isHost && !isSelected) styleClass = 'bg-gray-50 opacity-60 grayscale';
         
-        // QR & URL
-        const joinUrl = `${window.location.origin}?room=${safeCode}`;
-        const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(joinUrl)}`;
-
-        const playersHtml = playersList.map(p => 
-            `<div class="flex items-center space-x-3 bg-white border border-gray-100 p-3 rounded-lg mb-2 shadow-sm">
-                <div class="w-3 h-3 rounded-full ${p.ready !== false ? 'bg-green-500' : 'bg-gray-300'}"></div>
-                <span class="font-bold text-gray-700 truncate flex-1">${p.username || 'Guest'}</span>
-                ${p.host ? '<span class="text-xs bg-indigo-100 text-indigo-700 px-2 rounded-full">HOST</span>' : ''}
-            </div>`
-        ).join('');
-
-        let modesHtml = '';
-        Object.entries(this.modeConfig).forEach(([key, conf]) => {
-            const isSelected = (activeMode === key);
-            const clickAttr = this.isHost ? `onclick="window.RoomManager.updateMode('${key}')"` : '';
-            const styleClass = isSelected 
-                ? 'bg-indigo-600 text-white ring-4 ring-indigo-200 transform scale-[1.02]' 
-                : (this.isHost ? 'bg-white hover:bg-gray-50' : 'bg-white opacity-60 grayscale');
-
-            modesHtml += `
-                <div ${clickAttr} class="flex flex-col p-3 rounded-xl border transition-all duration-200 cursor-pointer ${styleClass}">
-                    <div class="flex justify-between items-center mb-1"><span class="font-bold text-sm">${conf.label}</span>${isSelected ? '✅' : ''}</div>
-                    <span class="text-xs ${isSelected ? 'text-indigo-100' : 'text-gray-400'}">${conf.desc}</span>
-                </div>`;
-        });
-
-        const html = `
-        <div id="lobbyModal" class="fixed inset-0 bg-gray-900 z-[9999] flex flex-col md:flex-row font-sans">
-            <div class="w-full md:w-1/3 bg-white p-6 flex flex-col border-r border-gray-200 z-10">
-                <div class="text-center mb-6"><div class="text-6xl font-black text-indigo-600 font-mono">${safeCode}</div></div>
-                <div class="flex justify-center mb-6"><img src="${qrSrc}" class="rounded-lg w-32 h-32 border"></div>
-                <div class="flex-grow overflow-y-auto">${playersHtml}</div>
-                <button onclick="location.reload()" class="mt-4 w-full py-3 text-red-500 font-bold bg-red-50 rounded-xl">Exit</button>
-            </div>
-            <div class="w-full md:w-2/3 bg-gray-50 p-6 flex flex-col relative">
-                <h2 class="text-2xl font-black text-gray-800 mb-4">Select Mode</h2>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 overflow-y-auto mb-20">${modesHtml}</div>
-                <div class="absolute bottom-0 left-0 right-0 p-6 bg-white border-t">
-                    ${this.isHost ? `<button onclick="window.RoomManager.startGame()" class="w-full py-4 bg-green-500 hover:bg-green-600 text-white text-2xl font-black rounded-xl shadow-xl">START GAME 🚀</button>` : `<div class="text-center text-gray-400 font-bold py-4 bg-gray-100 rounded-xl">Waiting for Host...</div>`}
+        modesHtml += `
+            <div ${clickAttr} class="flex flex-col p-3 rounded-xl border transition-all duration-200 cursor-pointer ${styleClass}">
+                <div class="flex justify-between items-center mb-1">
+                    <span class="font-bold text-sm ${isSelected ? 'text-indigo-700' : 'text-gray-700'}">${conf.label}</span>
+                    ${isSelected ? '✅' : ''}
                 </div>
+                <span class="text-xs text-gray-500">${conf.desc}</span>
+            </div>`;
+    });
+
+    const sliderDisabled = !this.isHost ? 'disabled' : '';
+    const sliderOpacity = !this.isHost ? 'opacity-70' : '';
+
+    const html = `
+    <div id="lobbyModal" class="fixed inset-0 bg-gray-900 z-[9999] flex flex-col md:flex-row font-sans">
+        <div class="w-full md:w-1/3 bg-white p-6 flex flex-col border-r border-gray-200 z-10">
+            <div class="text-center mb-6">
+                <div class="text-sm text-gray-400 font-bold mb-1">ROOM CODE</div>
+                <div class="text-6xl font-black text-indigo-600 font-mono tracking-widest">${safeCode}</div>
             </div>
-        </div>`;
-        document.body.insertAdjacentHTML('beforeend', html);
-    },
+            <div class="flex justify-center mb-6"><img src="${qrSrc}" class="rounded-lg w-32 h-32 border shadow-inner"></div>
+            <div class="flex-grow overflow-y-auto custom-scrollbar p-1">${playersHtml}</div>
+            <button onclick="location.reload()" class="mt-4 w-full py-3 text-red-500 font-bold bg-red-50 hover:bg-red-100 rounded-xl transition">Leave Room</button>
+        </div>
+        
+        <div class="w-full md:w-2/3 bg-gray-50 p-6 flex flex-col relative">
+            <h2 class="text-2xl font-black text-gray-800 mb-4">Game Settings</h2>
+            
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6 ${sliderOpacity}">
+                <div class="flex justify-between items-center mb-2">
+                    <label class="font-bold text-gray-700">Words per Round</label>
+                    <span id="lobbyWordCountDisplay" class="font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-lg">${activeWordCount} Words</span>
+                </div>
+                <input type="range" min="5" max="50" step="5" value="${activeWordCount}" ${sliderDisabled}
+                    oninput="window.RoomManager.updateWordCount(this.value)"
+                    class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+            </div>
+
+            <div class="font-bold text-gray-700 mb-3">Select Mode</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 overflow-y-auto pb-24 custom-scrollbar">
+                ${modesHtml}
+            </div>
+
+            <div class="absolute bottom-0 left-0 right-0 p-6 bg-white border-t flex items-center justify-between shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
+                <div class="text-sm text-gray-500 hidden sm:block">
+                    ${this.isHost ? 'You are the Host.' : 'Waiting for Host to start...'}
+                </div>
+                ${this.isHost ? 
+                    `<button onclick="window.RoomManager.startGame()" class="w-full sm:w-auto px-8 py-4 bg-green-500 hover:bg-green-600 text-white text-xl font-black rounded-xl shadow-lg transform transition active:scale-95 flex items-center justify-center gap-2">
+                        <span>START GAME</span> 🚀
+                    </button>` : 
+                    `<div class="w-full sm:w-auto px-8 py-4 bg-gray-100 text-gray-400 text-xl font-bold rounded-xl border border-gray-200 flex items-center justify-center gap-2 cursor-not-allowed">
+                        <span>WAITING...</span> ⏳
+                    </div>`
+                }
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
 
     closeLobby() { document.getElementById('lobbyModal')?.remove(); document.getElementById('mpMenu')?.remove(); }
 };
 
 const Game = {
+
+const Game = {
+    resetGame() {
+        State.runtime.currentWordIndex = 0;
+        State.runtime.streak = 0;
+        State.runtime.mashCount = 0;
+        State.runtime.score = 0;
+        State.runtime.lives = 0;
+        UIManager.updateStats();
+    },
+
+    startMultiplayer(data) {
+        // 1. Setup State
+        RoomManager.closeLobby();
+        State.runtime.isMultiplayer = true;
+        State.runtime.mpMode = data.mode;
+        State.runtime.mpRoom = data.roomCode;
+        
+        // 2. Visual Banner
+        const banner = document.createElement('div');
+        banner.className = 'fixed top-20 left-1/2 transform -translate-x-1/2 bg-indigo-600 text-white px-6 py-2 rounded-full shadow-lg z-50 font-bold animate-bounce flex items-center gap-2';
+        banner.innerHTML = `<span>🎮</span> ${RoomManager.modeConfig[data.mode]?.label || "Multiplayer"}`;
+        document.body.appendChild(banner);
+        setTimeout(() => banner.remove(), 4000);
+
+        // 3. Reset Game State
+        this.resetGame();
+
+        // 4. Apply Word Count Settings from Server
+        const count = data.settings?.wordCount || 10;
+        
+        // If server sent words, use them
+        if (data.words && data.words.length > 0) {
+            // Slice to the slider limit
+            State.runtime.allWords = data.words.slice(0, count);
+        } else {
+            // Fallback (rare): shuffle local words and slice
+            const shuffled = State.runtime.allWords.sort(() => 0.5 - Math.random());
+            State.runtime.allWords = shuffled.slice(0, count);
+        }
+
+        // 5. Apply Mode Rules
+        switch (data.mode) {
+            case 'survival':
+                State.runtime.lives = 3; 
+                alert("SURVIVAL MODE: You have 3 lives. Vote with the majority or lose a life!");
+                break;
+            case 'okstoopid':
+                alert("COUPLES MODE: Try to match your partner's answer!");
+                break;
+            case 'hipster':
+                alert("HIPSTER MODE: Try to vote for the LEAST popular option!");
+                break;
+            case 'speed':
+                alert("SPEED MODE: Vote fast!");
+                break;
+        }
+
+        // 6. Start
+        this.nextWord(); 
+    },
 
 	renderGraphs() {
         const w = State.runtime.allWords;
@@ -5847,57 +5956,6 @@ const StreakManager = {
         if (this.loopTimer) clearTimeout(this.loopTimer);
     }
 };
-
-// --- MULTIPLAYER GAME ENGINE ---
-// This connects the RoomManager to the actual Game logic
-
-Game.startMultiplayer = function(data) {
-    // 1. Setup State
-    RoomManager.closeLobby();
-    State.runtime.isMultiplayer = true;
-    State.runtime.mpMode = data.mode;
-    State.runtime.mpRoom = data.roomCode;
-    
-    // 2. Visual Banner
-    const banner = document.createElement('div');
-    banner.className = 'fixed top-20 left-1/2 transform -translate-x-1/2 bg-indigo-600 text-white px-6 py-2 rounded-full shadow-lg z-50 font-bold animate-bounce';
-    banner.innerHTML = RoomManager.modeConfig[data.mode]?.label || "Multiplayer";
-    document.body.appendChild(banner);
-    setTimeout(() => banner.remove(), 4000);
-
-    // 3. Apply Mode Rules
-    console.log(`🎮 Applying Rules for Mode: ${data.mode}`);
-    
-    // Reset specific variables before starting
-    State.runtime.lives = 0; 
-    
-    switch (data.mode) {
-        case 'survival':
-            State.runtime.lives = 3; 
-            alert("SURVIVAL MODE: You have 3 lives. Vote with the majority or lose a life!");
-            break;
-        case 'okstoopid':
-            alert("COUPLES MODE: Try to match your partner's answer!");
-            break;
-        case 'hipster':
-            alert("HIPSTER MODE: Try to vote for the LEAST popular option!");
-            break;
-        case 'speed':
-            alert("SPEED MODE: Vote fast!");
-            break;
-    }
-
-    // 4. Load Words (If server sent a specific list)
-    if (data.words && data.words.length > 0) {
-        console.log("Loading custom word list from server...");
-        State.runtime.allWords = data.words;
-    }
-
-    // 5. Start the Loop
-    this.resetGame(); 
-    this.nextWord(); 
-};
-
     window.onload = Game.init.bind(Game);
 	window.RoomManager = RoomManager;
 
