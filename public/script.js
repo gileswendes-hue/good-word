@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.81.27', 
+    APP_VERSION: '5.81.28', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4490,53 +4490,58 @@ const RoomManager = {
             setTimeout(() => document.getElementById('menuRoomCodeInput')?.focus(), 100);
         },
 
-        submitEntry() {
+submitEntry() {
             const codeInput = document.getElementById('menuRoomCodeInput');
             const nameInput = document.getElementById('menuUsernameInput');
+            
             if (!codeInput) return;
             const code = codeInput.value.trim().toUpperCase();
-            
-            // FIXED: Save username immediately so 'Guest' isn't used
-            if (nameInput && nameInput.value.trim()) {
-                const finalName = nameInput.value.trim();
-                localStorage.setItem('username', finalName);
-                State.data.username = finalName;
-                if(DOM.inputs.username) DOM.inputs.username.value = finalName;
+            const nameToUse = nameInput && nameInput.value.trim() ? nameInput.value.trim() : null;
+
+            if (nameToUse) {
+                State.save('username', nameToUse); // Save for next time
+                if(DOM.inputs.username) DOM.inputs.username.value = nameToUse;
             }
-            if (code.length > 0) this.attemptJoinOrCreate(code);
+
+            if (code.length > 0) this.attemptJoinOrCreate(code, nameToUse);
         },
 
-        attemptJoinOrCreate(code) {
-            const user = this.getUsername();
+        attemptJoinOrCreate(code, explicitName = null) {
+            // Priority: Explicit Name (just typed) > Stored Name > Guest
+            const user = explicitName || this.getUsername();
             this.roomCode = code; 
+
             this.socket.emit('joinRoom', { roomCode: code, username: user }, (res) => {
                 if (!res || !res.success) {
                     this.socket.emit('createRoom', { roomCode: code, username: user }, (cRes) => {
                         if (cRes && cRes.success) {
                             this.isHost = true;
-                            this.renderLobby({ roomCode: code, players: [{username: user, host:true, id: this.playerId}], mode: 'coop', wordCount: 10 });
+                            this.renderLobby({ 
+                                roomCode: code, 
+                                players: [{username: user, host:true, id: this.playerId}], 
+                                mode: 'coop', 
+                                wordCount: 10 
+                            });
                         }
                     });
                 }
             });
         },
 
-        updateMode(newMode) {
+  updateMode(newMode) {
             if (!this.isHost) return;
             this.currentMode = newMode;
-            this.socket.emit('updateRoom', { roomCode: this.roomCode, mode: newMode, settings: { wordCount: this.currentWordCount } });
+            // Send update to server immediately
+            this.socket.emit('updateRoom', { 
+                roomCode: this.roomCode, 
+                mode: newMode, 
+                settings: { wordCount: this.currentWordCount } 
+            });
         },
 
-        updateWordCount(count) {
+startGame() {
             if (!this.isHost) return;
-            this.currentWordCount = parseInt(count);
-            // Visual update handled by oninput, socket update here:
-            this.socket.emit('updateRoom', { roomCode: this.roomCode, mode: this.currentMode, settings: { wordCount: this.currentWordCount } });
-        },
-
-        startGame() {
-            if (!this.isHost) return;
-            // FIXED: Explicitly send mode and settings
+            // FIX: Explicitly send the mode and word count so the server knows what to play
             this.socket.emit('startGame', { 
                 roomCode: this.roomCode,
                 mode: this.currentMode,
@@ -4547,15 +4552,15 @@ const RoomManager = {
         renderLobby(data) {
             document.getElementById('lobbyModal')?.remove();
             
+            // Prioritize Server Data > Local State > Default
             const activeMode = data.mode || this.currentMode || 'coop';
-            // FIXED: Prioritize server settings for Word Count
-            let activeWordCount = 10;
-            if (data.settings && data.settings.wordCount) activeWordCount = parseInt(data.settings.wordCount);
-            else if (data.wordCount) activeWordCount = parseInt(data.wordCount);
-            else activeWordCount = this.currentWordCount;
-
-            this.currentWordCount = activeWordCount;
+            const activeWordCount = (data.settings && data.settings.wordCount) 
+                ? parseInt(data.settings.wordCount) 
+                : (this.currentWordCount || 10);
+            
+            // Sync local state to ensure consistency
             this.currentMode = activeMode;
+            this.currentWordCount = activeWordCount;
 
             const safeCode = data.roomCode || this.roomCode || '...';
             const playersList = data.players || this.players || [];
@@ -4573,10 +4578,16 @@ const RoomManager = {
             let modesHtml = '';
             Object.entries(this.modeConfig).forEach(([key, conf]) => {
                 const isSelected = (activeMode === key);
+                
+                // FIXED: If user is NOT host, HIDE non-selected modes entirely
+                if (!this.isHost && !isSelected) return;
+
                 const clickAttr = this.isHost ? `onclick="window.RoomManager.updateMode('${key}')"` : '';
-                let styleClass = isSelected ? 'bg-indigo-50 border-indigo-500 ring-2 ring-indigo-200 transform scale-[1.02] shadow-md' : 'bg-white border-gray-200';
-                if (!this.isHost && !isSelected) styleClass = 'bg-gray-50 opacity-60 grayscale';
-                else if(this.isHost) styleClass += ' hover:bg-gray-50 cursor-pointer';
+                
+                // Styling: Highlight selected, dim others (for host)
+                let styleClass = isSelected 
+                    ? 'bg-indigo-50 border-indigo-500 ring-2 ring-indigo-200 shadow-md transform scale-[1.02]' 
+                    : 'bg-white border-gray-200 hover:bg-gray-50 cursor-pointer';
 
                 modesHtml += `
                     <div ${clickAttr} class="flex flex-col p-3 rounded-xl border transition-all duration-200 ${styleClass}">
@@ -4588,6 +4599,7 @@ const RoomManager = {
                     </div>`;
             });
 
+            // Slider: Disabled for non-hosts
             const sliderDisabled = !this.isHost ? 'disabled' : '';
             const sliderOpacity = !this.isHost ? 'opacity-70' : '';
 
@@ -4602,8 +4614,10 @@ const RoomManager = {
                     <div class="flex-grow overflow-y-auto custom-scrollbar p-1">${playersHtml}</div>
                     <button onclick="location.reload()" class="mt-4 w-full py-3 text-red-500 font-bold bg-red-50 hover:bg-red-100 rounded-xl transition">Leave Room</button>
                 </div>
+                
                 <div class="w-full md:w-2/3 bg-gray-50 p-6 flex flex-col relative">
                     <h2 class="text-2xl font-black text-gray-800 mb-4">Game Settings</h2>
+                    
                     <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6 ${sliderOpacity}">
                         <div class="flex justify-between items-center mb-2">
                             <label class="font-bold text-gray-700">Words per Round</label>
@@ -4613,28 +4627,35 @@ const RoomManager = {
                             oninput="document.getElementById('lobbyWordCountDisplay').innerText = this.value + ' Words'; window.RoomManager.updateWordCount(this.value)"
                             class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
                     </div>
-                    <div class="font-bold text-gray-700 mb-3">Select Mode</div>
+
+                    <div class="font-bold text-gray-700 mb-3">${this.isHost ? 'Select Mode' : 'Current Mode'}</div>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 overflow-y-auto pb-24 custom-scrollbar">
                         ${modesHtml}
                     </div>
+
                     <div class="absolute bottom-0 left-0 right-0 p-6 bg-white border-t flex items-center justify-between shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
                         <div class="text-sm text-gray-500 hidden sm:block">
                             ${this.isHost ? 'You are the Host.' : 'Waiting for Host to start...'}
                         </div>
                         ${this.isHost ? 
-                            `<button onclick="window.RoomManager.startGame()" class="w-full sm:w-auto px-8 py-4 bg-green-500 hover:bg-green-600 text-white text-xl font-black rounded-xl shadow-lg transform transition active:scale-95 flex items-center justify-center gap-2"><span>START GAME</span> 🚀</button>` : 
-                            `<div class="w-full sm:w-auto px-8 py-4 bg-gray-100 text-gray-400 text-xl font-bold rounded-xl border border-gray-200 flex items-center justify-center gap-2 cursor-not-allowed"><span>WAITING...</span> ⏳</div>`
+                            `<button onclick="window.RoomManager.startGame()" class="w-full sm:w-auto px-8 py-4 bg-green-500 hover:bg-green-600 text-white text-xl font-black rounded-xl shadow-lg transform transition active:scale-95 flex items-center justify-center gap-2">
+                                <span>START GAME</span> 🚀
+                            </button>` : 
+                            `<div class="w-full sm:w-auto px-8 py-4 bg-gray-100 text-gray-400 text-xl font-bold rounded-xl border border-gray-200 flex items-center justify-center gap-2 cursor-not-allowed">
+                                <span>WAITING...</span> ⏳
+                            </div>`
                         }
                     </div>
                 </div>
             </div>`;
             document.body.insertAdjacentHTML('beforeend', html);
-        }, // FIXED: Added missing comma
+        }, // <--- THIS COMMA WAS MISSING, NOW IT IS FIXED
 
         closeLobby() { document.getElementById('lobbyModal')?.remove(); document.getElementById('mpMenu')?.remove(); }
     };
 
 const Game = {
+    // ADD THIS FUNCTION
     resetGame() {
         State.runtime.currentWordIndex = 0;
         State.runtime.streak = 0;
