@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.81.33', 
+    APP_VERSION: '5.81.34', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4389,7 +4389,7 @@ const RoomManager = {
     isHost: false,
     currentMode: 'coop',
     currentWordCount: 10,
-    drinkingMode: false, // NEW: Track Drinking Mode state
+    drinkingMode: false, // Track Drinking Mode state
     players: [],
     listenersAttached: false,
     
@@ -4453,14 +4453,16 @@ const RoomManager = {
         this.socket.on('roomUpdate', (data) => {
             this.roomCode = data.roomCode || this.roomCode;
             
-            // RELAY: Sync all settings from server
+            // RELAY FIX: Check both root level AND settings object
             if (data.mode) this.currentMode = data.mode;
             
-            if (data.settings) {
-                if (data.settings.wordCount) this.currentWordCount = parseInt(data.settings.wordCount);
-                // Sync Drinking Mode
-                if (typeof data.settings.drinkingMode !== 'undefined') this.drinkingMode = data.settings.drinkingMode;
-            }
+            // Check Word Count
+            if (data.wordCount) this.currentWordCount = parseInt(data.wordCount);
+            else if (data.settings && data.settings.wordCount) this.currentWordCount = parseInt(data.settings.wordCount);
+
+            // Check Drinking Mode
+            if (typeof data.drinkingMode !== 'undefined') this.drinkingMode = data.drinkingMode;
+            else if (data.settings && typeof data.settings.drinkingMode !== 'undefined') this.drinkingMode = data.settings.drinkingMode;
 
             this.players = data.players || [];
             
@@ -4533,7 +4535,7 @@ const RoomManager = {
                             players: [{username: user, host:true, id: this.playerId}], 
                             mode: 'coop', 
                             wordCount: 10,
-                            settings: { drinkingMode: false }
+                            drinkingMode: false
                         });
                     }
                 });
@@ -4562,12 +4564,15 @@ const RoomManager = {
     },
 
     emitUpdate() {
+        // ROBUST SEND: Send data at ROOT level AND in SETTINGS to ensure server relays it
         this.socket.emit('updateRoom', { 
             roomCode: this.roomCode, 
             mode: this.currentMode, 
+            wordCount: this.currentWordCount,     // Root Level
+            drinkingMode: this.drinkingMode,      // Root Level
             settings: { 
-                wordCount: this.currentWordCount,
-                drinkingMode: this.drinkingMode 
+                wordCount: this.currentWordCount, // Nested
+                drinkingMode: this.drinkingMode   // Nested
             } 
         });
     },
@@ -4587,11 +4592,18 @@ const RoomManager = {
     renderLobby(data) {
         document.getElementById('lobbyModal')?.remove();
         
-        // 1. SYNC DATA
+        // 1. SYNC DATA (Server Priority)
         const activeMode = data.mode || this.currentMode || 'coop';
-        const activeWordCount = (data.settings && data.settings.wordCount) ? parseInt(data.settings.wordCount) : (this.currentWordCount || 10);
-        const activeDrinking = (data.settings && typeof data.settings.drinkingMode !== 'undefined') ? data.settings.drinkingMode : this.drinkingMode;
+        
+        let activeWordCount = this.currentWordCount;
+        if (data.wordCount) activeWordCount = parseInt(data.wordCount);
+        else if (data.settings && data.settings.wordCount) activeWordCount = parseInt(data.settings.wordCount);
 
+        let activeDrinking = this.drinkingMode;
+        if (typeof data.drinkingMode !== 'undefined') activeDrinking = data.drinkingMode;
+        else if (data.settings && typeof data.settings.drinkingMode !== 'undefined') activeDrinking = data.settings.drinkingMode;
+
+        // Update local state
         this.currentMode = activeMode;
         this.currentWordCount = activeWordCount;
         this.drinkingMode = activeDrinking;
@@ -5720,7 +5732,7 @@ async refreshData(u = true) {
                     m = `${t==='good'?'Good':'Bad'} vote! ${p}% agree.`;
                 }
             }
-            
+
             if (State.data.settings.showTips) {
                 // --- FIX: NO TIPS IN MULTIPLAYER ---
                 if (!State.runtime.isMultiplayer) { 
