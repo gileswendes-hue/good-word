@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.81.34', 
+    APP_VERSION: '5.81.35', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4389,7 +4389,7 @@ const RoomManager = {
     isHost: false,
     currentMode: 'coop',
     currentWordCount: 10,
-    drinkingMode: false, // Track Drinking Mode state
+    drinkingMode: false,
     players: [],
     listenersAttached: false,
     
@@ -4405,7 +4405,9 @@ const RoomManager = {
     },
 
     init() {
+        // CRITICAL: Expose to window so onclick works
         window.RoomManager = this;
+        
         let btn = document.getElementById('roomBtn');
         if (btn) btn.remove(); 
         btn = document.createElement('button');
@@ -4453,19 +4455,20 @@ const RoomManager = {
         this.socket.on('roomUpdate', (data) => {
             this.roomCode = data.roomCode || this.roomCode;
             
-            // RELAY FIX: Check both root level AND settings object
+            // Sync settings from server
             if (data.mode) this.currentMode = data.mode;
             
-            // Check Word Count
+            // Sync Word Count (Robust check)
             if (data.wordCount) this.currentWordCount = parseInt(data.wordCount);
             else if (data.settings && data.settings.wordCount) this.currentWordCount = parseInt(data.settings.wordCount);
 
-            // Check Drinking Mode
+            // Sync Drinking Mode (Robust check)
             if (typeof data.drinkingMode !== 'undefined') this.drinkingMode = data.drinkingMode;
             else if (data.settings && typeof data.settings.drinkingMode !== 'undefined') this.drinkingMode = data.settings.drinkingMode;
 
             this.players = data.players || [];
             
+            // Determine Host Status
             this.isHost = (data.host === this.playerId);
             if(this.players.length > 0 && this.players[0].id === this.playerId) this.isHost = true;
 
@@ -4535,7 +4538,7 @@ const RoomManager = {
                             players: [{username: user, host:true, id: this.playerId}], 
                             mode: 'coop', 
                             wordCount: 10,
-                            drinkingMode: false
+                            settings: { drinkingMode: false }
                         });
                     }
                 });
@@ -4543,36 +4546,69 @@ const RoomManager = {
         });
     },
 
-    // --- HOST CONTROLS ---
+    // --- OPTIMISTIC UPDATES (Fixes selection lag/failure) ---
     
     updateMode(newMode) {
         if (!this.isHost) return;
+        
+        console.log("Updating Mode to:", newMode);
+        
+        // 1. Update Locally Immediately (Visual feedback)
         this.currentMode = newMode;
-        this.emitUpdate();
+        
+        // 2. Re-render Lobby Immediately so you see the checkmark
+        this.renderLobby({
+            roomCode: this.roomCode,
+            players: this.players,
+            mode: this.currentMode,
+            wordCount: this.currentWordCount,
+            drinkingMode: this.drinkingMode,
+            host: this.playerId // Fake host ID to ensure UI stays editable
+        });
+
+        // 3. Send to Server
+        this.socket.emit('updateRoom', { 
+            roomCode: this.roomCode, 
+            mode: newMode, 
+            wordCount: this.currentWordCount,
+            drinkingMode: this.drinkingMode,
+            settings: { 
+                wordCount: this.currentWordCount,
+                drinkingMode: this.drinkingMode 
+            } 
+        });
     },
 
     updateWordCount(count) {
         if (!this.isHost) return;
         this.currentWordCount = parseInt(count);
-        this.emitUpdate();
+        
+        // Note: No immediate re-render needed for slider as 'oninput' handles visual
+        this.socket.emit('updateRoom', { 
+            roomCode: this.roomCode, 
+            mode: this.currentMode, 
+            wordCount: this.currentWordCount,
+            drinkingMode: this.drinkingMode,
+            settings: { 
+                wordCount: this.currentWordCount,
+                drinkingMode: this.drinkingMode 
+            } 
+        });
     },
 
     toggleDrinking(isChecked) {
         if (!this.isHost) return;
         this.drinkingMode = isChecked;
-        this.emitUpdate();
-    },
-
-    emitUpdate() {
-        // ROBUST SEND: Send data at ROOT level AND in SETTINGS to ensure server relays it
+        
+        // Re-render locally? Not strictly needed for checkbox but good for consistency
         this.socket.emit('updateRoom', { 
             roomCode: this.roomCode, 
             mode: this.currentMode, 
-            wordCount: this.currentWordCount,     // Root Level
-            drinkingMode: this.drinkingMode,      // Root Level
+            wordCount: this.currentWordCount,
+            drinkingMode: this.drinkingMode,
             settings: { 
-                wordCount: this.currentWordCount, // Nested
-                drinkingMode: this.drinkingMode   // Nested
+                wordCount: this.currentWordCount,
+                drinkingMode: this.drinkingMode 
             } 
         });
     },
@@ -4592,7 +4628,7 @@ const RoomManager = {
     renderLobby(data) {
         document.getElementById('lobbyModal')?.remove();
         
-        // 1. SYNC DATA (Server Priority)
+        // Prioritize data passed in arguments (which might be our local optimistic update)
         const activeMode = data.mode || this.currentMode || 'coop';
         
         let activeWordCount = this.currentWordCount;
@@ -4603,7 +4639,7 @@ const RoomManager = {
         if (typeof data.drinkingMode !== 'undefined') activeDrinking = data.drinkingMode;
         else if (data.settings && typeof data.settings.drinkingMode !== 'undefined') activeDrinking = data.settings.drinkingMode;
 
-        // Update local state
+        // Keep local state in sync
         this.currentMode = activeMode;
         this.currentWordCount = activeWordCount;
         this.drinkingMode = activeDrinking;
