@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.81.36', 
+    APP_VERSION: '5.81.37', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4389,7 +4389,7 @@ const RoomManager = {
     isHost: false,
     currentMode: 'coop',
     currentWordCount: 10,
-    drinkingMode: false, // New State
+    drinkingMode: false,
     players: [],
     listenersAttached: false,
     
@@ -4405,8 +4405,7 @@ const RoomManager = {
     },
 
     init() {
-        // Critical: Expose to window for HTML click handlers
-        window.RoomManager = this;
+        window.RoomManager = this; // Expose for HTML clicks
         
         let btn = document.getElementById('roomBtn');
         if (btn) btn.remove(); 
@@ -4446,37 +4445,40 @@ const RoomManager = {
         if (!this.socket) this.socket = io({ transports: ['websocket'], upgrade: false });
         
         if (this.socket.connected) this.playerId = this.socket.id;
-        
         if (this.listenersAttached) return;
         this.listenersAttached = true;
 
         this.socket.on('connect', () => { this.playerId = this.socket.id; });
 
         this.socket.on('roomUpdate', (data) => {
+            console.log("📥 Received Room Update:", data);
             this.roomCode = data.roomCode || this.roomCode;
             
-            // SYNC LOGIC: Check root level AND settings object to ensure we catch the data
+            // ROBUST SYNC: Check multiple locations for data
             if (data.mode) this.currentMode = data.mode;
             
-            if (data.wordCount) this.currentWordCount = parseInt(data.wordCount);
-            else if (data.settings && data.settings.wordCount) this.currentWordCount = parseInt(data.settings.wordCount);
+            // Word Count
+            if (data.settings && data.settings.wordCount) this.currentWordCount = parseInt(data.settings.wordCount);
+            else if (data.wordCount) this.currentWordCount = parseInt(data.wordCount);
 
-            if (typeof data.drinkingMode !== 'undefined') this.drinkingMode = data.drinkingMode;
-            else if (data.settings && typeof data.settings.drinkingMode !== 'undefined') this.drinkingMode = data.settings.drinkingMode;
+            // Drinking Mode
+            if (data.settings && typeof data.settings.drinkingMode !== 'undefined') this.drinkingMode = data.settings.drinkingMode;
+            else if (typeof data.drinkingMode !== 'undefined') this.drinkingMode = data.drinkingMode;
 
             this.players = data.players || [];
             
             // Host Determination
             this.isHost = (data.host === this.playerId);
+            // Fallback: If I am the first player, I am host
             if(this.players.length > 0 && this.players[0].id === this.playerId) this.isHost = true;
 
             document.getElementById('mpMenu')?.remove();
 
-            // Refresh the UI if we aren't playing yet
             if (!this.active) this.renderLobby(data);
         });
 
         this.socket.on('gameStarted', (data) => {
+            console.log("🚀 Game Started:", data);
             this.closeLobby();
             this.active = true;
             if (Game && Game.startMultiplayer) {
@@ -4485,11 +4487,11 @@ const RoomManager = {
         });
     },
 
-    // --- HOST ACTIONS (Send EVERYTHING to ensure sync) ---
+    // --- HOST ACTIONS ---
     
     emitUpdate() {
-        // We send the state in BOTH the root and settings object to handle any server-side quirks
-        this.socket.emit('updateRoom', { 
+        // Send data in both ROOT and SETTINGS object to ensure server passes it through
+        const payload = { 
             roomCode: this.roomCode, 
             mode: this.currentMode, 
             wordCount: this.currentWordCount,
@@ -4498,15 +4500,17 @@ const RoomManager = {
                 wordCount: this.currentWordCount,
                 drinkingMode: this.drinkingMode 
             } 
-        });
+        };
+        console.log("📤 Sending Update:", payload);
+        this.socket.emit('updateRoom', payload);
     },
 
     updateMode(newMode) {
         if (!this.isHost) return;
         this.currentMode = newMode;
         this.emitUpdate();
-        // Optimistic render for Host
-        this.renderLobby({ mode: newMode, settings: { wordCount: this.currentWordCount, drinkingMode: this.drinkingMode } });
+        // Optimistic Render
+        this.renderLobby({ mode: newMode });
     },
 
     updateWordCount(count) {
@@ -4523,7 +4527,6 @@ const RoomManager = {
 
     startGame() {
         if (!this.isHost) return;
-        // Explicitly send all settings to start the correct game type
         this.socket.emit('startGame', { 
             roomCode: this.roomCode,
             mode: this.currentMode,
@@ -4596,18 +4599,18 @@ const RoomManager = {
     renderLobby(data) {
         document.getElementById('lobbyModal')?.remove();
         
-        // Prioritize Server Data > Local Data
+        // Use local state if data arg is missing properties (merging strategy)
         const activeMode = data.mode || this.currentMode || 'coop';
         
         let activeWordCount = this.currentWordCount;
-        if (data.wordCount) activeWordCount = parseInt(data.wordCount);
-        else if (data.settings && data.settings.wordCount) activeWordCount = parseInt(data.settings.wordCount);
+        if (data.settings && data.settings.wordCount) activeWordCount = parseInt(data.settings.wordCount);
+        else if (data.wordCount) activeWordCount = parseInt(data.wordCount);
 
         let activeDrinking = this.drinkingMode;
-        if (typeof data.drinkingMode !== 'undefined') activeDrinking = data.drinkingMode;
-        else if (data.settings && typeof data.settings.drinkingMode !== 'undefined') activeDrinking = data.settings.drinkingMode;
+        if (data.settings && typeof data.settings.drinkingMode !== 'undefined') activeDrinking = data.settings.drinkingMode;
+        else if (typeof data.drinkingMode !== 'undefined') activeDrinking = data.drinkingMode;
 
-        // Sync local state
+        // Update local state to match what we are rendering
         this.currentMode = activeMode;
         this.currentWordCount = activeWordCount;
         this.drinkingMode = activeDrinking;
@@ -4725,7 +4728,6 @@ const RoomManager = {
 };
 
 const Game = {
-    // Standard Reset Helper
     resetGame() {
         State.runtime.currentWordIndex = 0;
         State.runtime.streak = 0;
@@ -4738,16 +4740,19 @@ const Game = {
     startMultiplayer(data) {
         RoomManager.closeLobby();
         State.runtime.isMultiplayer = true;
-        State.runtime.mpMode = data.mode;
+        
+        // 1. ROBUST LOAD: Check data in all potential locations
+        State.runtime.mpMode = data.mode || 'coop';
         State.runtime.mpRoom = data.roomCode;
         
-        // 1. CAPTURE DRINKING MODE
-        State.runtime.isDrinkingMode = data.settings && data.settings.drinkingMode;
+        // Check settings object first, then root level
+        State.runtime.isDrinkingMode = (data.settings && data.settings.drinkingMode) || data.drinkingMode || false;
+        const count = (data.settings && data.settings.wordCount) || data.wordCount || 10;
 
-        // 2. Visual Banner
+        // 2. Banner
         const banner = document.createElement('div');
         banner.className = 'fixed top-20 left-1/2 transform -translate-x-1/2 bg-indigo-600 text-white px-6 py-2 rounded-full shadow-lg z-50 font-bold animate-bounce flex items-center gap-2';
-        banner.innerHTML = `<span>🎮</span> ${RoomManager.modeConfig[data.mode]?.label || "Multiplayer"}`;
+        banner.innerHTML = `<span>🎮</span> ${RoomManager.modeConfig[State.runtime.mpMode]?.label || "Multiplayer"}`;
         document.body.appendChild(banner);
         setTimeout(() => banner.remove(), 4000);
 
@@ -4755,11 +4760,10 @@ const Game = {
             setTimeout(() => UIManager.showPostVoteMessage("🍺 DRINKING MODE ACTIVE!"), 1000);
         }
 
-        // 3. Reset Game State
+        // 3. Reset
         this.resetGame();
 
-        // 4. Load Words from Server
-        const count = data.settings?.wordCount || 10;
+        // 4. Load Words
         if (data.words && data.words.length > 0) {
             State.runtime.allWords = data.words.slice(0, count);
         } else {
@@ -4768,7 +4772,7 @@ const Game = {
         }
 
         // 5. Apply Mode Rules
-        switch (data.mode) {
+        switch (State.runtime.mpMode) {
             case 'survival':
                 State.runtime.lives = 3; 
                 alert("SURVIVAL MODE: You have 3 lives. Vote with the majority or lose a life!");
