@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.81.37', 
+    APP_VERSION: '5.81.38', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4387,10 +4387,13 @@ const RoomManager = {
     roomCode: '',
     playerId: null,
     isHost: false,
+    
+    // THE STATE (Single Source of Truth)
     currentMode: 'coop',
     currentWordCount: 10,
     drinkingMode: false,
     players: [],
+    
     listenersAttached: false,
     
     modeConfig: {
@@ -4405,8 +4408,7 @@ const RoomManager = {
     },
 
     init() {
-        window.RoomManager = this; // Expose for HTML clicks
-        
+        window.RoomManager = this;
         let btn = document.getElementById('roomBtn');
         if (btn) btn.remove(); 
         btn = document.createElement('button');
@@ -4450,47 +4452,45 @@ const RoomManager = {
 
         this.socket.on('connect', () => { this.playerId = this.socket.id; });
 
+        // --- DATA PARSING HAPPENS HERE ONLY ---
         this.socket.on('roomUpdate', (data) => {
-            console.log("📥 Received Room Update:", data);
+            console.log("📥 Syncing Room Data:", data);
+            
             this.roomCode = data.roomCode || this.roomCode;
             
-            // ROBUST SYNC: Check multiple locations for data
+            // 1. Parse Mode (Check Root -> Settings -> Ignore)
             if (data.mode) this.currentMode = data.mode;
             
-            // Word Count
-            if (data.settings && data.settings.wordCount) this.currentWordCount = parseInt(data.settings.wordCount);
-            else if (data.wordCount) this.currentWordCount = parseInt(data.wordCount);
+            // 2. Parse Word Count (Check Root -> Settings -> Ignore)
+            if (data.wordCount) this.currentWordCount = parseInt(data.wordCount);
+            else if (data.settings && data.settings.wordCount) this.currentWordCount = parseInt(data.settings.wordCount);
 
-            // Drinking Mode
-            if (data.settings && typeof data.settings.drinkingMode !== 'undefined') this.drinkingMode = data.settings.drinkingMode;
-            else if (typeof data.drinkingMode !== 'undefined') this.drinkingMode = data.drinkingMode;
+            // 3. Parse Drinking Mode (Check Root -> Settings -> Ignore)
+            if (typeof data.drinkingMode !== 'undefined') this.drinkingMode = data.drinkingMode;
+            else if (data.settings && typeof data.settings.drinkingMode !== 'undefined') this.drinkingMode = data.settings.drinkingMode;
 
+            // 4. Parse Players
             this.players = data.players || [];
             
-            // Host Determination
+            // 5. Check Host
             this.isHost = (data.host === this.playerId);
-            // Fallback: If I am the first player, I am host
             if(this.players.length > 0 && this.players[0].id === this.playerId) this.isHost = true;
 
             document.getElementById('mpMenu')?.remove();
 
-            if (!this.active) this.renderLobby(data);
+            if (!this.active) this.renderLobby(); // No arguments passed!
         });
 
         this.socket.on('gameStarted', (data) => {
-            console.log("🚀 Game Started:", data);
             this.closeLobby();
             this.active = true;
-            if (Game && Game.startMultiplayer) {
-                Game.startMultiplayer(data);
-            }
+            if (Game && Game.startMultiplayer) Game.startMultiplayer(data);
         });
     },
 
     // --- HOST ACTIONS ---
     
     emitUpdate() {
-        // Send data in both ROOT and SETTINGS object to ensure server passes it through
         const payload = { 
             roomCode: this.roomCode, 
             mode: this.currentMode, 
@@ -4501,27 +4501,26 @@ const RoomManager = {
                 drinkingMode: this.drinkingMode 
             } 
         };
-        console.log("📤 Sending Update:", payload);
         this.socket.emit('updateRoom', payload);
     },
 
     updateMode(newMode) {
         if (!this.isHost) return;
-        this.currentMode = newMode;
-        this.emitUpdate();
-        // Optimistic Render
-        this.renderLobby({ mode: newMode });
+        this.currentMode = newMode; // Update State
+        this.renderLobby();         // Update UI
+        this.emitUpdate();          // Tell Server
     },
 
     updateWordCount(count) {
         if (!this.isHost) return;
         this.currentWordCount = parseInt(count);
-        this.emitUpdate();
+        this.emitUpdate();          // Tell Server (No render needed for slider input)
     },
 
     toggleDrinking(isChecked) {
         if (!this.isHost) return;
         this.drinkingMode = isChecked;
+        this.renderLobby();
         this.emitUpdate();
     },
 
@@ -4537,86 +4536,18 @@ const RoomManager = {
         });
     },
 
-    // --- UI RENDERING ---
+    // --- VIEW RENDERING (Reads strictly from 'this') ---
 
-    openMenu() {
-        const existing = document.getElementById('mpMenu');
-        if (existing) existing.remove();
-        const currentName = State.data.username || '';
-        const html = `
-        <div id="mpMenu" class="fixed inset-0 bg-black/80 z-[9999] flex items-center justify-center backdrop-blur-sm p-4">
-            <div class="bg-white p-6 rounded-2xl shadow-2xl text-center max-w-sm w-full animate-pop relative">
-                <button onclick="document.getElementById('mpMenu').remove()" class="absolute top-3 right-4 text-gray-400 text-xl">&times;</button>
-                <h2 class="text-3xl font-black mb-2 text-gray-800">MULTIPLAYER</h2>
-                <div class="flex flex-col gap-3 mt-4">
-                    <label class="text-xs font-bold text-gray-400 uppercase text-left">Your Name</label>
-                    <input type="text" id="menuUsernameInput" placeholder="NAME" value="${currentName}" class="w-full p-3 border-2 border-gray-200 rounded-xl font-bold text-center mb-2">
-                    <label class="text-xs font-bold text-gray-400 uppercase text-left">Room Code</label>
-                    <input type="text" id="menuRoomCodeInput" placeholder="ENTER CODE" class="w-full p-4 border-2 border-gray-300 rounded-xl font-mono text-center text-2xl uppercase focus:border-indigo-500 outline-none" maxlength="10">
-                    <button onclick="RoomManager.submitEntry()" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 shadow-lg mt-2">JOIN / CREATE</button>
-                </div>
-            </div>
-        </div>`;
-        document.body.insertAdjacentHTML('beforeend', html);
-        setTimeout(() => document.getElementById('menuRoomCodeInput')?.focus(), 100);
-    },
-
-    submitEntry() {
-        const codeInput = document.getElementById('menuRoomCodeInput');
-        const nameInput = document.getElementById('menuUsernameInput');
-        if (!codeInput) return;
-        const code = codeInput.value.trim().toUpperCase();
-        const nameToUse = nameInput ? nameInput.value.trim() : '';
-
-        if (nameToUse) {
-            State.save('username', nameToUse); 
-            if(DOM.inputs.username) DOM.inputs.username.value = nameToUse;
-        }
-        if (code.length > 0) this.attemptJoinOrCreate(code, nameToUse);
-    },
-
-    attemptJoinOrCreate(code, nameOverride = null) {
-        const user = nameOverride || this.getUsername();
-        this.roomCode = code; 
-        this.socket.emit('joinRoom', { roomCode: code, username: user }, (res) => {
-            if (!res || !res.success) {
-                this.socket.emit('createRoom', { roomCode: code, username: user }, (cRes) => {
-                    if (cRes && cRes.success) {
-                        this.isHost = true;
-                        this.renderLobby({ 
-                            roomCode: code, 
-                            players: [{username: user, host:true, id: this.playerId}], 
-                            mode: 'coop', 
-                            wordCount: 10,
-                            drinkingMode: false
-                        });
-                    }
-                });
-            }
-        });
-    },
-
-    renderLobby(data) {
+    renderLobby() {
         document.getElementById('lobbyModal')?.remove();
         
-        // Use local state if data arg is missing properties (merging strategy)
-        const activeMode = data.mode || this.currentMode || 'coop';
+        // READ STATE
+        const activeMode = this.currentMode;
+        const activeWordCount = this.currentWordCount;
+        const activeDrinking = this.drinkingMode;
+        const safeCode = this.roomCode || '...';
+        const playersList = this.players || [];
         
-        let activeWordCount = this.currentWordCount;
-        if (data.settings && data.settings.wordCount) activeWordCount = parseInt(data.settings.wordCount);
-        else if (data.wordCount) activeWordCount = parseInt(data.wordCount);
-
-        let activeDrinking = this.drinkingMode;
-        if (data.settings && typeof data.settings.drinkingMode !== 'undefined') activeDrinking = data.settings.drinkingMode;
-        else if (typeof data.drinkingMode !== 'undefined') activeDrinking = data.drinkingMode;
-
-        // Update local state to match what we are rendering
-        this.currentMode = activeMode;
-        this.currentWordCount = activeWordCount;
-        this.drinkingMode = activeDrinking;
-
-        const safeCode = data.roomCode || this.roomCode || '...';
-        const playersList = data.players || this.players || [];
         const joinUrl = `${window.location.origin}?room=${safeCode}`;
         const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(joinUrl)}`;
 
@@ -4722,6 +4653,60 @@ const RoomManager = {
             </div>
         </div>`;
         document.body.insertAdjacentHTML('beforeend', html);
+    },
+
+    // --- CONNECTIVITY HELPERS ---
+    
+    openMenu() {
+        const existing = document.getElementById('mpMenu');
+        if (existing) existing.remove();
+        const currentName = State.data.username || '';
+        const html = `
+        <div id="mpMenu" class="fixed inset-0 bg-black/80 z-[9999] flex items-center justify-center backdrop-blur-sm p-4">
+            <div class="bg-white p-6 rounded-2xl shadow-2xl text-center max-w-sm w-full animate-pop relative">
+                <button onclick="document.getElementById('mpMenu').remove()" class="absolute top-3 right-4 text-gray-400 text-xl">&times;</button>
+                <h2 class="text-3xl font-black mb-2 text-gray-800">MULTIPLAYER</h2>
+                <div class="flex flex-col gap-3 mt-4">
+                    <label class="text-xs font-bold text-gray-400 uppercase text-left">Your Name</label>
+                    <input type="text" id="menuUsernameInput" placeholder="NAME" value="${currentName}" class="w-full p-3 border-2 border-gray-200 rounded-xl font-bold text-center mb-2">
+                    <label class="text-xs font-bold text-gray-400 uppercase text-left">Room Code</label>
+                    <input type="text" id="menuRoomCodeInput" placeholder="ENTER CODE" class="w-full p-4 border-2 border-gray-300 rounded-xl font-mono text-center text-2xl uppercase focus:border-indigo-500 outline-none" maxlength="10">
+                    <button onclick="RoomManager.submitEntry()" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 shadow-lg mt-2">JOIN / CREATE</button>
+                </div>
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
+        setTimeout(() => document.getElementById('menuRoomCodeInput')?.focus(), 100);
+    },
+
+    submitEntry() {
+        const codeInput = document.getElementById('menuRoomCodeInput');
+        const nameInput = document.getElementById('menuUsernameInput');
+        if (!codeInput) return;
+        const code = codeInput.value.trim().toUpperCase();
+        const nameToUse = nameInput ? nameInput.value.trim() : '';
+
+        if (nameToUse) {
+            State.save('username', nameToUse); 
+            if(DOM.inputs.username) DOM.inputs.username.value = nameToUse;
+        }
+        if (code.length > 0) this.attemptJoinOrCreate(code, nameToUse);
+    },
+
+    attemptJoinOrCreate(code, nameOverride = null) {
+        const user = nameOverride || this.getUsername();
+        this.roomCode = code; 
+        this.socket.emit('joinRoom', { roomCode: code, username: user }, (res) => {
+            if (!res || !res.success) {
+                this.socket.emit('createRoom', { roomCode: code, username: user }, (cRes) => {
+                    if (cRes && cRes.success) {
+                        this.isHost = true;
+                        // Use default local state for initial render
+                        this.renderLobby();
+                    }
+                });
+            }
+        });
     },
 
     closeLobby() { document.getElementById('lobbyModal')?.remove(); document.getElementById('mpMenu')?.remove(); }
