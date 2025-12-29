@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.81.32', 
+    APP_VERSION: '5.81.33', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4382,315 +4382,333 @@ const SeededShuffle = {
 };
 
 const RoomManager = {
-        socket: null,
-        active: false,
-        roomCode: '',
-        playerId: null,
-        isHost: false,
-        currentMode: 'coop',
-        currentWordCount: 10,
-        players: [],
-        listenersAttached: false,
+    socket: null,
+    active: false,
+    roomCode: '',
+    playerId: null,
+    isHost: false,
+    currentMode: 'coop',
+    currentWordCount: 10,
+    drinkingMode: false, // NEW: Track Drinking Mode state
+    players: [],
+    listenersAttached: false,
+    
+    modeConfig: {
+        'coop': { label: '🤝 Co-op Sync', desc: 'Vote together! Match with the Global Majority.', min: 1 }, 
+        'okstoopid': { label: '💘 OK Stoopid', desc: 'Couples Mode. Match each other!', min: 2, max: 2 },
+        'versus': { label: '⚔️ Team Versus', desc: 'Red vs Blue. Best Team wins.', min: 2 }, 
+        'hipster': { label: '🕶️ The Hipster', desc: 'Minority Rules. Be unique!', min: 3 },
+        'speed': { label: '⏱️ Speed Demon', desc: 'Vote fast! Speed and accuracy wins.', min: 1 },
+        'survival': { label: '💣 Sudden Death', desc: 'Three Lives. Vote with majority, or die.', min: 3 },
+        'traitor': { label: '🕵️ The Traitor', desc: 'One Traitor tries to ruin everything!', min: 3 },
+        'kids': { label: '👶 Kids Mode', desc: 'Simple words. Family friendly!', min: 1 }
+    },
+
+    init() {
+        window.RoomManager = this;
+        let btn = document.getElementById('roomBtn');
+        if (btn) btn.remove(); 
+        btn = document.createElement('button');
+        btn.id = 'roomBtn';
+        btn.className = 'fixed top-3 left-3 z-[60] p-3 bg-white rounded-full shadow-lg hover:bg-gray-50 transition transform hover:scale-110 border-2 border-indigo-100';
+        btn.innerHTML = `<span class="text-2xl">📡</span>`;
+        btn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); this.openMenu(); };
+        document.body.appendChild(btn);
+
+        if (!window.io) {
+            const sc = document.createElement('script');
+            sc.src = "/socket.io/socket.io.js";
+            sc.onload = () => this.connect();
+            document.head.appendChild(sc);
+        } else {
+            this.connect();
+        }
+
+        const params = new URLSearchParams(window.location.search);
+        const urlRoom = params.get('room');
+        if (urlRoom) {
+            setTimeout(() => { this.attemptJoinOrCreate(urlRoom.trim().toUpperCase()); }, 500);
+        }
+    },
+
+    getUsername() {
+        if (DOM.inputs && DOM.inputs.username && DOM.inputs.username.value) return DOM.inputs.username.value.trim();
+        if (State.data.username && State.data.username !== 'Unknown') return State.data.username;
+        const lsName = localStorage.getItem('username');
+        if (lsName) return lsName;
+        return `Guest_${Math.floor(Math.random()*1000)}`;
+    },
+
+    connect() {
+        if (typeof io === 'undefined') return;
+        if (!this.socket) this.socket = io({ transports: ['websocket'], upgrade: false });
         
-        modeConfig: {
-            'coop': { label: '🤝 Co-op Sync', desc: 'Vote together! Match with the Global Majority.', min: 1 }, 
-            'okstoopid': { label: '💘 OK Stoopid', desc: 'Couples Mode. Match each other!', min: 2, max: 2 },
-            'versus': { label: '⚔️ Team Versus', desc: 'Red vs Blue. Best Team wins.', min: 2 }, 
-            'hipster': { label: '🕶️ The Hipster', desc: 'Minority Rules. Be unique!', min: 3 },
-            'speed': { label: '⏱️ Speed Demon', desc: 'Vote fast! Speed and accuracy wins.', min: 1 },
-            'survival': { label: '💣 Sudden Death', desc: 'Three Lives. Vote with majority, or die.', min: 3 },
-            'traitor': { label: '🕵️ The Traitor', desc: 'One Traitor tries to ruin everything!', min: 3 },
-            'kids': { label: '👶 Kids Mode', desc: 'Simple words. Family friendly!', min: 1 }
-        },
+        if (this.socket.connected) this.playerId = this.socket.id;
+        
+        if (this.listenersAttached) return;
+        this.listenersAttached = true;
 
-        init() {
-            window.RoomManager = this;
-            let btn = document.getElementById('roomBtn');
-            if (btn) btn.remove(); 
-            btn = document.createElement('button');
-            btn.id = 'roomBtn';
-            btn.className = 'fixed top-3 left-3 z-[60] p-3 bg-white rounded-full shadow-lg hover:bg-gray-50 transition transform hover:scale-110 border-2 border-indigo-100';
-            btn.innerHTML = `<span class="text-2xl">📡</span>`;
-            btn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); this.openMenu(); };
-            document.body.appendChild(btn);
+        this.socket.on('connect', () => { this.playerId = this.socket.id; });
 
-            if (!window.io) {
-                const sc = document.createElement('script');
-                sc.src = "/socket.io/socket.io.js";
-                sc.onload = () => this.connect();
-                document.head.appendChild(sc);
-            } else {
-                this.connect();
+        this.socket.on('roomUpdate', (data) => {
+            this.roomCode = data.roomCode || this.roomCode;
+            
+            // RELAY: Sync all settings from server
+            if (data.mode) this.currentMode = data.mode;
+            
+            if (data.settings) {
+                if (data.settings.wordCount) this.currentWordCount = parseInt(data.settings.wordCount);
+                // Sync Drinking Mode
+                if (typeof data.settings.drinkingMode !== 'undefined') this.drinkingMode = data.settings.drinkingMode;
             }
 
-            const params = new URLSearchParams(window.location.search);
-            const urlRoom = params.get('room');
-            if (urlRoom) {
-                setTimeout(() => { this.attemptJoinOrCreate(urlRoom.trim().toUpperCase()); }, 500);
+            this.players = data.players || [];
+            
+            this.isHost = (data.host === this.playerId);
+            if(this.players.length > 0 && this.players[0].id === this.playerId) this.isHost = true;
+
+            document.getElementById('mpMenu')?.remove();
+
+            if (!this.active) this.renderLobby(data);
+        });
+
+        this.socket.on('gameStarted', (data) => {
+            this.closeLobby();
+            this.active = true;
+            if (Game && Game.startMultiplayer) {
+                Game.startMultiplayer(data);
             }
-        },
+        });
+    },
 
-        getUsername() {
-            if (DOM.inputs && DOM.inputs.username && DOM.inputs.username.value) return DOM.inputs.username.value.trim();
-            if (State.data.username && State.data.username !== 'Unknown') return State.data.username;
-            const lsName = localStorage.getItem('username');
-            if (lsName) return lsName;
-            return `Guest_${Math.floor(Math.random()*1000)}`;
-        },
-
-      connect() {
-            if (typeof io === 'undefined') return;
-            if (!this.socket) this.socket = io({ transports: ['websocket'], upgrade: false });
-            
-            // FIX: Ensure playerId is set even if we reconnect or are already connected
-            if (this.socket.connected) this.playerId = this.socket.id;
-            
-            if (this.listenersAttached) return;
-            this.listenersAttached = true;
-
-            this.socket.on('connect', () => { this.playerId = this.socket.id; });
-
-            this.socket.on('roomUpdate', (data) => {
-                this.roomCode = data.roomCode || this.roomCode;
-                
-                if (data.mode) this.currentMode = data.mode;
-                if (data.settings && data.settings.wordCount) this.currentWordCount = parseInt(data.settings.wordCount);
-                else if (data.wordCount) this.currentWordCount = parseInt(data.wordCount);
-
-                this.players = data.players || [];
-                
-                // Host logic
-                this.isHost = (data.host === this.playerId);
-                if(this.players.length > 0 && this.players[0].id === this.playerId) this.isHost = true;
-
-                document.getElementById('mpMenu')?.remove();
-
-                // Only render if we aren't already playing
-                if (!this.active) this.renderLobby(data);
-            });
-
-            this.socket.on('gameStarted', (data) => {
-                this.closeLobby();
-                this.active = true;
-                if (Game && Game.startMultiplayer) {
-                    Game.startMultiplayer(data);
-                }
-            });
-        },
-
-        openMenu() {
-            const existing = document.getElementById('mpMenu');
-            if (existing) existing.remove();
-            const currentName = State.data.username || '';
-            const html = `
-            <div id="mpMenu" class="fixed inset-0 bg-black/80 z-[9999] flex items-center justify-center backdrop-blur-sm p-4">
-                <div class="bg-white p-6 rounded-2xl shadow-2xl text-center max-w-sm w-full animate-pop relative">
-                    <button onclick="document.getElementById('mpMenu').remove()" class="absolute top-3 right-4 text-gray-400 text-xl">&times;</button>
-                    <h2 class="text-3xl font-black mb-2 text-gray-800">MULTIPLAYER</h2>
-                    <div class="flex flex-col gap-3 mt-4">
-                        <label class="text-xs font-bold text-gray-400 uppercase text-left">Your Name</label>
-                        <input type="text" id="menuUsernameInput" placeholder="NAME" value="${currentName}" class="w-full p-3 border-2 border-gray-200 rounded-xl font-bold text-center mb-2">
-                        <label class="text-xs font-bold text-gray-400 uppercase text-left">Room Code</label>
-                        <input type="text" id="menuRoomCodeInput" placeholder="ENTER CODE" class="w-full p-4 border-2 border-gray-300 rounded-xl font-mono text-center text-2xl uppercase focus:border-indigo-500 outline-none" maxlength="10">
-                        <button onclick="RoomManager.submitEntry()" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 shadow-lg mt-2">JOIN / CREATE</button>
-                    </div>
+    openMenu() {
+        const existing = document.getElementById('mpMenu');
+        if (existing) existing.remove();
+        const currentName = State.data.username || '';
+        const html = `
+        <div id="mpMenu" class="fixed inset-0 bg-black/80 z-[9999] flex items-center justify-center backdrop-blur-sm p-4">
+            <div class="bg-white p-6 rounded-2xl shadow-2xl text-center max-w-sm w-full animate-pop relative">
+                <button onclick="document.getElementById('mpMenu').remove()" class="absolute top-3 right-4 text-gray-400 text-xl">&times;</button>
+                <h2 class="text-3xl font-black mb-2 text-gray-800">MULTIPLAYER</h2>
+                <div class="flex flex-col gap-3 mt-4">
+                    <label class="text-xs font-bold text-gray-400 uppercase text-left">Your Name</label>
+                    <input type="text" id="menuUsernameInput" placeholder="NAME" value="${currentName}" class="w-full p-3 border-2 border-gray-200 rounded-xl font-bold text-center mb-2">
+                    <label class="text-xs font-bold text-gray-400 uppercase text-left">Room Code</label>
+                    <input type="text" id="menuRoomCodeInput" placeholder="ENTER CODE" class="w-full p-4 border-2 border-gray-300 rounded-xl font-mono text-center text-2xl uppercase focus:border-indigo-500 outline-none" maxlength="10">
+                    <button onclick="RoomManager.submitEntry()" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 shadow-lg mt-2">JOIN / CREATE</button>
                 </div>
-            </div>`;
-            document.body.insertAdjacentHTML('beforeend', html);
-            setTimeout(() => document.getElementById('menuRoomCodeInput')?.focus(), 100);
-        },
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
+        setTimeout(() => document.getElementById('menuRoomCodeInput')?.focus(), 100);
+    },
 
-submitEntry() {
-            const codeInput = document.getElementById('menuRoomCodeInput');
-            const nameInput = document.getElementById('menuUsernameInput');
-            
-            if (!codeInput) return;
-            const code = codeInput.value.trim().toUpperCase();
-            
-            // 1. Get the name directly from the input user just typed
-            const nameToUse = nameInput ? nameInput.value.trim() : '';
+    submitEntry() {
+        const codeInput = document.getElementById('menuRoomCodeInput');
+        const nameInput = document.getElementById('menuUsernameInput');
+        
+        if (!codeInput) return;
+        const code = codeInput.value.trim().toUpperCase();
+        const nameToUse = nameInput ? nameInput.value.trim() : '';
 
-            // 2. Save it (standard logic)
-            if (nameToUse) {
-                State.save('username', nameToUse); 
-                if(DOM.inputs.username) DOM.inputs.username.value = nameToUse;
-            }
+        if (nameToUse) {
+            State.save('username', nameToUse); 
+            if(DOM.inputs.username) DOM.inputs.username.value = nameToUse;
+        }
 
-            // 3. Pass the specific name to the join function
-            if (code.length > 0) this.attemptJoinOrCreate(code, nameToUse);
-        },
+        if (code.length > 0) this.attemptJoinOrCreate(code, nameToUse);
+    },
 
-// Add 'nameOverride' argument
-        attemptJoinOrCreate(code, nameOverride = null) {
-            // Use the passed name if it exists; otherwise fallback to the old getter
-            const user = nameOverride || this.getUsername();
-            
-            this.roomCode = code; 
+    attemptJoinOrCreate(code, nameOverride = null) {
+        const user = nameOverride || this.getUsername();
+        this.roomCode = code; 
 
-            this.socket.emit('joinRoom', { roomCode: code, username: user }, (res) => {
-                if (!res || !res.success) {
-                    this.socket.emit('createRoom', { roomCode: code, username: user }, (cRes) => {
-                        if (cRes && cRes.success) {
-                            this.isHost = true;
-                            // Ensure the lobby renders with the correct user immediately
-                            this.renderLobby({ 
-                                roomCode: code, 
-                                players: [{username: user, host:true, id: this.playerId}], 
-                                mode: 'coop', 
-                                wordCount: 10 
-                            });
-                        }
-                    });
-                }
-            });
-        },
-
-// ADD THESE TWO FUNCTIONS TO ENABLE HOST CONTROLS
-        updateMode(newMode) {
-            if (!this.isHost) return;
-            this.currentMode = newMode;
-            // Emit to server so others see the change
-            this.socket.emit('updateRoom', { 
-                roomCode: this.roomCode, 
-                mode: newMode, 
-                settings: { wordCount: this.currentWordCount } 
-            });
-        },
-
-        updateWordCount(count) {
-            if (!this.isHost) return;
-            this.currentWordCount = parseInt(count);
-            // Emit to server so others see the slider move
-            this.socket.emit('updateRoom', { 
-                roomCode: this.roomCode, 
-                mode: this.currentMode, 
-                settings: { wordCount: this.currentWordCount } 
-            });
-        },
-
-        startGame() {
-            if (!this.isHost) return;
-            // FIX 2: Explicitly send Mode and Word Count
-            // This ensures the server knows exactly what game to load
-            this.socket.emit('startGame', { 
-                roomCode: this.roomCode,
-                mode: this.currentMode,
-                settings: { wordCount: this.currentWordCount } 
-            });
-        },
-
- renderLobby(data) {
-            document.getElementById('lobbyModal')?.remove();
-            
-            // 1. REAL-TIME SYNC: Use Server Data if available
-            const activeMode = data.mode || this.currentMode || 'coop';
-            const activeWordCount = (data.settings && data.settings.wordCount) 
-                ? parseInt(data.settings.wordCount) 
-                : (this.currentWordCount || 10);
-            
-            // Update local state to match server
-            this.currentMode = activeMode;
-            this.currentWordCount = activeWordCount;
-
-            const safeCode = data.roomCode || this.roomCode || '...';
-            const playersList = data.players || this.players || [];
-            const joinUrl = `${window.location.origin}?room=${safeCode}`;
-            const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(joinUrl)}`;
-
-            const playersHtml = playersList.map(p => {
-                // 2. USERNAME FIX: Preserve your fix for the "Me" player
-                let displayName = p.username || 'Guest';
-                if (p.id === this.playerId) {
-                    if (!p.username || p.username === 'Guest' || p.username.startsWith('Guest_')) {
-                        displayName = State.data.username || localStorage.getItem('username') || displayName;
+        this.socket.emit('joinRoom', { roomCode: code, username: user }, (res) => {
+            if (!res || !res.success) {
+                this.socket.emit('createRoom', { roomCode: code, username: user }, (cRes) => {
+                    if (cRes && cRes.success) {
+                        this.isHost = true;
+                        this.renderLobby({ 
+                            roomCode: code, 
+                            players: [{username: user, host:true, id: this.playerId}], 
+                            mode: 'coop', 
+                            wordCount: 10,
+                            settings: { drinkingMode: false }
+                        });
                     }
+                });
+            }
+        });
+    },
+
+    // --- HOST CONTROLS ---
+    
+    updateMode(newMode) {
+        if (!this.isHost) return;
+        this.currentMode = newMode;
+        this.emitUpdate();
+    },
+
+    updateWordCount(count) {
+        if (!this.isHost) return;
+        this.currentWordCount = parseInt(count);
+        this.emitUpdate();
+    },
+
+    toggleDrinking(isChecked) {
+        if (!this.isHost) return;
+        this.drinkingMode = isChecked;
+        this.emitUpdate();
+    },
+
+    emitUpdate() {
+        this.socket.emit('updateRoom', { 
+            roomCode: this.roomCode, 
+            mode: this.currentMode, 
+            settings: { 
+                wordCount: this.currentWordCount,
+                drinkingMode: this.drinkingMode 
+            } 
+        });
+    },
+
+    startGame() {
+        if (!this.isHost) return;
+        this.socket.emit('startGame', { 
+            roomCode: this.roomCode,
+            mode: this.currentMode,
+            settings: { 
+                wordCount: this.currentWordCount,
+                drinkingMode: this.drinkingMode 
+            } 
+        });
+    },
+
+    renderLobby(data) {
+        document.getElementById('lobbyModal')?.remove();
+        
+        // 1. SYNC DATA
+        const activeMode = data.mode || this.currentMode || 'coop';
+        const activeWordCount = (data.settings && data.settings.wordCount) ? parseInt(data.settings.wordCount) : (this.currentWordCount || 10);
+        const activeDrinking = (data.settings && typeof data.settings.drinkingMode !== 'undefined') ? data.settings.drinkingMode : this.drinkingMode;
+
+        this.currentMode = activeMode;
+        this.currentWordCount = activeWordCount;
+        this.drinkingMode = activeDrinking;
+
+        const safeCode = data.roomCode || this.roomCode || '...';
+        const playersList = data.players || this.players || [];
+        const joinUrl = `${window.location.origin}?room=${safeCode}`;
+        const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(joinUrl)}`;
+
+        const playersHtml = playersList.map(p => {
+            let displayName = p.username || 'Guest';
+            if (p.id === this.playerId) {
+                if (!p.username || p.username === 'Guest' || p.username.startsWith('Guest_')) {
+                    displayName = State.data.username || localStorage.getItem('username') || displayName;
                 }
-
-                return `<div class="flex items-center space-x-3 bg-white border border-gray-100 p-3 rounded-lg mb-2 shadow-sm">
-                    <div class="w-3 h-3 rounded-full ${p.ready !== false ? 'bg-green-500' : 'bg-gray-300'}"></div>
-                    <span class="font-bold text-gray-700 truncate flex-1">${displayName}</span>
-                    ${p.host ? '<span class="text-xs bg-indigo-100 text-indigo-700 px-2 rounded-full">HOST</span>' : ''}
-                </div>`;
-            }).join('');
-
-            let modesHtml = '';
-            Object.entries(this.modeConfig).forEach(([key, conf]) => {
-                const isSelected = (activeMode === key);
-                // Guests only see the active mode
-                if (!this.isHost && !isSelected) return;
-
-                const clickAttr = this.isHost ? `onclick="window.RoomManager.updateMode('${key}')"` : '';
-                let styleClass = isSelected 
-                    ? 'bg-indigo-50 border-indigo-500 ring-2 ring-indigo-200 shadow-md transform scale-[1.02]' 
-                    : 'bg-white border-gray-200 hover:bg-gray-50 cursor-pointer';
-
-                modesHtml += `
-                    <div ${clickAttr} class="flex flex-col p-3 rounded-xl border transition-all duration-200 ${styleClass} min-h-[80px]">
-                        <div class="flex justify-between items-center mb-1">
-                            <span class="font-bold text-sm ${isSelected ? 'text-indigo-700' : 'text-gray-700'}">${conf.label}</span>
-                            ${isSelected ? '✅' : ''}
-                        </div>
-                        <span class="text-xs text-gray-500 leading-tight">${conf.desc}</span>
-                    </div>`;
-            });
-
-            const sliderDisabled = !this.isHost ? 'disabled' : '';
-            const sliderOpacity = !this.isHost ? 'opacity-70' : '';
-
-            // 3. MOBILE FIX: h-full and overflow-hidden to prevent cut-off
-            const html = `
-            <div id="lobbyModal" class="fixed inset-0 bg-gray-900 z-[9999] flex flex-col md:flex-row font-sans h-full">
-                <div class="w-full md:w-1/3 bg-white p-4 md:p-6 flex flex-col border-b md:border-b-0 md:border-r border-gray-200 z-10 shadow-md md:shadow-none shrink-0 md:h-full max-h-[35%] md:max-h-full overflow-hidden">
-                    <div class="flex justify-between md:block items-center mb-2 md:mb-6">
-                        <div class="text-left md:text-center">
-                            <div class="text-xs text-gray-400 font-bold">ROOM CODE</div>
-                            <div class="text-4xl md:text-6xl font-black text-indigo-600 font-mono tracking-widest">${safeCode}</div>
-                        </div>
-                        <img src="${qrSrc}" class="rounded-lg w-16 h-16 md:w-32 md:h-32 border shadow-inner ml-4 md:ml-0 md:mx-auto">
-                    </div>
-                    <div class="text-xs font-bold text-gray-400 uppercase mb-2">Players</div>
-                    <div class="flex-grow overflow-y-auto custom-scrollbar p-1 border rounded-lg md:border-0">${playersHtml}</div>
-                    <button onclick="location.reload()" class="mt-2 md:mt-4 w-full py-2 md:py-3 text-red-500 font-bold bg-red-50 hover:bg-red-100 rounded-xl transition text-sm">Leave</button>
-                </div>
-                
-                <div class="w-full md:w-2/3 bg-gray-50 p-4 md:p-6 flex flex-col relative h-full overflow-hidden">
-                    <h2 class="text-xl md:text-2xl font-black text-gray-800 mb-2 md:mb-4 shrink-0">Game Settings</h2>
-                    
-                    <div class="bg-white p-3 md:p-4 rounded-xl shadow-sm border border-gray-200 mb-3 md:mb-6 ${sliderOpacity} shrink-0">
-                        <div class="flex justify-between items-center mb-2">
-                            <label class="font-bold text-sm md:text-base text-gray-700">Words per Round</label>
-                            <span id="lobbyWordCountDisplay" class="font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-lg text-sm">${activeWordCount} Words</span>
-                        </div>
-                        <input type="range" min="5" max="50" step="5" value="${activeWordCount}" ${sliderDisabled}
-                            oninput="document.getElementById('lobbyWordCountDisplay').innerText = this.value + ' Words'; window.RoomManager.updateWordCount(this.value)"
-                            class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
-                    </div>
-
-                    <div class="font-bold text-gray-700 mb-2 text-sm md:text-base shrink-0">${this.isHost ? 'Select Mode' : 'Current Mode'}</div>
-                    
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3 overflow-y-auto custom-scrollbar flex-1 pb-24 min-h-0">
-                        ${modesHtml}
-                    </div>
-
-                    <div class="absolute bottom-0 left-0 right-0 p-4 md:p-6 bg-white border-t flex items-center justify-between shadow-[0_-5px_15px_rgba(0,0,0,0.05)] z-20 shrink-0">
-                        <div class="text-xs md:text-sm text-gray-500 hidden sm:block">
-                            ${this.isHost ? 'You are the Host.' : 'Waiting for Host...'}
-                        </div>
-                        ${this.isHost ? 
-                            `<button onclick="window.RoomManager.startGame()" class="w-full sm:w-auto px-6 py-3 md:px-8 md:py-4 bg-green-500 hover:bg-green-600 text-white text-lg md:text-xl font-black rounded-xl shadow-lg transform transition active:scale-95 flex items-center justify-center gap-2"><span>START GAME</span> 🚀</button>` : 
-                            `<div class="w-full sm:w-auto px-6 py-3 md:px-8 md:py-4 bg-gray-100 text-gray-400 text-lg md:text-xl font-bold rounded-xl border border-gray-200 flex items-center justify-center gap-2 cursor-not-allowed"><span>WAITING...</span> ⏳</div>`
-                        }
-                    </div>
-                </div>
+            }
+            return `<div class="flex items-center space-x-3 bg-white border border-gray-100 p-3 rounded-lg mb-2 shadow-sm">
+                <div class="w-3 h-3 rounded-full ${p.ready !== false ? 'bg-green-500' : 'bg-gray-300'}"></div>
+                <span class="font-bold text-gray-700 truncate flex-1">${displayName}</span>
+                ${p.host ? '<span class="text-xs bg-indigo-100 text-indigo-700 px-2 rounded-full">HOST</span>' : ''}
             </div>`;
-            document.body.insertAdjacentHTML('beforeend', html);
-        },
+        }).join('');
 
-        closeLobby() { document.getElementById('lobbyModal')?.remove(); document.getElementById('mpMenu')?.remove(); }
-    };
+        let modesHtml = '';
+        Object.entries(this.modeConfig).forEach(([key, conf]) => {
+            const isSelected = (activeMode === key);
+            if (!this.isHost && !isSelected) return; // Guests see only selected
+
+            const clickAttr = this.isHost ? `onclick="window.RoomManager.updateMode('${key}')"` : '';
+            let styleClass = isSelected 
+                ? 'bg-indigo-50 border-indigo-500 ring-2 ring-indigo-200 shadow-md transform scale-[1.02]' 
+                : 'bg-white border-gray-200 hover:bg-gray-50 cursor-pointer';
+
+            modesHtml += `
+                <div ${clickAttr} class="flex flex-col p-3 rounded-xl border transition-all duration-200 ${styleClass} min-h-[80px]">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="font-bold text-sm ${isSelected ? 'text-indigo-700' : 'text-gray-700'}">${conf.label}</span>
+                        ${isSelected ? '✅' : ''}
+                    </div>
+                    <span class="text-xs text-gray-500 leading-tight">${conf.desc}</span>
+                </div>`;
+        });
+
+        const sliderDisabled = !this.isHost ? 'disabled' : '';
+        const sliderOpacity = !this.isHost ? 'opacity-70' : '';
+
+        // Drinking Mode UI
+        let drinkingHtml = '';
+        if (this.isHost) {
+            drinkingHtml = `
+                <div class="flex items-center justify-between bg-yellow-50 p-3 rounded-xl border border-yellow-200 mt-2">
+                    <label class="text-sm font-bold text-yellow-800 flex items-center gap-2"><span>🍺</span> Drinking Mode</label>
+                    <input type="checkbox" onchange="window.RoomManager.toggleDrinking(this.checked)" ${activeDrinking ? 'checked' : ''} class="w-5 h-5 text-yellow-600 rounded focus:ring-yellow-500 cursor-pointer">
+                </div>
+            `;
+        } else if (activeDrinking) {
+            drinkingHtml = `
+                <div class="flex items-center justify-center gap-2 bg-yellow-100 p-2 rounded-xl border border-yellow-300 mt-2 text-yellow-800 font-bold text-sm">
+                    <span>🍺</span> DRINKING MODE ACTIVE
+                </div>
+            `;
+        }
+
+        const html = `
+        <div id="lobbyModal" class="fixed inset-0 bg-gray-900 z-[9999] flex flex-col md:flex-row font-sans h-full">
+            <div class="w-full md:w-1/3 bg-white p-4 md:p-6 flex flex-col border-b md:border-b-0 md:border-r border-gray-200 z-10 shadow-md md:shadow-none shrink-0 md:h-full max-h-[35%] md:max-h-full overflow-hidden">
+                <div class="flex justify-between md:block items-center mb-2 md:mb-6">
+                    <div class="text-left md:text-center">
+                        <div class="text-xs text-gray-400 font-bold">ROOM CODE</div>
+                        <div class="text-4xl md:text-6xl font-black text-indigo-600 font-mono tracking-widest">${safeCode}</div>
+                    </div>
+                    <img src="${qrSrc}" class="rounded-lg w-16 h-16 md:w-32 md:h-32 border shadow-inner ml-4 md:ml-0 md:mx-auto">
+                </div>
+                <div class="text-xs font-bold text-gray-400 uppercase mb-2">Players</div>
+                <div class="flex-grow overflow-y-auto custom-scrollbar p-1 border rounded-lg md:border-0">${playersHtml}</div>
+                <button onclick="location.reload()" class="mt-2 md:mt-4 w-full py-2 md:py-3 text-red-500 font-bold bg-red-50 hover:bg-red-100 rounded-xl transition text-sm">Leave</button>
+            </div>
+            
+            <div class="w-full md:w-2/3 bg-gray-50 p-4 md:p-6 flex flex-col relative h-full overflow-hidden">
+                <h2 class="text-xl md:text-2xl font-black text-gray-800 mb-2 md:mb-4 shrink-0">Game Settings</h2>
+                
+                <div class="bg-white p-3 md:p-4 rounded-xl shadow-sm border border-gray-200 mb-3 md:mb-6 ${sliderOpacity} shrink-0">
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="font-bold text-sm md:text-base text-gray-700">Words per Round</label>
+                        <span id="lobbyWordCountDisplay" class="font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-lg text-sm">${activeWordCount} Words</span>
+                    </div>
+                    <input type="range" min="5" max="50" step="5" value="${activeWordCount}" ${sliderDisabled}
+                        oninput="document.getElementById('lobbyWordCountDisplay').innerText = this.value + ' Words'; window.RoomManager.updateWordCount(this.value)"
+                        class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+                    
+                    ${drinkingHtml}
+                </div>
+
+                <div class="font-bold text-gray-700 mb-2 text-sm md:text-base shrink-0">${this.isHost ? 'Select Mode' : 'Current Mode'}</div>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3 overflow-y-auto custom-scrollbar flex-1 pb-24 min-h-0">
+                    ${modesHtml}
+                </div>
+
+                <div class="absolute bottom-0 left-0 right-0 p-4 md:p-6 bg-white border-t flex items-center justify-between shadow-[0_-5px_15px_rgba(0,0,0,0.05)] z-20 shrink-0">
+                    <div class="text-xs md:text-sm text-gray-500 hidden sm:block">
+                        ${this.isHost ? 'You are the Host.' : 'Waiting for Host...'}
+                    </div>
+                    ${this.isHost ? 
+                        `<button onclick="window.RoomManager.startGame()" class="w-full sm:w-auto px-6 py-3 md:px-8 md:py-4 bg-green-500 hover:bg-green-600 text-white text-lg md:text-xl font-black rounded-xl shadow-lg transform transition active:scale-95 flex items-center justify-center gap-2"><span>START GAME</span> 🚀</button>` : 
+                        `<div class="w-full sm:w-auto px-6 py-3 md:px-8 md:py-4 bg-gray-100 text-gray-400 text-lg md:text-xl font-bold rounded-xl border border-gray-200 flex items-center justify-center gap-2 cursor-not-allowed"><span>WAITING...</span> ⏳</div>`
+                    }
+                </div>
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
+    },
+
+    closeLobby() { document.getElementById('lobbyModal')?.remove(); document.getElementById('mpMenu')?.remove(); }
+};
 
 const Game = {
-    // FIX 4: Add the missing reset function so the game can start
     resetGame() {
         State.runtime.currentWordIndex = 0;
         State.runtime.streak = 0;
@@ -4701,31 +4719,33 @@ const Game = {
     },
 
     startMultiplayer(data) {
-        // 1. Setup State
         RoomManager.closeLobby();
         State.runtime.isMultiplayer = true;
         State.runtime.mpMode = data.mode;
         State.runtime.mpRoom = data.roomCode;
         
-        // 2. Visual Banner
+        // 1. CAPTURE SETTINGS
+        State.runtime.isDrinkingMode = data.settings && data.settings.drinkingMode;
+
+        // 2. Banner
         const banner = document.createElement('div');
         banner.className = 'fixed top-20 left-1/2 transform -translate-x-1/2 bg-indigo-600 text-white px-6 py-2 rounded-full shadow-lg z-50 font-bold animate-bounce flex items-center gap-2';
         banner.innerHTML = `<span>🎮</span> ${RoomManager.modeConfig[data.mode]?.label || "Multiplayer"}`;
         document.body.appendChild(banner);
         setTimeout(() => banner.remove(), 4000);
 
-        // 3. Reset Game State
+        if (State.runtime.isDrinkingMode) {
+            setTimeout(() => UIManager.showPostVoteMessage("🍺 DRINKING MODE ACTIVE!"), 1000);
+        }
+
+        // 3. Reset
         this.resetGame();
 
-        // 4. Apply Word Count Settings from Server
+        // 4. Load Words
         const count = data.settings?.wordCount || 10;
-        
-        // If server sent words, use them
         if (data.words && data.words.length > 0) {
-            // Slice to the slider limit
             State.runtime.allWords = data.words.slice(0, count);
         } else {
-            // Fallback (rare): shuffle local words and slice
             const shuffled = State.runtime.allWords.sort(() => 0.5 - Math.random());
             State.runtime.allWords = shuffled.slice(0, count);
         }
@@ -5687,13 +5707,20 @@ async refreshData(u = true) {
                 setTimeout(() => ModalManager.toggle('dailyResult', true), 600);
             }
 
-            let m = '';
+           let m = '';
             if (un) m = "🎉 New Theme Unlocked!";
             else if (State.data.settings.showPercentages && (t === 'good' || t === 'bad')) {
                 const tot = (w.goodVotes || 0) + (w.badVotes || 0);
                 const p = Math.round((w[`${t}Votes`] / tot) * 100);
-                m = `${t==='good'?'Good':'Bad'} vote! ${p}% agree.`;
+                
+                // DRINKING MODE LOGIC
+                if (State.runtime.isDrinkingMode && p < 50) {
+                    m = `🍺 DRINK! (You are in the minority: ${p}%)`;
+                } else {
+                    m = `${t==='good'?'Good':'Bad'} vote! ${p}% agree.`;
+                }
             }
+            
             if (State.data.settings.showTips) {
                 // --- FIX: NO TIPS IN MULTIPLAYER ---
                 if (!State.runtime.isMultiplayer) { 
