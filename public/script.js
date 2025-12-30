@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.82.3', 
+    APP_VERSION: '5.82.4', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -3383,50 +3383,137 @@ displayWord(w) {
     },
 
     // 2. Game Over Modal (Replaces Browser Alert)
+    // Inside UIManager object ...
+
     showGameOverModal(data) {
         const modalId = 'gameOverModal';
         const old = document.getElementById(modalId);
         if(old) old.remove();
 
-        let content = '';
+        let header = '';
+        let body = '';
         
-        if (data.mode === 'versus') {
+        // --- 1. OK STOOPID (Couples Mode) ---
+        if (data.mode === 'okstoopid') {
+            // Calculate Compatibility %
+            // Max score is usually equal to word count (1 point per match)
+            const maxScore = RoomManager.currentWordCount || 10;
+            const score = data.scores.coop || 0;
+            const percent = Math.min(100, Math.round((score / maxScore) * 100));
+            
+            let verdict = "AWKWARD...";
+            if (percent > 40) verdict = "JUST FRIENDS?";
+            if (percent > 60) verdict = "DATING MATERIAL";
+            if (percent > 80) verdict = "SOULMATES! 💘";
+            if (percent === 100) verdict = "GET A ROOM! 💍";
+
+            header = `<h2 class="text-3xl font-black text-center mb-1 text-pink-600">COMPATIBILITY REPORT</h2>`;
+            body = `
+                <div class="text-center mb-6">
+                    <div class="text-6xl font-black text-indigo-900 mb-2">${percent}%</div>
+                    <div class="inline-block bg-pink-100 text-pink-700 px-4 py-1 rounded-full font-bold text-sm border border-pink-200">${verdict}</div>
+                </div>
+            `;
+            
+            // Generate Compatibility Image (Optional Share Feature)
+            setTimeout(() => {
+                if(ShareManager && ShareManager.shareCompatibility) {
+                    const p1 = data.rankings[0]?.name || "P1";
+                    const p2 = data.rankings[1]?.name || "P2";
+                    const shareBtn = document.getElementById('share-result-btn');
+                    if(shareBtn) shareBtn.onclick = () => ShareManager.shareCompatibility(p1, p2, percent);
+                }
+            }, 100);
+        }
+        
+        // --- 2. TRAITOR MODE ---
+        else if (data.mode === 'traitor') {
+            // Find Traitor Name
+            const traitor = data.rankings.find(p => p.id === data.specialRoleId);
+            const traitorName = traitor ? traitor.name : "Unknown";
+            const traitorWon = data.msg && data.msg.includes("Traitor Wins"); // Server sends msg logic
+
+            header = `<h2 class="text-3xl font-black text-center mb-2 ${traitorWon ? 'text-red-600' : 'text-green-600'}">
+                ${traitorWon ? 'TRAITOR WINS!' : 'TEAM WINS!'}
+            </h2>`;
+            
+            body = `
+                <div class="bg-gray-800 text-white p-4 rounded-xl text-center mb-6">
+                    <div class="text-xs uppercase tracking-widest text-gray-400 mb-1">THE TRAITOR WAS</div>
+                    <div class="text-2xl font-black text-red-400">${traitorName}</div>
+                </div>
+            `;
+        }
+
+        // --- 3. TEAM VERSUS ---
+        else if (data.mode === 'versus') {
             const redScore = data.scores.red || 0;
             const blueScore = data.scores.blue || 0;
             let winner = redScore > blueScore ? "🔴 RED TEAM WINS!" : (blueScore > redScore ? "🔵 BLUE TEAM WINS!" : "🤝 IT'S A TIE!");
-            content += `<h2 class="text-3xl font-black text-center mb-4">${winner}</h2>`;
-            content += `<div class="flex justify-center gap-8 text-2xl font-bold mb-6">
-                            <div class="text-red-500">RED: ${redScore}</div>
-                            <div class="text-blue-500">BLUE: ${blueScore}</div>
-                        </div>`;
-        } else {
-            content += `<h2 class="text-3xl font-black text-center mb-4 text-indigo-700">GAME OVER</h2>`;
-            if (data.msg) content += `<p class="text-center text-red-500 font-bold mb-4">${data.msg}</p>`;
+            
+            header = `<h2 class="text-3xl font-black text-center mb-4 text-gray-800">${winner}</h2>`;
+            body = `
+                <div class="flex justify-center gap-4 mb-6 w-full">
+                    <div class="flex-1 bg-red-50 border-2 border-red-100 p-3 rounded-xl text-center">
+                        <div class="text-red-500 font-bold text-xs">RED TEAM</div>
+                        <div class="text-3xl font-black text-red-700">${redScore}</div>
+                    </div>
+                    <div class="flex-1 bg-blue-50 border-2 border-blue-100 p-3 rounded-xl text-center">
+                        <div class="text-blue-500 font-bold text-xs">BLUE TEAM</div>
+                        <div class="text-3xl font-black text-blue-700">${blueScore}</div>
+                    </div>
+                </div>`;
+        }
+        
+        // --- 4. STANDARD / SURVIVAL ---
+        else {
+            header = `<h2 class="text-3xl font-black text-center mb-4 text-indigo-700">GAME OVER</h2>`;
+            if (data.msg) body += `<p class="text-center text-gray-500 font-bold mb-6 bg-gray-100 p-2 rounded-lg">${data.msg}</p>`;
         }
 
-        // Rankings
+        // --- LEADERBOARD (Shared) ---
+        let listHtml = '';
         if (data.rankings) {
-            content += `<div class="bg-gray-50 rounded-lg p-4 max-h-[40vh] overflow-y-auto custom-scrollbar">`;
             data.rankings.forEach((p, i) => {
                 const isMe = p.id === RoomManager.playerId;
-                content += `<div class="flex justify-between items-center p-2 border-b border-gray-200 ${isMe ? 'bg-yellow-50' : ''}">
+                const isTraitor = p.id === data.specialRoleId;
+                
+                let badge = '';
+                if (data.mode === 'survival' && (p.lives <= 0)) badge = '💀';
+                if (data.mode === 'traitor' && isTraitor) badge = '🕵️';
+
+                listHtml += `
+                <div class="flex justify-between items-center p-2 border-b border-gray-100 last:border-0 ${isMe ? 'bg-indigo-50 rounded' : ''}">
                     <div class="flex items-center gap-2">
-                        <span class="font-bold text-gray-400 w-6">#${i+1}</span>
-                        <span class="font-bold ${isMe ? 'text-indigo-600' : 'text-gray-700'}">${p.name || 'Guest'} ${isMe ? '(You)' : ''}</span>
+                        <span class="font-bold text-gray-300 w-6 text-sm">#${i+1}</span>
+                        <span class="font-bold ${isMe ? 'text-indigo-600' : 'text-gray-600'} text-sm truncate max-w-[120px]">
+                            ${p.name || 'Guest'} ${isMe ? '(You)' : ''}
+                        </span>
+                        <span>${badge}</span>
                     </div>
-                    <span class="font-mono font-bold text-gray-800">${p.score} pts</span>
+                    <span class="font-mono font-bold text-gray-800 text-sm">${p.score} pts</span>
                 </div>`;
             });
-            content += `</div>`;
         }
 
         const html = `
-        <div id="${modalId}" class="fixed inset-0 bg-black/80 z-[10000] flex items-center justify-center p-4 animate-fade-in">
-            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 transform scale-100">
-                ${content}
-                <button onclick="window.location.reload()" class="mt-6 w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-xl shadow-lg transition transform active:scale-95">
-                    PLAY AGAIN 🔄
-                </button>
+        <div id="${modalId}" class="fixed inset-0 bg-black/80 z-[10000] flex items-center justify-center p-4 animate-fade-in font-sans">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 transform scale-100 relative overflow-hidden">
+                ${header}
+                
+                ${body}
+
+                <div class="bg-white border border-gray-200 rounded-xl mb-6 max-h-[30vh] overflow-y-auto custom-scrollbar">
+                    ${listHtml}
+                </div>
+
+                <div class="flex flex-col gap-3">
+                    ${data.mode === 'okstoopid' ? `<button id="share-result-btn" class="w-full py-3 bg-pink-100 hover:bg-pink-200 text-pink-600 font-bold rounded-xl transition">📸 Share Coupon</button>` : ''}
+                    
+                    <button onclick="window.location.reload()" class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-xl shadow-lg transition transform active:scale-95 flex items-center justify-center gap-2">
+                        <span>🔄</span> PLAY AGAIN
+                    </button>
+                </div>
             </div>
         </div>`;
 
@@ -4620,17 +4707,23 @@ this.socket.on('gameStarted', (data) => {
             Haptics.heavy();
         });
 
-        this.socket.on('gameOver', (data) => {
-            alert(`GAME OVER!\n\n${data.msg || 'Thanks for playing!'}`);
-            this.active = false;
-            State.runtime.isMultiplayer = false;
-            window.location.reload(); // Simplest reset
-        });
+// Find the RoomManager object in script.js and look for the 'gameOver' listener inside 'connect()'
 
-        this.socket.on('kicked', () => {
-            alert("You were kicked from the room.");
-            window.location.reload();
-        });
+this.socket.on('gameOver', (data) => {
+    // 1. Remove Gameplay UI Elements
+    const banner = document.querySelector('.mp-banner-text');
+    if(banner) banner.remove();
+    
+    const ui = document.getElementById('mp-mode-ui');
+    if(ui) ui.remove();
+
+    // 2. Stop Logic
+    this.active = false;
+    State.runtime.isMultiplayer = false;
+
+    // 3. Show the New Modal
+    UIManager.showGameOverModal(data);
+});
     },
 
     // --- HOST ACTIONS ---
