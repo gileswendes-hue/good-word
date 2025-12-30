@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.82.6', 
+    APP_VERSION: '5.82.7', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -5053,10 +5053,19 @@ startMultiplayer(data) {
     this.resetGame();
     
     // 6. Load Words
-    if (data.words && data.words.length > 0) {
-        State.runtime.allWords = data.words;
-    }
-    
+if (data.words && data.words.length > 0) {
+            // OPTION A: Server sent the full list (Best Case)
+            State.runtime.allWords = data.words;
+            this.nextWord(); 
+        } else {
+            // OPTION B: Server hasn't sent words yet (Standard Case)
+            // Clear old Single Player words so we don't show mismatch
+            State.runtime.allWords = []; 
+            
+            // Do NOT call this.nextWord() here. 
+            // We simply wait for the server to emit 'nextWord' (approx 4s delay).
+            UIManager.showMessage("Get Ready...");
+        }
     // 7. Show the first word immediately (RoomManager handles subsequent nextWord events)
     this.nextWord();
 },
