@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.81.38', 
+    APP_VERSION: '5.81.39', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4388,7 +4388,7 @@ const RoomManager = {
     playerId: null,
     isHost: false,
     
-    // THE STATE (Single Source of Truth)
+    // STATE: Single Source of Truth
     currentMode: 'coop',
     currentWordCount: 10,
     drinkingMode: false,
@@ -4452,33 +4452,30 @@ const RoomManager = {
 
         this.socket.on('connect', () => { this.playerId = this.socket.id; });
 
-        // --- DATA PARSING HAPPENS HERE ONLY ---
+        // --- DATA SYNC LOGIC ---
         this.socket.on('roomUpdate', (data) => {
-            console.log("📥 Syncing Room Data:", data);
-            
+            console.log("📥 Syncing Room:", data);
             this.roomCode = data.roomCode || this.roomCode;
             
-            // 1. Parse Mode (Check Root -> Settings -> Ignore)
+            // 1. Update Internal State from Server Data
             if (data.mode) this.currentMode = data.mode;
             
-            // 2. Parse Word Count (Check Root -> Settings -> Ignore)
-            if (data.wordCount) this.currentWordCount = parseInt(data.wordCount);
-            else if (data.settings && data.settings.wordCount) this.currentWordCount = parseInt(data.settings.wordCount);
+            if (data.settings && data.settings.wordCount) this.currentWordCount = parseInt(data.settings.wordCount);
+            else if (data.wordCount) this.currentWordCount = parseInt(data.wordCount);
 
-            // 3. Parse Drinking Mode (Check Root -> Settings -> Ignore)
-            if (typeof data.drinkingMode !== 'undefined') this.drinkingMode = data.drinkingMode;
-            else if (data.settings && typeof data.settings.drinkingMode !== 'undefined') this.drinkingMode = data.settings.drinkingMode;
+            if (data.settings && typeof data.settings.drinkingMode !== 'undefined') this.drinkingMode = data.settings.drinkingMode;
+            else if (typeof data.drinkingMode !== 'undefined') this.drinkingMode = data.drinkingMode;
 
-            // 4. Parse Players
             this.players = data.players || [];
             
-            // 5. Check Host
+            // 2. Update Host Status
             this.isHost = (data.host === this.playerId);
             if(this.players.length > 0 && this.players[0].id === this.playerId) this.isHost = true;
 
             document.getElementById('mpMenu')?.remove();
 
-            if (!this.active) this.renderLobby(); // No arguments passed!
+            // 3. Render the State (No arguments passed!)
+            if (!this.active) this.renderLobby();
         });
 
         this.socket.on('gameStarted', (data) => {
@@ -4491,6 +4488,7 @@ const RoomManager = {
     // --- HOST ACTIONS ---
     
     emitUpdate() {
+        // Send robust payload
         const payload = { 
             roomCode: this.roomCode, 
             mode: this.currentMode, 
@@ -4506,15 +4504,15 @@ const RoomManager = {
 
     updateMode(newMode) {
         if (!this.isHost) return;
-        this.currentMode = newMode; // Update State
-        this.renderLobby();         // Update UI
-        this.emitUpdate();          // Tell Server
+        this.currentMode = newMode; // 1. Update State
+        this.renderLobby();         // 2. Render State
+        this.emitUpdate();          // 3. Send State
     },
 
     updateWordCount(count) {
         if (!this.isHost) return;
         this.currentWordCount = parseInt(count);
-        this.emitUpdate();          // Tell Server (No render needed for slider input)
+        this.emitUpdate();          // Slider updates itself visually, just send data
     },
 
     toggleDrinking(isChecked) {
@@ -4536,12 +4534,21 @@ const RoomManager = {
         });
     },
 
+    // --- MISSING FUNCTION ADDED ---
+    submitVote(voteType) {
+        this.socket.emit('submitVote', { 
+            roomCode: this.roomCode, 
+            vote: voteType, 
+            wordIndex: State.runtime.currentWordIndex 
+        });
+    },
+
     // --- VIEW RENDERING (Reads strictly from 'this') ---
 
     renderLobby() {
         document.getElementById('lobbyModal')?.remove();
         
-        // READ STATE
+        // Read directly from State
         const activeMode = this.currentMode;
         const activeWordCount = this.currentWordCount;
         const activeDrinking = this.drinkingMode;
@@ -4554,9 +4561,8 @@ const RoomManager = {
         const playersHtml = playersList.map(p => {
             let displayName = p.username || 'Guest';
             if (p.id === this.playerId) {
-                if (!p.username || p.username === 'Guest' || p.username.startsWith('Guest_')) {
-                    displayName = State.data.username || localStorage.getItem('username') || displayName;
-                }
+                // Ensure correct name for self
+                displayName = State.data.username || localStorage.getItem('username') || displayName;
             }
             return `<div class="flex items-center space-x-3 bg-white border border-gray-100 p-3 rounded-lg mb-2 shadow-sm">
                 <div class="w-3 h-3 rounded-full ${p.ready !== false ? 'bg-green-500' : 'bg-gray-300'}"></div>
@@ -4655,8 +4661,6 @@ const RoomManager = {
         document.body.insertAdjacentHTML('beforeend', html);
     },
 
-    // --- CONNECTIVITY HELPERS ---
-    
     openMenu() {
         const existing = document.getElementById('mpMenu');
         if (existing) existing.remove();
@@ -4701,7 +4705,6 @@ const RoomManager = {
                 this.socket.emit('createRoom', { roomCode: code, username: user }, (cRes) => {
                     if (cRes && cRes.success) {
                         this.isHost = true;
-                        // Use default local state for initial render
                         this.renderLobby();
                     }
                 });
@@ -5470,8 +5473,14 @@ async refreshData(u = true) {
         }
     },
 
-	nextWord() {
-		if (State.runtime.isMultiplayer) return;
+nextWord() {
+        // MULTIPLAYER FIX: Display word immediately, skip random logic
+        if (State.runtime.isMultiplayer) {
+            const w = State.runtime.allWords[State.runtime.currentWordIndex];
+            if (w) UIManager.displayWord(w);
+            return;
+        }
+
         let p = State.runtime.allWords;
         if (!p || p.length === 0) return;
 
