@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.81.39', 
+    APP_VERSION: '5.81.40', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4435,6 +4435,7 @@ const RoomManager = {
     },
 
     getUsername() {
+        // Priority: 1. Input Field 2. State 3. LocalStorage 4. Random Guest
         if (DOM.inputs && DOM.inputs.username && DOM.inputs.username.value) return DOM.inputs.username.value.trim();
         if (State.data.username && State.data.username !== 'Unknown') return State.data.username;
         const lsName = localStorage.getItem('username');
@@ -4457,14 +4458,14 @@ const RoomManager = {
             console.log("📥 Syncing Room:", data);
             this.roomCode = data.roomCode || this.roomCode;
             
-            // 1. Update Internal State from Server Data
+            // 1. Update Internal State (Check Root AND Settings object)
             if (data.mode) this.currentMode = data.mode;
             
-            if (data.settings && data.settings.wordCount) this.currentWordCount = parseInt(data.settings.wordCount);
-            else if (data.wordCount) this.currentWordCount = parseInt(data.wordCount);
+            if (data.wordCount) this.currentWordCount = parseInt(data.wordCount);
+            else if (data.settings && data.settings.wordCount) this.currentWordCount = parseInt(data.settings.wordCount);
 
-            if (data.settings && typeof data.settings.drinkingMode !== 'undefined') this.drinkingMode = data.settings.drinkingMode;
-            else if (typeof data.drinkingMode !== 'undefined') this.drinkingMode = data.drinkingMode;
+            if (typeof data.drinkingMode !== 'undefined') this.drinkingMode = data.drinkingMode;
+            else if (data.settings && typeof data.settings.drinkingMode !== 'undefined') this.drinkingMode = data.settings.drinkingMode;
 
             this.players = data.players || [];
             
@@ -4488,7 +4489,7 @@ const RoomManager = {
     // --- HOST ACTIONS ---
     
     emitUpdate() {
-        // Send robust payload
+        // Send robust payload with data in both locations to ensure server relays it
         const payload = { 
             roomCode: this.roomCode, 
             mode: this.currentMode, 
@@ -4534,7 +4535,6 @@ const RoomManager = {
         });
     },
 
-    // --- MISSING FUNCTION ADDED ---
     submitVote(voteType) {
         this.socket.emit('submitVote', { 
             roomCode: this.roomCode, 
@@ -4560,9 +4560,12 @@ const RoomManager = {
 
         const playersHtml = playersList.map(p => {
             let displayName = p.username || 'Guest';
+            // Fix: If this is ME, use my local name if server sends 'Guest'
             if (p.id === this.playerId) {
-                // Ensure correct name for self
-                displayName = State.data.username || localStorage.getItem('username') || displayName;
+                const localName = localStorage.getItem('username');
+                if (localName && (displayName === 'Guest' || displayName.startsWith('Guest_'))) {
+                    displayName = localName;
+                }
             }
             return `<div class="flex items-center space-x-3 bg-white border border-gray-100 p-3 rounded-lg mb-2 shadow-sm">
                 <div class="w-3 h-3 rounded-full ${p.ready !== false ? 'bg-green-500' : 'bg-gray-300'}"></div>
@@ -4574,6 +4577,7 @@ const RoomManager = {
         let modesHtml = '';
         Object.entries(this.modeConfig).forEach(([key, conf]) => {
             const isSelected = (activeMode === key);
+            // Guests only see the selected mode to reduce confusion
             if (!this.isHost && !isSelected) return; 
 
             const clickAttr = this.isHost ? `onclick="window.RoomManager.updateMode('${key}')"` : '';
@@ -4688,18 +4692,23 @@ const RoomManager = {
         const nameInput = document.getElementById('menuUsernameInput');
         if (!codeInput) return;
         const code = codeInput.value.trim().toUpperCase();
-        const nameToUse = nameInput ? nameInput.value.trim() : '';
+        
+        // FIX: Capture explicit name immediately
+        const nameToUse = (nameInput && nameInput.value.trim()) ? nameInput.value.trim() : null;
 
         if (nameToUse) {
             State.save('username', nameToUse); 
             if(DOM.inputs.username) DOM.inputs.username.value = nameToUse;
         }
+        
         if (code.length > 0) this.attemptJoinOrCreate(code, nameToUse);
     },
 
     attemptJoinOrCreate(code, nameOverride = null) {
+        // FIX: Use override if available, else fall back to method
         const user = nameOverride || this.getUsername();
         this.roomCode = code; 
+        
         this.socket.emit('joinRoom', { roomCode: code, username: user }, (res) => {
             if (!res || !res.success) {
                 this.socket.emit('createRoom', { roomCode: code, username: user }, (cRes) => {
@@ -4780,9 +4789,16 @@ const Game = {
         this.nextWord(); 
     },
 
-	renderGraphs() {
-        const w = State.runtime.allWords;
-        if (!w || w.length === 0) return;
+    nextWord() {
+        // MULTIPLAYER FIX: Display word immediately, skip random logic
+        if (State.runtime.isMultiplayer) {
+            const w = State.runtime.allWords[State.runtime.currentWordIndex];
+            if (w) UIManager.displayWord(w);
+            return;
+        }
+
+        let p = State.runtime.allWords;
+        if (!p || p.length === 0) return;
 
         // --- HELPER: Draw Text Centered ---
         const drawText = (ctx, text, x, y, color = "#666", size = 12) => {
