@@ -132,7 +132,6 @@ function removePlayerFromAllRooms(socketId) {
 
 io.on('connection', (socket) => {
     
-    // --- UPDATED: Accept theme from host ---
     socket.on('joinRoom', ({ roomCode, username, theme }) => {
         const code = roomCode.toUpperCase();
         removePlayerFromAllRooms(socket.id); 
@@ -144,7 +143,7 @@ io.on('connection', (socket) => {
                 players: [],
                 state: 'lobby',
                 mode: 'coop', 
-                theme: theme || 'default', // Store Host Theme
+                theme: theme || 'default',
                 drinkingMode: false,
                 wordIndex: 0,
                 maxWords: 10,
@@ -162,6 +161,7 @@ io.on('connection', (socket) => {
         }
 
         const room = rooms[code];
+        // If the game is already in progress, join as spectator
         const isSpectator = (room.state === 'playing' || room.state === 'accusation' || room.state === 'drinking');
 
         const existing = room.players.find(p => p.id === socket.id);
@@ -181,6 +181,7 @@ io.on('connection', (socket) => {
         
         emitUpdate(code);
         
+        // If late join, sync game state immediately
         if (isSpectator && room.words[room.wordIndex]) {
             socket.emit('gameStarted', { totalWords: room.maxWords, mode: room.mode });
             if (room.state === 'drinking') {
@@ -209,6 +210,7 @@ io.on('connection', (socket) => {
     socket.on('refreshLobby', ({ roomCode }) => {
         const room = rooms[roomCode];
         if (!room || room.host !== socket.id) return;
+        // Purge ghosts
         const initialCount = room.players.length;
         room.players = room.players.filter(p => {
             const s = io.sockets.sockets.get(p.id);
@@ -217,6 +219,7 @@ io.on('connection', (socket) => {
         if (room.players.length !== initialCount) emitUpdate(roomCode);
     });
 
+    // FIX: This handler matches Frontend's new emitUpdate()
     socket.on('updateSettings', ({ roomCode, mode, rounds, drinking }) => {
         const room = rooms[roomCode];
         if (!room || room.host !== socket.id) return;
@@ -225,6 +228,7 @@ io.on('connection', (socket) => {
         if(rounds) room.maxWords = parseInt(rounds);
         if (typeof drinking !== 'undefined') room.drinkingMode = drinking;
         
+        // Force disable drinking for modes that don't support it
         if (room.mode === 'traitor' || room.mode === 'kids') room.drinkingMode = false;
 
         emitUpdate(roomCode);
@@ -291,6 +295,7 @@ io.on('connection', (socket) => {
                 while(selection.length < room.maxWords && shuffled.length > 0) selection = selection.concat(shuffled);
                 room.words = selection.slice(0, room.maxWords).map(t => ({ text: t }));
             } else {
+                // Ensure we get random words
                 const randomWords = await Word.aggregate([{ $sample: { size: room.maxWords } }]);
                 room.words = randomWords;
             }
@@ -301,7 +306,8 @@ io.on('connection', (socket) => {
                 vipId: room.vipId
             });
             
-            room.wordTimer = setTimeout(() => sendNextWord(roomCode), 6000);
+            // Short delay before first word to allow UI transition
+            room.wordTimer = setTimeout(() => sendNextWord(roomCode), 4000);
         } catch (e) { console.error(e); }
     });
 
@@ -312,7 +318,7 @@ io.on('connection', (socket) => {
         const player = room.players.find(p => p.id === socket.id);
         if (!player || player.isSpectator) return;
         
-        // --- FIX: Strictly block dead players ---
+        // Strict check for dead players in survival
         if (room.mode === 'survival' && player.lives <= 0) return;
 
         room.currentVotes[socket.id] = vote;
