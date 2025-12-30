@@ -464,6 +464,9 @@ function processGameEnd(roomCode, abortReason = null) {
 function finishWord(roomCode) {
     const room = rooms[roomCode];
     if (!room) return;
+    const votes = Object.values(room.currentVotes);
+    const counts = {};
+    votes.forEach(v => counts[v] = (counts[v] || 0) + 1);
     const currentWord = room.words[room.wordIndex];
     const votes = room.currentVotes;
     
