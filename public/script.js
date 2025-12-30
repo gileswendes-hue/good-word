@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.82.1', 
+    APP_VERSION: '5.82.2', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -3341,6 +3341,97 @@ displayWord(w) {
         }
         ind.style.opacity = active ? '1' : '0';
     }
+
+    showCountdown(seconds, callback) {
+        // Remove existing if any
+        const old = document.getElementById('game-countdown');
+        if (old) old.remove();
+
+        const el = document.createElement('div');
+        el.id = 'game-countdown';
+        el.className = 'fixed inset-0 bg-indigo-900 z-[99999] flex items-center justify-center';
+        // Start with the number
+        el.innerHTML = `<div id="cd-text" class="text-white font-black text-9xl animate-ping opacity-90">${seconds}</div>`;
+        document.body.appendChild(el);
+
+        let count = seconds;
+        
+        const tick = () => {
+            count--;
+            if (count > 0) {
+                const text = document.getElementById('cd-text');
+                if(text) text.innerText = count;
+                if (typeof Haptics !== 'undefined') Haptics.medium();
+            } else {
+                clearInterval(timer);
+                const text = document.getElementById('cd-text');
+                if(text) {
+                    text.innerText = "GO!";
+                    text.classList.remove('animate-ping');
+                    text.classList.add('animate-bounce');
+                }
+                if (typeof Haptics !== 'undefined') Haptics.heavy();
+                
+                setTimeout(() => {
+                    el.remove();
+                    if (callback) callback();
+                }, 800);
+            }
+        };
+
+        const timer = setInterval(tick, 1000);
+    },
+
+    // 2. Game Over Modal (Replaces Browser Alert)
+    showGameOverModal(data) {
+        const modalId = 'gameOverModal';
+        const old = document.getElementById(modalId);
+        if(old) old.remove();
+
+        let content = '';
+        
+        if (data.mode === 'versus') {
+            const redScore = data.scores.red || 0;
+            const blueScore = data.scores.blue || 0;
+            let winner = redScore > blueScore ? "🔴 RED TEAM WINS!" : (blueScore > redScore ? "🔵 BLUE TEAM WINS!" : "🤝 IT'S A TIE!");
+            content += `<h2 class="text-3xl font-black text-center mb-4">${winner}</h2>`;
+            content += `<div class="flex justify-center gap-8 text-2xl font-bold mb-6">
+                            <div class="text-red-500">RED: ${redScore}</div>
+                            <div class="text-blue-500">BLUE: ${blueScore}</div>
+                        </div>`;
+        } else {
+            content += `<h2 class="text-3xl font-black text-center mb-4 text-indigo-700">GAME OVER</h2>`;
+            if (data.msg) content += `<p class="text-center text-red-500 font-bold mb-4">${data.msg}</p>`;
+        }
+
+        // Rankings
+        if (data.rankings) {
+            content += `<div class="bg-gray-50 rounded-lg p-4 max-h-[40vh] overflow-y-auto custom-scrollbar">`;
+            data.rankings.forEach((p, i) => {
+                const isMe = p.id === RoomManager.playerId;
+                content += `<div class="flex justify-between items-center p-2 border-b border-gray-200 ${isMe ? 'bg-yellow-50' : ''}">
+                    <div class="flex items-center gap-2">
+                        <span class="font-bold text-gray-400 w-6">#${i+1}</span>
+                        <span class="font-bold ${isMe ? 'text-indigo-600' : 'text-gray-700'}">${p.name || 'Guest'} ${isMe ? '(You)' : ''}</span>
+                    </div>
+                    <span class="font-mono font-bold text-gray-800">${p.score} pts</span>
+                </div>`;
+            });
+            content += `</div>`;
+        }
+
+        const html = `
+        <div id="${modalId}" class="fixed inset-0 bg-black/80 z-[10000] flex items-center justify-center p-4 animate-fade-in">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 transform scale-100">
+                ${content}
+                <button onclick="window.location.reload()" class="mt-6 w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-xl shadow-lg transition transform active:scale-95">
+                    PLAY AGAIN 🔄
+                </button>
+            </div>
+        </div>`;
+
+        document.body.insertAdjacentHTML('beforeend', html);
+    }
 };
 
 const PinPad = {
@@ -4470,11 +4561,18 @@ const RoomManager = {
             if (!this.active) this.renderLobby();
         });
 
-        // --- GAMEPLAY EVENTS (These were missing!) ---
-        this.socket.on('gameStarted', (data) => {
-            this.closeLobby();
-            this.active = true;
-            if (Game && Game.startMultiplayer) Game.startMultiplayer(data);
+this.socket.on('gameStarted', (data) => {
+    console.log("GAME START SIGNAL RECEIVED"); // Debug log
+    this.closeLobby();
+    this.active = true;
+    
+    // TRIGGER COUNTDOWN HERE
+    UIManager.showCountdown(3, () => {
+        // Once countdown finishes, actually start the game logic
+        if (Game && Game.startMultiplayer) {
+            Game.startMultiplayer(data);
+        }
+    });
         });
 
         this.socket.on('nextWord', (data) => {
@@ -4756,60 +4854,72 @@ const Game = {
         UIManager.updateStats();
     },
 
-    startMultiplayer(data) {
-        RoomManager.closeLobby();
-        State.runtime.isMultiplayer = true;
+// Inside Game object ...
+
+startMultiplayer(data) {
+    console.log("STARTING MULTIPLAYER LOGIC", data);
+    
+    // 1. Set State
+    State.runtime.isMultiplayer = true;
+    State.runtime.mpMode = data.mode || 'coop';
+    State.runtime.mpRoom = data.roomCode;
+    State.runtime.isDrinkingMode = (data.settings && data.settings.drinkingMode) || data.drinkingMode || false;
+    
+    // 2. Banner at top
+    const oldBanner = document.querySelector('.mp-banner-text');
+    if(oldBanner) oldBanner.remove();
+
+    const banner = document.createElement('div');
+    banner.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-indigo-900 text-white px-6 py-2 rounded-full shadow-lg z-50 font-bold flex items-center gap-2 border border-indigo-500 mp-banner-text';
+    const label = RoomManager.modeConfig[State.runtime.mpMode]?.label || "Multiplayer";
+    banner.innerHTML = `<span>🎮</span> ${label}`;
+    document.body.appendChild(banner);
+
+    // 3. Mode Specific Visuals (Lives / Scoreboards)
+    const oldUI = document.getElementById('mp-mode-ui');
+    if(oldUI) oldUI.remove();
+
+    const modeUI = document.createElement('div');
+    modeUI.id = 'mp-mode-ui';
+    modeUI.className = 'fixed top-16 left-1/2 transform -translate-x-1/2 z-40 flex flex-col items-center gap-2';
+    
+    if (State.runtime.mpMode === 'survival') {
+        modeUI.innerHTML = `<div id="survival-lives" class="bg-red-600 text-white px-4 py-2 rounded-full font-bold shadow-lg border-2 border-red-400 transition-all">❤️ x 3</div>`;
+    }
+    else if (State.runtime.mpMode === 'versus') {
+        const me = RoomManager.players.find(p => p.id === RoomManager.playerId);
+        const myTeam = me ? me.team : 'neutral';
+        const teamColor = myTeam === 'red' ? 'bg-red-600 border-red-400' : (myTeam === 'blue' ? 'bg-blue-600 border-blue-400' : 'bg-gray-500');
         
-        // 1. ROBUST LOAD: Check data in all potential locations
-        State.runtime.mpMode = data.mode || 'coop';
-        State.runtime.mpRoom = data.roomCode;
-        
-        // Check settings object first, then root level
-        State.runtime.isDrinkingMode = (data.settings && data.settings.drinkingMode) || data.drinkingMode || false;
-        const count = (data.settings && data.settings.wordCount) || data.wordCount || 10;
+        modeUI.innerHTML = `
+            <div class="${teamColor} text-white px-6 py-1 rounded-t-lg font-bold shadow-lg border-t-2 border-x-2 text-xs uppercase tracking-widest">YOU ARE ${myTeam.toUpperCase()}</div>
+            <div id="versus-scores" class="bg-gray-900 text-white px-6 py-2 rounded-b-lg font-bold shadow-lg border-2 border-gray-700 flex items-center">
+                <span class="text-red-300">RED: 0</span> <span class="text-gray-400 mx-2">|</span> <span class="text-blue-300">BLUE: 0</span>
+            </div>
+        `;
+    }
+    
+    document.body.appendChild(modeUI);
 
-        // 2. Banner
-        const banner = document.createElement('div');
-        banner.className = 'fixed top-20 left-1/2 transform -translate-x-1/2 bg-indigo-600 text-white px-6 py-2 rounded-full shadow-lg z-50 font-bold animate-bounce flex items-center gap-2';
-        banner.innerHTML = `<span>🎮</span> ${RoomManager.modeConfig[State.runtime.mpMode]?.label || "Multiplayer"}`;
-        document.body.appendChild(banner);
-        setTimeout(() => banner.remove(), 4000);
+    // 4. Drinking Badge
+    if (State.runtime.isDrinkingMode) {
+        const dBadge = document.createElement('div');
+        dBadge.className = 'fixed bottom-4 right-4 bg-yellow-400 text-yellow-900 font-black px-3 py-1 rounded-lg shadow-lg rotate-3 z-40 border-2 border-yellow-600 animate-pulse';
+        dBadge.innerHTML = '🍺 DRINKING ON';
+        document.body.appendChild(dBadge);
+    }
 
-        if (State.runtime.isDrinkingMode) {
-            setTimeout(() => UIManager.showPostVoteMessage("🍺 DRINKING MODE ACTIVE!"), 1000);
-        }
-
-        // 3. Reset
-        this.resetGame();
-
-        // 4. Load Words
-        if (data.words && data.words.length > 0) {
-            State.runtime.allWords = data.words.slice(0, count);
-        } else {
-            const shuffled = State.runtime.allWords.sort(() => 0.5 - Math.random());
-            State.runtime.allWords = shuffled.slice(0, count);
-        }
-
-        // 5. Apply Mode Rules
-        switch (State.runtime.mpMode) {
-            case 'survival':
-                State.runtime.lives = 3; 
-                alert("SURVIVAL MODE: You have 3 lives. Vote with the majority or lose a life!");
-                break;
-            case 'okstoopid':
-                alert("COUPLES MODE: Try to match your partner's answer!");
-                break;
-            case 'hipster':
-                alert("HIPSTER MODE: Try to vote for the LEAST popular option!");
-                break;
-            case 'speed':
-                alert("SPEED MODE: Vote fast!");
-                break;
-        }
-
-        // 6. Start
-        this.nextWord(); 
-    },
+    // 5. Reset Game State
+    this.resetGame();
+    
+    // 6. Load Words
+    if (data.words && data.words.length > 0) {
+        State.runtime.allWords = data.words;
+    }
+    
+    // 7. Show the first word immediately (RoomManager handles subsequent nextWord events)
+    this.nextWord();
+},
 
 	renderGraphs() {
         const w = State.runtime.allWords;
