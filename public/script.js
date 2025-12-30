@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.81.38', 
+    APP_VERSION: '5.82.1', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4388,7 +4388,7 @@ const RoomManager = {
     playerId: null,
     isHost: false,
     
-    // STATE: The Single Source of Truth
+    // STATE
     currentMode: 'coop',
     currentWordCount: 10,
     drinkingMode: false,
@@ -4398,7 +4398,7 @@ const RoomManager = {
     
     modeConfig: {
         'coop': { label: '🤝 Co-op Sync', desc: 'Vote together! Match with the Global Majority.', min: 1 }, 
-        'okstoopid': { label: '💘 OK Stoopid', desc: 'Couples Mode. Match each other!', min: 2, max: 2 },
+        'okstoopid': { label: '💘 OK Stoopid', desc: 'Couples Mode. Match each other!', min: 2 },
         'versus': { label: '⚔️ Team Versus', desc: 'Red vs Blue. Best Team wins.', min: 2 }, 
         'hipster': { label: '🕶️ The Hipster', desc: 'Minority Rules. Be unique!', min: 3 },
         'speed': { label: '⏱️ Speed Demon', desc: 'Vote fast! Speed and accuracy wins.', min: 1 },
@@ -4452,59 +4452,107 @@ const RoomManager = {
 
         this.socket.on('connect', () => { this.playerId = this.socket.id; });
 
-        // --- ROBUST DATA SYNC ---
+        // --- LOBBY EVENTS ---
         this.socket.on('roomUpdate', (data) => {
-            this.roomCode = data.roomCode || this.roomCode;
-            
-            // 1. Sync Mode
-            if (data.mode) this.currentMode = data.mode;
-            
-            // 2. Sync Word Count (Check root AND settings)
-            if (data.wordCount) this.currentWordCount = parseInt(data.wordCount);
-            else if (data.settings && data.settings.wordCount) this.currentWordCount = parseInt(data.settings.wordCount);
-
-            // 3. Sync Drinking Mode (Check root AND settings)
-            if (typeof data.drinkingMode !== 'undefined') this.drinkingMode = data.drinkingMode;
-            else if (data.settings && typeof data.settings.drinkingMode !== 'undefined') this.drinkingMode = data.settings.drinkingMode;
-
+            console.log("Room Update Received:", data);
+            this.roomCode = this.roomCode || data.roomCode;
+            this.currentMode = data.mode || 'coop';
+            this.currentWordCount = parseInt(data.maxWords || 10);
+            this.drinkingMode = data.drinkingMode || false;
             this.players = data.players || [];
             
-            // 4. Determine Host
+            // Determine Host
             this.isHost = (data.host === this.playerId);
             if(this.players.length > 0 && this.players[0].id === this.playerId) this.isHost = true;
 
             document.getElementById('mpMenu')?.remove();
 
-            if (!this.active) this.renderLobby(); // No args! Uses internal state.
+            if (!this.active) this.renderLobby();
         });
 
+        // --- GAMEPLAY EVENTS (These were missing!) ---
         this.socket.on('gameStarted', (data) => {
             this.closeLobby();
             this.active = true;
             if (Game && Game.startMultiplayer) Game.startMultiplayer(data);
+        });
+
+        this.socket.on('nextWord', (data) => {
+            // data: { word: {text...}, wordCurrent, wordTotal }
+            State.runtime.allWords = [data.word];
+            State.runtime.currentWordIndex = 0;
+            
+            // Update UI
+            UIManager.displayWord(data.word);
+            
+            // Update Banner Counter if it exists
+            const banner = document.querySelector('.mp-banner-text');
+            if (banner) banner.textContent = `${RoomManager.modeConfig[this.currentMode]?.label} (${data.wordCurrent}/${data.wordTotal})`;
+            
+            // Reset Styles
+            DOM.game.wordDisplay.style.opacity = '1';
+            DOM.game.wordDisplay.classList.remove('word-fade-quick', 'word-fade-llama');
+            UIManager.disableButtons(false);
+        });
+
+        this.socket.on('playerVoted', () => {
+            Haptics.light(); 
+            // Optional: Visual indicator that someone voted
+        });
+
+        this.socket.on('roundResult', (data) => {
+            // data: { mode, data: {msg, sync, score...}, word, players, votes }
+            let msg = data.data.msg || "Round Complete";
+            if (data.data.sync) msg = `${data.data.sync}% Sync!`;
+            
+            UIManager.showPostVoteMessage(msg);
+            
+            // Update local score display
+            // You could render a mini scoreboard here if desired
+        });
+
+        this.socket.on('drinkPenalty', (data) => {
+            // data: { drinkers: [], msg: "..." }
+            let text = data.msg;
+            if (data.drinkers.length > 0) {
+                const names = data.drinkers.map(d => d.name).join(', ');
+                text += `<br><span class="text-yellow-300 text-sm">Drink: ${names}</span>`;
+            }
+            UIManager.showPostVoteMessage(`🍺 ${text}`);
+            Haptics.heavy();
+        });
+
+        this.socket.on('gameOver', (data) => {
+            alert(`GAME OVER!\n\n${data.msg || 'Thanks for playing!'}`);
+            this.active = false;
+            State.runtime.isMultiplayer = false;
+            window.location.reload(); // Simplest reset
+        });
+
+        this.socket.on('kicked', () => {
+            alert("You were kicked from the room.");
+            window.location.reload();
         });
     },
 
     // --- HOST ACTIONS ---
     
     emitUpdate() {
+        // FIX: Event name changed to 'updateSettings' to match Server
+        // FIX: keys mapped to match Server expectations (rounds, drinking)
         const payload = { 
             roomCode: this.roomCode, 
             mode: this.currentMode, 
-            wordCount: this.currentWordCount,
-            drinkingMode: this.drinkingMode,
-            settings: { 
-                wordCount: this.currentWordCount,
-                drinkingMode: this.drinkingMode 
-            } 
+            rounds: this.currentWordCount, 
+            drinking: this.drinkingMode
         };
-        this.socket.emit('updateRoom', payload);
+        this.socket.emit('updateSettings', payload);
     },
 
     updateMode(newMode) {
         if (!this.isHost) return;
         this.currentMode = newMode;
-        this.renderLobby(); // Optimistic update
+        this.renderLobby();
         this.emitUpdate();
     },
 
@@ -4523,14 +4571,7 @@ const RoomManager = {
 
     startGame() {
         if (!this.isHost) return;
-        this.socket.emit('startGame', { 
-            roomCode: this.roomCode,
-            mode: this.currentMode,
-            settings: { 
-                wordCount: this.currentWordCount,
-                drinkingMode: this.drinkingMode 
-            } 
-        });
+        this.socket.emit('startGame', { roomCode: this.roomCode });
     },
 
     // --- GAME ACTIONS ---
@@ -4538,17 +4579,15 @@ const RoomManager = {
     submitVote(voteType) {
         this.socket.emit('submitVote', { 
             roomCode: this.roomCode, 
-            vote: voteType, 
-            wordIndex: State.runtime.currentWordIndex 
+            vote: voteType 
         });
     },
 
-    // --- VIEW RENDERING (Reads strictly from 'this') ---
+    // --- VIEW RENDERING ---
 
     renderLobby() {
         document.getElementById('lobbyModal')?.remove();
         
-        // READ STATE directly from the object
         const activeMode = this.currentMode;
         const activeWordCount = this.currentWordCount;
         const activeDrinking = this.drinkingMode;
@@ -4559,22 +4598,19 @@ const RoomManager = {
         const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(joinUrl)}`;
 
         const playersHtml = playersList.map(p => {
-            let displayName = p.username || 'Guest';
-            if (p.id === this.playerId) {
-                if (!p.username || p.username === 'Guest' || p.username.startsWith('Guest_')) {
-                    displayName = State.data.username || localStorage.getItem('username') || displayName;
-                }
-            }
+            let displayName = p.name || 'Guest';
             return `<div class="flex items-center space-x-3 bg-white border border-gray-100 p-3 rounded-lg mb-2 shadow-sm">
                 <div class="w-3 h-3 rounded-full ${p.ready !== false ? 'bg-green-500' : 'bg-gray-300'}"></div>
                 <span class="font-bold text-gray-700 truncate flex-1">${displayName}</span>
-                ${p.host ? '<span class="text-xs bg-indigo-100 text-indigo-700 px-2 rounded-full">HOST</span>' : ''}
+                ${p.id === this.playerId ? '<span class="text-xs text-gray-400">(You)</span>' : ''}
+                ${(p.id === this.players[0]?.id) ? '<span class="text-xs bg-indigo-100 text-indigo-700 px-2 rounded-full">HOST</span>' : ''}
             </div>`;
         }).join('');
 
         let modesHtml = '';
         Object.entries(this.modeConfig).forEach(([key, conf]) => {
             const isSelected = (activeMode === key);
+            // Non-hosts only see selected mode
             if (!this.isHost && !isSelected) return; 
 
             const clickAttr = this.isHost ? `onclick="window.RoomManager.updateMode('${key}')"` : '';
@@ -4595,7 +4631,6 @@ const RoomManager = {
         const sliderDisabled = !this.isHost ? 'disabled' : '';
         const sliderOpacity = !this.isHost ? 'opacity-70' : '';
 
-        // Drinking Mode UI
         let drinkingHtml = '';
         if (this.isHost) {
             drinkingHtml = `
@@ -4699,17 +4734,12 @@ const RoomManager = {
     },
 
     attemptJoinOrCreate(code, nameOverride = null) {
-        const user = nameOverride || this.getUsername();
-        this.roomCode = code; 
-        this.socket.emit('joinRoom', { roomCode: code, username: user }, (res) => {
-            if (!res || !res.success) {
-                this.socket.emit('createRoom', { roomCode: code, username: user }, (cRes) => {
-                    if (cRes && cRes.success) {
-                        this.isHost = true;
-                        this.renderLobby();
-                    }
-                });
-            }
+        // FIX: simplified join logic. Server creates room if missing.
+        this.roomCode = code;
+        this.socket.emit('joinRoom', { 
+            roomCode: code, 
+            username: nameOverride || this.getUsername(),
+            theme: State.data.currentTheme 
         });
     },
 
