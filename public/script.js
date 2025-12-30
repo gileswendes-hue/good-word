@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.82.4', 
+    APP_VERSION: '5.82.5', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -3390,6 +3390,11 @@ displayWord(w) {
         const old = document.getElementById(modalId);
         if(old) old.remove();
 
+        let restartAction = "window.location.reload()";
+        if (window.RoomManager && window.RoomManager.roomCode) {
+            restartAction = `window.location.href = '?room=${window.RoomManager.roomCode}'`;
+        }
+
         let header = '';
         let body = '';
         
@@ -3510,9 +3515,9 @@ displayWord(w) {
                 <div class="flex flex-col gap-3">
                     ${data.mode === 'okstoopid' ? `<button id="share-result-btn" class="w-full py-3 bg-pink-100 hover:bg-pink-200 text-pink-600 font-bold rounded-xl transition">📸 Share Coupon</button>` : ''}
                     
-                    <button onclick="window.location.reload()" class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-xl shadow-lg transition transform active:scale-95 flex items-center justify-center gap-2">
-                        <span>🔄</span> PLAY AGAIN
-                    </button>
+<button onclick="${restartAction}" class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-xl shadow-lg transition transform active:scale-95 flex items-center justify-center gap-2">
+    <span>🔄</span> PLAY AGAIN
+</button>
                 </div>
             </div>
         </div>`;
@@ -4783,6 +4788,10 @@ this.socket.on('gameOver', (data) => {
         const activeWordCount = this.currentWordCount;
         const activeDrinking = this.drinkingMode;
         const safeCode = this.roomCode || '...';
+        if (this.roomCode) {
+            const newUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?room=${this.roomCode}`;
+            window.history.replaceState({path: newUrl}, '', newUrl);
+        }
         const playersList = this.players || [];
         
         const joinUrl = `${window.location.origin}?room=${safeCode}`;
