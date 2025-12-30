@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.82.2', 
+    APP_VERSION: '5.82.3', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -3340,7 +3340,7 @@ displayWord(w) {
             document.body.appendChild(ind);
         }
         ind.style.opacity = active ? '1' : '0';
-    }
+    },
 
     showCountdown(seconds, callback) {
         // Remove existing if any
