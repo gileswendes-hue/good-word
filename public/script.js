@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.82.5', 
+    APP_VERSION: '5.82.6', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -2883,6 +2883,25 @@ const UIManager = {
         }
         this.renderMiniRankings();
     },
+
+showRoleReveal(title, subtitle, type = 'neutral') {
+        const colors = { evil: 'bg-red-600', good: 'bg-green-600', neutral: 'bg-indigo-600' };
+        const bg = colors[type] || colors.neutral;
+        
+        const el = document.createElement('div');
+        el.className = 'fixed inset-0 z-[10000] flex items-center justify-center bg-black/90 px-4';
+        el.innerHTML = `
+            <div class="w-full max-w-sm p-6 bg-white rounded-2xl shadow-2xl text-center animate-pop">
+                <div class="text-6xl mb-4">🤫</div>
+                <h2 class="text-3xl font-black text-gray-800 mb-2">${title}</h2>
+                <p class="text-gray-600 font-bold mb-6">${subtitle}</p>
+                <button id="closeRoleBtn" class="w-full py-3 ${bg} text-white font-bold rounded-xl shadow-lg">UNDERSTOOD</button>
+            </div>
+        `;
+        document.body.appendChild(el);
+        document.getElementById('closeRoleBtn').onclick = () => el.remove();
+    },
+
     updateProfileDisplay() {
         const n = State.data.username;
         const p = State.data.profilePhoto; 
@@ -3433,13 +3452,16 @@ displayWord(w) {
         
         // --- 2. TRAITOR MODE ---
         else if (data.mode === 'traitor') {
-            // Find Traitor Name
-            const traitor = data.rankings.find(p => p.id === data.specialRoleId);
+            // FIX: Added safety checks to prevent crashes if data is missing
+            const rankings = data.rankings || [];
+            const traitor = rankings.find(p => p.id === data.specialRoleId);
             const traitorName = traitor ? traitor.name : "Unknown";
-            const traitorWon = data.msg && data.msg.includes("Traitor Wins"); // Server sends msg logic
+            
+            // Check message content safely
+            const isTraitorWin = data.msg && data.msg.includes("Traitor Wins");
 
-            header = `<h2 class="text-3xl font-black text-center mb-2 ${traitorWon ? 'text-red-600' : 'text-green-600'}">
-                ${traitorWon ? 'TRAITOR WINS!' : 'TEAM WINS!'}
+            header = `<h2 class="text-3xl font-black text-center mb-2 ${isTraitorWin ? 'text-red-600' : 'text-green-600'}">
+                ${isTraitorWin ? 'TRAITOR WINS!' : 'TEAM WINS!'}
             </h2>`;
             
             body = `
@@ -4635,6 +4657,10 @@ const RoomManager = {
 
         this.socket.on('connect', () => { this.playerId = this.socket.id; });
 
+        this.socket.on('roleAlert', (msg) => {
+             UIManager.showRoleReveal("🤫 SECRET ROLE", msg, "evil");
+        });
+
         // --- LOBBY EVENTS ---
         this.socket.on('roomUpdate', (data) => {
             console.log("Room Update Received:", data);
@@ -4765,8 +4791,20 @@ this.socket.on('gameOver', (data) => {
         this.emitUpdate();
     },
 
-    startGame() {
+startGame() {
         if (!this.isHost) return;
+
+        // --- FIX: Player Limits ---
+        if (this.currentMode === 'okstoopid' && this.players.length !== 2) {
+            UIManager.showPostVoteMessage("⚠️ OK Stoopid requires exactly 2 players!");
+            return;
+        }
+        if (this.currentMode === 'traitor' && this.players.length < 3) {
+            UIManager.showPostVoteMessage("⚠️ Traitor Mode requires at least 3 players!");
+            return;
+        }
+        // --------------------------
+
         this.socket.emit('startGame', { roomCode: this.roomCode });
     },
 
