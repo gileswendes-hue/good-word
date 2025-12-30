@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.82.7', 
+    APP_VERSION: '5.81.38', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -3361,20 +3361,28 @@ displayWord(w) {
         ind.style.opacity = active ? '1' : '0';
     },
 
-    showCountdown(seconds, callback) {
-        // Remove existing if any
+   showCountdown(seconds, callback, isTraitor = false) {
         const old = document.getElementById('game-countdown');
         if (old) old.remove();
 
+        // 1. Dynamic Background & Text
+        const bgClass = isTraitor ? 'bg-red-900' : 'bg-indigo-900';
+        const roleText = isTraitor 
+            ? '<div class="text-red-400 text-3xl font-black animate-pulse mt-4 tracking-widest border-2 border-red-500 px-4 py-1 rounded">YOU ARE THE TRAITOR</div>' 
+            : '<div class="text-indigo-300 text-xl font-bold mt-4 tracking-widest opacity-50">GET READY</div>';
+
         const el = document.createElement('div');
         el.id = 'game-countdown';
-        el.className = 'fixed inset-0 bg-indigo-900 z-[99999] flex items-center justify-center';
-        // Start with the number
-        el.innerHTML = `<div id="cd-text" class="text-white font-black text-9xl animate-ping opacity-90">${seconds}</div>`;
+        el.className = `fixed inset-0 ${bgClass} z-[99999] flex flex-col items-center justify-center transition-colors duration-500`;
+        
+        // 2. HTML Structure
+        el.innerHTML = `
+            <div id="cd-text" class="text-white font-black text-9xl animate-ping opacity-90">${seconds}</div>
+            ${roleText}
+        `;
         document.body.appendChild(el);
 
         let count = seconds;
-        
         const tick = () => {
             count--;
             if (count > 0) {
@@ -3397,12 +3405,8 @@ displayWord(w) {
                 }, 800);
             }
         };
-
         const timer = setInterval(tick, 1000);
     },
-
-    // 2. Game Over Modal (Replaces Browser Alert)
-    // Inside UIManager object ...
 
     showGameOverModal(data) {
         const modalId = 'gameOverModal';
@@ -4657,8 +4661,24 @@ const RoomManager = {
 
         this.socket.on('connect', () => { this.playerId = this.socket.id; });
 
+     // 1. Handle Role Alert SILENTLY (No popup yet)
         this.socket.on('roleAlert', (msg) => {
-             UIManager.showRoleReveal("🤫 SECRET ROLE", msg, "evil");
+             this.amITraitor = true; // Just store the flag
+             // UIManager.showRoleReveal(...) <-- REMOVE THIS LINE
+        });
+
+        // 2. Pass Traitor Flag to Countdown
+        this.socket.on('gameStarted', (data) => {
+            this.closeLobby();
+            this.active = true;
+            
+            // Pass 'this.amITraitor' to the countdown
+            UIManager.showCountdown(3, () => {
+                if (Game && Game.startMultiplayer) Game.startMultiplayer(data);
+            }, this.amITraitor);
+            
+            // Reset flag for next game
+            this.amITraitor = false; 
         });
 
         // --- LOBBY EVENTS ---
