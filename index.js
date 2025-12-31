@@ -228,8 +228,7 @@ io.on('connection', (socket) => {
         if(rounds) room.maxWords = parseInt(rounds);
         if (typeof drinking !== 'undefined') room.drinkingMode = drinking;
         
-        // Force disable drinking for modes that don't support it
-        if (room.mode === 'traitor' || room.mode === 'kids') room.drinkingMode = false;
+        if (room.mode === 'kids') room.drinkingMode = false;
 
         emitUpdate(roomCode);
     });
