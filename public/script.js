@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.84.1', 
+    APP_VERSION: '5.84.2', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4897,12 +4897,15 @@ const RoomManager = {
         }
     },
 
-    emitUpdate() {
+emitUpdate() {
         const payload = { 
             roomCode: this.roomCode, 
             mode: this.currentMode, 
             rounds: this.currentWordCount, 
-            drinking: this.drinkingMode
+            drinking: this.drinkingMode,
+            // --- ADD THIS LINE ---
+            theme: State.data.currentTheme 
+            // ---------------------
         };
         this.socket.emit('updateSettings', payload);
     },
