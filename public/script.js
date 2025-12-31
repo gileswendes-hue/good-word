@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.83.0', 
+    APP_VERSION: '5.83.1', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -2830,6 +2830,9 @@ const UIManager = {
         DOM.game.wordFrame.style.padding = '0';
         this.disableButtons(true)
     },
+
+
+
     disableButtons(d) {
         Object.values(DOM.game.buttons).forEach(b => {
             if (!b.id.includes('custom')) b.disabled = d
@@ -3406,6 +3409,44 @@ displayWord(w) {
             }
         };
         const timer = setInterval(tick, 1000);
+    },
+
+    showDrinkingModal(data) {
+        const modalId = 'drinkingModal';
+        const old = document.getElementById(modalId);
+        if(old) old.remove();
+
+        const drinkersHtml = data.drinkers.map(d => 
+            `<div class="font-bold text-lg text-yellow-900 border-b border-yellow-200 last:border-0 py-1">
+                ${d.icon || '🍺'} ${d.name} <span class="text-sm font-normal text-yellow-700">- ${d.reason}</span>
+            </div>`
+        ).join('');
+
+        const html = `
+        <div id="${modalId}" class="fixed inset-0 bg-yellow-900/95 z-[10000] flex items-center justify-center p-4 animate-fade-in font-sans">
+            <div class="bg-yellow-50 rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center border-4 border-yellow-400 transform scale-100">
+                <div class="text-6xl mb-4 animate-bounce">🍻</div>
+                <h2 class="text-3xl font-black text-yellow-900 mb-2">DRINK PENALTY!</h2>
+                <div class="text-yellow-800 font-bold mb-6 text-lg bg-yellow-200 inline-block px-3 py-1 rounded-lg">${data.msg || "Penalty Round"}</div>
+                
+                <div class="bg-white rounded-xl p-4 mb-6 border-2 border-yellow-200 shadow-inner max-h-[30vh] overflow-y-auto">
+                    ${drinkersHtml || '<div class="text-gray-400 italic">Everyone is safe... for now.</div>'}
+                </div>
+
+                <button id="drink-ready-btn" onclick="RoomManager.confirmReady()" class="w-full py-4 bg-green-600 hover:bg-green-700 text-white font-black rounded-xl text-xl shadow-lg transition transform active:scale-95 flex items-center justify-center gap-2">
+                    <span>👍</span> WE ARE READY
+                </button>
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
+    },
+
+    closeDrinkingModal() {
+        const el = document.getElementById('drinkingModal');
+        if (el) {
+            el.classList.add('opacity-0');
+            setTimeout(() => el.remove(), 300);
+        }
     },
 
     showGameOverModal(data) {
@@ -4757,6 +4798,9 @@ this.socket.on('gameStarted', (data) => {
             UIManager.showPostVoteMessage(`🍺 ${text}`);
             Haptics.heavy();
         });
+        this.socket.on('drinkingComplete', () => {
+            UIManager.closeDrinkingModal();
+        });
 
 // Find the RoomManager object in script.js and look for the 'gameOver' listener inside 'connect()'
 
@@ -4835,6 +4879,18 @@ startGame() {
             roomCode: this.roomCode, 
             vote: voteType 
         });
+    },
+
+    confirmReady() {
+        this.socket.emit('confirmReady', { roomCode: this.roomCode });
+        
+        // Visual feedback so they know they clicked it
+        const btn = document.getElementById('drink-ready-btn');
+        if(btn) {
+            btn.innerHTML = "⏳ WAITING FOR OTHERS...";
+            btn.className = "w-full py-4 bg-gray-400 text-white font-bold rounded-xl text-xl cursor-not-allowed";
+            btn.disabled = true;
+        }
     },
 
     // --- VIEW RENDERING ---
