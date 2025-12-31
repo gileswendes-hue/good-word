@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.84.4', 
+    APP_VERSION: '5.84.5', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4812,8 +4812,9 @@ const RoomManager = {
         });
 
         this.socket.on('roomUpdate', (data) => {
-            // THEME SYNC LOGIC
-            if (data.theme && data.theme !== 'default') {
+            // --- FIX: THEME SYNC LOGIC ---
+            if (data.theme && !this.isHost) {
+                // Only guests sync to the host
                 if (data.theme !== this.hostTheme) {
                     if (!this.hostTheme) {
                         this.originalTheme = State.data.currentTheme || 'default';
@@ -4868,7 +4869,7 @@ const RoomManager = {
         });
 
         this.socket.on('gameOver', (data) => {
-            this.cleanupMultiplayer(); // Revert theme
+            this.cleanupMultiplayer(); 
             const banner = document.querySelector('.mp-banner-text');
             if(banner) banner.remove();
             const ui = document.getElementById('mp-mode-ui');
@@ -4880,7 +4881,7 @@ const RoomManager = {
         });
 
         this.socket.on('kicked', () => {
-            this.cleanupMultiplayer(); // Revert theme
+            this.cleanupMultiplayer();
             this.active = false;
             State.runtime.isMultiplayer = false;
             UIManager.showKickedModal();
@@ -4967,7 +4968,6 @@ const RoomManager = {
     renderLobby() {
         document.getElementById('lobbyModal')?.remove();
         
-        // --- FIX 2: FORCE SYNC THEME IF HOST ---
         if (this.isHost) {
             setTimeout(() => this.emitUpdate(), 100);
         }
@@ -5038,7 +5038,6 @@ const RoomManager = {
             `;
         }
 
-        // --- FIX 1: IMPROVED CSS LAYOUT ---
         const html = `
         <div id="lobbyModal" class="fixed inset-0 bg-gray-900 z-[9999] flex flex-col md:flex-row font-sans h-full">
             <div class="w-full md:w-1/3 bg-white p-4 md:p-6 flex flex-col border-b md:border-b-0 md:border-r border-gray-200 z-10 shadow-md md:shadow-none shrink-0 h-[40%] md:h-full overflow-hidden">
@@ -5145,545 +5144,50 @@ const RoomManager = {
 };
 
 const Game = {
-    resetGame() {
-        State.runtime.currentWordIndex = 0;
-        State.runtime.streak = 0;
-        State.runtime.mashCount = 0;
-        State.runtime.score = 0;
-        State.runtime.lives = 0;
-        UIManager.updateStats();
-    },
-
-// Inside Game object ...
-
-startMultiplayer(data) {
-    console.log("STARTING MULTIPLAYER LOGIC", data);
-    
-    // 1. Set State
-    State.runtime.isMultiplayer = true;
-    State.runtime.mpMode = data.mode || 'coop';
-    State.runtime.mpRoom = data.roomCode;
-    State.runtime.isDrinkingMode = (data.settings && data.settings.drinkingMode) || data.drinkingMode || false;
-    
-    // 2. Banner at top
-    const oldBanner = document.querySelector('.mp-banner-text');
-    if(oldBanner) oldBanner.remove();
-
-    const banner = document.createElement('div');
-    banner.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-indigo-900 text-white px-6 py-2 rounded-full shadow-lg z-50 font-bold flex items-center gap-2 border border-indigo-500 mp-banner-text';
-    const label = RoomManager.modeConfig[State.runtime.mpMode]?.label || "Multiplayer";
-    banner.innerHTML = `<span>🎮</span> ${label}`;
-    document.body.appendChild(banner);
-
-    // 3. Mode Specific Visuals (Lives / Scoreboards)
-    const oldUI = document.getElementById('mp-mode-ui');
-    if(oldUI) oldUI.remove();
-
-    const modeUI = document.createElement('div');
-    modeUI.id = 'mp-mode-ui';
-    modeUI.className = 'fixed top-16 left-1/2 transform -translate-x-1/2 z-40 flex flex-col items-center gap-2';
-    
-    if (State.runtime.mpMode === 'survival') {
-        modeUI.innerHTML = `<div id="survival-lives" class="bg-red-600 text-white px-4 py-2 rounded-full font-bold shadow-lg border-2 border-red-400 transition-all">❤️ x 3</div>`;
-    }
-    else if (State.runtime.mpMode === 'versus') {
-        const me = RoomManager.players.find(p => p.id === RoomManager.playerId);
-        const myTeam = me ? me.team : 'neutral';
-        const teamColor = myTeam === 'red' ? 'bg-red-600 border-red-400' : (myTeam === 'blue' ? 'bg-blue-600 border-blue-400' : 'bg-gray-500');
-        
-        modeUI.innerHTML = `
-            <div class="${teamColor} text-white px-6 py-1 rounded-t-lg font-bold shadow-lg border-t-2 border-x-2 text-xs uppercase tracking-widest">YOU ARE ${myTeam.toUpperCase()}</div>
-            <div id="versus-scores" class="bg-gray-900 text-white px-6 py-2 rounded-b-lg font-bold shadow-lg border-2 border-gray-700 flex items-center">
-                <span class="text-red-300">RED: 0</span> <span class="text-gray-400 mx-2">|</span> <span class="text-blue-300">BLUE: 0</span>
-            </div>
-        `;
-    }
-    
-    document.body.appendChild(modeUI);
-
-    // 4. Drinking Badge
-    if (State.runtime.isDrinkingMode) {
-        const dBadge = document.createElement('div');
-        dBadge.className = 'fixed bottom-4 right-4 bg-yellow-400 text-yellow-900 font-black px-3 py-1 rounded-lg shadow-lg rotate-3 z-40 border-2 border-yellow-600 animate-pulse';
-        dBadge.innerHTML = '🍺 DRINKING ON';
-        document.body.appendChild(dBadge);
-    }
-
-    // 5. Reset Game State
-    this.resetGame();
-    
-    // 6. Load Words
-if (data.words && data.words.length > 0) {
-            // OPTION A: Server sent the full list (Best Case)
-            State.runtime.allWords = data.words;
-            this.nextWord(); 
-        } else {
-            // OPTION B: Server hasn't sent words yet (Standard Case)
-            // Clear old Single Player words so we don't show mismatch
-            State.runtime.allWords = []; 
-            
-            // Do NOT call this.nextWord() here. 
-            // We simply wait for the server to emit 'nextWord' (approx 4s delay).
-            UIManager.showMessage("Get Ready...");
-        }
-},
-
-	renderGraphs() {
-        const w = State.runtime.allWords;
-        if (!w || w.length === 0) return;
-
-        // --- HELPER: Draw Text Centered ---
-        const drawText = (ctx, text, x, y, color = "#666", size = 12) => {
-            ctx.fillStyle = color;
-            ctx.font = `${size}px sans-serif`;
-            ctx.textAlign = "center";
-            ctx.fillText(text, x, y);
-        };
-
-        const cvsScatter = document.getElementById('scatterChartCanvas');
-        if (cvsScatter) {
-            const ctx = cvsScatter.getContext('2d');
-            const W = cvsScatter.width;
-            const H = cvsScatter.height;
-            const P = 40; // Padding
-
-            ctx.clearRect(0, 0, W, H);
-
-            // Scales
-            let maxGood = 0, maxBad = 0;
-            w.forEach(word => {
-                if ((word.goodVotes || 0) > maxGood) maxGood = word.goodVotes || 0;
-                if ((word.badVotes || 0) > maxBad) maxBad = word.badVotes || 0;
-            });
-            maxGood = Math.max(5, maxGood * 1.1);
-            maxBad = Math.max(5, maxBad * 1.1);
-
-            // Grid & Axes
-            ctx.beginPath();
-            ctx.strokeStyle = "#e5e7eb";
-            ctx.lineWidth = 1;
-            // Draw Grid Lines
-            for(let i=1; i<=4; i++) {
-                const y = H - P - (i/5)*(H - 2*P);
-                const x = P + (i/5)*(W - 2*P);
-                ctx.moveTo(P, y); ctx.lineTo(W-P, y); // Horiz
-                ctx.moveTo(x, P); ctx.lineTo(x, H-P); // Vert
-            }
-            ctx.stroke();
-
-            // Main Axes
-            ctx.beginPath();
-            ctx.strokeStyle = "#9ca3af";
-            ctx.lineWidth = 2;
-            ctx.moveTo(P, P); ctx.lineTo(P, H - P); // Y
-            ctx.lineTo(W - P, H - P); // X
-            ctx.stroke();
-
-            // Labels
-            drawText(ctx, "Bad Votes →", W / 2, H - 10, "#4b5563", 12);
-            ctx.save();
-            ctx.translate(15, H / 2);
-            ctx.rotate(-Math.PI / 2);
-            drawText(ctx, "Good Votes →", 0, 0, "#4b5563", 12);
-            ctx.restore();
-
-            // Quadrant Labels
-            drawText(ctx, "😇 LOVED", P + 40, P + 20, "rgba(34, 197, 94, 0.3)", 10);
-            drawText(ctx, "👿 HATED", W - P - 40, H - P - 20, "rgba(239, 68, 68, 0.3)", 10);
-            drawText(ctx, "⚔️ CONTROVERSIAL", W - P - 60, P + 20, "rgba(107, 114, 128, 0.3)", 10);
-
-            // Plot Points
-            w.forEach(word => {
-                const g = word.goodVotes || 0;
-                const b = word.badVotes || 0;
-                if (g + b === 0) return;
-
-                const x = P + (b / maxBad) * (W - 2 * P);
-                const y = (H - P) - (g / maxGood) * (H - 2 * P);
-
-                ctx.beginPath();
-                ctx.arc(x, y, 3, 0, Math.PI * 2);
-                
-                if (g > b * 1.5) ctx.fillStyle = "rgba(34, 197, 94, 0.6)"; // Green
-                else if (b > g * 1.5) ctx.fillStyle = "rgba(239, 68, 68, 0.6)"; // Red
-                else ctx.fillStyle = "rgba(107, 114, 128, 0.6)"; // Grey
-                
-                ctx.fill();
-            });
-        }
-
-	const cvsLine = document.getElementById('lineChartCanvas');
-        if (cvsLine) {
-            const ctx = cvsLine.getContext('2d');
-            const W = cvsLine.width;
-            const H = cvsLine.height;
-            const P = 40; // Padding
-            const GRAPH_H = H - 2 * P;
-            const Y_PLOT_MAX = P;      // Top Y position
-            const Y_PLOT_MIN = H - P;  // Bottom Y position
-
-            ctx.clearRect(0, 0, W, H);
-
-            // Get Data
-            let history = State.data.wordHistory || [];
-            if (history.length === 0) {
-                const today = new Date().toISOString().split('T')[0];
-                history = [{ date: today, count: w.length }];
-            }
-
-            // Scales
-            const currentMaxData = Math.max(...history.map(h => h.count), w.length);
-            
-            // --- MODIFIED SCALE LOGIC (Range Translation) ---
-            const Y_MIN_VALUE = 3000;
-            const SOFT_MAX = 6000;
-            
-            let Y_MAX_VALUE = SOFT_MAX;
-            
-            // If data exceeds soft max, scale up to the nearest clean number
-            if (currentMaxData > SOFT_MAX) {
-                const magnitude = Math.pow(10, Math.floor(Math.log10(currentMaxData || 10)));
-                let step = magnitude >= 1000 ? 1000 : 500;
-                Y_MAX_VALUE = Math.ceil(currentMaxData / step) * step;
-            }
-            
-            // The range we are visually mapping (e.g., 3000 to 6000)
-            const VALUE_RANGE = Y_MAX_VALUE - Y_MIN_VALUE;
-            // ------------------------------------------------
-
-            // Draw Axes
-            ctx.beginPath();
-            ctx.strokeStyle = "#ccc";
-            ctx.lineWidth = 1;
-            ctx.moveTo(P, Y_PLOT_MAX); ctx.lineTo(P, Y_PLOT_MIN); ctx.lineTo(W - P, Y_PLOT_MIN);
-            ctx.stroke();
-
-            // Helper function for y coordinate calculation relative to the 3000 baseline
-            const getY = (count) => {
-                if (count <= Y_MIN_VALUE) return Y_PLOT_MIN; // Floor at 3000
-                
-                // Calculate position relative to the new range (Y_PLOT_MIN is 3000, Y_PLOT_MAX is Y_MAX_VALUE)
-                const valueAboveMin = count - Y_MIN_VALUE;
-                const plotRatio = valueAboveMin / VALUE_RANGE;
-                
-                return Y_PLOT_MIN - plotRatio * GRAPH_H;
-            };
-            
-            // Draw Y-Axis Labels
-            ctx.textAlign = "right";
-            
-            // Max Label
-            drawText(ctx, Y_MAX_VALUE.toLocaleString(), P - 5, P + 5, "#666", 10);
-            
-            // Custom Markers
-            const markers = [Y_MIN_VALUE, SOFT_MAX];
-            
-            if (Y_MAX_VALUE !== SOFT_MAX) {
-                const step = Y_MAX_VALUE / 4; 
-                for (let i = 1; i <= 3; i++) markers.push(Math.round(i * step / 100) * 100);
-            }
-            
-            // Draw Grid Lines and Labels
-            [...new Set(markers)].sort((a,b)=>a-b).forEach(mark => {
-                if (mark >= Y_MIN_VALUE && mark <= Y_MAX_VALUE) {
-                    const y = getY(mark);
-                    ctx.strokeStyle = "#e5e7eb";
-                    ctx.beginPath();
-                    ctx.moveTo(P, y); ctx.lineTo(W - P, y);
-                    ctx.stroke();
-                    drawText(ctx, mark.toLocaleString(), P - 5, y + 5, "#666", 10);
-                }
-            });
-            
-            // Draw the 3,000 label at the baseline
-            drawText(ctx, Y_MIN_VALUE.toLocaleString(), P - 5, Y_PLOT_MIN + 5, "#666", 10); 
-            
-            // X-Axis
-            // ... (X-Axis logic omitted) ...
-
-            // Plot Line and Markers
-            if (history.length > 0) {
-                // FIX: Prevent division by zero if there is only 1 data point
-                const xDivisor = history.length > 1 ? history.length - 1 : 1;
-
-                ctx.beginPath();
-                ctx.strokeStyle = "#4f46e5";
-                ctx.lineWidth = 3;
-                
-                history.forEach((h, i) => {
-                    // Use the safe divisor here
-                    const x = P + (i / xDivisor) * (W - 2 * P);
-                    const y = getY(h.count);
-                    
-                    if (i === 0) ctx.moveTo(x, y);
-                    else ctx.lineTo(x, y);
-                });
-                ctx.stroke();
-                
-                // --- ADD MARKERS FOR EACH DATA POINT ---
-                history.forEach((h, i) => {
-                    // Use the safe divisor here as well
-                    const x = P + (i / xDivisor) * (W - 2 * P);
-                    const y = getY(h.count);
-                    
-                    ctx.beginPath();
-                    ctx.fillStyle = "#4f46e5";
-                    ctx.arc(x, y, 4, 0, Math.PI * 2);
-                    ctx.fill();
-                    
-                    // Highlight the last/current point
-                    if (i === history.length - 1) {
-                         ctx.beginPath();
-                         ctx.strokeStyle = "#ffffff";
-                         ctx.lineWidth = 2;
-                         ctx.arc(x, y, 6, 0, Math.PI * 2);
-                         ctx.stroke();
-                    }
-                });
-            }
-
-            // Titles
-            drawText(ctx, "Time →", W / 2, H - 5, "#999", 10);
-            ctx.save();
-            ctx.translate(12, H / 2);
-            ctx.rotate(-Math.PI / 2);
-            drawText(ctx, "Total Words →", 0, 0, "#999", 10);
-            ctx.restore();
-        }
-
-        const cvsPie = document.getElementById('pieChartCanvas');
-        if (cvsPie) {
-            const ctx = cvsPie.getContext('2d');
-            const W = cvsPie.width;
-            const H = cvsPie.height;
-            ctx.clearRect(0, 0, W, H);
-
-            // Classify Words
-            let cGood = 0, cBad = 0, cControversial = 0, cUnrated = 0;
-            
-            w.forEach(word => {
-                const g = word.goodVotes || 0;
-                const b = word.badVotes || 0;
-                const total = g + b;
-                
-                if (total < 3) {
-                    cUnrated++;
-                } else {
-                    const ratio = g / total;
-                    if (ratio > 0.60) cGood++;
-                    else if (ratio < 0.40) cBad++;
-                    else cControversial++;
-                }
-            });
-
-            const totalRated = cGood + cBad + cControversial;
-            
-            if (totalRated === 0) {
-                drawText(ctx, "Not enough votes yet.", W/2, H/2);
-            } else {
-                const data = [
-                    { label: "Good", val: cGood, color: "#22c55e" },
-                    { label: "Bad", val: cBad, color: "#ef4444" },
-                    { label: "Controversial", val: cControversial, color: "#eab308" }
-                ];
-
-                let startAngle = 0;
-                const centerX = 150;
-                const centerY = H / 2;
-                const radius = 70;
-
-                data.forEach(slice => {
-                    if (slice.val === 0) return;
-                    const sliceAngle = (slice.val / totalRated) * 2 * Math.PI;
-                    
-                    ctx.beginPath();
-                    ctx.moveTo(centerX, centerY);
-                    ctx.arc(centerX, centerY, radius, startAngle, startAngle + sliceAngle);
-                    ctx.fillStyle = slice.color;
-                    ctx.fill();
-                    startAngle += sliceAngle;
-                });
-
-                // Legend
-                let legY = 60;
-                data.forEach(slice => {
-                    ctx.fillStyle = slice.color;
-                    ctx.fillRect(260, legY, 15, 15);
-                    ctx.fillStyle = "#374151";
-                    ctx.textAlign = "left";
-                    ctx.font = "bold 12px sans-serif";
-                    const pct = Math.round((slice.val / totalRated) * 100);
-                    ctx.fillText(`${slice.label}: ${slice.val} (${pct}%)`, 285, legY + 12);
-                    legY += 30;
-                });
-            }
-        }
-    },
-	
-async renderLeaderboardTable() {
-        const lbContainer = DOM.general.voteLeaderboardTable;
-        if (!lbContainer) return;
-
-        lbContainer.innerHTML = '<div class="text-center text-gray-500 p-4">Loading top voters...</div>';
-
-        const allUsers = await API.fetchLeaderboard();
-        
-        // 1. Slice the Top 5
-        const topUsers = allUsers.slice(0, 5);
-
-        if (topUsers.length === 0) {
-            lbContainer.innerHTML = '<div class="text-center text-gray-500 p-4">Global leaderboard unavailable.</div>';
-            return;
-        }
-        
-        const d = State.data;
-        let html = '<h3 class="text-lg font-bold text-gray-800 mb-3 mt-4">Top Voters (Global)</h3>';
-        
-        // 2. Render Top 5
-        topUsers.forEach((user, i) => {
-            const isYou = d.userId && user.userId === d.userId;
-            const rowClass = isYou 
-                ? 'bg-indigo-100 border-2 border-indigo-400 font-bold text-indigo-700' 
-                : 'bg-white border border-gray-200 text-gray-800';
-
-            html += `
-                <div class="flex justify-between items-center py-2 px-3 rounded ${rowClass} text-sm mb-1">
-                    <span class="w-6 text-center">#${i + 1}</span>
-                    <span class="truncate flex-1">${user.username ? user.username.substring(0, 20) : 'Anonymous'}</span>
-                    <span class="text-right">${(user.voteCount || 0).toLocaleString()} votes</span>
-                </div>
-            `;
-        });
-
-        // 3. Check if "You" are missing from the top 5
-        // We look for the user in the FULL list
-        const userRankIndex = allUsers.findIndex(u => u.userId === d.userId);
-        
-        // If user exists, is NOT in the top 5 (index >= 5), render them at the bottom
-        if (userRankIndex >= 5) {
-            const myUser = allUsers[userRankIndex];
-            
-            // Add a little divider dots
-            html += `<div class="text-center text-gray-400 text-xs my-1">...</div>`;
-            
-            html += `
-                <div class="flex justify-between items-center py-2 px-3 rounded bg-indigo-100 border-2 border-indigo-400 font-bold text-indigo-700 text-sm mb-1">
-                    <span class="w-6 text-center">#${userRankIndex + 1}</span>
-                    <span class="truncate flex-1">You (${myUser.username ? myUser.username.substring(0, 15) : 'Anonymous'})</span>
-                    <span class="text-right">${(myUser.voteCount || 0).toLocaleString()} votes</span>
-                </div>
-            `;
-        }
-
-        lbContainer.innerHTML = html;
-    },
-	
-    cleanStyles(e) {
-        e.style.animation = 'none';
-        e.style.background = 'none';
-        e.style.webkitTextFillColor = 'initial';
-        e.style.textShadow = 'none';
-        e.style.transform = 'none';
-        e.style.filter = 'none';
-        e.style.color = ''
-    },
-	
-	setRandomFavicon() {
-        const options = ['👍', '👎', '🗳️'];
-        const choice = options[Math.floor(Math.random() * options.length)];
-        
-        // Create an SVG favicon on the fly
-        const svg = `<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>${choice}</text></svg>`;
-        
-        let link = document.querySelector("link[rel~='icon']");
-        if (!link) {
-            link = document.createElement('link');
-            link.rel = 'icon';
-            document.head.appendChild(link);
-        }
-        link.href = `data:image/svg+xml,${svg}`;
-    },
     async init() {
-		this.setRandomFavicon();
-		DOM = loadDOM();
+        this.setRandomFavicon();
+        DOM = loadDOM();
         try {
-            // 1. Force Version Display (High Z-Index)
+            // Force Version Display
             const vEl = document.querySelector('.version-indicator');
             if (vEl) {
                 vEl.textContent = `v${CONFIG.APP_VERSION} | Made by Gilxs in 12,025`;
-                
                 Object.assign(vEl.style, {
-                    position: 'fixed', 
-                    bottom: '15px', 
-                    left: '50%',                
-                    transform: 'translateX(-50%)', 
-                    
-                    // --- Z-INDEX UPDATE ---
-                    // z-5 sits ABOVE the Summer grass (z-0) 
-                    // but BELOW the Game Card (z-10) so it scrolls nicely.
-                    zIndex: '5', 
-                    
-                    pointerEvents: 'none',
-                    fontFamily: 'system-ui, -apple-system, sans-serif',
-                    fontSize: '11px',           
-                    fontWeight: '600',          
-                    color: '#374151',
-                    letterSpacing: '0.05em',
-                    backgroundColor: 'rgba(255, 255, 255, 0.92)', 
-                    padding: '6px 14px',
-                    borderRadius: '9999px',
-                    border: '1px solid rgba(0,0,0,0.1)',
-                    
-                    // --- WIDTH UPDATE ---
-                    // 'max-content' forces the pill to be exactly as wide as the text
-                    // preventing it from stretching across the screen.
-                    width: 'max-content',
-                    
-                    textShadow: 'none',
-                    opacity: '1',
-                    mixBlendMode: 'normal'
+                    position: 'fixed', bottom: '15px', left: '50%', transform: 'translateX(-50%)', 
+                    zIndex: '5', pointerEvents: 'none', fontFamily: 'system-ui, -apple-system, sans-serif',
+                    fontSize: '11px', fontWeight: '600', color: '#374151', letterSpacing: '0.05em',
+                    backgroundColor: 'rgba(255, 255, 255, 0.92)', padding: '6px 14px',
+                    borderRadius: '9999px', border: '1px solid rgba(0,0,0,0.1)', width: 'max-content',
+                    textShadow: 'none', opacity: '1', mixBlendMode: 'normal'
                 });
             }
 
             Accessibility.apply();
-            
-            // 2. Safe Audio Init
             try { SoundManager.init(); } catch(e) { console.warn("Audio init deferred"); }
-            
             if (typeof this.updateLights === 'function') this.updateLights();
             UIManager.updateOfflineIndicator();
             
-            // 3. Expose Managers
             window.StreakManager = StreakManager;
             window.ContactManager = ContactManager;
             window.PinPad = PinPad;
             window.TipManager = TipManager;
-			window.RoomManager = RoomManager;
+            window.RoomManager = RoomManager;
             window.UIManager = UIManager;
 
-            // 4. Bind Buttons
             if (DOM.game.buttons.good) DOM.game.buttons.good.onclick = () => this.vote('good');
             if (DOM.game.buttons.bad) DOM.game.buttons.bad.onclick = () => this.vote('bad');
             if (DOM.game.buttons.notWord) DOM.game.buttons.notWord.onclick = () => this.vote('notWord');
             if (DOM.game.dailyBanner) DOM.game.dailyBanner.onclick = () => this.activateDailyMode();
 
-		document.addEventListener('keydown', (e) => {
-                // 1. Safety: Don't vote if typing in a text box
+            document.addEventListener('keydown', (e) => {
                 if (e.target.matches('input, textarea')) return;
-
-                // 2. Safety: Don't vote if buttons are disabled (cooldown, loading, etc)
                 if (DOM.game.buttons.good.disabled) return;
-                
-                // 3. Safety: Don't vote if a modal is open (Settings, Rankings, etc)
                 const openModals = Object.values(DOM.modals).some(m => !m.classList.contains('hidden'));
                 if (openModals) return;
-                
-                // Extra check for dynamic modals (Tip, Contact, PinPad)
                 if (document.getElementById('tipModal') && !document.getElementById('tipModal').classList.contains('hidden')) return;
                 if (document.getElementById('contactModal') && !document.getElementById('contactModal').classList.contains('hidden')) return;
                 if (document.getElementById('pinPadModal') && !document.getElementById('pinPadModal').classList.contains('hidden')) return;
 
-                // 4. Map Keys
                 switch(e.code) {
                     case 'ArrowLeft': 
                         this.vote('good'); 
@@ -5699,34 +5203,13 @@ async renderLeaderboardTable() {
             });
 
             const qrGood = document.getElementById('qrGoodBtn');
-const qrBad = document.getElementById('qrBadBtn');
+            const qrBad = document.getElementById('qrBadBtn');
+            if (qrGood) qrGood.onclick = (e) => { if (!DOM.game.buttons.good.disabled && !State.runtime.isCoolingDown) { e.stopPropagation(); ShareManager.shareQR('good'); }};
+            if (qrBad) qrBad.onclick = (e) => { if (!DOM.game.buttons.good.disabled && !State.runtime.isCoolingDown) { e.stopPropagation(); ShareManager.shareQR('bad'); }};
 
-if (qrGood) {
-    qrGood.onclick = (e) => {
-        if (DOM.game.buttons.good.disabled || State.runtime.isCoolingDown) return;
-        e.stopPropagation();
-        ShareManager.shareQR('good');
-    };
-}
-
-if (qrBad) {
-    qrBad.onclick = (e) => {
-        if (DOM.game.buttons.good.disabled || State.runtime.isCoolingDown) return;
-        e.stopPropagation();
-        ShareManager.shareQR('bad');
-    };
-}
-
-			document.getElementById('showHelpButton').onclick = () => {
-			window.scrollTo({ top: 0, behavior: 'smooth' });
-			UIManager.showPostVoteMessage("What's going on? There aren't really any rules, but if you're really confused then drop me a message and I'll see if I can help!");
-	};
-			document.getElementById('showDonateButton').onclick = () => {
-			window.scrollTo({ top: 0, behavior: 'smooth' });
-			UIManager.showPostVoteMessage("That's very kind, but I'm not accepting any donations at the moment. Have fun!");
-	};
+            document.getElementById('showHelpButton').onclick = () => { window.scrollTo({ top: 0, behavior: 'smooth' }); UIManager.showPostVoteMessage("What's going on? There aren't really any rules, but if you're really confused then drop me a message and I'll see if I can help!"); };
+            document.getElementById('showDonateButton').onclick = () => { window.scrollTo({ top: 0, behavior: 'smooth' }); UIManager.showPostVoteMessage("That's very kind, but I'm not accepting any donations at the moment. Have fun!"); };
             
-            // 5. Initialize Submit & Compare Buttons
             document.getElementById('submitWordButton').onclick = async () => {
                 const t = DOM.inputs.newWord.value.trim();
                 if (!t || t.includes(' ') || t.length > 45) { DOM.inputs.modalMsg.textContent = "Invalid word."; return }
@@ -5752,20 +5235,34 @@ if (qrBad) {
                 DOM.inputs.compareResults.innerHTML = h
             };
 
-            // 6. Initialize Managers
             if (DOM.theme.chooser) DOM.theme.chooser.onchange = e => ThemeManager.apply(e.target.value, true);
 
+            State.init();
+            RoomManager.init();
+            
+            DOM.inputs.username.value = State.data.username === 'Unknown' ? '' : State.data.username;
+            DOM.inputs.username.addEventListener('change', (e) => State.save('username', e.target.value.trim() || 'Guest'));
+            
+            UIManager.updateStreak(State.data.streak);
+            State.runtime.history.forEach(h => UIManager.addToHistory(h.word, h.vote));
+            
             InputHandler.init();
             ThemeManager.init();
             ModalManager.init();
-			RoomManager.init();
             UIManager.updateProfileDisplay();
             MosquitoManager.startMonitoring();
             this.checkDailyStatus();
             
-            // 7. Load Data
             await this.refreshData();
-			DiscoveryManager.init();
+            DiscoveryManager.init();
+
+            setTimeout(() => {
+                DOM.screens.loading.classList.add('opacity-0', 'pointer-events-none');
+                setTimeout(() => DOM.screens.loading.remove(), 500);
+                this.nextWord();
+            }, 1500);
+
+            setInterval(() => this.checkCooldown(), 100);
 
         } catch(e) {
             console.error("Critical Init Error:", e);
@@ -5774,311 +5271,47 @@ if (qrBad) {
         }
     },
 
-    checkDailyStatus() {
-        const t = new Date().toISOString().split('T')[0];
-        const l = State.data.daily.lastDate;
-        if (t === l) {
-            DOM.game.dailyStatus.textContent = "Come back tomorrow!";
-            DOM.game.dailyBanner.style.display = 'none'
-        } else {
-            DOM.game.dailyStatus.textContent = "Vote Now!";
-            DOM.game.dailyBanner.style.display = 'block'
-        }
-    },
-
-    updateLights() {
-        const existing = document.querySelector('christmas-lights');
-        if (State.data.settings.showLights) {
-            if (!existing) {
-                const lights = document.createElement('christmas-lights');
-                document.body.appendChild(lights);
-            }
-        } else {
-            if (existing) existing.remove();
-        }
-    },
-
-    activateDailyMode() {
-        if (State.runtime.isDailyMode) return;
-        
-        // --- FIX: USE UTC TO MATCH SAVED DATA ---
-        const t = new Date().toISOString().split('T')[0];
-        
-        if (t === State.data.daily.lastDate) return;
-        State.runtime.isDailyMode = true;
-        DOM.game.dailyBanner.classList.add('daily-locked-mode');
-        DOM.game.buttons.notWord.style.visibility = 'hidden';
-        DOM.game.buttons.custom.style.visibility = 'hidden';
-        UIManager.showMessage('Loading Daily Word...');
-        const sortedWords = [...State.runtime.allWords].sort((a, b) => a.text.localeCompare(b.text));
-        let seed = 0;
-        for (let i = 0; i < t.length; i++) {
-            seed = ((seed << 5) - seed) + t.charCodeAt(i);
-            seed |= 0;
-        }
-        seed = Math.abs(seed);
-        const winningWordRef = sortedWords[seed % sortedWords.length];
-        if (winningWordRef) {
-            const idx = State.runtime.allWords.findIndex(w => w.text === winningWordRef.text);
-            if (idx !== -1) {
-                State.runtime.currentWordIndex = idx;
-                UIManager.displayWord(State.runtime.allWords[idx]);
-            } else {
-                UIManager.showMessage("Error finding word");
-            }
-        } else {
-            UIManager.showMessage("No Daily Word Found");
-        }
-    },
-	
-    disableDailyMode() {
-        State.runtime.isDailyMode = false;
-        DOM.game.dailyBanner.classList.remove('daily-locked-mode');
-		DOM.game.buttons.notWord.style.visibility = 'visible';
-        DOM.game.buttons.custom.style.visibility = 'visible';
-        this.nextWord()
-    },
-	
-async refreshData(u = true) {
-		if (State.runtime.isMultiplayer) {
-            console.log("Skipping refreshData during multiplayer match.");
-            return; 
-        }
-	
-        if (u) UIManager.showMessage(State.data.settings.kidsMode ? "Loading Kids Mode..." : "Loading...");
-        let d = [];
-        const compareBtn = document.getElementById('compareWordsButton');
-
-        // 1. Get QR Buttons
-        const qrGood = document.getElementById('qrGoodBtn');
-        const qrBad = document.getElementById('qrBadBtn');
-
-        if (State.data.settings.kidsMode) {
-            d = await API.fetchKidsWords();
-            DOM.game.buttons.custom.style.display = 'none';   
-            DOM.game.buttons.notWord.style.display = 'none';  
-            DOM.game.dailyBanner.style.display = 'none';      
-            if (compareBtn) compareBtn.classList.add('hidden');
-
-            // 2. Hide QR Buttons in Kids Mode
-            if (qrGood) qrGood.style.display = 'none';
-            if (qrBad) qrBad.style.display = 'none';
-        } else {
-            d = await API.getAllWords();
-            DOM.game.buttons.custom.style.display = 'block';
-            DOM.game.buttons.notWord.style.display = 'block';
-            if (compareBtn) compareBtn.classList.remove('hidden');
-
-            // 3. Show QR Buttons in Normal Mode
-            if (qrGood) qrGood.style.display = 'block';
-            if (qrBad) qrBad.style.display = 'block';
-            
-            if(!State.runtime.isDailyMode) this.checkDailyStatus();
-        }
-
-        if (d && d.length > 0) {
-            State.runtime.allWords = State.data.settings.kidsMode ? d : d.filter(w => (w.notWordVotes || 0) < 3);
-            UIManager.updateStats();
-
-            if (u && !State.runtime.isDailyMode) {
-                const params = new URLSearchParams(window.location.search);
-                const sharedWord = params.get('word');
-
-                if (sharedWord) {
-                    const idx = State.runtime.allWords.findIndex(w => w.text.toUpperCase() === sharedWord.toUpperCase());
-                    if (idx !== -1) {
-                        State.runtime.currentWordIndex = idx;
-                        UIManager.displayWord(State.runtime.allWords[idx]);
-                        window.history.replaceState({}, document.title, "/"); 
-                        UIManager.showPostVoteMessage("Shared word loaded! 🔗");
-                    } else {
-                        UIManager.showPostVoteMessage("Word not found. Showing random.");
-                        this.nextWord();
-                    }
-                } else {
-                    this.nextWord();
-                }
-				
-				const today = new Date().toISOString().split('T')[0];
-				const history = State.data.wordHistory;
-				const currentCount = State.runtime.allWords.length;
-
-            // If last entry is not today, add today.
-            if (history.length === 0 || history[history.length - 1].date !== today) {
-                history.push({ date: today, count: currentCount });
-                // Optional: Limit to last 365 entries to save space
-                if (history.length > 365) history.shift(); 
-                State.save('wordHistory', history);
-            } else {
-                // If we already have today, update the count (in case it grew)
-                if (history[history.length - 1].count !== currentCount) {
-                    history[history.length - 1].count = currentCount;
-                    State.save('wordHistory', history);
-                }
-            }
-            }
-        } else {
-            UIManager.showMessage("Connection Error", true);
-        }
-    },
-
-nextWord() {
-        // MULTIPLAYER FIX: Display word immediately, skip random logic
-        if (State.runtime.isMultiplayer) {
-            const w = State.runtime.allWords[State.runtime.currentWordIndex];
-            if (w) UIManager.displayWord(w);
-            return;
-        }
-
-        let p = State.runtime.allWords;
-        if (!p || p.length === 0) return;
-
-        // --- UPDATED SMART FILTERING ---
-        if (State.data.settings.zeroVotesOnly) {
-            const unvoted = p.filter(w => (w.goodVotes || 0) === 0 && (w.badVotes || 0) === 0);
-            if (unvoted.length > 0) p = unvoted;
-            else UIManager.showPostVoteMessage("No more new words! Showing random.");
-        } 
-        else if (State.data.settings.controversialOnly) {
-            const controversial = p.filter(w => {
-                const g = w.goodVotes || 0;
-                const b = w.badVotes || 0;
-                const total = g + b;
-                if (total < 3) return false; // Needs at least 3 votes to be controversial
-                const ratio = g / total;
-                return ratio >= 0.40 && ratio <= 0.60; // Between 40% and 60% Good
-            });
-
-            if (controversial.length > 0) p = controversial;
-            else UIManager.showPostVoteMessage("No controversial words found! Showing random.");
-        }
-
-        // Special Words
-        const r = Math.random(), { CAKE, LLAMA, POTATO, SQUIRREL, MASON } = CONFIG.SPECIAL, b = State.data.badges;
-        let sp = null;
-        if (!b.cake && r < CAKE.prob) sp = CAKE.text;
-        else if (!b.llama && r < CAKE.prob + LLAMA.prob) sp = LLAMA.text;
-        else if (!b.potato && r < CAKE.prob + LLAMA.prob + POTATO.prob) sp = POTATO.text;
-        else if (!b.squirrel && r < CAKE.prob + LLAMA.prob + POTATO.prob + SQUIRREL.prob) sp = SQUIRREL.text;
-        else if (!b.bone && r < CAKE.prob + LLAMA.prob + POTATO.prob + SQUIRREL.prob + MASON.prob) sp = MASON.text;
-        
-        if (sp) {
-            const i = State.runtime.allWords.findIndex(w => w.text.toUpperCase() === sp);
-            if (i !== -1 && i !== State.runtime.currentWordIndex) {
-                State.runtime.currentWordIndex = i;
-                UIManager.displayWord(State.runtime.allWords[i]);
-                return;
-            }
+    async nextWord() {
+        if (State.runtime.isMultiplayer) return;
+        if (State.runtime.allWords.length <= State.runtime.currentWordIndex) {
+            try {
+                const res = await fetch(`${CONFIG.API_BASE_URL}?t=${Date.now()}`);
+                const data = await res.json();
+                if (data && data.length > 0) State.runtime.allWords.push(data[0]);
+                else State.runtime.allWords.push({ text: 'RETRY', _id: null });
+            } catch(e) { State.runtime.allWords.push({ text: 'OFFLINE', _id: null }); }
         }
         
-        // Selection Algorithm
-        let av = p.reduce((acc, w, i) => {
-            const trueIndex = State.runtime.allWords.indexOf(w);
-            if ((!State.data.seenHistory.includes(trueIndex) && trueIndex !== State.runtime.currentWordIndex) || p.length === 1) {
-                 acc.push({ i: trueIndex, v: (w.goodVotes || 0) + (w.badVotes || 0) });
-            }
-            return acc;
-        }, []);
-        
-        if (!av.length) av = p.map(w => ({ i: State.runtime.allWords.indexOf(w), v: 0 }));
-        if (av.length === 0) return; 
-
-        let tw = 0;
-        av = av.map(c => {
-            let w = 1.0 / (c.v + 1);
-            if (State.runtime.allWords[c.i].text.toUpperCase() === CAKE.text) w *= CONFIG.BOOST_FACTOR;
-            tw += w;
-            return { i: c.i, w };
-        });
-        
-        let rnd = Math.random() * tw, sel = av[0].i; 
-        for (let it of av) {
-            rnd -= it.w;
-            if (rnd <= 0) { sel = it.i; break; }
-        }
-        
-        State.runtime.currentWordIndex = sel;
-        State.data.seenHistory.push(sel);
-        if (State.data.seenHistory.length > CONFIG.HISTORY_SIZE) State.data.seenHistory.shift();
-        State.save('seenHistory', State.data.seenHistory);
-        UIManager.displayWord(State.runtime.allWords[sel]);
-    },
-
-    loadSpecial(t) {
-        const i = State.runtime.allWords.findIndex(w => w.text.toUpperCase() === t);
-        if (i !== -1) {
-            State.runtime.currentWordIndex = i;
-            UIManager.displayWord(State.runtime.allWords[i]);
-        }
-    },
-
-    async showDefinition() {
-        const w = State.runtime.allWords[State.runtime.currentWordIndex];
-        if (!w) return;
-        ModalManager.toggle('definition', true);
-        document.getElementById('definitionWord').textContent = w.text.toUpperCase();
-        const d = document.getElementById('definitionResults');
-        d.innerHTML = 'Loading...';
-        try {
-            const r = await API.define(w.text);
-            if (!r.ok) throw 0;
-            const j = await r.json();
-            let h = '';
-            j[0].meanings.forEach(m => {
-                h += `<div class="mb-4"><h4 class="text-lg font-bold italic text-indigo-600">${m.partOfSpeech}</h4><ol class="list-decimal list-inside pl-4 mt-2 space-y-1">`;
-                m.definitions.forEach(def => {
-                    h += `<li>${def.definition}</li>`;
-                    if (def.example) h += `<p class="text-sm text-gray-500 pl-4 italic">"${def.example}"</p>`;
+        // Smart Filtering
+        if (!State.runtime.isMultiplayer) {
+            if (State.data.settings.zeroVotesOnly) {
+                const unvoted = State.runtime.allWords.filter(w => (w.goodVotes || 0) === 0 && (w.badVotes || 0) === 0);
+                if (unvoted.length > 0) State.runtime.allWords = unvoted;
+                else UIManager.showPostVoteMessage("No more new words! Showing random.");
+            } else if (State.data.settings.controversialOnly) {
+                const contro = State.runtime.allWords.filter(w => {
+                    const g = w.goodVotes || 0, b = w.badVotes || 0, t = g + b;
+                    return t >= 3 && (g/t >= 0.4 && g/t <= 0.6);
                 });
-                h += '</ol></div>';
-            });
-            d.innerHTML = h;
-        } catch {
-            d.innerHTML = '<p class="text-red-500">Definition not found.</p>';
-        }
-    },
-
-    handleCooldown() {
-        State.runtime.isCoolingDown = true;
-        const t = CONFIG.VOTE.COOLDOWN_TIERS;
-        let r = t[Math.min(State.runtime.mashLevel, t.length - 1)];
-        UIManager.showMessage(`Mashing detected. Wait ${r}s...`, true);
-        Haptics.heavy(); 
-        
-        State.runtime.cooldownTimer = setInterval(() => {
-            r--;
-            if (r > 0) UIManager.showMessage(`Wait ${r}s...`, true);
-            else {
-                clearInterval(State.runtime.cooldownTimer);
-                State.runtime.isCoolingDown = false;
-                State.runtime.mashCount = 0; 
-                State.runtime.mashLevel++;
-                UIManager.displayWord(State.runtime.allWords[State.runtime.currentWordIndex]);
+                if (contro.length > 0) State.runtime.allWords = contro;
+                else UIManager.showPostVoteMessage("No controversial words found! Showing random.");
             }
-        }, 1000);
+        }
+
+        const w = State.runtime.allWords[State.runtime.currentWordIndex];
+        UIManager.displayWord(w);
     },
 
     async vote(t, s = false) {
         if (State.runtime.isCoolingDown) return;
-		
-		if (State.runtime.isMultiplayer && typeof RoomManager !== 'undefined' && RoomManager.active) {
+        
+        if (State.runtime.isMultiplayer && typeof RoomManager !== 'undefined' && RoomManager.active) {
              RoomManager.submitVote(t);
-			 
-			 const w = State.runtime.allWords[State.runtime.currentWordIndex];
-             if (w && w._id) {
-                 API.vote(w._id, t).catch(e => console.warn("Background vote sync failed", e));
-             }
-			 
              UIManager.disableButtons(true); 
-             const wd = DOM.game.wordDisplay;
-             const colors = Accessibility.getColors();
-             if (t === 'good' || t === 'bad') {
-                 wd.style.color = t === 'good' ? colors.good : colors.bad;
-                 wd.style.opacity = '0.5'; 
-             }
+             DOM.game.wordDisplay.style.opacity = '0.5'; 
              return; 
         }
-		
+        
         const n = Date.now();
         if (State.runtime.lastVoteTime > 0 && (n - State.runtime.lastVoteTime) > CONFIG.VOTE.STREAK_WINDOW) {
             State.runtime.mashCount = 1;
@@ -6117,7 +5350,7 @@ nextWord() {
         }
         
         const hSpec = (c, k) => {
-			if (window.StreakManager) window.StreakManager.extend(c.fade + c.dur);
+            if (window.StreakManager) window.StreakManager.extend(c.fade + c.dur);
             State.unlockBadge(k);
             Game.cleanStyles(wd);
             wd.className = 'font-extrabold text-gray-900 text-center min-h-[72px]';
@@ -6148,9 +5381,9 @@ nextWord() {
             if (res.status !== 403 && !res.ok) throw 0;
             w[`${t}Votes`] = (w[`${t}Votes`] || 0) + 1;
             State.incrementVote();
-			await API.submitUserVotes(State.data.userId, State.data.username, State.data.voteCount);
-			
-			StreakManager.handleSuccess();
+            await API.submitUserVotes(State.data.userId, State.data.username, State.data.voteCount);
+            
+            StreakManager.handleSuccess();
             
             if (State.runtime.isDailyMode) {
                 const tod = new Date(), dStr = tod.toISOString().split('T')[0];
@@ -6177,7 +5410,6 @@ nextWord() {
                 const tot = (w.goodVotes || 0) + (w.badVotes || 0);
                 const p = Math.round((w[`${t}Votes`] / tot) * 100);
                 
-                // DRINKING MODE LOGIC
                 if (State.runtime.isDrinkingMode && p < 50) {
                     m = `🍺 DRINK! (You are in the minority: ${p}%)`;
                 } else {
@@ -6185,27 +5417,30 @@ nextWord() {
                 }
             }
 
-            if (State.data.settings.showTips) {
-                // --- FIX: NO TIPS IN MULTIPLAYER ---
-                if (!State.runtime.isMultiplayer) { 
-                    State.save('voteCounterForTips', State.data.voteCounterForTips + 1);
-                    if (State.data.voteCounterForTips % CONFIG.TIP_COOLDOWN === 0) {
-                        // Assuming GAME_TIPS is defined (which it is in script 16)
-                        if (typeof GAME_TIPS !== 'undefined') {
-                            m = GAME_TIPS[Math.floor(Math.random() * GAME_TIPS.length)];
-                        }
+            if (State.data.settings.showTips && !State.runtime.isMultiplayer) { 
+                State.save('voteCounterForTips', State.data.voteCounterForTips + 1);
+                if (State.data.voteCounterForTips % CONFIG.TIP_COOLDOWN === 0) {
+                    if (typeof GAME_TIPS !== 'undefined') {
+                        m = GAME_TIPS[Math.floor(Math.random() * GAME_TIPS.length)];
                     }
                 }
             }
             UIManager.showPostVoteMessage(m);
             if (t === 'good' || t === 'bad') Haptics.medium();
             UIManager.updateStats();
+            
+            // Optimistic UI
+            UIManager.addToHistory(w.text, t);
+            State.runtime.history.unshift({ word: w.text, vote: t });
+            if(State.runtime.history.length > 50) State.runtime.history.pop();
+
             setTimeout(() => {
                 wd.classList.remove('animate-fly-left', 'animate-fly-right', 'swipe-good-color', 'swipe-bad-color', 'override-theme-color');
                 wd.style.transform = '';
                 wd.style.opacity = '1';
                 wd.style.color = '';
                 if (!State.runtime.isDailyMode) {
+                    State.runtime.currentWordIndex++;
                     this.nextWord();
                     this.refreshData(false);
                 }
@@ -6216,9 +5451,499 @@ nextWord() {
             wd.classList.remove('animate-fly-left', 'animate-fly-right', 'swipe-good-color', 'swipe-bad-color', 'override-theme-color');
             UIManager.disableButtons(false);
         }
+    },
+
+    checkCooldown() {
+        const now = Date.now();
+        if (State.runtime.mashCount > CONFIG.VOTE.MASH_LIMIT) {
+            State.runtime.cooldownUntil = now + 5000;
+            State.runtime.mashCount = 0;
+            UIManager.showSplash("COOLDOWN!", 'bad');
+        }
+        if (now > State.runtime.lastVoteTime + 1000) State.runtime.mashCount = Math.max(0, State.runtime.mashCount - 1);
+    },
+
+    startMultiplayer(data) {
+        State.runtime.isMultiplayer = true;
+        const banner = document.createElement('div');
+        banner.className = 'mp-banner-text fixed top-16 left-0 right-0 text-center font-black text-indigo-100 text-sm uppercase tracking-widest z-10 animate-fade-in pointer-events-none drop-shadow-md';
+        banner.innerText = "MULTIPLAYER ACTIVE";
+        document.body.appendChild(banner);
+
+        const ui = document.createElement('div');
+        ui.id = 'mp-mode-ui';
+        ui.className = 'fixed top-4 right-4 z-50 flex gap-2 items-center';
+        ui.innerHTML = `
+            <div class="bg-indigo-600 text-white px-3 py-1 rounded-full font-bold text-xs shadow-lg animate-pulse">LIVE</div>
+            <button onclick="window.location.href = window.location.pathname" class="bg-red-500 text-white px-3 py-1 rounded-full font-bold text-xs shadow-lg hover:bg-red-600 transition cursor-pointer pointer-events-auto">EXIT</button>
+        `;
+        document.body.appendChild(ui);
+        
+        this.resetGame();
+        
+        if (data.words && data.words.length > 0) {
+            State.runtime.allWords = data.words;
+            this.nextWord(); 
+        } else {
+            State.runtime.allWords = []; 
+            UIManager.showMessage("Get Ready...");
+        }
+    },
+
+    resetGame() {
+        State.runtime.currentWordIndex = 0;
+        DOM.game.historyList.innerHTML = '';
+        UIManager.updateStreak(0);
+    },
+
+    handleCooldown() {
+        State.runtime.isCoolingDown = true;
+        const t = CONFIG.VOTE.COOLDOWN_TIERS;
+        let r = t[Math.min(State.runtime.mashLevel, t.length - 1)];
+        UIManager.showMessage(`Mashing detected. Wait ${r}s...`, true);
+        Haptics.heavy(); 
+        
+        State.runtime.cooldownTimer = setInterval(() => {
+            r--;
+            if (r > 0) UIManager.showMessage(`Wait ${r}s...`, true);
+            else {
+                clearInterval(State.runtime.cooldownTimer);
+                State.runtime.isCoolingDown = false;
+                State.runtime.mashCount = 0; 
+                State.runtime.mashLevel++;
+                UIManager.displayWord(State.runtime.allWords[State.runtime.currentWordIndex]);
+            }
+        }, 1000);
+    },
+
+    async showDefinition() {
+        const w = State.runtime.allWords[State.runtime.currentWordIndex];
+        if (!w) return;
+        ModalManager.toggle('definition', true);
+        document.getElementById('definitionWord').textContent = w.text.toUpperCase();
+        const d = document.getElementById('definitionResults');
+        d.innerHTML = 'Loading...';
+        try {
+            const r = await API.define(w.text);
+            if (!r.ok) throw 0;
+            const j = await r.json();
+            let h = '';
+            j[0].meanings.forEach(m => {
+                h += `<div class="mb-4"><h4 class="text-lg font-bold italic text-indigo-600">${m.partOfSpeech}</h4><ol class="list-decimal list-inside pl-4 mt-2 space-y-1">`;
+                m.definitions.forEach(def => {
+                    h += `<li>${def.definition}</li>`;
+                    if (def.example) h += `<p class="text-sm text-gray-500 pl-4 italic">"${def.example}"</p>`;
+                });
+                h += '</ol></div>';
+            });
+            d.innerHTML = h;
+        } catch {
+            d.innerHTML = '<p class="text-red-500">Definition not found.</p>';
+        }
+    },
+
+    loadSpecial(t) {
+        const i = State.runtime.allWords.findIndex(w => w.text.toUpperCase() === t);
+        if (i !== -1) {
+            State.runtime.currentWordIndex = i;
+            UIManager.displayWord(State.runtime.allWords[i]);
+        }
+    },
+
+    async refreshData(u = true) {
+        if (State.runtime.isMultiplayer) return;
+    
+        if (u) UIManager.showMessage(State.data.settings.kidsMode ? "Loading Kids Mode..." : "Loading...");
+        let d = [];
+        const compareBtn = document.getElementById('compareWordsButton');
+        const qrGood = document.getElementById('qrGoodBtn');
+        const qrBad = document.getElementById('qrBadBtn');
+
+        if (State.data.settings.kidsMode) {
+            d = await API.fetchKidsWords();
+            DOM.game.buttons.custom.style.display = 'none';   
+            DOM.game.buttons.notWord.style.display = 'none';  
+            DOM.game.dailyBanner.style.display = 'none';      
+            if (compareBtn) compareBtn.classList.add('hidden');
+            if (qrGood) qrGood.style.display = 'none';
+            if (qrBad) qrBad.style.display = 'none';
+        } else {
+            d = await API.getAllWords();
+            DOM.game.buttons.custom.style.display = 'block';
+            DOM.game.buttons.notWord.style.display = 'block';
+            if (compareBtn) compareBtn.classList.remove('hidden');
+            if (qrGood) qrGood.style.display = 'block';
+            if (qrBad) qrBad.style.display = 'block';
+            if(!State.runtime.isDailyMode) this.checkDailyStatus();
+        }
+
+        if (d && d.length > 0) {
+            State.runtime.allWords = State.data.settings.kidsMode ? d : d.filter(w => (w.notWordVotes || 0) < 3);
+            UIManager.updateStats();
+
+            if (u && !State.runtime.isDailyMode) {
+                const params = new URLSearchParams(window.location.search);
+                const sharedWord = params.get('word');
+
+                if (sharedWord) {
+                    const idx = State.runtime.allWords.findIndex(w => w.text.toUpperCase() === sharedWord.toUpperCase());
+                    if (idx !== -1) {
+                        State.runtime.currentWordIndex = idx;
+                        UIManager.displayWord(State.runtime.allWords[idx]);
+                        window.history.replaceState({}, document.title, "/"); 
+                        UIManager.showPostVoteMessage("Shared word loaded! 🔗");
+                    } else {
+                        UIManager.showPostVoteMessage("Word not found. Showing random.");
+                        this.nextWord();
+                    }
+                } else {
+                    this.nextWord();
+                }
+                
+                const today = new Date().toISOString().split('T')[0];
+                const history = State.data.wordHistory;
+                const currentCount = State.runtime.allWords.length;
+
+                if (history.length === 0 || history[history.length - 1].date !== today) {
+                    history.push({ date: today, count: currentCount });
+                    if (history.length > 365) history.shift(); 
+                    State.save('wordHistory', history);
+                } else {
+                    if (history[history.length - 1].count !== currentCount) {
+                        history[history.length - 1].count = currentCount;
+                        State.save('wordHistory', history);
+                    }
+                }
+            }
+        } else {
+            UIManager.showMessage("Connection Error", true);
+        }
+    },
+
+    disableDailyMode() {
+        State.runtime.isDailyMode = false;
+        DOM.game.dailyBanner.classList.remove('daily-locked-mode');
+        DOM.game.buttons.notWord.style.visibility = 'visible';
+        DOM.game.buttons.custom.style.visibility = 'visible';
+        this.nextWord()
+    },
+
+    activateDailyMode() {
+        if (State.runtime.isDailyMode) return;
+        const t = new Date().toISOString().split('T')[0];
+        
+        if (t === State.data.daily.lastDate) return;
+        State.runtime.isDailyMode = true;
+        DOM.game.dailyBanner.classList.add('daily-locked-mode');
+        DOM.game.buttons.notWord.style.visibility = 'hidden';
+        DOM.game.buttons.custom.style.visibility = 'hidden';
+        UIManager.showMessage('Loading Daily Word...');
+        const sortedWords = [...State.runtime.allWords].sort((a, b) => a.text.localeCompare(b.text));
+        let seed = 0;
+        for (let i = 0; i < t.length; i++) {
+            seed = ((seed << 5) - seed) + t.charCodeAt(i);
+            seed |= 0;
+        }
+        seed = Math.abs(seed);
+        const winningWordRef = sortedWords[seed % sortedWords.length];
+        if (winningWordRef) {
+            const idx = State.runtime.allWords.findIndex(w => w.text === winningWordRef.text);
+            if (idx !== -1) {
+                State.runtime.currentWordIndex = idx;
+                UIManager.displayWord(State.runtime.allWords[idx]);
+            } else {
+                UIManager.showMessage("Error finding word");
+            }
+        } else {
+            UIManager.showMessage("No Daily Word Found");
+        }
+    },
+
+    updateLights() {
+        const existing = document.querySelector('christmas-lights');
+        if (State.data.settings.showLights) {
+            if (!existing) {
+                const lights = document.createElement('christmas-lights');
+                document.body.appendChild(lights);
+            }
+        } else {
+            if (existing) existing.remove();
+        }
+    },
+
+    checkDailyStatus() {
+        const t = new Date().toISOString().split('T')[0];
+        const l = State.data.daily.lastDate;
+        if (t === l) {
+            DOM.game.dailyStatus.textContent = "Come back tomorrow!";
+            DOM.game.dailyBanner.style.display = 'none'
+        } else {
+            DOM.game.dailyStatus.textContent = "Vote Now!";
+            DOM.game.dailyBanner.style.display = 'block'
+        }
+    },
+
+    setRandomFavicon() {
+        const options = ['👍', '👎', '🗳️'];
+        const choice = options[Math.floor(Math.random() * options.length)];
+        const svg = `<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>${choice}</text></svg>`;
+        let link = document.querySelector("link[rel~='icon']");
+        if (!link) {
+            link = document.createElement('link');
+            link.rel = 'icon';
+            document.head.appendChild(link);
+        }
+        link.href = `data:image/svg+xml,${svg}`;
+    },
+
+    cleanStyles(e) {
+        e.style.animation = 'none';
+        e.style.background = 'none';
+        e.style.webkitTextFillColor = 'initial';
+        e.style.textShadow = 'none';
+        e.style.transform = 'none';
+        e.style.filter = 'none';
+        e.style.color = ''
+    },
+
+    async renderLeaderboardTable() {
+        const lbContainer = DOM.general.voteLeaderboardTable;
+        if (!lbContainer) return;
+        lbContainer.innerHTML = '<div class="text-center text-gray-500 p-4">Loading top voters...</div>';
+        const allUsers = await API.fetchLeaderboard();
+        const topUsers = allUsers.slice(0, 5);
+        if (topUsers.length === 0) {
+            lbContainer.innerHTML = '<div class="text-center text-gray-500 p-4">Global leaderboard unavailable.</div>';
+            return;
+        }
+        const d = State.data;
+        let html = '<h3 class="text-lg font-bold text-gray-800 mb-3 mt-4">Top Voters (Global)</h3>';
+        topUsers.forEach((user, i) => {
+            const isYou = d.userId && user.userId === d.userId;
+            const rowClass = isYou 
+                ? 'bg-indigo-100 border-2 border-indigo-400 font-bold text-indigo-700' 
+                : 'bg-white border border-gray-200 text-gray-800';
+            html += `<div class="flex justify-between items-center py-2 px-3 rounded ${rowClass} text-sm mb-1"><span class="w-6 text-center">#${i + 1}</span><span class="truncate flex-1">${user.username ? user.username.substring(0, 20) : 'Anonymous'}</span><span class="text-right">${(user.voteCount || 0).toLocaleString()} votes</span></div>`;
+        });
+        const userRankIndex = allUsers.findIndex(u => u.userId === d.userId);
+        if (userRankIndex >= 5) {
+            const myUser = allUsers[userRankIndex];
+            html += `<div class="text-center text-gray-400 text-xs my-1">...</div>`;
+            html += `<div class="flex justify-between items-center py-2 px-3 rounded bg-indigo-100 border-2 border-indigo-400 font-bold text-indigo-700 text-sm mb-1"><span class="w-6 text-center">#${userRankIndex + 1}</span><span class="truncate flex-1">You (${myUser.username ? myUser.username.substring(0, 15) : 'Anonymous'})</span><span class="text-right">${(myUser.voteCount || 0).toLocaleString()} votes</span></div>`;
+        }
+        lbContainer.innerHTML = html;
+    },
+
+    renderGraphs() {
+        const w = State.runtime.allWords;
+        if (!w || w.length === 0) return;
+        const drawText = (ctx, text, x, y, color = "#666", size = 12) => {
+            ctx.fillStyle = color;
+            ctx.font = `${size}px sans-serif`;
+            ctx.textAlign = "center";
+            ctx.fillText(text, x, y);
+        };
+        const cvsScatter = document.getElementById('scatterChartCanvas');
+        if (cvsScatter) {
+            const ctx = cvsScatter.getContext('2d');
+            const W = cvsScatter.width;
+            const H = cvsScatter.height;
+            const P = 40; 
+            ctx.clearRect(0, 0, W, H);
+            let maxGood = 0, maxBad = 0;
+            w.forEach(word => {
+                if ((word.goodVotes || 0) > maxGood) maxGood = word.goodVotes || 0;
+                if ((word.badVotes || 0) > maxBad) maxBad = word.badVotes || 0;
+            });
+            maxGood = Math.max(5, maxGood * 1.1);
+            maxBad = Math.max(5, maxBad * 1.1);
+            ctx.beginPath();
+            ctx.strokeStyle = "#e5e7eb";
+            ctx.lineWidth = 1;
+            for(let i=1; i<=4; i++) {
+                const y = H - P - (i/5)*(H - 2*P);
+                const x = P + (i/5)*(W - 2*P);
+                ctx.moveTo(P, y); ctx.lineTo(W-P, y); 
+                ctx.moveTo(x, P); ctx.lineTo(x, H-P); 
+            }
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.strokeStyle = "#9ca3af";
+            ctx.lineWidth = 2;
+            ctx.moveTo(P, P); ctx.lineTo(P, H - P); 
+            ctx.lineTo(W - P, H - P); 
+            ctx.stroke();
+            drawText(ctx, "Bad Votes →", W / 2, H - 10, "#4b5563", 12);
+            ctx.save();
+            ctx.translate(15, H / 2);
+            ctx.rotate(-Math.PI / 2);
+            drawText(ctx, "Good Votes →", 0, 0, "#4b5563", 12);
+            ctx.restore();
+            drawText(ctx, "😇 LOVED", P + 40, P + 20, "rgba(34, 197, 94, 0.3)", 10);
+            drawText(ctx, "👿 HATED", W - P - 40, H - P - 20, "rgba(239, 68, 68, 0.3)", 10);
+            drawText(ctx, "⚔️ CONTROVERSIAL", W - P - 60, P + 20, "rgba(107, 114, 128, 0.3)", 10);
+            w.forEach(word => {
+                const g = word.goodVotes || 0;
+                const b = word.badVotes || 0;
+                if (g + b === 0) return;
+                const x = P + (b / maxBad) * (W - 2 * P);
+                const y = (H - P) - (g / maxGood) * (H - 2 * P);
+                ctx.beginPath();
+                ctx.arc(x, y, 3, 0, Math.PI * 2);
+                if (g > b * 1.5) ctx.fillStyle = "rgba(34, 197, 94, 0.6)"; 
+                else if (b > g * 1.5) ctx.fillStyle = "rgba(239, 68, 68, 0.6)"; 
+                else ctx.fillStyle = "rgba(107, 114, 128, 0.6)"; 
+                ctx.fill();
+            });
+        }
+        const cvsLine = document.getElementById('lineChartCanvas');
+        if (cvsLine) {
+            const ctx = cvsLine.getContext('2d');
+            const W = cvsLine.width;
+            const H = cvsLine.height;
+            const P = 40; 
+            const GRAPH_H = H - 2 * P;
+            const Y_PLOT_MAX = P;      
+            const Y_PLOT_MIN = H - P;  
+            ctx.clearRect(0, 0, W, H);
+            let history = State.data.wordHistory || [];
+            if (history.length === 0) {
+                const today = new Date().toISOString().split('T')[0];
+                history = [{ date: today, count: w.length }];
+            }
+            const currentMaxData = Math.max(...history.map(h => h.count), w.length);
+            const Y_MIN_VALUE = 3000;
+            const SOFT_MAX = 6000;
+            let Y_MAX_VALUE = SOFT_MAX;
+            if (currentMaxData > SOFT_MAX) {
+                const magnitude = Math.pow(10, Math.floor(Math.log10(currentMaxData || 10)));
+                let step = magnitude >= 1000 ? 1000 : 500;
+                Y_MAX_VALUE = Math.ceil(currentMaxData / step) * step;
+            }
+            const VALUE_RANGE = Y_MAX_VALUE - Y_MIN_VALUE;
+            ctx.beginPath();
+            ctx.strokeStyle = "#ccc";
+            ctx.lineWidth = 1;
+            ctx.moveTo(P, Y_PLOT_MAX); ctx.lineTo(P, Y_PLOT_MIN); ctx.lineTo(W - P, Y_PLOT_MIN);
+            ctx.stroke();
+            const getY = (count) => {
+                if (count <= Y_MIN_VALUE) return Y_PLOT_MIN; 
+                const valueAboveMin = count - Y_MIN_VALUE;
+                const plotRatio = valueAboveMin / VALUE_RANGE;
+                return Y_PLOT_MIN - plotRatio * GRAPH_H;
+            };
+            ctx.textAlign = "right";
+            drawText(ctx, Y_MAX_VALUE.toLocaleString(), P - 5, P + 5, "#666", 10);
+            const markers = [Y_MIN_VALUE, SOFT_MAX];
+            if (Y_MAX_VALUE !== SOFT_MAX) {
+                const step = Y_MAX_VALUE / 4; 
+                for (let i = 1; i <= 3; i++) markers.push(Math.round(i * step / 100) * 100);
+            }
+            [...new Set(markers)].sort((a,b)=>a-b).forEach(mark => {
+                if (mark >= Y_MIN_VALUE && mark <= Y_MAX_VALUE) {
+                    const y = getY(mark);
+                    ctx.strokeStyle = "#e5e7eb";
+                    ctx.beginPath();
+                    ctx.moveTo(P, y); ctx.lineTo(W - P, y);
+                    ctx.stroke();
+                    drawText(ctx, mark.toLocaleString(), P - 5, y + 5, "#666", 10);
+                }
+            });
+            drawText(ctx, Y_MIN_VALUE.toLocaleString(), P - 5, Y_PLOT_MIN + 5, "#666", 10); 
+            if (history.length > 0) {
+                const xDivisor = history.length > 1 ? history.length - 1 : 1;
+                ctx.beginPath();
+                ctx.strokeStyle = "#4f46e5";
+                ctx.lineWidth = 3;
+                history.forEach((h, i) => {
+                    const x = P + (i / xDivisor) * (W - 2 * P);
+                    const y = getY(h.count);
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+                history.forEach((h, i) => {
+                    const x = P + (i / xDivisor) * (W - 2 * P);
+                    const y = getY(h.count);
+                    ctx.beginPath();
+                    ctx.fillStyle = "#4f46e5";
+                    ctx.arc(x, y, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                    if (i === history.length - 1) {
+                         ctx.beginPath();
+                         ctx.strokeStyle = "#ffffff";
+                         ctx.lineWidth = 2;
+                         ctx.arc(x, y, 6, 0, Math.PI * 2);
+                         ctx.stroke();
+                    }
+                });
+            }
+            drawText(ctx, "Time →", W / 2, H - 5, "#999", 10);
+            ctx.save();
+            ctx.translate(12, H / 2);
+            ctx.rotate(-Math.PI / 2);
+            drawText(ctx, "Total Words →", 0, 0, "#999", 10);
+            ctx.restore();
+        }
+        const cvsPie = document.getElementById('pieChartCanvas');
+        if (cvsPie) {
+            const ctx = cvsPie.getContext('2d');
+            const W = cvsPie.width;
+            const H = cvsPie.height;
+            ctx.clearRect(0, 0, W, H);
+            let cGood = 0, cBad = 0, cControversial = 0, cUnrated = 0;
+            w.forEach(word => {
+                const g = word.goodVotes || 0;
+                const b = word.badVotes || 0;
+                const total = g + b;
+                if (total < 3) {
+                    cUnrated++;
+                } else {
+                    const ratio = g / total;
+                    if (ratio > 0.60) cGood++;
+                    else if (ratio < 0.40) cBad++;
+                    else cControversial++;
+                }
+            });
+            const totalRated = cGood + cBad + cControversial;
+            if (totalRated === 0) {
+                drawText(ctx, "Not enough votes yet.", W/2, H/2);
+            } else {
+                const data = [
+                    { label: "Good", val: cGood, color: "#22c55e" },
+                    { label: "Bad", val: cBad, color: "#ef4444" },
+                    { label: "Controversial", val: cControversial, color: "#eab308" }
+                ];
+                let startAngle = 0;
+                const centerX = 150;
+                const centerY = H / 2;
+                const radius = 70;
+                data.forEach(slice => {
+                    if (slice.val === 0) return;
+                    const sliceAngle = (slice.val / totalRated) * 2 * Math.PI;
+                    ctx.beginPath();
+                    ctx.moveTo(centerX, centerY);
+                    ctx.arc(centerX, centerY, radius, startAngle, startAngle + sliceAngle);
+                    ctx.fillStyle = slice.color;
+                    ctx.fill();
+                    startAngle += sliceAngle;
+                });
+                let legY = 60;
+                data.forEach(slice => {
+                    ctx.fillStyle = slice.color;
+                    ctx.fillRect(260, legY, 15, 15);
+                    ctx.fillStyle = "#374151";
+                    ctx.textAlign = "left";
+                    ctx.font = "bold 12px sans-serif";
+                    const pct = Math.round((slice.val / totalRated) * 100);
+                    ctx.fillText(`${slice.label}: ${slice.val} (${pct}%)`, 285, legY + 12);
+                    legY += 30;
+                });
+            }
+        }
     }
 };
-
+	
 const StreakManager = {
     timer: null,
     loopTimer: null, 
@@ -6230,7 +5955,6 @@ const StreakManager = {
     },
 
     handleSuccess() {
-        // ✅ FIXED: Check inside the function
         if (State.data.settings.noStreaksMode) return; 
 
         const now = Date.now();
@@ -6279,7 +6003,6 @@ const StreakManager = {
         State.runtime.streak = 0;
     },
 
-    // ... (Keep the rest of your functions: updateScreenCounter, showNotification, etc.) ...
     updateScreenCounter(pulse) {
         let el = document.getElementById('streak-floating-counter');
         if (!el) {
@@ -6485,8 +6208,10 @@ const StreakManager = {
         if (this.loopTimer) clearTimeout(this.loopTimer);
     }
 };
+
     window.onload = Game.init.bind(Game);
-	window.RoomManager = RoomManager;
+    window.RoomManager = RoomManager;
+    window.UIManager = UIManager; // Added missing export
 
     console.log("%c Good Word / Bad Word ", "background: #4f46e5; color: #bada55; padding: 4px; border-radius: 4px;");
     console.log("Play fair! ️😇");
