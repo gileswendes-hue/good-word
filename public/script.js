@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.84.7', 
+    APP_VERSION: '5.84.8', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -258,6 +258,7 @@ const State = {
     runtime: {
 		currentTheme: 'default',
         allWords: [],
+        history: [],
         currentWordIndex: 0,
         streak: 0,
         mashCount: 0,
