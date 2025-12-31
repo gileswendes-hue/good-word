@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.83.1', 
+    APP_VERSION: '5.83.2', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -5648,7 +5648,7 @@ if (qrBad) {
                 const t = DOM.inputs.newWord.value.trim();
                 if (!t || t.includes(' ') || t.length > 45) { DOM.inputs.modalMsg.textContent = "Invalid word."; return }
                 const btn = document.getElementById('submitWordButton'); btn.disabled = true;
-                try { const r = await API.submitWord(t); if (r.status === 201) { State.incrementContributor(); DOM.inputs.modalMsg.textContent = "Success! Your new word has been added!"; setTimeout(() => { ModalManager.toggle('submission', false); this.refreshData() }, 1000) } else { const d = await r.json(); DOM.inputs.modalMsg.textContent = d.message || "Error" } } catch (e) { DOM.inputs.modalMsg.textContent = "Network Error" }
+                try { const r = await API.submitWord(t); if (r.status === 201) { State.incrementContributor(); DOM.inputs.modalMsg.textContent = "Success! Your new word has been added!"; setTimeout(() => { ModalManager.toggle('submission', false); this.refreshData() }, 1000) } else { const d = await r.json(); DOM.inputs.modalMsg.textContent = d.message || "Word already exists in dictionary!" } } catch (e) { DOM.inputs.modalMsg.textContent = "Network Error" }
                 btn.disabled = false
             };
 
