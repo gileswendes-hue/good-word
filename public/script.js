@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.84.16', 
+    APP_VERSION: '5.84.17', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -5761,21 +5761,16 @@ checkDailyStatus() {
         const t = new Date().toISOString().split('T')[0];
         const l = State.data.daily.lastDate;
 
-        if (State.data.settings.kidsMode) {
-             DOM.game.dailyBanner.style.display = 'none';
-             return;
-        }
-
-        if (t === l) {
-            // FIX: Completely hide the banner if done today
-            DOM.game.dailyBanner.style.display = 'none';
+        // If Kids Mode OR Challenge Done Today -> HIDE COMPLETELY
+        if (State.data.settings.kidsMode || t === l) {
+             DOM.game.dailyBanner.style.display = 'none'; // <--- THIS IS THE LINE
         } else {
-            // Show it if not done
-            DOM.game.dailyStatus.textContent = "Vote Now!";
-            DOM.game.dailyBanner.style.display = 'block';
-            DOM.game.dailyBanner.style.opacity = '1';
-            DOM.game.dailyBanner.style.pointerEvents = 'auto';
-            DOM.game.dailyBanner.style.filter = 'none';
+             // Else -> SHOW
+             DOM.game.dailyStatus.textContent = "Vote Now!";
+             DOM.game.dailyBanner.style.display = 'block';
+             DOM.game.dailyBanner.style.opacity = '1';
+             DOM.game.dailyBanner.style.pointerEvents = 'auto';
+             DOM.game.dailyBanner.style.filter = 'none';
         }
     },
 
