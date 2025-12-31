@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.83.6', 
+    APP_VERSION: '5.83.7', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -5027,12 +5027,14 @@ kickPlayer(targetId) {
         document.body.insertAdjacentHTML('beforeend', html);
     },
 
-    openMenu() {
+openMenu() {
         const existing = document.getElementById('mpMenu');
         if (existing) existing.remove();
         const currentName = State.data.username || '';
+        // FIX: Changed 'items-center' to 'items-start pt-24 md:items-center md:pt-0'
+        // This moves the menu to the top on mobile so the keyboard doesn't hide it.
         const html = `
-        <div id="mpMenu" class="fixed inset-0 bg-black/80 z-[9999] flex items-center justify-center backdrop-blur-sm p-4">
+        <div id="mpMenu" class="fixed inset-0 bg-black/80 z-[9999] flex items-start justify-center pt-24 md:items-center md:pt-0 backdrop-blur-sm p-4">
             <div class="bg-white p-6 rounded-2xl shadow-2xl text-center max-w-sm w-full animate-pop relative">
                 <button onclick="document.getElementById('mpMenu').remove()" class="absolute top-3 right-4 text-gray-400 text-xl">&times;</button>
                 <h2 class="text-3xl font-black mb-2 text-gray-800">MULTIPLAYER</h2>
