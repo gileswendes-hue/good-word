@@ -260,15 +260,16 @@ io.on('connection', (socket) => {
         room.accusationVotes = {};
         room.readyConfirms = new Set();
         room.vipId = null;
-        room.traitorId = null;
+        room.traitorId = null; // Reset Traitor
 
-        if (room.mode === 'traitor' || room.mode === 'kids') room.drinkingMode = false;
-
+        // Reset Player States
         room.players.forEach(p => {
             p.lives = 3;
+            p.score = 0;
             p.isSpectator = false;
         });
 
+        // --- MODE SETUP ---
         if (room.mode === 'versus') {
             const shuffled = shuffle([...room.players]);
             shuffled.forEach((p, i) => {
@@ -276,38 +277,48 @@ io.on('connection', (socket) => {
                 if(op) op.team = (i % 2 === 0) ? 'red' : 'blue';
             });
         }
+        else if (room.mode === 'traitor') {
+            // 1. Pick Random Traitor
+            const potentialTraitors = room.players.filter(p => !p.isSpectator);
+            if (potentialTraitors.length > 0) {
+                const r = potentialTraitors[Math.floor(Math.random() * potentialTraitors.length)];
+                room.traitorId = r.id;
+                
+                // 2. Notify ONLY the Traitor (Must happen before gameStarted)
+                io.to(room.traitorId).emit('roleAlert', 'You are the TRAITOR! Try to make the room fail.');
+            }
+        }
         else if (room.mode === 'vip') {
             const r = room.players[Math.floor(Math.random() * room.players.length)];
             room.vipId = r.id;
         }
-        else if (room.mode === 'traitor') {
-            const r = room.players[Math.floor(Math.random() * room.players.length)];
-            room.traitorId = r.id;
-            io.to(room.traitorId).emit('roleAlert', 'You are the TRAITOR! Try to make the room fail.');
-        }
 
         emitUpdate(roomCode);
 
+        // --- GET WORDS ---
         try {
             if (room.mode === 'kids') {
-                const shuffled = shuffle([...kidsWords]);
+                const shuffled = shuffle([...kidsWords]); // Assuming kidsWords is defined globally
                 let selection = [];
                 while(selection.length < room.maxWords && shuffled.length > 0) selection = selection.concat(shuffled);
                 room.words = selection.slice(0, room.maxWords).map(t => ({ text: t }));
             } else {
-                // Ensure we get random words
+                // Ensure we get random words from DB
                 const randomWords = await Word.aggregate([{ $sample: { size: room.maxWords } }]);
                 room.words = randomWords;
             }
 
+            // 3. Start Game (Frontend will now show Countdown + Traitor Message)
             io.to(roomCode).emit('gameStarted', { 
                 totalWords: room.maxWords, 
                 mode: room.mode,
-                vipId: room.vipId
+                vipId: room.vipId,
+                words: room.words
             });
             
-            // Short delay before first word to allow UI transition
+            // Start first word after countdown (4s buffer)
             room.wordTimer = setTimeout(() => sendNextWord(roomCode), 4000);
+
         } catch (e) { console.error(e); }
     });
 
