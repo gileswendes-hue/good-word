@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.83.4', 
+    APP_VERSION: '5.83.5', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -3568,6 +3568,8 @@ displayWord(w) {
         const html = `
         <div id="${modalId}" class="fixed inset-0 bg-black/80 z-[10000] flex items-center justify-center p-4 animate-fade-in font-sans">
             <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 transform scale-100 relative overflow-hidden">
+                <button onclick="window.location.href = window.location.pathname" class="absolute top-3 right-4 text-gray-400 hover:text-gray-600 font-bold text-2xl z-10">&times;</button>
+                
                 ${header}
                 
                 ${body}
@@ -4941,7 +4943,7 @@ const RoomManager = {
                 </div>
                 <div class="text-xs font-bold text-gray-400 uppercase mb-2">Players</div>
                 <div class="flex-grow overflow-y-auto custom-scrollbar p-1 border rounded-lg md:border-0">${playersHtml}</div>
-                <button onclick="location.reload()" class="mt-2 md:mt-4 w-full py-2 md:py-3 text-red-500 font-bold bg-red-50 hover:bg-red-100 rounded-xl transition text-sm">Leave</button>
+                <button onclick="window.location.href = window.location.pathname" class="mt-2 md:mt-4 w-full py-2 md:py-3 text-red-500 font-bold bg-red-50 hover:bg-red-100 rounded-xl transition text-sm">Leave</button>
             </div>
             
             <div class="w-full md:w-2/3 bg-gray-50 p-4 md:p-6 flex flex-col relative h-full overflow-hidden">
@@ -5542,6 +5544,7 @@ async renderLeaderboardTable() {
             window.PinPad = PinPad;
             window.TipManager = TipManager;
 			window.RoomManager = RoomManager;
+            window.UIManager = UIManager;
 
             // 4. Bind Buttons
             if (DOM.game.buttons.good) DOM.game.buttons.good.onclick = () => this.vote('good');
