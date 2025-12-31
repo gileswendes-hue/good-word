@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.84.3', 
+    APP_VERSION: '5.84.4', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4813,12 +4813,14 @@ const RoomManager = {
 
         this.socket.on('roomUpdate', (data) => {
             // THEME SYNC LOGIC
-            if (data.theme && data.theme !== this.hostTheme) {
-                if (!this.hostTheme) {
-                    this.originalTheme = State.data.currentTheme || 'default';
+            if (data.theme && data.theme !== 'default') {
+                if (data.theme !== this.hostTheme) {
+                    if (!this.hostTheme) {
+                        this.originalTheme = State.data.currentTheme || 'default';
+                    }
+                    this.hostTheme = data.theme;
+                    document.documentElement.setAttribute('data-theme', this.hostTheme);
                 }
-                this.hostTheme = data.theme;
-                document.documentElement.setAttribute('data-theme', this.hostTheme);
             }
 
             this.roomCode = this.roomCode || data.roomCode;
@@ -4965,6 +4967,11 @@ const RoomManager = {
     renderLobby() {
         document.getElementById('lobbyModal')?.remove();
         
+        // --- FIX 2: FORCE SYNC THEME IF HOST ---
+        if (this.isHost) {
+            setTimeout(() => this.emitUpdate(), 100);
+        }
+        
         const activeMode = this.currentMode;
         const activeWordCount = this.currentWordCount;
         const activeDrinking = this.drinkingMode;
@@ -5031,10 +5038,10 @@ const RoomManager = {
             `;
         }
 
-        // --- FIX: Reduced Height for Player List & Added min-h-0 for scrolling ---
+        // --- FIX 1: IMPROVED CSS LAYOUT ---
         const html = `
         <div id="lobbyModal" class="fixed inset-0 bg-gray-900 z-[9999] flex flex-col md:flex-row font-sans h-full">
-            <div class="w-full md:w-1/3 bg-white p-4 md:p-6 flex flex-col border-b md:border-b-0 md:border-r border-gray-200 z-10 shadow-md md:shadow-none shrink-0 h-[20%] md:h-full overflow-hidden">
+            <div class="w-full md:w-1/3 bg-white p-4 md:p-6 flex flex-col border-b md:border-b-0 md:border-r border-gray-200 z-10 shadow-md md:shadow-none shrink-0 h-[40%] md:h-full overflow-hidden">
                 <div class="flex justify-between md:block items-center mb-2 md:mb-6 shrink-0">
                     <div class="text-left md:text-center">
                         <div class="text-xs text-gray-400 font-bold">ROOM CODE</div>
@@ -5042,29 +5049,38 @@ const RoomManager = {
                     </div>
                     <img src="${qrSrc}" onclick="UIManager.expandQR('${qrSrc}')" class="rounded-lg w-16 h-16 md:w-32 md:h-32 border shadow-inner ml-4 md:ml-0 md:mx-auto cursor-pointer hover:opacity-80 transition">
                 </div>
+                
                 <div class="text-xs font-bold text-gray-400 uppercase mb-2 shrink-0">Players</div>
-                <div class="flex-1 overflow-y-auto custom-scrollbar p-1 border rounded-lg md:border-0 min-h-0">${playersHtml}</div>
-                <button onclick="window.location.href = window.location.pathname" class="mt-2 md:mt-4 w-full py-2 md:py-3 text-red-500 font-bold bg-red-50 hover:bg-red-100 rounded-xl transition text-sm shrink-0">Leave</button>
+                
+                <div class="flex-1 overflow-y-auto custom-scrollbar p-1 border rounded-lg md:border-0 min-h-0 bg-gray-50 md:bg-white">
+                    ${playersHtml}
+                </div>
+                
+                <div class="shrink-0 mt-2 md:mt-4 pt-2 border-t md:border-0 border-gray-100">
+                    <button onclick="window.location.href = window.location.pathname" class="w-full py-2 md:py-3 text-red-500 font-bold bg-red-50 hover:bg-red-100 rounded-xl transition text-sm">Leave Room</button>
+                </div>
             </div>
             
-            <div class="w-full md:w-2/3 bg-gray-50 p-4 md:p-6 flex flex-col relative flex-1 md:h-full overflow-hidden min-h-0">
+            <div class="w-full md:w-2/3 bg-gray-50 p-4 md:p-6 flex flex-col relative h-[60%] md:h-full overflow-hidden">
                 <h2 class="text-xl md:text-2xl font-black text-gray-800 mb-2 md:mb-4 shrink-0">Game Settings</h2>
                 
-                <div class="bg-white p-3 md:p-4 rounded-xl shadow-sm border border-gray-200 mb-3 md:mb-6 ${sliderOpacity} shrink-0">
-                    <div class="flex justify-between items-center mb-2">
-                        <label class="font-bold text-sm md:text-base text-gray-700">Words per Round</label>
-                        <span id="lobbyWordCountDisplay" class="font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-lg text-sm">${activeWordCount} Words</span>
+                <div class="flex-1 overflow-y-auto custom-scrollbar min-h-0 pb-20">
+                    <div class="bg-white p-3 md:p-4 rounded-xl shadow-sm border border-gray-200 mb-3 md:mb-6 ${sliderOpacity}">
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="font-bold text-sm md:text-base text-gray-700">Words per Round</label>
+                            <span id="lobbyWordCountDisplay" class="font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-lg text-sm">${activeWordCount} Words</span>
+                        </div>
+                        <input type="range" min="5" max="50" step="5" value="${activeWordCount}" ${sliderDisabled}
+                            oninput="document.getElementById('lobbyWordCountDisplay').innerText = this.value + ' Words'; window.RoomManager.updateWordCount(this.value)"
+                            class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+                        ${drinkingHtml}
                     </div>
-                    <input type="range" min="5" max="50" step="5" value="${activeWordCount}" ${sliderDisabled}
-                        oninput="document.getElementById('lobbyWordCountDisplay').innerText = this.value + ' Words'; window.RoomManager.updateWordCount(this.value)"
-                        class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
-                    ${drinkingHtml}
-                </div>
 
-                <div class="font-bold text-gray-700 mb-2 text-sm md:text-base shrink-0">${this.isHost ? 'Select Mode' : 'Current Mode'}</div>
-                
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3 overflow-y-auto custom-scrollbar flex-1 pb-24 min-h-0">
-                    ${modesHtml}
+                    <div class="font-bold text-gray-700 mb-2 text-sm md:text-base">${this.isHost ? 'Select Mode' : 'Current Mode'}</div>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3">
+                        ${modesHtml}
+                    </div>
                 </div>
 
                 <div class="absolute bottom-0 left-0 right-0 p-4 md:p-6 bg-white border-t flex items-center justify-between shadow-[0_-5px_15px_rgba(0,0,0,0.05)] z-20 shrink-0">
