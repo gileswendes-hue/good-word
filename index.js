@@ -341,6 +341,8 @@ function finishWord(roomCode) {
         }
     }
 
+const currentWord = room.words[room.wordIndex];
+    
     io.to(roomCode).emit('roundResult', { mode: room.mode, data: resultData, word: currentWord.text, players: room.players, votes });
     room.wordIndex++;
     if(room.wordIndex >= room.maxWords) { processGameEnd(roomCode); return; }
