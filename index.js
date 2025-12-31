@@ -419,13 +419,9 @@ function sendNextWord(roomCode) {
         }
     }
 
+    // FIX: Removed 'accusation' logic. Always end game if words run out.
     if (room.wordIndex >= room.words.length) {
-        if (room.mode === 'traitor' || room.mode === 'vip') {
-            room.state = 'accusation';
-            io.to(roomCode).emit('startAccusation', { mode: room.mode, players: room.players });
-        } else {
-            processGameEnd(roomCode);
-        }
+        processGameEnd(roomCode);
         return;
     }
 
@@ -441,34 +437,42 @@ function sendNextWord(roomCode) {
     });
 }
 
-function processGameEnd(roomCode, abortReason = null) {
+function processGameEnd(roomCode) {
     const room = rooms[roomCode];
     if (!room) return;
 
-    if (room.wordTimer) clearTimeout(room.wordTimer);
+    room.state = 'lobby'; // Reset state so they can play again
+    
+    // Sort rankings
+    const rankings = [...room.players].sort((a, b) => b.score - a.score);
+    
+    let msg = "Game Over!";
+    
+    // --- TRAITOR END GAME LOGIC ---
+    if (room.mode === 'traitor') {
+        // Calculate Group Sync %
+        // (Assuming you track a 'coop' score or similar in finishWord)
+        const totalPossible = room.maxWords; 
+        const groupScore = room.scores.coop || 0; 
+        const syncPercent = totalPossible > 0 ? (groupScore / totalPossible) * 100 : 0;
 
-    if (room.state === 'accusation' && !abortReason) {
-        const targetRole = room.mode === 'traitor' ? room.traitorId : room.vipId;
-        for (const [voterId, accusedId] of Object.entries(room.accusationVotes)) {
-            if (voterId === targetRole) continue; 
-            if (accusedId === targetRole) {
-                const p = room.players.find(p => p.id === voterId);
-                if (p) p.score += 5; 
-            }
+        // Win Condition: If Sync is 100%, Team Wins. If less, Traitor Wins.
+        if (syncPercent === 100) {
+            msg = "TEAM WINS! Perfect Sync!";
+        } else {
+            msg = "TRAITOR WINS! The sync was broken.";
         }
     }
+    // ------------------------------
 
-    const rankings = [...room.players].sort((a,b) => b.score - a.score);
-    io.to(roomCode).emit('gameOver', { 
-        scores: room.scores, 
-        mode: room.mode, 
-        rankings,
-        specialRoleId: room.vipId || room.traitorId,
-        msg: abortReason ? `GAME ENDED: ${abortReason}` : null
+    io.to(roomCode).emit('gameOver', {
+        scores: room.scores,
+        rankings: rankings,
+        mode: room.mode,
+        msg: msg,
+        specialRoleId: room.traitorId || room.vipId // CRITICAL: Send Traitor ID for the reveal!
     });
 
-    room.state = 'lobby';
-    room.accusationVotes = {};
     emitUpdate(roomCode);
 }
 
@@ -476,15 +480,11 @@ function finishWord(roomCode) {
     const room = rooms[roomCode];
     if (!room) return;
 
-    // --- FIX: Rename this variable to avoid "Identifier already declared" error ---
     const voteValues = Object.values(room.currentVotes);
     const counts = {};
     voteValues.forEach(v => counts[v] = (counts[v] || 0) + 1);
-    // --------------------------------------------------------------------------
 
     const currentWord = room.words[room.wordIndex];
-    
-    // This variable 'votes' stays as is (it refers to the object map)
     const votes = room.currentVotes; 
     
     const getMajority = (voteList) => {
@@ -572,21 +572,17 @@ function finishWord(roomCode) {
     let drinkMsg = "Penalty Round";
 
     if (room.drinkingMode && room.mode !== 'traitor' && room.mode !== 'kids') {
-        // 10% Chance
         if (Math.random() < 0.1) { 
             const rand = Math.random();
             if (rand < 0.7) {
-                // 70% STANDARD (Slow + Minority)
                 let slowestId = null;
                 let slowestTime = 0;
                 for (const [pid, timestamp] of Object.entries(room.currentVoteTimes)) {
                     const dur = timestamp - room.wordStartTime;
                     if (dur > slowestTime) { slowestTime = dur; slowestId = pid; }
                 }
-                // Only if > 3 seconds
                 if (slowestId && slowestTime > 3000) {
                      const p = room.players.find(pl => pl.id === slowestId);
-                     // FIXED EMOJI BELOW
                      drinkers.push({ id: slowestId, name: p ? p.name : 'Unknown', reason: 'Too Slow!', icon: '🐌' });
                 }
 
@@ -598,21 +594,17 @@ function finishWord(roomCode) {
                         const v = votes[p.id];
                         if (v && v !== maj) {
                             if (!drinkers.find(d => d.id === p.id)) {
-                                // FIXED EMOJI BELOW
                                 drinkers.push({ id: p.id, name: p.name, reason: 'Minority Vote!', icon: '🤡' });
                             }
                         }
                     });
                 }
             } else if (rand < 0.85) {
-                // 15% SOCIAL
                 drinkMsg = "SOCIAL! EVERYONE DRINKS!";
                 room.players.forEach(p => {
-                    // FIXED EMOJI BELOW
                     if (!p.isSpectator) drinkers.push({ id: p.id, name: p.name, reason: 'Social!', icon: '🍻' });
                 });
             } else {
-                // 15% NOMINATE (Fastest chooses)
                 drinkMsg = "DEMOCRACY MANIFEST!";
                 let fastestId = null;
                 let fastestTime = Infinity;
@@ -622,7 +614,6 @@ function finishWord(roomCode) {
                 }
                 if (fastestId) {
                      const p = room.players.find(pl => pl.id === fastestId);
-                     // FIXED EMOJI BELOW
                      drinkers.push({ id: fastestId, name: p ? p.name : 'Unknown', reason: 'NOMINATE SOMEONE!', icon: '🫵' });
                 }
             }
@@ -639,6 +630,13 @@ function finishWord(roomCode) {
 
     room.wordIndex++;
 
+    // FIX: End game immediately if words run out. ADD RETURN.
+    if (room.wordIndex >= room.maxWords) {
+        processGameEnd(roomCode);
+        return; // <--- THIS IS CRITICAL
+    }
+
+    // FIX: Only schedule ONE timer
     if (drinkers.length > 0) {
         room.state = 'drinking';
         room.readyConfirms = new Set();
