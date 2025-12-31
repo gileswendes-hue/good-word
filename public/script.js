@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.83.7', 
+    APP_VERSION: '5.84.1', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -3630,6 +3630,42 @@ showKickConfirm(targetId, name) {
         document.body.appendChild(el);
     },
 
+    showProfile() {
+        const modalId = 'profileModal';
+        document.getElementById(modalId)?.remove();
+
+        // FIX: Ensure streak has a valid default value of 0, not undefined/-
+        const streak = State.data.streak || 0;
+        const total = State.data.totalVotes || 0;
+        const name = State.data.username || "Guest";
+        
+        const html = `
+        <div id="${modalId}" class="fixed inset-0 bg-black/80 z-[10000] flex items-center justify-center p-4 animate-fade-in font-sans">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 transform scale-100 relative overflow-hidden text-center">
+                <button onclick="document.getElementById('${modalId}').remove()" class="absolute top-3 right-4 text-gray-400 text-2xl">&times;</button>
+                <h2 class="text-3xl font-black text-gray-800 mb-6">PROFILE</h2>
+                
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div class="bg-orange-50 p-4 rounded-xl border border-orange-100">
+                        <div class="text-3xl mb-1">🔥</div>
+                        <div class="font-black text-2xl text-orange-600">${streak}</div>
+                        <div class="text-xs font-bold text-orange-400">DAY STREAK</div>
+                    </div>
+                    <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                        <div class="text-3xl mb-1">🗳️</div>
+                        <div class="font-black text-2xl text-blue-600">${total}</div>
+                        <div class="text-xs font-bold text-blue-400">TOTAL VOTES</div>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-50 p-3 rounded-lg text-sm text-gray-500 font-bold mb-4">
+                    Playing as: <span class="text-indigo-600">${name}</span>
+                </div>
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
+    },
+
 expandQR(src) {
         const el = document.createElement('div');
         el.className = 'fixed inset-0 z-[10000] flex items-center justify-center bg-black/90 p-4 animate-fade-in cursor-pointer';
@@ -4696,6 +4732,10 @@ const RoomManager = {
     drinkingMode: false,
     players: [],
     
+    // THEME SYNC STATE
+    originalTheme: 'default',
+    hostTheme: null,
+    
     listenersAttached: false,
     
     modeConfig: {
@@ -4772,7 +4812,18 @@ const RoomManager = {
         });
 
         this.socket.on('roomUpdate', (data) => {
-            console.log("Room Update Received:", data);
+            // THEME SYNC LOGIC
+            if (data.theme && data.theme !== this.hostTheme) {
+                // If this is the first time we see a host theme, save our original
+                if (!this.hostTheme) {
+                    this.originalTheme = State.data.currentTheme || 'default';
+                }
+                this.hostTheme = data.theme;
+                
+                // Apply Host Theme Temporarily
+                document.documentElement.setAttribute('data-theme', this.hostTheme);
+            }
+
             this.roomCode = this.roomCode || data.roomCode;
             this.currentMode = data.mode || 'coop';
             this.currentWordCount = parseInt(data.maxWords || 10);
@@ -4808,7 +4859,6 @@ const RoomManager = {
             UIManager.showPostVoteMessage(msg);
         });
 
-        // --- FIX: Use Modal to prevent Freeze ---
         this.socket.on('drinkPenalty', (data) => {
             UIManager.showDrinkingModal(data);
             if (typeof Haptics !== 'undefined') Haptics.heavy();
@@ -4817,9 +4867,9 @@ const RoomManager = {
         this.socket.on('drinkingComplete', () => {
             UIManager.closeDrinkingModal();
         });
-        // ----------------------------------------
 
         this.socket.on('gameOver', (data) => {
+            this.cleanupMultiplayer(); // Revert theme
             const banner = document.querySelector('.mp-banner-text');
             if(banner) banner.remove();
             const ui = document.getElementById('mp-mode-ui');
@@ -4830,13 +4880,21 @@ const RoomManager = {
             UIManager.showGameOverModal(data);
         });
 
- this.socket.on('kicked', () => {
+        this.socket.on('kicked', () => {
+            this.cleanupMultiplayer(); // Revert theme
             this.active = false;
             State.runtime.isMultiplayer = false;
-            // Show the styled modal which handles the redirect
             UIManager.showKickedModal();
-            this.socket.disconnect(); // Ensure they are fully disconnected
+            this.socket.disconnect(); 
         });
+    },
+
+    cleanupMultiplayer() {
+        // Revert to original theme
+        if (this.originalTheme) {
+            document.documentElement.setAttribute('data-theme', this.originalTheme);
+            this.hostTheme = null;
+        }
     },
 
     emitUpdate() {
@@ -4869,14 +4927,13 @@ const RoomManager = {
         this.emitUpdate();
     },
 
-kickPlayer(targetId) {
+    kickPlayer(targetId) {
         if (!this.isHost) return;
         const p = this.players.find(x => x.id === targetId);
         const name = p ? (p.name || 'Guest') : 'Player';
-        // Open the new UI Modal instead of confirm()
         UIManager.showKickConfirm(targetId, name);
     },
-
+    
     emitKick(targetId) {
         this.socket.emit('kickPlayer', { roomCode: this.roomCode, targetId });
     },
@@ -4926,7 +4983,6 @@ kickPlayer(targetId) {
         const playersHtml = playersList.map(p => {
             let displayName = p.name || 'Guest';
             const isMe = p.id === this.playerId;
-            // Kick Button Logic
             const kickBtn = (this.isHost && !isMe) 
                 ? `<button onclick="RoomManager.kickPlayer('${p.id}')" class="text-red-400 hover:text-red-600 font-bold px-3 py-1 ml-2 rounded hover:bg-red-50" title="Kick Player">✕</button>` 
                 : '';
@@ -4978,19 +5034,20 @@ kickPlayer(targetId) {
             `;
         }
 
+        // --- FIX: Increased Player List height logic (flex-1) ---
         const html = `
         <div id="lobbyModal" class="fixed inset-0 bg-gray-900 z-[9999] flex flex-col md:flex-row font-sans h-full">
-            <div class="w-full md:w-1/3 bg-white p-4 md:p-6 flex flex-col border-b md:border-b-0 md:border-r border-gray-200 z-10 shadow-md md:shadow-none shrink-0 md:h-full max-h-[35%] md:max-h-full overflow-hidden">
-                <div class="flex justify-between md:block items-center mb-2 md:mb-6">
+            <div class="w-full md:w-1/3 bg-white p-4 md:p-6 flex flex-col border-b md:border-b-0 md:border-r border-gray-200 z-10 shadow-md md:shadow-none shrink-0 h-1/2 md:h-full overflow-hidden">
+                <div class="flex justify-between md:block items-center mb-2 md:mb-6 shrink-0">
                     <div class="text-left md:text-center">
                         <div class="text-xs text-gray-400 font-bold">ROOM CODE</div>
                         <div class="text-4xl md:text-6xl font-black text-indigo-600 font-mono tracking-widest">${safeCode}</div>
                     </div>
                     <img src="${qrSrc}" onclick="UIManager.expandQR('${qrSrc}')" class="rounded-lg w-16 h-16 md:w-32 md:h-32 border shadow-inner ml-4 md:ml-0 md:mx-auto cursor-pointer hover:opacity-80 transition">
                 </div>
-                <div class="text-xs font-bold text-gray-400 uppercase mb-2">Players</div>
-                <div class="flex-grow overflow-y-auto custom-scrollbar p-1 border rounded-lg md:border-0">${playersHtml}</div>
-                <button onclick="window.location.href = window.location.pathname" class="mt-2 md:mt-4 w-full py-2 md:py-3 text-red-500 font-bold bg-red-50 hover:bg-red-100 rounded-xl transition text-sm">Leave</button>
+                <div class="text-xs font-bold text-gray-400 uppercase mb-2 shrink-0">Players</div>
+                <div class="flex-1 overflow-y-auto custom-scrollbar p-1 border rounded-lg md:border-0 min-h-0">${playersHtml}</div>
+                <button onclick="window.location.href = window.location.pathname" class="mt-2 md:mt-4 w-full py-2 md:py-3 text-red-500 font-bold bg-red-50 hover:bg-red-100 rounded-xl transition text-sm shrink-0">Leave</button>
             </div>
             
             <div class="w-full md:w-2/3 bg-gray-50 p-4 md:p-6 flex flex-col relative h-full overflow-hidden">
@@ -5027,12 +5084,10 @@ kickPlayer(targetId) {
         document.body.insertAdjacentHTML('beforeend', html);
     },
 
-openMenu() {
+    openMenu() {
         const existing = document.getElementById('mpMenu');
         if (existing) existing.remove();
         const currentName = State.data.username || '';
-        // FIX: Changed 'items-center' to 'items-start pt-24 md:items-center md:pt-0'
-        // This moves the menu to the top on mobile so the keyboard doesn't hide it.
         const html = `
         <div id="mpMenu" class="fixed inset-0 bg-black/80 z-[9999] flex items-start justify-center pt-24 md:items-center md:pt-0 backdrop-blur-sm p-4">
             <div class="bg-white p-6 rounded-2xl shadow-2xl text-center max-w-sm w-full animate-pop relative">
