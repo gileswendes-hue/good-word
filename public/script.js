@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.84.10', 
+    APP_VERSION: '5.84.11', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4988,15 +4988,15 @@ const RoomManager = {
     },
 
     startGame() {
-        if (!this.isHost) return;
-        if (this.currentMode === 'okstoopid' && this.players.length !== 2) {
-            UIManager.showPostVoteMessage("⚠️ OK Stoopid requires exactly 2 players!");
-            return;
-        }
-        if (this.currentMode === 'traitor' && this.players.length < 3) {
-            UIManager.showPostVoteMessage("⚠️ Traitor Mode requires at least 3 players!");
-            return;
-        }
+
+// --- NEW: Helper Popups ---
+        const count = this.players.length;
+        if (this.currentMode === 'okstoopid' && count !== 2) return UIManager.showPostVoteMessage("⚠️ OK Stoopid requires exactly 2 players!");
+        if (this.currentMode === 'traitor' && count < 3) return UIManager.showPostVoteMessage("⚠️ Traitor Mode requires 3+ players!");
+        if (this.currentMode === 'coop' && count < 3) return UIManager.showPostVoteMessage("⚠️ Co-op requires 3+ players!");
+        if (this.currentMode === 'versus' && count < 4) return UIManager.showPostVoteMessage("⚠️ Team Versus requires 4+ players!");
+        // --------------------------
+
         this.socket.emit('startGame', { roomCode: this.roomCode });
     },
 
@@ -5015,6 +5015,10 @@ const RoomManager = {
     },
 
     renderLobby() {
+
+        const scrolls = document.querySelectorAll('#lobbyModal .custom-scrollbar');
+        const sTop1 = scrolls[0] ? scrolls[0].scrollTop : 0; // Players
+        const sTop2 = scrolls[1] ? scrolls[1].scrollTop : 0; // Settings
         document.getElementById('lobbyModal')?.remove();
         
         if (this.isHost) {
@@ -5143,6 +5147,13 @@ const RoomManager = {
             </div>
         </div>`;
         document.body.insertAdjacentHTML('beforeend', html);
+
+// --- FIX: Restore Scroll Positions ---
+        const newScrolls = document.querySelectorAll('#lobbyModal .custom-scrollbar');
+        if(newScrolls[0]) newScrolls[0].scrollTop = sTop1;
+        if(newScrolls[1]) newScrolls[1].scrollTop = sTop2;
+        // -------------------------------------
+
     },
 
     openMenu() {
@@ -5730,15 +5741,29 @@ const Game = {
         }
     },
 
-    checkDailyStatus() {
+checkDailyStatus() {
         const t = new Date().toISOString().split('T')[0];
         const l = State.data.daily.lastDate;
+
+        if (State.data.settings.kidsMode) {
+             DOM.game.dailyBanner.style.display = 'none';
+             return;
+        }
+
+        // Always RESET to active state first to ensure clearing happens
+        DOM.game.dailyBanner.style.display = 'block';
+        DOM.game.dailyBanner.style.opacity = '1';
+        DOM.game.dailyBanner.style.pointerEvents = 'auto';
+        DOM.game.dailyBanner.style.filter = 'none';
+
         if (t === l) {
+            // Apply disabled state only if completed TODAY
             DOM.game.dailyStatus.textContent = "Come back tomorrow!";
-            DOM.game.dailyBanner.style.display = 'none'
+            DOM.game.dailyBanner.style.opacity = '0.5';
+            DOM.game.dailyBanner.style.pointerEvents = 'none';
+            DOM.game.dailyBanner.style.filter = 'grayscale(1)';
         } else {
             DOM.game.dailyStatus.textContent = "Vote Now!";
-            DOM.game.dailyBanner.style.display = 'block'
         }
     },
 
