@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.84.5', 
+    APP_VERSION: '5.84.6', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -268,6 +268,11 @@ const State = {
         mashLevel: 0,
         isDailyMode: false
     },
+
+init() {
+        console.log("State Initialized");
+    },
+
     save(k, v) {
         this.data[k] = v;
         const s = localStorage;
