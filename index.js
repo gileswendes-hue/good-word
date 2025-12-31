@@ -50,10 +50,7 @@ const Leaderboard = mongoose.model('Leaderboard', leaderboardSchema);
 let kidsWords = [];
 const loadKidsWords = () => {
     try {
-        // 1. Try finding it in the 'public' folder first
         let p = path.join(__dirname, 'public', 'kids_words.txt');
-        
-        // 2. If not there, try the root folder
         if (!fs.existsSync(p)) {
             p = path.join(__dirname, 'kids_words.txt');
         }
@@ -87,14 +84,10 @@ function shuffle(array) {
     return array;
 }
 
-// --- CENTRALIZED PLAYER REMOVAL ---
 function removePlayerFromAllRooms(socketId) {
     for (const code in rooms) {
         const room = rooms[code];
-        
-        // --- ADD THIS SAFETY CHECK ---
         if (!room || !room.players) continue; 
-        // -----------------------------
 
         const idx = room.players.findIndex(p => p.id === socketId);
         
@@ -102,7 +95,6 @@ function removePlayerFromAllRooms(socketId) {
             const wasHost = (room.host === socketId);
             room.players.splice(idx, 1);
             
-            // Clean up their vote
             if (room.currentVotes && room.currentVotes[socketId]) {
                 delete room.currentVotes[socketId];
             }
@@ -117,7 +109,6 @@ function removePlayerFromAllRooms(socketId) {
                 
                 if (room.state === 'playing') {
                     const activePlayers = room.players.filter(p => !p.isSpectator && (room.mode !== 'survival' || p.lives > 0));
-                    // Check activePlayers exists to prevent crash
                     if (activePlayers && activePlayers.length > 0 && Object.keys(room.currentVotes).length >= activePlayers.length) {
                         finishWord(code);
                     }
@@ -161,7 +152,6 @@ io.on('connection', (socket) => {
         }
 
         const room = rooms[code];
-        // If the game is already in progress, join as spectator
         const isSpectator = (room.state === 'playing' || room.state === 'accusation' || room.state === 'drinking');
 
         const existing = room.players.find(p => p.id === socket.id);
@@ -181,7 +171,6 @@ io.on('connection', (socket) => {
         
         emitUpdate(code);
         
-        // If late join, sync game state immediately
         if (isSpectator && room.words[room.wordIndex]) {
             socket.emit('gameStarted', { totalWords: room.maxWords, mode: room.mode });
             if (room.state === 'drinking') {
@@ -210,7 +199,6 @@ io.on('connection', (socket) => {
     socket.on('refreshLobby', ({ roomCode }) => {
         const room = rooms[roomCode];
         if (!room || room.host !== socket.id) return;
-        // Purge ghosts
         const initialCount = room.players.length;
         room.players = room.players.filter(p => {
             const s = io.sockets.sockets.get(p.id);
@@ -219,7 +207,6 @@ io.on('connection', (socket) => {
         if (room.players.length !== initialCount) emitUpdate(roomCode);
     });
 
-    // FIX: This handler matches Frontend's new emitUpdate()
     socket.on('updateSettings', ({ roomCode, mode, rounds, drinking }) => {
         const room = rooms[roomCode];
         if (!room || room.host !== socket.id) return;
@@ -228,6 +215,7 @@ io.on('connection', (socket) => {
         if(rounds) room.maxWords = parseInt(rounds);
         if (typeof drinking !== 'undefined') room.drinkingMode = drinking;
         
+        // FIX: Removed 'traitor' from this check so drinking works in Traitor mode
         if (room.mode === 'kids') room.drinkingMode = false;
 
         emitUpdate(roomCode);
@@ -259,16 +247,14 @@ io.on('connection', (socket) => {
         room.accusationVotes = {};
         room.readyConfirms = new Set();
         room.vipId = null;
-        room.traitorId = null; // Reset Traitor
+        room.traitorId = null; 
 
-        // Reset Player States
         room.players.forEach(p => {
             p.lives = 3;
             p.score = 0;
             p.isSpectator = false;
         });
 
-        // --- MODE SETUP ---
         if (room.mode === 'versus') {
             const shuffled = shuffle([...room.players]);
             shuffled.forEach((p, i) => {
@@ -277,13 +263,10 @@ io.on('connection', (socket) => {
             });
         }
         else if (room.mode === 'traitor') {
-            // 1. Pick Random Traitor
             const potentialTraitors = room.players.filter(p => !p.isSpectator);
             if (potentialTraitors.length > 0) {
                 const r = potentialTraitors[Math.floor(Math.random() * potentialTraitors.length)];
                 room.traitorId = r.id;
-                
-                // 2. Notify ONLY the Traitor (Must happen before gameStarted)
                 io.to(room.traitorId).emit('roleAlert', 'You are the TRAITOR! Try to make the room fail.');
             }
         }
@@ -294,20 +277,17 @@ io.on('connection', (socket) => {
 
         emitUpdate(roomCode);
 
-        // --- GET WORDS ---
         try {
             if (room.mode === 'kids') {
-                const shuffled = shuffle([...kidsWords]); // Assuming kidsWords is defined globally
+                const shuffled = shuffle([...kidsWords]); 
                 let selection = [];
                 while(selection.length < room.maxWords && shuffled.length > 0) selection = selection.concat(shuffled);
                 room.words = selection.slice(0, room.maxWords).map(t => ({ text: t }));
             } else {
-                // Ensure we get random words from DB
                 const randomWords = await Word.aggregate([{ $sample: { size: room.maxWords } }]);
                 room.words = randomWords;
             }
 
-            // 3. Start Game (Frontend will now show Countdown + Traitor Message)
             io.to(roomCode).emit('gameStarted', { 
                 totalWords: room.maxWords, 
                 mode: room.mode,
@@ -315,7 +295,6 @@ io.on('connection', (socket) => {
                 words: room.words
             });
             
-            // Start first word after countdown (4s buffer)
             room.wordTimer = setTimeout(() => sendNextWord(roomCode), 4000);
 
         } catch (e) { console.error(e); }
@@ -328,7 +307,6 @@ io.on('connection', (socket) => {
         const player = room.players.find(p => p.id === socket.id);
         if (!player || player.isSpectator) return;
         
-        // Strict check for dead players in survival
         if (room.mode === 'survival' && player.lives <= 0) return;
 
         room.currentVotes[socket.id] = vote;
@@ -401,7 +379,7 @@ function emitUpdate(code) {
         mode: rooms[code].mode,
         maxWords: rooms[code].maxWords,
         drinkingMode: rooms[code].drinkingMode, 
-        theme: rooms[code].theme, // SEND THEME
+        theme: rooms[code].theme,
         state: rooms[code].state
     });
 }
@@ -440,36 +418,28 @@ function processGameEnd(roomCode) {
     const room = rooms[roomCode];
     if (!room) return;
 
-    room.state = 'lobby'; // Reset state so they can play again
-    
-    // Sort rankings
+    room.state = 'lobby'; 
     const rankings = [...room.players].sort((a, b) => b.score - a.score);
-    
     let msg = "Game Over!";
     
-    // --- TRAITOR END GAME LOGIC ---
     if (room.mode === 'traitor') {
-        // Calculate Group Sync %
-        // (Assuming you track a 'coop' score or similar in finishWord)
         const totalPossible = room.maxWords; 
         const groupScore = room.scores.coop || 0; 
         const syncPercent = totalPossible > 0 ? (groupScore / totalPossible) * 100 : 0;
 
-        // Win Condition: If Sync is 100%, Team Wins. If less, Traitor Wins.
         if (syncPercent === 100) {
             msg = "TEAM WINS! Perfect Sync!";
         } else {
             msg = "TRAITOR WINS! The sync was broken.";
         }
     }
-    // ------------------------------
 
     io.to(roomCode).emit('gameOver', {
         scores: room.scores,
         rankings: rankings,
         mode: room.mode,
         msg: msg,
-        specialRoleId: room.traitorId || room.vipId // CRITICAL: Send Traitor ID for the reveal!
+        specialRoleId: room.traitorId || room.vipId
     });
 
     emitUpdate(roomCode);
@@ -632,10 +602,9 @@ function finishWord(roomCode) {
     // FIX: End game immediately if words run out. ADD RETURN.
     if (room.wordIndex >= room.maxWords) {
         processGameEnd(roomCode);
-        return; // <--- THIS IS CRITICAL
+        return; 
     }
 
-    // FIX: Only schedule ONE timer
     if (drinkers.length > 0) {
         room.state = 'drinking';
         room.readyConfirms = new Set();
