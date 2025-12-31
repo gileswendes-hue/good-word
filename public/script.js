@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.84.6', 
+    APP_VERSION: '5.84.7', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -2826,6 +2826,49 @@ const ShareManager = {
 
 const UIManager = {
     msgTimeout: null,
+
+    // --- ADD THESE MISSING FUNCTIONS ---
+    showSplash(text, type = 'neutral') {
+        const el = document.createElement('div');
+        el.className = `fixed inset-0 z-[100] flex items-center justify-center pointer-events-none animate-fade-out`;
+        el.innerHTML = `<div class="text-6xl font-black drop-shadow-xl transform scale-150 ${type === 'good' ? 'text-green-500' : type === 'bad' ? 'text-red-500' : 'text-white'}">${text}</div>`;
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 1000);
+    },
+
+    triggerConfetti() {
+        if (typeof confetti !== 'undefined') {
+            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ['#4f46e5', '#10b981', '#f59e0b'] });
+        }
+    },
+
+    updateStreak(n) {
+        // Updates the header streak (since streakCount was removed from DOM.game)
+        if (DOM.header && DOM.header.streak) {
+            DOM.header.streak.textContent = n;
+            if (n > 0 && n % 10 === 0) {
+                DOM.header.streak.classList.add('animate-bounce');
+                setTimeout(() => DOM.header.streak.classList.remove('animate-bounce'), 1000);
+            }
+        }
+    },
+    
+    addToHistory(word, vote) {
+        // Safely tries to find the history list (it might be missing in your HTML)
+        const list = document.getElementById('history-list');
+        if (!list) return;
+        
+        const item = document.createElement('div');
+        item.className = `flex justify-between items-center p-3 mb-2 rounded-lg bg-white border-l-4 shadow-sm animate-slide-in ${vote === 'good' ? 'border-green-500' : 'border-red-500'}`;
+        item.innerHTML = `
+            <span class="font-bold text-gray-700">${word}</span>
+            <span class="text-xl">${vote === 'good' ? '👍' : '👎'}</span>
+        `;
+        list.insertBefore(item, list.firstChild);
+        if (list.children.length > 50) list.lastChild.remove();
+    },
+    // -----------------------------------
+
     showMessage(t, err = false) {
         const wd = DOM.game.wordDisplay;
         wd.textContent = t;
