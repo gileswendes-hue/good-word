@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.84.12', 
+    APP_VERSION: '5.84.13', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4887,17 +4887,19 @@ const RoomManager = {
             if (!this.active) this.renderLobby();
         });
 
-        this.socket.on('nextWord', (data) => {
+this.socket.on('nextWord', (data) => {
+            // FIX: Ensure previous word state is cleared
             State.runtime.allWords = [data.word];
             State.runtime.currentWordIndex = 0;
+            
+            // FIX: Force reset UI for the new round
             UIManager.displayWord(data.word);
+            UIManager.disableButtons(false); 
+            DOM.game.wordDisplay.style.opacity = '1';
+            DOM.game.wordDisplay.classList.remove('word-fade-quick', 'word-fade-llama');
             
             const banner = document.querySelector('.mp-banner-text');
             if (banner) banner.textContent = `${RoomManager.modeConfig[this.currentMode]?.label} (${data.wordCurrent}/${data.wordTotal})`;
-            
-            DOM.game.wordDisplay.style.opacity = '1';
-            DOM.game.wordDisplay.classList.remove('word-fade-quick', 'word-fade-llama');
-            UIManager.disableButtons(false);
         });
 
         this.socket.on('playerVoted', () => { Haptics.light(); });
@@ -5760,10 +5762,10 @@ checkDailyStatus() {
         }
 
         if (t === l) {
-            // Completed today? Hide it completely.
+            // FIX: Hide completely if done today
             DOM.game.dailyBanner.style.display = 'none';
         } else {
-            // Not completed? Show it active.
+            // Show normally if not done
             DOM.game.dailyStatus.textContent = "Vote Now!";
             DOM.game.dailyBanner.style.display = 'block';
             DOM.game.dailyBanner.style.opacity = '1';
