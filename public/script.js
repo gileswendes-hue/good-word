@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.84.11', 
+    APP_VERSION: '5.84.12', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -5014,29 +5014,35 @@ const RoomManager = {
         }
     },
 
-    renderLobby() {
-
-        const scrolls = document.querySelectorAll('#lobbyModal .custom-scrollbar');
-        const sTop1 = scrolls[0] ? scrolls[0].scrollTop : 0; // Players
-        const sTop2 = scrolls[1] ? scrolls[1].scrollTop : 0; // Settings
-        document.getElementById('lobbyModal')?.remove();
+renderLobby() {
+        // 1. Save scroll positions of the two lists before removing
+        const existingModal = document.getElementById('lobbyModal');
+        let scrollPlayers = 0;
+        let scrollSettings = 0;
         
-        if (this.isHost) {
-            setTimeout(() => this.emitUpdate(), 100);
+        if (existingModal) {
+            const scrolls = existingModal.querySelectorAll('.custom-scrollbar');
+            if (scrolls[0]) scrollPlayers = scrolls[0].scrollTop;
+            if (scrolls[1]) scrollSettings = scrolls[1].scrollTop;
+            existingModal.remove();
         }
-        
+
+        // 2. Setup Variables
         const activeMode = this.currentMode;
         const activeWordCount = this.currentWordCount;
         const activeDrinking = this.drinkingMode;
         const safeCode = this.roomCode || '...';
+        
         if (this.roomCode) {
             const newUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?room=${this.roomCode}`;
             window.history.replaceState({path: newUrl}, '', newUrl);
         }
+
         const playersList = this.players || [];
         const joinUrl = `${window.location.origin}?room=${safeCode}`;
         const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(joinUrl)}`;
 
+        // 3. Generate HTML
         const playersHtml = playersList.map(p => {
             let displayName = p.name || 'Guest';
             const isMe = p.id === this.playerId;
@@ -5148,12 +5154,15 @@ const RoomManager = {
         </div>`;
         document.body.insertAdjacentHTML('beforeend', html);
 
-// --- FIX: Restore Scroll Positions ---
-        const newScrolls = document.querySelectorAll('#lobbyModal .custom-scrollbar');
-        if(newScrolls[0]) newScrolls[0].scrollTop = sTop1;
-        if(newScrolls[1]) newScrolls[1].scrollTop = sTop2;
-        // -------------------------------------
-
+        // 4. Restore Scroll Positions
+        if (scrollPlayers > 0 || scrollSettings > 0) {
+            const newModal = document.getElementById('lobbyModal');
+            if (newModal) {
+                const newScrolls = newModal.querySelectorAll('.custom-scrollbar');
+                if (newScrolls[0]) newScrolls[0].scrollTop = scrollPlayers;
+                if (newScrolls[1]) newScrolls[1].scrollTop = scrollSettings;
+            }
+        }
     },
 
     openMenu() {
@@ -5750,20 +5759,16 @@ checkDailyStatus() {
              return;
         }
 
-        // Always RESET to active state first to ensure clearing happens
-        DOM.game.dailyBanner.style.display = 'block';
-        DOM.game.dailyBanner.style.opacity = '1';
-        DOM.game.dailyBanner.style.pointerEvents = 'auto';
-        DOM.game.dailyBanner.style.filter = 'none';
-
         if (t === l) {
-            // Apply disabled state only if completed TODAY
-            DOM.game.dailyStatus.textContent = "Come back tomorrow!";
-            DOM.game.dailyBanner.style.opacity = '0.5';
-            DOM.game.dailyBanner.style.pointerEvents = 'none';
-            DOM.game.dailyBanner.style.filter = 'grayscale(1)';
+            // Completed today? Hide it completely.
+            DOM.game.dailyBanner.style.display = 'none';
         } else {
+            // Not completed? Show it active.
             DOM.game.dailyStatus.textContent = "Vote Now!";
+            DOM.game.dailyBanner.style.display = 'block';
+            DOM.game.dailyBanner.style.opacity = '1';
+            DOM.game.dailyBanner.style.pointerEvents = 'auto';
+            DOM.game.dailyBanner.style.filter = 'none';
         }
     },
 
