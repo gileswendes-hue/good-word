@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.83.5', 
+    APP_VERSION: '5.83.6', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -3591,6 +3591,45 @@ displayWord(w) {
         document.body.insertAdjacentHTML('beforeend', html);
     },
 
+showKickConfirm(targetId, name) {
+        const el = document.createElement('div');
+        el.id = 'kickConfirmModal';
+        el.className = 'fixed inset-0 z-[10000] flex items-center justify-center bg-black/90 p-4 animate-fade-in font-sans';
+        el.innerHTML = `
+            <div class="bg-white rounded-2xl p-6 w-full max-w-sm text-center shadow-2xl animate-pop">
+                <h3 class="text-2xl font-black text-gray-800 mb-2">KICK PLAYER?</h3>
+                <p class="text-gray-500 font-bold mb-6">Are you sure you want to remove <span class="text-red-500">${name}</span>?</p>
+                <div class="flex gap-3">
+                    <button onclick="document.getElementById('kickConfirmModal').remove()" class="flex-1 py-3 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition">CANCEL</button>
+                    <button onclick="RoomManager.emitKick('${targetId}'); document.getElementById('kickConfirmModal').remove()" class="flex-1 py-3 bg-red-500 text-white font-bold rounded-xl hover:bg-red-600 shadow-lg transition">KICK ✕</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(el);
+    },
+
+    showKickedModal() {
+        // Remove existing UI
+        document.getElementById('lobbyModal')?.remove();
+        document.getElementById('mpMenu')?.remove();
+        const banner = document.querySelector('.mp-banner-text');
+        if(banner) banner.remove();
+
+        const el = document.createElement('div');
+        el.className = 'fixed inset-0 z-[20000] flex items-center justify-center bg-red-900/95 p-4 animate-fade-in font-sans';
+        el.innerHTML = `
+            <div class="bg-white rounded-2xl p-8 w-full max-w-sm text-center shadow-2xl animate-pop border-4 border-red-500">
+                <div class="text-6xl mb-4">🥾</div>
+                <h2 class="text-3xl font-black text-gray-800 mb-2">KICKED!</h2>
+                <p class="text-gray-500 font-bold mb-6">The host has removed you from the room.</p>
+                <button onclick="window.location.href = window.location.pathname" class="w-full py-4 bg-gray-800 text-white font-bold rounded-xl text-xl shadow-lg hover:bg-gray-900 transition transform active:scale-95">
+                    RETURN TO MENU
+                </button>
+            </div>
+        `;
+        document.body.appendChild(el);
+    },
+
 expandQR(src) {
         const el = document.createElement('div');
         el.className = 'fixed inset-0 z-[10000] flex items-center justify-center bg-black/90 p-4 animate-fade-in cursor-pointer';
@@ -4791,9 +4830,12 @@ const RoomManager = {
             UIManager.showGameOverModal(data);
         });
 
-        this.socket.on('kicked', () => {
-            alert("You were kicked from the room.");
-            window.location.reload();
+ this.socket.on('kicked', () => {
+            this.active = false;
+            State.runtime.isMultiplayer = false;
+            // Show the styled modal which handles the redirect
+            UIManager.showKickedModal();
+            this.socket.disconnect(); // Ensure they are fully disconnected
         });
     },
 
@@ -4827,11 +4869,16 @@ const RoomManager = {
         this.emitUpdate();
     },
 
-    kickPlayer(targetId) {
+kickPlayer(targetId) {
         if (!this.isHost) return;
-        if (confirm("Are you sure you want to kick this player?")) {
-            this.socket.emit('kickPlayer', { roomCode: this.roomCode, targetId });
-        }
+        const p = this.players.find(x => x.id === targetId);
+        const name = p ? (p.name || 'Guest') : 'Player';
+        // Open the new UI Modal instead of confirm()
+        UIManager.showKickConfirm(targetId, name);
+    },
+
+    emitKick(targetId) {
+        this.socket.emit('kickPlayer', { roomCode: this.roomCode, targetId });
     },
 
     startGame() {
@@ -5109,8 +5156,6 @@ if (data.words && data.words.length > 0) {
             // We simply wait for the server to emit 'nextWord' (approx 4s delay).
             UIManager.showMessage("Get Ready...");
         }
-    // 7. Show the first word immediately (RoomManager handles subsequent nextWord events)
-    this.nextWord();
 },
 
 	renderGraphs() {
