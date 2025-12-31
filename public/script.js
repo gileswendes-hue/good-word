@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.84.17', 
+    APP_VERSION: '5.84.18', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -5763,7 +5763,7 @@ checkDailyStatus() {
 
         // If Kids Mode OR Challenge Done Today -> HIDE COMPLETELY
         if (State.data.settings.kidsMode || t === l) {
-             DOM.game.dailyBanner.style.display = 'none'; // <--- THIS IS THE LINE
+             DOM.game.dailyBanner.style.display = 'none';
         } else {
              // Else -> SHOW
              DOM.game.dailyStatus.textContent = "Vote Now!";
