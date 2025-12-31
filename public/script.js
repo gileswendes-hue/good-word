@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.83.2', 
+    APP_VERSION: '5.83.3', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -2830,9 +2830,6 @@ const UIManager = {
         DOM.game.wordFrame.style.padding = '0';
         this.disableButtons(true)
     },
-
-
-
     disableButtons(d) {
         Object.values(DOM.game.buttons).forEach(b => {
             if (!b.id.includes('custom')) b.disabled = d
@@ -3591,6 +3588,20 @@ displayWord(w) {
 
         document.body.insertAdjacentHTML('beforeend', html);
     }
+
+expandQR(src) {
+        const el = document.createElement('div');
+        el.className = 'fixed inset-0 z-[10000] flex items-center justify-center bg-black/90 p-4 animate-fade-in cursor-pointer';
+        el.onclick = () => el.remove();
+        el.innerHTML = `
+            <div class="relative flex flex-col items-center">
+                <img src="${src}" class="max-w-full max-h-[70vh] rounded-2xl shadow-2xl border-4 border-white transform scale-100 animate-pop">
+                <div class="mt-8 text-white font-black text-2xl tracking-widest animate-pulse">TAP TO CLOSE</div>
+            </div>
+        `;
+        document.body.appendChild(el);
+    }
+
 };
 
 const PinPad = {
@@ -4702,27 +4713,23 @@ const RoomManager = {
 
         this.socket.on('connect', () => { this.playerId = this.socket.id; });
 
-     // 1. Handle Role Alert SILENTLY (No popup yet)
         this.socket.on('roleAlert', (msg) => {
-             this.amITraitor = true; // Just store the flag
-             // UIManager.showRoleReveal(...) <-- REMOVE THIS LINE
+             this.amITraitor = true; 
         });
 
-        // 2. Pass Traitor Flag to Countdown
         this.socket.on('gameStarted', (data) => {
+            console.log("GAME START SIGNAL RECEIVED"); 
             this.closeLobby();
             this.active = true;
             
-            // Pass 'this.amITraitor' to the countdown
             UIManager.showCountdown(3, () => {
-                if (Game && Game.startMultiplayer) Game.startMultiplayer(data);
-            }, this.amITraitor);
-            
-            // Reset flag for next game
-            this.amITraitor = false; 
+                if (Game && Game.startMultiplayer) {
+                    Game.startMultiplayer(data);
+                }
+            }, this.amITraitor); 
+            this.amITraitor = false;
         });
 
-        // --- LOBBY EVENTS ---
         this.socket.on('roomUpdate', (data) => {
             console.log("Room Update Received:", data);
             this.roomCode = this.roomCode || data.roomCode;
@@ -4731,7 +4738,6 @@ const RoomManager = {
             this.drinkingMode = data.drinkingMode || false;
             this.players = data.players || [];
             
-            // Determine Host
             this.isHost = (data.host === this.playerId);
             if(this.players.length > 0 && this.players[0].id === this.playerId) this.isHost = true;
 
@@ -4740,92 +4746,56 @@ const RoomManager = {
             if (!this.active) this.renderLobby();
         });
 
-this.socket.on('gameStarted', (data) => {
-    console.log("GAME START SIGNAL RECEIVED"); // Debug log
-    this.closeLobby();
-    this.active = true;
-    
-    // TRIGGER COUNTDOWN HERE
-    UIManager.showCountdown(3, () => {
-        // Once countdown finishes, actually start the game logic
-        if (Game && Game.startMultiplayer) {
-            Game.startMultiplayer(data);
-        }
-    });
-        });
-
         this.socket.on('nextWord', (data) => {
-            // data: { word: {text...}, wordCurrent, wordTotal }
             State.runtime.allWords = [data.word];
             State.runtime.currentWordIndex = 0;
-            
-            // Update UI
             UIManager.displayWord(data.word);
             
-            // Update Banner Counter if it exists
             const banner = document.querySelector('.mp-banner-text');
             if (banner) banner.textContent = `${RoomManager.modeConfig[this.currentMode]?.label} (${data.wordCurrent}/${data.wordTotal})`;
             
-            // Reset Styles
             DOM.game.wordDisplay.style.opacity = '1';
             DOM.game.wordDisplay.classList.remove('word-fade-quick', 'word-fade-llama');
             UIManager.disableButtons(false);
         });
 
-        this.socket.on('playerVoted', () => {
-            Haptics.light(); 
-            // Optional: Visual indicator that someone voted
-        });
+        this.socket.on('playerVoted', () => { Haptics.light(); });
 
         this.socket.on('roundResult', (data) => {
-            // data: { mode, data: {msg, sync, score...}, word, players, votes }
             let msg = data.data.msg || "Round Complete";
             if (data.data.sync) msg = `${data.data.sync}% Sync!`;
-            
             UIManager.showPostVoteMessage(msg);
-            
-            // Update local score display
-            // You could render a mini scoreboard here if desired
         });
 
+        // --- FIX: Use Modal to prevent Freeze ---
         this.socket.on('drinkPenalty', (data) => {
-            // data: { drinkers: [], msg: "..." }
-            let text = data.msg;
-            if (data.drinkers.length > 0) {
-                const names = data.drinkers.map(d => d.name).join(', ');
-                text += `<br><span class="text-yellow-300 text-sm">Drink: ${names}</span>`;
-            }
-            UIManager.showPostVoteMessage(`🍺 ${text}`);
-            Haptics.heavy();
+            UIManager.showDrinkingModal(data);
+            if (typeof Haptics !== 'undefined') Haptics.heavy();
         });
+
         this.socket.on('drinkingComplete', () => {
             UIManager.closeDrinkingModal();
         });
+        // ----------------------------------------
 
-// Find the RoomManager object in script.js and look for the 'gameOver' listener inside 'connect()'
+        this.socket.on('gameOver', (data) => {
+            const banner = document.querySelector('.mp-banner-text');
+            if(banner) banner.remove();
+            const ui = document.getElementById('mp-mode-ui');
+            if(ui) ui.remove();
 
-this.socket.on('gameOver', (data) => {
-    // 1. Remove Gameplay UI Elements
-    const banner = document.querySelector('.mp-banner-text');
-    if(banner) banner.remove();
-    
-    const ui = document.getElementById('mp-mode-ui');
-    if(ui) ui.remove();
+            this.active = false;
+            State.runtime.isMultiplayer = false;
+            UIManager.showGameOverModal(data);
+        });
 
-    // 2. Stop Logic
-    this.active = false;
-    State.runtime.isMultiplayer = false;
-
-    // 3. Show the New Modal
-    UIManager.showGameOverModal(data);
-});
+        this.socket.on('kicked', () => {
+            alert("You were kicked from the room.");
+            window.location.reload();
+        });
     },
 
-    // --- HOST ACTIONS ---
-    
     emitUpdate() {
-        // FIX: Event name changed to 'updateSettings' to match Server
-        // FIX: keys mapped to match Server expectations (rounds, drinking)
         const payload = { 
             roomCode: this.roomCode, 
             mode: this.currentMode, 
@@ -4855,10 +4825,15 @@ this.socket.on('gameOver', (data) => {
         this.emitUpdate();
     },
 
-startGame() {
+    kickPlayer(targetId) {
         if (!this.isHost) return;
+        if (confirm("Are you sure you want to kick this player?")) {
+            this.socket.emit('kickPlayer', { roomCode: this.roomCode, targetId });
+        }
+    },
 
-        // --- FIX: Player Limits ---
+    startGame() {
+        if (!this.isHost) return;
         if (this.currentMode === 'okstoopid' && this.players.length !== 2) {
             UIManager.showPostVoteMessage("⚠️ OK Stoopid requires exactly 2 players!");
             return;
@@ -4867,24 +4842,15 @@ startGame() {
             UIManager.showPostVoteMessage("⚠️ Traitor Mode requires at least 3 players!");
             return;
         }
-        // --------------------------
-
         this.socket.emit('startGame', { roomCode: this.roomCode });
     },
 
-    // --- GAME ACTIONS ---
-
     submitVote(voteType) {
-        this.socket.emit('submitVote', { 
-            roomCode: this.roomCode, 
-            vote: voteType 
-        });
+        this.socket.emit('submitVote', { roomCode: this.roomCode, vote: voteType });
     },
 
     confirmReady() {
         this.socket.emit('confirmReady', { roomCode: this.roomCode });
-        
-        // Visual feedback so they know they clicked it
         const btn = document.getElementById('drink-ready-btn');
         if(btn) {
             btn.innerHTML = "⏳ WAITING FOR OTHERS...";
@@ -4892,8 +4858,6 @@ startGame() {
             btn.disabled = true;
         }
     },
-
-    // --- VIEW RENDERING ---
 
     renderLobby() {
         document.getElementById('lobbyModal')?.remove();
@@ -4907,24 +4871,28 @@ startGame() {
             window.history.replaceState({path: newUrl}, '', newUrl);
         }
         const playersList = this.players || [];
-        
         const joinUrl = `${window.location.origin}?room=${safeCode}`;
-        const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(joinUrl)}`;
+        const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(joinUrl)}`;
 
         const playersHtml = playersList.map(p => {
             let displayName = p.name || 'Guest';
+            const isMe = p.id === this.playerId;
+            // Kick Button Logic
+            const kickBtn = (this.isHost && !isMe) 
+                ? `<button onclick="RoomManager.kickPlayer('${p.id}')" class="text-red-400 hover:text-red-600 font-bold px-3 py-1 ml-2 rounded hover:bg-red-50" title="Kick Player">✕</button>` 
+                : '';
+
             return `<div class="flex items-center space-x-3 bg-white border border-gray-100 p-3 rounded-lg mb-2 shadow-sm">
                 <div class="w-3 h-3 rounded-full ${p.ready !== false ? 'bg-green-500' : 'bg-gray-300'}"></div>
                 <span class="font-bold text-gray-700 truncate flex-1">${displayName}</span>
-                ${p.id === this.playerId ? '<span class="text-xs text-gray-400">(You)</span>' : ''}
-                ${(p.id === this.players[0]?.id) ? '<span class="text-xs bg-indigo-100 text-indigo-700 px-2 rounded-full">HOST</span>' : ''}
+                ${isMe ? '<span class="text-xs text-gray-400">(You)</span>' : ''}
+                ${(p.id === this.players[0]?.id) ? '<span class="text-xs bg-indigo-100 text-indigo-700 px-2 rounded-full">HOST</span>' : kickBtn}
             </div>`;
         }).join('');
 
         let modesHtml = '';
         Object.entries(this.modeConfig).forEach(([key, conf]) => {
             const isSelected = (activeMode === key);
-            // Non-hosts only see selected mode
             if (!this.isHost && !isSelected) return; 
 
             const clickAttr = this.isHost ? `onclick="window.RoomManager.updateMode('${key}')"` : '';
@@ -4969,7 +4937,7 @@ startGame() {
                         <div class="text-xs text-gray-400 font-bold">ROOM CODE</div>
                         <div class="text-4xl md:text-6xl font-black text-indigo-600 font-mono tracking-widest">${safeCode}</div>
                     </div>
-                    <img src="${qrSrc}" class="rounded-lg w-16 h-16 md:w-32 md:h-32 border shadow-inner ml-4 md:ml-0 md:mx-auto">
+                    <img src="${qrSrc}" onclick="UIManager.expandQR('${qrSrc}')" class="rounded-lg w-16 h-16 md:w-32 md:h-32 border shadow-inner ml-4 md:ml-0 md:mx-auto cursor-pointer hover:opacity-80 transition">
                 </div>
                 <div class="text-xs font-bold text-gray-400 uppercase mb-2">Players</div>
                 <div class="flex-grow overflow-y-auto custom-scrollbar p-1 border rounded-lg md:border-0">${playersHtml}</div>
@@ -4987,7 +4955,6 @@ startGame() {
                     <input type="range" min="5" max="50" step="5" value="${activeWordCount}" ${sliderDisabled}
                         oninput="document.getElementById('lobbyWordCountDisplay').innerText = this.value + ' Words'; window.RoomManager.updateWordCount(this.value)"
                         class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
-                    
                     ${drinkingHtml}
                 </div>
 
@@ -5039,7 +5006,6 @@ startGame() {
         if (!codeInput) return;
         const code = codeInput.value.trim().toUpperCase();
         const nameToUse = nameInput ? nameInput.value.trim() : '';
-
         if (nameToUse) {
             State.save('username', nameToUse); 
             if(DOM.inputs.username) DOM.inputs.username.value = nameToUse;
@@ -5048,7 +5014,6 @@ startGame() {
     },
 
     attemptJoinOrCreate(code, nameOverride = null) {
-        // FIX: simplified join logic. Server creates room if missing.
         this.roomCode = code;
         this.socket.emit('joinRoom', { 
             roomCode: code, 
