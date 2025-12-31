@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.84.2', 
+    APP_VERSION: '5.84.3', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4814,13 +4814,10 @@ const RoomManager = {
         this.socket.on('roomUpdate', (data) => {
             // THEME SYNC LOGIC
             if (data.theme && data.theme !== this.hostTheme) {
-                // If this is the first time we see a host theme, save our original
                 if (!this.hostTheme) {
                     this.originalTheme = State.data.currentTheme || 'default';
                 }
                 this.hostTheme = data.theme;
-                
-                // Apply Host Theme Temporarily
                 document.documentElement.setAttribute('data-theme', this.hostTheme);
             }
 
@@ -4890,22 +4887,19 @@ const RoomManager = {
     },
 
     cleanupMultiplayer() {
-        // Revert to original theme
         if (this.originalTheme) {
             document.documentElement.setAttribute('data-theme', this.originalTheme);
             this.hostTheme = null;
         }
     },
 
-emitUpdate() {
+    emitUpdate() {
         const payload = { 
             roomCode: this.roomCode, 
             mode: this.currentMode, 
             rounds: this.currentWordCount, 
             drinking: this.drinkingMode,
-            // --- ADD THIS LINE ---
             theme: State.data.currentTheme 
-            // ---------------------
         };
         this.socket.emit('updateSettings', payload);
     },
@@ -5037,10 +5031,10 @@ emitUpdate() {
             `;
         }
 
-        // --- FIX: Increased Player List height logic (flex-1) ---
+        // --- FIX: Reduced Height for Player List & Added min-h-0 for scrolling ---
         const html = `
         <div id="lobbyModal" class="fixed inset-0 bg-gray-900 z-[9999] flex flex-col md:flex-row font-sans h-full">
-            <div class="w-full md:w-1/3 bg-white p-4 md:p-6 flex flex-col border-b md:border-b-0 md:border-r border-gray-200 z-10 shadow-md md:shadow-none shrink-0 h-1/2 md:h-full overflow-hidden">
+            <div class="w-full md:w-1/3 bg-white p-4 md:p-6 flex flex-col border-b md:border-b-0 md:border-r border-gray-200 z-10 shadow-md md:shadow-none shrink-0 h-[20%] md:h-full overflow-hidden">
                 <div class="flex justify-between md:block items-center mb-2 md:mb-6 shrink-0">
                     <div class="text-left md:text-center">
                         <div class="text-xs text-gray-400 font-bold">ROOM CODE</div>
@@ -5053,7 +5047,7 @@ emitUpdate() {
                 <button onclick="window.location.href = window.location.pathname" class="mt-2 md:mt-4 w-full py-2 md:py-3 text-red-500 font-bold bg-red-50 hover:bg-red-100 rounded-xl transition text-sm shrink-0">Leave</button>
             </div>
             
-            <div class="w-full md:w-2/3 bg-gray-50 p-4 md:p-6 flex flex-col relative h-full overflow-hidden">
+            <div class="w-full md:w-2/3 bg-gray-50 p-4 md:p-6 flex flex-col relative flex-1 md:h-full overflow-hidden min-h-0">
                 <h2 class="text-xl md:text-2xl font-black text-gray-800 mb-2 md:mb-4 shrink-0">Game Settings</h2>
                 
                 <div class="bg-white p-3 md:p-4 rounded-xl shadow-sm border border-gray-200 mb-3 md:mb-6 ${sliderOpacity} shrink-0">
