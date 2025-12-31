@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.84.13', 
+    APP_VERSION: '5.84.14', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4888,15 +4888,19 @@ const RoomManager = {
         });
 
 this.socket.on('nextWord', (data) => {
-            // FIX: Ensure previous word state is cleared
             State.runtime.allWords = [data.word];
             State.runtime.currentWordIndex = 0;
             
-            // FIX: Force reset UI for the new round
+            // FIX: Hard reset of the display element to bring it back on screen
+            const wd = DOM.game.wordDisplay;
+            wd.className = ''; // Removes 'animate-fly-left/right' from previous round
+            wd.style.transform = 'none';
+            wd.style.opacity = '1';
+            wd.style.filter = 'none';
+            wd.style.color = ''; 
+            
             UIManager.displayWord(data.word);
-            UIManager.disableButtons(false); 
-            DOM.game.wordDisplay.style.opacity = '1';
-            DOM.game.wordDisplay.classList.remove('word-fade-quick', 'word-fade-llama');
+            UIManager.disableButtons(false);
             
             const banner = document.querySelector('.mp-banner-text');
             if (banner) banner.textContent = `${RoomManager.modeConfig[this.currentMode]?.label} (${data.wordCurrent}/${data.wordTotal})`;
@@ -5755,22 +5759,18 @@ const Game = {
 checkDailyStatus() {
         const t = new Date().toISOString().split('T')[0];
         const l = State.data.daily.lastDate;
+        const banner = DOM.game.dailyBanner;
 
-        if (State.data.settings.kidsMode) {
-             DOM.game.dailyBanner.style.display = 'none';
-             return;
-        }
-
-        if (t === l) {
-            // FIX: Hide completely if done today
-            DOM.game.dailyBanner.style.display = 'none';
+        // If Kids mode OR Challenge Done Today -> HIDE
+        if (State.data.settings.kidsMode || t === l) {
+             banner.style.display = 'none';
         } else {
-            // Show normally if not done
-            DOM.game.dailyStatus.textContent = "Vote Now!";
-            DOM.game.dailyBanner.style.display = 'block';
-            DOM.game.dailyBanner.style.opacity = '1';
-            DOM.game.dailyBanner.style.pointerEvents = 'auto';
-            DOM.game.dailyBanner.style.filter = 'none';
+             // Else -> SHOW
+             DOM.game.dailyStatus.textContent = "Vote Now!";
+             banner.style.display = 'block';
+             banner.style.opacity = '1';
+             banner.style.pointerEvents = 'auto';
+             banner.style.filter = 'none';
         }
     },
 
