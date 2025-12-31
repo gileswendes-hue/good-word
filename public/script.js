@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.84.9', 
+    APP_VERSION: '5.84.10', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -5600,7 +5600,7 @@ const Game = {
         }
     },
 
-    async refreshData(u = true) {
+ async refreshData(u = true) {
         if (State.runtime.isMultiplayer) return;
     
         if (u) UIManager.showMessage(State.data.settings.kidsMode ? "Loading Kids Mode..." : "Loading...");
@@ -5615,37 +5615,60 @@ const Game = {
             if(el) el.style.display = isKids ? 'none' : 'block';
         });
 
+        let d = [];
         if (isKids) {
-            const d = await API.fetchKidsWords();
-            if (d && d.length > 0) {
-                State.runtime.allWords = d;
-            }
+            d = await API.fetchKidsWords();
         } else {
-            // FIX: Start empty so nextWord() fetches a random word
-            State.runtime.allWords = []; 
-            if(!State.runtime.isDailyMode) this.checkDailyStatus();
+            // FIX: Fetch ALL words (restores Global Stats)
+            d = await API.getAllWords(); 
         }
 
-        UIManager.updateStats();
+        if (d && d.length > 0) {
+            // FIX: SHUFFLE the list so "CURLED" isn't always first
+            for (let i = d.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [d[i], d[j]] = [d[j], d[i]];
+            }
+            
+            State.runtime.allWords = d;
+            
+            // Filter logic
+            if (!isKids) {
+                 State.runtime.allWords = d.filter(w => (w.notWordVotes || 0) < 3);
+            }
+        } else {
+            State.runtime.allWords = [{ text: 'OFFLINE', _id: 'err' }];
+        }
+
+        UIManager.updateStats(); // Now shows correct numbers
 
         if (u && !State.runtime.isDailyMode) {
             const params = new URLSearchParams(window.location.search);
             const sharedWord = params.get('word');
 
             if (sharedWord) {
-                State.runtime.allWords = [{ text: sharedWord, _id: 'shared', goodVotes:0, badVotes:0 }];
-                State.runtime.currentWordIndex = 0;
-                UIManager.displayWord(State.runtime.allWords[0]);
-                window.history.replaceState({}, document.title, "/"); 
-                UIManager.showPostVoteMessage("Shared word loaded! 🔗");
+                const idx = State.runtime.allWords.findIndex(w => w.text.toUpperCase() === sharedWord.toUpperCase());
+                if (idx !== -1) {
+                    State.runtime.currentWordIndex = idx;
+                    UIManager.displayWord(State.runtime.allWords[idx]);
+                    window.history.replaceState({}, document.title, "/"); 
+                    UIManager.showPostVoteMessage("Shared word loaded! 🔗");
+                } else {
+                    State.runtime.currentWordIndex = 0;
+                    UIManager.displayWord(State.runtime.allWords[0]);
+                }
             } else {
-                this.nextWord(); // Fetches random word
+                // Show first word of the shuffled list
+                State.runtime.currentWordIndex = 0;
+                UIManager.displayWord(State.runtime.allWords[0]); 
             }
             
             const today = new Date().toISOString().split('T')[0];
             const history = State.data.wordHistory;
+            const currentCount = State.runtime.allWords.length;
+
             if (history.length === 0 || history[history.length - 1].date !== today) {
-                history.push({ date: today, count: 0 });
+                history.push({ date: today, count: currentCount });
                 if (history.length > 365) history.shift(); 
                 State.save('wordHistory', history);
             }
