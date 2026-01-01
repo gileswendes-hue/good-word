@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.85.2', 
+    APP_VERSION: '5.85.3', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -68,8 +68,16 @@ const loadDOM = () => ({
             notWord: document.getElementById('notWordButton'),
             custom: document.getElementById('customWordButton')
         },
-        message: document.getElementById('postVoteMessage')
+        message: document.getElementById('postVoteMessage'),
+        historyList: document.getElementById('history-list') // <--- RESTORED (Fixes Multiplayer Crash)
     },
+    // --- RESTORED (Fixes Loading Crash) ---
+    screens: {
+        loading: document.getElementById('loading-screen'),
+        start: document.getElementById('start-screen'),
+        game: document.getElementById('game-screen')
+    },
+    // --------------------------------------
     rankings: {
         good: document.getElementById('goodRankings'),
         bad: document.getElementById('badRankings'),
@@ -4997,6 +5005,7 @@ cleanupMultiplayer() {
 
 startGame() {
         const count = this.players.length;
+        
         if (this.currentMode === 'okstoopid' && count !== 2) return StreakManager.showNotification("⚠️ OK Stoopid requires exactly 2 players!", "neutral");
         if (this.currentMode === 'traitor' && count < 3) return StreakManager.showNotification("⚠️ Traitor Mode requires 3+ players!", "neutral");
         if (this.currentMode === 'coop' && count < 3) return StreakManager.showNotification("⚠️ Co-op requires 3+ players!", "neutral");
@@ -5540,6 +5549,7 @@ const Game = {
     startMultiplayer(data) {
         State.runtime.isMultiplayer = true;
         const banner = document.createElement('div');
+        // Fixed positioning
         banner.className = 'mp-banner-text fixed top-48 left-0 right-0 text-center font-black text-indigo-100 text-sm uppercase tracking-widest z-50 animate-fade-in pointer-events-none drop-shadow-md';
         document.body.appendChild(banner);
 
