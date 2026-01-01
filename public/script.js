@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.85.1', 
+    APP_VERSION: '5.85.2', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4995,14 +4995,12 @@ cleanupMultiplayer() {
         this.socket.emit('kickPlayer', { roomCode: this.roomCode, targetId });
     },
 
-    startGame() {
-
+startGame() {
         const count = this.players.length;
-        if (this.currentMode === 'okstoopid' && count !== 2) return alert("⚠️ OK Stoopid requires exactly 2 players!");
-        if (this.currentMode === 'traitor' && count < 3) return alert("⚠️ Traitor Mode requires 3+ players!");
-        if (this.currentMode === 'coop' && count < 3) return alert("⚠️ Co-op requires 3+ players!");
-        if (this.currentMode === 'versus' && count < 4) return alert("⚠️ Team Versus requires 4+ players!");
-        // --------------------------
+        if (this.currentMode === 'okstoopid' && count !== 2) return StreakManager.showNotification("⚠️ OK Stoopid requires exactly 2 players!", "neutral");
+        if (this.currentMode === 'traitor' && count < 3) return StreakManager.showNotification("⚠️ Traitor Mode requires 3+ players!", "neutral");
+        if (this.currentMode === 'coop' && count < 3) return StreakManager.showNotification("⚠️ Co-op requires 3+ players!", "neutral");
+        if (this.currentMode === 'versus' && count < 4) return StreakManager.showNotification("⚠️ Team Versus requires 4+ players!", "neutral");
 
         this.socket.emit('startGame', { roomCode: this.roomCode });
     },
@@ -5542,7 +5540,7 @@ const Game = {
     startMultiplayer(data) {
         State.runtime.isMultiplayer = true;
         const banner = document.createElement('div');
-        banner.className = 'mp-banner-text fixed top-32 left-0 right-0 text-center font-black text-indigo-100 text-sm uppercase tracking-widest z-10 animate-fade-in pointer-events-none drop-shadow-md';
+        banner.className = 'mp-banner-text fixed top-48 left-0 right-0 text-center font-black text-indigo-100 text-sm uppercase tracking-widest z-50 animate-fade-in pointer-events-none drop-shadow-md';
         document.body.appendChild(banner);
 
         const ui = document.createElement('div');
