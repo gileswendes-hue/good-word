@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.84.20', 
+    APP_VERSION: '5.84.21', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -5117,9 +5117,9 @@ function loadDOM() {
     return {
         game: {
             wordDisplay: document.getElementById('wordDisplay'),
-            card: document.getElementById('card'), // Added missing card
-            wordFrame: document.getElementById('wordFrame'), // Added missing wordFrame
-            message: document.getElementById('message'), // Added missing message
+            card: document.getElementById('card'),
+            wordFrame: document.getElementById('wordFrame'),
+            message: document.getElementById('message'),
             buttons: {
                 good: document.getElementById('goodBtn'),
                 bad: document.getElementById('badBtn'),
@@ -5175,7 +5175,6 @@ function loadDOM() {
         },
         header: {
             streak: document.getElementById('headerStreak'),
-            // Added missing header elements for Stats update
             userVotes: document.getElementById('userVotes'),
             globalVotes: document.getElementById('globalVotes'),
             totalWords: document.getElementById('totalWords'),
@@ -5188,7 +5187,6 @@ function loadDOM() {
             profileEmoji: document.getElementById('headerProfileEmoji'),
             userStatsBar: document.getElementById('userStatsBar')
         },
-        // Added missing profile section for Profile Modal
         profile: {
             streak: document.getElementById('profileStreak'),
             totalVotes: document.getElementById('profileTotalVotes'),
