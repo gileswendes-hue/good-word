@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.84.21', 
+    APP_VERSION: '5.84.22', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1291,7 +1291,6 @@ const ThemeManager = {
                 s.innerHTML = `
                     body.theme-banana {
                         background-color: #f7e98e !important;
-                        /* ... (rest of banana styles) ... */
                         background-image: 
                             radial-gradient(circle at 15% 50%, rgba(92, 64, 51, 0.6) 1px, transparent 1.5px),
                             radial-gradient(circle at 85% 30%, rgba(92, 64, 51, 0.5) 1.5px, transparent 2.5px),
@@ -1316,33 +1315,39 @@ const ThemeManager = {
         }
 
         const e = DOM.theme.effects;
-        e.snow.classList.toggle('hidden', t !== 'winter');
-        e.bubble.classList.toggle('hidden', t !== 'submarine');
-        e.fire.classList.toggle('hidden', t !== 'fire');
-        e.summer.classList.toggle('hidden', t !== 'summer');
-        e.plymouth.classList.toggle('hidden', t !== 'plymouth');
-        e.ballpit.classList.toggle('hidden', t !== 'ballpit');
-        e.space.classList.toggle('hidden', t !== 'space');
+        
+        // --- FIX: SAFETY CHECKS ADDED HERE ---
+        if(e.snow) e.snow.classList.toggle('hidden', t !== 'winter');
+        if(e.bubble) e.bubble.classList.toggle('hidden', t !== 'submarine');
+        if(e.fire) e.fire.classList.toggle('hidden', t !== 'fire');
+        if(e.summer) e.summer.classList.toggle('hidden', t !== 'summer');
+        if(e.plymouth) e.plymouth.classList.toggle('hidden', t !== 'plymouth');
+        if(e.ballpit) e.ballpit.classList.toggle('hidden', t !== 'ballpit');
+        if(e.space) e.space.classList.toggle('hidden', t !== 'space');
         
         if (t === 'winter') Effects.snow();
-        else e.snow.innerHTML = '';
+        else if(e.snow) e.snow.innerHTML = '';
         
         if (t === 'submarine') Effects.bubbles(true);
         else Effects.bubbles(false); 
         
         if (t === 'fire') Effects.fire();
-        else e.fire.innerHTML = '';
+        else if(e.fire) e.fire.innerHTML = '';
+        
         if (t === 'summer') Effects.summer();
-        else e.summer.innerHTML = '';
+        else if(e.summer) e.summer.innerHTML = '';
+        
         if (t === 'plymouth') Effects.plymouth(true);
         else {
-            e.plymouth.innerHTML = '';
+            if(e.plymouth) e.plymouth.innerHTML = '';
             Effects.plymouth(false)
         }
         if (t === 'ballpit') Effects.ballpit(true);
         else Effects.ballpit(false);
         if (t === 'space') Effects.space(true);
         else Effects.space(false);
+        // -------------------------------------
+
         Effects.halloween(t === 'halloween');
         if (t !== 'halloween') MosquitoManager.remove();
 
@@ -5636,11 +5641,14 @@ const Game = {
     
         if (u) UIManager.showMessage(State.data.settings.kidsMode ? "Loading Kids Mode..." : "Loading...");
         
-        // Toggle buttons visibility
         const isKids = State.data.settings.kidsMode;
         DOM.game.buttons.custom.style.display = isKids ? 'none' : 'block';
         DOM.game.buttons.notWord.style.display = isKids ? 'none' : 'block';
-        DOM.game.dailyBanner.style.display = isKids ? 'none' : 'block';
+        
+        // --- FIX: Check status instead of forcing display ---
+        this.checkDailyStatus();
+        // --------------------------------------------------
+
         ['compareWordsButton','qrGoodBtn','qrBadBtn'].forEach(id => {
             const el = document.getElementById(id);
             if(el) el.style.display = isKids ? 'none' : 'block';
@@ -5650,20 +5658,15 @@ const Game = {
         if (isKids) {
             d = await API.fetchKidsWords();
         } else {
-            // FIX: Fetch ALL words (restores Global Stats)
             d = await API.getAllWords(); 
         }
 
         if (d && d.length > 0) {
-            // FIX: SHUFFLE the list so "CURLED" isn't always first
             for (let i = d.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [d[i], d[j]] = [d[j], d[i]];
             }
-            
             State.runtime.allWords = d;
-            
-            // Filter logic
             if (!isKids) {
                  State.runtime.allWords = d.filter(w => (w.notWordVotes || 0) < 3);
             }
@@ -5671,7 +5674,7 @@ const Game = {
             State.runtime.allWords = [{ text: 'OFFLINE', _id: 'err' }];
         }
 
-        UIManager.updateStats(); // Now shows correct numbers
+        UIManager.updateStats(); 
 
         if (u && !State.runtime.isDailyMode) {
             const params = new URLSearchParams(window.location.search);
@@ -5689,7 +5692,6 @@ const Game = {
                     UIManager.displayWord(State.runtime.allWords[0]);
                 }
             } else {
-                // Show first word of the shuffled list
                 State.runtime.currentWordIndex = 0;
                 UIManager.displayWord(State.runtime.allWords[0]); 
             }
