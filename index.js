@@ -304,21 +304,40 @@ function finishWord(roomCode) {
         resultData = { redSync: rSync, blueSync: bSync, msg: ext ? `Tie Break! ${ext}` : null };
     } else {
         const maj = getMaj(voteValues);
+        
         if (room.mode === 'traitor') {
             const sync = Math.round((Math.max(voteValues.filter(x=>x==='good').length, voteValues.filter(x=>x==='bad').length)/voteValues.length)*100);
             if(sync === 100) room.players.forEach(p => { if(p.id !== room.traitorId && !p.isSpectator) p.score+=2; });
             else { const t = room.players.find(p=>p.id===room.traitorId); if(t) t.score+=3; }
             resultData = { msg: sync===100 ? "100% Sync! Traitor Failed." : `Sync Broken (${sync}%)! Traitor Wins.` };
-else if (room.mode === 'survival') {
+        } else if (room.mode === 'survival') {
+            // --- FIX: Proper Hearts & -5 Penalty Logic ---
+            if (maj !== 'draw') {
+                room.players.forEach(p => {
+                    if (p.lives > 0 && !p.isSpectator) {
+                        const v = votes[p.id];
+                        if (v && v !== maj) {
+                            p.lives--; // Lose a heart
+                            if (p.lives === 0) p.score -= 5; // DIE: -5 Points Penalty
+                        } else if (v === maj) {
+                            p.score++; // Survive: +1 Point
+                        }
+                    }
+                });
+            }
+            resultData = { msg: `Majority: ${maj.toUpperCase()}` };
+            // ---------------------------------------------
+        } else {
+            // Standard / Co-op / Hipster logic
             const sync = Math.round((Math.max(voteValues.filter(x=>x==='good').length, voteValues.filter(x=>x==='bad').length)/voteValues.length)*100);
-            if(sync>=100) room.scores.coop++;
+            if(sync >= 100) room.scores.coop++;
             room.players.forEach(p=>{ if(votes[p.id]===maj && !p.isSpectator) p.score++; });
             resultData = { sync, score: room.scores.coop };
         }
     }
 
     let drinkers = [], drinkMsg = "Penalty Round";
-    if (room.drinkingMode && room.mode !== 'kids') { // ALLOWS TRAITOR DRINKING
+    if (room.drinkingMode && room.mode !== 'kids') { 
         if (Math.random() < 0.1) {
             const r = Math.random();
             if (r < 0.7) {
@@ -338,7 +357,7 @@ else if (room.mode === 'survival') {
         }
     }
 
-const currentWord = room.words[room.wordIndex];
+    const currentWord = room.words[room.wordIndex];
     
     io.to(roomCode).emit('roundResult', { mode: room.mode, data: resultData, word: currentWord.text, players: room.players, votes });
     room.wordIndex++;
