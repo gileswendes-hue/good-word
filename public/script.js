@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.85.5', 
+    APP_VERSION: '5.85.6', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -3508,10 +3508,10 @@ displayWord(w) {
         const old = document.getElementById(modalId);
         if(old) old.remove();
 
-        let restartAction = "window.location.reload()";
-        if (window.RoomManager && window.RoomManager.roomCode) {
-            restartAction = `window.location.href = '?room=${window.RoomManager.roomCode}'`;
-        }
+let restartAction = "window.location.reload()";
+if (window.RoomManager && window.RoomManager.roomCode) {
+    restartAction = "RoomManager.rejoin()"; // Direct function call
+}
 
         let header = '';
         let body = '';
@@ -4841,6 +4841,28 @@ const RoomManager = {
         return `Guest_${Math.floor(Math.random()*1000)}`;
     },
 
+    rejoin() {
+    document.getElementById('gameOverModal')?.remove();
+    this.active = false;
+    State.runtime.isMultiplayer = true; // Keep MP flag true
+    
+    // Reset UI
+    const banner = document.querySelector('.mp-banner-text');
+    if(banner) banner.remove();
+    const ui = document.getElementById('mp-mode-ui');
+    if(ui) ui.remove();
+    
+    // Re-render lobby and ensure socket is clean
+    this.renderLobby();
+    
+    // Emit join event again to ensure server knows we are back in lobby state
+    this.socket.emit('joinRoom', { 
+        roomCode: this.roomCode, 
+        username: this.getUsername(),
+        theme: State.data.currentTheme 
+    });
+},
+
     connect() {
         if (typeof io === 'undefined') return;
         if (!this.socket) this.socket = io({ transports: ['websocket'], upgrade: false });
@@ -4931,11 +4953,24 @@ this.socket.on('nextWord', (data) => {
 
         this.socket.on('playerVoted', () => { Haptics.light(); });
 
-        this.socket.on('roundResult', (data) => {
-            let msg = data.data.msg || "Round Complete";
-            if (data.data.sync) msg = `${data.data.sync}% Sync!`;
-            UIManager.showPostVoteMessage(msg);
-        });
+this.socket.on('roundResult', (data) => {
+    // FIX: Update local player state immediately to show heart loss
+    if (data.players) this.players = data.players;
+    
+    // Refresh the banner immediately
+    const banner = document.querySelector('.mp-banner-text');
+    if (banner && this.currentMode === 'survival') {
+        const me = this.players.find(p => p.id === this.playerId);
+        if (me && typeof me.lives === 'number') {
+            const wordInfo = banner.textContent.split('❤️')[0].trim(); // Keep existing word count
+            banner.textContent = `${wordInfo} ${'❤️'.repeat(Math.max(0, me.lives))}`;
+        }
+    }
+
+    let msg = data.data.msg || "Round Complete";
+    if (data.data.sync) msg = `${data.data.sync}% Sync!`;
+    UIManager.showPostVoteMessage(msg);
+});
 
         this.socket.on('drinkPenalty', (data) => {
             UIManager.showDrinkingModal(data);
