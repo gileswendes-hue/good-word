@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.84.23', 
+    APP_VERSION: '5.85.1', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4869,6 +4869,7 @@ const RoomManager = {
                         this.originalTheme = State.data.currentTheme || 'default';
                     }
                     this.hostTheme = data.theme;
+                    ThemeManager.apply(this.hostTheme, 'temp');
                     document.documentElement.setAttribute('data-theme', this.hostTheme);
                 }
             }
@@ -4945,9 +4946,9 @@ this.socket.on('nextWord', (data) => {
         });
     },
 
-    cleanupMultiplayer() {
+cleanupMultiplayer() {
         if (this.originalTheme) {
-            document.documentElement.setAttribute('data-theme', this.originalTheme);
+            ThemeManager.apply(this.originalTheme); 
             this.hostTheme = null;
         }
     },
@@ -4996,17 +4997,15 @@ this.socket.on('nextWord', (data) => {
 
     startGame() {
 
-// --- NEW: Helper Popups ---
         const count = this.players.length;
-        if (this.currentMode === 'okstoopid' && count !== 2) return UIManager.showPostVoteMessage("⚠️ OK Stoopid requires exactly 2 players!");
-        if (this.currentMode === 'traitor' && count < 3) return UIManager.showPostVoteMessage("⚠️ Traitor Mode requires 3+ players!");
-        if (this.currentMode === 'coop' && count < 3) return UIManager.showPostVoteMessage("⚠️ Co-op requires 3+ players!");
-        if (this.currentMode === 'versus' && count < 4) return UIManager.showPostVoteMessage("⚠️ Team Versus requires 4+ players!");
+        if (this.currentMode === 'okstoopid' && count !== 2) return alert("⚠️ OK Stoopid requires exactly 2 players!");
+        if (this.currentMode === 'traitor' && count < 3) return alert("⚠️ Traitor Mode requires 3+ players!");
+        if (this.currentMode === 'coop' && count < 3) return alert("⚠️ Co-op requires 3+ players!");
+        if (this.currentMode === 'versus' && count < 4) return alert("⚠️ Team Versus requires 4+ players!");
         // --------------------------
 
         this.socket.emit('startGame', { roomCode: this.roomCode });
     },
-
     submitVote(voteType) {
         this.socket.emit('submitVote', { roomCode: this.roomCode, vote: voteType });
     },
@@ -5543,8 +5542,7 @@ const Game = {
     startMultiplayer(data) {
         State.runtime.isMultiplayer = true;
         const banner = document.createElement('div');
-        banner.className = 'mp-banner-text fixed top-16 left-0 right-0 text-center font-black text-indigo-100 text-sm uppercase tracking-widest z-10 animate-fade-in pointer-events-none drop-shadow-md';
-        banner.innerText = "MULTIPLAYER ACTIVE";
+        banner.className = 'mp-banner-text fixed top-32 left-0 right-0 text-center font-black text-indigo-100 text-sm uppercase tracking-widest z-10 animate-fade-in pointer-events-none drop-shadow-md';
         document.body.appendChild(banner);
 
         const ui = document.createElement('div');
