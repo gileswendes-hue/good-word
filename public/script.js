@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.84.19', 
+    APP_VERSION: '5.84.20', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -5117,6 +5117,9 @@ function loadDOM() {
     return {
         game: {
             wordDisplay: document.getElementById('wordDisplay'),
+            card: document.getElementById('card'), // Added missing card
+            wordFrame: document.getElementById('wordFrame'), // Added missing wordFrame
+            message: document.getElementById('message'), // Added missing message
             buttons: {
                 good: document.getElementById('goodBtn'),
                 bad: document.getElementById('badBtn'),
@@ -5143,7 +5146,18 @@ function loadDOM() {
             wordTwo: document.getElementById('wordTwo')
         },
         theme: {
-            chooser: document.getElementById('themeChooser')
+            chooser: document.getElementById('themeChooser'),
+            // --- THIS WAS MISSING, CAUSING THE CRASH ---
+            effects: {
+                snow: document.getElementById('effect-snow'),
+                bubble: document.getElementById('effect-bubble'),
+                fire: document.getElementById('effect-fire'),
+                summer: document.getElementById('effect-summer'),
+                plymouth: document.getElementById('effect-plymouth'),
+                ballpit: document.getElementById('effect-ballpit'),
+                space: document.getElementById('effect-space')
+            }
+            // ------------------------------------------
         },
         screens: {
             loading: document.getElementById('loading-screen'),
@@ -5160,7 +5174,50 @@ function loadDOM() {
             definition: document.getElementById('definitionModal')
         },
         header: {
-            streak: document.getElementById('headerStreak')
+            streak: document.getElementById('headerStreak'),
+            // Added missing header elements for Stats update
+            userVotes: document.getElementById('userVotes'),
+            globalVotes: document.getElementById('globalVotes'),
+            totalWords: document.getElementById('totalWords'),
+            good: document.getElementById('headerGood'),
+            bad: document.getElementById('headerBad'),
+            barGood: document.getElementById('headerBarGood'),
+            barBad: document.getElementById('headerBarBad'),
+            profileLabel: document.getElementById('profileLabel'),
+            profileImage: document.getElementById('headerProfileImage'),
+            profileEmoji: document.getElementById('headerProfileEmoji'),
+            userStatsBar: document.getElementById('userStatsBar')
+        },
+        // Added missing profile section for Profile Modal
+        profile: {
+            streak: document.getElementById('profileStreak'),
+            totalVotes: document.getElementById('profileTotalVotes'),
+            contributions: document.getElementById('profileContributions'),
+            statsTitle: document.getElementById('profileStatsTitle'),
+            themes: document.getElementById('profileThemes'),
+            badges: document.getElementById('profileBadges'),
+            modalImage: document.getElementById('profileModalImage'),
+            modalEmoji: document.getElementById('profileModalEmoji'),
+            photoInput: document.getElementById('profilePhotoInput'),
+            saveMsg: document.getElementById('profileSaveMsg')
+        },
+        rankings: {
+            good: document.getElementById('topGood'),
+            bad: document.getElementById('topBad'),
+            fullGood: document.getElementById('fullGoodList'),
+            fullBad: document.getElementById('fullBadList'),
+            btnShow: document.getElementById('showRankingsButton'),
+            searchBtn: document.getElementById('rankSearchBtn'),
+            searchInput: document.getElementById('rankSearchInput'),
+            searchContainer: document.getElementById('rankSearchContainer'),
+            listsContainer: document.getElementById('rankListsContainer'),
+            searchResult: document.getElementById('rankSearchResult'),
+            clearSearch: document.getElementById('rankClearSearch')
+        },
+        daily: {
+            closeBtn: document.getElementById('closeDailyResult'),
+            streakResult: document.getElementById('streak-result'),
+            worldRank: document.getElementById('world-rank')
         },
         general: {
             voteLeaderboardTable: document.getElementById('voteLeaderboardTable')
