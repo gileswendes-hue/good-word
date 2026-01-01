@@ -309,10 +309,7 @@ function finishWord(roomCode) {
             if(sync === 100) room.players.forEach(p => { if(p.id !== room.traitorId && !p.isSpectator) p.score+=2; });
             else { const t = room.players.find(p=>p.id===room.traitorId); if(t) t.score+=3; }
             resultData = { msg: sync===100 ? "100% Sync! Traitor Failed." : `Sync Broken (${sync}%)! Traitor Wins.` };
-        } else if (room.mode === 'survival') {
-            if(maj!=='draw') room.players.forEach(p=>{ if(p.lives>0 && !p.isSpectator) { const v=votes[p.id]; if(v&&v!==maj) p.lives--; else if(v===maj) p.score++; } });
-            resultData = { msg: `Majority: ${maj.toUpperCase()}` };
-        } else {
+else if (room.mode === 'survival') {
             const sync = Math.round((Math.max(voteValues.filter(x=>x==='good').length, voteValues.filter(x=>x==='bad').length)/voteValues.length)*100);
             if(sync>=100) room.scores.coop++;
             room.players.forEach(p=>{ if(votes[p.id]===maj && !p.isSpectator) p.score++; });
