@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.85.4', 
+    APP_VERSION: '5.85.5', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4913,7 +4913,20 @@ this.socket.on('nextWord', (data) => {
             UIManager.disableButtons(false); // Re-enable buttons for the new round
             
             const banner = document.querySelector('.mp-banner-text');
-            if (banner) banner.textContent = `${RoomManager.modeConfig[this.currentMode]?.label} (${data.wordCurrent}/${data.wordTotal})`;
+            if (banner) {
+                let label = `${RoomManager.modeConfig[this.currentMode]?.label} (${data.wordCurrent}/${data.wordTotal})`;
+                
+                // --- ADDED: Lives Indicator for Survival Mode ---
+                if (this.currentMode === 'survival') {
+                    const me = this.players.find(p => p.id === this.playerId);
+                    if (me && typeof me.lives === 'number') {
+                        label += ` ${'❤️'.repeat(Math.max(0, me.lives))}`;
+                    }
+                }
+                // ------------------------------------------------
+                
+                banner.textContent = label;
+            }
         });
 
         this.socket.on('playerVoted', () => { Haptics.light(); });
