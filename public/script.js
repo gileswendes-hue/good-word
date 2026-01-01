@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.84.18', 
+    APP_VERSION: '5.84.19', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -40,112 +40,6 @@ const CONFIG = {
 };
 
 let DOM = {}; // Changed to let
-const loadDOM = () => ({
-    header: {
-        logoArea: document.getElementById('logoArea'),
-        userStatsBar: document.getElementById('userStatsBar'),
-        streak: document.getElementById('headerStreak'),
-        userVotes: document.getElementById('headerUserVotes'),
-        globalVotes: document.getElementById('headerGlobalVotes'),
-        totalWords: document.getElementById('headerTotalWords'),
-        good: document.getElementById('headerGood'),
-        bad: document.getElementById('headerBad'),
-        barGood: document.getElementById('headerBarGood'),
-        barBad: document.getElementById('headerBarBad'),
-        profileLabel: document.getElementById('headerProfileLabel'),
-        profileEmoji: document.getElementById('headerProfileEmoji'),
-        profileImage: document.getElementById('headerProfileImage')
-    },
-    game: {
-        card: document.getElementById('gameCard'),
-        wordFrame: document.getElementById('wordFrame'),
-        wordDisplay: document.getElementById('wordDisplay'),
-        dailyBanner: document.getElementById('dailyBanner'),
-        dailyStatus: document.getElementById('dailyStatusText'),
-        buttons: {
-            good: document.getElementById('goodButton'),
-            bad: document.getElementById('badButton'),
-            notWord: document.getElementById('notWordButton'),
-            custom: document.getElementById('customWordButton')
-        },
-        message: document.getElementById('postVoteMessage')
-    },
-    rankings: {
-        good: document.getElementById('goodRankings'),
-        bad: document.getElementById('badRankings'),
-        fullGood: document.getElementById('fullGoodRankings'),
-        fullBad: document.getElementById('fullBadRankings'),
-        btnShow: document.getElementById('headerStatsCard'),
-        listsContainer: document.getElementById('rankingListsContainer'),
-        searchContainer: document.getElementById('rankSearchContainer'),
-        searchResult: document.getElementById('rankSearchResult'),
-        clearSearch: document.getElementById('clearRankSearch'),
-        searchInput: document.getElementById('rankSearchInput'),
-        searchBtn: document.getElementById('rankSearchBtn')
-    },
-    theme: {
-        chooser: document.getElementById('themeChooser'),
-        effects: {
-            snow: document.getElementById('snow-effect'),
-            bubble: document.getElementById('bubble-effect'),
-            fire: document.getElementById('fire-effect'),
-            summer: document.getElementById('summer-effect'),
-            plymouth: document.getElementById('plymouth-effect'),
-            ballpit: document.getElementById('ballpit-effect'),
-            space: document.getElementById('space-effect')
-        }
-    },
-    modals: {
-        submission: document.getElementById('submissionModal'),
-        fullRankings: document.getElementById('fullRankingsModalContainer'),
-        definition: document.getElementById('definitionModalContainer'),
-        compare: document.getElementById('compareModalContainer'),
-        settings: document.getElementById('settingsModalContainer'),
-        profile: document.getElementById('profileModal'),
-        dailyResult: document.getElementById('dailyResultModal'),
-    },
-    profile: {
-        streak: document.getElementById('profileStreak'),
-        totalVotes: document.getElementById('profileTotalVotes'),
-        contributions: document.getElementById('profileContributions'),
-        themes: document.getElementById('profileThemes'),
-        badges: document.getElementById('badgeContainer'),
-        statsTitle: document.getElementById('profileStatsTitle'),
-        saveMsg: document.getElementById('profileSaveMsg'),
-        modalEmoji: document.getElementById('modalProfileEmoji'),
-        modalImage: document.getElementById('modalProfileImage'),
-        photoInput: document.getElementById('photoInput')
-    },
-    daily: {
-        peopleCount: document.getElementById('dailyPeopleCount'),
-        worldRank: document.getElementById('dailyWorldRank'),
-        streakResult: document.getElementById('dailyStreakResult'),
-        closeBtn: document.getElementById('closeDailyResult')
-    },
-    inputs: {
-        newWord: document.getElementById('newWordInput'),
-        wordOne: document.getElementById('wordOneInput'),
-        wordTwo: document.getElementById('wordTwoInput'),
-        modalMsg: document.getElementById('modalMessage'),
-        compareResults: document.getElementById('compareResults'),
-        username: document.getElementById('usernameInput'),
-        settings: {
-            tips: document.getElementById('toggleTips'),
-            percentages: document.getElementById('togglePercentages'),
-            colorblind: document.getElementById('toggleColorblind'),
-            largeText: document.getElementById('toggleLargeText'),
-            tilt: document.getElementById('toggleTilt'),
-            mirror: document.getElementById('toggleMirror'),
-            mute: null, 
-            zeroVotes: null
-        }
-    },
-    general: {
-        version: document.querySelector('.version-indicator'),
-		voteLeaderboardTable: document.getElementById('voteLeaderboardTable'),
-        voteChartCanvas: document.getElementById('voteChartCanvas')
-    }
-});
 
 const safeParse = (key, fallback) => {
     try {
@@ -5219,6 +5113,61 @@ renderLobby() {
     closeLobby() { document.getElementById('lobbyModal')?.remove(); document.getElementById('mpMenu')?.remove(); }
 };
 
+function loadDOM() {
+    return {
+        game: {
+            wordDisplay: document.getElementById('wordDisplay'),
+            buttons: {
+                good: document.getElementById('goodBtn'),
+                bad: document.getElementById('badBtn'),
+                notWord: document.getElementById('notWordBtn'),
+                custom: document.getElementById('customWordBtn')
+            },
+            stats: {
+                good: document.getElementById('goodCount'),
+                bad: document.getElementById('badCount'),
+                streak: document.getElementById('streakCount')
+            },
+            historyList: document.getElementById('history-list'),
+            dailyBanner: document.getElementById('daily-banner'),
+            dailyStatus: document.getElementById('daily-status'),
+            worldRank: document.getElementById('world-rank'),
+            streakResult: document.getElementById('streak-result')
+        },
+        inputs: {
+            username: document.getElementById('usernameInput'),
+            newWord: document.getElementById('newWordInput'),
+            modalMsg: document.getElementById('modalMessage'),
+            compareResults: document.getElementById('compareResults'),
+            wordOne: document.getElementById('wordOne'),
+            wordTwo: document.getElementById('wordTwo')
+        },
+        theme: {
+            chooser: document.getElementById('themeChooser')
+        },
+        screens: {
+            loading: document.getElementById('loading-screen'),
+            start: document.getElementById('start-screen'),
+            game: document.getElementById('game-screen')
+        },
+        modals: {
+            settings: document.getElementById('settingsModal'),
+            info: document.getElementById('infoModal'),
+            history: document.getElementById('historyModal'),
+            submission: document.getElementById('submissionModal'),
+            compare: document.getElementById('compareModal'),
+            dailyResult: document.getElementById('dailyResultModal'),
+            definition: document.getElementById('definitionModal')
+        },
+        header: {
+            streak: document.getElementById('headerStreak')
+        },
+        general: {
+            voteLeaderboardTable: document.getElementById('voteLeaderboardTable')
+        }
+    };
+}
+
 const Game = {
     async init() {
         this.setRandomFavicon();
@@ -5761,16 +5710,16 @@ checkDailyStatus() {
         const t = new Date().toISOString().split('T')[0];
         const l = State.data.daily.lastDate;
 
-        // If Kids Mode OR Challenge Done Today -> HIDE COMPLETELY
         if (State.data.settings.kidsMode || t === l) {
-             DOM.game.dailyBanner.style.display = 'none';
+             if (DOM.game.dailyBanner) DOM.game.dailyBanner.style.display = 'none';
         } else {
-             // Else -> SHOW
-             DOM.game.dailyStatus.textContent = "Vote Now!";
-             DOM.game.dailyBanner.style.display = 'block';
-             DOM.game.dailyBanner.style.opacity = '1';
-             DOM.game.dailyBanner.style.pointerEvents = 'auto';
-             DOM.game.dailyBanner.style.filter = 'none';
+             if (DOM.game.dailyBanner) {
+                 DOM.game.dailyStatus.textContent = "Vote Now!";
+                 DOM.game.dailyBanner.style.display = 'block';
+                 DOM.game.dailyBanner.style.opacity = '1';
+                 DOM.game.dailyBanner.style.pointerEvents = 'auto';
+                 DOM.game.dailyBanner.style.filter = 'none';
+             }
         }
     },
 
