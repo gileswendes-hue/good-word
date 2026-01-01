@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.85.3', 
+    APP_VERSION: '5.85.4', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -5550,7 +5550,7 @@ const Game = {
         State.runtime.isMultiplayer = true;
         const banner = document.createElement('div');
         // Fixed positioning
-        banner.className = 'mp-banner-text fixed top-48 left-0 right-0 text-center font-black text-indigo-100 text-sm uppercase tracking-widest z-50 animate-fade-in pointer-events-none drop-shadow-md';
+        banner.className = 'mp-banner-text fixed top-48 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-md px-6 py-2 rounded-full text-center font-black text-indigo-100 text-sm uppercase tracking-widest z-50 animate-fade-in pointer-events-none shadow-lg whitespace-nowrap';
         document.body.appendChild(banner);
 
         const ui = document.createElement('div');
