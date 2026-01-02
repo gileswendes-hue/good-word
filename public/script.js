@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.86.4', 
+    APP_VERSION: '5.86.5', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1110,14 +1110,14 @@ const TiltManager = {
 const Physics = {
     balls: [],
     gx: 0,
-    gy: 0.5,
+    gy: 0.7,
     handleOrientation(e) {
         const x = e.gamma || 0,
             y = e.beta || 0;
-        const tx = Math.min(Math.max(x / 15, -0.3), 0.3);
-        const ty = Math.min(Math.max(y / 15, -0.3), 0.3);
-        Physics.gx += (tx - Physics.gx) * 0.02;
-        Physics.gy += (ty - Physics.gy) * 0.02
+        const tx = Math.min(Math.max(x / 6, -0.6), 0.6);
+        const ty = Math.min(Math.max(y / 6, -0.6), 0.6);
+        Physics.gx += (tx - Physics.gx) * 0.05;
+        Physics.gy += (ty - Physics.gy) * 0.05
     },
     run() {
         const W = window.innerWidth,
@@ -1132,14 +1132,14 @@ const Physics = {
                     b.vy += Physics.gy / 8;
                     b.x += b.vx;
                     b.y += b.vy;
-                    b.vx *= 0.8;
-                    b.vy *= 0.8;
-                    if (Math.abs(b.vx) < 0.15) b.vx = 0;
-                    if (Math.abs(b.vy) < 0.15) b.vy = 0;
-                    if (b.x < minX) { b.x = minX; b.vx *= -0.1 }
-                    if (b.x > maxX - b.r * 2) { b.x = maxX - b.r * 2; b.vx *= -0.1 }
-                    if (b.y < 0) { b.y = 0; b.vy *= -0.1 }
-                    if (b.y > H - b.r * 2) { b.y = H - b.r * 2; b.vy *= -0.1 }
+                    b.vx *= 0.88;
+                    b.vy *= 0.88;
+                    if (Math.abs(b.vx) < 0.08) b.vx = 0;
+                    if (Math.abs(b.vy) < 0.08) b.vy = 0;
+                    if (b.x < minX) { b.x = minX; b.vx *= -0.15 }
+                    if (b.x > maxX - b.r * 2) { b.x = maxX - b.r * 2; b.vx *= -0.15 }
+                    if (b.y < 0) { b.y = 0; b.vy *= -0.15 }
+                    if (b.y > H - b.r * 2) { b.y = H - b.r * 2; b.vy *= -0.15 }
                 }
             });
             for (let i = 0; i < Physics.balls.length; i++) {
@@ -1162,10 +1162,10 @@ const Physics = {
                             const nx = dx / dist,
                                 ny = dy / dist;
                             const p = 2 * (b1.vx * nx + b1.vy * ny - b2.vx * nx - b2.vy * ny) / 2;
-                            b1.vx -= p * nx * 0.1;
-                            b1.vy -= p * ny * 0.1;
-                            b2.vx += p * nx * 0.1;
-                            b2.vy += p * ny * 0.1
+                            b1.vx -= p * nx * 0.12;
+                            b1.vy -= p * ny * 0.12;
+                            b2.vx += p * nx * 0.12;
+                            b2.vy += p * ny * 0.12
                         }
                     }
                 }
