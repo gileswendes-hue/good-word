@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.86', 
+    APP_VERSION: '5.86.1', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1111,71 +1111,217 @@ const Physics = {
     balls: [],
     gx: 0,
     gy: 0.8,
+    
+    // === OPTIMIZATION: Cached values ===
+    _W: 0, _H: 0, _minX: 0, _maxX: 0,
+    _grid: null,
+    _cellSize: 70, // Slightly larger than ball diameter (60px)
+    _cols: 0,
+    _rows: 0,
+    _substeps: 4, // Reduced from 8 (still stable, half the work)
+    _lastTime: 0,
+    _targetFPS: 60,
+    _frameSkip: false,
+    
+    // === Device-adaptive settings ===
+    _isLowPower: null,
+    checkDevice() {
+        if (this._isLowPower === null) {
+            const cores = navigator.hardwareConcurrency || 4;
+            const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+            this._isLowPower = cores <= 4 || isMobile;
+            // Reduce substeps further on low-power devices
+            this._substeps = this._isLowPower ? 2 : 4;
+        }
+        return this._isLowPower;
+    },
+    
+    // === Cache viewport dimensions ===
+    updateBounds() {
+        this._W = window.innerWidth;
+        this._H = window.innerHeight;
+        const cylW = Math.min(this._W, 500);
+        this._minX = (this._W - cylW) / 2;
+        this._maxX = this._minX + cylW;
+        // Grid dimensions for spatial partitioning
+        this._cols = Math.ceil(this._W / this._cellSize) + 1;
+        this._rows = Math.ceil(this._H / this._cellSize) + 1;
+    },
+    
     handleOrientation(e) {
         const x = e.gamma || 0,
             y = e.beta || 0;
         const tx = Math.min(Math.max(x / 4, -1), 1);
         const ty = Math.min(Math.max(y / 4, -1), 1);
         Physics.gx += (tx - Physics.gx) * 0.1;
-        Physics.gy += (ty - Physics.gy) * 0.1
+        Physics.gy += (ty - Physics.gy) * 0.1;
     },
+    
+    // === OPTIMIZATION: Spatial hash grid for collision detection ===
+    // Instead of checking all 85x85 pairs, only check balls in nearby cells
+    buildGrid() {
+        // Reset grid
+        const totalCells = this._cols * this._rows;
+        if (!this._grid || this._grid.length !== totalCells) {
+            this._grid = new Array(totalCells);
+        }
+        for (let i = 0; i < totalCells; i++) {
+            this._grid[i] = null; // Use null instead of [] to reduce allocations
+        }
+        
+        // Place balls in grid cells
+        const balls = this.balls;
+        const cellSize = this._cellSize;
+        const cols = this._cols;
+        
+        for (let i = 0; i < balls.length; i++) {
+            const b = balls[i];
+            const cx = Math.floor((b.x + b.r) / cellSize);
+            const cy = Math.floor((b.y + b.r) / cellSize);
+            const idx = cy * cols + cx;
+            
+            if (idx >= 0 && idx < this._grid.length) {
+                // Linked list style - each ball points to next ball in same cell
+                b._nextInCell = this._grid[idx];
+                this._grid[idx] = b;
+                b._cellX = cx;
+                b._cellY = cy;
+            }
+        }
+    },
+    
+    // === Check collision between two balls (inlined math for speed) ===
+    resolveCollision(b1, b2) {
+        const dx = (b2.x + b2.r) - (b1.x + b1.r);
+        const dy = (b2.y + b2.r) - (b1.y + b1.r);
+        const distSq = dx * dx + dy * dy;
+        const minDist = b1.r + b2.r + 0.5;
+        const minDistSq = minDist * minDist;
+        
+        if (distSq < minDistSq && distSq > 0.0001) {
+            const dist = Math.sqrt(distSq);
+            const overlap = (minDist - dist) * 0.5;
+            const nx = dx / dist;
+            const ny = dy / dist;
+            
+            // Separate balls
+            b1.x -= nx * overlap;
+            b1.y -= ny * overlap;
+            b2.x += nx * overlap;
+            b2.y += ny * overlap;
+            
+            // Velocity exchange (only if neither is dragged)
+            if (!b1.drag && !b2.drag) {
+                const p = (b1.vx * nx + b1.vy * ny - b2.vx * nx - b2.vy * ny) * 0.15;
+                b1.vx -= p * nx;
+                b1.vy -= p * ny;
+                b2.vx += p * nx;
+                b2.vy += p * ny;
+            }
+        }
+    },
+    
     run() {
-        const W = window.innerWidth,
-            H = window.innerHeight;
-        const cylW = Math.min(W, 500),
-            minX = (W - cylW) / 2,
-            maxX = minX + cylW;
-        for (let s = 0; s < 8; s++) {
-            Physics.balls.forEach(b => {
+        // === Frame rate limiting for consistent physics ===
+        const now = performance.now();
+        const delta = now - Physics._lastTime;
+        
+        // Skip frame if running too fast (saves battery)
+        if (delta < 14) { // ~70fps cap
+            Effects.ballLoop = requestAnimationFrame(Physics.run);
+            return;
+        }
+        Physics._lastTime = now;
+        
+        const balls = Physics.balls;
+        const substeps = Physics._substeps;
+        const gxStep = Physics.gx / substeps;
+        const gyStep = Physics.gy / substeps;
+        const minX = Physics._minX;
+        const maxX = Physics._maxX;
+        const H = Physics._H;
+        
+        // === Physics substeps ===
+        for (let s = 0; s < substeps; s++) {
+            // Update positions
+            for (let i = 0; i < balls.length; i++) {
+                const b = balls[i];
                 if (!b.drag) {
-                    b.vx += Physics.gx / 8;
-                    b.vy += Physics.gy / 8;
+                    b.vx += gxStep;
+                    b.vy += gyStep;
                     b.x += b.vx;
                     b.y += b.vy;
                     b.vx *= 0.92;
                     b.vy *= 0.92;
-                    if (b.x < minX) { b.x = minX; b.vx *= -0.2 }
-                    if (b.x > maxX - b.r * 2) { b.x = maxX - b.r * 2; b.vx *= -0.2 }
-                    if (b.y < 0) { b.y = 0; b.vy *= -0.2 }
-                    if (b.y > H - b.r * 2) { b.y = H - b.r * 2; b.vy *= -0.2 }
+                    
+                    // Wall collisions
+                    if (b.x < minX) { b.x = minX; b.vx *= -0.2; }
+                    const maxBallX = maxX - b.r * 2;
+                    if (b.x > maxBallX) { b.x = maxBallX; b.vx *= -0.2; }
+                    if (b.y < 0) { b.y = 0; b.vy *= -0.2; }
+                    const maxBallY = H - b.r * 2;
+                    if (b.y > maxBallY) { b.y = maxBallY; b.vy *= -0.2; }
                 }
-            });
-            for (let i = 0; i < Physics.balls.length; i++) {
-                for (let j = i + 1; j < Physics.balls.length; j++) {
-                    const b1 = Physics.balls[i],
-                        b2 = Physics.balls[j];
-                    const dx = (b2.x + b2.r) - (b1.x + b1.r),
-                        dy = (b2.y + b2.r) - (b1.y + b1.r);
-                    const dist = Math.sqrt(dx * dx + dy * dy),
-                        minDist = b1.r + b2.r + 0.5;
-                    if (dist < minDist && dist > 0) {
-                        const angle = Math.atan2(dy, dx),
-                            tx = (Math.cos(angle) * (minDist - dist)) / 2,
-                            ty = (Math.sin(angle) * (minDist - dist)) / 2;
-                        b1.x -= tx;
-                        b1.y -= ty;
-                        b2.x += tx;
-                        b2.y += ty;
-                        if (!b1.drag && !b2.drag) {
-                            const nx = dx / dist,
-                                ny = dy / dist;
-                            const p = 2 * (b1.vx * nx + b1.vy * ny - b2.vx * nx - b2.vy * ny) / 2;
-                            b1.vx -= p * nx * 0.15;
-                            b1.vy -= p * ny * 0.15;
-                            b2.vx += p * nx * 0.15;
-                            b2.vy += p * ny * 0.15
+            }
+            
+            // === SPATIAL PARTITIONING: Only check nearby balls ===
+            Physics.buildGrid();
+            
+            const grid = Physics._grid;
+            const cols = Physics._cols;
+            const rows = Physics._rows;
+            
+            // Check each cell and its neighbors
+            for (let cy = 0; cy < rows; cy++) {
+                for (let cx = 0; cx < cols; cx++) {
+                    const idx = cy * cols + cx;
+                    let b1 = grid[idx];
+                    
+                    while (b1) {
+                        // Check against others in same cell
+                        let b2 = b1._nextInCell;
+                        while (b2) {
+                            Physics.resolveCollision(b1, b2);
+                            b2 = b2._nextInCell;
                         }
+                        
+                        // Check neighboring cells (right, below, below-right, below-left)
+                        // This avoids double-checking pairs
+                        const neighbors = [
+                            cx + 1 < cols ? idx + 1 : -1,           // right
+                            cy + 1 < rows ? idx + cols : -1,        // below
+                            (cx + 1 < cols && cy + 1 < rows) ? idx + cols + 1 : -1, // below-right
+                            (cx > 0 && cy + 1 < rows) ? idx + cols - 1 : -1  // below-left
+                        ];
+                        
+                        for (let n = 0; n < 4; n++) {
+                            const nIdx = neighbors[n];
+                            if (nIdx >= 0) {
+                                let nb = grid[nIdx];
+                                while (nb) {
+                                    Physics.resolveCollision(b1, nb);
+                                    nb = nb._nextInCell;
+                                }
+                            }
+                        }
+                        
+                        b1 = b1._nextInCell;
                     }
                 }
             }
         }
-        Physics.balls.forEach(b => {
-            b.el.style.transform = `translate(${b.x}px,${b.y}px)`;
+        
+        // === OPTIMIZATION: Batch DOM updates ===
+        // Using transform is already good, but we batch the reads/writes
+        for (let i = 0; i < balls.length; i++) {
+            const b = balls[i];
+            b.el.style.transform = `translate(${b.x | 0}px,${b.y | 0}px)`; // |0 truncates to int (faster)
             if (b.bubble) {
-                b.bubble.style.transform = `translate(${b.x+b.r}px,${b.y-20}px) translate(-50%,-100%)`
+                b.bubble.style.transform = `translate(${(b.x + b.r) | 0}px,${(b.y - 20) | 0}px) translate(-50%,-100%)`;
             }
-        });
-        Effects.ballLoop = requestAnimationFrame(Physics.run)
+        }
+        
+        Effects.ballLoop = requestAnimationFrame(Physics.run);
     }
 };
 
@@ -2531,17 +2677,33 @@ spiderHunt(targetXPercent, targetYPercent, isFood) {
     ballpit(active) {
         const c = DOM.theme.effects.ballpit;
         if (this.ballLoop) cancelAnimationFrame(this.ballLoop);
-        if (!active) { c.innerHTML = ''; window.removeEventListener('deviceorientation', Physics.handleOrientation); return }
+        if (!active) { 
+            c.innerHTML = ''; 
+            window.removeEventListener('deviceorientation', Physics.handleOrientation);
+            // === Clean up global event listeners ===
+            window.onmouseup = window.ontouchend = null;
+            window.onmousemove = window.ontouchmove = null;
+            return;
+        }
+        
+        // === Initialize Physics bounds (cached for performance) ===
+        Physics.checkDevice();
+        Physics.updateBounds();
+        
         window.addEventListener('deviceorientation', Physics.handleOrientation);
         c.innerHTML = '';
         Physics.balls = [];
+        
         const colors = ['#ef4444', '#3b82f6', '#eab308', '#22c55e', '#a855f7'];
         const rareItems = ['💩', '🐧', '🦂', '🍄', '💉', '💎'];
         const rareMap = { '💩': 'poop', '🐧': 'penguin', '🦂': 'scorpion', '🍄': 'mushroom', '💉': 'needle', '💎': 'diamond' };
         const r = 30;
-        const W = window.innerWidth, H = window.innerHeight;
-        const cylW = Math.min(W, 500);
-        const minX = (W - cylW) / 2, maxX = minX + cylW - r * 2;
+        
+        // === Use cached bounds from Physics ===
+        const minX = Physics._minX;
+        const maxX = Physics._maxX - r * 2;
+        const H = Physics._H;
+        
         const showThought = (ballObj, cont) => {
             const b = document.createElement('div');
             b.className = 'thought-bubble';
@@ -2552,30 +2714,55 @@ spiderHunt(targetXPercent, targetYPercent, isFood) {
             requestAnimationFrame(() => b.style.opacity = '1');
             setTimeout(() => {
                 b.style.opacity = '0';
-                setTimeout(() => { b.remove(); ballObj.bubble = null }, 300)
-            }, 4000)
+                setTimeout(() => { b.remove(); ballObj.bubble = null }, 300);
+            }, 4000);
         };
+        
+        // === OPTIMIZATION: Use DocumentFragment for batch DOM insertion ===
+        const fragment = document.createDocumentFragment();
+        
         const addBall = (type) => {
             const el = document.createElement('div');
             el.className = 'ball-particle';
-            el.style.width = el.style.height = `${r*2}px`;
+            el.style.cssText = `width:${r*2}px;height:${r*2}px;will-change:transform`; // Batch style + GPU hint
+            
             let content = '';
             if (type === 'germ') {
                 content = '🦠';
                 el.title = "Click me!";
                 el.classList.add('interactable-ball');
-                el.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)]
+                el.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
             } else if (type === 'rare') {
                 content = rareItems[Math.floor(Math.random() * rareItems.length)];
                 el.classList.add('interactable-ball');
-                el.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)]
+                el.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
             } else {
-                el.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)]
+                el.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
             }
             if (content) el.innerHTML = `<span class="ball-content">${content}</span>`;
-            c.appendChild(el);
-            const b = { el, x: minX + Math.random() * (maxX - minX), y: Math.random() * (H / 2), vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 0.5) * 10, r, drag: false, lastX: 0, lastY: 0, bubble: null, type, content };
+            
+            fragment.appendChild(el); // Add to fragment, not DOM yet
+            
+            const b = { 
+                el, 
+                x: minX + Math.random() * (maxX - minX), 
+                y: Math.random() * (H / 2), 
+                vx: (Math.random() - 0.5) * 10, 
+                vy: (Math.random() - 0.5) * 10, 
+                r, 
+                drag: false, 
+                lastX: 0, 
+                lastY: 0, 
+                bubble: null, 
+                type, 
+                content,
+                // === For spatial partitioning ===
+                _nextInCell: null,
+                _cellX: 0,
+                _cellY: 0
+            };
             Physics.balls.push(b);
+            
             let sx = 0, sy = 0;
             el.onmousedown = el.ontouchstart = (e) => {
                 b.drag = true;
@@ -2585,7 +2772,7 @@ spiderHunt(targetXPercent, targetYPercent, isFood) {
                 b.lastY = p.clientY;
                 sx = p.clientX;
                 sy = p.clientY;
-                e.preventDefault()
+                e.preventDefault();
             };
             el.onmouseup = el.ontouchend = (e) => {
                 b.drag = false;
@@ -2593,13 +2780,23 @@ spiderHunt(targetXPercent, targetYPercent, isFood) {
                 if ((type === 'germ' || type === 'rare') && Math.abs(p.clientX - sx) < 50 && Math.abs(p.clientY - sy) < 50) {
                     if (type === 'germ') State.unlockBadge('germ');
                     if (type === 'rare' && rareMap[content]) State.unlockBadge(rareMap[content]);
-                    showThought(b, type === 'rare' ? `<span style="font-size:2em">${content}</span>` : null)
+                    showThought(b, type === 'rare' ? `<span style="font-size:2em">${content}</span>` : null);
                 }
-            }
+            };
         };
-        for (let i = 0; i < 80; i++) addBall(Math.random() < 0.005 ? 'rare' : 'normal');
-        for (let i = 0; i < 5; i++) addBall('germ');
-        window.onmouseup = window.ontouchend = () => { Physics.balls.forEach(b => b.drag = false) };
+        
+        // === OPTIMIZATION: Reduce ball count on low-power devices ===
+        // Desktop: 80 balls, Mobile/Low-power: 40 balls (still fun, much faster)
+        const ballCount = Physics._isLowPower ? 40 : 80;
+        const germCount = Physics._isLowPower ? 3 : 5;
+        
+        for (let i = 0; i < ballCount; i++) addBall(Math.random() < 0.005 ? 'rare' : 'normal');
+        for (let i = 0; i < germCount; i++) addBall('germ');
+        
+        // === Single DOM operation for all balls ===
+        c.appendChild(fragment);
+        
+        window.onmouseup = window.ontouchend = () => { Physics.balls.forEach(b => b.drag = false); };
         window.onmousemove = window.ontouchmove = (e) => {
             const p = e.touches ? e.touches[0] : e;
             Physics.balls.forEach(b => {
@@ -2609,11 +2806,15 @@ spiderHunt(targetXPercent, targetYPercent, isFood) {
                     b.x = p.clientX - b.r;
                     b.y = p.clientY - b.r;
                     b.lastX = p.clientX;
-                    b.lastY = p.clientY
+                    b.lastY = p.clientY;
                 }
-            })
+            });
         };
-        Physics.run()
+        
+        // === Handle window resize ===
+        window.addEventListener('resize', Physics.updateBounds.bind(Physics), { passive: true });
+        
+        Physics.run();
     },
     
     space(active) {
