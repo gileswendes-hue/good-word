@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.85.6', 
+    APP_VERSION: '5.86', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1505,7 +1505,25 @@ const Effects = {
     fishTimeout: null,
     spaceRareTimeout: null,
     snowmanTimeout: null,
-    plymouthShooterTimeout: null, 
+    plymouthShooterTimeout: null,
+    
+    // === OPTIMIZATION: Bubble object pooling ===
+    bubblePool: [],
+    _deviceInfo: null,
+    
+    // Cached device detection (runs once, not on every theme switch)
+    getDeviceInfo() {
+        if (!this._deviceInfo) {
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            const isLowPower = navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4;
+            this._deviceInfo = {
+                isMobile,
+                isLowPower,
+                particleCount: isMobile ? 10 : (isLowPower ? 15 : 35)
+            };
+        }
+        return this._deviceInfo;
+    }, 
     
 plymouth(a) {
         const c = DOM.theme.effects.plymouth;
@@ -1661,28 +1679,48 @@ plymouth(a) {
 bubbles(active) {
         const c = DOM.theme.effects.bubble;
         if (this.fishTimeout) clearTimeout(this.fishTimeout);
-        if (!active) { c.innerHTML = ''; return; }
-        c.innerHTML = '';
-
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        const isLowPower = navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4;
         
-        const particleCount = (isMobile || isLowPower) ? 15 : 35;
-
+        // === DEACTIVATION: Hide pooled bubbles instead of destroying ===
+        if (!active) {
+            this.bubblePool.forEach(b => {
+                b.style.display = 'none';
+                b.style.animationPlayState = 'paused'; // Save CPU
+            });
+            return;
+        }
+        
+        // === Get cached device info (no regex re-evaluation) ===
+        const { particleCount } = this.getDeviceInfo();
         const cl = [10, 30, 70, 90];
+        
+        // === POOL GROWTH: Only create new elements if pool is too small ===
+        if (this.bubblePool.length < particleCount) {
+            const fragment = document.createDocumentFragment();
+            for (let i = this.bubblePool.length; i < particleCount; i++) {
+                const p = document.createElement('div');
+                p.className = 'bubble-particle';
+                this.bubblePool.push(p);
+                fragment.appendChild(p);
+            }
+            c.appendChild(fragment); // Single DOM operation
+        }
+        
+        // === ACTIVATION: Randomize and show pooled bubbles ===
         for (let i = 0; i < particleCount; i++) {
-            const p = document.createElement('div');
-            p.className = 'bubble-particle';
-            const s = Math.random() * 30 + 10;
-            p.style.width = p.style.height = `${s}px`;
-            
-            // Optimization: Use transform for positioning if possible, but left is okay here
-            // We group them to prevent layout thrashing
-            p.style.left = `${cl[Math.floor(Math.random()*cl.length)]+(Math.random()-.5)*20}%`;
-            
-            p.style.animationDuration = `${Math.random()*10+10}s`;
-            p.style.animationDelay = `-${Math.random()*15}s`;
-            c.appendChild(p);
+            const p = this.bubblePool[i];
+            const size = Math.random() * 30 + 10;
+            p.style.width = p.style.height = `${size}px`;
+            p.style.left = `${cl[Math.floor(Math.random() * cl.length)] + (Math.random() - 0.5) * 20}%`;
+            p.style.animationDuration = `${Math.random() * 10 + 10}s`;
+            p.style.animationDelay = `-${Math.random() * 15}s`;
+            p.style.display = 'block';
+            p.style.animationPlayState = 'running';
+        }
+        
+        // === Hide any extra bubbles if pool grew beyond current need ===
+        for (let i = particleCount; i < this.bubblePool.length; i++) {
+            this.bubblePool[i].style.display = 'none';
+            this.bubblePool[i].style.animationPlayState = 'paused';
         }
 
         this.spawnFish();
