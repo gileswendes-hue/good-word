@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.86.1', 
+    APP_VERSION: '5.86.2', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4807,8 +4807,8 @@ const RoomManager = {
         'okstoopid': { label: '💘 OK Stoopid', desc: 'Couples Mode. Match each other!', min: 2 },
         'versus': { label: '⚔️ Team Versus', desc: 'Red vs Blue. Best Team wins.', min: 2 }, 
         'hipster': { label: '🕶️ The Hipster', desc: 'Minority Rules. Be unique!', min: 3 },
-        'speed': { label: '⏱️ Speed Demon', desc: 'Vote fast! Speed and accuracy wins.', min: 1 },
-        'survival': { label: '💣 Sudden Death', desc: 'Three Lives. Vote with majority, or die.', min: 3 },
+        'speed': { label: '⏱️ Speed Demon', desc: 'Vote fast! Speed and accuracy wins.', min: 2 },
+        'survival': { label: '💣 Sudden Death', desc: 'Three Lives. Vote with majority, or die.', min: 2 },
         'traitor': { label: '🕵️ The Traitor', desc: 'One Traitor tries to ruin everything!', min: 3 },
         'kids': { label: '👶 Kids Mode', desc: 'Simple words. Family friendly!', min: 1 }
     },
@@ -5208,20 +5208,23 @@ renderLobby() {
         const sliderDisabled = !this.isHost ? 'disabled' : '';
         const sliderOpacity = !this.isHost ? 'opacity-70' : '';
 
+        // Hide drinking mode for kids mode
         let drinkingHtml = '';
-        if (this.isHost) {
-            drinkingHtml = `
-                <div class="flex items-center justify-between bg-yellow-50 p-3 rounded-xl border border-yellow-200 mt-2">
-                    <label class="text-sm font-bold text-yellow-800 flex items-center gap-2"><span>🍺</span> Drinking Mode</label>
-                    <input type="checkbox" onchange="window.RoomManager.toggleDrinking(this.checked)" ${activeDrinking ? 'checked' : ''} class="w-5 h-5 text-yellow-600 rounded focus:ring-yellow-500 cursor-pointer">
-                </div>
-            `;
-        } else if (activeDrinking) {
-            drinkingHtml = `
-                <div class="flex items-center justify-center gap-2 bg-yellow-100 p-2 rounded-xl border border-yellow-300 mt-2 text-yellow-800 font-bold text-sm">
-                    <span>🍺</span> DRINKING MODE ACTIVE
-                </div>
-            `;
+        if (activeMode !== 'kids') {
+            if (this.isHost) {
+                drinkingHtml = `
+                    <div class="flex items-center justify-between bg-yellow-50 p-3 rounded-xl border border-yellow-200 mt-2">
+                        <label class="text-sm font-bold text-yellow-800 flex items-center gap-2"><span>🍺</span> Drinking Mode</label>
+                        <input type="checkbox" onchange="window.RoomManager.toggleDrinking(this.checked)" ${activeDrinking ? 'checked' : ''} class="w-5 h-5 text-yellow-600 rounded focus:ring-yellow-500 cursor-pointer">
+                    </div>
+                `;
+            } else if (activeDrinking) {
+                drinkingHtml = `
+                    <div class="flex items-center justify-center gap-2 bg-yellow-100 p-2 rounded-xl border border-yellow-300 mt-2 text-yellow-800 font-bold text-sm">
+                        <span>🍺</span> DRINKING MODE ACTIVE
+                    </div>
+                `;
+            }
         }
 
         const html = `
