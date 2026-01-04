@@ -63,7 +63,7 @@ const loadKidsWords = () => {
 loadKidsWords();
 
 const rooms = {};
-const MODE_MINS = { 'coop': 2, 'versus': 4, 'vip': 3, 'hipster': 3, 'speed': 2, 'survival': 3, 'traitor': 3, 'kids': 2 };
+const MODE_MINS = { 'coop': 2, 'versus': 4, 'vip': 3, 'hipster': 3, 'speed': 2, 'survival': 2, 'traitor': 3, 'kids': 2 };
 
 function shuffle(array) {
     for (let i = array.length - 1; i > 0; i--) {
@@ -278,7 +278,14 @@ function emitUpdate(code) {
 function sendNextWord(roomCode) {
     const room = rooms[roomCode];
     if (!room) return;
-    if (room.mode === 'survival' && room.players.filter(p => !p.isSpectator && p.lives > 0).length <= 1 && room.players.length > 1) { processGameEnd(roomCode); return; }
+    // Survival: end if NO players alive (everyone dead) - but not if just 1 left
+    if (room.mode === 'survival') {
+        const alivePlayers = room.players.filter(p => !p.isSpectator && p.lives > 0);
+        if (alivePlayers.length === 0 && room.players.filter(p => !p.isSpectator).length > 0) { 
+            processGameEnd(roomCode, "Everyone died!"); 
+            return; 
+        }
+    }
     if (room.wordIndex >= room.words.length) { processGameEnd(roomCode); return; }
     
     room.currentVotes = {}; room.currentVoteTimes = {}; room.wordStartTime = Date.now();
