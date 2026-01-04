@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.87.1', 
+    APP_VERSION: '5.87.2', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -5782,8 +5782,19 @@ const Game = {
                 const { topGood } = UIManager.getRankedLists(0);
                 const rank = topGood.findIndex(x => x.text === w.text) + 1;
                 DOM.daily.worldRank.textContent = rank > 0 ? '#' + rank : 'Unranked';
+                
+                // Reset daily mode BEFORE checkDailyStatus
+                State.runtime.isDailyMode = false;
+                DOM.game.dailyBanner.classList.remove('daily-locked-mode');
+                DOM.game.buttons.notWord.style.visibility = '';
+                DOM.game.buttons.custom.style.visibility = '';
+                
                 this.checkDailyStatus();
                 setTimeout(() => ModalManager.toggle('dailyResult', true), 600);
+                
+                // Restore normal word list
+                this.refreshData(false);
+                return; // Exit early since refreshData will handle nextWord
             }
 
            let m = '';
