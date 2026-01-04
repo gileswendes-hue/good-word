@@ -346,22 +346,46 @@ function finishWord(roomCode) {
             else { const t = room.players.find(p=>p.id===room.traitorId); if(t) t.score+=3; }
             resultData = { msg: sync===100 ? "100% Sync! Traitor Failed." : `Sync Broken (${sync}%)! Traitor Wins.` };
         } else if (room.mode === 'survival') {
-            // --- FIX: Proper Hearts & -5 Penalty Logic ---
-            if (maj !== 'draw') {
+            // --- SURVIVAL MODE LOGIC ---
+            const alivePlayers = room.players.filter(p => !p.isSpectator && p.lives > 0);
+            const currentWord = room.words[room.wordIndex];
+            
+            let targetMaj = maj; // Default: use room majority
+            let useGlobal = false;
+            
+            // With 2 or fewer alive players, compare against global voting
+            if (alivePlayers.length <= 2 && currentWord) {
+                const globalGood = currentWord.goodVotes || 0;
+                const globalBad = currentWord.badVotes || 0;
+                if (globalGood > globalBad) {
+                    targetMaj = 'good';
+                    useGlobal = true;
+                } else if (globalBad > globalGood) {
+                    targetMaj = 'bad';
+                    useGlobal = true;
+                }
+                // If global is tied, fall back to room majority
+            }
+            
+            if (targetMaj !== 'draw') {
                 room.players.forEach(p => {
                     if (p.lives > 0 && !p.isSpectator) {
                         const v = votes[p.id];
-                        if (v && v !== maj) {
+                        if (v && v !== targetMaj) {
                             p.lives--; // Lose a heart
                             if (p.lives === 0) p.score -= 5; // DIE: -5 Points Penalty
-                        } else if (v === maj) {
+                        } else if (v === targetMaj) {
                             p.score++; // Survive: +1 Point
                         }
                     }
                 });
             }
-            resultData = { msg: `Majority: ${maj.toUpperCase()}` };
-            // ---------------------------------------------
+            resultData = { 
+                msg: useGlobal 
+                    ? `Global Majority: ${targetMaj.toUpperCase()}` 
+                    : `Majority: ${targetMaj.toUpperCase()}` 
+            };
+            // -----------------------------------------
         } else {
             // Standard / Co-op / Hipster logic
             const sync = Math.round((Math.max(voteValues.filter(x=>x==='good').length, voteValues.filter(x=>x==='bad').length)/voteValues.length)*100);
