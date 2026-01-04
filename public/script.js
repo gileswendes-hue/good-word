@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.86.5', 
+    APP_VERSION: '5.86.1', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4791,6 +4791,11 @@ const RoomManager = {
     drinkingMode: false,
     players: [],
     
+    // PUBLIC GAMES
+    isPublic: false,
+    maxPlayers: 8,
+    publicGames: [],
+    
     // THEME SYNC STATE
     originalTheme: 'default',
     hostTheme: null,
@@ -4913,6 +4918,17 @@ const RoomManager = {
         this.listenersAttached = true;
 
         this.socket.on('connect', () => { this.playerId = this.socket.id; });
+        
+        // PUBLIC GAMES LIST
+        this.socket.on('publicGamesList', (games) => {
+            this.publicGames = games || [];
+            this.renderPublicGames();
+        });
+        
+        // Room full error
+        this.socket.on('roomFull', ({ message }) => {
+            alert(message || 'This room is full!');
+        });
 
         this.socket.on('roleAlert', (msg) => {
              this.amITraitor = true; 
@@ -4950,6 +4966,8 @@ const RoomManager = {
             this.currentWordCount = parseInt(data.maxWords || 10);
             this.drinkingMode = data.drinkingMode || false;
             this.players = data.players || [];
+            this.isPublic = data.isPublic || false;
+            this.maxPlayers = data.maxPlayers || 8;
             
             this.isHost = (data.host === this.playerId);
             if(this.players.length > 0 && this.players[0].id === this.playerId) this.isHost = true;
@@ -5134,6 +5152,8 @@ renderLobby() {
         const activeWordCount = this.currentWordCount;
         const activeDrinking = this.drinkingMode;
         const safeCode = this.roomCode || '...';
+        const roomIsPublic = this.isPublic;
+        const roomMaxPlayers = this.maxPlayers || 8;
         
         if (this.roomCode) {
             const newUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?room=${this.roomCode}`;
@@ -5143,6 +5163,11 @@ renderLobby() {
         const playersList = this.players || [];
         const joinUrl = `${window.location.origin}?room=${safeCode}`;
         const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(joinUrl)}`;
+        
+        // Public/Private badge
+        const privacyBadge = roomIsPublic 
+            ? `<div class="inline-flex items-center gap-1 bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-full mt-1"><span>🌍</span> Public (${playersList.length}/${roomMaxPlayers})</div>`
+            : `<div class="inline-flex items-center gap-1 bg-gray-100 text-gray-600 text-xs font-bold px-2 py-1 rounded-full mt-1"><span>🔒</span> Private</div>`;
 
         // 3. Generate HTML
         const playersHtml = playersList.map(p => {
@@ -5206,6 +5231,7 @@ renderLobby() {
                     <div class="text-left md:text-center">
                         <div class="text-xs text-gray-400 font-bold">ROOM CODE</div>
                         <div class="text-4xl md:text-6xl font-black text-indigo-600 font-mono tracking-widest">${safeCode}</div>
+                        ${privacyBadge}
                     </div>
                     <img src="${qrSrc}" onclick="UIManager.expandQR('${qrSrc}')" class="rounded-lg w-16 h-16 md:w-32 md:h-32 border shadow-inner ml-4 md:ml-0 md:mx-auto cursor-pointer hover:opacity-80 transition">
                 </div>
@@ -5271,22 +5297,181 @@ renderLobby() {
         const existing = document.getElementById('mpMenu');
         if (existing) existing.remove();
         const currentName = State.data.username || '';
+        
+        // Request public games list from server
+        if (this.socket && this.socket.connected) {
+            this.socket.emit('getPublicGames');
+        }
+        
         const html = `
-        <div id="mpMenu" class="fixed inset-0 bg-black/80 z-[9999] flex items-start justify-center pt-24 md:items-center md:pt-0 backdrop-blur-sm p-4">
-            <div class="bg-white p-6 rounded-2xl shadow-2xl text-center max-w-sm w-full animate-pop relative">
-                <button onclick="document.getElementById('mpMenu').remove()" class="absolute top-3 right-4 text-gray-400 text-xl">&times;</button>
-                <h2 class="text-3xl font-black mb-2 text-gray-800">MULTIPLAYER</h2>
-                <div class="flex flex-col gap-3 mt-4">
-                    <label class="text-xs font-bold text-gray-400 uppercase text-left">Your Name</label>
-                    <input type="text" id="menuUsernameInput" placeholder="NAME" value="${currentName}" class="w-full p-3 border-2 border-gray-200 rounded-xl font-bold text-center mb-2">
-                    <label class="text-xs font-bold text-gray-400 uppercase text-left">Room Code</label>
-                    <input type="text" id="menuRoomCodeInput" placeholder="ENTER CODE" class="w-full p-4 border-2 border-gray-300 rounded-xl font-mono text-center text-2xl uppercase focus:border-indigo-500 outline-none" maxlength="10">
-                    <button onclick="RoomManager.submitEntry()" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 shadow-lg mt-2">JOIN / CREATE</button>
+        <div id="mpMenu" class="fixed inset-0 bg-black/80 z-[9999] flex items-start justify-center pt-8 md:items-center md:pt-0 backdrop-blur-sm p-4 overflow-y-auto">
+            <div class="flex flex-col md:flex-row gap-4 w-full max-w-3xl">
+                <!-- CREATE/JOIN CARD -->
+                <div class="bg-white p-6 rounded-2xl shadow-2xl text-center flex-1 animate-pop relative">
+                    <button onclick="document.getElementById('mpMenu').remove()" class="absolute top-3 right-4 text-gray-400 text-xl hover:text-gray-600">&times;</button>
+                    <h2 class="text-2xl font-black mb-4 text-gray-800">CREATE OR JOIN</h2>
+                    
+                    <div class="flex flex-col gap-3">
+                        <div>
+                            <label class="text-xs font-bold text-gray-400 uppercase text-left block mb-1">Your Name</label>
+                            <input type="text" id="menuUsernameInput" placeholder="NAME" value="${currentName}" class="w-full p-3 border-2 border-gray-200 rounded-xl font-bold text-center">
+                        </div>
+                        
+                        <div>
+                            <label class="text-xs font-bold text-gray-400 uppercase text-left block mb-1">Room Code</label>
+                            <input type="text" id="menuRoomCodeInput" placeholder="ENTER CODE" class="w-full p-3 border-2 border-gray-300 rounded-xl font-mono text-center text-xl uppercase focus:border-indigo-500 outline-none" maxlength="10">
+                        </div>
+                        
+                        <!-- PUBLIC/PRIVATE TOGGLE -->
+                        <div class="bg-gray-50 p-3 rounded-xl border border-gray-200">
+                            <div class="flex items-center justify-between mb-2">
+                                <label class="text-sm font-bold text-gray-700 flex items-center gap-2">
+                                    <span id="privacyIcon">🔒</span>
+                                    <span id="privacyLabel">Private Game</span>
+                                </label>
+                                <button id="privacyToggle" onclick="RoomManager.togglePrivacy()" class="relative w-14 h-7 bg-gray-300 rounded-full transition-colors duration-200">
+                                    <div id="privacyKnob" class="absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200"></div>
+                                </button>
+                            </div>
+                            
+                            <!-- MAX PLAYERS (shown when public) -->
+                            <div id="maxPlayersSection" class="hidden mt-3 pt-3 border-t border-gray-200">
+                                <div class="flex items-center justify-between">
+                                    <label class="text-sm font-bold text-gray-600">Max Players</label>
+                                    <div class="flex items-center gap-2">
+                                        <button onclick="RoomManager.adjustMaxPlayers(-1)" class="w-8 h-8 bg-gray-200 rounded-lg font-bold hover:bg-gray-300 transition">-</button>
+                                        <span id="maxPlayersDisplay" class="w-8 text-center font-bold text-indigo-600">8</span>
+                                        <button onclick="RoomManager.adjustMaxPlayers(1)" class="w-8 h-8 bg-gray-200 rounded-lg font-bold hover:bg-gray-300 transition">+</button>
+                                    </div>
+                                </div>
+                                <p class="text-xs text-gray-400 mt-1">Public games are visible to everyone</p>
+                            </div>
+                        </div>
+                        
+                        <button onclick="RoomManager.submitEntry()" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 shadow-lg mt-2 transition">JOIN / CREATE</button>
+                    </div>
+                </div>
+                
+                <!-- PUBLIC GAMES CARD -->
+                <div class="bg-white p-6 rounded-2xl shadow-2xl flex-1 animate-pop relative" style="animation-delay: 0.1s">
+                    <h2 class="text-2xl font-black mb-4 text-gray-800 flex items-center gap-2">
+                        <span>🌍</span> PUBLIC GAMES
+                    </h2>
+                    
+                    <div id="publicGamesList" class="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
+                        <div class="text-center py-8 text-gray-400">
+                            <div class="text-3xl mb-2">📡</div>
+                            <p class="text-sm">Searching for games...</p>
+                        </div>
+                    </div>
+                    
+                    <button onclick="RoomManager.refreshPublicGames()" class="w-full mt-4 py-2 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition flex items-center justify-center gap-2">
+                        <span>🔄</span> Refresh
+                    </button>
                 </div>
             </div>
         </div>`;
         document.body.insertAdjacentHTML('beforeend', html);
         setTimeout(() => document.getElementById('menuRoomCodeInput')?.focus(), 100);
+        
+        // Render any cached public games
+        this.renderPublicGames();
+    },
+    
+    togglePrivacy() {
+        this.isPublic = !this.isPublic;
+        const toggle = document.getElementById('privacyToggle');
+        const knob = document.getElementById('privacyKnob');
+        const icon = document.getElementById('privacyIcon');
+        const label = document.getElementById('privacyLabel');
+        const maxSection = document.getElementById('maxPlayersSection');
+        
+        if (this.isPublic) {
+            toggle.classList.remove('bg-gray-300');
+            toggle.classList.add('bg-indigo-500');
+            knob.style.transform = 'translateX(28px)';
+            icon.textContent = '🌍';
+            label.textContent = 'Public Game';
+            maxSection.classList.remove('hidden');
+        } else {
+            toggle.classList.remove('bg-indigo-500');
+            toggle.classList.add('bg-gray-300');
+            knob.style.transform = 'translateX(0)';
+            icon.textContent = '🔒';
+            label.textContent = 'Private Game';
+            maxSection.classList.add('hidden');
+        }
+    },
+    
+    adjustMaxPlayers(delta) {
+        this.maxPlayers = Math.min(20, Math.max(2, this.maxPlayers + delta));
+        const display = document.getElementById('maxPlayersDisplay');
+        if (display) display.textContent = this.maxPlayers;
+    },
+    
+    refreshPublicGames() {
+        if (this.socket && this.socket.connected) {
+            this.socket.emit('getPublicGames');
+            const list = document.getElementById('publicGamesList');
+            if (list) {
+                list.innerHTML = `
+                    <div class="text-center py-8 text-gray-400">
+                        <div class="text-3xl mb-2 animate-pulse">📡</div>
+                        <p class="text-sm">Searching for games...</p>
+                    </div>`;
+            }
+        }
+    },
+    
+    renderPublicGames() {
+        const list = document.getElementById('publicGamesList');
+        if (!list) return;
+        
+        if (!this.publicGames || this.publicGames.length === 0) {
+            list.innerHTML = `
+                <div class="text-center py-8 text-gray-400">
+                    <div class="text-3xl mb-2">😴</div>
+                    <p class="text-sm font-medium">No public games available</p>
+                    <p class="text-xs mt-1">Create one and others can join!</p>
+                </div>`;
+            return;
+        }
+        
+        list.innerHTML = this.publicGames.map(game => {
+            const isFull = game.players >= game.maxPlayers;
+            const spotsLeft = game.maxPlayers - game.players;
+            const modeLabel = this.modeConfig[game.mode]?.label || game.mode;
+            
+            return `
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-200 ${isFull ? 'opacity-50' : 'hover:bg-gray-100'} transition">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2">
+                            <span class="font-mono font-bold text-indigo-600">${game.roomCode}</span>
+                            <span class="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">${modeLabel}</span>
+                        </div>
+                        <div class="text-xs text-gray-500 mt-1 flex items-center gap-2">
+                            <span>👥 ${game.players}/${game.maxPlayers}</span>
+                            ${!isFull ? `<span class="text-green-600">${spotsLeft} spot${spotsLeft !== 1 ? 's' : ''} left</span>` : '<span class="text-red-500">Full</span>'}
+                        </div>
+                    </div>
+                    <button 
+                        onclick="RoomManager.joinPublicGame('${game.roomCode}')"
+                        ${isFull ? 'disabled' : ''}
+                        class="px-4 py-2 ${isFull ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700'} font-bold rounded-lg transition text-sm">
+                        ${isFull ? 'FULL' : 'JOIN'}
+                    </button>
+                </div>`;
+        }).join('');
+    },
+    
+    joinPublicGame(roomCode) {
+        const nameInput = document.getElementById('menuUsernameInput');
+        const nameToUse = nameInput ? nameInput.value.trim() : '';
+        if (nameToUse) {
+            State.save('username', nameToUse);
+            if(DOM.inputs.username) DOM.inputs.username.value = nameToUse;
+        }
+        this.attemptJoinOrCreate(roomCode, nameToUse);
     },
 
     submitEntry() {
@@ -5307,7 +5492,9 @@ renderLobby() {
         this.socket.emit('joinRoom', { 
             roomCode: code, 
             username: nameOverride || this.getUsername(),
-            theme: State.data.currentTheme 
+            theme: State.data.currentTheme,
+            isPublic: this.isPublic,
+            maxPlayers: this.maxPlayers
         });
     },
 
