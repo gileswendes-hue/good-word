@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.86.4', 
+    APP_VERSION: '5.87.1', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -5560,11 +5560,13 @@ const Game = {
             document.addEventListener('keydown', (e) => {
                 if (e.target.matches('input, textarea')) return;
                 if (DOM.game.buttons.good.disabled) return;
-                const openModals = Object.values(DOM.modals).some(m => !m.classList.contains('hidden'));
+                const openModals = DOM.modals && Object.values(DOM.modals).some(m => m && !m.classList.contains('hidden'));
                 if (openModals) return;
                 if (document.getElementById('tipModal') && !document.getElementById('tipModal').classList.contains('hidden')) return;
                 if (document.getElementById('contactModal') && !document.getElementById('contactModal').classList.contains('hidden')) return;
                 if (document.getElementById('pinPadModal') && !document.getElementById('pinPadModal').classList.contains('hidden')) return;
+                if (document.getElementById('mpMenu')) return;
+                if (document.getElementById('lobbyModal')) return;
 
                 switch(e.code) {
                     case 'ArrowLeft': 
