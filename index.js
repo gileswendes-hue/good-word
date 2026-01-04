@@ -63,7 +63,8 @@ const loadKidsWords = () => {
 loadKidsWords();
 
 const rooms = {};
-const MODE_MINS = { 'coop': 2, 'versus': 4, 'vip': 3, 'hipster': 3, 'speed': 2, 'survival': 2, 'traitor': 3, 'kids': 2 };
+const MODE_MINS = { 'coop': 2, 'versus': 4, 'vip': 3, 'hipster': 3, 'speed': 2, 'survival': 2, 'traitor': 3, 'kids': 2, 'okstoopid': 2 };
+const MODE_MAXS = { 'okstoopid': 2 };
 
 function shuffle(array) {
     for (let i = array.length - 1; i > 0; i--) {
@@ -192,11 +193,17 @@ io.on('connection', (socket) => {
         const room = rooms[roomCode];
         if (!room || room.host !== socket.id) return;
         
-        // Validate minimum player count for game mode
+        // Validate player count for game mode
         const minPlayers = MODE_MINS[room.mode] || 2;
+        const maxPlayers = MODE_MAXS[room.mode] || null;
         const activePlayers = room.players.filter(p => !p.isSpectator);
+        
         if (activePlayers.length < minPlayers) {
             socket.emit('startError', { message: `${room.mode} requires at least ${minPlayers} players` });
+            return;
+        }
+        if (maxPlayers && activePlayers.length > maxPlayers) {
+            socket.emit('startError', { message: `${room.mode} requires exactly ${maxPlayers} players` });
             return;
         }
         
