@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.86.2', 
+    APP_VERSION: '5.86.3', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4946,6 +4946,11 @@ const RoomManager = {
             }, this.amITraitor); 
             this.amITraitor = false;
         });
+        
+        // Not enough players to start
+        this.socket.on('startError', ({ message }) => {
+            alert(message || 'Cannot start game');
+        });
 
         this.socket.on('roomUpdate', (data) => {
             // --- FIX: THEME SYNC LOGIC ---
@@ -5155,12 +5160,16 @@ renderLobby() {
         const roomIsPublic = this.isPublic;
         const roomMaxPlayers = this.maxPlayers || 8;
         
+        // Check minimum players for current mode
+        const minPlayers = this.modeConfig[activeMode]?.min || 2;
+        const playersList = this.players || [];
+        const hasEnoughPlayers = playersList.length >= minPlayers;
+        
         if (this.roomCode) {
             const newUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?room=${this.roomCode}`;
             window.history.replaceState({path: newUrl}, '', newUrl);
         }
 
-        const playersList = this.players || [];
         const joinUrl = `${window.location.origin}?room=${safeCode}`;
         const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(joinUrl)}`;
         
@@ -5274,11 +5283,15 @@ renderLobby() {
 
                 <div class="absolute bottom-0 left-0 right-0 p-4 md:p-6 bg-white border-t flex items-center justify-between shadow-[0_-5px_15px_rgba(0,0,0,0.05)] z-20 shrink-0">
                     <div class="text-xs md:text-sm text-gray-500 hidden sm:block">
-                        ${this.isHost ? 'You are the Host.' : 'Waiting for Host...'}
+                        ${this.isHost 
+                            ? (hasEnoughPlayers ? 'You are the Host.' : `Need ${minPlayers} players (have ${playersList.length})`) 
+                            : 'Waiting for Host...'}
                     </div>
                     ${this.isHost ? 
-                        `<button onclick="window.RoomManager.startGame()" class="w-full sm:w-auto px-6 py-3 md:px-8 md:py-4 bg-green-500 hover:bg-green-600 text-white text-lg md:text-xl font-black rounded-xl shadow-lg transform transition active:scale-95 flex items-center justify-center gap-2"><span>START GAME</span> 🚀</button>` : 
-                        `<div class="w-full sm:w-auto px-6 py-3 md:px-8 md:py-4 bg-gray-100 text-gray-400 text-lg md:text-xl font-bold rounded-xl border border-gray-200 flex items-center justify-center gap-2 cursor-not-allowed"><span>WAITING...</span> ⏳</div>`
+                        (hasEnoughPlayers 
+                            ? `<button onclick="window.RoomManager.startGame()" class="w-full sm:w-auto px-6 py-3 md:px-8 md:py-4 bg-green-500 hover:bg-green-600 text-white text-lg md:text-xl font-black rounded-xl shadow-lg transform transition active:scale-95 flex items-center justify-center gap-2"><span>START GAME</span> 🚀</button>`
+                            : `<div class="w-full sm:w-auto px-6 py-3 md:px-8 md:py-4 bg-gray-300 text-gray-500 text-lg md:text-xl font-bold rounded-xl border border-gray-300 flex items-center justify-center gap-2 cursor-not-allowed"><span>NEED ${minPlayers} PLAYERS</span> 👥</div>`)
+                        : `<div class="w-full sm:w-auto px-6 py-3 md:px-8 md:py-4 bg-gray-100 text-gray-400 text-lg md:text-xl font-bold rounded-xl border border-gray-200 flex items-center justify-center gap-2 cursor-not-allowed"><span>WAITING...</span> ⏳</div>`
                     }
                 </div>
             </div>
