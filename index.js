@@ -191,6 +191,15 @@ io.on('connection', (socket) => {
     socket.on('startGame', async ({ roomCode }) => {
         const room = rooms[roomCode];
         if (!room || room.host !== socket.id) return;
+        
+        // Validate minimum player count for game mode
+        const minPlayers = MODE_MINS[room.mode] || 2;
+        const activePlayers = room.players.filter(p => !p.isSpectator);
+        if (activePlayers.length < minPlayers) {
+            socket.emit('startError', { message: `${room.mode} requires at least ${minPlayers} players` });
+            return;
+        }
+        
         if (room.wordTimer) clearTimeout(room.wordTimer);
         room.state = 'playing'; room.wordIndex = 0; room.currentVotes = {}; room.currentVoteTimes = {}; 
         room.readyConfirms = new Set(); room.vipId = null; room.traitorId = null;
