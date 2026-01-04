@@ -100,9 +100,33 @@ function removePlayerFromAllRooms(socketId) {
 }
 
 io.on('connection', (socket) => {
-    socket.on('joinRoom', ({ roomCode, username, theme }) => {
+    // Get list of public games
+    socket.on('getPublicGames', () => {
+        const publicGames = [];
+        for (const code in rooms) {
+            const room = rooms[code];
+            if (room && room.isPublic && room.state === 'lobby' && room.players.length < room.maxPlayers) {
+                publicGames.push({
+                    roomCode: code,
+                    mode: room.mode,
+                    players: room.players.length,
+                    maxPlayers: room.maxPlayers
+                });
+            }
+        }
+        socket.emit('publicGamesList', publicGames);
+    });
+
+    socket.on('joinRoom', ({ roomCode, username, theme, isPublic, maxPlayers }) => {
         const code = roomCode.toUpperCase();
         removePlayerFromAllRooms(socket.id); 
+        
+        // Check if room exists and is full
+        if (rooms[code] && rooms[code].isPublic && rooms[code].players.length >= rooms[code].maxPlayers) {
+            socket.emit('roomFull', { message: 'This room is full' });
+            return;
+        }
+        
         socket.join(code);
         if (!rooms[code]) {
             rooms[code] = {
@@ -110,7 +134,9 @@ io.on('connection', (socket) => {
                 theme: theme || 'default', drinkingMode: false, wordIndex: 0, maxWords: 10, 
                 words: [], currentVotes: {}, currentVoteTimes: {}, accusationVotes: {}, 
                 readyConfirms: new Set(), scores: { red: 0, blue: 0, coop: 0 }, 
-                vipId: null, traitorId: null, wordStartTime: 0, wordTimer: null 
+                vipId: null, traitorId: null, wordStartTime: 0, wordTimer: null,
+                isPublic: isPublic || false,
+                maxPlayers: maxPlayers || 8
             };
         }
         const room = rooms[code];
@@ -243,7 +269,9 @@ function emitUpdate(code) {
     io.to(code).emit('roomUpdate', {
         players: rooms[code].players, host: rooms[code].host, mode: rooms[code].mode,
         maxWords: rooms[code].maxWords, drinkingMode: rooms[code].drinkingMode, 
-        theme: rooms[code].theme, state: rooms[code].state
+        theme: rooms[code].theme, state: rooms[code].state,
+        isPublic: rooms[code].isPublic || false,
+        maxPlayers: rooms[code].maxPlayers || 8
     });
 }
 
