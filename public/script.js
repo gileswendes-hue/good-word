@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.86.3', 
+    APP_VERSION: '5.86.4', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4803,14 +4803,14 @@ const RoomManager = {
     listenersAttached: false,
     
     modeConfig: {
-        'coop': { label: '🤝 Co-op Sync', desc: 'Vote together! Match with the Global Majority.', min: 1 }, 
-        'okstoopid': { label: '💘 OK Stoopid', desc: 'Couples Mode. Match each other!', min: 2 },
+        'coop': { label: '🤝 Co-op Sync', desc: 'Vote together! Match with the Global Majority.', min: 2 }, 
+        'okstoopid': { label: '💘 OK Stoopid', desc: 'Couples Mode. Match each other!', min: 2, max: 2 },
         'versus': { label: '⚔️ Team Versus', desc: 'Red vs Blue. Best Team wins.', min: 2 }, 
         'hipster': { label: '🕶️ The Hipster', desc: 'Minority Rules. Be unique!', min: 3 },
         'speed': { label: '⏱️ Speed Demon', desc: 'Vote fast! Speed and accuracy wins.', min: 2 },
         'survival': { label: '💣 Sudden Death', desc: 'Three Lives. Vote with majority, or die.', min: 2 },
         'traitor': { label: '🕵️ The Traitor', desc: 'One Traitor tries to ruin everything!', min: 3 },
-        'kids': { label: '👶 Kids Mode', desc: 'Simple words. Family friendly!', min: 1 }
+        'kids': { label: '👶 Kids Mode', desc: 'Simple words. Family friendly!', min: 2 }
     },
 
     init() {
@@ -5160,10 +5160,15 @@ renderLobby() {
         const roomIsPublic = this.isPublic;
         const roomMaxPlayers = this.maxPlayers || 8;
         
-        // Check minimum players for current mode
-        const minPlayers = this.modeConfig[activeMode]?.min || 2;
+        // Check minimum and maximum players for current mode
+        const modeSettings = this.modeConfig[activeMode] || {};
+        const minPlayers = modeSettings.min || 2;
+        const maxPlayers = modeSettings.max || null; // null means no max
         const playersList = this.players || [];
-        const hasEnoughPlayers = playersList.length >= minPlayers;
+        const hasEnoughPlayers = playersList.length >= minPlayers && (!maxPlayers || playersList.length <= maxPlayers);
+        const playerCountIssue = playersList.length < minPlayers 
+            ? `Need ${minPlayers} players` 
+            : (maxPlayers && playersList.length > maxPlayers ? `Max ${maxPlayers} players` : null);
         
         if (this.roomCode) {
             const newUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?room=${this.roomCode}`;
@@ -5284,13 +5289,13 @@ renderLobby() {
                 <div class="absolute bottom-0 left-0 right-0 p-4 md:p-6 bg-white border-t flex items-center justify-between shadow-[0_-5px_15px_rgba(0,0,0,0.05)] z-20 shrink-0">
                     <div class="text-xs md:text-sm text-gray-500 hidden sm:block">
                         ${this.isHost 
-                            ? (hasEnoughPlayers ? 'You are the Host.' : `Need ${minPlayers} players (have ${playersList.length})`) 
+                            ? (hasEnoughPlayers ? 'You are the Host.' : (playerCountIssue + ` (have ${playersList.length})`)) 
                             : 'Waiting for Host...'}
                     </div>
                     ${this.isHost ? 
                         (hasEnoughPlayers 
                             ? `<button onclick="window.RoomManager.startGame()" class="w-full sm:w-auto px-6 py-3 md:px-8 md:py-4 bg-green-500 hover:bg-green-600 text-white text-lg md:text-xl font-black rounded-xl shadow-lg transform transition active:scale-95 flex items-center justify-center gap-2"><span>START GAME</span> 🚀</button>`
-                            : `<div class="w-full sm:w-auto px-6 py-3 md:px-8 md:py-4 bg-gray-300 text-gray-500 text-lg md:text-xl font-bold rounded-xl border border-gray-300 flex items-center justify-center gap-2 cursor-not-allowed"><span>NEED ${minPlayers} PLAYERS</span> 👥</div>`)
+                            : `<div class="w-full sm:w-auto px-6 py-3 md:px-8 md:py-4 bg-gray-300 text-gray-500 text-lg md:text-xl font-bold rounded-xl border border-gray-300 flex items-center justify-center gap-2 cursor-not-allowed"><span>${maxPlayers ? 'EXACTLY ' + maxPlayers + ' PLAYERS' : 'NEED ' + minPlayers + ' PLAYERS'}</span> 👥</div>`)
                         : `<div class="w-full sm:w-auto px-6 py-3 md:px-8 md:py-4 bg-gray-100 text-gray-400 text-lg md:text-xl font-bold rounded-xl border border-gray-200 flex items-center justify-center gap-2 cursor-not-allowed"><span>WAITING...</span> ⏳</div>`
                     }
                 </div>
