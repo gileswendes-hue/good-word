@@ -46,6 +46,16 @@ const Score = mongoose.model('Score', scoreSchema);
 const leaderboardSchema = new mongoose.Schema({ userId: { type: String, unique: true }, username: String, voteCount: { type: Number, default: 0 }, lastUpdated: { type: Date, default: Date.now } });
 const Leaderboard = mongoose.model('Leaderboard', leaderboardSchema);
 
+// Global statistics schema for tracking history across all users
+const globalStatsSchema = new mongoose.Schema({
+    date: { type: String, required: true, unique: true }, // YYYY-MM-DD
+    totalVotes: { type: Number, default: 0 },
+    totalWords: { type: Number, default: 0 },
+    goodVotes: { type: Number, default: 0 },
+    badVotes: { type: Number, default: 0 }
+});
+const GlobalStats = mongoose.model('GlobalStats', globalStatsSchema);
+
 let kidsWords = [];
 const loadKidsWords = () => {
     try {
@@ -132,7 +142,7 @@ io.on('connection', (socket) => {
         if (!rooms[code]) {
             rooms[code] = {
                 host: socket.id, players: [], state: 'lobby', mode: 'coop', 
-                theme: theme || 'default', drinkingMode: false, wordIndex: 0, maxWords: 10, 
+                theme: theme || 'default', drinkingMode: false, extremeDrinkingMode: false, wordIndex: 0, maxWords: 10, 
                 words: [], currentVotes: {}, currentVoteTimes: {}, accusationVotes: {}, 
                 readyConfirms: new Set(), scores: { red: 0, blue: 0, coop: 0 }, 
                 vipId: null, traitorId: null, wordStartTime: 0, wordTimer: null,
@@ -190,14 +200,19 @@ io.on('connection', (socket) => {
     });
 
     // --- FIX: Theme Sync & Drinking Fix ---
-    socket.on('updateSettings', ({ roomCode, mode, rounds, drinking, theme }) => {
+    socket.on('updateSettings', ({ roomCode, mode, rounds, drinking, extremeDrinking, theme }) => {
         const room = rooms[roomCode];
         if (!room || room.host !== socket.id) return;
         if(mode) room.mode = mode;
         if(rounds) room.maxWords = parseInt(rounds);
         if (typeof drinking !== 'undefined') room.drinkingMode = drinking;
+        if (typeof extremeDrinking !== 'undefined') room.extremeDrinkingMode = extremeDrinking;
         if (theme) room.theme = theme; // <--- SAVE THEME
-        if (room.mode === 'kids') room.drinkingMode = false;
+        if (room.mode === 'kids') {
+            room.drinkingMode = false;
+            room.extremeDrinkingMode = false;
+        }
+        if (!room.drinkingMode) room.extremeDrinkingMode = false; // Reset extreme if drinking off
         emitUpdate(roomCode);
     });
 
@@ -318,6 +333,7 @@ function emitUpdate(code) {
     io.to(code).emit('roomUpdate', {
         players: rooms[code].players, host: rooms[code].host, mode: rooms[code].mode,
         maxWords: rooms[code].maxWords, drinkingMode: rooms[code].drinkingMode, 
+        extremeDrinkingMode: rooms[code].extremeDrinkingMode,
         theme: rooms[code].theme, state: rooms[code].state,
         isPublic: rooms[code].isPublic || false,
         maxPlayers: rooms[code].maxPlayers || 8
@@ -572,14 +588,24 @@ function finishWord(roomCode) {
 
     let drinkers = [], drinkMsg = "Penalty Round";
     if (room.drinkingMode && room.mode !== 'kids') { 
-        if (Math.random() < 0.1) {
+        // Extreme mode has much higher penalty chance (30% vs 10%)
+        const penaltyChance = room.extremeDrinkingMode ? 0.3 : 0.1;
+        if (Math.random() < penaltyChance) {
             const r = Math.random();
             if (r < 0.7) {
                 let slowId=null, slowT=0;
                 for(const [pid, t] of Object.entries(room.currentVoteTimes)) { const d=t-room.wordStartTime; if(d>slowT) { slowT=d; slowId=pid; } }
-                if(slowId && slowT>3000) { const p=room.players.find(x=>x.id===slowId); drinkers.push({id:slowId, name:p?p.name:'?', reason:'Too Slow!', icon:'🐌'}); }
+                // Extreme mode has tighter time limit (2s vs 3s)
+                const slowThreshold = room.extremeDrinkingMode ? 2000 : 3000;
+                if(slowId && slowT>slowThreshold) { const p=room.players.find(x=>x.id===slowId); drinkers.push({id:slowId, name:p?p.name:'?', reason:'Too Slow!', icon:'🐌'}); }
                 const maj = getMaj(voteValues);
                 if(maj!=='draw') room.players.forEach(p=>{ if(!p.isSpectator && votes[p.id] && votes[p.id]!==maj && !drinkers.find(d=>d.id===p.id)) drinkers.push({id:p.id, name:p.name, reason:'Minority!', icon:'🤡'}); });
+                // Extreme mode: first voter also drinks sometimes
+                if (room.extremeDrinkingMode && Math.random() < 0.3) {
+                    let fastId=null, fastT=Infinity;
+                    for(const [pid, t] of Object.entries(room.currentVoteTimes)) { const d=t-room.wordStartTime; if(d<fastT) { fastT=d; fastId=pid; } }
+                    if(fastId && !drinkers.find(d=>d.id===fastId)) { const p=room.players.find(x=>x.id===fastId); drinkers.push({id:fastId, name:p?p.name:'?', reason:'Too Eager!', icon:'🏃'}); }
+                }
             } else if (r < 0.85) {
                 drinkMsg = "SOCIAL! EVERYONE DRINKS!"; room.players.forEach(p=>{ if(!p.isSpectator) drinkers.push({id:p.id, name:p.name, reason:'Social!', icon:'🍻'}); });
             } else {
@@ -604,10 +630,57 @@ function finishWord(roomCode) {
 app.get('/kids_words.txt', (req, res) => { const p = path.join(__dirname, 'kids_words.txt'); if (fs.existsSync(p)) res.sendFile(p); else res.status(404).send(""); });
 app.get('/api/words/all', async (req, res) => { try { res.json(await Word.find().sort({ createdAt: -1 })); } catch (e) { res.json([]); } });
 app.get('/api/words', async (req, res) => { try { res.json(await Word.aggregate([{ $sample: { size: 1 } }])); } catch (e) { res.json({message:"Error"}); } });
-app.put('/api/words/:id/vote', async (req, res) => { try { await Word.findByIdAndUpdate(req.params.id, { $inc: { [req.body.voteType + 'Votes']: 1 } }); res.json({message:"OK"}); } catch (e) { res.status(500).json({}); } });
+
+// Updated vote endpoint to also track global stats
+app.put('/api/words/:id/vote', async (req, res) => { 
+    try { 
+        await Word.findByIdAndUpdate(req.params.id, { $inc: { [req.body.voteType + 'Votes']: 1 } }); 
+        
+        // Update global stats for today
+        const today = new Date().toISOString().split('T')[0];
+        const voteField = req.body.voteType === 'good' ? 'goodVotes' : 'badVotes';
+        await GlobalStats.findOneAndUpdate(
+            { date: today },
+            { 
+                $inc: { totalVotes: 1, [voteField]: 1 },
+                $setOnInsert: { date: today }
+            },
+            { upsert: true }
+        );
+        
+        res.json({message:"OK"}); 
+    } catch (e) { res.status(500).json({}); } 
+});
+
 app.post('/api/words', async (req, res) => { try { const n = new Word({ text: req.body.text }); await n.save(); res.status(201).json(n); } catch (e) { res.status(500).json({}); } });
 app.get('/api/leaderboard', async (req, res) => { try { res.json(await Leaderboard.find().sort({voteCount:-1}).limit(10)); } catch(e){res.json([])} });
 app.post('/api/leaderboard', async (req, res) => { try { await Leaderboard.findOneAndUpdate({userId:req.body.userId}, req.body, {upsert:true}); res.json({message:"OK"}); } catch(e){res.status(500).send()} });
 app.get('/api/scores', async (req, res) => { try { res.json(await Score.find().sort({score:-1}).limit(10)); } catch(e){res.json([])} });
 app.post('/api/scores', async (req, res) => { try { const s = new Score(req.body); await s.save(); res.json(s); } catch(e){res.json({})} });
+
+// Global stats endpoints - stored for all users to see historical data
+app.get('/api/stats/history', async (req, res) => { 
+    try { 
+        const stats = await GlobalStats.find().sort({ date: -1 }).limit(365);
+        res.json(stats.reverse()); // Return in chronological order
+    } catch(e) { res.json([]); } 
+});
+
+app.post('/api/stats/snapshot', async (req, res) => {
+    try {
+        const today = new Date().toISOString().split('T')[0];
+        const { totalWords, totalVotes, goodVotes, badVotes } = req.body;
+        
+        await GlobalStats.findOneAndUpdate(
+            { date: today },
+            { 
+                $set: { totalWords },
+                $max: { totalVotes, goodVotes, badVotes } // Only update if higher
+            },
+            { upsert: true }
+        );
+        res.json({ message: "OK" });
+    } catch(e) { res.status(500).json({}); }
+});
+
 server.listen(PORT, () => console.log(`Server on ${PORT}`));
