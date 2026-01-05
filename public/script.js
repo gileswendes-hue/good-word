@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.87.8', 
+    APP_VERSION: '5.87.9', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -2740,13 +2740,13 @@ const ShareManager = {
         }
     },
 	
-	async shareCompatibility(p1, p2, score) {
+	async shareCompatibility(p1, p2, score, matches, totalRounds) {
         UIManager.showPostVoteMessage("Printing coupon... 💘");
         
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         const width = 600;
-        const height = 400;
+        const height = 450;
         canvas.width = width;
         canvas.height = height;
 
@@ -2775,26 +2775,31 @@ const ShareManager = {
         // 4. Names
         ctx.fillStyle = "#1f2937"; // dark gray
         ctx.font = "bold 32px system-ui, sans-serif";
-        ctx.fillText(`${p1}  +  ${p2}`, width/2, 120);
+        ctx.fillText(`${p1}  💕  ${p2}`, width/2, 120);
 
         // 5. The Score
         ctx.fillStyle = "#db2777"; // pink-600
         ctx.font = "900 140px system-ui, sans-serif";
         ctx.fillText(`${score}%`, width/2, 260);
         
-        // 6. Footer
+        // 6. Match Details
+        ctx.fillStyle = "#6b7280"; // gray-500
+        ctx.font = "bold 22px system-ui, sans-serif";
+        ctx.fillText(`Matched ${matches || 0} of ${totalRounds || 0} words`, width/2, 310);
+        
+        // 7. Footer
         ctx.fillStyle = "#9d174d";
         ctx.font = "bold 18px system-ui, sans-serif";
-        ctx.fillText("Certified by OK Stoopid (GBword.com)", width/2, 350);
+        ctx.fillText("Certified by OK Stoopid (GBword.com)", width/2, 400);
 
-        // 7. Share Logic
+        // 8. Share Logic
         try {
             const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
             const file = new File([blob], 'compatibility_test.png', { type: 'image/png' });
             
             const shareData = {
                 title: 'Compatibility Result',
-                text: `We are ${score}% compatible! 💘 Test your relationship on GBword.com`,
+                text: `We are ${score}% compatible! Matched ${matches}/${totalRounds} words 💘 Test your relationship on GBword.com`,
                 files: [file]
             };
 
@@ -2916,7 +2921,7 @@ const UIManager = {
         if (State.data.settings.noStreaksMode) {
              DOM.header.streak.textContent = '-';
         } else {
-             DOM.header.streak.textContent = State.data.daily.streak;
+             DOM.header.streak.textContent = State.data.daily.streak || 0;
         }
         DOM.header.userVotes.textContent = State.data.voteCount.toLocaleString();
         
@@ -2991,7 +2996,7 @@ showRoleReveal(title, subtitle, type = 'neutral') {
     openProfile() {
         this.updateProfileDisplay();
         const d = State.data;
-        DOM.profile.streak.textContent = d.daily.streak;
+        DOM.profile.streak.textContent = d.daily.streak || 0;
         DOM.profile.totalVotes.textContent = d.voteCount.toLocaleString();
         DOM.profile.contributions.textContent = d.contributorCount.toLocaleString();
         
@@ -3536,11 +3541,11 @@ if (window.RoomManager && window.RoomManager.roomCode) {
         
         // --- 1. OK STOOPID (Couples Mode) ---
         if (data.mode === 'okstoopid') {
-            // Calculate Compatibility %
-            // Max score is usually equal to word count (1 point per match)
-            const maxScore = RoomManager.currentWordCount || 10;
-            const score = data.scores.coop || 0;
-            const percent = Math.min(100, Math.round((score / maxScore) * 100));
+            // Use server-calculated compatibility
+            const okData = data.okStoopidResult || {};
+            const percent = okData.compatibility || 0;
+            const matches = okData.matches || 0;
+            const totalRounds = okData.totalRounds || RoomManager.currentWordCount || 10;
             
             let verdict = "AWKWARD...";
             if (percent > 40) verdict = "JUST FRIENDS?";
@@ -3553,6 +3558,7 @@ if (window.RoomManager && window.RoomManager.roomCode) {
                 <div class="text-center mb-6">
                     <div class="text-6xl font-black text-indigo-900 mb-2">${percent}%</div>
                     <div class="inline-block bg-pink-100 text-pink-700 px-4 py-1 rounded-full font-bold text-sm border border-pink-200">${verdict}</div>
+                    <div class="text-sm text-gray-500 mt-3">Matched ${matches} of ${totalRounds} words</div>
                 </div>
             `;
             
@@ -3562,7 +3568,7 @@ if (window.RoomManager && window.RoomManager.roomCode) {
                     const p1 = data.rankings[0]?.name || "P1";
                     const p2 = data.rankings[1]?.name || "P2";
                     const shareBtn = document.getElementById('share-result-btn');
-                    if(shareBtn) shareBtn.onclick = () => ShareManager.shareCompatibility(p1, p2, percent);
+                    if(shareBtn) shareBtn.onclick = () => ShareManager.shareCompatibility(p1, p2, percent, matches, totalRounds);
                 }
             }, 100);
         }
@@ -5152,6 +5158,12 @@ cleanupMultiplayer() {
         };
         this.socket.emit('updateSettings', payload);
     },
+    
+    reannounce() {
+        if (!this.isPublic || !this.isHost) return;
+        this.socket.emit('keepAlive', { roomCode: this.roomCode });
+        UIManager.showPostVoteMessage('📢 Room reannounced!');
+    },
 
     updateMode(newMode) {
         if (!this.isHost) return;
@@ -5247,9 +5259,12 @@ renderLobby() {
         const joinUrl = `${window.location.origin}?room=${safeCode}`;
         const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(joinUrl)}`;
         
-        // Public/Private badge
+        // Public/Private badge with reannounce button for host
+        const reannounceBtn = (roomIsPublic && this.isHost) 
+            ? `<button onclick="RoomManager.reannounce()" class="ml-2 bg-green-500 hover:bg-green-600 text-white text-xs font-bold px-2 py-1 rounded-full transition">📢 Reannounce</button>`
+            : '';
         const privacyBadge = roomIsPublic 
-            ? `<div class="inline-flex items-center gap-1 bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-full mt-1"><span>🌍</span> Public (${playersList.length}/${roomMaxPlayers})</div>`
+            ? `<div class="inline-flex items-center gap-1 bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-full mt-1"><span>🌍</span> Public (${playersList.length}/${roomMaxPlayers})${reannounceBtn}</div>`
             : `<div class="inline-flex items-center gap-1 bg-gray-100 text-gray-600 text-xs font-bold px-2 py-1 rounded-full mt-1"><span>🔒</span> Private</div>`;
 
         // 3. Generate HTML
