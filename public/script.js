@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.87.7', 
+    APP_VERSION: '5.87.8', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -3420,7 +3420,7 @@ displayWord(w) {
         ind.style.opacity = active ? '1' : '0';
     },
 
-   showCountdown(seconds, callback, isTraitor = false, team = null) {
+   showCountdown(seconds, callback, isTraitor = false, team = null, vipInfo = null) {
         const old = document.getElementById('game-countdown');
         if (old) old.remove();
 
@@ -3437,6 +3437,13 @@ displayWord(w) {
         } else if (team === 'blue') {
             bgClass = 'bg-blue-800';
             roleText = '<div class="text-blue-300 text-3xl font-black animate-pulse mt-4 tracking-widest border-2 border-blue-400 px-4 py-2 rounded">🔵 TEAM BLUE</div>';
+        } else if (vipInfo) {
+            bgClass = vipInfo.isMe ? 'bg-yellow-700' : 'bg-yellow-800';
+            if (vipInfo.isMe) {
+                roleText = '<div class="text-yellow-200 text-3xl font-black animate-pulse mt-4 tracking-widest border-2 border-yellow-400 px-4 py-2 rounded">⭐ YOU ARE THE VIP</div>';
+            } else {
+                roleText = `<div class="text-yellow-200 text-2xl font-black mt-4 tracking-widest border-2 border-yellow-400 px-4 py-2 rounded">⭐ The VIP is: ${vipInfo.name}</div>`;
+            }
         }
 
         const el = document.createElement('div');
@@ -4803,6 +4810,9 @@ const RoomManager = {
     // ROLE STATE
     amITraitor: false,
     myTeam: null,
+    vipId: null,
+    vipName: null,
+    amIVip: false,
     
     // PUBLIC GAMES
     isPublic: false,
@@ -4819,7 +4829,8 @@ const RoomManager = {
         'coop': { label: '🤝 Co-op Sync', desc: 'Vote together! Match with the Global Majority.', min: 2 }, 
         'okstoopid': { label: '💘 OK Stoopid', desc: 'Couples Mode. Match each other!', min: 2, max: 2 },
         'versus': { label: '⚔️ Team Versus', desc: 'Red vs Blue. Best Team wins.', min: 2 }, 
-        'hipster': { label: '🕶️ The Hipster', desc: 'Minority Rules. Be unique!', min: 3 },
+        'vip': { label: '⭐ The VIP', desc: 'One player is the VIP. Everyone tries to match their vote!', min: 3 },
+        'hipster': { label: '🕶️ Hipster Mode', desc: 'Be unique! Score by voting with the minority.', min: 3 },
         'speed': { label: '⏱️ Speed Demon', desc: 'Vote fast! Speed and accuracy wins.', min: 2 },
         'survival': { label: '💣 Sudden Death', desc: 'Three Lives. Vote with majority, or die.', min: 2 },
         'traitor': { label: '🕵️ The Traitor', desc: 'One Traitor tries to ruin everything!', min: 3 },
@@ -4951,19 +4962,35 @@ const RoomManager = {
         this.socket.on('teamAssigned', ({ team }) => {
             this.myTeam = team;
         });
+        
+        // VIP assignment notification - everyone knows who the VIP is
+        this.socket.on('vipAssigned', ({ vipId, vipName }) => {
+            this.vipId = vipId;
+            this.vipName = vipName;
+            this.amIVip = (vipId === this.playerId);
+        });
 
         this.socket.on('gameStarted', (data) => {
             console.log("GAME START SIGNAL RECEIVED"); 
             this.closeLobby();
             this.active = true;
             
+            // Build VIP info if applicable
+            const vipInfo = this.vipId ? {
+                isMe: this.amIVip,
+                name: this.vipName
+            } : null;
+            
             UIManager.showCountdown(3, () => {
                 if (Game && Game.startMultiplayer) {
                     Game.startMultiplayer(data);
                 }
-            }, this.amITraitor, this.myTeam); 
+            }, this.amITraitor, this.myTeam, vipInfo); 
             this.amITraitor = false;
             this.myTeam = null;
+            this.vipId = null;
+            this.vipName = null;
+            this.amIVip = false;
         });
         
         // Not enough players to start
