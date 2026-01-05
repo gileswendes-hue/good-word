@@ -226,7 +226,16 @@ io.on('connection', (socket) => {
                 io.to(room.traitorId).emit('roleAlert', 'You are the TRAITOR! Try to make the room fail.');
             }
         } else if (room.mode === 'vip') {
-            room.vipId = room.players[Math.floor(Math.random() * room.players.length)].id;
+            const potential = room.players.filter(p => !p.isSpectator);
+            if (potential.length > 0) {
+                room.vipId = potential[Math.floor(Math.random() * potential.length)].id;
+                const vipPlayer = room.players.find(p => p.id === room.vipId);
+                // Notify all players who the VIP is
+                io.to(roomCode).emit('vipAssigned', { 
+                    vipId: room.vipId, 
+                    vipName: vipPlayer ? vipPlayer.name : 'Unknown' 
+                });
+            }
         }
         emitUpdate(roomCode);
         try {
@@ -406,8 +415,64 @@ function finishWord(roomCode) {
                     : `Majority: ${targetMaj.toUpperCase()}` 
             };
             // -----------------------------------------
+        } else if (room.mode === 'vip' && room.vipId) {
+            // VIP mode: everyone tries to match the VIP's vote
+            // Both VIP and matchers get points to discourage VIP voting weirdly
+            const vipVote = votes[room.vipId];
+            if (vipVote) {
+                room.players.forEach(p => {
+                    if (!p.isSpectator) {
+                        if (votes[p.id] === vipVote) {
+                            // VIP and anyone who matches gets a point
+                            p.score++;
+                        }
+                    }
+                });
+                const vipPlayer = room.players.find(p => p.id === room.vipId);
+                resultData = { msg: `${vipPlayer?.name || 'VIP'} voted ${vipVote.toUpperCase()}!` };
+            } else {
+                resultData = { msg: `The VIP didn't vote!` };
+            }
+        } else if (room.mode === 'hipster') {
+            // Hipster mode: score by being in the MINORITY
+            // Use global votes if insufficient players (<=2), otherwise room minority
+            const goodCount = voteValues.filter(x => x === 'good').length;
+            const badCount = voteValues.filter(x => x === 'bad').length;
+            
+            let targetMinority = 'draw';
+            let useGlobal = false;
+            
+            // Determine minority
+            if (goodCount !== badCount) {
+                targetMinority = goodCount < badCount ? 'good' : 'bad';
+            } else if (voteValues.length <= 2) {
+                // Use global data for tie-breaker or small groups
+                const word = room.words[room.wordIndex - 1];
+                if (word) {
+                    const globalGood = word.goodVotes || 0;
+                    const globalBad = word.badVotes || 0;
+                    if (globalGood !== globalBad) {
+                        // Global minority is opposite of global majority
+                        targetMinority = globalGood < globalBad ? 'good' : 'bad';
+                        useGlobal = true;
+                    }
+                }
+            }
+            
+            if (targetMinority !== 'draw') {
+                room.players.forEach(p => {
+                    if (!p.isSpectator && votes[p.id] === targetMinority) {
+                        p.score++; // Hipsters in minority get points
+                    }
+                });
+            }
+            resultData = { 
+                msg: targetMinority !== 'draw' 
+                    ? (useGlobal ? `Global Minority: ${targetMinority.toUpperCase()}` : `Minority: ${targetMinority.toUpperCase()}`)
+                    : `It's a tie! No points.`
+            };
         } else {
-            // Standard / Co-op / Hipster logic
+            // Standard / Co-op logic
             const sync = Math.round((Math.max(voteValues.filter(x=>x==='good').length, voteValues.filter(x=>x==='bad').length)/voteValues.length)*100);
             if(sync >= 100) room.scores.coop++;
             room.players.forEach(p=>{ if(votes[p.id]===maj && !p.isSpectator) p.score++; });
