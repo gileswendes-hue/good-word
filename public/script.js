@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.87.4', 
+    APP_VERSION: '5.87.5', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -5527,18 +5527,7 @@ const Game = {
         this.setRandomFavicon();
         DOM = loadDOM();
         try {
-            // Center logo and make it refresh page on tap
-            if (DOM.header.logoArea) {
-                DOM.header.logoArea.style.cursor = 'pointer';
-                DOM.header.logoArea.onclick = () => window.location.reload();
-                // Center by adjusting parent
-                const parent = DOM.header.logoArea.parentElement;
-                if (parent) {
-                    parent.style.display = 'flex';
-                    parent.style.justifyContent = 'center';
-                    parent.style.width = '100%';
-                }
-            }
+            // Logo click-to-refresh is handled in HTML
             
             const vEl = document.querySelector('.version-indicator');
             if (vEl) {
