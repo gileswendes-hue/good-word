@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.87.5', 
+    APP_VERSION: '5.87.6', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -5330,12 +5330,12 @@ renderLobby() {
                 <!-- CREATE/JOIN CARD -->
                 <div class="bg-white p-6 rounded-2xl shadow-2xl text-center flex-1 animate-pop relative">
                     <button onclick="document.getElementById('mpMenu').remove()" class="absolute top-3 right-4 text-gray-400 text-xl hover:text-gray-600">&times;</button>
-                    <h2 class="text-2xl font-black mb-4 text-gray-800">CREATE OR JOIN</h2>
+                    <h2 class="text-2xl font-black mb-4 text-gray-800">MULTIPLAYER MODE</h2>
                     
                     <div class="flex flex-col gap-3">
                         <div>
                             <label class="text-xs font-bold text-gray-400 uppercase text-left block mb-1">Your Name</label>
-                            <input type="text" id="menuUsernameInput" placeholder="NAME" value="${currentName}" class="w-full p-3 border-2 border-gray-200 rounded-xl font-bold text-center">
+                            <input type="text" id="menuUsernameInput" placeholder="NAME" value="${currentName}" maxlength="16" class="w-full p-3 border-2 border-gray-200 rounded-xl font-bold text-center">
                         </div>
                         
                         <div>
@@ -5375,9 +5375,15 @@ renderLobby() {
                 
                 <!-- PUBLIC GAMES CARD -->
                 <div class="bg-white p-6 rounded-2xl shadow-2xl flex-1 animate-pop relative" style="animation-delay: 0.1s">
-                    <h2 class="text-2xl font-black mb-4 text-gray-800 flex items-center gap-2">
-                        <span>🌍</span> PUBLIC GAMES
-                    </h2>
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-2xl font-black text-gray-800 flex items-center gap-2">
+                            <span>🌍</span> PUBLIC GAMES
+                        </h2>
+                        <a href="https://www.facebook.com/groups/2647677235633381" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition text-sm font-bold">
+                            <img src="fblogo.png" alt="Facebook" class="w-5 h-5">
+                            <span class="hidden sm:inline">Join Group</span>
+                        </a>
+                    </div>
                     
                     <div id="publicGamesList" class="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
                         <div class="text-center py-8 text-gray-400">
