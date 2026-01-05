@@ -4831,7 +4831,7 @@ const RoomManager = {
     
     modeConfig: {
         'coop': { label: '🤝 Co-op Sync', desc: 'Vote together! Match with the Global Majority.', min: 2 }, 
-        'okstoopid': { label: '💘 OK Stoopid', desc: 'Couples Mode. Match each other!', min: 2, max: 2 },
+        'okstoopid': { label: '💘 OK Stoopid', desc: 'Couples Mode. Match each other quickly for the highest score!', min: 2, max: 2 },
         'versus': { label: '⚔️ Team Versus', desc: 'Red vs Blue. Best Team wins.', min: 2 }, 
         'vip': { label: '⭐ The VIP', desc: 'One player is the VIP. Everyone tries to match their vote!', min: 3 },
         'hipster': { label: '🕶️ Hipster Mode', desc: 'Be unique! Score by voting with the minority.', min: 3 },
