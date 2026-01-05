@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.87.15', 
+    APP_VERSION: '5.87.16', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -5327,13 +5327,17 @@ renderLobby() {
         const html = `
         <div id="lobbyModal" class="fixed inset-0 bg-gray-900 z-[9999] flex flex-col md:flex-row font-sans h-full">
             <div class="w-full md:w-1/3 bg-white p-4 md:p-6 flex flex-col border-b md:border-b-0 md:border-r border-gray-200 z-10 shadow-md md:shadow-none shrink-0 h-[40%] md:h-full overflow-hidden">
-<div class="flex justify-between md:flex-col md:items-center mb-4 md:mb-6 shrink-0">
-                    <div class="text-left md:text-center">
+			
+<div class="flex justify-between md:flex-col md:items-center mb-4 md:mb-6 shrink-0 w-full">
+                    <div class="text-left md:text-center w-full">
                         <div class="text-xs text-gray-400 font-bold">ROOM CODE</div>
                         <div class="text-4xl md:text-6xl font-black text-indigo-600 font-mono tracking-widest leading-none">${safeCode}</div>
                         ${privacyBadge}
                     </div>
-                    <img src="${qrSrc}" onclick="UIManager.expandQR('${qrSrc}')" class="rounded-lg w-20 h-20 md:w-32 md:h-32 border shadow-inner ml-4 md:ml-0 md:mx-auto md:mt-6 block cursor-pointer hover:opacity-80 transition bg-white">
+                    
+                    <div class="md:mt-6 w-auto md:w-full flex justify-end md:justify-center">
+                        <img src="${qrSrc}" onclick="UIManager.expandQR('${qrSrc}')" class="rounded-lg w-20 h-20 md:w-32 md:h-32 border shadow-inner cursor-pointer hover:opacity-80 transition bg-white block">
+                    </div>
                 </div>
                 
                 <div class="text-xs font-bold text-gray-400 uppercase mb-2 shrink-0">Players</div>
@@ -5420,23 +5424,21 @@ generateRandomCode() {
             this.socket.emit('getPublicGames');
         }
         
-        const html = `
+const html = `
         <div id="mpMenu" class="fixed inset-0 bg-black/80 z-[9999] flex items-start justify-center pt-8 md:items-center md:pt-0 backdrop-blur-sm p-4 overflow-y-auto">
-            <div class="flex flex-col md:flex-row gap-4 w-full max-w-3xl">
-                <!-- CREATE/JOIN CARD -->
-                <div class="bg-white p-6 rounded-2xl shadow-2xl text-center flex-1 animate-pop relative">
+            <div class="flex flex-col md:flex-row gap-4 w-full max-w-4xl">
+                
+                <div class="bg-white p-6 rounded-2xl shadow-2xl text-center flex-1 animate-pop relative border-t-4 border-indigo-500">
                     <button onclick="document.getElementById('mpMenu').remove()" class="absolute top-3 right-4 text-gray-400 text-xl hover:text-gray-600">&times;</button>
                     <h2 class="text-2xl font-black mb-4 text-gray-800">MULTIPLAYER MODE</h2>
                     
                     <div class="flex flex-col gap-3">
                         <div>
                             <label class="text-xs font-bold text-gray-400 uppercase text-left block mb-1">Your Name</label>
-                            <input type="text" id="menuUsernameInput" placeholder="NAME" value="${currentName}" maxlength="16" class="w-full p-3 border-2 border-gray-200 rounded-xl font-bold text-center">
+                            <input type="text" id="menuUsernameInput" placeholder="NAME" value="${currentName}" maxlength="16" class="w-full p-3 border-2 border-gray-200 rounded-xl font-bold text-center focus:border-indigo-500 outline-none">
                         </div>
                         
-					<div>
-					
-<div class="mb-4">
+                        <div class="mb-2">
                             <label class="text-xs font-bold text-gray-400 uppercase text-left block mb-1">Room Code</label>
                             <div class="flex gap-2 items-stretch">
                                 <input type="text" id="menuRoomCodeInput" placeholder="ENTER CODE" class="flex-1 p-3 border-2 border-gray-300 rounded-xl font-mono text-center text-xl uppercase focus:border-indigo-500 outline-none min-w-0" maxlength="10">
@@ -5447,7 +5449,6 @@ generateRandomCode() {
                             </div>
                         </div>
                         
-                        <!-- PUBLIC/PRIVATE TOGGLE -->
                         <div class="bg-gray-50 p-3 rounded-xl border border-gray-200">
                             <div class="flex items-center justify-between mb-2">
                                 <label class="text-sm font-bold text-gray-700 flex items-center gap-2">
@@ -5459,7 +5460,6 @@ generateRandomCode() {
                                 </button>
                             </div>
                             
-                            <!-- MAX PLAYERS (shown when public) -->
                             <div id="maxPlayersSection" class="hidden mt-3 pt-3 border-t border-gray-200">
                                 <div class="flex items-center justify-between">
                                     <label class="text-sm font-bold text-gray-600">Max Players</label>
@@ -5473,23 +5473,22 @@ generateRandomCode() {
                             </div>
                         </div>
                         
-                        <button onclick="RoomManager.submitEntry()" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 shadow-lg mt-2 transition">JOIN / CREATE</button>
+                        <button onclick="RoomManager.submitEntry()" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 shadow-lg mt-2 transition transform active:scale-95">JOIN / CREATE</button>
                     </div>
                 </div>
                 
-                <!-- PUBLIC GAMES CARD -->
-                <div class="bg-white p-6 rounded-2xl shadow-2xl flex-1 animate-pop relative" style="animation-delay: 0.1s">
+                <div class="bg-white p-6 rounded-2xl shadow-2xl flex-1 animate-pop relative border-t-4 border-green-500" style="animation-delay: 0.1s">
                     <div class="flex items-center justify-between mb-4">
                         <h2 class="text-2xl font-black text-gray-800 flex items-center gap-2">
                             <span>🌍</span> PUBLIC GAMES
                         </h2>
                         <a href="https://www.facebook.com/groups/2647677235633381" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition text-sm font-bold">
-                            <img src="fblogo.png" alt="Facebook" class="w-5 h-5">
-                            <span class="hidden sm:inline">Join Group</span>
+                            <img src="fblogo.png" alt="FB" class="w-5 h-5">
+                            <span class="hidden sm:inline">Group</span>
                         </a>
                     </div>
                     
-                    <div id="publicGamesList" class="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
+                    <div id="publicGamesList" class="space-y-2 max-h-80 overflow-y-auto custom-scrollbar">
                         <div class="text-center py-8 text-gray-400">
                             <div class="text-3xl mb-2">📡</div>
                             <p class="text-sm">Searching for games...</p>
@@ -5497,7 +5496,7 @@ generateRandomCode() {
                     </div>
                     
                     <button onclick="RoomManager.refreshPublicGames()" class="w-full mt-4 py-2 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition flex items-center justify-center gap-2">
-                        <span>🔄</span> Refresh
+                        <span>🔄</span> Refresh List
                     </button>
                 </div>
             </div>
