@@ -21,7 +21,14 @@ const GAME_DIALOGUE = {
             "anyone home?",
             "You can't find me, me spyder.",
             "# Why don't you ever wanna play?",
-            "# I'm tired of this piece of string..."
+            "# I'm tired of this piece of string...",
+            "Web design is my passion",
+            "Does my abdomen look big in this?",
+            "Counting legs... 1, 2... yep still 8.",
+            "Waiting for the fly-fi connection.",
+            "Spinning class starts at 5.",
+            "Anyone got any silk conditioner?",
+            "Just a friendly neighborhood spider..."
         ],
 
         // When clicked (50% chance Happy)
@@ -36,7 +43,15 @@ const GAME_DIALOGUE = {
             "Buy me dinner first!",
             "My favourite food is French flies",
             "Those fireflies are HOT 🔥",
-            "💤"
+            "💤",
+            "High eight!",
+            "Scratch my cephalothorax!",
+            "Stop, I'm blushing!",
+            "Wiggle wiggle!",
+            "I love attention!",
+            "You touch like a fly.",
+            "Pet the spider.",
+            "Boop!"
         ],
 
         // When clicked (50% chance Grumpy)
@@ -48,7 +63,15 @@ const GAME_DIALOGUE = {
             "Hiss!",
             "woof, I'm a dog.",
             "I'll catch you.",
-            "Nobody has fed me for weeks."
+            "Nobody has fed me for weeks.",
+            "No autographs.",
+            "My venom is tingling.",
+            "Do not disturb.",
+            "Talk to the butt.",
+            "Get off my lawn!",
+            "I'm not a dog!",
+            "Careful, I'm sticky.",
+            "Go poke a wasp."
         ],
 
         // When hunting real food
@@ -59,7 +82,14 @@ const GAME_DIALOGUE = {
             "Incoming!",
             "NOM",
             "I’ve got butterflies in my stomach",
-            "I need a light snack, got any glowbugs?"
+            "I need a light snack, got any glowbugs?",
+            "Target locked.",
+            "Swiggity swooty...",
+            "Prepare for the sticky!",
+            "Launch sequence initiated.",
+            "Did someone say lunch?",
+            "Mine! Mine! Mine!",
+            "Intercept course set."
         ],
 
         // When dropped on an empty web (Tricked)
@@ -70,7 +100,15 @@ const GAME_DIALOGUE = {
             "I felt something!",
             "I really need a video doorbell.",
             "Bloody kids!",
-            "Didn't even leave a note."
+            "Didn't even leave a note.",
+            "Pizza delivery?",
+            "Amazon package?",
+            "Is that a heavy one?",
+            "My spidey senses are tingling!",
+            "Did the doorbell ring?",
+            "I felt a wisp!",
+            "Big catch?!",
+            "Ooh, good vibrations!"
         ],
 
         // When realizing it was a trick (Retreating)
@@ -82,7 +120,15 @@ const GAME_DIALOGUE = {
             "My web!",
             "MATE!",
             "mush. Not funny.",
-            "Very hangry."
+            "Very hangry.",
+            "Just the wind...",
+            "Ghost fly?",
+            "Are you teasing me?",
+            "My disappointment is immeasurable.",
+            "Must be a glitch.",
+            "Phantom buzzing.",
+            "Lies! All lies!",
+            "I want a refund."
         ],
 
         // Reactions to specific food
@@ -91,10 +137,19 @@ const GAME_DIALOGUE = {
             "🐝": "Spicy snack!",
             "🦟": "Finally, quiet.",
             "🚁": "Tastes like metal!",
+            // New additions (assigned to potential new bugs)
+            "🦋": "Tastes like chicken.",
+            "🐛": "Finger lickin' good.",
+            "🐜": "Pure protein shake!",
+            "🪰": "Crunchy on the outside, soft on the inside.",
+            "🦗": "Needs a little salt.",
+            "🕷️": "Chef's kiss!",
+            "🐌": "Best meal of the week.",
+            "🦂": "Slimy... yet satisfying.",
             default: "Yummy!"
         },
 
-        // When the fly is saved before the spider gets there (Now an Array)
+        // When the fly is saved before the spider gets there
         missed: [
             "Too slow! 😠",
             "My lunch!",
@@ -105,7 +160,14 @@ const GAME_DIALOGUE = {
             "Denied!",
             "Come back!",
             "My web is empty.",
-            "Aw, crumbs."
+            "Slippery little sucker!",
+            "The one that got away...",
+            "I'm going vegan.",
+            "Wasn't hungry anyway.",
+            "Butterfingers!",
+            "Error 404: Fly not found.",
+            "Sad web noises.",
+            "I'll be in my room."
         ]
     }
 };
