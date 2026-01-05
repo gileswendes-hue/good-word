@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.87.9', 
+    APP_VERSION: '5.87.10', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -3711,13 +3711,12 @@ showKickConfirm(targetId, name) {
         document.body.appendChild(el);
     },
 
-    showProfile() {
+showProfile() {
         const modalId = 'profileModal';
         document.getElementById(modalId)?.remove();
 
-        // FIX: Ensure streak has a valid default value of 0, not undefined/-
-        const streak = State.data.streak || 0;
-        const total = State.data.totalVotes || 0;
+        const streak = State.data.daily?.streak || 0;
+        const total = State.data.voteCount || 0;
         const name = State.data.username || "Guest";
         
         const html = `
@@ -5398,6 +5397,19 @@ renderLobby() {
         }
     },
 
+generateRandomCode() {
+        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // Removed I, O, 0, 1 to avoid confusion
+        let result = "";
+        for (let i = 0; i < 5; i++) {
+            result += chars[Math.floor(Math.random() * chars.length)];
+        }
+        const input = document.getElementById('menuRoomCodeInput');
+        if (input) {
+            input.value = result;
+            input.focus();
+        }
+    },
+
     openMenu() {
         const existing = document.getElementById('mpMenu');
         if (existing) existing.remove();
@@ -5422,8 +5434,13 @@ renderLobby() {
                             <input type="text" id="menuUsernameInput" placeholder="NAME" value="${currentName}" maxlength="16" class="w-full p-3 border-2 border-gray-200 rounded-xl font-bold text-center">
                         </div>
                         
-                        <div>
-                            <label class="text-xs font-bold text-gray-400 uppercase text-left block mb-1">Room Code</label>
+					<div>
+                            <div class="flex justify-between items-end mb-1">
+                                <label class="text-xs font-bold text-gray-400 uppercase text-left block">Room Code</label>
+                                <button onclick="RoomManager.generateRandomCode()" class="text-xs font-bold text-indigo-500 hover:text-indigo-700 flex items-center gap-1 transition-colors">
+                                    <span>🎲</span> Random
+                                </button>
+                            </div>
                             <input type="text" id="menuRoomCodeInput" placeholder="ENTER CODE" class="w-full p-3 border-2 border-gray-300 rounded-xl font-mono text-center text-xl uppercase focus:border-indigo-500 outline-none" maxlength="10">
                         </div>
                         
