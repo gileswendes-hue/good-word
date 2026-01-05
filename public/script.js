@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.87.3', 
+    APP_VERSION: '5.87.4', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -5529,8 +5529,15 @@ const Game = {
         try {
             // Center logo and make it refresh page on tap
             if (DOM.header.logoArea) {
-                DOM.header.logoArea.style.cssText = 'cursor: pointer; margin: 0 auto; display: block; text-align: center;';
+                DOM.header.logoArea.style.cursor = 'pointer';
                 DOM.header.logoArea.onclick = () => window.location.reload();
+                // Center by adjusting parent
+                const parent = DOM.header.logoArea.parentElement;
+                if (parent) {
+                    parent.style.display = 'flex';
+                    parent.style.justifyContent = 'center';
+                    parent.style.width = '100%';
+                }
             }
             
             const vEl = document.querySelector('.version-indicator');
@@ -6601,14 +6608,14 @@ const StreakManager = {
             area.style.opacity = '0';
             setTimeout(() => {
                 if (showingGlobal) {
-                    indicator.textContent = "PAGE 1/2 [WORLD] ← swipe →";
+                    indicator.textContent = "PAGE 1/2 [WORLD]";
                     indicator.style.color = '#34d399'; 
                     let h = `<div class="text-cyan-400 text-sm crt-text mb-4 border-b-2 border-cyan-700 pb-1 font-black">GLOBAL RANKINGS</div>`;
                     if (topGlobal.length === 0) h += '<div class="text-gray-500 text-xs crt-text mt-8 text-center">NO DATA FOUND</div>';
                     else h += topGlobal.map((s,i) => renderRow(s, i, 'text-cyan-400')).join('');
                     area.innerHTML = h;
                 } else {
-                    indicator.textContent = "PAGE 2/2 [LOCAL] ← swipe →";
+                    indicator.textContent = "PAGE 2/2 [LOCAL]";
                     indicator.style.color = '#fbbf24'; 
                     let h = `<div class="text-yellow-400 text-sm crt-text mb-4 border-b-2 border-yellow-700 pb-1 font-black">${username.toUpperCase()}'S RECORDS</div>`;
                     if (localScores.length === 0) h += '<div class="text-gray-500 text-xs crt-text mt-8 text-center">PLAY TO SET SCORES</div>';
