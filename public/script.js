@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.87.2', 
+    APP_VERSION: '5.87.3', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4831,10 +4831,10 @@ const RoomManager = {
                 .mp-circular-text span {
                     position: absolute;
                     left: 50%;
-                    font-size: 6px;
+                    font-size: 7px;
                     font-weight: bold;
                     color: #6366f1;
-                    transform-origin: 0 28px;
+                    transform-origin: 0 33px;
                 }
             `;
             document.head.appendChild(style);
@@ -4845,7 +4845,7 @@ const RoomManager = {
         btn = document.createElement('button');
         btn.id = 'roomBtn';
         btn.className = 'fixed top-3 left-3 z-[60] bg-white rounded-full shadow-lg hover:bg-gray-50 transition border-2 border-indigo-100';
-        btn.style.cssText = 'width: 58px; height: 58px; padding: 0;';
+        btn.style.cssText = 'width: 68px; height: 68px; padding: 0;';
         
         // Generate circular text using individual rotated characters
         const text = 'MULTIPLAYER · ';
@@ -4858,7 +4858,7 @@ const RoomManager = {
         btn.innerHTML = `
             <div style="position: relative; width: 100%; height: 100%;">
                 <div class="mp-circular-text">${chars}</div>
-                <span style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 22px;">📡</span>
+                <span style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 26px;">📡</span>
             </div>`;
         btn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); this.openMenu(); };
         document.body.appendChild(btn);
@@ -5527,6 +5527,12 @@ const Game = {
         this.setRandomFavicon();
         DOM = loadDOM();
         try {
+            // Center logo and make it refresh page on tap
+            if (DOM.header.logoArea) {
+                DOM.header.logoArea.style.cssText = 'cursor: pointer; margin: 0 auto; display: block; text-align: center;';
+                DOM.header.logoArea.onclick = () => window.location.reload();
+            }
+            
             const vEl = document.querySelector('.version-indicator');
             if (vEl) {
                 vEl.textContent = `v${CONFIG.APP_VERSION} | Made by Gilxs in 12,025`;
@@ -5783,7 +5789,7 @@ const Game = {
                 const rank = topGood.findIndex(x => x.text === w.text) + 1;
                 DOM.daily.worldRank.textContent = rank > 0 ? '#' + rank : 'Unranked';
                 
-                // Reset daily mode BEFORE checkDailyStatus
+                // Reset daily mode
                 State.runtime.isDailyMode = false;
                 DOM.game.dailyBanner.classList.remove('daily-locked-mode');
                 DOM.game.buttons.notWord.style.visibility = '';
@@ -5792,9 +5798,9 @@ const Game = {
                 this.checkDailyStatus();
                 setTimeout(() => ModalManager.toggle('dailyResult', true), 600);
                 
-                // Restore normal word list
-                this.refreshData(false);
-                return; // Exit early since refreshData will handle nextWord
+                // Restore normal word list and show first word when ready
+                this.refreshData(true);
+                return; // Exit early - refreshData will handle displaying the next word
             }
 
            let m = '';
@@ -6575,17 +6581,19 @@ const StreakManager = {
 
         const renderRow = (s, i, color) => `
             <div class="flex justify-between items-center crt-text text-sm py-2 crt-row">
-                <div class="flex gap-3">
+                <div class="flex gap-3 items-center">
                     <span class="text-gray-500">#${(i+1).toString().padStart(2,'0')}</span>
-                    <span class="${color} font-black drop-shadow-[0_0_3px_rgba(255,255,255,0.5)]">${s.name.substring(0,3).toUpperCase()}</span>
+                    <span class="${color} font-black text-lg drop-shadow-[0_0_3px_rgba(255,255,255,0.5)]">${s.name.substring(0,3).toUpperCase()}</span>
                 </div>
-                <span class="text-white tracking-widest text-lg">${s.score.toString().padStart(4,'0')}</span>
+                <span class="text-white tracking-widest text-xl font-bold">${s.score.toString().padStart(4,'0')}</span>
             </div>`;
 
         const area = document.getElementById('hs-display-area');
         const indicator = document.getElementById('hs-page-indicator');
         
         let showingGlobal = true;
+        let touchStartX = 0;
+        let touchEndX = 0;
 
         const renderPage = () => {
             if(!document.getElementById('highScoreModal')) return;
@@ -6593,14 +6601,14 @@ const StreakManager = {
             area.style.opacity = '0';
             setTimeout(() => {
                 if (showingGlobal) {
-                    indicator.textContent = "PAGE 1/2 [WORLD]";
+                    indicator.textContent = "PAGE 1/2 [WORLD] ← swipe →";
                     indicator.style.color = '#34d399'; 
                     let h = `<div class="text-cyan-400 text-sm crt-text mb-4 border-b-2 border-cyan-700 pb-1 font-black">GLOBAL RANKINGS</div>`;
                     if (topGlobal.length === 0) h += '<div class="text-gray-500 text-xs crt-text mt-8 text-center">NO DATA FOUND</div>';
                     else h += topGlobal.map((s,i) => renderRow(s, i, 'text-cyan-400')).join('');
                     area.innerHTML = h;
                 } else {
-                    indicator.textContent = "PAGE 2/2 [LOCAL]";
+                    indicator.textContent = "PAGE 2/2 [LOCAL] ← swipe →";
                     indicator.style.color = '#fbbf24'; 
                     let h = `<div class="text-yellow-400 text-sm crt-text mb-4 border-b-2 border-yellow-700 pb-1 font-black">${username.toUpperCase()}'S RECORDS</div>`;
                     if (localScores.length === 0) h += '<div class="text-gray-500 text-xs crt-text mt-8 text-center">PLAY TO SET SCORES</div>';
@@ -6609,11 +6617,43 @@ const StreakManager = {
                 }
                 area.style.transition = 'opacity 0.2s';
                 area.style.opacity = '1';
-                showingGlobal = !showingGlobal;
-                this.loopTimer = setTimeout(renderPage, 4000);
             }, 200);
         };
+        
+        const switchPage = () => {
+            showingGlobal = !showingGlobal;
+            renderPage();
+            // Reset auto-switch timer
+            if (this.loopTimer) clearTimeout(this.loopTimer);
+            this.loopTimer = setTimeout(autoSwitch, 5000);
+        };
+        
+        const autoSwitch = () => {
+            if(!document.getElementById('highScoreModal')) return;
+            showingGlobal = !showingGlobal;
+            renderPage();
+            this.loopTimer = setTimeout(autoSwitch, 5000);
+        };
+        
+        // Swipe support
+        area.addEventListener('touchstart', (e) => {
+            touchStartX = e.changedTouches[0].screenX;
+        }, { passive: true });
+        
+        area.addEventListener('touchend', (e) => {
+            touchEndX = e.changedTouches[0].screenX;
+            const diff = touchStartX - touchEndX;
+            if (Math.abs(diff) > 50) { // Minimum swipe distance
+                switchPage();
+            }
+        }, { passive: true });
+        
+        // Click to switch page
+        area.style.cursor = 'pointer';
+        area.onclick = switchPage;
+        
         renderPage();
+        this.loopTimer = setTimeout(autoSwitch, 5000);
     },
     
     closeLeaderboard() {
