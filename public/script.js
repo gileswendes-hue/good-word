@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.87.17', 
+    APP_VERSION: '5.87.18', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1111,6 +1111,9 @@ const Physics = {
     balls: [],
     gx: 0,
     gy: 0.7,
+    grid: {},
+    gridSize: 70,
+    frameSkip: 0,
     handleOrientation(e) {
         const x = e.gamma || 0,
             y = e.beta || 0;
@@ -1119,17 +1122,49 @@ const Physics = {
         Physics.gx += (tx - Physics.gx) * 0.05;
         Physics.gy += (ty - Physics.gy) * 0.05
     },
+    getGridKey(x, y) {
+        return `${Math.floor(x / this.gridSize)},${Math.floor(y / this.gridSize)}`;
+    },
+    buildGrid() {
+        this.grid = {};
+        for (let i = 0; i < this.balls.length; i++) {
+            const b = this.balls[i];
+            const key = this.getGridKey(b.x + b.r, b.y + b.r);
+            if (!this.grid[key]) this.grid[key] = [];
+            this.grid[key].push(i);
+        }
+    },
+    getNeighbors(b) {
+        const cx = Math.floor((b.x + b.r) / this.gridSize);
+        const cy = Math.floor((b.y + b.r) / this.gridSize);
+        const neighbors = [];
+        for (let dx = -1; dx <= 1; dx++) {
+            for (let dy = -1; dy <= 1; dy++) {
+                const key = `${cx + dx},${cy + dy}`;
+                if (this.grid[key]) neighbors.push(...this.grid[key]);
+            }
+        }
+        return neighbors;
+    },
     run() {
         const W = window.innerWidth,
             H = window.innerHeight;
         const cylW = Math.min(W, 500),
             minX = (W - cylW) / 2,
             maxX = minX + cylW;
-        for (let s = 0; s < 8; s++) {
-            Physics.balls.forEach(b => {
+        const balls = Physics.balls;
+        const len = balls.length;
+        
+        // Reduce physics substeps on slower frames (adaptive quality)
+        const substeps = len > 50 ? 4 : 6;
+        
+        for (let s = 0; s < substeps; s++) {
+            // Update positions
+            for (let i = 0; i < len; i++) {
+                const b = balls[i];
                 if (!b.drag) {
-                    b.vx += Physics.gx / 8;
-                    b.vy += Physics.gy / 8;
+                    b.vx += Physics.gx / substeps;
+                    b.vy += Physics.gy / substeps;
                     b.x += b.vx;
                     b.y += b.vy;
                     b.vx *= 0.88;
@@ -1141,26 +1176,36 @@ const Physics = {
                     if (b.y < 0) { b.y = 0; b.vy *= -0.15 }
                     if (b.y > H - b.r * 2) { b.y = H - b.r * 2; b.vy *= -0.15 }
                 }
-            });
-            for (let i = 0; i < Physics.balls.length; i++) {
-                for (let j = i + 1; j < Physics.balls.length; j++) {
-                    const b1 = Physics.balls[i],
-                        b2 = Physics.balls[j];
+            }
+            
+            // Build spatial grid for collision detection
+            Physics.buildGrid();
+            
+            // Collision detection using spatial partitioning
+            const checked = new Set();
+            for (let i = 0; i < len; i++) {
+                const b1 = balls[i];
+                const neighbors = Physics.getNeighbors(b1);
+                for (const j of neighbors) {
+                    if (j <= i) continue;
+                    const pairKey = i < j ? `${i},${j}` : `${j},${i}`;
+                    if (checked.has(pairKey)) continue;
+                    checked.add(pairKey);
+                    
+                    const b2 = balls[j];
                     const dx = (b2.x + b2.r) - (b1.x + b1.r),
                         dy = (b2.y + b2.r) - (b1.y + b1.r);
-                    const dist = Math.sqrt(dx * dx + dy * dy),
+                    const distSq = dx * dx + dy * dy,
                         minDist = b1.r + b2.r + 0.5;
-                    if (dist < minDist && dist > 0) {
-                        const angle = Math.atan2(dy, dx),
-                            tx = (Math.cos(angle) * (minDist - dist)) / 2,
-                            ty = (Math.sin(angle) * (minDist - dist)) / 2;
-                        b1.x -= tx;
-                        b1.y -= ty;
-                        b2.x += tx;
-                        b2.y += ty;
+                    if (distSq < minDist * minDist && distSq > 0) {
+                        const dist = Math.sqrt(distSq);
+                        const overlap = (minDist - dist) / 2;
+                        const nx = dx / dist, ny = dy / dist;
+                        b1.x -= nx * overlap;
+                        b1.y -= ny * overlap;
+                        b2.x += nx * overlap;
+                        b2.y += ny * overlap;
                         if (!b1.drag && !b2.drag) {
-                            const nx = dx / dist,
-                                ny = dy / dist;
                             const p = 2 * (b1.vx * nx + b1.vy * ny - b2.vx * nx - b2.vy * ny) / 2;
                             b1.vx -= p * nx * 0.12;
                             b1.vy -= p * ny * 0.12;
@@ -1171,12 +1216,15 @@ const Physics = {
                 }
             }
         }
-        Physics.balls.forEach(b => {
-            b.el.style.transform = `translate(${Math.round(b.x)}px,${Math.round(b.y)}px)`;
+        
+        // Batch DOM updates with rounded positions for less jitter
+        for (let i = 0; i < len; i++) {
+            const b = balls[i];
+            b.el.style.transform = `translate3d(${Math.round(b.x)}px,${Math.round(b.y)}px,0)`;
             if (b.bubble) {
-                b.bubble.style.transform = `translate(${b.x+b.r}px,${b.y-20}px) translate(-50%,-100%)`
+                b.bubble.style.transform = `translate3d(${b.x+b.r}px,${b.y-20}px,0) translate(-50%,-100%)`
             }
-        });
+        }
         Effects.ballLoop = requestAnimationFrame(Physics.run)
     }
 };
@@ -2522,7 +2570,7 @@ spiderHunt(targetXPercent, targetYPercent, isFood) {
         const addBall = (type) => {
             const el = document.createElement('div');
             el.className = 'ball-particle';
-            el.style.width = el.style.height = `${r*2}px`;
+            el.style.cssText = `width:${r*2}px;height:${r*2}px;will-change:transform;`;
             let content = '';
             if (type === 'germ') {
                 content = '🦠';
@@ -2541,42 +2589,38 @@ spiderHunt(targetXPercent, targetYPercent, isFood) {
             const b = { el, x: minX + Math.random() * (maxX - minX), y: Math.random() * (H / 2), vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 0.5) * 10, r, drag: false, lastX: 0, lastY: 0, bubble: null, type, content };
             Physics.balls.push(b);
             let sx = 0, sy = 0;
-            el.onmousedown = el.ontouchstart = (e) => {
+            el.onpointerdown = (e) => {
                 b.drag = true;
                 b.vx = b.vy = 0;
-                const p = e.touches ? e.touches[0] : e;
-                b.lastX = p.clientX;
-                b.lastY = p.clientY;
-                sx = p.clientX;
-                sy = p.clientY;
-                e.preventDefault()
+                b.lastX = e.clientX;
+                b.lastY = e.clientY;
+                sx = e.clientX;
+                sy = e.clientY;
+                e.preventDefault();
+                el.setPointerCapture(e.pointerId);
             };
-            el.onmouseup = el.ontouchend = (e) => {
+            el.onpointerup = (e) => {
                 b.drag = false;
-                const p = e.changedTouches ? e.changedTouches[0] : e;
-                if ((type === 'germ' || type === 'rare') && Math.abs(p.clientX - sx) < 50 && Math.abs(p.clientY - sy) < 50) {
+                if ((type === 'germ' || type === 'rare') && Math.abs(e.clientX - sx) < 50 && Math.abs(e.clientY - sy) < 50) {
                     if (type === 'germ') State.unlockBadge('germ');
                     if (type === 'rare' && rareMap[content]) State.unlockBadge(rareMap[content]);
                     showThought(b, type === 'rare' ? `<span style="font-size:2em">${content}</span>` : null)
                 }
-            }
-        };
-        for (let i = 0; i < 80; i++) addBall(Math.random() < 0.005 ? 'rare' : 'normal');
-        for (let i = 0; i < 5; i++) addBall('germ');
-        window.onmouseup = window.ontouchend = () => { Physics.balls.forEach(b => b.drag = false) };
-        window.onmousemove = window.ontouchmove = (e) => {
-            const p = e.touches ? e.touches[0] : e;
-            Physics.balls.forEach(b => {
+            };
+            el.onpointermove = (e) => {
                 if (b.drag) {
-                    b.vx = (p.clientX - b.lastX) * 0.5;
-                    b.vy = (p.clientY - b.lastY) * 0.5;
-                    b.x = p.clientX - b.r;
-                    b.y = p.clientY - b.r;
-                    b.lastX = p.clientX;
-                    b.lastY = p.clientY
+                    b.vx = (e.clientX - b.lastX) * 0.5;
+                    b.vy = (e.clientY - b.lastY) * 0.5;
+                    b.x = e.clientX - b.r;
+                    b.y = e.clientY - b.r;
+                    b.lastX = e.clientX;
+                    b.lastY = e.clientY;
                 }
-            })
+            };
         };
+        // Reduced ball count for better performance (50 instead of 80)
+        for (let i = 0; i < 50; i++) addBall(Math.random() < 0.008 ? 'rare' : 'normal');
+        for (let i = 0; i < 4; i++) addBall('germ');
         Physics.run()
     },
     
