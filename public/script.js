@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.87.18', 
+    APP_VERSION: '5.88.0', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -144,6 +144,7 @@ const loadDOM = () => ({
             largeText: document.getElementById('toggleLargeText'),
             tilt: document.getElementById('toggleTilt'),
             mirror: document.getElementById('toggleMirror'),
+            hideMultiplayer: document.getElementById('toggleHideMultiplayer'),
             mute: null, 
             zeroVotes: null
         }
@@ -183,7 +184,9 @@ const DEFAULT_SETTINGS = {
     arachnophobiaMode: false,
     randomizeTheme: true,
 	noStreaksMode: false,
-	controversialOnly: false
+	controversialOnly: false,
+    hideMultiplayer: false,
+    extremeDrinkingMode: false
 };
 
 const State = {
@@ -1389,7 +1392,30 @@ async fetchKidsWords() {
             console.error("Failed to fetch leaderboard:", e);
             return []; 
         }
-    } 
+    },
+    
+    async fetchGlobalStatsHistory() {
+        try {
+            const r = await fetch('/api/stats/history');
+            if (!r.ok) return [];
+            return await r.json();
+        } catch (e) {
+            console.error("Failed to fetch global stats history:", e);
+            return [];
+        }
+    },
+
+    async submitGlobalSnapshot(totalWords, totalVotes, goodVotes, badVotes) {
+        try {
+            await fetch('/api/stats/snapshot', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ totalWords, totalVotes, goodVotes, badVotes })
+            });
+        } catch (e) {
+            console.warn("Failed to submit global snapshot:", e);
+        }
+    }
 };
 
 const ThemeManager = {
@@ -4072,6 +4098,11 @@ init() {
                 html += mkTog('toggleLights', '🎄 Christmas Lights', s.showLights, 'text-green-600');
                 html += `</div></div>`;
 
+                // 5. INTERFACE
+                html += `<div><h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 border-b border-gray-100 pb-1">Interface</h3><div class="space-y-4">`;
+                html += mkTog('toggleHideMultiplayer', 'Hide Multiplayer Button', s.hideMultiplayer);
+                html += `</div></div>`;
+
 				html += `<div class="mt-8 pt-4 border-t-2 border-gray-100">
                     <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Data Management</h3>
                     <p class="text-xs text-gray-500 mb-4">Please clear local data or back up your game statistics and achievements here.</p>
@@ -4150,6 +4181,17 @@ init() {
                     State.save('settings', { ...State.data.settings, largeText: e.target.checked });
                     Accessibility.apply();
                 };
+				
+				// Hide Multiplayer toggle
+                const hideMultiplayerToggle = document.getElementById('toggleHideMultiplayer');
+                if (hideMultiplayerToggle) {
+                    hideMultiplayerToggle.onchange = e => {
+                        State.save('settings', { ...State.data.settings, hideMultiplayer: e.target.checked });
+                        const roomBtn = document.getElementById('roomBtn');
+                        if (roomBtn) roomBtn.style.display = e.target.checked ? 'none' : 'block';
+                    };
+                }
+				
 				document.getElementById('toggleMute').onchange = e => {
                     State.save('settings', { ...State.data.settings, muteSounds: e.target.checked });
                     SoundManager.updateMute();
@@ -4853,6 +4895,7 @@ const RoomManager = {
     currentMode: 'coop',
     currentWordCount: 10,
     drinkingMode: false,
+    extremeDrinkingMode: false,
     players: [],
     
     // ROLE STATE
@@ -5064,6 +5107,7 @@ const RoomManager = {
             this.currentMode = data.mode || 'coop';
             this.currentWordCount = parseInt(data.maxWords || 10);
             this.drinkingMode = data.drinkingMode || false;
+            this.extremeDrinkingMode = data.extremeDrinkingMode || false;
             this.players = data.players || [];
             this.isPublic = data.isPublic || false;
             this.maxPlayers = data.maxPlayers || 8;
@@ -5196,6 +5240,7 @@ cleanupMultiplayer() {
             mode: this.currentMode, 
             rounds: this.currentWordCount, 
             drinking: this.drinkingMode,
+            extremeDrinking: this.extremeDrinkingMode,
             theme: State.data.currentTheme 
         };
         this.socket.emit('updateSettings', payload);
@@ -5223,6 +5268,17 @@ cleanupMultiplayer() {
     toggleDrinking(isChecked) {
         if (!this.isHost) return;
         this.drinkingMode = isChecked;
+        // Reset extreme mode if drinking is turned off
+        if (!isChecked) {
+            this.extremeDrinkingMode = false;
+        }
+        this.renderLobby();
+        this.emitUpdate();
+    },
+
+    toggleExtremeDrinking(isChecked) {
+        if (!this.isHost) return;
+        this.extremeDrinkingMode = isChecked;
         this.renderLobby();
         this.emitUpdate();
     },
@@ -5351,17 +5407,24 @@ renderLobby() {
         // Hide drinking mode for kids mode
         let drinkingHtml = '';
         if (activeMode !== 'kids') {
+            const extremeMode = this.extremeDrinkingMode || false;
             if (this.isHost) {
                 drinkingHtml = `
                     <div class="flex items-center justify-between bg-yellow-50 p-3 rounded-xl border border-yellow-200 mt-2">
                         <label class="text-sm font-bold text-yellow-800 flex items-center gap-2"><span>🍺</span> Drinking Mode</label>
                         <input type="checkbox" onchange="window.RoomManager.toggleDrinking(this.checked)" ${activeDrinking ? 'checked' : ''} class="w-5 h-5 text-yellow-600 rounded focus:ring-yellow-500 cursor-pointer">
                     </div>
+                    ${activeDrinking ? `
+                    <div class="flex items-center justify-between bg-red-50 p-3 rounded-xl border border-red-300 mt-2 animate-fade-in">
+                        <label class="text-sm font-bold text-red-800 flex items-center gap-2"><span>🔥</span> Extreme Mode <span class="text-xs font-normal">(More penalties)</span></label>
+                        <input type="checkbox" onchange="window.RoomManager.toggleExtremeDrinking(this.checked)" ${extremeMode ? 'checked' : ''} class="w-5 h-5 text-red-600 rounded focus:ring-red-500 cursor-pointer">
+                    </div>
+                    ` : ''}
                 `;
             } else if (activeDrinking) {
                 drinkingHtml = `
                     <div class="flex items-center justify-center gap-2 bg-yellow-100 p-2 rounded-xl border border-yellow-300 mt-2 text-yellow-800 font-bold text-sm">
-                        <span>🍺</span> DRINKING MODE ACTIVE
+                        <span>🍺</span> DRINKING MODE ACTIVE ${extremeMode ? '<span class="text-red-600 ml-2">🔥 EXTREME</span>' : ''}
                     </div>
                 `;
             }
@@ -5773,6 +5836,12 @@ const Game = {
 
             State.init();
             RoomManager.init();
+            
+            // Apply hide multiplayer setting on load
+            if (State.data.settings.hideMultiplayer) {
+                const roomBtn = document.getElementById('roomBtn');
+                if (roomBtn) roomBtn.style.display = 'none';
+            }
             
             DOM.inputs.username.value = State.data.username === 'Unknown' ? '' : State.data.username;
             DOM.inputs.username.addEventListener('change', (e) => State.save('username', e.target.value.trim() || 'Guest'));
@@ -6304,7 +6373,7 @@ checkDailyStatus() {
         lbContainer.innerHTML = html;
     },
 
-    renderGraphs() {
+    async renderGraphs() {
         const w = State.runtime.allWords;
         if (!w || w.length === 0) return;
         const drawText = (ctx, text, x, y, color = "#666", size = 12) => {
@@ -6313,6 +6382,21 @@ checkDailyStatus() {
             ctx.textAlign = "center";
             ctx.fillText(text, x, y);
         };
+
+        // Fetch global stats history for both charts
+        let globalHistory = [];
+        try {
+            globalHistory = await API.fetchGlobalStatsHistory();
+        } catch (e) {
+            console.warn("Could not fetch global stats history:", e);
+        }
+
+        // Also submit current snapshot to server
+        const totalGood = w.reduce((a, b) => a + (b.goodVotes || 0), 0);
+        const totalBad = w.reduce((a, b) => a + (b.badVotes || 0), 0);
+        const totalVotes = totalGood + totalBad;
+        API.submitGlobalSnapshot(w.length, totalVotes, totalGood, totalBad);
+
         const cvsScatter = document.getElementById('scatterChartCanvas');
         if (cvsScatter) {
             const ctx = cvsScatter.getContext('2d');
@@ -6366,6 +6450,97 @@ checkDailyStatus() {
                 ctx.fill();
             });
         }
+        
+        // VOTE HISTORY CHART - Total votes over time (from global stats)
+        const cvsVoteHistory = document.getElementById('voteHistoryCanvas');
+        if (cvsVoteHistory) {
+            const ctx = cvsVoteHistory.getContext('2d');
+            const W = cvsVoteHistory.width;
+            const H = cvsVoteHistory.height;
+            const P = 50; 
+            const GRAPH_H = H - 2 * P;
+            const Y_PLOT_MAX = P;      
+            const Y_PLOT_MIN = H - P;  
+            ctx.clearRect(0, 0, W, H);
+            
+            // Use global history or fall back to computed value
+            let voteHistory = globalHistory.filter(h => h.totalVotes > 0);
+            if (voteHistory.length === 0) {
+                const today = new Date().toISOString().split('T')[0];
+                voteHistory = [{ date: today, totalVotes: totalVotes }];
+            }
+            
+            const maxVotes = Math.max(...voteHistory.map(h => h.totalVotes || 0), 1000);
+            const Y_MIN_VALUE = 0;
+            const Y_MAX_VALUE = Math.ceil(maxVotes / 10000) * 10000 || 100000;
+            const VALUE_RANGE = Y_MAX_VALUE - Y_MIN_VALUE;
+            
+            // Axes
+            ctx.beginPath();
+            ctx.strokeStyle = "#ccc";
+            ctx.lineWidth = 1;
+            ctx.moveTo(P, Y_PLOT_MAX); ctx.lineTo(P, Y_PLOT_MIN); ctx.lineTo(W - P, Y_PLOT_MIN);
+            ctx.stroke();
+            
+            const getYVotes = (count) => {
+                if (count <= Y_MIN_VALUE) return Y_PLOT_MIN; 
+                const plotRatio = count / VALUE_RANGE;
+                return Y_PLOT_MIN - plotRatio * GRAPH_H;
+            };
+            
+            // Y-axis labels
+            ctx.textAlign = "right";
+            for (let i = 0; i <= 4; i++) {
+                const val = Math.round(Y_MAX_VALUE * i / 4);
+                const y = getYVotes(val);
+                ctx.strokeStyle = "#e5e7eb";
+                ctx.beginPath();
+                ctx.moveTo(P, y); ctx.lineTo(W - P, y);
+                ctx.stroke();
+                drawText(ctx, val.toLocaleString(), P - 5, y + 5, "#666", 9);
+            }
+            
+            // Draw line
+            if (voteHistory.length > 0) {
+                const xDivisor = voteHistory.length > 1 ? voteHistory.length - 1 : 1;
+                ctx.beginPath();
+                ctx.strokeStyle = "#10b981"; // Green for votes
+                ctx.lineWidth = 3;
+                voteHistory.forEach((h, i) => {
+                    const x = P + (i / xDivisor) * (W - 2 * P);
+                    const y = getYVotes(h.totalVotes || 0);
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+                
+                // Draw points
+                voteHistory.forEach((h, i) => {
+                    const x = P + (i / xDivisor) * (W - 2 * P);
+                    const y = getYVotes(h.totalVotes || 0);
+                    ctx.beginPath();
+                    ctx.fillStyle = "#10b981";
+                    ctx.arc(x, y, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                    if (i === voteHistory.length - 1) {
+                         ctx.beginPath();
+                         ctx.strokeStyle = "#ffffff";
+                         ctx.lineWidth = 2;
+                         ctx.arc(x, y, 6, 0, Math.PI * 2);
+                         ctx.stroke();
+                    }
+                });
+            }
+            
+            drawText(ctx, "Time →", W / 2, H - 5, "#999", 10);
+            ctx.save();
+            ctx.translate(12, H / 2);
+            ctx.rotate(-Math.PI / 2);
+            drawText(ctx, "Total Votes →", 0, 0, "#999", 10);
+            ctx.restore();
+        }
+
+        // DICTIONARY LINE CHART - Uses global history for all users
         const cvsLine = document.getElementById('lineChartCanvas');
         if (cvsLine) {
             const ctx = cvsLine.getContext('2d');
@@ -6376,11 +6551,19 @@ checkDailyStatus() {
             const Y_PLOT_MAX = P;      
             const Y_PLOT_MIN = H - P;  
             ctx.clearRect(0, 0, W, H);
-            let history = State.data.wordHistory || [];
+            
+            // Use global history if available, otherwise fall back to local
+            let history = globalHistory.filter(h => h.totalWords > 0);
+            if (history.length === 0) {
+                history = State.data.wordHistory || [];
+            }
             if (history.length === 0) {
                 const today = new Date().toISOString().split('T')[0];
-                history = [{ date: today, count: w.length }];
+                history = [{ date: today, totalWords: w.length, count: w.length }];
             }
+            // Normalize to have count property
+            history = history.map(h => ({ ...h, count: h.totalWords || h.count || 0 }));
+            
             const currentMaxData = Math.max(...history.map(h => h.count), w.length);
             const Y_MIN_VALUE = 3000;
             const SOFT_MAX = 6000;
