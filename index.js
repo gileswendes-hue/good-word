@@ -137,8 +137,20 @@ io.on('connection', (socket) => {
                 readyConfirms: new Set(), scores: { red: 0, blue: 0, coop: 0 }, 
                 vipId: null, traitorId: null, wordStartTime: 0, wordTimer: null,
                 isPublic: isPublic || false,
-                maxPlayers: maxPlayers || 8
+                maxPlayers: maxPlayers || 8,
+                lastActivity: Date.now()
             };
+        } else {
+            // Update lastActivity for existing room
+            rooms[code].lastActivity = Date.now();
+            // If rejoining, preserve public status (don't let it become private)
+            // Only update isPublic if explicitly set to true (making it public)
+            if (isPublic === true) {
+                rooms[code].isPublic = true;
+            }
+            if (maxPlayers && maxPlayers > rooms[code].maxPlayers) {
+                rooms[code].maxPlayers = maxPlayers;
+            }
         }
         const room = rooms[code];
         const isSpectator = (room.state === 'playing' || room.state === 'drinking');
@@ -150,6 +162,14 @@ io.on('connection', (socket) => {
             socket.emit('gameStarted', { totalWords: room.maxWords, mode: room.mode });
             if (room.state === 'drinking') socket.emit('drinkPenalty', { drinkers: [], msg: "Waiting..." });
             else socket.emit('nextWord', { word: room.words[room.wordIndex], wordCurrent: room.wordIndex + 1, wordTotal: room.maxWords });
+        }
+    });
+    
+    // Keep public room alive / reannounce
+    socket.on('keepAlive', ({ roomCode }) => {
+        const code = roomCode?.toUpperCase();
+        if (rooms[code]) {
+            rooms[code].lastActivity = Date.now();
         }
     });
 
@@ -326,11 +346,47 @@ function processGameEnd(roomCode, reason) {
     if (!room) return;
     room.state = 'lobby';
     let msg = reason || "Game Over!";
+    let okStoopidResult = null;
+    
     if (room.mode === 'traitor') {
         const sync = room.maxWords > 0 ? ((room.scores.coop || 0) / room.maxWords) * 100 : 0;
         msg = (sync === 100) ? "TEAM WINS! Perfect Sync!" : "TRAITOR WINS! The sync was broken.";
+    } else if (room.mode === 'okstoopid' && room.okStoopidData) {
+        const data = room.okStoopidData;
+        const matchRate = data.totalRounds > 0 ? (data.matches / data.totalRounds) : 0;
+        const avgTimeDiff = data.matches > 0 ? (data.totalTimeDiff / data.matches) : 10000;
+        
+        // 80% vote matching, 20% speed bonus
+        // Speed bonus: max 20% if avg time diff < 500ms, scales down to 0% at 5000ms
+        const speedBonus = Math.max(0, Math.min(20, 20 - (avgTimeDiff / 250)));
+        
+        // Weight by number of rounds - more rounds = more reliable
+        // Bonus multiplier: 1.0 at 5 rounds, up to 1.2 at 25+ rounds
+        const roundBonus = Math.min(1.2, 0.8 + (data.totalRounds * 0.02));
+        
+        const baseCompatibility = (matchRate * 80) + speedBonus;
+        const finalCompatibility = Math.min(100, Math.round(baseCompatibility * roundBonus));
+        
+        okStoopidResult = {
+            compatibility: finalCompatibility,
+            matches: data.matches,
+            totalRounds: data.totalRounds,
+            matchRate: Math.round(matchRate * 100)
+        };
+        msg = `💕 ${finalCompatibility}% Compatible!`;
+        
+        // Clear the tracking data
+        room.okStoopidData = null;
     }
-    io.to(roomCode).emit('gameOver', { scores: room.scores, rankings: [...room.players].sort((a,b)=>b.score-a.score), mode: room.mode, msg, specialRoleId: room.traitorId || room.vipId });
+    
+    io.to(roomCode).emit('gameOver', { 
+        scores: room.scores, 
+        rankings: [...room.players].sort((a,b)=>b.score-a.score), 
+        mode: room.mode, 
+        msg, 
+        specialRoleId: room.traitorId || room.vipId,
+        okStoopidResult
+    });
     emitUpdate(roomCode);
 }
 
@@ -471,6 +527,40 @@ function finishWord(roomCode) {
                     ? (useGlobal ? `Global Minority: ${targetMinority.toUpperCase()}` : `Minority: ${targetMinority.toUpperCase()}`)
                     : `It's a tie! No points.`
             };
+        } else if (room.mode === 'okstoopid') {
+            // OK Stoopid: Couples mode - 2 players try to match
+            // Track matches per round for final compatibility calculation
+            const playerIds = room.players.filter(p => !p.isSpectator).map(p => p.id);
+            if (playerIds.length === 2) {
+                const vote1 = votes[playerIds[0]];
+                const vote2 = votes[playerIds[1]];
+                const time1 = room.currentVoteTimes[playerIds[0]] || 999999;
+                const time2 = room.currentVoteTimes[playerIds[1]] || 999999;
+                
+                // Initialize tracking if needed
+                if (!room.okStoopidData) {
+                    room.okStoopidData = { matches: 0, totalRounds: 0, totalTimeDiff: 0 };
+                }
+                room.okStoopidData.totalRounds++;
+                
+                const matched = (vote1 && vote2 && vote1 === vote2);
+                if (matched) {
+                    room.okStoopidData.matches++;
+                    // Track time difference for speed bonus
+                    const timeDiff = Math.abs(time1 - time2);
+                    room.okStoopidData.totalTimeDiff += timeDiff;
+                    
+                    // Both players get points for matching
+                    room.players.forEach(p => {
+                        if (!p.isSpectator) p.score++;
+                    });
+                    resultData = { msg: `💕 Match! You both voted ${vote1.toUpperCase()}!` };
+                } else {
+                    resultData = { msg: `💔 No match!` };
+                }
+            } else {
+                resultData = { msg: `Need exactly 2 players!` };
+            }
         } else {
             // Standard / Co-op logic
             const sync = Math.round((Math.max(voteValues.filter(x=>x==='good').length, voteValues.filter(x=>x==='bad').length)/voteValues.length)*100);
