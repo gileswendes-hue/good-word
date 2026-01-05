@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.87.14', 
+    APP_VERSION: '5.87.15', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -5326,13 +5326,14 @@ renderLobby() {
 
         const html = `
         <div id="lobbyModal" class="fixed inset-0 bg-gray-900 z-[9999] flex flex-col md:flex-row font-sans h-full">
-            <div class="flex justify-between md:block items-center mb-2 md:mb-6 shrink-0">
+            <div class="w-full md:w-1/3 bg-white p-4 md:p-6 flex flex-col border-b md:border-b-0 md:border-r border-gray-200 z-10 shadow-md md:shadow-none shrink-0 h-[40%] md:h-full overflow-hidden">
+<div class="flex justify-between md:flex-col md:items-center mb-4 md:mb-6 shrink-0">
                     <div class="text-left md:text-center">
                         <div class="text-xs text-gray-400 font-bold">ROOM CODE</div>
                         <div class="text-4xl md:text-6xl font-black text-indigo-600 font-mono tracking-widest leading-none">${safeCode}</div>
                         ${privacyBadge}
                     </div>
-                    <img src="${qrSrc}" onclick="UIManager.expandQR('${qrSrc}')" class="rounded-lg w-16 h-16 md:w-32 md:h-32 border shadow-inner ml-4 md:ml-0 md:mx-auto md:mt-5 cursor-pointer hover:opacity-80 transition block">
+                    <img src="${qrSrc}" onclick="UIManager.expandQR('${qrSrc}')" class="rounded-lg w-20 h-20 md:w-32 md:h-32 border shadow-inner ml-4 md:ml-0 md:mx-auto md:mt-6 block cursor-pointer hover:opacity-80 transition bg-white">
                 </div>
                 
                 <div class="text-xs font-bold text-gray-400 uppercase mb-2 shrink-0">Players</div>
@@ -5437,9 +5438,9 @@ generateRandomCode() {
 					
 <div class="mb-4">
                             <label class="text-xs font-bold text-gray-400 uppercase text-left block mb-1">Room Code</label>
-                            <div class="flex gap-2">
-                                <input type="text" id="menuRoomCodeInput" placeholder="ENTER CODE" class="flex-1 p-3 border-2 border-gray-300 rounded-xl font-mono text-center text-xl uppercase focus:border-indigo-500 outline-none" maxlength="10">
-                                <button onclick="RoomManager.generateRandomCode()" class="bg-gray-100 hover:bg-indigo-100 text-indigo-600 font-bold px-3 md:px-4 rounded-xl border-2 border-gray-200 hover:border-indigo-200 transition-colors flex items-center gap-2 whitespace-nowrap text-xs md:text-sm">
+                            <div class="flex gap-2 items-stretch">
+                                <input type="text" id="menuRoomCodeInput" placeholder="ENTER CODE" class="flex-1 p-3 border-2 border-gray-300 rounded-xl font-mono text-center text-xl uppercase focus:border-indigo-500 outline-none min-w-0" maxlength="10">
+                                <button onclick="RoomManager.generateRandomCode()" class="bg-gray-100 hover:bg-indigo-100 text-indigo-600 font-bold px-3 md:px-4 rounded-xl border-2 border-gray-200 hover:border-indigo-200 transition-colors flex items-center justify-center gap-2 whitespace-nowrap text-xs md:text-sm">
                                     <span>🎲</span> 
                                     <span>Random <span class="hidden sm:inline">Code</span></span>
                                 </button>
@@ -5484,7 +5485,7 @@ generateRandomCode() {
                         </h2>
                         <a href="https://www.facebook.com/groups/2647677235633381" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition text-sm font-bold">
                             <img src="fblogo.png" alt="Facebook" class="w-5 h-5">
-                            <span class="hidden sm:inline">Support Group!</span>
+                            <span class="hidden sm:inline">Join Group</span>
                         </a>
                     </div>
                     
