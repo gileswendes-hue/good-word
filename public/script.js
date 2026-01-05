@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.87.11', 
+    APP_VERSION: '5.87.12', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -5436,8 +5436,13 @@ generateRandomCode() {
                         
 					<div>
 					
-					<div>
-                            <label class="text-xs font-bold text-gray-400 uppercase text-left block mb-1">Room Code</label>
+<div class="mb-4">
+                            <div class="flex justify-between items-end mb-1">
+                                <label class="text-xs font-bold text-gray-400 uppercase text-left block">Room Code</label>
+                                <button onclick="RoomManager.generateRandomCode()" class="text-xs font-bold text-indigo-500 hover:text-indigo-700 flex items-center gap-1 transition-colors">
+                                    <span>🎲</span> Random
+                                </button>
+                            </div>
                             <div class="flex gap-2">
                                 <input type="text" id="menuRoomCodeInput" placeholder="ENTER CODE" class="flex-1 p-3 border-2 border-gray-300 rounded-xl font-mono text-center text-xl uppercase focus:border-indigo-500 outline-none" maxlength="10">
                                 <button onclick="RoomManager.generateRandomCode()" class="bg-gray-100 hover:bg-indigo-100 text-indigo-600 font-bold p-3 rounded-xl border-2 border-gray-200 hover:border-indigo-200 transition-colors" title="Generate Random Code">
