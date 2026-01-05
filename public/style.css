@@ -448,18 +448,20 @@ body.theme-plymouth { background: linear-gradient(to bottom, #0a192f 0%, #1c3a5e
 body.theme-ballpit { background: linear-gradient(135deg, #4ade80 0%, #60a5fa 100%) !important; }
 .theme-ballpit #gameCard, .theme-ballpit .ranking-card { background-color: rgba(255, 255, 255, 0.85) !important; border: 3px solid #facc15 !important; box-shadow: 0 10px 0 rgba(0, 0, 0, 0.1) !important; }
 .theme-ballpit #wordDisplay { color: #dc2626 !important; text-shadow: 2px 2px 0px #facc15; }
-.theme-ballpit #ballpit-effect { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 5; overflow: hidden; touch-action: none; }
+.theme-ballpit #ballpit-effect { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 5; overflow: hidden; touch-action: none; contain: layout style; }
 .ball-particle {
     position: absolute;
     border-radius: 50%;
-    box-shadow: inset -5px -5px 10px rgba(0, 0, 0, 0.3), 2px 2px 5px rgba(0, 0, 0, 0.2);
+    box-shadow: inset -4px -4px 8px rgba(0, 0, 0, 0.25);
     cursor: grab;
     touch-action: none;
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 2rem;
+    font-size: 1.8rem;
     user-select: none;
+    contain: layout style;
+    backface-visibility: hidden;
 }
 .ball-particle:active { cursor: grabbing; }
 .thought-bubble {
@@ -484,8 +486,8 @@ body.theme-ballpit { background: linear-gradient(135deg, #4ade80 0%, #60a5fa 100
 }
 .thought-bubble .dot-1 { position: absolute; bottom: -8px; left: 50%; margin-left: -5px; width: 10px; height: 10px; background: white; border-radius: 50%; border: 1px solid #ccc; }
 .thought-bubble .dot-2 { position: absolute; bottom: -16px; left: 50%; margin-left: 5px; width: 6px; height: 6px; background: white; border-radius: 50%; border: 1px solid #ccc; }
-@keyframes wiggle-spin { 0%, 100% { transform: rotate(-5deg) scale(0.95); } 50% { transform: rotate(5deg) scale(1.05); } }
-.ball-content { display: block; animation: wiggle-spin 2s ease-in-out infinite; pointer-events: none; }
+@keyframes wiggle-spin { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+.ball-content { display: block; animation: wiggle-spin 3s ease-in-out infinite; pointer-events: none; will-change: transform; }
 .interactable-ball { cursor: pointer !important; }
 
 /* --- SPACE THEME --- */
