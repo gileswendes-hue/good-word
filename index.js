@@ -215,6 +215,10 @@ io.on('connection', (socket) => {
         if (room.mode === 'versus') {
             const shuffled = shuffle([...room.players]);
             shuffled.forEach((p, i) => { const op = room.players.find(rp => rp.id === p.id); if(op) op.team = (i % 2 === 0) ? 'red' : 'blue'; });
+            // Notify each player of their team
+            room.players.forEach(p => {
+                io.to(p.id).emit('teamAssigned', { team: p.team });
+            });
         } else if (room.mode === 'traitor') {
             const potential = room.players.filter(p => !p.isSpectator);
             if (potential.length > 0) {
