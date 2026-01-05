@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.87.16', 
+    APP_VERSION: '5.87.17', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -2914,15 +2914,14 @@ const UIManager = {
             }, 5000)
         }, 150)
     },
-    updateStats() {
+	
+updateStats() {
         const w = State.runtime.allWords;
         if (!w.length) return;
         
-        if (State.data.settings.noStreaksMode) {
-             DOM.header.streak.textContent = '-';
-        } else {
-             DOM.header.streak.textContent = State.data.daily.streak || 0;
-        }
+        // FIX: Always show daily streak in header, ignoring noStreaksMode (which is only for in-game counters)
+        DOM.header.streak.textContent = State.data.daily.streak || 0;
+
         DOM.header.userVotes.textContent = State.data.voteCount.toLocaleString();
         
         const totalGood = w.reduce((a, b) => a + (b.goodVotes || 0), 0);
