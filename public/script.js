@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.87.6', 
+    APP_VERSION: '5.87.7', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -3420,15 +3420,24 @@ displayWord(w) {
         ind.style.opacity = active ? '1' : '0';
     },
 
-   showCountdown(seconds, callback, isTraitor = false) {
+   showCountdown(seconds, callback, isTraitor = false, team = null) {
         const old = document.getElementById('game-countdown');
         if (old) old.remove();
 
         // 1. Dynamic Background & Text
-        const bgClass = isTraitor ? 'bg-red-900' : 'bg-indigo-900';
-        const roleText = isTraitor 
-            ? '<div class="text-red-400 text-3xl font-black animate-pulse mt-4 tracking-widest border-2 border-red-500 px-4 py-1 rounded">YOU ARE THE TRAITOR</div>' 
-            : '<div class="text-indigo-300 text-xl font-bold mt-4 tracking-widest opacity-50">GET READY</div>';
+        let bgClass = 'bg-indigo-900';
+        let roleText = '<div class="text-indigo-300 text-xl font-bold mt-4 tracking-widest opacity-50">GET READY</div>';
+        
+        if (isTraitor) {
+            bgClass = 'bg-red-900';
+            roleText = '<div class="text-red-400 text-3xl font-black animate-pulse mt-4 tracking-widest border-2 border-red-500 px-4 py-1 rounded">YOU ARE THE TRAITOR</div>';
+        } else if (team === 'red') {
+            bgClass = 'bg-red-800';
+            roleText = '<div class="text-red-300 text-3xl font-black animate-pulse mt-4 tracking-widest border-2 border-red-400 px-4 py-2 rounded">🔴 TEAM RED</div>';
+        } else if (team === 'blue') {
+            bgClass = 'bg-blue-800';
+            roleText = '<div class="text-blue-300 text-3xl font-black animate-pulse mt-4 tracking-widest border-2 border-blue-400 px-4 py-2 rounded">🔵 TEAM BLUE</div>';
+        }
 
         const el = document.createElement('div');
         el.id = 'game-countdown';
@@ -4791,6 +4800,10 @@ const RoomManager = {
     drinkingMode: false,
     players: [],
     
+    // ROLE STATE
+    amITraitor: false,
+    myTeam: null,
+    
     // PUBLIC GAMES
     isPublic: false,
     maxPlayers: 8,
@@ -4933,6 +4946,11 @@ const RoomManager = {
         this.socket.on('roleAlert', (msg) => {
              this.amITraitor = true; 
         });
+        
+        // Team assignment notification for versus mode
+        this.socket.on('teamAssigned', ({ team }) => {
+            this.myTeam = team;
+        });
 
         this.socket.on('gameStarted', (data) => {
             console.log("GAME START SIGNAL RECEIVED"); 
@@ -4943,8 +4961,9 @@ const RoomManager = {
                 if (Game && Game.startMultiplayer) {
                     Game.startMultiplayer(data);
                 }
-            }, this.amITraitor); 
+            }, this.amITraitor, this.myTeam); 
             this.amITraitor = false;
+            this.myTeam = null;
         });
         
         // Not enough players to start
@@ -4996,7 +5015,22 @@ this.socket.on('nextWord', (data) => {
             wd.style.color = ''; 
             
             UIManager.displayWord(data.word);
-            UIManager.disableButtons(false); // Re-enable buttons for the new round
+            
+            // Check if player is dead (survival) or spectator
+            const me = this.players.find(p => p.id === this.playerId);
+            const isDead = this.currentMode === 'survival' && me && me.lives <= 0;
+            const isSpectator = me && me.isSpectator;
+            
+            if (isDead || isSpectator) {
+                // Disable voting buttons for dead/spectating players
+                UIManager.disableButtons(true);
+                DOM.game.buttons.good.style.opacity = '0.5';
+                DOM.game.buttons.bad.style.opacity = '0.5';
+            } else {
+                UIManager.disableButtons(false); // Re-enable buttons for the new round
+                DOM.game.buttons.good.style.opacity = '1';
+                DOM.game.buttons.bad.style.opacity = '1';
+            }
             
             const banner = document.querySelector('.mp-banner-text');
             if (banner) {
@@ -5004,10 +5038,18 @@ this.socket.on('nextWord', (data) => {
                 
                 // --- ADDED: Lives Indicator for Survival Mode ---
                 if (this.currentMode === 'survival') {
-                    const me = this.players.find(p => p.id === this.playerId);
                     if (me && typeof me.lives === 'number') {
-                        label += ` ${'❤️'.repeat(Math.max(0, me.lives))}`;
+                        if (me.lives > 0) {
+                            label += ` ${'❤️'.repeat(me.lives)}`;
+                        } else {
+                            label = `💀 YOU DIED - Spectating (${data.wordCurrent}/${data.wordTotal})`;
+                        }
                     }
+                }
+                
+                // Spectator indicator
+                if (isSpectator && !isDead) {
+                    label = `👁️ Spectating (${data.wordCurrent}/${data.wordTotal})`;
                 }
                 // ------------------------------------------------
                 
@@ -5645,8 +5687,10 @@ const Game = {
             DiscoveryManager.init();
 
             setTimeout(() => {
-                DOM.screens.loading.classList.add('opacity-0', 'pointer-events-none');
-                setTimeout(() => DOM.screens.loading.remove(), 500);
+                if (DOM.screens && DOM.screens.loading) {
+                    DOM.screens.loading.classList.add('opacity-0', 'pointer-events-none');
+                    setTimeout(() => DOM.screens.loading?.remove(), 500);
+                }
                 this.nextWord();
             }, 1500);
 
