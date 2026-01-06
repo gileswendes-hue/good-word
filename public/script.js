@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.90.2', 
+    APP_VERSION: '5.90.3', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
