@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.90.3', 
+    APP_VERSION: '5.91.0', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -53,6 +53,8 @@ const loadDOM = () => ({
         bad: document.getElementById('headerBad'),
         barGood: document.getElementById('headerBarGood'),
         barBad: document.getElementById('headerBarBad'),
+        communityGoalBar: document.getElementById('communityGoalBar'),
+        communityGoalText: document.getElementById('communityGoalText'),
         profileLabel: document.getElementById('headerProfileLabel'),
         profileEmoji: document.getElementById('headerProfileEmoji'),
         profileImage: document.getElementById('headerProfileImage')
@@ -1455,6 +1457,127 @@ async fetchKidsWords() {
     }
 };
 
+// CommunityGoal - Tracks global vote milestones with rewards for top contributors
+const CommunityGoal = {
+    GOAL_INCREMENT: 50000, // Goals at 50k, 100k, 150k, etc.
+    
+    // Get the next goal based on current votes
+    getNextGoal(currentVotes) {
+        return Math.ceil((currentVotes + 1) / this.GOAL_INCREMENT) * this.GOAL_INCREMENT;
+    },
+    
+    // Get the previous goal (starting point for progress calculation)
+    getPrevGoal(currentVotes) {
+        return Math.floor(currentVotes / this.GOAL_INCREMENT) * this.GOAL_INCREMENT;
+    },
+    
+    // Get progress toward next goal (0-100)
+    getProgress(currentVotes) {
+        const nextGoal = this.getNextGoal(currentVotes);
+        const prevGoal = this.getPrevGoal(currentVotes);
+        if (nextGoal === prevGoal) return 100;
+        const progress = ((currentVotes - prevGoal) / (nextGoal - prevGoal)) * 100;
+        return Math.min(Math.max(progress, 0), 100);
+    },
+    
+    // Update the UI bar
+    update(totalVotes) {
+        const bar = DOM.header.communityGoalBar;
+        const text = DOM.header.communityGoalText;
+        if (!bar || !text) return;
+        
+        const nextGoal = this.getNextGoal(totalVotes);
+        const progress = this.getProgress(totalVotes);
+        
+        // Update the progress bar width
+        bar.style.width = `${progress}%`;
+        
+        // Format the goal number nicely
+        const formatNum = (n) => {
+            if (n >= 1000000) return (n / 1000000).toFixed(n % 1000000 === 0 ? 0 : 1) + 'M';
+            if (n >= 1000) return Math.round(n / 1000) + 'k';
+            return n.toLocaleString();
+        };
+        
+        const remaining = nextGoal - totalVotes;
+        
+        // Different messages based on progress
+        if (progress >= 95) {
+            text.textContent = `🏆 Almost there! ${formatNum(remaining)} to go!`;
+            text.classList.add('animate-pulse');
+        } else if (progress >= 75) {
+            text.textContent = `🏆 ${formatNum(remaining)} votes to ${formatNum(nextGoal)}!`;
+            text.classList.remove('animate-pulse');
+        } else {
+            text.textContent = `🏆 Community Goal: ${formatNum(nextGoal)} votes`;
+            text.classList.remove('animate-pulse');
+        }
+    },
+    
+    // Check if a goal was just reached and handle rewards
+    async checkGoalReached(totalVotes) {
+        const currentGoal = Math.floor(totalVotes / this.GOAL_INCREMENT) * this.GOAL_INCREMENT;
+        const lastCelebratedGoal = parseInt(localStorage.getItem('lastCelebratedGoal') || '0');
+        
+        // If we've passed a new goal milestone
+        if (currentGoal > lastCelebratedGoal && currentGoal > 0) {
+            localStorage.setItem('lastCelebratedGoal', currentGoal.toString());
+            
+            // Check if user is in top 10
+            try {
+                const leaderboard = await API.fetchLeaderboard();
+                if (leaderboard && leaderboard.length > 0) {
+                    const userRank = leaderboard.findIndex(u => u.userId === State.data.userId) + 1;
+                    
+                    if (userRank > 0 && userRank <= 10) {
+                        // User is in top 10! Show celebration
+                        this.showReward(currentGoal, userRank);
+                    } else {
+                        // Show community celebration without personal reward
+                        this.showCommunityMilestone(currentGoal);
+                    }
+                }
+            } catch (e) {
+                console.warn("Failed to check leaderboard for goal:", e);
+                this.showCommunityMilestone(currentGoal);
+            }
+        }
+    },
+    
+    // Show reward modal for top 10 contributors
+    showReward(goal, rank) {
+        const formatGoal = (n) => n >= 1000 ? Math.round(n / 1000) + 'k' : n;
+        const medals = ['🥇', '🥈', '🥉', '🏅', '🏅', '🏅', '🏅', '🏅', '🏅', '🏅'];
+        const medal = medals[rank - 1] || '🏅';
+        
+        const el = document.createElement('div');
+        el.className = 'fixed inset-0 z-[10000] flex items-center justify-center bg-black/90 px-4';
+        el.innerHTML = `
+            <div class="w-full max-w-sm p-6 bg-gradient-to-b from-amber-50 to-white rounded-2xl shadow-2xl text-center animate-pop border-2 border-amber-400">
+                <div class="text-6xl mb-4">${medal}</div>
+                <h2 class="text-2xl font-black text-amber-800 mb-2">Community Goal Reached!</h2>
+                <p class="text-amber-700 font-bold text-lg mb-1">${formatGoal(goal)} Total Votes!</p>
+                <p class="text-gray-600 mb-4">You placed <span class="font-black text-amber-600">#${rank}</span> globally!</p>
+                <div class="bg-amber-100 rounded-xl p-3 mb-4 border border-amber-200">
+                    <div class="text-sm text-amber-800">🎉 Top 10 Contributor Reward!</div>
+                    <div class="text-xs text-amber-600 mt-1">You helped reach this milestone!</div>
+                </div>
+                <button class="w-full py-3 bg-gradient-to-r from-amber-500 to-yellow-500 text-white font-bold rounded-xl shadow-lg hover:from-amber-600 hover:to-yellow-600 transition" onclick="this.closest('.fixed').remove()">Amazing! 🎉</button>
+            </div>
+        `;
+        document.body.appendChild(el);
+        
+        // Play celebration sound if available
+        if (window.SoundManager) SoundManager.playUnlock();
+    },
+    
+    // Show community milestone without personal reward
+    showCommunityMilestone(goal) {
+        const formatGoal = (n) => n >= 1000 ? Math.round(n / 1000) + 'k' : n;
+        StreakManager.showNotification(`🏆 Community reached ${formatGoal(goal)} votes!`, 'success');
+    }
+};
+
 const ThemeManager = {
     wordMap: {},
     init() {
@@ -1692,11 +1815,11 @@ const SnowmanBuilder = {
         this.container.id = 'snowman-builder';
         this.container.style.cssText = `
             position: absolute;
-            right: 8px;
+            right: 4px;
             top: 50%;
             transform: translateY(-50%);
             height: 100%;
-            width: 60px;
+            width: 90px;
             display: flex;
             flex-direction: column;
             justify-content: flex-end;
@@ -1730,7 +1853,7 @@ const SnowmanBuilder = {
         const count = State.data.snowmanCollected || 0;
         const progress = Math.min(count / this.TOTAL_PARTS, 1);
         
-        // Only show if we have some progress and it's winter theme
+        // Only show if we have some progress
         if (count === 0) {
             this.container.style.opacity = '0';
             return;
@@ -1739,26 +1862,26 @@ const SnowmanBuilder = {
         this.container.style.opacity = '1';
         
         // Build snowman parts based on progress
-        // 0-33%: bottom ball builds
-        // 34-66%: middle ball builds  
-        // 67-90%: top ball builds
-        // 91-100%: accessories (eyes, nose, arms, hat)
+        // 0-30%: bottom ball builds
+        // 31-55%: middle ball builds  
+        // 56-80%: top ball builds
+        // 81-100%: accessories (eyes, nose, arms, hat)
         
-        let html = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;">';
+        let html = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;position:relative;">';
         
-        const bottomProgress = Math.min(progress / 0.33, 1);
-        const middleProgress = progress > 0.33 ? Math.min((progress - 0.33) / 0.33, 1) : 0;
-        const topProgress = progress > 0.66 ? Math.min((progress - 0.66) / 0.24, 1) : 0;
-        const accessoryProgress = progress > 0.90 ? (progress - 0.90) / 0.10 : 0;
+        const bottomProgress = Math.min(progress / 0.30, 1);
+        const middleProgress = progress > 0.30 ? Math.min((progress - 0.30) / 0.25, 1) : 0;
+        const topProgress = progress > 0.55 ? Math.min((progress - 0.55) / 0.25, 1) : 0;
+        const accessoryProgress = progress > 0.80 ? (progress - 0.80) / 0.20 : 0;
         
         // Hat (appears last)
         if (accessoryProgress > 0.8) {
-            html += `<div style="font-size:14px;margin-bottom:-8px;filter:drop-shadow(1px 1px 1px rgba(0,0,0,0.2));">🎩</div>`;
+            html += `<div style="font-size:18px;margin-bottom:-12px;filter:drop-shadow(1px 1px 1px rgba(0,0,0,0.2));z-index:5;">🎩</div>`;
         }
         
-        // Top ball (head)
+        // Top ball (head) - bigger size
         if (topProgress > 0) {
-            const size = Math.round(18 * topProgress);
+            const size = Math.round(28 * topProgress);
             const hasEyes = accessoryProgress > 0.2;
             const hasNose = accessoryProgress > 0.5;
             html += `<div style="
@@ -1768,18 +1891,36 @@ const SnowmanBuilder = {
                 border-radius:50%;
                 box-shadow:inset -2px -2px 4px rgba(0,0,0,0.1), 1px 1px 2px rgba(0,0,0,0.15);
                 position:relative;
-                margin-bottom:-3px;
+                margin-bottom:-5px;
+                z-index:3;
             ">
-                ${hasEyes ? `<div style="position:absolute;top:35%;left:25%;width:3px;height:3px;background:#1a1a1a;border-radius:50%;"></div>
-                <div style="position:absolute;top:35%;right:25%;width:3px;height:3px;background:#1a1a1a;border-radius:50%;"></div>` : ''}
-                ${hasNose ? `<div style="position:absolute;top:45%;left:50%;transform:translateX(-50%);width:0;height:0;border-left:3px solid transparent;border-right:3px solid transparent;border-top:8px solid #ff6b35;"></div>` : ''}
+                ${hasEyes ? `<div style="position:absolute;top:32%;left:22%;width:4px;height:4px;background:#1a1a1a;border-radius:50%;"></div>
+                <div style="position:absolute;top:32%;right:22%;width:4px;height:4px;background:#1a1a1a;border-radius:50%;"></div>` : ''}
+                ${hasNose ? `<div style="position:absolute;top:45%;left:50%;transform:translateX(-50%);width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:10px solid #ff6b35;"></div>` : ''}
             </div>`;
         }
         
-        // Middle ball
+        // Middle ball with arms - bigger size
         if (middleProgress > 0) {
-            const size = Math.round(24 * middleProgress);
-            const hasButtons = accessoryProgress > 0.4;
+            const size = Math.round(38 * middleProgress);
+            const hasButtons = accessoryProgress > 0.3;
+            const hasArms = accessoryProgress > 0.6;
+            
+            // Arms (positioned relative to middle ball)
+            let armsHtml = '';
+            if (hasArms) {
+                armsHtml = `
+                    <div style="position:absolute;left:-22px;top:35%;width:24px;height:4px;background:linear-gradient(90deg, #4a3728, #6b4423);border-radius:2px;transform:rotate(-20deg);transform-origin:right center;box-shadow:1px 1px 2px rgba(0,0,0,0.2);">
+                        <div style="position:absolute;left:-1px;top:-5px;width:3px;height:7px;background:#4a3728;border-radius:1px;transform:rotate(-35deg);"></div>
+                        <div style="position:absolute;left:0px;top:2px;width:3px;height:6px;background:#4a3728;border-radius:1px;transform:rotate(25deg);"></div>
+                    </div>
+                    <div style="position:absolute;right:-22px;top:35%;width:24px;height:4px;background:linear-gradient(90deg, #6b4423, #4a3728);border-radius:2px;transform:rotate(20deg);transform-origin:left center;box-shadow:1px 1px 2px rgba(0,0,0,0.2);">
+                        <div style="position:absolute;right:-1px;top:-5px;width:3px;height:7px;background:#4a3728;border-radius:1px;transform:rotate(35deg);"></div>
+                        <div style="position:absolute;right:0px;top:2px;width:3px;height:6px;background:#4a3728;border-radius:1px;transform:rotate(-25deg);"></div>
+                    </div>
+                `;
+            }
+            
             html += `<div style="
                 width:${size}px;
                 height:${size}px;
@@ -1787,29 +1928,35 @@ const SnowmanBuilder = {
                 border-radius:50%;
                 box-shadow:inset -2px -2px 4px rgba(0,0,0,0.1), 1px 1px 2px rgba(0,0,0,0.15);
                 position:relative;
-                margin-bottom:-4px;
+                margin-bottom:-6px;
+                z-index:2;
             ">
-                ${hasButtons ? `<div style="position:absolute;top:30%;left:50%;transform:translateX(-50%);width:3px;height:3px;background:#1a1a1a;border-radius:50%;"></div>
-                <div style="position:absolute;top:55%;left:50%;transform:translateX(-50%);width:3px;height:3px;background:#1a1a1a;border-radius:50%;"></div>` : ''}
+                ${hasButtons ? `
+                    <div style="position:absolute;top:25%;left:50%;transform:translateX(-50%);width:4px;height:4px;background:#1a1a1a;border-radius:50%;"></div>
+                    <div style="position:absolute;top:50%;left:50%;transform:translateX(-50%);width:4px;height:4px;background:#1a1a1a;border-radius:50%;"></div>
+                    <div style="position:absolute;top:75%;left:50%;transform:translateX(-50%);width:4px;height:4px;background:#1a1a1a;border-radius:50%;"></div>
+                ` : ''}
+                ${armsHtml}
             </div>`;
         }
         
-        // Bottom ball (base)
+        // Bottom ball (base) - bigger size
         if (bottomProgress > 0) {
-            const size = Math.round(30 * bottomProgress);
+            const size = Math.round(48 * bottomProgress);
             html += `<div style="
                 width:${size}px;
                 height:${size}px;
                 background:radial-gradient(circle at 30% 30%, #fff, #e8e8e8);
                 border-radius:50%;
                 box-shadow:inset -3px -3px 5px rgba(0,0,0,0.1), 1px 2px 3px rgba(0,0,0,0.2);
+                z-index:1;
             "></div>`;
         }
         
         html += '</div>';
         
         // Add progress indicator
-        html += `<div style="font-size:8px;color:#666;margin-top:2px;text-align:center;">${count}/${this.TOTAL_PARTS}</div>`;
+        html += `<div style="font-size:9px;color:#666;margin-top:2px;text-align:center;font-weight:bold;">${count}/${this.TOTAL_PARTS}</div>`;
         
         this.container.innerHTML = html;
     },
@@ -3634,6 +3781,10 @@ updateStats() {
             DOM.header.barGood.style.width = '50%';
             DOM.header.barBad.style.width = '50%';
         }
+        
+        // Update community goal progress bar
+        CommunityGoal.update(globalTotal);
+        
         this.renderMiniRankings();
     },
 
@@ -6721,6 +6872,10 @@ async vote(t, s = false) {
             UIManager.showPostVoteMessage(m);
             if (t === 'good' || t === 'bad') Haptics.medium();
             UIManager.updateStats();
+            
+            // Check if community goal was reached
+            const totalVotes = State.runtime.allWords.reduce((a, b) => a + (b.goodVotes || 0) + (b.badVotes || 0), 0);
+            CommunityGoal.checkGoalReached(totalVotes);
             
             UIManager.addToHistory(w.text, t);
             State.runtime.history.unshift({ word: w.text, vote: t });
