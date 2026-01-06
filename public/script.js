@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.88.3', 
+    APP_VERSION: '5.88.4', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4195,7 +4195,11 @@ init() {
                     hideMultiplayerToggle.onchange = e => {
                         State.save('settings', { ...State.data.settings, hideMultiplayer: e.target.checked });
                         const roomBtn = document.getElementById('roomBtn');
-                        if (roomBtn) roomBtn.style.display = e.target.checked ? 'none' : 'block';
+                        // Only show button if BOTH hideMultiplayer is off AND kidsMode is off
+                        if (roomBtn) {
+                            const shouldHide = e.target.checked || State.data.settings.kidsMode;
+                            roomBtn.style.display = shouldHide ? 'none' : '';
+                        }
                     };
                 }
 				
@@ -4228,8 +4232,16 @@ init() {
                 document.getElementById('toggleKidsMode').onchange = e => {
                     const turningOn = e.target.checked;
                     const savedPin = State.data.settings.kidsModePin;
+                    const roomBtn = document.getElementById('roomBtn');
 
                     e.preventDefault(); 
+
+                    const updateMultiplayerVisibility = (kidsOn) => {
+                        if (roomBtn) {
+                            // Hide if kids mode OR manual hide setting
+                            roomBtn.style.display = (kidsOn || State.data.settings.hideMultiplayer) ? 'none' : '';
+                        }
+                    };
 
                     if (turningOn) {
                         if (!savedPin) {
@@ -4237,6 +4249,7 @@ init() {
                             PinPad.open('set', (newPin) => {
                                 State.save('settings', { ...State.data.settings, kidsMode: true, kidsModePin: newPin });
                                 UIManager.showPostVoteMessage(`Kids Mode Active! 🧸`);
+                                updateMultiplayerVisibility(true);
                                 Game.refreshData(true);
                                 this.toggle('settings', false); 
                             }, () => {
@@ -4245,18 +4258,21 @@ init() {
                             });
                         } else {
                             State.save('settings', { ...State.data.settings, kidsMode: true });
+                            updateMultiplayerVisibility(true);
                             Game.refreshData(true);
                         }
                     } else {
                         e.target.checked = true;
                         if (!savedPin) {
                             State.save('settings', { ...State.data.settings, kidsMode: false });
+                            updateMultiplayerVisibility(false);
                             Game.refreshData(true);
                             return;
                         }
                         
                         PinPad.open('verify', () => {
                             State.save('settings', { ...State.data.settings, kidsMode: false });
+                            updateMultiplayerVisibility(false);
                             Game.refreshData(true);
                             document.getElementById('toggleKidsMode').checked = false;
                         }, () => {
@@ -5844,8 +5860,8 @@ const Game = {
             State.init();
             RoomManager.init();
             
-            // Apply hide multiplayer setting on load
-            if (State.data.settings.hideMultiplayer) {
+            // Apply hide multiplayer setting on load (also hide in Kids Mode for child safety)
+            if (State.data.settings.hideMultiplayer || State.data.settings.kidsMode) {
                 const roomBtn = document.getElementById('roomBtn');
                 if (roomBtn) roomBtn.style.display = 'none';
             }
