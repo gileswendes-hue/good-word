@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.88.6', 
+    APP_VERSION: '5.89.0', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -205,6 +205,8 @@ const State = {
         seenHistory: safeParse('seenHistory', []),
 		discovered: safeParse('discoveredFeatures', []),
 
+        snowmanCollected: parseInt(localStorage.getItem('snowmanCollected') || 0),
+
         insectStats: {
             saved: parseInt(localStorage.getItem('insectSaved') || 0),
             eaten: parseInt(localStorage.getItem('insectEaten') || 0),
@@ -317,6 +319,7 @@ const State = {
         else if (k === 'unlockedThemes') s.setItem('unlockedThemes', JSON.stringify(v));
         else if (k === 'seenHistory') s.setItem('seenHistory', JSON.stringify(v));
 		else if (k === 'discovered') s.setItem('discoveredFeatures', JSON.stringify(v));
+        else if (k === 'snowmanCollected') s.setItem('snowmanCollected', v);
         else if (k === 'daily') {
             s.setItem('dailyStreak', v.streak);
             s.setItem('dailyLastDate', v.lastDate);
@@ -1282,39 +1285,58 @@ async getAllWords() {
 
 async fetchKidsWords() {
         try {
-            const listResponse = await fetch(CONFIG.KIDS_LIST_FILE);
-            if (!listResponse.ok) throw new Error("Missing kids file");
-            const listText = await listResponse.text();
-            
-            // Create list of safe text strings
-            const safeList = listText.split('\n')
-                .map(l => l.trim().toUpperCase())
-                .filter(l => l.length > 0);
-            
-            // Get words - use offline cache if in offline mode, otherwise fetch from DB
+            // Get words source - use offline cache if in offline mode, otherwise fetch from DB
             let dbWords = [];
             if (OfflineManager.isActive()) {
                 // Use offline cache for kids mode
                 dbWords = State.data.offlineCache || [];
+                
+                // If no cache available, can't do kids mode offline
+                if (dbWords.length === 0) {
+                    return [{ _id: 'offline_placeholder', text: 'Go online to cache words first', goodVotes: 0, badVotes: 0, isPlaceholder: true }];
+                }
             } else {
                 dbWords = await this.getAllWords() || [];
             }
             
-            // Only include words that exist in the database with real IDs
-            // This ensures votes will work (they need valid MongoDB IDs)
-            const combinedList = safeList
-                .map(text => dbWords.find(w => w.text.toUpperCase() === text))
-                .filter(w => w && w._id); // Only keep words with real database IDs
-
-            if (combinedList.length === 0) {
-                const msg = OfflineManager.isActive() 
-                    ? 'Kids Mode needs online first' 
-                    : 'No Kids Words in DB';
-                console.warn("No kids words found:", msg);
-                return [{ _id: 'offline_placeholder', text: msg, goodVotes: 0, badVotes: 0, isPlaceholder: true }];
+            // Try to get the kids word list file
+            let safeList = [];
+            try {
+                const listResponse = await fetch(CONFIG.KIDS_LIST_FILE);
+                if (listResponse.ok) {
+                    const listText = await listResponse.text();
+                    safeList = listText.split('\n')
+                        .map(l => l.trim().toUpperCase())
+                        .filter(l => l.length > 0);
+                }
+            } catch (e) {
+                console.warn("Could not fetch kids word list:", e);
             }
             
-            return combinedList;
+            // If we have a kids word list, filter to only those words
+            if (safeList.length > 0) {
+                const combinedList = safeList
+                    .map(text => dbWords.find(w => w.text.toUpperCase() === text))
+                    .filter(w => w && w._id);
+                
+                if (combinedList.length > 0) {
+                    return combinedList;
+                }
+            }
+            
+            // Fallback: If offline with cache but no kids list file, 
+            // just use the cached words (better than nothing)
+            if (OfflineManager.isActive() && dbWords.length > 0) {
+                console.warn("Kids word list unavailable offline - using full cache");
+                return dbWords;
+            }
+            
+            // No words found at all
+            const msg = OfflineManager.isActive() 
+                ? 'Kids Mode needs online first' 
+                : 'No Kids Words in DB';
+            console.warn("No kids words found:", msg);
+            return [{ _id: 'offline_placeholder', text: msg, goodVotes: 0, badVotes: 0, isPlaceholder: true }];
 
         } catch (e) {
             console.error("Kids mode load error:", e);
@@ -1527,8 +1549,16 @@ const ThemeManager = {
         e.ballpit.classList.toggle('hidden', t !== 'ballpit');
         e.space.classList.toggle('hidden', t !== 'space');
         
-        if (t === 'winter') Effects.snow();
-        else e.snow.innerHTML = '';
+        if (t === 'winter') {
+            Effects.snow();
+            SnowmanBuilder.init();
+            SnowmanBuilder.render();
+        } else {
+            e.snow.innerHTML = '';
+            // Hide snowman builder when not winter
+            const sb = document.getElementById('snowman-builder');
+            if (sb) sb.style.opacity = '0';
+        }
         
         if (t === 'submarine') Effects.bubbles(true);
         else Effects.bubbles(false); 
@@ -1584,6 +1614,148 @@ checkUnlock(w) {
             return true
         }
         return false
+    }
+};
+
+// SnowmanBuilder - Builds a snowman in the header as user collects snowmen
+const SnowmanBuilder = {
+    TOTAL_PARTS: 100, // 100 snowmen collected = 1 complete snowman
+    container: null,
+    
+    init() {
+        // Create container next to logo
+        const logoArea = document.getElementById('logoArea');
+        if (!logoArea || this.container) return;
+        
+        this.container = document.createElement('div');
+        this.container.id = 'snowman-builder';
+        this.container.style.cssText = `
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 100%;
+            width: 60px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        `;
+        logoArea.appendChild(this.container);
+        
+        this.render();
+    },
+    
+    collect() {
+        const count = State.data.snowmanCollected + 1;
+        State.save('snowmanCollected', count);
+        this.render();
+        
+        // Show completion message at milestones
+        if (count === this.TOTAL_PARTS) {
+            UIManager.showPostVoteMessage("⛄ Snowman complete! Amazing!");
+        } else if (count % 25 === 0) {
+            UIManager.showPostVoteMessage(`⛄ Snowman ${count}% built!`);
+        }
+    },
+    
+    render() {
+        if (!this.container) this.init();
+        if (!this.container) return;
+        
+        const count = State.data.snowmanCollected || 0;
+        const progress = Math.min(count / this.TOTAL_PARTS, 1);
+        
+        // Only show if we have some progress and it's winter theme
+        if (count === 0) {
+            this.container.style.opacity = '0';
+            return;
+        }
+        
+        this.container.style.opacity = '1';
+        
+        // Build snowman parts based on progress
+        // 0-33%: bottom ball builds
+        // 34-66%: middle ball builds  
+        // 67-90%: top ball builds
+        // 91-100%: accessories (eyes, nose, arms, hat)
+        
+        let html = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;">';
+        
+        const bottomProgress = Math.min(progress / 0.33, 1);
+        const middleProgress = progress > 0.33 ? Math.min((progress - 0.33) / 0.33, 1) : 0;
+        const topProgress = progress > 0.66 ? Math.min((progress - 0.66) / 0.24, 1) : 0;
+        const accessoryProgress = progress > 0.90 ? (progress - 0.90) / 0.10 : 0;
+        
+        // Hat (appears last)
+        if (accessoryProgress > 0.8) {
+            html += `<div style="font-size:14px;margin-bottom:-8px;filter:drop-shadow(1px 1px 1px rgba(0,0,0,0.2));">🎩</div>`;
+        }
+        
+        // Top ball (head)
+        if (topProgress > 0) {
+            const size = Math.round(18 * topProgress);
+            const hasEyes = accessoryProgress > 0.2;
+            const hasNose = accessoryProgress > 0.5;
+            html += `<div style="
+                width:${size}px;
+                height:${size}px;
+                background:radial-gradient(circle at 30% 30%, #fff, #e8e8e8);
+                border-radius:50%;
+                box-shadow:inset -2px -2px 4px rgba(0,0,0,0.1), 1px 1px 2px rgba(0,0,0,0.15);
+                position:relative;
+                margin-bottom:-3px;
+            ">
+                ${hasEyes ? `<div style="position:absolute;top:35%;left:25%;width:3px;height:3px;background:#1a1a1a;border-radius:50%;"></div>
+                <div style="position:absolute;top:35%;right:25%;width:3px;height:3px;background:#1a1a1a;border-radius:50%;"></div>` : ''}
+                ${hasNose ? `<div style="position:absolute;top:45%;left:50%;transform:translateX(-50%);width:0;height:0;border-left:3px solid transparent;border-right:3px solid transparent;border-top:8px solid #ff6b35;"></div>` : ''}
+            </div>`;
+        }
+        
+        // Middle ball
+        if (middleProgress > 0) {
+            const size = Math.round(24 * middleProgress);
+            const hasButtons = accessoryProgress > 0.4;
+            html += `<div style="
+                width:${size}px;
+                height:${size}px;
+                background:radial-gradient(circle at 30% 30%, #fff, #e8e8e8);
+                border-radius:50%;
+                box-shadow:inset -2px -2px 4px rgba(0,0,0,0.1), 1px 1px 2px rgba(0,0,0,0.15);
+                position:relative;
+                margin-bottom:-4px;
+            ">
+                ${hasButtons ? `<div style="position:absolute;top:30%;left:50%;transform:translateX(-50%);width:3px;height:3px;background:#1a1a1a;border-radius:50%;"></div>
+                <div style="position:absolute;top:55%;left:50%;transform:translateX(-50%);width:3px;height:3px;background:#1a1a1a;border-radius:50%;"></div>` : ''}
+            </div>`;
+        }
+        
+        // Bottom ball (base)
+        if (bottomProgress > 0) {
+            const size = Math.round(30 * bottomProgress);
+            html += `<div style="
+                width:${size}px;
+                height:${size}px;
+                background:radial-gradient(circle at 30% 30%, #fff, #e8e8e8);
+                border-radius:50%;
+                box-shadow:inset -3px -3px 5px rgba(0,0,0,0.1), 1px 2px 3px rgba(0,0,0,0.2);
+            "></div>`;
+        }
+        
+        html += '</div>';
+        
+        // Add progress indicator
+        html += `<div style="font-size:8px;color:#666;margin-top:2px;text-align:center;">${count}/${this.TOTAL_PARTS}</div>`;
+        
+        this.container.innerHTML = html;
+    },
+    
+    reset() {
+        State.save('snowmanCollected', 0);
+        this.render();
     }
 };
 
@@ -2088,7 +2260,7 @@ spawnFish() {
             const handleInteract = (e) => {
                 e.stopPropagation(); e.preventDefault();
                 State.unlockBadge('snowman');
-                UIManager.showPostVoteMessage("Do you want to build a snowman? ⛄");
+                SnowmanBuilder.collect(); // Add to snowman building progress
                 sm.style.transition = 'transform 0.2s, opacity 0.2s';
                 sm.style.transform = 'scale(1.5)';
                 sm.style.opacity = '0';
