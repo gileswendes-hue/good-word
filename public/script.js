@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.91.1', 
+    APP_VERSION: '5.92.0', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -53,6 +53,8 @@ const loadDOM = () => ({
         bad: document.getElementById('headerBad'),
         barGood: document.getElementById('headerBarGood'),
         barBad: document.getElementById('headerBarBad'),
+        communityGoalBar: document.getElementById('communityGoalBar'),
+        communityGoalText: document.getElementById('communityGoalText'),
         profileLabel: document.getElementById('headerProfileLabel'),
         profileEmoji: document.getElementById('headerProfileEmoji'),
         profileImage: document.getElementById('headerProfileImage')
@@ -1452,6 +1454,107 @@ async fetchKidsWords() {
         } catch (e) {
             console.warn("Failed to submit global snapshot:", e);
         }
+    }
+};
+
+// CommunityGoal - Tracks global vote milestones with rewards for top contributors
+const CommunityGoal = {
+    GOAL_INCREMENT: 50000, // Goals at 50k, 100k, 150k, etc.
+    
+    getNextGoal(currentVotes) {
+        return Math.ceil((currentVotes + 1) / this.GOAL_INCREMENT) * this.GOAL_INCREMENT;
+    },
+    
+    getPrevGoal(currentVotes) {
+        return Math.floor(currentVotes / this.GOAL_INCREMENT) * this.GOAL_INCREMENT;
+    },
+    
+    getProgress(currentVotes) {
+        const nextGoal = this.getNextGoal(currentVotes);
+        const prevGoal = this.getPrevGoal(currentVotes);
+        if (nextGoal === prevGoal) return 100;
+        return ((currentVotes - prevGoal) / (nextGoal - prevGoal)) * 100;
+    },
+    
+    update(totalVotes) {
+        const bar = DOM.header.communityGoalBar;
+        const text = DOM.header.communityGoalText;
+        if (!bar || !text) return;
+        
+        const nextGoal = this.getNextGoal(totalVotes);
+        const progress = this.getProgress(totalVotes);
+        
+        bar.style.width = `${progress}%`;
+        
+        const formatNum = (n) => {
+            if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+            if (n >= 1000) return Math.round(n / 1000) + 'k';
+            return n.toLocaleString();
+        };
+        
+        const remaining = nextGoal - totalVotes;
+        
+        if (progress >= 95) {
+            text.textContent = `🏆 Almost there! ${formatNum(remaining)} to go!`;
+            text.classList.add('animate-pulse');
+        } else if (progress >= 75) {
+            text.textContent = `🏆 ${formatNum(remaining)} votes to ${formatNum(nextGoal)}!`;
+            text.classList.remove('animate-pulse');
+        } else {
+            text.textContent = `🏆 Community Goal: ${formatNum(nextGoal)} votes`;
+            text.classList.remove('animate-pulse');
+        }
+    },
+    
+    async checkGoalReached(totalVotes) {
+        const currentGoal = Math.floor(totalVotes / this.GOAL_INCREMENT) * this.GOAL_INCREMENT;
+        const lastCelebratedGoal = parseInt(localStorage.getItem('lastCelebratedGoal') || '0');
+        
+        if (currentGoal > lastCelebratedGoal && currentGoal > 0) {
+            localStorage.setItem('lastCelebratedGoal', currentGoal.toString());
+            
+            try {
+                const leaderboard = await API.fetchLeaderboard();
+                if (leaderboard && leaderboard.length > 0) {
+                    const userRank = leaderboard.findIndex(u => u.userId === State.data.userId) + 1;
+                    if (userRank > 0 && userRank <= 10) {
+                        this.showReward(currentGoal, userRank);
+                    } else {
+                        this.showCommunityMilestone(currentGoal);
+                    }
+                }
+            } catch (e) {
+                this.showCommunityMilestone(currentGoal);
+            }
+        }
+    },
+    
+    showReward(goal, rank) {
+        const formatGoal = (n) => n >= 1000 ? Math.round(n / 1000) + 'k' : n;
+        const medals = ['🥇', '🥈', '🥉', '🏅', '🏅', '🏅', '🏅', '🏅', '🏅', '🏅'];
+        const medal = medals[rank - 1] || '🏅';
+        
+        const el = document.createElement('div');
+        el.className = 'fixed inset-0 z-[10000] flex items-center justify-center bg-black/90 px-4';
+        el.innerHTML = `
+            <div class="w-full max-w-sm p-6 bg-gradient-to-b from-amber-50 to-white rounded-2xl shadow-2xl text-center animate-pop border-2 border-amber-400">
+                <div class="text-6xl mb-4">${medal}</div>
+                <h2 class="text-2xl font-black text-amber-800 mb-2">Community Goal Reached!</h2>
+                <p class="text-amber-700 font-bold text-lg mb-1">${formatGoal(goal)} Total Votes!</p>
+                <p class="text-gray-600 mb-4">You placed <span class="font-black text-amber-600">#${rank}</span> globally!</p>
+                <div class="bg-amber-100 rounded-xl p-3 mb-4 border border-amber-200">
+                    <div class="text-sm text-amber-800">🎉 Top 10 Contributor Reward!</div>
+                </div>
+                <button class="w-full py-3 bg-gradient-to-r from-amber-500 to-yellow-500 text-white font-bold rounded-xl shadow-lg" onclick="this.closest('.fixed').remove()">Amazing! 🎉</button>
+            </div>
+        `;
+        document.body.appendChild(el);
+        if (window.SoundManager) SoundManager.playUnlock();
+    },
+    
+    showCommunityMilestone(goal) {
+        const formatGoal = (n) => n >= 1000 ? Math.round(n / 1000) + 'k' : n;
+        StreakManager.showNotification(`🏆 Community reached ${formatGoal(goal)} votes!`, 'success');
     }
 };
 
@@ -3163,16 +3266,24 @@ spiderHunt(targetXPercent, targetYPercent, isFood) {
                     0% { transform: skewX(-5deg) translateX(-10px); opacity: ${lightOpacity}; }
                     100% { transform: skewX(5deg) translateX(10px); opacity: ${lightOpacity * 0.7}; }
                 }
-                @keyframes creaturePeek {
-                    0%, 100% { transform: translateY(100%) scale(0.8); opacity: 0; }
-                    10%, 90% { transform: translateY(0) scale(1); opacity: 1; }
+                @keyframes creatureSneakIn {
+                    0% { transform: translateX(var(--sneak-dir)) scale(var(--creature-scale)); opacity: 0; }
+                    15% { transform: translateX(calc(var(--sneak-dir) * 0.7)) scale(var(--creature-scale)); opacity: 0.3; }
+                    30% { transform: translateX(calc(var(--sneak-dir) * 0.4)) scale(var(--creature-scale)); opacity: 0.6; }
+                    40% { transform: translateX(calc(var(--sneak-dir) * 0.2)) scale(var(--creature-scale)); opacity: 0.8; }
+                    50% { transform: translateX(0) scale(var(--creature-scale)); opacity: 1; }
+                    55% { transform: translateX(0) scale(var(--creature-scale)); opacity: 1; }
+                    60% { transform: translateX(0) scale(calc(var(--creature-scale) * 0.95)); opacity: 1; }
+                    65% { transform: translateX(0) scale(var(--creature-scale)); opacity: 1; }
+                    85% { transform: translateX(0) scale(var(--creature-scale)); opacity: 1; }
+                    100% { transform: translateX(var(--sneak-dir)) scale(var(--creature-scale)); opacity: 0; }
                 }
                 @keyframes creatureEyes {
                     0%, 90%, 100% { opacity: 0; }
                     30%, 70% { opacity: 1; }
                 }
                 .woodland-creature {
-                    animation: creaturePeek 6s ease-in-out forwards;
+                    animation: creatureSneakIn var(--anim-duration) ease-in-out forwards;
                 }
                 .woodland-hiding-spot:hover {
                     transform: scale(1.05);
@@ -3182,7 +3293,15 @@ spiderHunt(targetXPercent, targetYPercent, isFood) {
         }
         
         // Woodland creatures that peek out from hiding spots
-        const creatures = ['🐿️', '🦊', '🐺', '🦉', '🦔', '🐁'];
+        // Each has a base size and position tendency (closer = larger, further = smaller)
+        const creatures = [
+            { emoji: '🐿️', baseSize: 24, shy: true },
+            { emoji: '🦊', baseSize: 28, shy: false },
+            { emoji: '🐺', baseSize: 32, shy: false },
+            { emoji: '🦉', baseSize: 26, shy: true },
+            { emoji: '🦔', baseSize: 20, shy: true },
+            { emoji: '🐁', baseSize: 16, shy: true }
+        ];
         const creatureMessages = {
             '🐿️': 'A curious squirrel watches you!',
             '🦊': 'A sly fox peeks out!',
@@ -3203,45 +3322,63 @@ spiderHunt(targetXPercent, targetYPercent, isFood) {
             }
             
             const spot = emptySpots[Math.floor(Math.random() * emptySpots.length)];
-            const creature = creatures[Math.floor(Math.random() * creatures.length)];
             
             // Night mode: only owls and wolves are active
-            const nightCreatures = ['🦉', '🐺'];
-            const activeCreature = timeOfDay === 'night' 
-                ? nightCreatures[Math.floor(Math.random() * nightCreatures.length)]
-                : creature;
+            const nightCreatureList = creatures.filter(c => c.emoji === '🦉' || c.emoji === '🐺');
+            const availableCreatures = timeOfDay === 'night' ? nightCreatureList : creatures;
+            const creatureData = availableCreatures[Math.floor(Math.random() * availableCreatures.length)];
+            
+            // Randomize size for depth effect (0.6 to 1.4 scale)
+            // Lower position = closer = larger, higher position = further = smaller
+            const depthFactor = 1 + (Math.random() * 0.8 - 0.4); // 0.6 to 1.4
+            const finalSize = Math.round(creatureData.baseSize * depthFactor);
+            const scale = depthFactor;
+            
+            // Sneak direction - come from left or right of hiding spot
+            const sneakFromLeft = Math.random() > 0.5;
+            const sneakDistance = 30 + Math.random() * 20; // 30-50px
+            
+            // Animation duration varies - shy creatures are quicker
+            const animDuration = creatureData.shy 
+                ? 4 + Math.random() * 2  // 4-6 seconds for shy
+                : 6 + Math.random() * 4; // 6-10 seconds for bold
             
             const critterEl = document.createElement('div');
             critterEl.className = 'woodland-creature';
-            critterEl.textContent = activeCreature;
+            critterEl.textContent = creatureData.emoji;
             critterEl.style.cssText = `
                 position: absolute;
                 bottom: ${parseInt(spot.el.style.bottom) + 3}%;
                 left: ${spot.left + 2}%;
-                font-size: 28px;
-                z-index: 9;
+                font-size: ${finalSize}px;
+                z-index: ${Math.round(10 - depthFactor * 3)};
                 pointer-events: auto;
                 cursor: pointer;
-                filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.4));
+                filter: drop-shadow(1px 1px ${Math.round(2 * depthFactor)}px rgba(0,0,0,${0.3 + depthFactor * 0.1}));
+                --sneak-dir: ${sneakFromLeft ? -sneakDistance : sneakDistance}px;
+                --creature-scale: ${scale};
+                --anim-duration: ${animDuration}s;
+                opacity: 0;
             `;
             
             // Night mode: add glowing eyes effect for some creatures
-            if (timeOfDay === 'night' && (activeCreature === '🦉' || activeCreature === '🐺')) {
+            if (timeOfDay === 'night' && (creatureData.emoji === '🦉' || creatureData.emoji === '🐺')) {
+                const eyeSize = Math.round(4 * depthFactor);
                 const eyes = document.createElement('div');
                 eyes.style.cssText = `
                     position: absolute;
                     top: 25%;
                     left: 50%;
                     transform: translateX(-50%);
-                    width: 20px;
-                    height: 8px;
+                    width: ${eyeSize * 3}px;
+                    height: ${eyeSize}px;
                     display: flex;
                     justify-content: space-between;
-                    animation: creatureEyes 6s ease-in-out forwards;
+                    animation: creatureEyes ${animDuration}s ease-in-out forwards;
                 `;
                 eyes.innerHTML = `
-                    <div style="width:6px;height:6px;background:rgba(255,255,100,0.9);border-radius:50%;box-shadow:0 0 8px rgba(255,255,100,0.8);"></div>
-                    <div style="width:6px;height:6px;background:rgba(255,255,100,0.9);border-radius:50%;box-shadow:0 0 8px rgba(255,255,100,0.8);"></div>
+                    <div style="width:${eyeSize}px;height:${eyeSize}px;background:rgba(255,255,100,0.9);border-radius:50%;box-shadow:0 0 ${eyeSize * 2}px rgba(255,255,100,0.8);"></div>
+                    <div style="width:${eyeSize}px;height:${eyeSize}px;background:rgba(255,255,100,0.9);border-radius:50%;box-shadow:0 0 ${eyeSize * 2}px rgba(255,255,100,0.8);"></div>
                 `;
                 critterEl.appendChild(eyes);
             }
@@ -3249,12 +3386,13 @@ spiderHunt(targetXPercent, targetYPercent, isFood) {
             spot.creature = critterEl;
             c.appendChild(critterEl);
             
-            // Click to interact
+            // Click to interact - creature startles and runs away
             critterEl.onclick = (e) => {
                 e.stopPropagation();
-                UIManager.showPostVoteMessage(creatureMessages[activeCreature] || 'A woodland creature!');
+                UIManager.showPostVoteMessage(creatureMessages[creatureData.emoji] || 'A woodland creature!');
                 critterEl.style.animation = 'none';
-                critterEl.style.transform = 'scale(1.3)';
+                critterEl.style.transition = 'transform 0.3s, opacity 0.3s';
+                critterEl.style.transform = `translateX(${sneakFromLeft ? -80 : 80}px) scale(${scale * 0.8})`;
                 critterEl.style.opacity = '0';
                 setTimeout(() => {
                     critterEl.remove();
@@ -3262,17 +3400,17 @@ spiderHunt(targetXPercent, targetYPercent, isFood) {
                 }, 300);
             };
             
-            // Auto-hide after animation
+            // Auto-hide after animation completes
             setTimeout(() => {
                 if (critterEl.parentNode) {
                     critterEl.remove();
                     spot.creature = null;
                 }
-            }, 6000);
+            }, animDuration * 1000);
             
-            // Schedule next creature
-            const nextDelay = timeOfDay === 'night' ? 15000 : 8000;
-            this.woodlandCreatureTimeout = setTimeout(spawnCreature, Math.random() * nextDelay + 5000);
+            // Schedule next creature - shy creatures spawn more often but for less time
+            const nextDelay = timeOfDay === 'night' ? 12000 : 6000;
+            this.woodlandCreatureTimeout = setTimeout(spawnCreature, Math.random() * nextDelay + 4000);
         };
         
         // Start creature spawning after a short delay
@@ -3634,6 +3772,10 @@ updateStats() {
             DOM.header.barGood.style.width = '50%';
             DOM.header.barBad.style.width = '50%';
         }
+        
+        // Update community goal progress bar
+        CommunityGoal.update(globalTotal);
+        
         this.renderMiniRankings();
     },
 
@@ -6625,7 +6767,6 @@ async vote(t, s = false) {
                 setTimeout(() => {
                     State.runtime.currentWordIndex++;
                     this.nextWord();
-                    this.refreshData(false)
                 }, c.dur)
             }, c.fade)
         };
@@ -6734,7 +6875,6 @@ async vote(t, s = false) {
                     if (typeof GAME_TIPS !== 'undefined') {
                         m = GAME_TIPS[Math.floor(Math.random() * GAME_TIPS.length)];
                     }
-                    // Set next tip to occur 5-15 votes from now
                     State.runtime.nextTipAt = State.data.voteCounterForTips + Math.floor(Math.random() * 11) + 5;
                 }
             }
@@ -6747,7 +6887,6 @@ async vote(t, s = false) {
                 const seen = State.data.seenHistory || [];
                 if (!seen.includes(w._id)) {
                     seen.push(w._id);
-                    // Keep only last 500 words
                     while (seen.length > CONFIG.HISTORY_SIZE) {
                         seen.shift();
                     }
@@ -6911,9 +7050,8 @@ async vote(t, s = false) {
             const seenSet = new Set(seen);
             let filtered = d.filter(w => !seenSet.has(w._id));
             
-            // If we've seen too many words, fall back to full list
+            // If we've seen too many words, clear history and use full list
             if (filtered.length < 50) {
-                // Clear old history and start fresh
                 State.save('seenHistory', []);
                 filtered = d;
             }
@@ -6926,7 +7064,7 @@ async vote(t, s = false) {
             
             State.runtime.allWords = filtered;
             
-            // Filter logic
+            // Filter logic - also remove high notWordVotes
             if (!isKids) {
                  State.runtime.allWords = filtered.filter(w => (w.notWordVotes || 0) < 3);
             }
