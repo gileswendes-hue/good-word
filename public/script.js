@@ -190,7 +190,8 @@ const DEFAULT_SETTINGS = {
 	noStreaksMode: false,
 	controversialOnly: false,
     hideMultiplayer: false,
-    extremeDrinkingMode: false
+    extremeDrinkingMode: false,
+    hideCards: false
 };
 
 const State = {
@@ -1523,22 +1524,45 @@ const ThemeManager = {
                 
                 s.innerHTML = `
                     body.theme-banana {
-                        background-color: #f7e98e !important;
-                        /* ... (rest of banana styles) ... */
-                        background-image: 
-                            radial-gradient(circle at 15% 50%, rgba(92, 64, 51, 0.6) 1px, transparent 1.5px),
-                            radial-gradient(circle at 85% 30%, rgba(92, 64, 51, 0.5) 1.5px, transparent 2.5px),
-                            radial-gradient(ellipse at 70% 20%, rgba(70, 45, 30, 0.3) 2px, transparent 10px),
-                            radial-gradient(ellipse at 20% 80%, rgba(70, 45, 30, 0.4) 4px, transparent 15px),
-                            repeating-linear-gradient(90deg, transparent, transparent 59px, rgba(139, 69, 19, 0.06) 60px, rgba(139, 69, 19, 0.03) 62px, transparent 62px, transparent 140px),
-                            radial-gradient(circle at 50% 50%, rgba(139, 69, 19, 0.02) 0%, transparent 50%) !important;
-                        background-size: 103px 103px, 263px 263px, 499px 499px, 379px 379px, 100% 100%, 800px 800px !important;
-                        background-position: 0 0, 30px 50px, 100px 20px, -50px 150px, 0 0, 0 0 !important;
+                        background: linear-gradient(135deg, #ffe135 0%, #ffec4d 25%, #fff176 50%, #ffeb3b 75%, #fdd835 100%) !important;
                         background-attachment: fixed !important;
+                        position: relative;
+                    }
+                    body.theme-banana::before {
+                        content: '';
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        right: 0;
+                        bottom: 0;
+                        background-image: 
+                            radial-gradient(ellipse 80px 30px at 10% 20%, rgba(139, 90, 43, 0.15) 0%, transparent 70%),
+                            radial-gradient(ellipse 60px 25px at 90% 15%, rgba(139, 90, 43, 0.12) 0%, transparent 70%),
+                            radial-gradient(ellipse 70px 28px at 25% 80%, rgba(139, 90, 43, 0.14) 0%, transparent 70%),
+                            radial-gradient(ellipse 90px 35px at 75% 70%, rgba(139, 90, 43, 0.13) 0%, transparent 70%),
+                            radial-gradient(ellipse 50px 20px at 50% 40%, rgba(139, 90, 43, 0.1) 0%, transparent 70%),
+                            radial-gradient(circle at 15% 50%, rgba(92, 64, 51, 0.4) 1px, transparent 2px),
+                            radial-gradient(circle at 85% 30%, rgba(92, 64, 51, 0.35) 1.5px, transparent 3px),
+                            radial-gradient(circle at 45% 75%, rgba(92, 64, 51, 0.3) 1px, transparent 2px);
+                        background-size: 400px 400px, 350px 350px, 380px 380px, 420px 420px, 300px 300px, 150px 150px, 200px 200px, 180px 180px;
+                        pointer-events: none;
+                        z-index: 0;
+                    }
+                    body.theme-banana .card,
+                    body.theme-banana .bg-white {
+                        background: rgba(255, 253, 231, 0.95) !important;
+                        border-color: rgba(251, 191, 36, 0.3) !important;
                     }
                     body.theme-banana #wordDisplay {
-                        color: #4b3621 !important;
-                        text-shadow: 1px 1px 0px rgba(255,255,255,0.4);
+                        color: #5d4037 !important;
+                        text-shadow: 1px 1px 0px rgba(255,255,255,0.5);
+                    }
+                    body.theme-banana .bg-indigo-600,
+                    body.theme-banana .bg-indigo-500 {
+                        background: linear-gradient(135deg, #f9a825, #fbc02d) !important;
+                    }
+                    body.theme-banana .text-indigo-600 {
+                        color: #f57f17 !important;
                     }
                 `;
                 document.head.appendChild(s);
@@ -1723,11 +1747,22 @@ const SnowmanBuilder = {
         const logoArea = document.getElementById('logoArea');
         if (!logoArea || this.container) return;
         
+        // Add style to shift logo when snowman/dog visible
+        if (!document.getElementById('snowman-logo-style')) {
+            const style = document.createElement('style');
+            style.id = 'snowman-logo-style';
+            style.textContent = `
+                #logoArea.has-snowman #logoText { transform: translateX(-15px); transition: transform 0.3s ease; }
+                #logoArea.has-snowdog #logoText { transform: translateX(-30px); transition: transform 0.3s ease; }
+            `;
+            document.head.appendChild(style);
+        }
+        
         this.container = document.createElement('div');
         this.container.id = 'snowman-builder';
         this.container.style.cssText = `
             position: absolute;
-            right: 8px;
+            right: 4px;
             top: 50%;
             transform: translateY(-50%);
             height: 100%;
@@ -1738,7 +1773,7 @@ const SnowmanBuilder = {
             align-items: center;
             pointer-events: none;
             opacity: 0;
-            transition: opacity 0.5s ease;
+            transition: opacity 0.5s ease, width 0.3s ease;
         `;
         logoArea.appendChild(this.container);
         
@@ -1767,21 +1802,34 @@ const SnowmanBuilder = {
         
         const count = State.data.snowmanCollected || 0;
         const progress = Math.min(count / this.TOTAL_PARTS, 1);
+        const logoArea = document.getElementById('logoArea');
         
         if (count === 0) {
             this.container.style.opacity = '0';
+            if (logoArea) logoArea.classList.remove('has-snowman', 'has-snowdog');
             return;
         }
         
         this.container.style.opacity = '1';
-        this.container.style.width = count > 100 ? '90px' : '60px';
+        
+        // Update logo shift class
+        if (logoArea) {
+            logoArea.classList.remove('has-snowman', 'has-snowdog');
+            if (count > 100) {
+                logoArea.classList.add('has-snowdog');
+            } else if (count > 0) {
+                logoArea.classList.add('has-snowman');
+            }
+        }
+        
+        this.container.style.width = count > 100 ? '95px' : '55px';
         this.container.style.flexDirection = count > 100 ? 'row' : 'column';
         this.container.style.alignItems = 'flex-end';
-        this.container.style.gap = '2px';
+        this.container.style.gap = '4px';
         
         let html = '';
         
-        // Snow dog (after 100)
+        // Snow dog (after 100, builds up to 150)
         if (count > 100) {
             const dogProg = Math.min((count - 100) / 50, 1);
             html += '<div style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;">';
@@ -1813,7 +1861,7 @@ const SnowmanBuilder = {
             html += '</div></div>';
         }
         
-        // Snowman
+        // Snowman (bigger sizes)
         html += '<div style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;">';
         
         const bottomProgress = Math.min(progress / 0.33, 1);
@@ -1821,32 +1869,46 @@ const SnowmanBuilder = {
         const topProgress = progress > 0.66 ? Math.min((progress - 0.66) / 0.24, 1) : 0;
         const accessoryProgress = progress > 0.90 ? (progress - 0.90) / 0.10 : 0;
         
-        if (accessoryProgress > 0.8) html += `<div style="font-size:12px;margin-bottom:-6px;">🎩</div>`;
+        if (accessoryProgress > 0.8) html += `<div style="font-size:14px;margin-bottom:-8px;">🎩</div>`;
         
+        // Head (bigger: 22px max)
         if (topProgress > 0) {
-            const size = Math.round(16 * topProgress);
+            const size = Math.round(22 * topProgress);
             const hasEyes = accessoryProgress > 0.2, hasNose = accessoryProgress > 0.5;
-            html += `<div style="width:${size}px;height:${size}px;background:radial-gradient(circle at 30% 30%, #fff, #e8e8e8);border-radius:50%;position:relative;margin-bottom:-2px;">
-                ${hasEyes ? `<div style="position:absolute;top:35%;left:25%;width:2px;height:2px;background:#1a1a1a;border-radius:50%;"></div><div style="position:absolute;top:35%;right:25%;width:2px;height:2px;background:#1a1a1a;border-radius:50%;"></div>` : ''}
-                ${hasNose ? `<div style="position:absolute;top:45%;left:50%;transform:translateX(-50%);border-left:2px solid transparent;border-right:2px solid transparent;border-top:6px solid #ff6b35;"></div>` : ''}
+            html += `<div style="width:${size}px;height:${size}px;background:radial-gradient(circle at 30% 30%, #fff, #e8e8e8);border-radius:50%;box-shadow:inset -2px -2px 4px rgba(0,0,0,0.1);position:relative;margin-bottom:-3px;">
+                ${hasEyes ? `<div style="position:absolute;top:32%;left:22%;width:3px;height:3px;background:#1a1a1a;border-radius:50%;"></div><div style="position:absolute;top:32%;right:22%;width:3px;height:3px;background:#1a1a1a;border-radius:50%;"></div>` : ''}
+                ${hasNose ? `<div style="position:absolute;top:48%;left:50%;transform:translateX(-50%);border-left:3px solid transparent;border-right:3px solid transparent;border-top:8px solid #ff6b35;"></div>` : ''}
             </div>`;
         }
         
+        // Body with arms (bigger: 30px max)
         if (middleProgress > 0) {
-            const size = Math.round(22 * middleProgress);
-            const hasArms = accessoryProgress > 0.5;
-            html += `<div style="width:${size}px;height:${size}px;background:radial-gradient(circle at 30% 30%, #fff, #e8e8e8);border-radius:50%;position:relative;margin-bottom:-3px;">
-                ${hasArms ? `<div style="position:absolute;left:-10px;top:40%;width:12px;height:2px;background:#5d4037;border-radius:1px;transform:rotate(-20deg);"></div><div style="position:absolute;right:-10px;top:40%;width:12px;height:2px;background:#5d4037;border-radius:1px;transform:rotate(20deg);"></div>` : ''}
+            const size = Math.round(30 * middleProgress);
+            const hasArms = accessoryProgress > 0.4;
+            const hasButtons = accessoryProgress > 0.3;
+            html += `<div style="width:${size}px;height:${size}px;background:radial-gradient(circle at 30% 30%, #fff, #e8e8e8);border-radius:50%;box-shadow:inset -2px -2px 4px rgba(0,0,0,0.1);position:relative;margin-bottom:-4px;">
+                ${hasButtons ? `<div style="position:absolute;top:25%;left:50%;transform:translateX(-50%);width:3px;height:3px;background:#1a1a1a;border-radius:50%;"></div><div style="position:absolute;top:50%;left:50%;transform:translateX(-50%);width:3px;height:3px;background:#1a1a1a;border-radius:50%;"></div><div style="position:absolute;top:75%;left:50%;transform:translateX(-50%);width:3px;height:3px;background:#1a1a1a;border-radius:50%;"></div>` : ''}
+                ${hasArms ? `<div style="position:absolute;left:-14px;top:35%;width:16px;height:3px;background:linear-gradient(90deg, #3e2723, #5d4037);border-radius:2px;transform:rotate(-25deg);box-shadow:0 1px 1px rgba(0,0,0,0.2);"></div><div style="position:absolute;right:-14px;top:35%;width:16px;height:3px;background:linear-gradient(90deg, #5d4037, #3e2723);border-radius:2px;transform:rotate(25deg);box-shadow:0 1px 1px rgba(0,0,0,0.2);"></div>` : ''}
             </div>`;
         }
         
+        // Base (bigger: 38px max)
         if (bottomProgress > 0) {
-            const size = Math.round(28 * bottomProgress);
-            html += `<div style="width:${size}px;height:${size}px;background:radial-gradient(circle at 30% 30%, #fff, #e8e8e8);border-radius:50%;"></div>`;
+            const size = Math.round(38 * bottomProgress);
+            html += `<div style="width:${size}px;height:${size}px;background:radial-gradient(circle at 30% 30%, #fff, #e8e8e8);border-radius:50%;box-shadow:inset -3px -3px 5px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.15);"></div>`;
         }
         
         html += '</div>';
-        html += `<div style="position:absolute;bottom:-2px;right:2px;font-size:7px;color:#666;">${count > 100 ? count : count + '/' + this.TOTAL_PARTS}</div>`;
+        // Counter: show X/100 up to 100, then X/150 up to 150, then just the number
+        let counterText;
+        if (count <= 100) {
+            counterText = `${count}/${this.TOTAL_PARTS}`;
+        } else if (count <= 150) {
+            counterText = `${count}/150`;
+        } else {
+            counterText = `${count}`;
+        }
+        html += `<div style="position:absolute;bottom:-2px;right:2px;font-size:7px;color:#666;font-weight:bold;">${counterText}</div>`;
         
         this.container.innerHTML = html;
     },
@@ -4789,6 +4851,8 @@ init() {
                 // 5. INTERFACE
                 html += `<div><h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 border-b border-gray-100 pb-1">Interface</h3><div class="space-y-4">`;
                 html += mkTog('toggleHideMultiplayer', 'Hide Multiplayer Button', s.hideMultiplayer);
+                html += mkTog('toggleHideCards', '🎨 Hide Cards (Theme Mode)', s.hideCards);
+                html += `<p class="text-xs text-gray-400 mt-1 mb-2">Hides the game cards to just enjoy the theme background.</p>`;
                 html += `</div></div>`;
 
                 // Hide Data Management in Kids Mode to prevent children from deleting progress
@@ -4884,6 +4948,15 @@ init() {
                             const shouldHide = e.target.checked || State.data.settings.kidsMode;
                             roomBtn.style.display = shouldHide ? 'none' : '';
                         }
+                    };
+                }
+                
+                // Hide Cards toggle (Theme Mode)
+                const hideCardsToggle = document.getElementById('toggleHideCards');
+                if (hideCardsToggle) {
+                    hideCardsToggle.onchange = e => {
+                        State.save('settings', { ...State.data.settings, hideCards: e.target.checked });
+                        Game.applyHideCards(e.target.checked);
                     };
                 }
 				
@@ -6566,6 +6639,11 @@ const Game = {
             MosquitoManager.startMonitoring();
             this.checkDailyStatus();
             
+            // Apply hide cards setting on load
+            if (State.data.settings.hideCards) {
+                this.applyHideCards(true);
+            }
+            
             await this.refreshData();
             DiscoveryManager.init();
 
@@ -6992,6 +7070,24 @@ async vote(t, s = false) {
                 if (history.length > 365) history.shift(); 
                 State.save('wordHistory', history);
             }
+        }
+    },
+
+    applyHideCards(hide) {
+        const gameCard = DOM.game.card;
+        const header = document.querySelector('header');
+        const themesPanel = document.querySelector('.mt-6.p-4.bg-white\\/70'); // Themes panel
+        
+        if (hide) {
+            if (gameCard) gameCard.style.opacity = '0';
+            if (gameCard) gameCard.style.pointerEvents = 'none';
+            if (header) header.style.opacity = '0.3';
+            if (themesPanel) themesPanel.style.opacity = '0.3';
+        } else {
+            if (gameCard) gameCard.style.opacity = '1';
+            if (gameCard) gameCard.style.pointerEvents = '';
+            if (header) header.style.opacity = '1';
+            if (themesPanel) themesPanel.style.opacity = '1';
         }
     },
 
