@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.88.5', 
+    APP_VERSION: '5.88.6', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4308,11 +4308,13 @@ init() {
                     Game.updateLights();
                 };
 
-                // --- INSERT NEW LISTENERS HERE ---
-                document.getElementById('exportSaveBtn').onclick = () => DataManager.exportData();
-
+                // --- Data Management listeners (only exist when not in Kids Mode) ---
+                const exportBtn = document.getElementById('exportSaveBtn');
                 const importInput = document.getElementById('importFileInput');
                 const importBtn = document.getElementById('importSaveBtn');
+                const clearBtn = document.getElementById('clearAllDataButton');
+                
+                if (exportBtn) exportBtn.onclick = () => DataManager.exportData();
                 
                 if (importBtn && importInput) {
                     importBtn.onclick = () => importInput.click();
@@ -4323,7 +4325,6 @@ init() {
                         e.target.value = ''; 
                     };
                 }
-                const clearBtn = document.getElementById('clearAllDataButton');
                 if (clearBtn) clearBtn.onclick = State.clearAll;
             }
             this.toggle('settings', true)
