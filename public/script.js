@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.92.0', 
+    APP_VERSION: '5.93.0', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1457,9 +1457,9 @@ async fetchKidsWords() {
     }
 };
 
-// CommunityGoal - Tracks global vote milestones with rewards for top contributors
+// CommunityGoal - Tracks global vote milestones
 const CommunityGoal = {
-    GOAL_INCREMENT: 50000, // Goals at 50k, 100k, 150k, etc.
+    GOAL_INCREMENT: 50000,
     
     getNextGoal(currentVotes) {
         return Math.ceil((currentVotes + 1) / this.GOAL_INCREMENT) * this.GOAL_INCREMENT;
@@ -1483,7 +1483,6 @@ const CommunityGoal = {
         
         const nextGoal = this.getNextGoal(totalVotes);
         const progress = this.getProgress(totalVotes);
-        
         bar.style.width = `${progress}%`;
         
         const formatNum = (n) => {
@@ -1493,7 +1492,6 @@ const CommunityGoal = {
         };
         
         const remaining = nextGoal - totalVotes;
-        
         if (progress >= 95) {
             text.textContent = `🏆 Almost there! ${formatNum(remaining)} to go!`;
             text.classList.add('animate-pulse');
@@ -1509,45 +1507,31 @@ const CommunityGoal = {
     async checkGoalReached(totalVotes) {
         const currentGoal = Math.floor(totalVotes / this.GOAL_INCREMENT) * this.GOAL_INCREMENT;
         const lastCelebratedGoal = parseInt(localStorage.getItem('lastCelebratedGoal') || '0');
-        
         if (currentGoal > lastCelebratedGoal && currentGoal > 0) {
             localStorage.setItem('lastCelebratedGoal', currentGoal.toString());
-            
             try {
                 const leaderboard = await API.fetchLeaderboard();
                 if (leaderboard && leaderboard.length > 0) {
                     const userRank = leaderboard.findIndex(u => u.userId === State.data.userId) + 1;
-                    if (userRank > 0 && userRank <= 10) {
-                        this.showReward(currentGoal, userRank);
-                    } else {
-                        this.showCommunityMilestone(currentGoal);
-                    }
+                    if (userRank > 0 && userRank <= 10) this.showReward(currentGoal, userRank);
+                    else this.showCommunityMilestone(currentGoal);
                 }
-            } catch (e) {
-                this.showCommunityMilestone(currentGoal);
-            }
+            } catch (e) { this.showCommunityMilestone(currentGoal); }
         }
     },
     
     showReward(goal, rank) {
         const formatGoal = (n) => n >= 1000 ? Math.round(n / 1000) + 'k' : n;
         const medals = ['🥇', '🥈', '🥉', '🏅', '🏅', '🏅', '🏅', '🏅', '🏅', '🏅'];
-        const medal = medals[rank - 1] || '🏅';
-        
         const el = document.createElement('div');
         el.className = 'fixed inset-0 z-[10000] flex items-center justify-center bg-black/90 px-4';
-        el.innerHTML = `
-            <div class="w-full max-w-sm p-6 bg-gradient-to-b from-amber-50 to-white rounded-2xl shadow-2xl text-center animate-pop border-2 border-amber-400">
-                <div class="text-6xl mb-4">${medal}</div>
-                <h2 class="text-2xl font-black text-amber-800 mb-2">Community Goal Reached!</h2>
-                <p class="text-amber-700 font-bold text-lg mb-1">${formatGoal(goal)} Total Votes!</p>
-                <p class="text-gray-600 mb-4">You placed <span class="font-black text-amber-600">#${rank}</span> globally!</p>
-                <div class="bg-amber-100 rounded-xl p-3 mb-4 border border-amber-200">
-                    <div class="text-sm text-amber-800">🎉 Top 10 Contributor Reward!</div>
-                </div>
-                <button class="w-full py-3 bg-gradient-to-r from-amber-500 to-yellow-500 text-white font-bold rounded-xl shadow-lg" onclick="this.closest('.fixed').remove()">Amazing! 🎉</button>
-            </div>
-        `;
+        el.innerHTML = `<div class="w-full max-w-sm p-6 bg-gradient-to-b from-amber-50 to-white rounded-2xl shadow-2xl text-center animate-pop border-2 border-amber-400">
+            <div class="text-6xl mb-4">${medals[rank - 1]}</div>
+            <h2 class="text-2xl font-black text-amber-800 mb-2">Community Goal!</h2>
+            <p class="text-amber-700 font-bold text-lg mb-1">${formatGoal(goal)} Votes!</p>
+            <p class="text-gray-600 mb-4">You placed <span class="font-black text-amber-600">#${rank}</span> globally!</p>
+            <button class="w-full py-3 bg-gradient-to-r from-amber-500 to-yellow-500 text-white font-bold rounded-xl" onclick="this.closest('.fixed').remove()">Amazing! 🎉</button>
+        </div>`;
         document.body.appendChild(el);
         if (window.SoundManager) SoundManager.playUnlock();
     },
@@ -1787,7 +1771,6 @@ const SnowmanBuilder = {
     container: null,
     
     init() {
-        // Create container next to logo
         const logoArea = document.getElementById('logoArea');
         if (!logoArea || this.container) return;
         
@@ -1795,11 +1778,11 @@ const SnowmanBuilder = {
         this.container.id = 'snowman-builder';
         this.container.style.cssText = `
             position: absolute;
-            right: 8px;
+            right: 4px;
             top: 50%;
             transform: translateY(-50%);
             height: 100%;
-            width: 60px;
+            width: 90px;
             display: flex;
             flex-direction: column;
             justify-content: flex-end;
@@ -1809,7 +1792,6 @@ const SnowmanBuilder = {
             transition: opacity 0.5s ease;
         `;
         logoArea.appendChild(this.container);
-        
         this.render();
     },
     
@@ -1818,7 +1800,6 @@ const SnowmanBuilder = {
         State.save('snowmanCollected', count);
         this.render();
         
-        // Show completion message at milestones
         if (count === this.TOTAL_PARTS) {
             UIManager.showPostVoteMessage("⛄ Snowman complete! Amazing!");
         } else if (count % 25 === 0) {
@@ -1833,7 +1814,6 @@ const SnowmanBuilder = {
         const count = State.data.snowmanCollected || 0;
         const progress = Math.min(count / this.TOTAL_PARTS, 1);
         
-        // Only show if we have some progress and it's winter theme
         if (count === 0) {
             this.container.style.opacity = '0';
             return;
@@ -1841,78 +1821,63 @@ const SnowmanBuilder = {
         
         this.container.style.opacity = '1';
         
-        // Build snowman parts based on progress
-        // 0-33%: bottom ball builds
-        // 34-66%: middle ball builds  
-        // 67-90%: top ball builds
-        // 91-100%: accessories (eyes, nose, arms, hat)
+        // Build stages: 0-30% base, 31-55% middle, 56-80% head, 81-100% accessories
+        let html = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;position:relative;">';
         
-        let html = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;">';
+        const bottomProgress = Math.min(progress / 0.30, 1);
+        const middleProgress = progress > 0.30 ? Math.min((progress - 0.30) / 0.25, 1) : 0;
+        const topProgress = progress > 0.55 ? Math.min((progress - 0.55) / 0.25, 1) : 0;
+        const accessoryProgress = progress > 0.80 ? (progress - 0.80) / 0.20 : 0;
         
-        const bottomProgress = Math.min(progress / 0.33, 1);
-        const middleProgress = progress > 0.33 ? Math.min((progress - 0.33) / 0.33, 1) : 0;
-        const topProgress = progress > 0.66 ? Math.min((progress - 0.66) / 0.24, 1) : 0;
-        const accessoryProgress = progress > 0.90 ? (progress - 0.90) / 0.10 : 0;
-        
-        // Hat (appears last)
+        // Hat
         if (accessoryProgress > 0.8) {
-            html += `<div style="font-size:14px;margin-bottom:-8px;filter:drop-shadow(1px 1px 1px rgba(0,0,0,0.2));">🎩</div>`;
+            html += `<div style="font-size:18px;margin-bottom:-12px;filter:drop-shadow(1px 1px 1px rgba(0,0,0,0.2));z-index:5;">🎩</div>`;
         }
         
-        // Top ball (head)
+        // Head
         if (topProgress > 0) {
-            const size = Math.round(18 * topProgress);
+            const size = Math.round(28 * topProgress);
             const hasEyes = accessoryProgress > 0.2;
             const hasNose = accessoryProgress > 0.5;
-            html += `<div style="
-                width:${size}px;
-                height:${size}px;
-                background:radial-gradient(circle at 30% 30%, #fff, #e8e8e8);
-                border-radius:50%;
-                box-shadow:inset -2px -2px 4px rgba(0,0,0,0.1), 1px 1px 2px rgba(0,0,0,0.15);
-                position:relative;
-                margin-bottom:-3px;
-            ">
-                ${hasEyes ? `<div style="position:absolute;top:35%;left:25%;width:3px;height:3px;background:#1a1a1a;border-radius:50%;"></div>
-                <div style="position:absolute;top:35%;right:25%;width:3px;height:3px;background:#1a1a1a;border-radius:50%;"></div>` : ''}
-                ${hasNose ? `<div style="position:absolute;top:45%;left:50%;transform:translateX(-50%);width:0;height:0;border-left:3px solid transparent;border-right:3px solid transparent;border-top:8px solid #ff6b35;"></div>` : ''}
+            html += `<div style="width:${size}px;height:${size}px;background:radial-gradient(circle at 30% 30%, #fff, #e8e8e8);border-radius:50%;box-shadow:inset -2px -2px 4px rgba(0,0,0,0.1), 1px 1px 2px rgba(0,0,0,0.15);position:relative;margin-bottom:-5px;z-index:3;">
+                ${hasEyes ? `<div style="position:absolute;top:32%;left:22%;width:4px;height:4px;background:#1a1a1a;border-radius:50%;"></div><div style="position:absolute;top:32%;right:22%;width:4px;height:4px;background:#1a1a1a;border-radius:50%;"></div>` : ''}
+                ${hasNose ? `<div style="position:absolute;top:45%;left:50%;transform:translateX(-50%);width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:10px solid #ff6b35;"></div>` : ''}
             </div>`;
         }
         
-        // Middle ball
+        // Middle body with arms
         if (middleProgress > 0) {
-            const size = Math.round(24 * middleProgress);
-            const hasButtons = accessoryProgress > 0.4;
-            html += `<div style="
-                width:${size}px;
-                height:${size}px;
-                background:radial-gradient(circle at 30% 30%, #fff, #e8e8e8);
-                border-radius:50%;
-                box-shadow:inset -2px -2px 4px rgba(0,0,0,0.1), 1px 1px 2px rgba(0,0,0,0.15);
-                position:relative;
-                margin-bottom:-4px;
-            ">
-                ${hasButtons ? `<div style="position:absolute;top:30%;left:50%;transform:translateX(-50%);width:3px;height:3px;background:#1a1a1a;border-radius:50%;"></div>
-                <div style="position:absolute;top:55%;left:50%;transform:translateX(-50%);width:3px;height:3px;background:#1a1a1a;border-radius:50%;"></div>` : ''}
+            const size = Math.round(38 * middleProgress);
+            const hasButtons = accessoryProgress > 0.3;
+            const hasArms = accessoryProgress > 0.5;
+            
+            let armsHtml = '';
+            if (hasArms) {
+                armsHtml = `
+                    <div style="position:absolute;left:-22px;top:35%;width:24px;height:4px;background:linear-gradient(90deg, #4a3728, #6b4423);border-radius:2px;transform:rotate(-20deg);transform-origin:right center;box-shadow:1px 1px 2px rgba(0,0,0,0.2);">
+                        <div style="position:absolute;left:-1px;top:-5px;width:3px;height:7px;background:#4a3728;border-radius:1px;transform:rotate(-35deg);"></div>
+                        <div style="position:absolute;left:0px;top:2px;width:3px;height:6px;background:#4a3728;border-radius:1px;transform:rotate(25deg);"></div>
+                    </div>
+                    <div style="position:absolute;right:-22px;top:35%;width:24px;height:4px;background:linear-gradient(90deg, #6b4423, #4a3728);border-radius:2px;transform:rotate(20deg);transform-origin:left center;box-shadow:1px 1px 2px rgba(0,0,0,0.2);">
+                        <div style="position:absolute;right:-1px;top:-5px;width:3px;height:7px;background:#4a3728;border-radius:1px;transform:rotate(35deg);"></div>
+                        <div style="position:absolute;right:0px;top:2px;width:3px;height:6px;background:#4a3728;border-radius:1px;transform:rotate(-25deg);"></div>
+                    </div>`;
+            }
+            
+            html += `<div style="width:${size}px;height:${size}px;background:radial-gradient(circle at 30% 30%, #fff, #e8e8e8);border-radius:50%;box-shadow:inset -2px -2px 4px rgba(0,0,0,0.1), 1px 1px 2px rgba(0,0,0,0.15);position:relative;margin-bottom:-6px;z-index:2;">
+                ${hasButtons ? `<div style="position:absolute;top:25%;left:50%;transform:translateX(-50%);width:4px;height:4px;background:#1a1a1a;border-radius:50%;"></div><div style="position:absolute;top:50%;left:50%;transform:translateX(-50%);width:4px;height:4px;background:#1a1a1a;border-radius:50%;"></div><div style="position:absolute;top:75%;left:50%;transform:translateX(-50%);width:4px;height:4px;background:#1a1a1a;border-radius:50%;"></div>` : ''}
+                ${armsHtml}
             </div>`;
         }
         
-        // Bottom ball (base)
+        // Base
         if (bottomProgress > 0) {
-            const size = Math.round(30 * bottomProgress);
-            html += `<div style="
-                width:${size}px;
-                height:${size}px;
-                background:radial-gradient(circle at 30% 30%, #fff, #e8e8e8);
-                border-radius:50%;
-                box-shadow:inset -3px -3px 5px rgba(0,0,0,0.1), 1px 2px 3px rgba(0,0,0,0.2);
-            "></div>`;
+            const size = Math.round(48 * bottomProgress);
+            html += `<div style="width:${size}px;height:${size}px;background:radial-gradient(circle at 30% 30%, #fff, #e8e8e8);border-radius:50%;box-shadow:inset -3px -3px 5px rgba(0,0,0,0.1), 1px 2px 3px rgba(0,0,0,0.2);z-index:1;"></div>`;
         }
         
         html += '</div>';
-        
-        // Add progress indicator
-        html += `<div style="font-size:8px;color:#666;margin-top:2px;text-align:center;">${count}/${this.TOTAL_PARTS}</div>`;
+        html += `<div style="font-size:9px;color:#666;margin-top:2px;text-align:center;font-weight:bold;">${count}/${this.TOTAL_PARTS}</div>`;
         
         this.container.innerHTML = html;
     },
@@ -2468,13 +2433,22 @@ halloween(active) {
             s.id = 'spider-motion-style';
             s.innerHTML = `
                 @keyframes spider-scuttle {
-                    0% { transform: rotate(0deg); }
-                    25% { transform: rotate(5deg); }
-                    75% { transform: rotate(-5deg); }
-                    100% { transform: rotate(0deg); }
+                    0% { transform: rotate(0deg) scaleX(1); }
+                    12% { transform: rotate(3deg) scaleX(0.97); }
+                    25% { transform: rotate(0deg) scaleX(1); }
+                    37% { transform: rotate(-3deg) scaleX(0.97); }
+                    50% { transform: rotate(0deg) scaleX(1); }
+                    62% { transform: rotate(3deg) scaleX(0.97); }
+                    75% { transform: rotate(0deg) scaleX(1); }
+                    87% { transform: rotate(-3deg) scaleX(0.97); }
+                    100% { transform: rotate(0deg) scaleX(1); }
+                }
+                @keyframes spider-bob {
+                    0%, 100% { transform: translateY(0); }
+                    50% { transform: translateY(2px); }
                 }
                 .scuttling-motion {
-                    animation: spider-scuttle 0.2s infinite linear;
+                    animation: spider-scuttle 0.4s infinite ease-in-out, spider-bob 0.2s infinite ease-in-out;
                 }
             `;
             document.head.appendChild(s);
@@ -3146,60 +3120,130 @@ spiderHunt(targetXPercent, targetYPercent, isFood) {
             c.appendChild(leaf);
         }
         
-        // Create trees (silhouettes on sides)
+        // Create trees (more realistic organic shapes)
         const createTree = (left, size, zIndex) => {
             const tree = document.createElement('div');
+            const offsetX = Math.random() * 10 - 5;
             tree.style.cssText = `
                 position: absolute;
                 bottom: 15%;
-                ${left ? 'left' : 'right'}: ${Math.random() * 10 - 5}%;
+                ${left ? 'left' : 'right'}: ${offsetX}%;
                 width: ${size}px;
                 height: ${size * 2.5}px;
                 z-index: ${zIndex};
             `;
             
-            // Trunk
+            // Trunk with more realistic shape (tapers toward top)
             const trunk = document.createElement('div');
+            const trunkWidth = size * 0.12;
+            const trunkHeight = size * 0.9;
             trunk.style.cssText = `
                 position: absolute;
                 bottom: 0;
                 left: 50%;
                 transform: translateX(-50%);
-                width: ${size * 0.15}px;
-                height: ${size * 0.8}px;
-                background: linear-gradient(90deg, #2d1f14 0%, #4a3525 50%, #2d1f14 100%);
-                border-radius: 5px;
+                width: ${trunkWidth}px;
+                height: ${trunkHeight}px;
+                background: linear-gradient(90deg, #1a1208 0%, #3d2914 30%, #5a3d1f 50%, #3d2914 70%, #1a1208 100%);
+                border-radius: ${trunkWidth * 0.3}px ${trunkWidth * 0.3}px 0 0;
+                clip-path: polygon(15% 100%, 85% 100%, 70% 0%, 30% 0%);
             `;
             tree.appendChild(trunk);
             
-            // Foliage layers
-            for (let i = 0; i < 3; i++) {
-                const foliage = document.createElement('div');
-                const layerSize = size * (1 - i * 0.25);
-                const bottomPos = size * 0.5 + i * size * 0.4;
-                foliage.style.cssText = `
+            // Add some bark texture lines
+            for (let b = 0; b < 3; b++) {
+                const barkLine = document.createElement('div');
+                barkLine.style.cssText = `
                     position: absolute;
-                    bottom: ${bottomPos}px;
+                    bottom: ${20 + b * 25}%;
                     left: 50%;
                     transform: translateX(-50%);
-                    width: 0;
-                    height: 0;
-                    border-left: ${layerSize/2}px solid transparent;
-                    border-right: ${layerSize/2}px solid transparent;
-                    border-bottom: ${layerSize * 0.8}px solid ${timeOfDay === 'night' ? '#1a2f1a' : '#2d5a2d'};
-                    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+                    width: ${trunkWidth * 0.6}px;
+                    height: 2px;
+                    background: rgba(0,0,0,0.2);
+                    border-radius: 1px;
                 `;
-                tree.appendChild(foliage);
+                trunk.appendChild(barkLine);
             }
+            
+            // Create organic foliage using multiple overlapping ellipses
+            const foliageContainer = document.createElement('div');
+            foliageContainer.style.cssText = `
+                position: absolute;
+                bottom: ${size * 0.5}px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: ${size}px;
+                height: ${size * 1.5}px;
+            `;
+            
+            const baseGreen = timeOfDay === 'night' ? [26, 47, 26] : [45, 90, 45];
+            const darkGreen = timeOfDay === 'night' ? [15, 30, 15] : [30, 60, 30];
+            
+            // Main foliage clusters (organic blob shapes)
+            const clusters = [
+                { x: 50, y: 70, w: 90, h: 50, rot: 0 },      // bottom center
+                { x: 30, y: 55, w: 70, h: 45, rot: -10 },    // bottom left
+                { x: 70, y: 55, w: 70, h: 45, rot: 10 },     // bottom right
+                { x: 50, y: 45, w: 80, h: 50, rot: 0 },      // middle center
+                { x: 35, y: 35, w: 55, h: 40, rot: -5 },     // middle left
+                { x: 65, y: 35, w: 55, h: 40, rot: 5 },      // middle right
+                { x: 50, y: 20, w: 60, h: 45, rot: 0 },      // top center
+                { x: 40, y: 10, w: 40, h: 35, rot: -8 },     // top left
+                { x: 60, y: 10, w: 40, h: 35, rot: 8 },      // top right
+                { x: 50, y: 5, w: 30, h: 25, rot: 0 },       // peak
+            ];
+            
+            clusters.forEach((c, i) => {
+                const cluster = document.createElement('div');
+                // Vary the green slightly for each cluster
+                const variance = (Math.random() - 0.5) * 20;
+                const g = Math.round(baseGreen[1] + variance);
+                const gDark = Math.round(darkGreen[1] + variance);
+                
+                cluster.style.cssText = `
+                    position: absolute;
+                    left: ${c.x}%;
+                    top: ${c.y}%;
+                    transform: translate(-50%, -50%) rotate(${c.rot}deg);
+                    width: ${c.w}%;
+                    height: ${c.h}%;
+                    background: radial-gradient(ellipse at 30% 30%, 
+                        rgb(${baseGreen[0]}, ${g}, ${baseGreen[2]}) 0%, 
+                        rgb(${darkGreen[0]}, ${gDark}, ${darkGreen[2]}) 70%,
+                        rgb(${darkGreen[0] - 10}, ${gDark - 15}, ${darkGreen[2] - 10}) 100%);
+                    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+                    box-shadow: inset -3px -3px 8px rgba(0,0,0,0.3);
+                `;
+                foliageContainer.appendChild(cluster);
+            });
+            
+            tree.appendChild(foliageContainer);
+            
+            // Add some highlight spots for depth
+            const highlight = document.createElement('div');
+            highlight.style.cssText = `
+                position: absolute;
+                bottom: ${size * 1.2}px;
+                left: 40%;
+                width: ${size * 0.25}px;
+                height: ${size * 0.15}px;
+                background: radial-gradient(ellipse, rgba(255,255,255,0.1) 0%, transparent 70%);
+                border-radius: 50%;
+                pointer-events: none;
+            `;
+            tree.appendChild(highlight);
             
             return tree;
         };
         
-        // Add trees on both sides
-        c.appendChild(createTree(true, 120, 2));
-        c.appendChild(createTree(true, 80, 1));
-        c.appendChild(createTree(false, 100, 2));
-        c.appendChild(createTree(false, 70, 1));
+        // Add trees on both sides (more trees for depth)
+        c.appendChild(createTree(true, 130, 3));
+        c.appendChild(createTree(true, 90, 2));
+        c.appendChild(createTree(true, 60, 1));
+        c.appendChild(createTree(false, 110, 3));
+        c.appendChild(createTree(false, 75, 2));
+        c.appendChild(createTree(false, 50, 1));
         
         // Create hiding spots (bushes, logs, rocks)
         const hidingSpots = [];
@@ -3266,24 +3310,16 @@ spiderHunt(targetXPercent, targetYPercent, isFood) {
                     0% { transform: skewX(-5deg) translateX(-10px); opacity: ${lightOpacity}; }
                     100% { transform: skewX(5deg) translateX(10px); opacity: ${lightOpacity * 0.7}; }
                 }
-                @keyframes creatureSneakIn {
-                    0% { transform: translateX(var(--sneak-dir)) scale(var(--creature-scale)); opacity: 0; }
-                    15% { transform: translateX(calc(var(--sneak-dir) * 0.7)) scale(var(--creature-scale)); opacity: 0.3; }
-                    30% { transform: translateX(calc(var(--sneak-dir) * 0.4)) scale(var(--creature-scale)); opacity: 0.6; }
-                    40% { transform: translateX(calc(var(--sneak-dir) * 0.2)) scale(var(--creature-scale)); opacity: 0.8; }
-                    50% { transform: translateX(0) scale(var(--creature-scale)); opacity: 1; }
-                    55% { transform: translateX(0) scale(var(--creature-scale)); opacity: 1; }
-                    60% { transform: translateX(0) scale(calc(var(--creature-scale) * 0.95)); opacity: 1; }
-                    65% { transform: translateX(0) scale(var(--creature-scale)); opacity: 1; }
-                    85% { transform: translateX(0) scale(var(--creature-scale)); opacity: 1; }
-                    100% { transform: translateX(var(--sneak-dir)) scale(var(--creature-scale)); opacity: 0; }
+                @keyframes creaturePeek {
+                    0%, 100% { transform: translateY(100%) scale(0.8); opacity: 0; }
+                    10%, 90% { transform: translateY(0) scale(1); opacity: 1; }
                 }
                 @keyframes creatureEyes {
                     0%, 90%, 100% { opacity: 0; }
                     30%, 70% { opacity: 1; }
                 }
                 .woodland-creature {
-                    animation: creatureSneakIn var(--anim-duration) ease-in-out forwards;
+                    animation: creaturePeek 6s ease-in-out forwards;
                 }
                 .woodland-hiding-spot:hover {
                     transform: scale(1.05);
@@ -3293,15 +3329,7 @@ spiderHunt(targetXPercent, targetYPercent, isFood) {
         }
         
         // Woodland creatures that peek out from hiding spots
-        // Each has a base size and position tendency (closer = larger, further = smaller)
-        const creatures = [
-            { emoji: '🐿️', baseSize: 24, shy: true },
-            { emoji: '🦊', baseSize: 28, shy: false },
-            { emoji: '🐺', baseSize: 32, shy: false },
-            { emoji: '🦉', baseSize: 26, shy: true },
-            { emoji: '🦔', baseSize: 20, shy: true },
-            { emoji: '🐁', baseSize: 16, shy: true }
-        ];
+        const creatures = ['🐿️', '🦊', '🐺', '🦉', '🦔', '🐁'];
         const creatureMessages = {
             '🐿️': 'A curious squirrel watches you!',
             '🦊': 'A sly fox peeks out!',
@@ -3322,63 +3350,45 @@ spiderHunt(targetXPercent, targetYPercent, isFood) {
             }
             
             const spot = emptySpots[Math.floor(Math.random() * emptySpots.length)];
+            const creature = creatures[Math.floor(Math.random() * creatures.length)];
             
             // Night mode: only owls and wolves are active
-            const nightCreatureList = creatures.filter(c => c.emoji === '🦉' || c.emoji === '🐺');
-            const availableCreatures = timeOfDay === 'night' ? nightCreatureList : creatures;
-            const creatureData = availableCreatures[Math.floor(Math.random() * availableCreatures.length)];
-            
-            // Randomize size for depth effect (0.6 to 1.4 scale)
-            // Lower position = closer = larger, higher position = further = smaller
-            const depthFactor = 1 + (Math.random() * 0.8 - 0.4); // 0.6 to 1.4
-            const finalSize = Math.round(creatureData.baseSize * depthFactor);
-            const scale = depthFactor;
-            
-            // Sneak direction - come from left or right of hiding spot
-            const sneakFromLeft = Math.random() > 0.5;
-            const sneakDistance = 30 + Math.random() * 20; // 30-50px
-            
-            // Animation duration varies - shy creatures are quicker
-            const animDuration = creatureData.shy 
-                ? 4 + Math.random() * 2  // 4-6 seconds for shy
-                : 6 + Math.random() * 4; // 6-10 seconds for bold
+            const nightCreatures = ['🦉', '🐺'];
+            const activeCreature = timeOfDay === 'night' 
+                ? nightCreatures[Math.floor(Math.random() * nightCreatures.length)]
+                : creature;
             
             const critterEl = document.createElement('div');
             critterEl.className = 'woodland-creature';
-            critterEl.textContent = creatureData.emoji;
+            critterEl.textContent = activeCreature;
             critterEl.style.cssText = `
                 position: absolute;
                 bottom: ${parseInt(spot.el.style.bottom) + 3}%;
                 left: ${spot.left + 2}%;
-                font-size: ${finalSize}px;
-                z-index: ${Math.round(10 - depthFactor * 3)};
+                font-size: 28px;
+                z-index: 9;
                 pointer-events: auto;
                 cursor: pointer;
-                filter: drop-shadow(1px 1px ${Math.round(2 * depthFactor)}px rgba(0,0,0,${0.3 + depthFactor * 0.1}));
-                --sneak-dir: ${sneakFromLeft ? -sneakDistance : sneakDistance}px;
-                --creature-scale: ${scale};
-                --anim-duration: ${animDuration}s;
-                opacity: 0;
+                filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.4));
             `;
             
             // Night mode: add glowing eyes effect for some creatures
-            if (timeOfDay === 'night' && (creatureData.emoji === '🦉' || creatureData.emoji === '🐺')) {
-                const eyeSize = Math.round(4 * depthFactor);
+            if (timeOfDay === 'night' && (activeCreature === '🦉' || activeCreature === '🐺')) {
                 const eyes = document.createElement('div');
                 eyes.style.cssText = `
                     position: absolute;
                     top: 25%;
                     left: 50%;
                     transform: translateX(-50%);
-                    width: ${eyeSize * 3}px;
-                    height: ${eyeSize}px;
+                    width: 20px;
+                    height: 8px;
                     display: flex;
                     justify-content: space-between;
-                    animation: creatureEyes ${animDuration}s ease-in-out forwards;
+                    animation: creatureEyes 6s ease-in-out forwards;
                 `;
                 eyes.innerHTML = `
-                    <div style="width:${eyeSize}px;height:${eyeSize}px;background:rgba(255,255,100,0.9);border-radius:50%;box-shadow:0 0 ${eyeSize * 2}px rgba(255,255,100,0.8);"></div>
-                    <div style="width:${eyeSize}px;height:${eyeSize}px;background:rgba(255,255,100,0.9);border-radius:50%;box-shadow:0 0 ${eyeSize * 2}px rgba(255,255,100,0.8);"></div>
+                    <div style="width:6px;height:6px;background:rgba(255,255,100,0.9);border-radius:50%;box-shadow:0 0 8px rgba(255,255,100,0.8);"></div>
+                    <div style="width:6px;height:6px;background:rgba(255,255,100,0.9);border-radius:50%;box-shadow:0 0 8px rgba(255,255,100,0.8);"></div>
                 `;
                 critterEl.appendChild(eyes);
             }
@@ -3386,13 +3396,12 @@ spiderHunt(targetXPercent, targetYPercent, isFood) {
             spot.creature = critterEl;
             c.appendChild(critterEl);
             
-            // Click to interact - creature startles and runs away
+            // Click to interact
             critterEl.onclick = (e) => {
                 e.stopPropagation();
-                UIManager.showPostVoteMessage(creatureMessages[creatureData.emoji] || 'A woodland creature!');
+                UIManager.showPostVoteMessage(creatureMessages[activeCreature] || 'A woodland creature!');
                 critterEl.style.animation = 'none';
-                critterEl.style.transition = 'transform 0.3s, opacity 0.3s';
-                critterEl.style.transform = `translateX(${sneakFromLeft ? -80 : 80}px) scale(${scale * 0.8})`;
+                critterEl.style.transform = 'scale(1.3)';
                 critterEl.style.opacity = '0';
                 setTimeout(() => {
                     critterEl.remove();
@@ -3400,17 +3409,17 @@ spiderHunt(targetXPercent, targetYPercent, isFood) {
                 }, 300);
             };
             
-            // Auto-hide after animation completes
+            // Auto-hide after animation
             setTimeout(() => {
                 if (critterEl.parentNode) {
                     critterEl.remove();
                     spot.creature = null;
                 }
-            }, animDuration * 1000);
+            }, 6000);
             
-            // Schedule next creature - shy creatures spawn more often but for less time
-            const nextDelay = timeOfDay === 'night' ? 12000 : 6000;
-            this.woodlandCreatureTimeout = setTimeout(spawnCreature, Math.random() * nextDelay + 4000);
+            // Schedule next creature
+            const nextDelay = timeOfDay === 'night' ? 15000 : 8000;
+            this.woodlandCreatureTimeout = setTimeout(spawnCreature, Math.random() * nextDelay + 5000);
         };
         
         // Start creature spawning after a short delay
@@ -3773,9 +3782,7 @@ updateStats() {
             DOM.header.barBad.style.width = '50%';
         }
         
-        // Update community goal progress bar
         CommunityGoal.update(globalTotal);
-        
         this.renderMiniRankings();
     },
 
@@ -6744,14 +6751,12 @@ async vote(t, s = false) {
             if (window.StreakManager) window.StreakManager.extend(c.fade + c.dur);
             State.unlockBadge(k);
             
-            // Track this special word as seen to prevent repeats
+            // Track this special word as seen
             if (w._id && w._id !== 'temp' && w._id !== 'err') {
                 const seen = State.data.seenHistory || [];
                 if (!seen.includes(w._id)) {
                     seen.push(w._id);
-                    while (seen.length > CONFIG.HISTORY_SIZE) {
-                        seen.shift();
-                    }
+                    while (seen.length > CONFIG.HISTORY_SIZE) seen.shift();
                     State.save('seenHistory', seen);
                 }
             }
@@ -6867,7 +6872,6 @@ async vote(t, s = false) {
 
             if (State.data.settings.showTips && !State.runtime.isMultiplayer) { 
                 State.save('voteCounterForTips', State.data.voteCounterForTips + 1);
-                // Show tip randomly between every 5-15 votes
                 if (!State.runtime.nextTipAt) {
                     State.runtime.nextTipAt = State.data.voteCounterForTips + Math.floor(Math.random() * 11) + 5;
                 }
@@ -6887,9 +6891,7 @@ async vote(t, s = false) {
                 const seen = State.data.seenHistory || [];
                 if (!seen.includes(w._id)) {
                     seen.push(w._id);
-                    while (seen.length > CONFIG.HISTORY_SIZE) {
-                        seen.shift();
-                    }
+                    while (seen.length > CONFIG.HISTORY_SIZE) seen.shift();
                     State.save('seenHistory', seen);
                 }
             }
@@ -7050,7 +7052,7 @@ async vote(t, s = false) {
             const seenSet = new Set(seen);
             let filtered = d.filter(w => !seenSet.has(w._id));
             
-            // If we've seen too many words, clear history and use full list
+            // If we've seen too many, clear history
             if (filtered.length < 50) {
                 State.save('seenHistory', []);
                 filtered = d;
@@ -7064,7 +7066,7 @@ async vote(t, s = false) {
             
             State.runtime.allWords = filtered;
             
-            // Filter logic - also remove high notWordVotes
+            // Filter logic
             if (!isKids) {
                  State.runtime.allWords = filtered.filter(w => (w.notWordVotes || 0) < 3);
             }
