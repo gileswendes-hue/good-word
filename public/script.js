@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.94.0', 
+    APP_VERSION: '5.96.0', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -53,8 +53,6 @@ const loadDOM = () => ({
         bad: document.getElementById('headerBad'),
         barGood: document.getElementById('headerBarGood'),
         barBad: document.getElementById('headerBarBad'),
-        communityGoalBar: document.getElementById('communityGoalBar'),
-        communityGoalText: document.getElementById('communityGoalText'),
         profileLabel: document.getElementById('headerProfileLabel'),
         profileEmoji: document.getElementById('headerProfileEmoji'),
         profileImage: document.getElementById('headerProfileImage')
@@ -269,8 +267,7 @@ const State = {
             streak: parseInt(localStorage.getItem('dailyStreak') || 0),
             bestStreak: parseInt(localStorage.getItem('dailyBestStreak') || 0),
             lastDate: localStorage.getItem('dailyLastDate') || '',
-            goldenWordsFound: parseInt(localStorage.getItem('goldenWordsFound') || 0),
-            challengeType: localStorage.getItem('dailyChallengeType') || 'single'
+            goldenWordsFound: parseInt(localStorage.getItem('goldenWordsFound') || 0)
         }
     },
 
@@ -332,7 +329,6 @@ const State = {
             s.setItem('dailyLastDate', v.lastDate);
             if (v.bestStreak !== undefined) s.setItem('dailyBestStreak', v.bestStreak);
             if (v.goldenWordsFound !== undefined) s.setItem('goldenWordsFound', v.goldenWordsFound);
-            if (v.challengeType !== undefined) s.setItem('dailyChallengeType', v.challengeType);
         }
         else if (k === 'profilePhoto') s.setItem('profilePhoto', v);
         else if (k === 'lastMosquitoSpawn') s.setItem(k, v);
@@ -1416,17 +1412,31 @@ async fetchKidsWords() {
         } catch (e) { console.error("Score submit failed", e); }
     }, // <--- FIXED: Added closing brace and comma here
 
-    async submitUserVotes(userId, username, voteCount) {
+    async submitUserVotes(userId, username, voteCount, dailyStreak, bestDailyStreak) {
         try {
+            const body = { userId, username, voteCount };
+            if (dailyStreak !== undefined) body.dailyStreak = dailyStreak;
+            if (bestDailyStreak !== undefined) body.bestDailyStreak = bestDailyStreak;
             await fetch('/api/leaderboard', { 
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId, username, voteCount })
+                body: JSON.stringify(body)
             });
         } catch (e) { 
             console.warn("Failed to submit user stats:", e); 
         }
-    }, // <--- FIXED: Added closing brace and comma here
+    },
+    
+    async fetchStreakLeaderboard() {
+        try {
+            const r = await fetch('/api/leaderboard/streaks');
+            if (!r.ok) return [];
+            return await r.json(); 
+        } catch (e) { 
+            console.error("Failed to fetch streak leaderboard:", e);
+            return []; 
+        }
+    },
     
     async fetchLeaderboard() {
         try {
@@ -1460,28 +1470,6 @@ async fetchKidsWords() {
         } catch (e) {
             console.warn("Failed to submit global snapshot:", e);
         }
-    }
-};
-
-// CommunityGoal - Tracks global vote milestones
-const CommunityGoal = {
-    GOAL_INCREMENT: 50000,
-    getNextGoal(v) { return Math.ceil((v + 1) / this.GOAL_INCREMENT) * this.GOAL_INCREMENT; },
-    getPrevGoal(v) { return Math.floor(v / this.GOAL_INCREMENT) * this.GOAL_INCREMENT; },
-    getProgress(v) {
-        const next = this.getNextGoal(v), prev = this.getPrevGoal(v);
-        return next === prev ? 100 : ((v - prev) / (next - prev)) * 100;
-    },
-    update(totalVotes) {
-        const bar = DOM.header.communityGoalBar, text = DOM.header.communityGoalText;
-        if (!bar || !text) return;
-        const next = this.getNextGoal(totalVotes), progress = this.getProgress(totalVotes);
-        bar.style.width = `${progress}%`;
-        const fmt = n => n >= 1000000 ? (n/1000000).toFixed(1)+'M' : n >= 1000 ? Math.round(n/1000)+'k' : n;
-        const rem = next - totalVotes;
-        if (progress >= 95) { text.textContent = `🏆 Almost there! ${fmt(rem)} to go!`; text.classList.add('animate-pulse'); }
-        else if (progress >= 75) { text.textContent = `🏆 ${fmt(rem)} to ${fmt(next)}!`; text.classList.remove('animate-pulse'); }
-        else { text.textContent = `🏆 Community Goal: ${fmt(next)} votes`; text.classList.remove('animate-pulse'); }
     }
 };
 
@@ -1714,7 +1702,6 @@ const SnowmanBuilder = {
     container: null,
     
     init() {
-        // Create container next to logo
         const logoArea = document.getElementById('logoArea');
         if (!logoArea || this.container) return;
         
@@ -1722,21 +1709,21 @@ const SnowmanBuilder = {
         this.container.id = 'snowman-builder';
         this.container.style.cssText = `
             position: absolute;
-            right: 8px;
+            right: 4px;
             top: 50%;
             transform: translateY(-50%);
             height: 100%;
-            width: 60px;
+            width: 100px;
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
             justify-content: flex-end;
-            align-items: center;
+            align-items: flex-end;
             pointer-events: none;
             opacity: 0;
             transition: opacity 0.5s ease;
+            gap: 2px;
         `;
         logoArea.appendChild(this.container);
-        
         this.render();
     },
     
@@ -1745,10 +1732,13 @@ const SnowmanBuilder = {
         State.save('snowmanCollected', count);
         this.render();
         
-        // Show completion message at milestones
         if (count === this.TOTAL_PARTS) {
-            UIManager.showPostVoteMessage("⛄ Snowman complete! Amazing!");
-        } else if (count % 25 === 0) {
+            UIManager.showPostVoteMessage("⛄ Snowman complete! Keep going...");
+        } else if (count === this.TOTAL_PARTS + 1) {
+            UIManager.showPostVoteMessage("🐕 A snow dawg appears!");
+        } else if (count === this.TOTAL_PARTS + 50) {
+            UIManager.showPostVoteMessage("🐕 Snow Dawg complete! Good boi!");
+        } else if (count <= this.TOTAL_PARTS && count % 25 === 0) {
             UIManager.showPostVoteMessage(`⛄ Snowman ${count}% built!`);
         }
     },
@@ -1758,90 +1748,111 @@ const SnowmanBuilder = {
         if (!this.container) return;
         
         const count = State.data.snowmanCollected || 0;
-        const progress = Math.min(count / this.TOTAL_PARTS, 1);
-        
-        // Only show if we have some progress and it's winter theme
-        if (count === 0) {
-            this.container.style.opacity = '0';
-            return;
-        }
-        
+        if (count === 0) { this.container.style.opacity = '0'; return; }
         this.container.style.opacity = '1';
         
-        // Build snowman parts based on progress
-        // 0-33%: bottom ball builds
-        // 34-66%: middle ball builds  
-        // 67-90%: top ball builds
-        // 91-100%: accessories (eyes, nose, arms, hat)
+        let html = '';
         
-        let html = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;">';
-        
-        const bottomProgress = Math.min(progress / 0.33, 1);
-        const middleProgress = progress > 0.33 ? Math.min((progress - 0.33) / 0.33, 1) : 0;
-        const topProgress = progress > 0.66 ? Math.min((progress - 0.66) / 0.24, 1) : 0;
-        const accessoryProgress = progress > 0.90 ? (progress - 0.90) / 0.10 : 0;
-        
-        // Hat (appears last)
-        if (accessoryProgress > 0.8) {
-            html += `<div style="font-size:14px;margin-bottom:-8px;filter:drop-shadow(1px 1px 1px rgba(0,0,0,0.2));">🎩</div>`;
+        // Snow Dog (appears after 100)
+        if (count > this.TOTAL_PARTS) {
+            const dogProgress = Math.min((count - this.TOTAL_PARTS) / 50, 1);
+            html += this.renderDog(dogProgress);
         }
         
-        // Top ball (head)
-        if (topProgress > 0) {
-            const size = Math.round(18 * topProgress);
-            const hasEyes = accessoryProgress > 0.2;
-            const hasNose = accessoryProgress > 0.5;
-            html += `<div style="
-                width:${size}px;
-                height:${size}px;
-                background:radial-gradient(circle at 30% 30%, #fff, #e8e8e8);
-                border-radius:50%;
-                box-shadow:inset -2px -2px 4px rgba(0,0,0,0.1), 1px 1px 2px rgba(0,0,0,0.15);
-                position:relative;
-                margin-bottom:-3px;
-            ">
-                ${hasEyes ? `<div style="position:absolute;top:35%;left:25%;width:3px;height:3px;background:#1a1a1a;border-radius:50%;"></div>
-                <div style="position:absolute;top:35%;right:25%;width:3px;height:3px;background:#1a1a1a;border-radius:50%;"></div>` : ''}
-                ${hasNose ? `<div style="position:absolute;top:45%;left:50%;transform:translateX(-50%);width:0;height:0;border-left:3px solid transparent;border-right:3px solid transparent;border-top:8px solid #ff6b35;"></div>` : ''}
+        // Snowman
+        html += this.renderSnowman(Math.min(count / this.TOTAL_PARTS, 1));
+        
+        // Progress
+        html += `<div style="position:absolute;bottom:-2px;right:2px;font-size:7px;color:#666;font-weight:bold;">${count > 100 ? count : count + '/' + this.TOTAL_PARTS}</div>`;
+        
+        this.container.innerHTML = html;
+    },
+    
+    renderSnowman(progress) {
+        let html = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;position:relative;">';
+        
+        const bp = Math.min(progress / 0.30, 1);
+        const mp = progress > 0.30 ? Math.min((progress - 0.30) / 0.25, 1) : 0;
+        const tp = progress > 0.55 ? Math.min((progress - 0.55) / 0.25, 1) : 0;
+        const ap = progress > 0.80 ? (progress - 0.80) / 0.20 : 0;
+        
+        // Hat
+        if (ap > 0.8) html += `<div style="font-size:14px;margin-bottom:-8px;z-index:5;">🎩</div>`;
+        
+        // Head
+        if (tp > 0) {
+            const s = Math.round(20 * tp);
+            html += `<div style="width:${s}px;height:${s}px;background:radial-gradient(circle at 30% 30%, #fff, #e8e8e8);border-radius:50%;box-shadow:inset -2px -2px 4px rgba(0,0,0,0.1);position:relative;margin-bottom:-3px;z-index:3;">
+                ${ap > 0.2 ? `<div style="position:absolute;top:32%;left:22%;width:2px;height:2px;background:#1a1a1a;border-radius:50%;"></div><div style="position:absolute;top:32%;right:22%;width:2px;height:2px;background:#1a1a1a;border-radius:50%;"></div>` : ''}
+                ${ap > 0.5 ? `<div style="position:absolute;top:45%;left:50%;transform:translateX(-50%);border-left:2px solid transparent;border-right:2px solid transparent;border-top:6px solid #ff6b35;"></div>` : ''}
             </div>`;
         }
         
-        // Middle ball
-        if (middleProgress > 0) {
-            const size = Math.round(24 * middleProgress);
-            const hasButtons = accessoryProgress > 0.4;
-            html += `<div style="
-                width:${size}px;
-                height:${size}px;
-                background:radial-gradient(circle at 30% 30%, #fff, #e8e8e8);
-                border-radius:50%;
-                box-shadow:inset -2px -2px 4px rgba(0,0,0,0.1), 1px 1px 2px rgba(0,0,0,0.15);
-                position:relative;
-                margin-bottom:-4px;
-            ">
-                ${hasButtons ? `<div style="position:absolute;top:30%;left:50%;transform:translateX(-50%);width:3px;height:3px;background:#1a1a1a;border-radius:50%;"></div>
-                <div style="position:absolute;top:55%;left:50%;transform:translateX(-50%);width:3px;height:3px;background:#1a1a1a;border-radius:50%;"></div>` : ''}
+        // Middle with arms
+        if (mp > 0) {
+            const s = Math.round(26 * mp);
+            let arms = '';
+            if (ap > 0.5) {
+                arms = `<div style="position:absolute;left:-14px;top:35%;width:16px;height:3px;background:linear-gradient(90deg,#4a3728,#6b4423);border-radius:2px;transform:rotate(-20deg);"></div>
+                       <div style="position:absolute;right:-14px;top:35%;width:16px;height:3px;background:linear-gradient(90deg,#6b4423,#4a3728);border-radius:2px;transform:rotate(20deg);"></div>`;
+            }
+            html += `<div style="width:${s}px;height:${s}px;background:radial-gradient(circle at 30% 30%, #fff, #e8e8e8);border-radius:50%;box-shadow:inset -2px -2px 4px rgba(0,0,0,0.1);position:relative;margin-bottom:-4px;z-index:2;">
+                ${ap > 0.3 ? `<div style="position:absolute;top:25%;left:50%;transform:translateX(-50%);width:2px;height:2px;background:#1a1a1a;border-radius:50%;"></div><div style="position:absolute;top:50%;left:50%;transform:translateX(-50%);width:2px;height:2px;background:#1a1a1a;border-radius:50%;"></div><div style="position:absolute;top:75%;left:50%;transform:translateX(-50%);width:2px;height:2px;background:#1a1a1a;border-radius:50%;"></div>` : ''}
+                ${arms}
             </div>`;
         }
         
-        // Bottom ball (base)
-        if (bottomProgress > 0) {
-            const size = Math.round(30 * bottomProgress);
-            html += `<div style="
-                width:${size}px;
-                height:${size}px;
-                background:radial-gradient(circle at 30% 30%, #fff, #e8e8e8);
-                border-radius:50%;
-                box-shadow:inset -3px -3px 5px rgba(0,0,0,0.1), 1px 2px 3px rgba(0,0,0,0.2);
-            "></div>`;
+        // Base
+        if (bp > 0) {
+            const s = Math.round(34 * bp);
+            html += `<div style="width:${s}px;height:${s}px;background:radial-gradient(circle at 30% 30%, #fff, #e8e8e8);border-radius:50%;box-shadow:inset -3px -3px 5px rgba(0,0,0,0.1);z-index:1;"></div>`;
         }
         
         html += '</div>';
+        return html;
+    },
+    
+    renderDog(progress) {
+        const bp = Math.min(progress / 0.3, 1);
+        const hp = progress > 0.3 ? Math.min((progress - 0.3) / 0.25, 1) : 0;
+        const lp = progress > 0.55 ? Math.min((progress - 0.55) / 0.2, 1) : 0;
+        const dp = progress > 0.75 ? (progress - 0.75) / 0.25 : 0;
         
-        // Add progress indicator
-        html += `<div style="font-size:8px;color:#666;margin-top:2px;text-align:center;">${count}/${this.TOTAL_PARTS}</div>`;
+        let html = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;position:relative;margin-right:3px;">';
+        html += '<div style="position:relative;width:38px;height:35px;">';
         
-        this.container.innerHTML = html;
+        // Body
+        if (bp > 0) {
+            const w = Math.round(24 * bp), h = Math.round(14 * bp);
+            html += `<div style="position:absolute;bottom:6px;left:50%;transform:translateX(-50%);width:${w}px;height:${h}px;background:radial-gradient(ellipse at 30% 30%, #fff, #e0e0e0);border-radius:50%;box-shadow:inset -2px -2px 4px rgba(0,0,0,0.1);"></div>`;
+        }
+        
+        // Head
+        if (hp > 0) {
+            const s = Math.round(12 * hp);
+            html += `<div style="position:absolute;bottom:10px;right:0;width:${s}px;height:${s}px;background:radial-gradient(circle at 30% 30%, #fff, #e0e0e0);border-radius:50%;box-shadow:inset -1px -1px 3px rgba(0,0,0,0.1);z-index:2;">
+                ${dp > 0.6 ? `<div style="position:absolute;top:30%;left:20%;width:2px;height:2px;background:#1a1a1a;border-radius:50%;"></div><div style="position:absolute;top:30%;right:20%;width:2px;height:2px;background:#1a1a1a;border-radius:50%;"></div><div style="position:absolute;top:55%;left:50%;transform:translateX(-50%);width:3px;height:2px;background:#333;border-radius:50%;"></div>` : ''}
+            </div>`;
+            if (dp > 0.3) {
+                html += `<div style="position:absolute;bottom:${10 + s - 1}px;right:${s - 3}px;width:3px;height:5px;background:#e8e8e8;border-radius:50% 50% 30% 30%;transform:rotate(-15deg);"></div>`;
+                html += `<div style="position:absolute;bottom:${10 + s - 1}px;right:0;width:3px;height:5px;background:#e8e8e8;border-radius:50% 50% 30% 30%;transform:rotate(15deg);"></div>`;
+            }
+        }
+        
+        // Legs
+        if (lp > 0) {
+            const h = Math.round(6 * lp);
+            html += `<div style="position:absolute;bottom:0;left:6px;width:4px;height:${h}px;background:linear-gradient(180deg, #e8e8e8, #d0d0d0);border-radius:2px;"></div>`;
+            html += `<div style="position:absolute;bottom:0;left:14px;width:4px;height:${h}px;background:linear-gradient(180deg, #e8e8e8, #d0d0d0);border-radius:2px;"></div>`;
+            html += `<div style="position:absolute;bottom:0;right:6px;width:4px;height:${h}px;background:linear-gradient(180deg, #e8e8e8, #d0d0d0);border-radius:2px;"></div>`;
+            html += `<div style="position:absolute;bottom:0;right:14px;width:4px;height:${h}px;background:linear-gradient(180deg, #e8e8e8, #d0d0d0);border-radius:2px;"></div>`;
+        }
+        
+        // Tail
+        if (dp > 0.5) html += `<div style="position:absolute;bottom:12px;left:-2px;width:7px;height:4px;background:#e0e0e0;border-radius:50%;transform:rotate(30deg);"></div>`;
+        
+        html += '</div></div>';
+        return html;
     },
     
     reset() {
@@ -3664,7 +3675,6 @@ updateStats() {
             DOM.header.barGood.style.width = '50%';
             DOM.header.barBad.style.width = '50%';
         }
-        CommunityGoal.update(globalTotal);
         this.renderMiniRankings();
     },
 
@@ -3720,17 +3730,13 @@ showRoleReveal(title, subtitle, type = 'neutral') {
         DOM.profile.totalVotes.textContent = d.voteCount.toLocaleString();
         DOM.profile.contributions.textContent = d.contributorCount.toLocaleString();
         
-        // Update best daily streak display
+        // Update best daily streak
         const bestDailyEl = document.getElementById('bestDailyStreak');
-        if (bestDailyEl) {
-            bestDailyEl.textContent = d.daily.bestStreak || 0;
-        }
+        if (bestDailyEl) bestDailyEl.textContent = d.daily.bestStreak || 0;
         
-        // Update golden words found display
+        // Update golden words found
         const goldenEl = document.getElementById('goldenWordsFound');
-        if (goldenEl) {
-            goldenEl.textContent = d.daily.goldenWordsFound || 0;
-        }
+        if (goldenEl) goldenEl.textContent = d.daily.goldenWordsFound || 0;
         
         // --- KARMA TITLE LOGIC ---
         const saved = d.insectStats.saved;
@@ -3993,7 +3999,6 @@ displayWord(w) {
 
         if (total >= 3) {
             const ratio = g / total;
-            // Check if between 40% and 60%
             if (ratio >= 0.40 && ratio <= 0.60) {
                 isContro = true;
             }
@@ -4001,9 +4006,33 @@ displayWord(w) {
         this.updateControversialIndicator(isContro);
         // -----------------------------------------------
         
+        // Check if this is the golden word in daily challenge
+        const isGoldenWord = State.runtime.isDailyMode && 
+                           State.runtime.dailyChallengeType === 'golden' && 
+                           State.runtime.goldenWord && 
+                           w._id === State.runtime.goldenWord._id;
+        
         wd.className = 'font-extrabold text-gray-900 text-center min-h-[72px]';
         wd.style = '';
         wd.style.opacity = '1';
+        
+        // Golden word gets special styling - overrides theme
+        if (isGoldenWord) {
+            // Add golden animation if not exists
+            if (!document.getElementById('golden-word-style')) {
+                const style = document.createElement('style');
+                style.id = 'golden-word-style';
+                style.textContent = `@keyframes golden-pulse { 0%, 100% { text-shadow: 0 0 10px #fbbf24, 0 0 20px #f59e0b, 0 0 30px #d97706; } 50% { text-shadow: 0 0 20px #fbbf24, 0 0 40px #f59e0b, 0 0 60px #d97706, 0 0 80px #fbbf24; } }`;
+                document.head.appendChild(style);
+            }
+            wd.style.color = '#fbbf24';
+            wd.style.textShadow = '0 0 10px #fbbf24, 0 0 20px #f59e0b, 0 0 30px #d97706, 2px 2px 0px #92400e';
+            wd.style.animation = 'golden-pulse 1.5s ease-in-out infinite';
+            this.fitText(txt);
+            if (!State.runtime.isCoolingDown) this.disableButtons(false);
+            wd.style.cursor = 'grab';
+            return; // Skip theme styling for golden word
+        }
         
         const t = State.runtime.currentTheme;
         if (['dark', 'halloween', 'submarine', 'fire', 'plymouth'].includes(t)) wd.style.color = '#f3f4f6';
@@ -6645,7 +6674,7 @@ async vote(t, s = false) {
             if (window.StreakManager) window.StreakManager.extend(c.fade + c.dur);
             State.unlockBadge(k);
             
-            // Track this special word as seen
+            // Track as seen
             if (w._id && w._id !== 'temp' && w._id !== 'err') {
                 const seen = State.data.seenHistory || [];
                 if (!seen.includes(w._id)) {
@@ -6655,23 +6684,22 @@ async vote(t, s = false) {
                 }
             }
             
-            // Disable buttons during animation
             UIManager.disableButtons(true);
-            
             Game.cleanStyles(wd);
             wd.className = 'font-extrabold text-gray-900 text-center min-h-[72px]';
             wd.classList.add(c.text === 'LLAMA' ? 'word-fade-llama' : 'word-fade-quick');
             
             setTimeout(() => {
-                wd.className = '';
+                Game.cleanStyles(wd);
                 wd.style.opacity = '1';
                 wd.style.transform = 'none';
-                // Show the message in the word display area
+                // Show message with small text that fits the card
                 wd.textContent = c.msg;
-                wd.className = 'text-4xl font-bold text-center min-h-[72px] text-gray-500';
+                wd.style.fontSize = '20px';
+                wd.style.color = '#6b7280';
+                wd.className = 'font-bold text-center min-h-[72px] flex items-center justify-center';
                 
                 setTimeout(() => {
-                    // Move to next word
                     State.runtime.currentWordIndex++;
                     UIManager.disableButtons(false);
                     this.nextWord();
@@ -6704,52 +6732,31 @@ async vote(t, s = false) {
                 if (State.runtime.dailyChallengeType === 'golden') {
                     State.runtime.dailyVotesCount = (State.runtime.dailyVotesCount || 0) + 1;
                     
-                    // Check if this is the golden word (1/10 chance after each vote, or exact match)
+                    // Check if this is the golden word
                     const isGolden = (State.runtime.goldenWord && w._id === State.runtime.goldenWord._id) || 
                                     (Math.random() < 0.1 && State.runtime.dailyVotesCount >= 3);
                     
                     if (isGolden && !State.runtime.goldenWordFound) {
-                        // Found the golden word!
                         State.runtime.goldenWordFound = true;
+                        UIManager.showPostVoteMessage("🌟 GOLDEN WORD! 🌟");
                         
-                        // Show golden celebration
-                        UIManager.showPostVoteMessage("🌟 GOLDEN WORD FOUND! 🌟");
-                        
-                        // Increment golden words found stat
-                        const goldenCount = (State.data.daily.goldenWordsFound || 0) + 1;
-                        
-                        // Calculate streak
                         const last = State.data.daily.lastDate;
                         let s = State.data.daily.streak;
                         if (last) {
-                            const yd = new Date();
-                            yd.setDate(yd.getDate() - 1);
-                            if (last === yd.toISOString().split('T')[0]) s++;
-                            else s = 1;
+                            const yd = new Date(); yd.setDate(yd.getDate() - 1);
+                            if (last === yd.toISOString().split('T')[0]) s++; else s = 1;
                         } else s = 1;
                         
-                        // Update best streak
                         const bestStreak = Math.max(s, State.data.daily.bestStreak || 0);
-                        
-                        State.save('daily', { 
-                            streak: s, 
-                            lastDate: dStr, 
-                            bestStreak: bestStreak,
-                            goldenWordsFound: goldenCount
-                        });
-                        
+                        const goldenCount = (State.data.daily.goldenWordsFound || 0) + 1;
+                        State.save('daily', { streak: s, lastDate: dStr, bestStreak, goldenWordsFound: goldenCount });
                         DOM.daily.streakResult.textContent = '🔥 ' + s + ' 🌟';
                         
-                        // Complete the challenge
-                        setTimeout(() => {
-                            this.completeDailyChallenge(s, dStr);
-                        }, 1500);
+                        setTimeout(() => this.completeDailyChallenge(), 1500);
                         return;
                     } else {
-                        // Not golden yet, continue voting
-                        UIManager.showPostVoteMessage(`Vote ${State.runtime.dailyVotesCount} - Keep searching! 🔍`);
-                        State.runtime.currentWordIndex++;
-                        setTimeout(() => this.nextWord(), 600);
+                        UIManager.showPostVoteMessage(`Vote ${State.runtime.dailyVotesCount} - Keep looking! 🔍`);
+                        setTimeout(() => { State.runtime.currentWordIndex++; this.nextWord(); }, 600);
                         return;
                     }
                 }
@@ -6758,18 +6765,15 @@ async vote(t, s = false) {
                 const last = State.data.daily.lastDate;
                 let s = State.data.daily.streak;
                 if (last) {
-                    const yd = new Date();
-                    yd.setDate(yd.getDate() - 1);
-                    if (last === yd.toISOString().split('T')[0]) s++;
-                    else s = 1;
+                    const yd = new Date(); yd.setDate(yd.getDate() - 1);
+                    if (last === yd.toISOString().split('T')[0]) s++; else s = 1;
                 } else s = 1;
                 
-                // Update best streak
                 const bestStreak = Math.max(s, State.data.daily.bestStreak || 0);
-                State.save('daily', { streak: s, lastDate: dStr, bestStreak: bestStreak });
+                State.save('daily', { streak: s, lastDate: dStr, bestStreak });
                 DOM.daily.streakResult.textContent = '🔥 ' + s;
                 
-                this.completeDailyChallenge(s, dStr);
+                this.completeDailyChallenge();
                 return;
             }
 
@@ -7008,11 +7012,18 @@ async vote(t, s = false) {
         this.nextWord()
     },
 
-    async completeDailyChallenge(streak, dateStr) {
+    async completeDailyChallenge() {
         const totalVotesEl = document.getElementById('dailyTotalVotes');
-        if (totalVotesEl) {
-            totalVotesEl.textContent = State.data.voteCount.toLocaleString();
-        }
+        if (totalVotesEl) totalVotesEl.textContent = State.data.voteCount.toLocaleString();
+        
+        // Submit daily streak to server
+        await API.submitUserVotes(
+            State.data.userId, 
+            State.data.username, 
+            State.data.voteCount,
+            State.data.daily.streak,
+            State.data.daily.bestStreak
+        );
         
         const leaderboard = await API.fetchLeaderboard();
         const userRankIndex = leaderboard.findIndex(u => u.userId === State.data.userId);
@@ -7021,24 +7032,22 @@ async vote(t, s = false) {
         if (userRankIndex >= 0) {
             const rank = userRankIndex + 1;
             DOM.daily.worldRank.textContent = '#' + rank;
-            
-            const rankContextEl = document.getElementById('dailyRankContext');
-            if (rankContextEl) {
-                if (rank === 1) rankContextEl.textContent = '👑 Top voter!';
-                else if (rank <= 3) rankContextEl.textContent = '🏆 Top 3!';
-                else if (rank <= 10) rankContextEl.textContent = `of ${totalUsers.toLocaleString()} voters`;
-                else {
-                    const percentile = Math.round((1 - rank / totalUsers) * 100);
-                    rankContextEl.textContent = percentile >= 90 ? `Top ${100 - percentile}%` : `of ${totalUsers.toLocaleString()} voters`;
-                }
+            const ctx = document.getElementById('dailyRankContext');
+            if (ctx) {
+                if (rank === 1) ctx.textContent = '👑 Top voter!';
+                else if (rank <= 3) ctx.textContent = '🏆 Top 3!';
+                else if (rank <= 10) ctx.textContent = `of ${totalUsers.toLocaleString()} voters`;
+                else ctx.textContent = `of ${totalUsers.toLocaleString()} voters`;
             }
         } else {
             DOM.daily.worldRank.textContent = 'New!';
-            const rankContextEl = document.getElementById('dailyRankContext');
-            if (rankContextEl) rankContextEl.textContent = 'Keep voting to climb!';
+            const ctx = document.getElementById('dailyRankContext');
+            if (ctx) ctx.textContent = 'Keep voting to climb!';
         }
         
         State.runtime.isDailyMode = false;
+        State.runtime.dailyChallengeType = null;
+        State.runtime.goldenWord = null;
         DOM.game.dailyBanner.classList.remove('daily-locked-mode');
         DOM.game.buttons.notWord.style.visibility = '';
         DOM.game.buttons.custom.style.visibility = '';
@@ -7058,7 +7067,7 @@ async vote(t, s = false) {
         DOM.game.buttons.notWord.style.visibility = 'hidden';
         DOM.game.buttons.custom.style.visibility = 'hidden';
         
-        // Determine challenge type based on date seed
+        // Calculate date seed for challenge type
         let dateSeed = 0;
         for (let i = 0; i < t.length; i++) {
             dateSeed = ((dateSeed << 5) - dateSeed) + t.charCodeAt(i);
@@ -7066,9 +7075,8 @@ async vote(t, s = false) {
         }
         dateSeed = Math.abs(dateSeed);
         
-        // Challenge types: 'single' (1 word), 'golden' (find golden word)
-        // Future: 'streak3' (3 words), 'category' (vote on category), etc.
-        const challengeTypes = ['single', 'single', 'single', 'golden']; // 75% single, 25% golden
+        // Challenge types: 75% single, 25% golden
+        const challengeTypes = ['single', 'single', 'single', 'golden'];
         const challengeType = challengeTypes[dateSeed % challengeTypes.length];
         State.runtime.dailyChallengeType = challengeType;
         
@@ -7084,22 +7092,18 @@ async vote(t, s = false) {
             const sortedWords = words.sort((a, b) => a.text.localeCompare(b.text));
             
             if (challengeType === 'golden') {
-                // Golden word challenge: player votes until they find the golden word
-                // Golden word appears randomly with 1/10 chance each vote
-                // Pick a golden word for today based on date seed
+                // Pick golden word for today
                 const goldenIndex = (dateSeed * 7) % sortedWords.length;
                 State.runtime.goldenWord = sortedWords[goldenIndex];
                 
-                // Shuffle words for normal voting
+                // Shuffle for voting
                 const shuffled = [...words].sort(() => Math.random() - 0.5);
                 State.runtime.allWords = shuffled;
                 State.runtime.currentWordIndex = 0;
                 UIManager.displayWord(shuffled[0]);
-                
-                // Update banner
-                DOM.game.dailyStatus.textContent = "Find the 🌟";
+                DOM.game.dailyStatus.textContent = "Find 🌟";
             } else {
-                // Single word challenge (original behavior)
+                // Single word challenge
                 const winningWordRef = sortedWords[dateSeed % sortedWords.length];
                 if (winningWordRef) {
                     State.runtime.allWords = [winningWordRef];
@@ -7189,6 +7193,35 @@ checkDailyStatus() {
             html += `<div class="text-center text-gray-400 text-xs my-1">...</div>`;
             html += `<div class="flex justify-between items-center py-2 px-3 rounded bg-indigo-100 border-2 border-indigo-400 font-bold text-indigo-700 text-sm mb-1"><span class="w-6 text-center">#${userRankIndex + 1}</span><span class="truncate flex-1">You (${myUser.username ? myUser.username.substring(0, 15) : 'Anonymous'})</span><span class="text-right">${(myUser.voteCount || 0).toLocaleString()} votes</span></div>`;
         }
+        
+        // Top Daily Streaks section - fetch from dedicated endpoint
+        html += '<h3 class="text-lg font-bold text-gray-800 mb-3 mt-6">🔥 Top Daily Streaks</h3>';
+        const streakUsers = await API.fetchStreakLeaderboard();
+        if (streakUsers.length > 0) {
+            streakUsers.slice(0, 5).forEach((user, i) => {
+                const isYou = d.userId && user.userId === d.userId;
+                const rowClass = isYou 
+                    ? 'bg-orange-100 border-2 border-orange-400 font-bold text-orange-700' 
+                    : 'bg-white border border-gray-200 text-gray-800';
+                html += `<div class="flex justify-between items-center py-2 px-3 rounded ${rowClass} text-sm mb-1"><span class="w-6 text-center">#${i + 1}</span><span class="truncate flex-1">${user.username ? user.username.substring(0, 20) : 'Anonymous'}</span><span class="text-right">🔥 ${user.dailyStreak} days</span></div>`;
+            });
+            // Show user if not in top 5
+            const userStreakIdx = streakUsers.findIndex(u => u.userId === d.userId);
+            if (userStreakIdx >= 5) {
+                html += `<div class="text-center text-gray-400 text-xs my-1">...</div>`;
+                html += `<div class="flex justify-between items-center py-2 px-3 rounded bg-orange-100 border-2 border-orange-400 font-bold text-orange-700 text-sm mb-1"><span class="w-6 text-center">#${userStreakIdx + 1}</span><span class="truncate flex-1">You</span><span class="text-right">🔥 ${d.daily.streak || 0} days</span></div>`;
+            } else if (userStreakIdx < 0 && d.daily.streak > 0) {
+                html += `<div class="text-center text-gray-400 text-xs my-1">...</div>`;
+                html += `<div class="flex justify-between items-center py-2 px-3 rounded bg-orange-100 border-2 border-orange-400 font-bold text-orange-700 text-sm mb-1"><span class="w-6 text-center">-</span><span class="truncate flex-1">You</span><span class="text-right">🔥 ${d.daily.streak} days</span></div>`;
+            }
+        } else {
+            // No streak data yet - show local user
+            if (d.daily.streak > 0) {
+                html += `<div class="flex justify-between items-center py-2 px-3 rounded bg-orange-100 border-2 border-orange-400 font-bold text-orange-700 text-sm mb-1"><span class="w-6 text-center">#1</span><span class="truncate flex-1">You</span><span class="text-right">🔥 ${d.daily.streak} days</span></div>`;
+            }
+            html += `<p class="text-xs text-gray-400 mt-2 text-center">Complete your daily challenge to appear here!</p>`;
+        }
+        
         lbContainer.innerHTML = html;
     },
 
