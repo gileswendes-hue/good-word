@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.97.2', 
+    APP_VERSION: '5.97.3', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -18,9 +18,9 @@ const CONFIG = {
     TIP_COOLDOWN: 4,
     HISTORY_SIZE: 500,
     VOTE: {
-        MASH_LIMIT: 8,
-        COOLDOWN_TIERS: [15, 30],
-        STREAK_WINDOW: 1500,
+        MASH_LIMIT: 5,
+        COOLDOWN_TIERS: [10, 20, 30],
+        STREAK_WINDOW: 2000,
         SWIPE_THRESHOLD: 100
     },
 
@@ -6795,6 +6795,12 @@ const Game = {
 async vote(t, s = false) {
         if (State.runtime.isCoolingDown) return;
         
+        // Minimum delay between votes (300ms)
+        const n = Date.now();
+        if (State.runtime.lastVoteTime > 0 && (n - State.runtime.lastVoteTime) < 300) {
+            return; // Too fast, ignore
+        }
+        
         if (State.runtime.isMultiplayer && typeof RoomManager !== 'undefined' && RoomManager.active) {
              RoomManager.submitVote(t);
              UIManager.disableButtons(true); 
@@ -6802,11 +6808,11 @@ async vote(t, s = false) {
              return; 
         }
         
-        const n = Date.now();
-        if (State.runtime.lastVoteTime > 0 && (n - State.runtime.lastVoteTime) > CONFIG.VOTE.STREAK_WINDOW) {
-            State.runtime.mashCount = 1;
-        } else {
+        // Track mashing - if voting faster than STREAK_WINDOW, increment count
+        if (State.runtime.lastVoteTime > 0 && (n - State.runtime.lastVoteTime) < CONFIG.VOTE.STREAK_WINDOW) {
             State.runtime.mashCount++;
+        } else {
+            State.runtime.mashCount = 1;
         }
         State.runtime.lastVoteTime = n;
 
