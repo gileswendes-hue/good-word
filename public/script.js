@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.88.4', 
+    APP_VERSION: '5.88.5', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1291,9 +1291,12 @@ async fetchKidsWords() {
                 .map(l => l.trim().toUpperCase())
                 .filter(l => l.length > 0);
             
-            // Get ALL words from database to ensure we have real IDs and vote counts
+            // Get words - use offline cache if in offline mode, otherwise fetch from DB
             let dbWords = [];
-            if (!OfflineManager.isActive()) {
+            if (OfflineManager.isActive()) {
+                // Use offline cache for kids mode
+                dbWords = State.data.offlineCache || [];
+            } else {
                 dbWords = await this.getAllWords() || [];
             }
             
@@ -1304,8 +1307,11 @@ async fetchKidsWords() {
                 .filter(w => w && w._id); // Only keep words with real database IDs
 
             if (combinedList.length === 0) {
-                console.warn("No kids words found in database - they may need to be added first");
-                return [{ _id: 'err', text: 'No Kids Words in DB', goodVotes: 0, badVotes: 0, isPlaceholder: true }];
+                const msg = OfflineManager.isActive() 
+                    ? 'Kids Mode needs online first' 
+                    : 'No Kids Words in DB';
+                console.warn("No kids words found:", msg);
+                return [{ _id: 'offline_placeholder', text: msg, goodVotes: 0, badVotes: 0, isPlaceholder: true }];
             }
             
             return combinedList;
@@ -1318,8 +1324,8 @@ async fetchKidsWords() {
     },
 
     async vote(id, type) {
-        // Skip voting for placeholder entries (temp, err, or fake kid_ IDs)
-        if (!id || id === 'temp' || id === 'err' || id.startsWith('kid_')) {
+        // Skip voting for placeholder entries (temp, err, offline_placeholder, or fake kid_ IDs)
+        if (!id || id === 'temp' || id === 'err' || id === 'offline_placeholder' || id.startsWith('kid_')) {
             console.warn("Skipping vote for placeholder ID:", id);
             return { ok: false, status: 400 };
         }
@@ -4110,6 +4116,8 @@ init() {
                 html += mkTog('toggleHideMultiplayer', 'Hide Multiplayer Button', s.hideMultiplayer);
                 html += `</div></div>`;
 
+                // Hide Data Management in Kids Mode to prevent children from deleting progress
+                if (!s.kidsMode) {
 				html += `<div class="mt-8 pt-4 border-t-2 border-gray-100">
                     <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Data Management</h3>
                     <p class="text-xs text-gray-500 mb-4">Please clear local data or back up your game statistics and achievements here.</p>
@@ -4128,6 +4136,7 @@ init() {
                         🗑️ Clear All Data
                     </button>
                 </div>`;
+                }
 
                 // INJECT HTML
                 container.innerHTML = html;
@@ -4313,8 +4322,9 @@ init() {
                         }
                         e.target.value = ''; 
                     };
-                }           
-                document.getElementById('clearAllDataButton').onclick = State.clearAll;
+                }
+                const clearBtn = document.getElementById('clearAllDataButton');
+                if (clearBtn) clearBtn.onclick = State.clearAll;
             }
             this.toggle('settings', true)
         };
@@ -4572,10 +4582,11 @@ const ContactManager = {
         
         const el = document.createElement('div');
         el.id = 'contactModal';
-        el.className = 'fixed inset-0 bg-gray-900 bg-opacity-95 z-[200] hidden flex items-center justify-center';
+        // Use items-start with padding-top to position modal higher, avoiding keyboard overlap
+        el.className = 'fixed inset-0 bg-gray-900 bg-opacity-95 z-[200] hidden flex items-start justify-center pt-16 overflow-y-auto';
         
         el.innerHTML = `
-            <div class="bg-white rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl">
+            <div class="bg-white rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl mb-8">
                 <h3 class="text-2xl font-bold text-center mb-2 text-gray-800">Contact Developer</h3>
                 <p class="text-gray-500 text-center mb-4 text-sm">Found a bug or have a question?</p>
                 
