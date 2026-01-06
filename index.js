@@ -43,7 +43,14 @@ const scoreSchema = new mongoose.Schema({
 });
 const Score = mongoose.model('Score', scoreSchema);
 
-const leaderboardSchema = new mongoose.Schema({ userId: { type: String, unique: true }, username: String, voteCount: { type: Number, default: 0 }, lastUpdated: { type: Date, default: Date.now } });
+const leaderboardSchema = new mongoose.Schema({ 
+    userId: { type: String, unique: true }, 
+    username: String, 
+    voteCount: { type: Number, default: 0 }, 
+    dailyStreak: { type: Number, default: 0 },
+    bestDailyStreak: { type: Number, default: 0 },
+    lastUpdated: { type: Date, default: Date.now } 
+});
 const Leaderboard = mongoose.model('Leaderboard', leaderboardSchema);
 
 // Global statistics schema for tracking history across all users
@@ -653,8 +660,22 @@ app.put('/api/words/:id/vote', async (req, res) => {
 });
 
 app.post('/api/words', async (req, res) => { try { const n = new Word({ text: req.body.text }); await n.save(); res.status(201).json(n); } catch (e) { res.status(500).json({}); } });
-app.get('/api/leaderboard', async (req, res) => { try { res.json(await Leaderboard.find().sort({voteCount:-1}).limit(10)); } catch(e){res.json([])} });
-app.post('/api/leaderboard', async (req, res) => { try { await Leaderboard.findOneAndUpdate({userId:req.body.userId}, req.body, {upsert:true}); res.json({message:"OK"}); } catch(e){res.status(500).send()} });
+app.get('/api/leaderboard', async (req, res) => { try { res.json(await Leaderboard.find().sort({voteCount:-1}).limit(100)); } catch(e){res.json([])} });
+app.get('/api/leaderboard/streaks', async (req, res) => { try { res.json(await Leaderboard.find({dailyStreak:{$gt:0}}).sort({dailyStreak:-1}).limit(10)); } catch(e){res.json([])} });
+app.post('/api/leaderboard', async (req, res) => { 
+    try { 
+        const update = {
+            userId: req.body.userId,
+            username: req.body.username,
+            voteCount: req.body.voteCount,
+            lastUpdated: new Date()
+        };
+        if (req.body.dailyStreak !== undefined) update.dailyStreak = req.body.dailyStreak;
+        if (req.body.bestDailyStreak !== undefined) update.bestDailyStreak = req.body.bestDailyStreak;
+        await Leaderboard.findOneAndUpdate({userId:req.body.userId}, update, {upsert:true}); 
+        res.json({message:"OK"}); 
+    } catch(e){res.status(500).send()} 
+});
 app.get('/api/scores', async (req, res) => { try { res.json(await Score.find().sort({score:-1}).limit(10)); } catch(e){res.json([])} });
 app.post('/api/scores', async (req, res) => { try { const s = new Score(req.body); await s.save(); res.json(s); } catch(e){res.json({})} });
 
