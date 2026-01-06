@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.97.1', 
+    APP_VERSION: '5.97.2', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1415,17 +1415,20 @@ async fetchKidsWords() {
         } catch (e) { console.error("Score submit failed", e); }
     }, // <--- FIXED: Added closing brace and comma here
 
-    async submitUserVotes(userId, username, voteCount) {
+    async submitUserVotes(userId, username, voteCount, dailyStreak = null, bestDailyStreak = null) {
         try {
+            const body = { userId, username, voteCount };
+            if (dailyStreak !== null) body.dailyStreak = dailyStreak;
+            if (bestDailyStreak !== null) body.bestDailyStreak = bestDailyStreak;
             await fetch('/api/leaderboard', { 
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId, username, voteCount })
+                body: JSON.stringify(body)
             });
         } catch (e) { 
             console.warn("Failed to submit user stats:", e); 
         }
-    }, // <--- FIXED: Added closing brace and comma here
+    },
     
     async fetchLeaderboard() {
         try {
@@ -3768,8 +3771,9 @@ const UIManager = {
     showMessage(t, err = false) {
         const wd = DOM.game.wordDisplay;
         wd.textContent = t;
-        wd.className = `text-4xl font-bold text-center min-h-[72px] ${err?'text-red-500':'text-gray-500'}`;
-        wd.style.fontSize = '2.0rem';
+        wd.className = `font-bold text-center min-h-[72px] ${err?'text-red-500':'text-gray-500'}`;
+        // Smaller font for longer messages
+        wd.style.fontSize = t.length > 20 ? '1.25rem' : '2.0rem';
         wd.style.cursor = 'default';
         DOM.game.wordFrame.style.padding = '0';
         this.disableButtons(true)
@@ -7168,20 +7172,20 @@ async vote(t, s = false) {
         const gameCard = DOM.game.card;
         const header = document.querySelector('header');
         const themesPanel = document.querySelector('.mt-6.p-4.bg-white\\/70'); // Themes panel
-        const miniRankings = document.getElementById('mini-rankings'); // Top good/bad words
+        const rankingsSection = document.getElementById('rankingsSection'); // Top good/bad words
         
         if (hide) {
             if (gameCard) gameCard.style.opacity = '0';
             if (gameCard) gameCard.style.pointerEvents = 'none';
             if (header) header.style.opacity = '0.3';
             if (themesPanel) themesPanel.style.opacity = '0.3';
-            if (miniRankings) miniRankings.style.opacity = '0.3';
+            if (rankingsSection) rankingsSection.style.opacity = '0.3';
         } else {
             if (gameCard) gameCard.style.opacity = '1';
             if (gameCard) gameCard.style.pointerEvents = '';
             if (header) header.style.opacity = '1';
             if (themesPanel) themesPanel.style.opacity = '1';
-            if (miniRankings) miniRankings.style.opacity = '1';
+            if (rankingsSection) rankingsSection.style.opacity = '1';
         }
     },
 
@@ -7197,6 +7201,15 @@ async vote(t, s = false) {
         const d = State.data;
         const totalVotesEl = document.getElementById('dailyTotalVotes');
         if (totalVotesEl) totalVotesEl.textContent = d.voteCount.toLocaleString();
+        
+        // Submit streak to server
+        await API.submitUserVotes(
+            d.userId, 
+            d.username, 
+            d.voteCount, 
+            d.daily.streak, 
+            d.daily.bestStreak
+        );
         
         const leaderboard = await API.fetchLeaderboard();
         const userRankIndex = leaderboard.findIndex(u => u.userId === d.userId);
