@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.88.0', 
+    APP_VERSION: '5.88.3', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1291,31 +1291,38 @@ async fetchKidsWords() {
                 .map(l => l.trim().toUpperCase())
                 .filter(l => l.length > 0);
             
-            // Try to get DB data if possible to show vote counts
+            // Get ALL words from database to ensure we have real IDs and vote counts
             let dbWords = [];
             if (!OfflineManager.isActive()) {
-                dbWords = await this.fetchWords() || [];
+                dbWords = await this.getAllWords() || [];
             }
             
-            // Map the text file strings to objects. 
-            // If found in DB, use DB object. If NOT found, create a temporary object.
-            // This ensures words load even if the DB is empty.
-            const combinedList = safeList.map(text => {
-                const found = dbWords.find(w => w.text.toUpperCase() === text);
-                return found || { _id: 'kid_' + text, text: text, goodVotes: 0, badVotes: 0 };
-            });
+            // Only include words that exist in the database with real IDs
+            // This ensures votes will work (they need valid MongoDB IDs)
+            const combinedList = safeList
+                .map(text => dbWords.find(w => w.text.toUpperCase() === text))
+                .filter(w => w && w._id); // Only keep words with real database IDs
 
-            return combinedList.length > 0 ? combinedList : [{ _id: 'err', text: 'No Words Found', goodVotes: 0, badVotes: 0 }];
+            if (combinedList.length === 0) {
+                console.warn("No kids words found in database - they may need to be added first");
+                return [{ _id: 'err', text: 'No Kids Words in DB', goodVotes: 0, badVotes: 0, isPlaceholder: true }];
+            }
+            
+            return combinedList;
 
         } catch (e) {
             console.error("Kids mode load error:", e);
             // Fallback object to prevent crash
-            return [{ _id: 'err', text: 'Error Loading', goodVotes: 0, badVotes: 0 }];
+            return [{ _id: 'err', text: 'Error Loading', goodVotes: 0, badVotes: 0, isPlaceholder: true }];
         }
     },
 
     async vote(id, type) {
-        if (id === 'temp' || id === 'err') return;
+        // Skip voting for placeholder entries (temp, err, or fake kid_ IDs)
+        if (!id || id === 'temp' || id === 'err' || id.startsWith('kid_')) {
+            console.warn("Skipping vote for placeholder ID:", id);
+            return { ok: false, status: 400 };
+        }
 
         if (OfflineManager.isActive()) {
             const queue = State.data.pendingVotes;
@@ -6004,9 +6011,47 @@ const Game = {
                 } else s = 1;
                 State.save('daily', { streak: s, lastDate: dStr });
                 DOM.daily.streakResult.textContent = '🔥 ' + s;
-                const { topGood } = UIManager.getRankedLists(0);
-                const rank = topGood.findIndex(x => x.text === w.text) + 1;
-                DOM.daily.worldRank.textContent = rank > 0 ? '#' + rank : 'Unranked';
+                
+                // Show total votes
+                const totalVotesEl = document.getElementById('dailyTotalVotes');
+                if (totalVotesEl) {
+                    totalVotesEl.textContent = State.data.voteCount.toLocaleString();
+                }
+                
+                // Fetch actual user ranking from leaderboard
+                const leaderboard = await API.fetchLeaderboard();
+                const userRankIndex = leaderboard.findIndex(u => u.userId === State.data.userId);
+                const totalUsers = leaderboard.length;
+                
+                if (userRankIndex >= 0) {
+                    const rank = userRankIndex + 1;
+                    DOM.daily.worldRank.textContent = '#' + rank;
+                    
+                    // Add context
+                    const rankContextEl = document.getElementById('dailyRankContext');
+                    if (rankContextEl) {
+                        if (rank === 1) {
+                            rankContextEl.textContent = '👑 Top voter!';
+                        } else if (rank <= 3) {
+                            rankContextEl.textContent = '🏆 Top 3!';
+                        } else if (rank <= 10) {
+                            rankContextEl.textContent = `of ${totalUsers.toLocaleString()} voters`;
+                        } else {
+                            const percentile = Math.round((1 - rank / totalUsers) * 100);
+                            if (percentile >= 90) {
+                                rankContextEl.textContent = `Top ${100 - percentile}%`;
+                            } else {
+                                rankContextEl.textContent = `of ${totalUsers.toLocaleString()} voters`;
+                            }
+                        }
+                    }
+                } else {
+                    DOM.daily.worldRank.textContent = 'New!';
+                    const rankContextEl = document.getElementById('dailyRankContext');
+                    if (rankContextEl) {
+                        rankContextEl.textContent = 'Keep voting to climb!';
+                    }
+                }
                 
                 // Reset daily mode
                 State.runtime.isDailyMode = false;
@@ -6470,6 +6515,28 @@ checkDailyStatus() {
                 voteHistory = [{ date: today, totalVotes: totalVotes }];
             }
             
+            // Format and display tracking start date
+            const formatTrackingDate = (dateStr) => {
+                const date = new Date(dateStr + 'T00:00:00');
+                const now = new Date();
+                const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                const month = monthNames[date.getMonth()];
+                const day = date.getDate();
+                const year = date.getFullYear();
+                if (diffDays === 0) return '(Tracking started today)';
+                if (diffDays === 1) return '(Tracking since yesterday)';
+                if (diffDays < 7) return `(Tracking for ${diffDays} days)`;
+                if (diffDays < 30) return `(Since ${month} ${day})`;
+                return `(Since ${month} ${day}, ${year})`;
+            };
+            
+            const startDate = voteHistory[0]?.date;
+            const voteTrackingEl = document.getElementById('voteTrackingStart');
+            if (voteTrackingEl && startDate) {
+                voteTrackingEl.textContent = formatTrackingDate(startDate);
+            }
+            
             const maxVotes = Math.max(...voteHistory.map(h => h.totalVotes || 0), 1000);
             const Y_MIN_VALUE = 0;
             const Y_MAX_VALUE = Math.ceil(maxVotes / 10000) * 10000 || 100000;
@@ -6532,6 +6599,22 @@ checkDailyStatus() {
                 });
             }
             
+            // X-axis date labels (start and end)
+            if (voteHistory.length > 0) {
+                const formatShortDate = (dateStr) => {
+                    const d = new Date(dateStr + 'T00:00:00');
+                    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                    return `${monthNames[d.getMonth()]} ${d.getDate()}`;
+                };
+                ctx.textAlign = "left";
+                drawText(ctx, formatShortDate(voteHistory[0].date), P, H - P + 15, "#999", 9);
+                if (voteHistory.length > 1) {
+                    ctx.textAlign = "right";
+                    drawText(ctx, formatShortDate(voteHistory[voteHistory.length - 1].date), W - P, H - P + 15, "#999", 9);
+                }
+            }
+            
+            ctx.textAlign = "center";
             drawText(ctx, "Time →", W / 2, H - 5, "#999", 10);
             ctx.save();
             ctx.translate(12, H / 2);
@@ -6563,6 +6646,28 @@ checkDailyStatus() {
             }
             // Normalize to have count property
             history = history.map(h => ({ ...h, count: h.totalWords || h.count || 0 }));
+            
+            // Display tracking start date for dictionary chart
+            const formatTrackingDate = (dateStr) => {
+                const date = new Date(dateStr + 'T00:00:00');
+                const now = new Date();
+                const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                const month = monthNames[date.getMonth()];
+                const day = date.getDate();
+                const year = date.getFullYear();
+                if (diffDays === 0) return '(Tracking started today)';
+                if (diffDays === 1) return '(Tracking since yesterday)';
+                if (diffDays < 7) return `(Tracking for ${diffDays} days)`;
+                if (diffDays < 30) return `(Since ${month} ${day})`;
+                return `(Since ${month} ${day}, ${year})`;
+            };
+            
+            const dictStartDate = history[0]?.date;
+            const dictTrackingEl = document.getElementById('dictTrackingStart');
+            if (dictTrackingEl && dictStartDate) {
+                dictTrackingEl.textContent = formatTrackingDate(dictStartDate);
+            }
             
             const currentMaxData = Math.max(...history.map(h => h.count), w.length);
             const Y_MIN_VALUE = 3000;
@@ -6631,6 +6736,23 @@ checkDailyStatus() {
                     }
                 });
             }
+            
+            // X-axis date labels (start and end)
+            if (history.length > 0 && history[0].date) {
+                const formatShortDate = (dateStr) => {
+                    const d = new Date(dateStr + 'T00:00:00');
+                    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                    return `${monthNames[d.getMonth()]} ${d.getDate()}`;
+                };
+                ctx.textAlign = "left";
+                drawText(ctx, formatShortDate(history[0].date), P, H - P + 15, "#999", 9);
+                if (history.length > 1 && history[history.length - 1].date) {
+                    ctx.textAlign = "right";
+                    drawText(ctx, formatShortDate(history[history.length - 1].date), W - P, H - P + 15, "#999", 9);
+                }
+            }
+            
+            ctx.textAlign = "center";
             drawText(ctx, "Time →", W / 2, H - 5, "#999", 10);
             ctx.save();
             ctx.translate(12, H / 2);
