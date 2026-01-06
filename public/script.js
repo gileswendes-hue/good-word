@@ -53,6 +53,8 @@ const loadDOM = () => ({
         bad: document.getElementById('headerBad'),
         barGood: document.getElementById('headerBarGood'),
         barBad: document.getElementById('headerBarBad'),
+        communityGoalBar: document.getElementById('communityGoalBar'),
+        communityGoalText: document.getElementById('communityGoalText'),
         profileLabel: document.getElementById('headerProfileLabel'),
         profileEmoji: document.getElementById('headerProfileEmoji'),
         profileImage: document.getElementById('headerProfileImage')
@@ -1679,6 +1681,35 @@ checkUnlock(w) {
             return true
         }
         return false
+    }
+};
+
+// CommunityGoal - Shows progress towards community vote milestones
+const CommunityGoal = {
+    MILESTONE: 50000, // 50k increments
+    
+    update(totalVotes) {
+        const bar = DOM.header.communityGoalBar;
+        const text = DOM.header.communityGoalText;
+        if (!bar || !text) return;
+        
+        const currentMilestone = Math.floor(totalVotes / this.MILESTONE) * this.MILESTONE + this.MILESTONE;
+        const prevMilestone = currentMilestone - this.MILESTONE;
+        const progress = ((totalVotes - prevMilestone) / this.MILESTONE) * 100;
+        const remaining = currentMilestone - totalVotes;
+        
+        bar.style.width = Math.min(progress, 100) + '%';
+        
+        // Format numbers
+        const fmt = n => n >= 1000000 ? (n/1000000).toFixed(1) + 'M' : n >= 1000 ? Math.round(n/1000) + 'k' : n;
+        
+        if (progress >= 95) {
+            text.textContent = `🏆 Almost there! ${fmt(remaining)} to ${fmt(currentMilestone)}!`;
+            bar.style.animation = 'pulse 1s infinite';
+        } else {
+            text.textContent = `🏆 Community Goal: ${fmt(currentMilestone)} votes`;
+            bar.style.animation = '';
+        }
     }
 };
 
@@ -3640,6 +3671,10 @@ updateStats() {
             DOM.header.barGood.style.width = '50%';
             DOM.header.barBad.style.width = '50%';
         }
+        
+        // Update community goal bar
+        CommunityGoal.update(globalTotal);
+        
         this.renderMiniRankings();
     },
 
@@ -6744,10 +6779,14 @@ async vote(t, s = false) {
 
             if (State.data.settings.showTips && !State.runtime.isMultiplayer) { 
                 State.save('voteCounterForTips', State.data.voteCounterForTips + 1);
-                if (State.data.voteCounterForTips % CONFIG.TIP_COOLDOWN === 0) {
+                // Random tip interval: show tip when counter reaches nextTipAt
+                if (!State.runtime.nextTipAt) State.runtime.nextTipAt = Math.floor(Math.random() * 11) + 5; // 5-15
+                if (State.data.voteCounterForTips >= State.runtime.nextTipAt) {
                     if (typeof GAME_TIPS !== 'undefined') {
                         m = GAME_TIPS[Math.floor(Math.random() * GAME_TIPS.length)];
                     }
+                    State.save('voteCounterForTips', 0);
+                    State.runtime.nextTipAt = Math.floor(Math.random() * 11) + 5; // Reset to new random 5-15
                 }
             }
             UIManager.showPostVoteMessage(m);
@@ -7131,6 +7170,25 @@ checkDailyStatus() {
             html += `<div class="text-center text-gray-400 text-xs my-1">...</div>`;
             html += `<div class="flex justify-between items-center py-2 px-3 rounded bg-indigo-100 border-2 border-indigo-400 font-bold text-indigo-700 text-sm mb-1"><span class="w-6 text-center">#${userRankIndex + 1}</span><span class="truncate flex-1">You (${myUser.username ? myUser.username.substring(0, 15) : 'Anonymous'})</span><span class="text-right">${(myUser.voteCount || 0).toLocaleString()} votes</span></div>`;
         }
+        
+        // Top Daily Streaks section
+        html += '<h3 class="text-lg font-bold text-gray-800 mb-3 mt-6">🔥 Top Daily Streaks</h3>';
+        const streakUsers = allUsers.filter(u => u.dailyStreak && u.dailyStreak > 0).sort((a, b) => (b.dailyStreak || 0) - (a.dailyStreak || 0)).slice(0, 5);
+        if (streakUsers.length > 0) {
+            streakUsers.forEach((user, i) => {
+                const isYou = d.userId && user.userId === d.userId;
+                const rowClass = isYou 
+                    ? 'bg-orange-100 border-2 border-orange-400 font-bold text-orange-700' 
+                    : 'bg-white border border-gray-200 text-gray-800';
+                html += `<div class="flex justify-between items-center py-2 px-3 rounded ${rowClass} text-sm mb-1"><span class="w-6 text-center">#${i + 1}</span><span class="truncate flex-1">${user.username ? user.username.substring(0, 20) : 'Anonymous'}</span><span class="text-right">🔥 ${user.dailyStreak} days</span></div>`;
+            });
+        } else if (d.daily.streak > 0) {
+            html += `<div class="flex justify-between items-center py-2 px-3 rounded bg-orange-100 border-2 border-orange-400 font-bold text-orange-700 text-sm mb-1"><span class="w-6 text-center">#1</span><span class="truncate flex-1">You</span><span class="text-right">🔥 ${d.daily.streak} days</span></div>`;
+            html += `<p class="text-xs text-gray-400 mt-2 text-center">Complete daily challenges to climb!</p>`;
+        } else {
+            html += `<p class="text-xs text-gray-400 mt-2 text-center">Complete your daily challenge to appear here!</p>`;
+        }
+        
         lbContainer.innerHTML = html;
     },
 
