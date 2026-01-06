@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.90.1', 
+    APP_VERSION: '5.90.2', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -6551,7 +6551,7 @@ const Game = {
         UIManager.displayWord(w);
     },
 
-    async vote(t, s = false) {
+async vote(t, s = false) {
         if (State.runtime.isCoolingDown) return;
         
         if (State.runtime.isMultiplayer && typeof RoomManager !== 'undefined' && RoomManager.active) {
@@ -6635,6 +6635,7 @@ const Game = {
             StreakManager.handleSuccess();
             
             if (State.runtime.isDailyMode) {
+                // ... (Daily mode logic remains unchanged) ...
                 const tod = new Date(), dStr = tod.toISOString().split('T')[0];
                 const last = State.data.daily.lastDate;
                 let s = State.data.daily.streak;
@@ -6647,13 +6648,11 @@ const Game = {
                 State.save('daily', { streak: s, lastDate: dStr });
                 DOM.daily.streakResult.textContent = '🔥 ' + s;
                 
-                // Show total votes
                 const totalVotesEl = document.getElementById('dailyTotalVotes');
                 if (totalVotesEl) {
                     totalVotesEl.textContent = State.data.voteCount.toLocaleString();
                 }
                 
-                // Fetch actual user ranking from leaderboard
                 const leaderboard = await API.fetchLeaderboard();
                 const userRankIndex = leaderboard.findIndex(u => u.userId === State.data.userId);
                 const totalUsers = leaderboard.length;
@@ -6662,7 +6661,6 @@ const Game = {
                     const rank = userRankIndex + 1;
                     DOM.daily.worldRank.textContent = '#' + rank;
                     
-                    // Add context
                     const rankContextEl = document.getElementById('dailyRankContext');
                     if (rankContextEl) {
                         if (rank === 1) {
@@ -6688,7 +6686,6 @@ const Game = {
                     }
                 }
                 
-                // Reset daily mode
                 State.runtime.isDailyMode = false;
                 DOM.game.dailyBanner.classList.remove('daily-locked-mode');
                 DOM.game.buttons.notWord.style.visibility = '';
@@ -6696,13 +6693,11 @@ const Game = {
                 
                 this.checkDailyStatus();
                 setTimeout(() => ModalManager.toggle('dailyResult', true), 600);
-                
-                // Restore normal word list and show first word when ready
                 this.refreshData(true);
-                return; // Exit early - refreshData will handle displaying the next word
+                return;
             }
 
-           let m = '';
+            let m = '';
             if (un) m = "🎉 New Theme Unlocked!";
             else if (State.data.settings.showPercentages && (t === 'good' || t === 'bad')) {
                 const tot = (w.goodVotes || 0) + (w.badVotes || 0);
@@ -6727,7 +6722,6 @@ const Game = {
             if (t === 'good' || t === 'bad') Haptics.medium();
             UIManager.updateStats();
             
-            // Optimistic UI
             UIManager.addToHistory(w.text, t);
             State.runtime.history.unshift({ word: w.text, vote: t });
             if(State.runtime.history.length > 50) State.runtime.history.pop();
@@ -6740,7 +6734,7 @@ const Game = {
                 if (!State.runtime.isDailyMode) {
                     State.runtime.currentWordIndex++;
                     this.nextWord();
-                    this.refreshData(false);
+                    // this.refreshData(false);  <-- REMOVE THIS LINE
                 }
             }, (t === 'good' || t === 'bad') ? 600 : 0);
 
