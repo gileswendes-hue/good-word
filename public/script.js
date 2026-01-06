@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.89.0', 
+    APP_VERSION: '5.90.0', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -35,7 +35,8 @@ const CONFIG = {
         fire: 'RklSRXxCVVJOfEhPVHxIRUxMfElORkVSTk98RkxBTUV8Q09BTFN8Q1JBQ0tMRXxUT0FTVHxIRUFU',
         plymouth: 'UExZTU9VVEh8REVWT058SkFOTkVSU3xHSU4=',
         ballpit: 'QkFMTHxQSVR8UExBWXxKVU1QfEJPVU5DRXxDT0xPUnxCQUxMUElUfEJBTExSfENPTE9VUg==',
-        space: 'U1BBQ0V8R0FMQVhZfFBMQU5FVHxTVEFSfE9SQklU'
+        space: 'U1BBQ0V8R0FMQVhZfFBMQU5FVHxTVEFSfE9SQklU',
+        woodland: 'V09PRExBTkR8Rk9SRVNUfFRSRUVTfFNRVUlSUkVMfEZPWHxPV0x8SEVER0VIT0d8TU9VU0V8V09MRnxOQVRVUkV8QUNPUk58TVVTSFJPT018TEVBRnxCQVJLfEZFUk4='
     },
 };
 
@@ -100,7 +101,8 @@ const loadDOM = () => ({
             summer: document.getElementById('summer-effect'),
             plymouth: document.getElementById('plymouth-effect'),
             ballpit: document.getElementById('ballpit-effect'),
-            space: document.getElementById('space-effect')
+            space: document.getElementById('space-effect'),
+            woodland: document.getElementById('woodland-effect')
         }
     },
     modals: {
@@ -1540,6 +1542,62 @@ const ThemeManager = {
             if (old) old.remove();
         }
 
+        // Woodland theme styles
+        if (t === 'woodland') {
+            if (!document.getElementById('woodland-theme-style')) {
+                const s = document.createElement('style');
+                s.id = 'woodland-theme-style';
+                s.innerHTML = `
+                    body.theme-woodland {
+                        background: transparent !important;
+                    }
+                    body.theme-woodland .card,
+                    body.theme-woodland .bg-white {
+                        background: rgba(255, 253, 245, 0.92) !important;
+                        border-color: #8b7355 !important;
+                    }
+                    body.theme-woodland #wordDisplay {
+                        color: #3d2914 !important;
+                        text-shadow: 1px 1px 0px rgba(255,255,255,0.5);
+                    }
+                    body.theme-woodland .bg-indigo-600,
+                    body.theme-woodland .bg-indigo-500 {
+                        background-color: #5d7a4a !important;
+                    }
+                    body.theme-woodland .bg-indigo-600:hover,
+                    body.theme-woodland .bg-indigo-500:hover {
+                        background-color: #4a6339 !important;
+                    }
+                    body.theme-woodland .text-indigo-600,
+                    body.theme-woodland .text-indigo-700 {
+                        color: #5d7a4a !important;
+                    }
+                    body.theme-woodland .bg-indigo-100,
+                    body.theme-woodland .bg-indigo-50 {
+                        background-color: rgba(93, 122, 74, 0.15) !important;
+                    }
+                    body.theme-woodland .border-indigo-100,
+                    body.theme-woodland .border-indigo-200 {
+                        border-color: rgba(93, 122, 74, 0.3) !important;
+                    }
+                    body.theme-woodland .text-green-600 {
+                        color: #4a7c3f !important;
+                    }
+                    body.theme-woodland .text-red-600 {
+                        color: #8b4513 !important;
+                    }
+                    body.theme-woodland header {
+                        position: relative;
+                        z-index: 20;
+                    }
+                `;
+                document.head.appendChild(s);
+            }
+        } else {
+            const old = document.getElementById('woodland-theme-style');
+            if (old) old.remove();
+        }
+
         const e = DOM.theme.effects;
         e.snow.classList.toggle('hidden', t !== 'winter');
         e.bubble.classList.toggle('hidden', t !== 'submarine');
@@ -1548,6 +1606,7 @@ const ThemeManager = {
         e.plymouth.classList.toggle('hidden', t !== 'plymouth');
         e.ballpit.classList.toggle('hidden', t !== 'ballpit');
         e.space.classList.toggle('hidden', t !== 'space');
+        e.woodland.classList.toggle('hidden', t !== 'woodland');
         
         if (t === 'winter') {
             Effects.snow();
@@ -1576,6 +1635,8 @@ const ThemeManager = {
         else Effects.ballpit(false);
         if (t === 'space') Effects.space(true);
         else Effects.space(false);
+        if (t === 'woodland') Effects.woodland(true);
+        else Effects.woodland(false);
         Effects.halloween(t === 'halloween');
         if (t !== 'halloween') MosquitoManager.remove();
 
@@ -2901,6 +2962,380 @@ spiderHunt(targetXPercent, targetYPercent, isFood) {
             this.spaceRareTimeout = setTimeout(spawnRock, Math.random() * 12000 + 8000);
         };
         this.spaceRareTimeout = setTimeout(spawnRock, 3000);
+    },
+
+    woodlandTimeout: null,
+    woodlandCreatureTimeout: null,
+    
+    woodland(active) {
+        const c = DOM.theme.effects.woodland;
+        if (this.woodlandTimeout) clearTimeout(this.woodlandTimeout);
+        if (this.woodlandCreatureTimeout) clearTimeout(this.woodlandCreatureTimeout);
+        
+        if (!active) { 
+            c.innerHTML = ''; 
+            return; 
+        }
+        
+        c.innerHTML = '';
+        
+        // Determine time of day (4 modes: dawn, day, dusk, night)
+        const hour = new Date().getHours();
+        let timeOfDay, lightColor, lightOpacity, bgGradient;
+        
+        if (hour >= 5 && hour < 8) {
+            timeOfDay = 'dawn';
+            lightColor = 'rgba(255, 200, 150, 0.3)';
+            lightOpacity = 0.4;
+            bgGradient = 'linear-gradient(180deg, #ffd89b 0%, #b8d4a8 30%, #5a7247 100%)';
+        } else if (hour >= 8 && hour < 17) {
+            timeOfDay = 'day';
+            lightColor = 'rgba(255, 255, 200, 0.25)';
+            lightOpacity = 0.5;
+            bgGradient = 'linear-gradient(180deg, #87ceeb 0%, #98d4a5 30%, #4a6741 100%)';
+        } else if (hour >= 17 && hour < 20) {
+            timeOfDay = 'dusk';
+            lightColor = 'rgba(255, 150, 100, 0.35)';
+            lightOpacity = 0.3;
+            bgGradient = 'linear-gradient(180deg, #ff7e5f 0%, #feb47b 30%, #4a5240 100%)';
+        } else {
+            timeOfDay = 'night';
+            lightColor = 'rgba(100, 120, 180, 0.2)';
+            lightOpacity = 0.15;
+            bgGradient = 'linear-gradient(180deg, #1a1a2e 0%, #16213e 30%, #1f3a28 100%)';
+        }
+        
+        // Set container style
+        c.style.cssText = `
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+            background: ${bgGradient};
+        `;
+        
+        // Create forest floor
+        const floor = document.createElement('div');
+        floor.style.cssText = `
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 25%;
+            background: linear-gradient(180deg, transparent 0%, #3d2914 30%, #2a1f0f 100%);
+        `;
+        c.appendChild(floor);
+        
+        // Add fallen leaves on floor
+        for (let i = 0; i < 20; i++) {
+            const leaf = document.createElement('div');
+            const leafEmojis = ['🍂', '🍁', '🍃'];
+            leaf.textContent = leafEmojis[Math.floor(Math.random() * leafEmojis.length)];
+            leaf.style.cssText = `
+                position: absolute;
+                bottom: ${Math.random() * 15}%;
+                left: ${Math.random() * 100}%;
+                font-size: ${Math.random() * 12 + 10}px;
+                opacity: ${Math.random() * 0.4 + 0.3};
+                transform: rotate(${Math.random() * 360}deg);
+            `;
+            c.appendChild(leaf);
+        }
+        
+        // Create trees (silhouettes on sides)
+        const createTree = (left, size, zIndex) => {
+            const tree = document.createElement('div');
+            tree.style.cssText = `
+                position: absolute;
+                bottom: 15%;
+                ${left ? 'left' : 'right'}: ${Math.random() * 10 - 5}%;
+                width: ${size}px;
+                height: ${size * 2.5}px;
+                z-index: ${zIndex};
+            `;
+            
+            // Trunk
+            const trunk = document.createElement('div');
+            trunk.style.cssText = `
+                position: absolute;
+                bottom: 0;
+                left: 50%;
+                transform: translateX(-50%);
+                width: ${size * 0.15}px;
+                height: ${size * 0.8}px;
+                background: linear-gradient(90deg, #2d1f14 0%, #4a3525 50%, #2d1f14 100%);
+                border-radius: 5px;
+            `;
+            tree.appendChild(trunk);
+            
+            // Foliage layers
+            for (let i = 0; i < 3; i++) {
+                const foliage = document.createElement('div');
+                const layerSize = size * (1 - i * 0.25);
+                const bottomPos = size * 0.5 + i * size * 0.4;
+                foliage.style.cssText = `
+                    position: absolute;
+                    bottom: ${bottomPos}px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    width: 0;
+                    height: 0;
+                    border-left: ${layerSize/2}px solid transparent;
+                    border-right: ${layerSize/2}px solid transparent;
+                    border-bottom: ${layerSize * 0.8}px solid ${timeOfDay === 'night' ? '#1a2f1a' : '#2d5a2d'};
+                    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+                `;
+                tree.appendChild(foliage);
+            }
+            
+            return tree;
+        };
+        
+        // Add trees on both sides
+        c.appendChild(createTree(true, 120, 2));
+        c.appendChild(createTree(true, 80, 1));
+        c.appendChild(createTree(false, 100, 2));
+        c.appendChild(createTree(false, 70, 1));
+        
+        // Create hiding spots (bushes, logs, rocks)
+        const hidingSpots = [];
+        const spotTypes = [
+            { emoji: '🪨', name: 'rock', width: 60, height: 40 },
+            { emoji: '🪵', name: 'log', width: 80, height: 35 },
+            { emoji: '🌳', name: 'bush', width: 50, height: 50 }
+        ];
+        
+        for (let i = 0; i < 5; i++) {
+            const spotType = spotTypes[Math.floor(Math.random() * spotTypes.length)];
+            const spot = document.createElement('div');
+            const leftPos = 15 + (i * 17) + (Math.random() * 10 - 5);
+            spot.className = 'woodland-hiding-spot';
+            spot.style.cssText = `
+                position: absolute;
+                bottom: ${12 + Math.random() * 8}%;
+                left: ${leftPos}%;
+                font-size: ${spotType.width * 0.6}px;
+                z-index: 10;
+                cursor: default;
+                filter: drop-shadow(2px 2px 3px rgba(0,0,0,0.4));
+                transition: transform 0.2s;
+            `;
+            spot.textContent = spotType.emoji;
+            c.appendChild(spot);
+            hidingSpots.push({ el: spot, left: leftPos, creature: null });
+        }
+        
+        // Create light rays through trees
+        const lightOverlay = document.createElement('div');
+        lightOverlay.style.cssText = `
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 5;
+        `;
+        
+        // Add light beams
+        for (let i = 0; i < 6; i++) {
+            const beam = document.createElement('div');
+            const leftPos = 10 + i * 15 + Math.random() * 10;
+            beam.style.cssText = `
+                position: absolute;
+                top: 0;
+                left: ${leftPos}%;
+                width: ${20 + Math.random() * 30}px;
+                height: 100%;
+                background: linear-gradient(180deg, ${lightColor} 0%, transparent 70%);
+                opacity: ${lightOpacity};
+                transform: skewX(${(Math.random() - 0.5) * 20}deg);
+                animation: woodlandLightSway ${8 + Math.random() * 4}s ease-in-out infinite alternate;
+            `;
+            lightOverlay.appendChild(beam);
+        }
+        c.appendChild(lightOverlay);
+        
+        // Add CSS animation for light sway
+        if (!document.getElementById('woodland-styles')) {
+            const style = document.createElement('style');
+            style.id = 'woodland-styles';
+            style.textContent = `
+                @keyframes woodlandLightSway {
+                    0% { transform: skewX(-5deg) translateX(-10px); opacity: ${lightOpacity}; }
+                    100% { transform: skewX(5deg) translateX(10px); opacity: ${lightOpacity * 0.7}; }
+                }
+                @keyframes creaturePeek {
+                    0%, 100% { transform: translateY(100%) scale(0.8); opacity: 0; }
+                    10%, 90% { transform: translateY(0) scale(1); opacity: 1; }
+                }
+                @keyframes creatureEyes {
+                    0%, 90%, 100% { opacity: 0; }
+                    30%, 70% { opacity: 1; }
+                }
+                .woodland-creature {
+                    animation: creaturePeek 6s ease-in-out forwards;
+                }
+                .woodland-hiding-spot:hover {
+                    transform: scale(1.05);
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        // Woodland creatures that peek out from hiding spots
+        const creatures = ['🐿️', '🦊', '🐺', '🦉', '🦔', '🐁'];
+        const creatureMessages = {
+            '🐿️': 'A curious squirrel watches you!',
+            '🦊': 'A sly fox peeks out!',
+            '🐺': 'A wolf observes from afar...',
+            '🦉': 'Hoo! An owl spots you!',
+            '🦔': 'A hedgehog snuffles about!',
+            '🐁': 'A tiny mouse scurries by!'
+        };
+        
+        const spawnCreature = () => {
+            if (State.runtime.currentTheme !== 'woodland') return;
+            
+            // Find an empty hiding spot
+            const emptySpots = hidingSpots.filter(s => !s.creature);
+            if (emptySpots.length === 0) {
+                this.woodlandCreatureTimeout = setTimeout(spawnCreature, 5000);
+                return;
+            }
+            
+            const spot = emptySpots[Math.floor(Math.random() * emptySpots.length)];
+            const creature = creatures[Math.floor(Math.random() * creatures.length)];
+            
+            // Night mode: only owls and wolves are active
+            const nightCreatures = ['🦉', '🐺'];
+            const activeCreature = timeOfDay === 'night' 
+                ? nightCreatures[Math.floor(Math.random() * nightCreatures.length)]
+                : creature;
+            
+            const critterEl = document.createElement('div');
+            critterEl.className = 'woodland-creature';
+            critterEl.textContent = activeCreature;
+            critterEl.style.cssText = `
+                position: absolute;
+                bottom: ${parseInt(spot.el.style.bottom) + 3}%;
+                left: ${spot.left + 2}%;
+                font-size: 28px;
+                z-index: 9;
+                pointer-events: auto;
+                cursor: pointer;
+                filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.4));
+            `;
+            
+            // Night mode: add glowing eyes effect for some creatures
+            if (timeOfDay === 'night' && (activeCreature === '🦉' || activeCreature === '🐺')) {
+                const eyes = document.createElement('div');
+                eyes.style.cssText = `
+                    position: absolute;
+                    top: 25%;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    width: 20px;
+                    height: 8px;
+                    display: flex;
+                    justify-content: space-between;
+                    animation: creatureEyes 6s ease-in-out forwards;
+                `;
+                eyes.innerHTML = `
+                    <div style="width:6px;height:6px;background:rgba(255,255,100,0.9);border-radius:50%;box-shadow:0 0 8px rgba(255,255,100,0.8);"></div>
+                    <div style="width:6px;height:6px;background:rgba(255,255,100,0.9);border-radius:50%;box-shadow:0 0 8px rgba(255,255,100,0.8);"></div>
+                `;
+                critterEl.appendChild(eyes);
+            }
+            
+            spot.creature = critterEl;
+            c.appendChild(critterEl);
+            
+            // Click to interact
+            critterEl.onclick = (e) => {
+                e.stopPropagation();
+                UIManager.showPostVoteMessage(creatureMessages[activeCreature] || 'A woodland creature!');
+                critterEl.style.animation = 'none';
+                critterEl.style.transform = 'scale(1.3)';
+                critterEl.style.opacity = '0';
+                setTimeout(() => {
+                    critterEl.remove();
+                    spot.creature = null;
+                }, 300);
+            };
+            
+            // Auto-hide after animation
+            setTimeout(() => {
+                if (critterEl.parentNode) {
+                    critterEl.remove();
+                    spot.creature = null;
+                }
+            }, 6000);
+            
+            // Schedule next creature
+            const nextDelay = timeOfDay === 'night' ? 15000 : 8000;
+            this.woodlandCreatureTimeout = setTimeout(spawnCreature, Math.random() * nextDelay + 5000);
+        };
+        
+        // Start creature spawning after a short delay
+        this.woodlandCreatureTimeout = setTimeout(spawnCreature, 3000);
+        
+        // Add floating particles (dust motes in light, fireflies at night)
+        for (let i = 0; i < (timeOfDay === 'night' ? 15 : 8); i++) {
+            const particle = document.createElement('div');
+            const isFirefly = timeOfDay === 'night' || timeOfDay === 'dusk';
+            particle.style.cssText = `
+                position: absolute;
+                left: ${Math.random() * 100}%;
+                top: ${Math.random() * 70}%;
+                width: ${isFirefly ? 4 : 2}px;
+                height: ${isFirefly ? 4 : 2}px;
+                background: ${isFirefly ? 'rgba(200, 255, 100, 0.9)' : 'rgba(255, 255, 200, 0.6)'};
+                border-radius: 50%;
+                ${isFirefly ? 'box-shadow: 0 0 6px rgba(200, 255, 100, 0.8);' : ''}
+                animation: float${i} ${10 + Math.random() * 10}s ease-in-out infinite;
+                z-index: 6;
+            `;
+            
+            // Add keyframes for this particle
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes float${i} {
+                    0%, 100% { 
+                        transform: translate(0, 0) scale(1); 
+                        opacity: ${isFirefly ? 0.3 : 0.5}; 
+                    }
+                    25% { 
+                        transform: translate(${Math.random() * 40 - 20}px, ${Math.random() * 30 - 15}px) scale(${isFirefly ? 1.2 : 1}); 
+                        opacity: ${isFirefly ? 1 : 0.7}; 
+                    }
+                    50% { 
+                        transform: translate(${Math.random() * 40 - 20}px, ${Math.random() * 30 - 15}px) scale(1); 
+                        opacity: ${isFirefly ? 0.2 : 0.4}; 
+                    }
+                    75% { 
+                        transform: translate(${Math.random() * 40 - 20}px, ${Math.random() * 30 - 15}px) scale(${isFirefly ? 1.3 : 1}); 
+                        opacity: ${isFirefly ? 0.9 : 0.6}; 
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+            c.appendChild(particle);
+        }
+        
+        // Add some mushrooms at the base
+        for (let i = 0; i < 4; i++) {
+            const mushroom = document.createElement('div');
+            mushroom.textContent = '🍄';
+            mushroom.style.cssText = `
+                position: absolute;
+                bottom: ${10 + Math.random() * 5}%;
+                left: ${10 + Math.random() * 80}%;
+                font-size: ${12 + Math.random() * 8}px;
+                opacity: 0.8;
+                z-index: 3;
+                filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.3));
+            `;
+            c.appendChild(mushroom);
+        }
     }
 };
 
