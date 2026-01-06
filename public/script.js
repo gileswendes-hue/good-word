@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.97.0', 
+    APP_VERSION: '5.97.1', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1524,7 +1524,7 @@ const ThemeManager = {
                 
                 s.innerHTML = `
                     body.theme-banana {
-                        background: linear-gradient(135deg, #ffe135 0%, #ffec4d 25%, #fff176 50%, #ffeb3b 75%, #fdd835 100%) !important;
+                        background: linear-gradient(160deg, #ffe135 0%, #ffec4d 30%, #fff59d 50%, #ffeb3b 70%, #fdd835 100%) !important;
                         background-attachment: fixed !important;
                         position: relative;
                     }
@@ -1536,33 +1536,52 @@ const ThemeManager = {
                         right: 0;
                         bottom: 0;
                         background-image: 
-                            radial-gradient(ellipse 80px 30px at 10% 20%, rgba(139, 90, 43, 0.15) 0%, transparent 70%),
-                            radial-gradient(ellipse 60px 25px at 90% 15%, rgba(139, 90, 43, 0.12) 0%, transparent 70%),
-                            radial-gradient(ellipse 70px 28px at 25% 80%, rgba(139, 90, 43, 0.14) 0%, transparent 70%),
-                            radial-gradient(ellipse 90px 35px at 75% 70%, rgba(139, 90, 43, 0.13) 0%, transparent 70%),
-                            radial-gradient(ellipse 50px 20px at 50% 40%, rgba(139, 90, 43, 0.1) 0%, transparent 70%),
-                            radial-gradient(circle at 15% 50%, rgba(92, 64, 51, 0.4) 1px, transparent 2px),
-                            radial-gradient(circle at 85% 30%, rgba(92, 64, 51, 0.35) 1.5px, transparent 3px),
-                            radial-gradient(circle at 45% 75%, rgba(92, 64, 51, 0.3) 1px, transparent 2px);
-                        background-size: 400px 400px, 350px 350px, 380px 380px, 420px 420px, 300px 300px, 150px 150px, 200px 200px, 180px 180px;
+                            /* Large bruise spots */
+                            radial-gradient(ellipse 120px 50px at 8% 15%, rgba(101, 67, 33, 0.35) 0%, rgba(101, 67, 33, 0.15) 40%, transparent 70%),
+                            radial-gradient(ellipse 90px 40px at 85% 25%, rgba(92, 64, 51, 0.3) 0%, rgba(92, 64, 51, 0.1) 50%, transparent 75%),
+                            radial-gradient(ellipse 140px 55px at 20% 75%, rgba(110, 70, 30, 0.32) 0%, rgba(110, 70, 30, 0.12) 45%, transparent 70%),
+                            radial-gradient(ellipse 100px 45px at 75% 80%, rgba(95, 60, 40, 0.28) 0%, rgba(95, 60, 40, 0.1) 50%, transparent 75%),
+                            radial-gradient(ellipse 80px 35px at 50% 45%, rgba(100, 65, 35, 0.25) 0%, rgba(100, 65, 35, 0.08) 55%, transparent 80%),
+                            radial-gradient(ellipse 110px 48px at 35% 30%, rgba(105, 68, 38, 0.22) 0%, transparent 65%),
+                            radial-gradient(ellipse 70px 30px at 65% 55%, rgba(98, 62, 42, 0.2) 0%, transparent 70%),
+                            /* Medium spots */
+                            radial-gradient(circle 25px at 12% 40%, rgba(80, 50, 30, 0.4) 0%, transparent 100%),
+                            radial-gradient(circle 18px at 78% 12%, rgba(85, 55, 35, 0.35) 0%, transparent 100%),
+                            radial-gradient(circle 22px at 42% 88%, rgba(90, 58, 32, 0.38) 0%, transparent 100%),
+                            radial-gradient(circle 20px at 92% 60%, rgba(82, 52, 28, 0.32) 0%, transparent 100%),
+                            radial-gradient(circle 15px at 28% 52%, rgba(88, 56, 34, 0.3) 0%, transparent 100%),
+                            /* Small freckles */
+                            radial-gradient(circle 8px at 15% 65%, rgba(70, 45, 25, 0.5) 0%, transparent 100%),
+                            radial-gradient(circle 6px at 55% 22%, rgba(75, 48, 28, 0.45) 0%, transparent 100%),
+                            radial-gradient(circle 10px at 82% 42%, rgba(72, 46, 26, 0.42) 0%, transparent 100%),
+                            radial-gradient(circle 7px at 38% 68%, rgba(78, 50, 30, 0.48) 0%, transparent 100%),
+                            radial-gradient(circle 5px at 68% 78%, rgba(74, 47, 27, 0.4) 0%, transparent 100%),
+                            radial-gradient(circle 9px at 25% 18%, rgba(76, 49, 29, 0.38) 0%, transparent 100%);
+                        background-size: 100% 100%;
                         pointer-events: none;
                         z-index: 0;
                     }
                     body.theme-banana .card,
                     body.theme-banana .bg-white {
-                        background: rgba(255, 253, 231, 0.95) !important;
-                        border-color: rgba(251, 191, 36, 0.3) !important;
+                        background: rgba(255, 250, 220, 0.92) !important;
+                        border-color: rgba(180, 130, 50, 0.25) !important;
                     }
                     body.theme-banana #wordDisplay {
-                        color: #5d4037 !important;
-                        text-shadow: 1px 1px 0px rgba(255,255,255,0.5);
+                        color: #4a3520 !important;
+                        text-shadow: 
+                            2px 2px 4px rgba(139, 90, 43, 0.15),
+                            -1px -1px 2px rgba(255, 255, 255, 0.3),
+                            0 0 8px rgba(101, 67, 33, 0.1);
+                        background: linear-gradient(180deg, rgba(101, 67, 33, 0.08) 0%, transparent 50%, rgba(101, 67, 33, 0.05) 100%);
+                        background-clip: text;
+                        -webkit-background-clip: text;
                     }
                     body.theme-banana .bg-indigo-600,
                     body.theme-banana .bg-indigo-500 {
-                        background: linear-gradient(135deg, #f9a825, #fbc02d) !important;
+                        background: linear-gradient(135deg, #e6a800, #f5c400) !important;
                     }
                     body.theme-banana .text-indigo-600 {
-                        color: #f57f17 !important;
+                        color: #b8860b !important;
                     }
                 `;
                 document.head.appendChild(s);
@@ -3142,60 +3161,132 @@ spiderHunt(targetXPercent, targetYPercent, isFood) {
             c.appendChild(leaf);
         }
         
-        // Create trees (silhouettes on sides)
+        // Create trees (realistic organic shapes on sides)
         const createTree = (left, size, zIndex) => {
             const tree = document.createElement('div');
+            const xOffset = Math.random() * 10 - 5;
             tree.style.cssText = `
                 position: absolute;
-                bottom: 15%;
-                ${left ? 'left' : 'right'}: ${Math.random() * 10 - 5}%;
-                width: ${size}px;
-                height: ${size * 2.5}px;
+                bottom: 12%;
+                ${left ? 'left' : 'right'}: ${xOffset}%;
+                width: ${size * 1.5}px;
+                height: ${size * 3}px;
                 z-index: ${zIndex};
             `;
             
-            // Trunk
+            // Trunk with bark texture
             const trunk = document.createElement('div');
+            const trunkW = size * 0.18;
             trunk.style.cssText = `
                 position: absolute;
                 bottom: 0;
                 left: 50%;
                 transform: translateX(-50%);
-                width: ${size * 0.15}px;
-                height: ${size * 0.8}px;
-                background: linear-gradient(90deg, #2d1f14 0%, #4a3525 50%, #2d1f14 100%);
-                border-radius: 5px;
+                width: ${trunkW}px;
+                height: ${size * 1.2}px;
+                background: linear-gradient(90deg, 
+                    #1a1208 0%, 
+                    #3d2914 20%, 
+                    #5a4025 40%, 
+                    #3d2914 60%, 
+                    #2a1f0f 80%, 
+                    #1a1208 100%);
+                border-radius: 3px 3px 8px 8px;
+                box-shadow: inset -3px 0 8px rgba(0,0,0,0.4), inset 3px 0 8px rgba(0,0,0,0.2);
             `;
+            
+            // Add bark lines
+            for (let b = 0; b < 6; b++) {
+                const line = document.createElement('div');
+                line.style.cssText = `
+                    position: absolute;
+                    left: ${20 + Math.random() * 60}%;
+                    top: ${b * 16 + Math.random() * 5}%;
+                    width: 2px;
+                    height: ${8 + Math.random() * 12}px;
+                    background: rgba(0,0,0,0.3);
+                    border-radius: 1px;
+                `;
+                trunk.appendChild(line);
+            }
             tree.appendChild(trunk);
             
-            // Foliage layers
-            for (let i = 0; i < 3; i++) {
-                const foliage = document.createElement('div');
-                const layerSize = size * (1 - i * 0.25);
-                const bottomPos = size * 0.5 + i * size * 0.4;
-                foliage.style.cssText = `
+            // Create organic foliage clusters
+            const foliageColors = timeOfDay === 'night' 
+                ? ['#0d1f0d', '#152515', '#1a2f1a', '#0f1a0f']
+                : ['#1e4d1e', '#2d5a2d', '#3a6b3a', '#275227', '#1f4a1f'];
+            
+            const clusters = 8 + Math.floor(Math.random() * 5);
+            for (let i = 0; i < clusters; i++) {
+                const cluster = document.createElement('div');
+                const clusterSize = size * (0.4 + Math.random() * 0.35);
+                const angle = (i / clusters) * Math.PI * 2;
+                const radius = size * (0.3 + Math.random() * 0.25);
+                const cx = Math.cos(angle) * radius;
+                const cy = Math.sin(angle) * radius * 0.6;
+                const baseY = size * 1.4;
+                
+                cluster.style.cssText = `
                     position: absolute;
-                    bottom: ${bottomPos}px;
-                    left: 50%;
+                    bottom: ${baseY + cy}px;
+                    left: calc(50% + ${cx}px);
                     transform: translateX(-50%);
-                    width: 0;
-                    height: 0;
-                    border-left: ${layerSize/2}px solid transparent;
-                    border-right: ${layerSize/2}px solid transparent;
-                    border-bottom: ${layerSize * 0.8}px solid ${timeOfDay === 'night' ? '#1a2f1a' : '#2d5a2d'};
-                    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+                    width: ${clusterSize}px;
+                    height: ${clusterSize * 0.85}px;
+                    background: radial-gradient(ellipse at 30% 30%, 
+                        ${foliageColors[Math.floor(Math.random() * foliageColors.length)]} 0%, 
+                        ${foliageColors[Math.floor(Math.random() * foliageColors.length)]} 70%, 
+                        transparent 100%);
+                    border-radius: 50% 50% 45% 55% / 60% 55% 45% 40%;
+                    filter: blur(0.5px);
                 `;
-                tree.appendChild(foliage);
+                tree.appendChild(cluster);
             }
+            
+            // Add a central dense cluster
+            const centerCluster = document.createElement('div');
+            centerCluster.style.cssText = `
+                position: absolute;
+                bottom: ${size * 1.5}px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: ${size * 0.7}px;
+                height: ${size * 0.6}px;
+                background: radial-gradient(ellipse at 40% 35%, 
+                    ${foliageColors[1]} 0%, 
+                    ${foliageColors[0]} 60%, 
+                    transparent 100%);
+                border-radius: 50%;
+            `;
+            tree.appendChild(centerCluster);
+            
+            // Top cluster
+            const topCluster = document.createElement('div');
+            topCluster.style.cssText = `
+                position: absolute;
+                bottom: ${size * 2}px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: ${size * 0.5}px;
+                height: ${size * 0.45}px;
+                background: radial-gradient(ellipse at 35% 30%, 
+                    ${foliageColors[2]} 0%, 
+                    ${foliageColors[0]} 70%, 
+                    transparent 100%);
+                border-radius: 45% 55% 50% 50% / 60% 60% 40% 40%;
+            `;
+            tree.appendChild(topCluster);
             
             return tree;
         };
         
-        // Add trees on both sides
-        c.appendChild(createTree(true, 120, 2));
-        c.appendChild(createTree(true, 80, 1));
-        c.appendChild(createTree(false, 100, 2));
-        c.appendChild(createTree(false, 70, 1));
+        // Add trees on both sides (more trees, varied sizes)
+        c.appendChild(createTree(true, 130, 3));
+        c.appendChild(createTree(true, 90, 2));
+        c.appendChild(createTree(true, 60, 1));
+        c.appendChild(createTree(false, 110, 3));
+        c.appendChild(createTree(false, 75, 2));
+        c.appendChild(createTree(false, 50, 1));
         
         // Create hiding spots (bushes, logs, rocks)
         const hidingSpots = [];
@@ -7077,17 +7168,20 @@ async vote(t, s = false) {
         const gameCard = DOM.game.card;
         const header = document.querySelector('header');
         const themesPanel = document.querySelector('.mt-6.p-4.bg-white\\/70'); // Themes panel
+        const miniRankings = document.getElementById('mini-rankings'); // Top good/bad words
         
         if (hide) {
             if (gameCard) gameCard.style.opacity = '0';
             if (gameCard) gameCard.style.pointerEvents = 'none';
             if (header) header.style.opacity = '0.3';
             if (themesPanel) themesPanel.style.opacity = '0.3';
+            if (miniRankings) miniRankings.style.opacity = '0.3';
         } else {
             if (gameCard) gameCard.style.opacity = '1';
             if (gameCard) gameCard.style.pointerEvents = '';
             if (header) header.style.opacity = '1';
             if (themesPanel) themesPanel.style.opacity = '1';
+            if (miniRankings) miniRankings.style.opacity = '1';
         }
     },
 
