@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.97.4', 
+    APP_VERSION: '5.97.5', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1855,37 +1855,39 @@ const SnowmanBuilder = {
         if (count > 100) {
             const dogProg = Math.min((count - 100) / 50, 1);
             html += '<div style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;margin-left:-5px;">';
-            html += '<div style="position:relative;width:42px;height:38px;">';
+            html += '<div style="position:relative;width:44px;height:42px;">';
             
-            // Dog body (bigger)
+            // Dog body (bigger, lowered to connect with legs)
             if (dogProg > 0) {
-                const w = Math.round(28 * Math.min(dogProg / 0.3, 1));
-                const h = Math.round(16 * Math.min(dogProg / 0.3, 1));
-                html += `<div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:${w}px;height:${h}px;background:radial-gradient(ellipse at 30% 30%, #fff, #d8d8d8);border-radius:50%;box-shadow:inset -2px -2px 4px rgba(0,0,0,0.1);"></div>`;
+                const w = Math.round(30 * Math.min(dogProg / 0.3, 1));
+                const h = Math.round(18 * Math.min(dogProg / 0.3, 1));
+                html += `<div style="position:absolute;bottom:6px;left:50%;transform:translateX(-50%);width:${w}px;height:${h}px;background:radial-gradient(ellipse at 30% 30%, #fff, #d0d0d0);border-radius:50%;box-shadow:inset -2px -2px 4px rgba(0,0,0,0.1);z-index:1;"></div>`;
             }
             
-            // Dog head (bigger, moved up and left)
+            // Dog head (moved up and to right side of body)
             if (dogProg > 0.3) {
-                const s = Math.round(14 * Math.min((dogProg - 0.3) / 0.25, 1));
+                const s = Math.round(15 * Math.min((dogProg - 0.3) / 0.25, 1));
                 const hasFace = dogProg > 0.75;
                 const hasEars = dogProg > 0.75;
-                html += `<div style="position:absolute;bottom:14px;right:2px;width:${s}px;height:${s}px;background:radial-gradient(circle at 30% 30%, #fff, #d8d8d8);border-radius:50%;z-index:2;box-shadow:inset -1px -1px 3px rgba(0,0,0,0.1);">
-                    ${hasFace ? `<div style="position:absolute;top:28%;left:18%;width:2px;height:2px;background:#1a1a1a;border-radius:50%;"></div><div style="position:absolute;top:28%;right:22%;width:2px;height:2px;background:#1a1a1a;border-radius:50%;"></div><div style="position:absolute;top:50%;left:50%;transform:translateX(-50%);width:3px;height:2px;background:#222;border-radius:50%;"></div>` : ''}
-                    ${hasEars ? `<div style="position:absolute;top:-4px;left:1px;width:4px;height:6px;background:linear-gradient(180deg, #ccc, #e8e8e8);border-radius:50% 50% 40% 40%;border:1px solid rgba(0,0,0,0.15);"></div><div style="position:absolute;top:-4px;right:1px;width:4px;height:6px;background:linear-gradient(180deg, #ccc, #e8e8e8);border-radius:50% 50% 40% 40%;border:1px solid rgba(0,0,0,0.15);"></div>` : ''}
+                html += `<div style="position:absolute;bottom:12px;right:0px;width:${s}px;height:${s}px;background:radial-gradient(circle at 30% 30%, #fff, #d0d0d0);border-radius:50%;z-index:2;box-shadow:inset -1px -1px 3px rgba(0,0,0,0.1);">
+                    ${hasFace ? `<div style="position:absolute;top:28%;left:20%;width:2px;height:2px;background:#1a1a1a;border-radius:50%;"></div><div style="position:absolute;top:28%;right:25%;width:2px;height:2px;background:#1a1a1a;border-radius:50%;"></div><div style="position:absolute;top:52%;left:50%;transform:translateX(-50%);width:3px;height:2px;background:#222;border-radius:50%;"></div>` : ''}
+                    ${hasEars ? `<div style="position:absolute;top:-5px;left:0px;width:5px;height:7px;background:linear-gradient(180deg, #bbb, #ddd);border-radius:50% 50% 40% 40%;border:1px solid rgba(0,0,0,0.2);"></div><div style="position:absolute;top:-5px;right:0px;width:5px;height:7px;background:linear-gradient(180deg, #bbb, #ddd);border-radius:50% 50% 40% 40%;border:1px solid rgba(0,0,0,0.2);"></div>` : ''}
                 </div>`;
             }
             
-            // Dog legs (black stick legs)
+            // Dog legs (black stick legs - positioned under body)
             if (dogProg > 0.55) {
                 const lh = Math.round(8 * Math.min((dogProg - 0.55) / 0.2, 1));
-                html += `<div style="position:absolute;bottom:0;left:6px;width:2px;height:${lh}px;background:#2a2a2a;border-radius:1px;"></div>`;
-                html += `<div style="position:absolute;bottom:0;left:14px;width:2px;height:${lh}px;background:#2a2a2a;border-radius:1px;"></div>`;
-                html += `<div style="position:absolute;bottom:0;right:8px;width:2px;height:${lh}px;background:#2a2a2a;border-radius:1px;"></div>`;
+                // Front legs (under right side of body)
+                html += `<div style="position:absolute;bottom:0;right:10px;width:2px;height:${lh}px;background:#2a2a2a;border-radius:1px;"></div>`;
                 html += `<div style="position:absolute;bottom:0;right:16px;width:2px;height:${lh}px;background:#2a2a2a;border-radius:1px;"></div>`;
+                // Back legs (under left side of body)
+                html += `<div style="position:absolute;bottom:0;left:10px;width:2px;height:${lh}px;background:#2a2a2a;border-radius:1px;"></div>`;
+                html += `<div style="position:absolute;bottom:0;left:16px;width:2px;height:${lh}px;background:#2a2a2a;border-radius:1px;"></div>`;
             }
             
-            // Tail (curved up)
-            if (dogProg > 0.8) html += `<div style="position:absolute;bottom:14px;left:-3px;width:8px;height:5px;background:#d8d8d8;border-radius:50%;transform:rotate(45deg);box-shadow:inset -1px -1px 2px rgba(0,0,0,0.1);"></div>`;
+            // Tail (on left side, curved up from body)
+            if (dogProg > 0.8) html += `<div style="position:absolute;bottom:12px;left:2px;width:6px;height:8px;background:linear-gradient(to top, #d0d0d0, #e8e8e8);border-radius:40% 40% 50% 50%;transform:rotate(-20deg);box-shadow:inset -1px -1px 2px rgba(0,0,0,0.1);"></div>`;
             
             html += '</div></div>';
         }
@@ -4171,10 +4173,12 @@ displayWord(w) {
         const isGolden = State.runtime.isDailyMode && 
                         State.runtime.dailyChallengeType === 'golden' && 
                         State.runtime.goldenWord && 
-                        w._id === State.runtime.goldenWord._id;
+                        (w._id === State.runtime.goldenWord._id || 
+                         String(w._id) === String(State.runtime.goldenWord._id) ||
+                         w.text === State.runtime.goldenWord.text);
         
         wd.className = 'font-extrabold text-gray-900 text-center min-h-[72px]';
-        wd.style = '';
+        wd.style.cssText = '';
         wd.style.opacity = '1';
         
         if (isGolden) {
@@ -4182,10 +4186,11 @@ displayWord(w) {
             if (!document.getElementById('golden-style')) {
                 const s = document.createElement('style');
                 s.id = 'golden-style';
-                s.textContent = '@keyframes golden-glow{0%,100%{text-shadow:0 0 10px #fbbf24,0 0 20px #f59e0b;}50%{text-shadow:0 0 20px #fbbf24,0 0 40px #f59e0b,0 0 60px #d97706;}}';
+                s.textContent = '@keyframes golden-glow{0%,100%{text-shadow:0 0 10px #fbbf24,0 0 20px #f59e0b,0 0 5px #fde68a;}50%{text-shadow:0 0 20px #fbbf24,0 0 40px #f59e0b,0 0 60px #d97706;}}';
                 document.head.appendChild(s);
             }
-            wd.style.color = '#fbbf24';
+            wd.style.color = '#f59e0b';
+            wd.style.textShadow = '0 0 10px #fbbf24, 0 0 20px #f59e0b';
             wd.style.animation = 'golden-glow 1.5s ease-in-out infinite';
             this.fitText(txt);
             if (!State.runtime.isCoolingDown) this.disableButtons(false);
