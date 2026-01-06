@@ -664,12 +664,7 @@ app.get('/api/leaderboard', async (req, res) => { try { res.json(await Leaderboa
 app.get('/api/leaderboard/streaks', async (req, res) => { try { res.json(await Leaderboard.find({dailyStreak:{$gt:0}}).sort({dailyStreak:-1}).limit(10)); } catch(e){res.json([])} });
 app.post('/api/leaderboard', async (req, res) => { 
     try { 
-        const update = {
-            userId: req.body.userId,
-            username: req.body.username,
-            voteCount: req.body.voteCount,
-            lastUpdated: new Date()
-        };
+        const update = { userId: req.body.userId, username: req.body.username, voteCount: req.body.voteCount, lastUpdated: new Date() };
         if (req.body.dailyStreak !== undefined) update.dailyStreak = req.body.dailyStreak;
         if (req.body.bestDailyStreak !== undefined) update.bestDailyStreak = req.body.bestDailyStreak;
         await Leaderboard.findOneAndUpdate({userId:req.body.userId}, update, {upsert:true}); 
