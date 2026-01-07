@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.97.6', 
+    APP_VERSION: '5.97.7', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -2547,51 +2547,129 @@ halloween(active) {
             const s = document.createElement('style');
             s.id = 'spider-motion-style';
             s.innerHTML = `
-                @keyframes spider-scuttle {
-                    0% { transform: rotate(0deg) scale(1); }
-                    10% { transform: rotate(8deg) scale(1.02); }
-                    20% { transform: rotate(-6deg) scale(0.98); }
-                    30% { transform: rotate(0deg) scale(1); }
-                    40% { transform: rotate(0deg) scale(1); }
-                    50% { transform: rotate(-8deg) scale(1.02); }
-                    60% { transform: rotate(6deg) scale(0.98); }
-                    70% { transform: rotate(0deg) scale(1); }
-                    80% { transform: rotate(0deg) scale(1); }
-                    90% { transform: rotate(4deg) scale(1.01); }
-                    100% { transform: rotate(0deg) scale(1); }
+                @keyframes spider-idle-wiggle {
+                    0%, 100% { transform: rotate(0deg) scaleX(1); }
+                    15% { transform: rotate(6deg) scaleX(1.05); }
+                    30% { transform: rotate(-4deg) scaleX(0.95); }
+                    45% { transform: rotate(3deg) scaleX(1.02); }
+                    60% { transform: rotate(-5deg) scaleX(0.98); }
+                    75% { transform: rotate(2deg) scaleX(1.01); }
+                    90% { transform: rotate(-2deg) scaleX(0.99); }
                 }
-                @keyframes spider-hunt-scuttle {
-                    0% { transform: translateX(0) rotate(0deg); }
-                    5% { transform: translateX(2px) rotate(10deg); }
-                    10% { transform: translateX(-2px) rotate(-8deg); }
-                    15% { transform: translateX(0) rotate(0deg); }
-                    25% { transform: translateX(0) rotate(0deg); }
-                    30% { transform: translateX(-3px) rotate(-12deg); }
-                    35% { transform: translateX(3px) rotate(10deg); }
-                    40% { transform: translateX(0) rotate(0deg); }
-                    60% { transform: translateX(0) rotate(0deg); }
-                    65% { transform: translateX(2px) rotate(8deg); }
-                    70% { transform: translateX(-2px) rotate(-6deg); }
-                    75% { transform: translateX(0) rotate(0deg); }
-                    100% { transform: translateX(0) rotate(0deg); }
+                @keyframes spider-leg-twitch {
+                    0%, 40%, 100% { transform: rotate(0deg) scaleX(1) scaleY(1); }
+                    10% { transform: rotate(8deg) scaleX(1.08) scaleY(0.94); }
+                    20% { transform: rotate(-6deg) scaleX(0.94) scaleY(1.06); }
+                    50% { transform: rotate(0deg) scaleX(1) scaleY(1); }
+                    60% { transform: rotate(-7deg) scaleX(1.06) scaleY(0.95); }
+                    70% { transform: rotate(5deg) scaleX(0.95) scaleY(1.04); }
+                    80% { transform: rotate(-3deg) scaleX(1.02) scaleY(0.98); }
+                }
+                @keyframes spider-pause-wiggle {
+                    0%, 100% { transform: rotate(0deg); }
+                    25% { transform: rotate(12deg); }
+                    50% { transform: rotate(-10deg); }
+                    75% { transform: rotate(8deg); }
                 }
                 .scuttling-motion {
-                    animation: spider-scuttle 0.8s infinite ease-in-out;
+                    animation: spider-leg-twitch 0.3s infinite ease-in-out;
+                }
+                .spider-paused {
+                    animation: spider-pause-wiggle 0.4s ease-in-out;
                 }
                 .hunting-scuttle {
-                    animation: spider-hunt-scuttle 0.6s infinite ease-in-out;
+                    animation: spider-leg-twitch 0.2s infinite ease-in-out;
+                }
+                .spider-idle {
+                    animation: spider-idle-wiggle 2s infinite ease-in-out;
                 }
             `;
             document.head.appendChild(s);
         }
 
+        // Spider scuttle movement system - jerky, realistic movement
+        const spiderScuttle = {
+            active: false,
+            targetX: 50,
+            currentX: 50,
+            intervalId: null,
+            
+            start(wrap, body, targetPercent, onComplete) {
+                this.active = true;
+                this.targetX = targetPercent;
+                this.currentX = parseFloat(wrap.style.left) || 50;
+                
+                const totalDist = Math.abs(this.targetX - this.currentX);
+                const direction = this.targetX > this.currentX ? 1 : -1;
+                const stepSize = 1.5 + Math.random() * 1; // Variable step size
+                let stepsTaken = 0;
+                const maxSteps = Math.ceil(totalDist / stepSize) + 5;
+                
+                body.classList.add('scuttling-motion');
+                
+                const moveStep = () => {
+                    if (!this.active || stepsTaken > maxSteps) {
+                        this.stop(body, onComplete);
+                        return;
+                    }
+                    
+                    const remaining = Math.abs(this.targetX - this.currentX);
+                    if (remaining < 1) {
+                        this.stop(body, onComplete);
+                        return;
+                    }
+                    
+                    // Random step with some variance
+                    const step = Math.min(remaining, stepSize + (Math.random() - 0.5) * 1.5);
+                    this.currentX += step * direction;
+                    wrap.style.left = this.currentX + '%';
+                    stepsTaken++;
+                    
+                    // Random pause chance (30% chance to pause and wiggle)
+                    if (Math.random() < 0.3 && remaining > 5) {
+                        body.classList.remove('scuttling-motion');
+                        body.classList.add('spider-paused');
+                        
+                        const pauseTime = 150 + Math.random() * 300;
+                        setTimeout(() => {
+                            if (!this.active) return;
+                            body.classList.remove('spider-paused');
+                            body.classList.add('scuttling-motion');
+                            // Next step after pause
+                            const nextDelay = 80 + Math.random() * 120;
+                            setTimeout(moveStep, nextDelay);
+                        }, pauseTime);
+                    } else {
+                        // Normal step timing - quick bursts
+                        const delay = 60 + Math.random() * 100;
+                        setTimeout(moveStep, delay);
+                    }
+                };
+                
+                // Start movement
+                setTimeout(moveStep, 100);
+            },
+            
+            stop(body, onComplete) {
+                this.active = false;
+                body.classList.remove('scuttling-motion', 'spider-paused');
+                if (onComplete) onComplete();
+            },
+            
+            cancel(body) {
+                this.active = false;
+                body.classList.remove('scuttling-motion', 'spider-paused');
+            }
+        };
+
         let wrap = document.getElementById('spider-wrap');
         if (!wrap) {
             wrap = document.createElement('div');
             wrap.id = 'spider-wrap';
+            wrap.spiderScuttle = spiderScuttle; // Attach for external access
             Object.assign(wrap.style, {
                 position: 'fixed', left: '50%', top: '-15vh', zIndex: '102',
-                transition: 'left 4s ease-in-out', pointerEvents: 'none' 
+                pointerEvents: 'none' 
             });
             
             const eaten = State.data.insectStats.eaten || 0;
@@ -2754,52 +2832,54 @@ halloween(active) {
 
         const body = wrap.querySelector('#spider-body');
         const thread = wrap.querySelector('#spider-thread');
+        const scuttle = wrap.spiderScuttle;
         
         const runDrop = () => {
             if (!document.body.contains(wrap)) return;
             if (wrap.classList.contains('hunting')) return;
+            if (scuttle) scuttle.cancel(body);
             
             const actionRoll = Math.random();
             body.style.transform = 'rotate(0deg)'; 
-            body.classList.remove('scuttling-motion'); // Stop shaking
+            body.classList.remove('scuttling-motion', 'spider-paused', 'spider-idle');
             thread.style.opacity = '1'; 
             
             if (actionRoll < 0.7) {
                 const safeLeft = Math.random() * 60 + 20;
-                // SLOW MOVE (8s)
-                wrap.style.transition = 'left 8s ease-in-out'; 
-                body.classList.add('scuttling-motion');
-                wrap.style.left = safeLeft + '%';
                 
-                this.spiderTimeout = setTimeout(() => {
-                    if (wrap.classList.contains('hunting')) return;
-                    body.classList.remove('scuttling-motion');
-                    body.style.transform = 'rotate(180deg)'; 
-                    thread.style.transition = 'height 2.5s ease-in-out'; 
-                    thread.style.height = '18vh'; 
-                    
-                    setTimeout(() => {
-                         if (wrap.classList.contains('hunting')) return;
-                         // Use time-based idle phrase
-                         let text = 'Boo!';
-                         if (typeof GAME_DIALOGUE !== 'undefined' && GAME_DIALOGUE.spider) {
-                             if (typeof GAME_DIALOGUE.spider.getIdlePhrase === 'function') {
-                                 text = GAME_DIALOGUE.spider.getIdlePhrase();
-                             } else if (GAME_DIALOGUE.spider.idle) {
-                                 const phrases = Array.isArray(GAME_DIALOGUE.spider.idle) ? GAME_DIALOGUE.spider.idle : ['Boo!', 'Hi!', '🕷️'];
-                                 text = phrases[Math.floor(Math.random() * phrases.length)];
-                             }
-                         }
-                         
-                         if(wrap.showBubble) wrap.showBubble(text, 'upside-down'); 
-                         
-                         setTimeout(() => {
+                // Use new scuttle system for realistic movement
+                if (scuttle) {
+                    scuttle.start(wrap, body, safeLeft, () => {
+                        if (wrap.classList.contains('hunting')) return;
+                        body.style.transform = 'rotate(180deg)'; 
+                        body.classList.add('spider-idle');
+                        thread.style.transition = 'height 2.5s ease-in-out'; 
+                        thread.style.height = '18vh'; 
+                        
+                        setTimeout(() => {
                              if (wrap.classList.contains('hunting')) return;
-                             thread.style.height = '0'; 
-                             this.spiderTimeout = setTimeout(runDrop, Math.random() * 5000 + 5000);
-                         }, 2500); 
-                    }, 2500);
-                }, 8000); // Wait for move (8s)
+                             // Use time-based idle phrase
+                             let text = 'Boo!';
+                             if (typeof GAME_DIALOGUE !== 'undefined' && GAME_DIALOGUE.spider) {
+                                 if (typeof GAME_DIALOGUE.spider.getIdlePhrase === 'function') {
+                                     text = GAME_DIALOGUE.spider.getIdlePhrase();
+                                 } else if (GAME_DIALOGUE.spider.idle) {
+                                     const phrases = Array.isArray(GAME_DIALOGUE.spider.idle) ? GAME_DIALOGUE.spider.idle : ['Boo!', 'Hi!', '🕷️'];
+                                     text = phrases[Math.floor(Math.random() * phrases.length)];
+                                 }
+                             }
+                             
+                             if(wrap.showBubble) wrap.showBubble(text, 'upside-down'); 
+                             
+                             setTimeout(() => {
+                                 if (wrap.classList.contains('hunting')) return;
+                                 body.classList.remove('spider-idle');
+                                 thread.style.height = '0'; 
+                                 this.spiderTimeout = setTimeout(runDrop, Math.random() * 5000 + 5000);
+                             }, 2500); 
+                        }, 2500);
+                    });
+                }
                 return;
             }
 			
@@ -2807,44 +2887,38 @@ halloween(active) {
                 const isLeft = Math.random() > 0.5;
                 const wallX = isLeft ? 5 : 85; 
                 
-                // SLOW MOVE (8s)
-                wrap.style.transition = 'left 8s ease-in-out';
-                body.classList.add('scuttling-motion');
-                wrap.style.left = wallX + '%';
-                
-                this.spiderTimeout = setTimeout(() => {
-                    if (wrap.classList.contains('hunting')) return;
-                    body.classList.remove('scuttling-motion');
-                    
-                    thread.style.opacity = '0'; 
-                    body.style.transform = `rotate(${isLeft ? 90 : -90}deg)`;
-                    
-                    const climbDepth = Math.random() * 40 + 30; 
-                    thread.style.transition = 'height 4s ease-in-out';
-                    thread.style.height = climbDepth + 'vh';
-                    
-                    setTimeout(() => {
-                         if (wrap.classList.contains('hunting')) return;
-                         thread.style.height = '0'; 
-                         setTimeout(() => {
-                             body.style.transform = 'rotate(0deg)';
-                             thread.style.opacity = '1'; 
-                             this.spiderTimeout = setTimeout(runDrop, Math.random() * 5000 + 5000);
-                         }, 4000);
-                    }, 5000);
-                }, 8000);
+                // Use new scuttle system
+                if (scuttle) {
+                    scuttle.start(wrap, body, wallX, () => {
+                        if (wrap.classList.contains('hunting')) return;
+                        
+                        thread.style.opacity = '0'; 
+                        body.style.transform = `rotate(${isLeft ? 90 : -90}deg)`;
+                        
+                        const climbDepth = Math.random() * 40 + 30; 
+                        thread.style.transition = 'height 4s ease-in-out';
+                        thread.style.height = climbDepth + 'vh';
+                        
+                        setTimeout(() => {
+                             if (wrap.classList.contains('hunting')) return;
+                             thread.style.height = '0'; 
+                             setTimeout(() => {
+                                 body.style.transform = 'rotate(0deg)';
+                                 thread.style.opacity = '1'; 
+                                 this.spiderTimeout = setTimeout(runDrop, Math.random() * 5000 + 5000);
+                             }, 4000);
+                        }, 5000);
+                    });
+                }
                 return;
             }
             
             const safeLeft = Math.random() * 60 + 20; 
-            wrap.style.transition = 'left 8s ease-in-out'; // SLOW
-            body.classList.add('scuttling-motion');
-            wrap.style.left = safeLeft + '%';
-            
-            this.spiderTimeout = setTimeout(() => {
-                body.classList.remove('scuttling-motion');
-                runDrop();
-            }, 8000);
+            if (scuttle) {
+                scuttle.start(wrap, body, safeLeft, () => {
+                    runDrop();
+                });
+            }
         };
         
         this.spiderTimeout = setTimeout(runDrop, 1000);
@@ -2919,7 +2993,11 @@ spiderHunt(targetXPercent, targetYPercent, isFood) {
         if (!wrap) return;
         const thread = wrap.querySelector('#spider-thread');
         const body = wrap.querySelector('#spider-body');
-        body.classList.remove('scuttling-motion');
+        const scuttle = wrap.spiderScuttle;
+        
+        // Cancel any existing scuttle
+        if (scuttle) scuttle.cancel(body);
+        body.classList.remove('scuttling-motion', 'spider-paused', 'spider-idle');
         body.classList.add('hunting-scuttle');
 
         if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
@@ -2931,18 +3009,52 @@ spiderHunt(targetXPercent, targetYPercent, isFood) {
 
         const destX = isFood ? targetXPercent : 88;
         const destY = isFood ? targetYPercent : 20;
-        const currentX = parseFloat(wrap.style.left) || 50;
-        const dist = Math.abs(currentX - destX);
         
-        // Slower, more deliberate movement with step function for crawling effect
-        const moveTime = Math.max(dist * 18, 1200); 
+        // Use faster hunt scuttle - more urgent movement
+        const huntScuttle = {
+            active: true,
+            move(onComplete) {
+                const currentX = parseFloat(wrap.style.left) || 50;
+                const totalDist = Math.abs(destX - currentX);
+                const direction = destX > currentX ? 1 : -1;
+                let posX = currentX;
+                
+                const step = () => {
+                    if (!this.active) return;
+                    
+                    const remaining = Math.abs(destX - posX);
+                    if (remaining < 1) {
+                        body.classList.remove('hunting-scuttle');
+                        onComplete();
+                        return;
+                    }
+                    
+                    // Faster, more urgent steps for hunting
+                    const stepSize = 2 + Math.random() * 2;
+                    const actualStep = Math.min(remaining, stepSize);
+                    posX += actualStep * direction;
+                    wrap.style.left = posX + '%';
+                    
+                    // Occasional brief pause (15% chance)
+                    if (Math.random() < 0.15 && remaining > 8) {
+                        body.classList.remove('hunting-scuttle');
+                        body.classList.add('spider-paused');
+                        setTimeout(() => {
+                            if (!this.active) return;
+                            body.classList.remove('spider-paused');
+                            body.classList.add('hunting-scuttle');
+                            setTimeout(step, 40 + Math.random() * 60);
+                        }, 100 + Math.random() * 150);
+                    } else {
+                        setTimeout(step, 40 + Math.random() * 60);
+                    }
+                };
+                
+                step();
+            }
+        };
         
-        wrap.style.transition = `left ${moveTime}ms steps(8, end)`;
-        wrap.style.left = destX + '%';
-        body.style.transform = 'rotate(0deg)';
-        
-        this.spiderTimeout = setTimeout(() => {
-            body.classList.remove('hunting-scuttle');
+        huntScuttle.move(() => {
             const anchor = document.getElementById('spider-anchor');
             let scale = 1;
             if (anchor && anchor.style.transform) {
@@ -2991,7 +3103,7 @@ spiderHunt(targetXPercent, targetYPercent, isFood) {
                     }
                 }, 2000); 
             }, 3000); 
-        }, moveTime);
+        });
     },
 
     spiderFall(wrap, thread, body, bub) {
