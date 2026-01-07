@@ -391,8 +391,7 @@ const State = {
 
         else s.setItem(k, v);
     },
-		if (k === 'spiderEatLog') localStorage.setItem('spiderEatLog', JSON.stringify(v));
-        else if (k === 'spiderFullUntil') localStorage.setItem('spiderFullUntil', v);
+
     
     unlockBadge(n) {
         if (this.data.badges[n]) return;
