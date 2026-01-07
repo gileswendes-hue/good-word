@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.97.5', 
+    APP_VERSION: '5.97.6', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -39,6 +39,55 @@ const CONFIG = {
         woodland: 'V09PRExBTkR8Rk9SRVNUfFRSRUVTfEZPWEVTfEJBREdFUnxERUVSfFJBQkJJVHxBQ09STnxNVVNIUk9PTXxGRVJOfFVOREVSR1JPV1RIfENBTk9QWXxUSElDS0VUfEdMQURF'
     },
 };
+
+// Content filter for slurs and offensive terms
+const ContentFilter = {
+    // Base64 encoded to avoid raw slurs in source code
+    // Includes racial slurs, homophobic/transphobic terms, and severe profanity
+    _encoded: 'bmlnZ2VyfG5pZ2dhfGZhZ2dvdHxmYWd8ZHlrZXx0cmFubnl8cmV0YXJkfHNwYXN0aWN8Y2hpbmt8Z29va3xzcGljfGtpa2V8d2V0YmFja3xiZWFuZXJ8Y29vbnxyYWdoZWFkfHRvd2VsaGVhZHxjYW1lbGpvY2tleXxwYWtpfHdvcHxqYXB8Y3JhY2tlcnxob25reXxncmluZ298bmVncm98Y29sb3JlZHxuZWdyZXNzfG11bGF0dG98aGFsZmJyZWVkfHF1ZWVyfHF1ZWVyc3xob21vfGhvbW9zfGxlc2JvfHNoZW1hbGV8aGVzaGV8dHJhbnN2ZXN0aXRlfGhlcm1hcGhyb2RpdGV8c29kb21pdGV8YnVnZ2VyfG5vbmNlfHBlZG98cGFlZG98cGVkb3BoaWxlfHBlcnZlcnR8cmFwaXN0fG1vbGVzdGVyfG5henl8bmF6aXN8aGl0bGVyfGhvbG9jYXVzdHxqaWhhZHxqaWhhZGl8dGVycm9yaXN0',
+    _patterns: null,
+    
+    init() {
+        try {
+            const decoded = atob(this._encoded);
+            const terms = decoded.split('|');
+            // Create pattern that matches whole words and common evasions
+            this._patterns = terms.map(term => {
+                // Match the term with common character substitutions
+                const escaped = term
+                    .replace(/a/g, '[a@4]')
+                    .replace(/e/g, '[e3]')
+                    .replace(/i/g, '[i1!]')
+                    .replace(/o/g, '[o0]')
+                    .replace(/s/g, '[s$5]')
+                    .replace(/g/g, '[gq9]');
+                return new RegExp(`\\b${escaped}s?\\b`, 'i');
+            });
+        } catch(e) {
+            console.warn('ContentFilter init failed');
+            this._patterns = [];
+        }
+    },
+    
+    isOffensive(text) {
+        if (!this._patterns) this.init();
+        if (!text || typeof text !== 'string') return false;
+        const normalized = text.toLowerCase().replace(/[_\-\.]/g, '');
+        return this._patterns.some(pattern => pattern.test(normalized));
+    },
+    
+    // For server-side, export the raw check
+    getOffensiveTerms() {
+        try {
+            return atob(this._encoded).split('|');
+        } catch(e) {
+            return [];
+        }
+    }
+};
+
+// Initialize filter
+ContentFilter.init();
 
 let DOM = {}; // Changed to let
 const loadDOM = () => ({
@@ -1386,6 +1435,11 @@ async fetchKidsWords() {
             UIManager.showPostVoteMessage("Cannot submit new words offline 🚫");
             return { ok: false };
         }
+        // Check for offensive content
+        if (ContentFilter.isOffensive(text)) {
+            UIManager.showPostVoteMessage("This word is not allowed 🚫");
+            return { ok: false, status: 403 };
+        }
         return fetch(CONFIG.API_BASE_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -2494,13 +2548,38 @@ halloween(active) {
             s.id = 'spider-motion-style';
             s.innerHTML = `
                 @keyframes spider-scuttle {
-                    0% { transform: rotate(0deg); }
-                    25% { transform: rotate(5deg); }
-                    75% { transform: rotate(-5deg); }
-                    100% { transform: rotate(0deg); }
+                    0% { transform: rotate(0deg) scale(1); }
+                    10% { transform: rotate(8deg) scale(1.02); }
+                    20% { transform: rotate(-6deg) scale(0.98); }
+                    30% { transform: rotate(0deg) scale(1); }
+                    40% { transform: rotate(0deg) scale(1); }
+                    50% { transform: rotate(-8deg) scale(1.02); }
+                    60% { transform: rotate(6deg) scale(0.98); }
+                    70% { transform: rotate(0deg) scale(1); }
+                    80% { transform: rotate(0deg) scale(1); }
+                    90% { transform: rotate(4deg) scale(1.01); }
+                    100% { transform: rotate(0deg) scale(1); }
+                }
+                @keyframes spider-hunt-scuttle {
+                    0% { transform: translateX(0) rotate(0deg); }
+                    5% { transform: translateX(2px) rotate(10deg); }
+                    10% { transform: translateX(-2px) rotate(-8deg); }
+                    15% { transform: translateX(0) rotate(0deg); }
+                    25% { transform: translateX(0) rotate(0deg); }
+                    30% { transform: translateX(-3px) rotate(-12deg); }
+                    35% { transform: translateX(3px) rotate(10deg); }
+                    40% { transform: translateX(0) rotate(0deg); }
+                    60% { transform: translateX(0) rotate(0deg); }
+                    65% { transform: translateX(2px) rotate(8deg); }
+                    70% { transform: translateX(-2px) rotate(-6deg); }
+                    75% { transform: translateX(0) rotate(0deg); }
+                    100% { transform: translateX(0) rotate(0deg); }
                 }
                 .scuttling-motion {
-                    animation: spider-scuttle 0.2s infinite linear;
+                    animation: spider-scuttle 0.8s infinite ease-in-out;
+                }
+                .hunting-scuttle {
+                    animation: spider-hunt-scuttle 0.6s infinite ease-in-out;
                 }
             `;
             document.head.appendChild(s);
@@ -2701,8 +2780,16 @@ halloween(active) {
                     
                     setTimeout(() => {
                          if (wrap.classList.contains('hunting')) return;
-                         const phrases = (typeof GAME_DIALOGUE !== 'undefined' && GAME_DIALOGUE.spider && GAME_DIALOGUE.spider.idle) ? GAME_DIALOGUE.spider.idle : ['Boo!', 'Hi!', '🕷️'];
-                         const text = phrases[Math.floor(Math.random() * phrases.length)];
+                         // Use time-based idle phrase
+                         let text = 'Boo!';
+                         if (typeof GAME_DIALOGUE !== 'undefined' && GAME_DIALOGUE.spider) {
+                             if (typeof GAME_DIALOGUE.spider.getIdlePhrase === 'function') {
+                                 text = GAME_DIALOGUE.spider.getIdlePhrase();
+                             } else if (GAME_DIALOGUE.spider.idle) {
+                                 const phrases = Array.isArray(GAME_DIALOGUE.spider.idle) ? GAME_DIALOGUE.spider.idle : ['Boo!', 'Hi!', '🕷️'];
+                                 text = phrases[Math.floor(Math.random() * phrases.length)];
+                             }
+                         }
                          
                          if(wrap.showBubble) wrap.showBubble(text, 'upside-down'); 
                          
@@ -2833,6 +2920,7 @@ spiderHunt(targetXPercent, targetYPercent, isFood) {
         const thread = wrap.querySelector('#spider-thread');
         const body = wrap.querySelector('#spider-body');
         body.classList.remove('scuttling-motion');
+        body.classList.add('hunting-scuttle');
 
         if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
         wrap.classList.add('hunting');
@@ -2846,13 +2934,15 @@ spiderHunt(targetXPercent, targetYPercent, isFood) {
         const currentX = parseFloat(wrap.style.left) || 50;
         const dist = Math.abs(currentX - destX);
         
-        const moveTime = Math.max(dist * 12, 800); 
+        // Slower, more deliberate movement with step function for crawling effect
+        const moveTime = Math.max(dist * 18, 1200); 
         
-        wrap.style.transition = `left ${moveTime}ms ease-in-out`;
+        wrap.style.transition = `left ${moveTime}ms steps(8, end)`;
         wrap.style.left = destX + '%';
         body.style.transform = 'rotate(0deg)';
         
         this.spiderTimeout = setTimeout(() => {
+            body.classList.remove('hunting-scuttle');
             const anchor = document.getElementById('spider-anchor');
             let scale = 1;
             if (anchor && anchor.style.transform) {
@@ -4150,6 +4240,15 @@ displayWord(w) {
             this.showMessage("No words available!");
             return
         }
+        
+        // Skip offensive words - move to next word
+        if (ContentFilter.isOffensive(w.text)) {
+            console.warn('Skipping filtered word');
+            State.runtime.currentWordIndex++;
+            Game.nextWord();
+            return;
+        }
+        
         const wd = DOM.game.wordDisplay,
             txt = w.text.toUpperCase();
         wd.textContent = txt;
