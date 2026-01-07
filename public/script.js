@@ -375,7 +375,7 @@ const State = {
         else if (k === 'settings') s.setItem('userSettings', JSON.stringify(v));
         else if (k === 'unlockedThemes') s.setItem('unlockedThemes', JSON.stringify(v));
         else if (k === 'seenHistory') s.setItem('seenHistory', JSON.stringify(v));
-		else if (k === 'discovered') s.setItem('discoveredFeatures', JSON.stringify(v));
+        else if (k === 'discovered') s.setItem('discoveredFeatures', JSON.stringify(v));
         else if (k === 'snowmanCollected') s.setItem('snowmanCollected', v);
         else if (k === 'daily') {
             s.setItem('dailyStreak', v.streak);
@@ -385,6 +385,10 @@ const State = {
         }
         else if (k === 'profilePhoto') s.setItem('profilePhoto', v);
         else if (k === 'lastMosquitoSpawn') s.setItem(k, v);
+        else if (k === 'spiderEatLog') s.setItem('spiderEatLog', JSON.stringify(v));
+        else if (k === 'spiderFullUntil') s.setItem('spiderFullUntil', v);
+
+
         else s.setItem(k, v);
     },
 		if (k === 'spiderEatLog') localStorage.setItem('spiderEatLog', JSON.stringify(v));
