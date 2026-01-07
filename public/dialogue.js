@@ -9,27 +9,96 @@ const GAME_DIALOGUE = {
 
     // All spider speech
     spider: {
-        // Random idle phrases when dropping down
-        idle: [
-            "# Hunting spiders...", 
-            "just hanging", 
-            "looking for snacks", 
-            "nice web right?", 
-            "quiet night...", 
-            "...", 
-            "boo!",
-            "anyone home?",
-            "You can't find me, me spyder.",
-            "# Why don't you ever wanna play?",
-            "# I'm tired of this piece of string...",
-            "Web design is my passion",
-            "Does my abdomen look big in this?",
-            "Counting legs... 1, 2... yep still 8.",
-            "Waiting for the fly-fi connection.",
-            "Spinning class starts at 5.",
-            "Anyone got any silk conditioner?",
-            "Just a friendly neighborhood spider..."
-        ],
+        // Time-based idle phrases - called via getIdlePhrase()
+        idle: {
+            morning: [
+                "Good morning!",
+                "Rise and shine!",
+                "Early bird gets the worm... but I want flies.",
+                "Morning stretch... all 8 legs!",
+                "Coffee? I prefer my bugs fresh.",
+                "Dew on my web today!",
+                "Breakfast time soon?",
+                "The early spider catches the fly!",
+                "Yawn... still waking up.",
+                "Morning web inspection complete.",
+                "Sunrise hunting hours!",
+                "Fresh web, fresh day!",
+                "Web design is my passion",
+                "Spinning class starts at 5.",
+                "Anyone got any silk conditioner?",
+                "Just a friendly neighborhood spider..."
+            ],
+            afternoon: [
+                "Busy afternoon!",
+                "Lunch rush!",
+                "Prime hunting hours.",
+                "Afternoon snack time?",
+                "The sun's nice and warm!",
+                "Siesta? Spiders don't nap.",
+                "Peak web traffic!",
+                "Midday munchies...",
+                "So many flies, so little time.",
+                "Working through lunch.",
+                "Anyone home?",
+                "Web design is my passion",
+                "Does my abdomen look big in this?",
+                "Counting legs... 1, 2... yep still 8.",
+                "Waiting for the fly-fi connection.",
+                "Just a friendly neighborhood spider..."
+            ],
+            evening: [
+                "Good evening!",
+                "Quiet evening...",
+                "Dinner time approaches!",
+                "Evening patrol.",
+                "The sunset is beautiful!",
+                "Winding down...",
+                "Last calls for flies!",
+                "Moths coming out soon!",
+                "Evening web repairs.",
+                "The night shift begins.",
+                "Twilight hunting!",
+                "Web design is my passion",
+                "Does my abdomen look big in this?",
+                "Counting legs... 1, 2... yep still 8.",
+                "Waiting for the fly-fi connection.",
+                "Just a friendly neighborhood spider..."
+            ],
+            night: [
+                "Quiet night...",
+                "Shhh... hunting.",
+                "Night owl? Night spider!",
+                "The stars are out!",
+                "Midnight snack?",
+                "Boo!",
+                "...",
+                "Can't sleep, might catch flies.",
+                "Nocturnal vibes.",
+                "The web glows in moonlight!",
+                "Graveyard shift.",
+                "Who's still awake?",
+                "Late night munchies.",
+                "You can't find me, me spyder.",
+                "# Why don't you ever wanna play?",
+                "# I'm tired of this piece of string...",
+                "Web design is my passion",
+                "Just a friendly neighborhood spider..."
+            ]
+        },
+
+        // Helper function to get time-appropriate phrase
+        getIdlePhrase() {
+            const hour = new Date().getHours();
+            let timeKey;
+            if (hour >= 5 && hour < 12) timeKey = 'morning';
+            else if (hour >= 12 && hour < 17) timeKey = 'afternoon';
+            else if (hour >= 17 && hour < 21) timeKey = 'evening';
+            else timeKey = 'night';
+            
+            const phrases = GAME_DIALOGUE.spider.idle[timeKey];
+            return phrases[Math.floor(Math.random() * phrases.length)];
+        },
 
         // When clicked (50% chance Happy)
         pokeHappy: [
@@ -81,7 +150,7 @@ const GAME_DIALOGUE = {
             "Snack detected!", 
             "Incoming!",
             "NOM",
-            "I’ve got butterflies in my stomach",
+            "I've got butterflies in my stomach",
             "I need a light snack, got any glowbugs?",
             "Target locked.",
             "Swiggity swooty...",
