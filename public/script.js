@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.98.1', 
+    APP_VERSION: '5.98.2', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -3060,17 +3060,29 @@ spiderHunt(targetXPercent, targetYPercent, isFood) {
         const wrap = document.getElementById('spider-wrap');
         if (!wrap) return;
 		
-		if (Date.now() < (State.data.spiderFullUntil || 0)) {
+if (Date.now() < (State.data.spiderFullUntil || 0)) {
             const body = wrap.querySelector('#spider-body');
-            const lines = GAME_DIALOGUE.spider.full || ["I'm too full..."];
+            const thread = wrap.querySelector('#spider-thread');
+            const lines = GAME_DIALOGUE.spider.full || ["I'm stuffed."];
             const text = lines[Math.floor(Math.random() * lines.length)];
             
-            if(wrap.showBubble) wrap.showBubble(text);
-            if(body) {
-                body.style.animation = 'shake 1s ease-in-out';
-                setTimeout(() => body.style.animation = '', 1000);
-            }
-            return; // Stop here, don't hunt
+            // 1. Drop down slightly so he is visible
+            thread.style.transition = 'height 1s ease-out';
+            thread.style.height = '20vh'; 
+
+            setTimeout(() => {
+                // 2. Complain & Shake
+                if(wrap.showBubble) wrap.showBubble(text);
+                if(body) body.style.animation = 'shake 1s ease-in-out';
+
+                // 3. Retreat after 1.5s
+                setTimeout(() => {
+                    if(body) body.style.animation = '';
+                    thread.style.height = '0';
+                }, 1500);
+            }, 1000); // Wait for drop
+            
+            return; // Stop here, don't hunt normally
         }
 		
         const thread = wrap.querySelector('#spider-thread');
@@ -3090,7 +3102,7 @@ spiderHunt(targetXPercent, targetYPercent, isFood) {
             } else {
                 // Incremental growth: 10% bigger per bug currently in stomach
                 const recentBugs = State.data.spiderEatLog ? State.data.spiderEatLog.length : 0;
-                scale = scale * (1 + (recentBugs * 0.1)); 
+                scale = scale * (1 + (recentBugs * 0.15)); 
                 body.classList.remove('spider-fat');
             }
             anchor.style.transform = `scale(${scale.toFixed(2)})`;
