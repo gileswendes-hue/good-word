@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.97.7', 
+    APP_VERSION: '5.97.8', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -2592,7 +2592,6 @@ halloween(active) {
             active: false,
             targetX: 50,
             currentX: 50,
-            intervalId: null,
             
             start(wrap, body, targetPercent, onComplete) {
                 this.active = true;
@@ -2601,53 +2600,70 @@ halloween(active) {
                 
                 const totalDist = Math.abs(this.targetX - this.currentX);
                 const direction = this.targetX > this.currentX ? 1 : -1;
-                const stepSize = 1.5 + Math.random() * 1; // Variable step size
-                let stepsTaken = 0;
-                const maxSteps = Math.ceil(totalDist / stepSize) + 5;
                 
                 body.classList.add('scuttling-motion');
                 
                 const moveStep = () => {
-                    if (!this.active || stepsTaken > maxSteps) {
+                    if (!this.active) {
                         this.stop(body, onComplete);
                         return;
                     }
                     
                     const remaining = Math.abs(this.targetX - this.currentX);
-                    if (remaining < 1) {
+                    if (remaining < 0.5) {
                         this.stop(body, onComplete);
                         return;
                     }
                     
-                    // Random step with some variance
-                    const step = Math.min(remaining, stepSize + (Math.random() - 0.5) * 1.5);
-                    this.currentX += step * direction;
-                    wrap.style.left = this.currentX + '%';
-                    stepsTaken++;
+                    // Decide: move or pause?
+                    const roll = Math.random();
                     
-                    // Random pause chance (30% chance to pause and wiggle)
-                    if (Math.random() < 0.3 && remaining > 5) {
+                    if (roll < 0.35) {
+                        // PAUSE - stop and wiggle (35% chance)
                         body.classList.remove('scuttling-motion');
                         body.classList.add('spider-paused');
                         
-                        const pauseTime = 150 + Math.random() * 300;
+                        const pauseTime = 400 + Math.random() * 800; // 400-1200ms pause
                         setTimeout(() => {
                             if (!this.active) return;
                             body.classList.remove('spider-paused');
                             body.classList.add('scuttling-motion');
-                            // Next step after pause
-                            const nextDelay = 80 + Math.random() * 120;
-                            setTimeout(moveStep, nextDelay);
+                            setTimeout(moveStep, 150);
                         }, pauseTime);
                     } else {
-                        // Normal step timing - quick bursts
-                        const delay = 60 + Math.random() * 100;
-                        setTimeout(moveStep, delay);
+                        // MOVE - take a burst of quick steps then pause
+                        const burstSteps = 2 + Math.floor(Math.random() * 3); // 2-4 steps in burst
+                        const stepSize = 0.8 + Math.random() * 0.6; // Small steps 0.8-1.4%
+                        let burstCount = 0;
+                        
+                        const doBurstStep = () => {
+                            if (!this.active || burstCount >= burstSteps) {
+                                // After burst, longer wait then next decision
+                                setTimeout(moveStep, 200 + Math.random() * 300);
+                                return;
+                            }
+                            
+                            const rem = Math.abs(this.targetX - this.currentX);
+                            if (rem < 0.5) {
+                                this.stop(body, onComplete);
+                                return;
+                            }
+                            
+                            const actualStep = Math.min(rem, stepSize);
+                            this.currentX += actualStep * direction;
+                            wrap.style.left = this.currentX + '%';
+                            burstCount++;
+                            
+                            // Very short delay between burst steps (quick scuttle)
+                            setTimeout(doBurstStep, 50 + Math.random() * 50);
+                        };
+                        
+                        doBurstStep();
                     }
                 };
                 
-                // Start movement
-                setTimeout(moveStep, 100);
+                // Start after initial delay
+                setTimeout(moveStep, 300);
             },
             
             stop(body, onComplete) {
@@ -3010,47 +3026,68 @@ spiderHunt(targetXPercent, targetYPercent, isFood) {
         const destX = isFood ? targetXPercent : 88;
         const destY = isFood ? targetYPercent : 20;
         
-        // Use faster hunt scuttle - more urgent movement
+        // Hunt scuttle - urgent but still spider-like
         const huntScuttle = {
             active: true,
             move(onComplete) {
                 const currentX = parseFloat(wrap.style.left) || 50;
-                const totalDist = Math.abs(destX - currentX);
                 const direction = destX > currentX ? 1 : -1;
                 let posX = currentX;
                 
-                const step = () => {
+                const doMove = () => {
                     if (!this.active) return;
                     
                     const remaining = Math.abs(destX - posX);
-                    if (remaining < 1) {
-                        body.classList.remove('hunting-scuttle');
+                    if (remaining < 0.5) {
+                        body.classList.remove('hunting-scuttle', 'spider-paused');
                         onComplete();
                         return;
                     }
                     
-                    // Faster, more urgent steps for hunting
-                    const stepSize = 2 + Math.random() * 2;
-                    const actualStep = Math.min(remaining, stepSize);
-                    posX += actualStep * direction;
-                    wrap.style.left = posX + '%';
+                    const roll = Math.random();
                     
-                    // Occasional brief pause (15% chance)
-                    if (Math.random() < 0.15 && remaining > 8) {
+                    if (roll < 0.25) {
+                        // Brief pause to look around (25% chance)
                         body.classList.remove('hunting-scuttle');
                         body.classList.add('spider-paused');
+                        const pauseTime = 200 + Math.random() * 400;
                         setTimeout(() => {
                             if (!this.active) return;
                             body.classList.remove('spider-paused');
                             body.classList.add('hunting-scuttle');
-                            setTimeout(step, 40 + Math.random() * 60);
-                        }, 100 + Math.random() * 150);
+                            setTimeout(doMove, 100);
+                        }, pauseTime);
                     } else {
-                        setTimeout(step, 40 + Math.random() * 60);
+                        // Burst of movement
+                        const burstSteps = 3 + Math.floor(Math.random() * 3); // 3-5 steps
+                        const stepSize = 1 + Math.random() * 0.8; // 1-1.8% per step
+                        let burstCount = 0;
+                        
+                        const doBurst = () => {
+                            if (!this.active || burstCount >= burstSteps) {
+                                setTimeout(doMove, 150 + Math.random() * 200);
+                                return;
+                            }
+                            
+                            const rem = Math.abs(destX - posX);
+                            if (rem < 0.5) {
+                                body.classList.remove('hunting-scuttle', 'spider-paused');
+                                onComplete();
+                                return;
+                            }
+                            
+                            posX += Math.min(rem, stepSize) * direction;
+                            wrap.style.left = posX + '%';
+                            burstCount++;
+                            
+                            setTimeout(doBurst, 60 + Math.random() * 40);
+                        };
+                        
+                        doBurst();
                     }
                 };
                 
-                step();
+                setTimeout(doMove, 200);
             }
         };
         
