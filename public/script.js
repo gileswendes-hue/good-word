@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.97.12', 
+    APP_VERSION: '5.97.13', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -250,7 +250,6 @@ const State = {
         voteCount: parseInt(localStorage.getItem('voteCount') || 0),
         contributorCount: parseInt(localStorage.getItem('contributorCount') || 0),
         profilePhoto: localStorage.getItem('profilePhoto') || null,
-        
         longestStreak: parseInt(localStorage.getItem('longestStreak') || 0),
         highScores: safeParse('highScores', []),
         pendingVotes: safeParse('pendingVotes', []),
@@ -258,7 +257,10 @@ const State = {
         unlockedThemes: safeParse('unlockedThemes', []),
         seenHistory: safeParse('seenHistory', []),
 		discovered: safeParse('discoveredFeatures', []),
-
+		
+		spiderEatLog: safeParse('spiderEatLog', []), 
+        spiderFullUntil: parseInt(localStorage.getItem('spiderFullUntil') || 0),
+		
         snowmanCollected: parseInt(localStorage.getItem('snowmanCollected') || 0),
 
         insectStats: {
@@ -274,8 +276,6 @@ const State = {
             caught: parseInt(localStorage.getItem('fishCaught') || 0),
             spared: parseInt(localStorage.getItem('fishSpared') || 0)
         },
-		spiderEatLog: safeParse('spiderEatLog', []), 
-        spiderFullUntil: parseInt(localStorage.getItem('spiderFullUntil') || 0),
         
         badges: {
             cake: localStorage.getItem('cakeBadgeUnlocked') === 'true',
@@ -328,7 +328,7 @@ const State = {
     runtime: {
 		currentTheme: 'default',
         allWords: [],
-        history: [], // <--- ADDED (Fixes "forEach" crash)
+        history: [],
         currentWordIndex: 0,
         streak: 0,
         mashCount: 0,
@@ -375,7 +375,7 @@ const State = {
         else if (k === 'settings') s.setItem('userSettings', JSON.stringify(v));
         else if (k === 'unlockedThemes') s.setItem('unlockedThemes', JSON.stringify(v));
         else if (k === 'seenHistory') s.setItem('seenHistory', JSON.stringify(v));
-        else if (k === 'discovered') s.setItem('discoveredFeatures', JSON.stringify(v));
+		else if (k === 'discovered') s.setItem('discoveredFeatures', JSON.stringify(v));
         else if (k === 'snowmanCollected') s.setItem('snowmanCollected', v);
         else if (k === 'daily') {
             s.setItem('dailyStreak', v.streak);
@@ -385,13 +385,12 @@ const State = {
         }
         else if (k === 'profilePhoto') s.setItem('profilePhoto', v);
         else if (k === 'lastMosquitoSpawn') s.setItem(k, v);
-        else if (k === 'spiderEatLog') s.setItem('spiderEatLog', JSON.stringify(v));
+		
+		else if (k === 'spiderEatLog') s.setItem('spiderEatLog', JSON.stringify(v));
         else if (k === 'spiderFullUntil') s.setItem('spiderFullUntil', v);
-
-
+		
         else s.setItem(k, v);
     },
-
     
     unlockBadge(n) {
         if (this.data.badges[n]) return;
@@ -1121,42 +1120,38 @@ splat() {
     },
 
 eat() {
-    if (this.state !== 'stuck') return;
-    UIManager.showPostVoteMessage("Chomp! 🕷️");
-    State.data.insectStats.eaten++;
-    State.save('insectStats', State.data.insectStats);
-    if (State.data.insectStats.eaten >= 100) State.unlockBadge('exterminator');
+        if (this.state !== 'stuck') return;
+        UIManager.showPostVoteMessage("Chomp! 🕷️");
+        State.data.insectStats.eaten++;
+        State.save('insectStats', State.data.insectStats);
+        if (State.data.insectStats.eaten >= 100) State.unlockBadge('exterminator');
 
-    // --- NEW: FAT SPIDER LOGIC ---
-    const now = Date.now();
-    const FIVE_MINS = 5 * 60 * 1000;
-    const ONE_HOUR = 60 * 60 * 1000;
-
-    // 1. Add current timestamp
-    if (!State.data.spiderEatLog) State.data.spiderEatLog = [];
-    State.data.spiderEatLog.push(now);
-
-    // 2. Filter log to only keep bugs eaten in the last 5 minutes
-    State.data.spiderEatLog = State.data.spiderEatLog.filter(t => (now - t) < FIVE_MINS);
-    State.save('spiderEatLog', State.data.spiderEatLog);
-
-    // 3. Check if threshold reached (5 bugs in 5 mins)
-    if (State.data.spiderEatLog.length >= 5) {
-        // Trigger Full Mode for 1 Hour
-        State.data.spiderFullUntil = now + ONE_HOUR;
-        State.save('spiderFullUntil', State.data.spiderFullUntil);
+        // --- FAT SPIDER LOGIC ---
+        const now = Date.now();
+        if (!State.data.spiderEatLog) State.data.spiderEatLog = [];
         
-        // Clear log so it doesn't trigger immediately again after the hour is up (optional)
-        State.data.spiderEatLog = []; 
-        State.save('spiderEatLog', []);
+        // 1. Log this bug
+        State.data.spiderEatLog.push(now);
         
-        setTimeout(() => UIManager.showPostVoteMessage("The spider looks... bloated."), 1500);
-		Effects.halloween(true)
-    }
-    // -----------------------------
+        // 2. Keep only bugs from last 5 mins
+        State.data.spiderEatLog = State.data.spiderEatLog.filter(t => (now - t) < 5 * 60 * 1000);
+        State.save('spiderEatLog', State.data.spiderEatLog);
 
-    this.finish();
-},
+        // 3. Check for Fullness (5 bugs)
+        if (State.data.spiderEatLog.length >= 5) {
+            State.data.spiderFullUntil = now + (60 * 60 * 1000); // Full for 1 hour
+            State.save('spiderFullUntil', State.data.spiderFullUntil);
+            State.data.spiderEatLog = []; // Reset counter
+            State.save('spiderEatLog', []);
+            setTimeout(() => UIManager.showPostVoteMessage("The spider is stuffed!"), 1500);
+        }
+        
+        // 4. Update visuals (Size) immediately
+        if (Effects && Effects.halloween) Effects.halloween(true);
+        // ------------------------
+
+        this.finish();
+    },
 
     finish() {
         State.save('lastMosquitoSpawn', Date.now());
@@ -2578,7 +2573,6 @@ halloween(active) {
             return;
         }
 
-        // 1. INJECT STYLES
         if (!document.getElementById('spider-motion-style')) {
             const s = document.createElement('style');
             s.id = 'spider-motion-style';
@@ -2607,118 +2601,131 @@ halloween(active) {
                     50% { transform: rotate(-10deg); }
                     75% { transform: rotate(8deg); }
                 }
-                .scuttling-motion { animation: spider-leg-twitch 0.3s infinite ease-in-out; }
-                .spider-paused { animation: spider-pause-wiggle 0.4s ease-in-out; }
-                .hunting-scuttle { animation: spider-leg-twitch 0.2s infinite ease-in-out; }
-                .spider-idle { animation: spider-idle-wiggle 2s infinite ease-in-out; }
-                .spider-fat {
-                    filter: drop-shadow(0 10px 5px rgba(0,0,0,0.4)); 
-                    transition: transform 1s cubic-bezier(0.5, 0, 0.5, 1);
+                .scuttling-motion {
+                    animation: spider-leg-twitch 0.3s infinite ease-in-out;
                 }
+                .spider-paused {
+                    animation: spider-pause-wiggle 0.4s ease-in-out;
+                }
+                .hunting-scuttle {
+                    animation: spider-leg-twitch 0.2s infinite ease-in-out;
+                }
+                .spider-idle {
+                    animation: spider-idle-wiggle 2s infinite ease-in-out;
+                }
+				.spider-fat {
+					filter: drop-shadow(0 10px 5px rgba(0,0,0,0.4)); transition: transform 1s cubic-bezier(0.5, 0, 0.5, 1); 
+				}
             `;
             document.head.appendChild(s);
         }
 
-        // 2. SCUTTLE HELPER
+        // Spider scuttle movement system - jerky, realistic movement
         const spiderScuttle = {
             active: false,
             targetX: 50,
             currentX: 50,
+            
             start(wrap, body, targetPercent, onComplete) {
                 this.active = true;
                 this.targetX = targetPercent;
                 this.currentX = parseFloat(wrap.style.left) || 50;
+                
                 const totalDist = Math.abs(this.targetX - this.currentX);
                 const direction = this.targetX > this.currentX ? 1 : -1;
+                
                 body.classList.add('scuttling-motion');
                 
                 const moveStep = () => {
-                    if (!this.active) { this.stop(body, onComplete); return; }
-                    const remaining = Math.abs(this.targetX - this.currentX);
-                    if (remaining < 0.5) { this.stop(body, onComplete); return; }
+                    if (!this.active) {
+                        this.stop(body, onComplete);
+                        return;
+                    }
                     
+                    const remaining = Math.abs(this.targetX - this.currentX);
+                    if (remaining < 0.5) {
+                        this.stop(body, onComplete);
+                        return;
+                    }
+                    
+                    // Decide: move or pause?
                     const roll = Math.random();
+                    
                     if (roll < 0.35) {
+                        // PAUSE - stop and wiggle (35% chance)
                         body.classList.remove('scuttling-motion');
                         body.classList.add('spider-paused');
+                        
+                        const pauseTime = 400 + Math.random() * 800; // 400-1200ms pause
                         setTimeout(() => {
                             if (!this.active) return;
                             body.classList.remove('spider-paused');
                             body.classList.add('scuttling-motion');
                             setTimeout(moveStep, 150);
-                        }, 400 + Math.random() * 800);
+                        }, pauseTime);
                     } else {
-                        const burstSteps = 2 + Math.floor(Math.random() * 3);
-                        const stepSize = 0.8 + Math.random() * 0.6;
+                        // MOVE - take a burst of quick steps then pause
+                        const burstSteps = 2 + Math.floor(Math.random() * 3); // 2-4 steps in burst
+                        const stepSize = 0.8 + Math.random() * 0.6; // Small steps 0.8-1.4%
                         let burstCount = 0;
+                        
                         const doBurstStep = () => {
                             if (!this.active || burstCount >= burstSteps) {
+                                // After burst, longer wait then next decision
                                 setTimeout(moveStep, 200 + Math.random() * 300);
                                 return;
                             }
+                            
                             const rem = Math.abs(this.targetX - this.currentX);
-                            if (rem < 0.5) { this.stop(body, onComplete); return; }
+                            if (rem < 0.5) {
+                                this.stop(body, onComplete);
+                                return;
+                            }
+                            
                             const actualStep = Math.min(rem, stepSize);
                             this.currentX += actualStep * direction;
                             wrap.style.left = this.currentX + '%';
                             burstCount++;
+                            
+                            // Very short delay between burst steps (quick scuttle)
                             setTimeout(doBurstStep, 50 + Math.random() * 50);
                         };
+                        
                         doBurstStep();
                     }
                 };
+                
+                // Start after initial delay
                 setTimeout(moveStep, 300);
             },
+            
             stop(body, onComplete) {
                 this.active = false;
                 body.classList.remove('scuttling-motion', 'spider-paused');
                 if (onComplete) onComplete();
             },
+            
             cancel(body) {
                 this.active = false;
                 body.classList.remove('scuttling-motion', 'spider-paused');
             }
         };
 
-        // 3. CREATE WEB (This was missing!)
-        if (!document.getElementById('spider-web-corner')) {
-            const web = document.createElement('div');
-            web.id = 'spider-web-corner';
-            Object.assign(web.style, {
-                position: 'fixed', top: '0', right: '0', 
-                width: '350px', height: '350px', pointerEvents: 'none', zIndex: '10'
-            });
-            web.innerHTML = `
-                <svg viewBox="0 0 200 200" style="width:100%;height:100%;opacity:0.4;filter:drop-shadow(1px 1px 2px rgba(0,0,0,0.5));">
-                    <defs><filter id="glow"><feGaussianBlur stdDeviation="1.5" result="coloredBlur"/><feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
-                    <g stroke="white" stroke-width="1.5" fill="none" filter="url(#glow)">
-                        <line x1="200" y1="0" x2="0" y2="40" />
-                        <line x1="200" y1="0" x2="20" y2="120" />
-                        <line x1="200" y1="0" x2="100" y2="190" />
-                        <path d="M180 5 Q 190 20 185 30" />
-                        <path d="M150 10 Q 140 40 160 80" />
-                        <path d="M110 20 Q 90 60 120 140" />
-                        <path d="M70 30 Q 40 80 80 180" />
-                        <path d="M30 40 Q 5 100 40 200" />
-                    </g>
-                </svg>`;
-            document.body.appendChild(web);
-        }
-
         let wrap = document.getElementById('spider-wrap');
-        
-        // 4. CREATE SPIDER (This was missing!)
         if (!wrap) {
             wrap = document.createElement('div');
             wrap.id = 'spider-wrap';
-            wrap.spiderScuttle = spiderScuttle; 
+            wrap.spiderScuttle = spiderScuttle; // Attach for external access
             Object.assign(wrap.style, {
                 position: 'fixed', left: '50%', top: '-15vh', zIndex: '102',
                 pointerEvents: 'none' 
             });
             
+            const eaten = State.data.insectStats.eaten || 0;
+            const scale = Math.min(0.6 + (eaten * 0.005), 1.3).toFixed(2);
+            
             wrap.innerHTML = `
-                <div id="spider-anchor" style="transform-origin: top center; transition: transform 1s ease;">
+                <div id="spider-anchor" style="transform: scale(${scale}); transform-origin: top center;">
                     <div id="spider-thread" style="width: 2px; background: rgba(255,255,255,0.6); margin: 0 auto; height: 0; transition: height 4s ease-in-out;"></div>
                     <div id="spider-body" style="font-size: 3rem; margin-top: -10px; cursor: pointer; position: relative; z-index: 2; pointer-events: auto; transition: transform 1s ease;">
                         🕷️
@@ -2728,66 +2735,138 @@ halloween(active) {
             
             const body = wrap.querySelector('#spider-body');
             const thread = wrap.querySelector('#spider-thread');
-            
-            const showSpiderBubble = (text) => {
+			
+	const showSpiderBubble = (text) => {
+                // 1. Cleanup old bubble
                 const old = document.getElementById('spider-bubble-dynamic');
-                if (old) { if (old.rafId) cancelAnimationFrame(old.rafId); old.remove(); }
+                if (old) {
+                    if (old.rafId) cancelAnimationFrame(old.rafId);
+                    old.remove();
+                }
 
                 const b = document.createElement('div');
                 b.id = 'spider-bubble-dynamic';
                 Object.assign(b.style, {
-                    position: 'fixed', background: 'white', color: '#1f2937', padding: '8px 14px', 
-                    borderRadius: '16px', fontSize: '14px', fontWeight: 'bold', fontFamily: 'sans-serif', 
-                    whiteSpace: 'nowrap', width: 'max-content', pointerEvents: 'none', opacity: '0', 
-                    transition: 'opacity 0.2s', boxShadow: '0 4px 10px rgba(0,0,0,0.3)', 
-                    border: '2px solid #1f2937', zIndex: '110', willChange: 'top, left'
+                    position: 'fixed', 
+                    background: 'white', color: '#1f2937', padding: '8px 14px', 
+                    borderRadius: '16px', fontSize: '14px', fontWeight: 'bold', 
+                    fontFamily: 'sans-serif', whiteSpace: 'nowrap', width: 'max-content',
+                    pointerEvents: 'none', opacity: '0', transition: 'opacity 0.2s', 
+                    boxShadow: '0 4px 10px rgba(0,0,0,0.3)', border: '2px solid #1f2937',
+                    zIndex: '110',      
+                    willChange: 'top, left'
                 });
                 b.textContent = text;
+
                 const arrow = document.createElement('div');
-                Object.assign(arrow.style, { position: 'absolute', width: '0', height: '0', borderStyle: 'solid', pointerEvents: 'none' });
+                Object.assign(arrow.style, {
+                    position: 'absolute', width: '0', height: '0',
+                    borderStyle: 'solid', pointerEvents: 'none'
+                });
                 b.appendChild(arrow);
                 document.body.appendChild(b);
 
                 const updatePosition = () => {
-                    if (!b.parentNode) return; 
+                    if (!b.parentNode) return; // Stop if removed
+
                     const spiderRect = body.getBoundingClientRect();
                     const bubRect = b.getBoundingClientRect();
-                    const top = spiderRect.top - bubRect.height - 15;
-                    const left = spiderRect.left + (spiderRect.width / 2) - (bubRect.width / 2);
-                    
-                    Object.assign(arrow.style, {
-                        bottom: '-8px', left: '50%', transform: 'translateX(-50%)',
-                        borderWidth: '8px 8px 0 8px', borderColor: '#1f2937 transparent transparent transparent'
-                    });
+                    const currentTransform = body.style.transform || '';
+                    const gap = 15;
 
-                    b.style.top = `${Math.max(10, top)}px`;
-                    b.style.left = `${Math.max(10, Math.min(window.innerWidth - bubRect.width - 10, left))}px`;
+                    let rotation = 0;
+                    if (currentTransform.includes('180deg')) rotation = 180;
+                    else if (currentTransform.includes('90deg') && !currentTransform.includes('-90deg')) rotation = 90;
+                    else if (currentTransform.includes('-90deg')) rotation = -90;
+
+                    let top, left;
+
+                    if (rotation === 0) {
+                        top = spiderRect.top - bubRect.height - gap;
+                        left = spiderRect.left + (spiderRect.width / 2) - (bubRect.width / 2);
+                        
+                        Object.assign(arrow.style, {
+                            bottom: '-8px', left: '50%', right: 'auto', top: 'auto',
+                            transform: 'translateX(-50%) translateY(0)',
+                            borderWidth: '8px 8px 0 8px',
+                            borderColor: '#1f2937 transparent transparent transparent'
+                        });
+                    } 
+                    else if (rotation === 180) {
+                        // Upside Down: Bubble BELOW
+                        top = spiderRect.bottom + gap;
+                        left = spiderRect.left + (spiderRect.width / 2) - (bubRect.width / 2);
+                        
+                        Object.assign(arrow.style, {
+                            top: '-8px', left: '50%', right: 'auto', bottom: 'auto',
+                            transform: 'translateX(-50%) translateY(0)',
+                            borderWidth: '0 8px 8px 8px',
+                            borderColor: 'transparent transparent #1f2937 transparent'
+                        });
+                    }
+                    else if (rotation === 90) {
+                        // Climbing Right Wall: Bubble LEFT
+                        top = spiderRect.top + (spiderRect.height / 2) - (bubRect.height / 2);
+                        left = spiderRect.left - bubRect.width - gap;
+                        
+                        Object.assign(arrow.style, {
+                            right: '-8px', top: '50%', left: 'auto', bottom: 'auto',
+                            transform: 'translateY(-50%) translateX(0)',
+                            borderWidth: '8px 0 8px 8px',
+                            borderColor: 'transparent transparent transparent #1f2937'
+                        });
+                    }
+                    else if (rotation === -90) {
+                        // Climbing Left Wall: Bubble RIGHT
+                        top = spiderRect.top + (spiderRect.height / 2) - (bubRect.height / 2);
+                        left = spiderRect.right + gap;
+                        
+                        Object.assign(arrow.style, {
+                            left: '-8px', top: '50%', right: 'auto', bottom: 'auto',
+                            transform: 'translateY(-50%) translateX(0)',
+                            borderWidth: '8px 8px 8px 0',
+                            borderColor: 'transparent #1f2937 transparent transparent'
+                        });
+                    }
+
+                    if (left < 10) left = 10;
+                    if (left + bubRect.width > window.innerWidth - 10) left = window.innerWidth - bubRect.width - 10;
+                    if (top < 10) top = 10;
+                    if (top + bubRect.height > window.innerHeight - 10) top = window.innerHeight - bubRect.height - 10;
+
+                    b.style.top = `${top}px`;
+                    b.style.left = `${left}px`;
+
                     b.rafId = requestAnimationFrame(updatePosition);
                 };
-                requestAnimationFrame(() => { b.style.opacity = '1'; updatePosition(); });
-                setTimeout(() => { if (b.parentNode) { b.style.opacity = '0'; setTimeout(() => b.remove(), 300); } }, 2000);
+
+                requestAnimationFrame(() => {
+                    b.style.opacity = '1';
+                    updatePosition();
+                });
+
+                setTimeout(() => {
+                    if (b.parentNode) {
+                        b.style.opacity = '0'; 
+                        setTimeout(() => {
+                            if (b.rafId) cancelAnimationFrame(b.rafId);
+                            b.remove();
+                        }, 300);
+                    }
+                }, 2000);
+                
                 return b;
             };
+			
             wrap.showBubble = showSpiderBubble;
 
             body.onclick = (e) => {
                 e.stopPropagation();
                 State.unlockBadge('spider');
-                
-                // FAT CHECK ON CLICK
-                const isFull = Date.now() < (State.data.spiderFullUntil || 0);
-                if (isFull) {
-                    const lines = GAME_DIALOGUE.spider.full;
-                    const text = lines[Math.floor(Math.random() * lines.length)];
-                    showSpiderBubble(text);
-                    body.style.animation = 'shake 0.8s ease-in-out'; 
-                    setTimeout(() => { body.style.animation = ''; }, 1000);
-                    return; 
-                }
-
                 const willFall = Math.random() < 0.2; 
                 const lines = willFall ? GAME_DIALOGUE.spider.pokeGrumpy : GAME_DIALOGUE.spider.pokeHappy;
                 const text = lines[Math.floor(Math.random() * lines.length)];
+                
                 showSpiderBubble(text);
                 body.style.animation = 'shake 0.3s ease-in-out';
                 
@@ -2800,51 +2879,205 @@ halloween(active) {
             };
         }
 
-        // 5. UPDATE SPIDER VISUALS (Size & Fatness)
-        const anchor = wrap.querySelector('#spider-anchor');
         const body = wrap.querySelector('#spider-body');
-
-        if (anchor && body) {
-            const eaten = State.data.insectStats.eaten || 0;
-            let scale = Math.min(0.6 + (eaten * 0.005), 1.3); 
-
-            const now = Date.now();
-            const fullUntil = State.data.spiderFullUntil || 0;
+        const thread = wrap.querySelector('#spider-thread');
+        const scuttle = wrap.spiderScuttle;
+        
+        const runDrop = () => {
+            if (!document.body.contains(wrap)) return;
+            if (wrap.classList.contains('hunting')) return;
+            if (scuttle) scuttle.cancel(body);
             
-            if (now < fullUntil) {
-                const timeLeft = fullUntil - now;
-                const oneHour = 60 * 60 * 1000;
-                const fullness = Math.max(0, timeLeft / oneHour);
-                scale = scale * (1 + (fullness * 0.5));
-                body.classList.add('spider-fat');
-            } else {
-                body.classList.remove('spider-fat');
+            const actionRoll = Math.random();
+            body.style.transform = 'rotate(0deg)'; 
+            body.classList.remove('scuttling-motion', 'spider-paused', 'spider-idle');
+            thread.style.opacity = '1'; 
+            
+            if (actionRoll < 0.7) {
+                const safeLeft = Math.random() * 60 + 20;
+                
+                // Use new scuttle system for realistic movement
+                if (scuttle) {
+                    scuttle.start(wrap, body, safeLeft, () => {
+                        if (wrap.classList.contains('hunting')) return;
+                        body.style.transform = 'rotate(180deg)'; 
+                        body.classList.add('spider-idle');
+                        thread.style.transition = 'height 2.5s ease-in-out'; 
+                        thread.style.height = '18vh'; 
+                        
+                        setTimeout(() => {
+                             if (wrap.classList.contains('hunting')) return;
+                             // Use time-based idle phrase
+                             let text = 'Boo!';
+                             if (typeof GAME_DIALOGUE !== 'undefined' && GAME_DIALOGUE.spider) {
+                                 if (typeof GAME_DIALOGUE.spider.getIdlePhrase === 'function') {
+                                     text = GAME_DIALOGUE.spider.getIdlePhrase();
+                                 } else if (GAME_DIALOGUE.spider.idle) {
+                                     const phrases = Array.isArray(GAME_DIALOGUE.spider.idle) ? GAME_DIALOGUE.spider.idle : ['Boo!', 'Hi!', '🕷️'];
+                                     text = phrases[Math.floor(Math.random() * phrases.length)];
+                                 }
+                             }
+                             
+                             if(wrap.showBubble) wrap.showBubble(text, 'upside-down'); 
+                             
+                             setTimeout(() => {
+                                 if (wrap.classList.contains('hunting')) return;
+                                 body.classList.remove('spider-idle');
+                                 thread.style.height = '0'; 
+                                 this.spiderTimeout = setTimeout(runDrop, Math.random() * 5000 + 5000);
+                             }, 2500); 
+                        }, 2500);
+                    });
+                }
+                return;
             }
-            anchor.style.transform = `scale(${scale.toFixed(2)})`;
+			
+            if (actionRoll < 0.9) {
+                const isLeft = Math.random() > 0.5;
+                const wallX = isLeft ? 5 : 85; 
+                
+                // Use new scuttle system
+                if (scuttle) {
+                    scuttle.start(wrap, body, wallX, () => {
+                        if (wrap.classList.contains('hunting')) return;
+                        
+                        thread.style.opacity = '0'; 
+                        body.style.transform = `rotate(${isLeft ? 90 : -90}deg)`;
+                        
+                        const climbDepth = Math.random() * 40 + 30; 
+                        thread.style.transition = 'height 4s ease-in-out';
+                        thread.style.height = climbDepth + 'vh';
+                        
+                        setTimeout(() => {
+                             if (wrap.classList.contains('hunting')) return;
+                             thread.style.height = '0'; 
+                             setTimeout(() => {
+                                 body.style.transform = 'rotate(0deg)';
+                                 thread.style.opacity = '1'; 
+                                 this.spiderTimeout = setTimeout(runDrop, Math.random() * 5000 + 5000);
+                             }, 4000);
+                        }, 5000);
+                    });
+                }
+                return;
+            }
+            
+            const safeLeft = Math.random() * 60 + 20; 
+            if (scuttle) {
+                scuttle.start(wrap, body, safeLeft, () => {
+                    runDrop();
+                });
+            }
+        };
+        
+        this.spiderTimeout = setTimeout(runDrop, 1000);
+        
+        if (!document.getElementById('spider-web-corner')) {
+            const web = document.createElement('div');
+            web.id = 'spider-web-corner';
+            web.innerHTML = `<svg id="web-svg" viewBox="0 0 300 300" style="width:300px;height:300px;position:fixed;top:0;right:0;z-index:55;pointer-events:auto;cursor:pointer;opacity:0.7;filter:drop-shadow(1px 1px 2px rgba(0,0,0,0.5))"></svg>`;
+            document.body.appendChild(web);
+            
+            web.onclick = () => {
+                if (MosquitoManager.state === 'stuck') {
+                    this.spiderHunt(MosquitoManager.x, MosquitoManager.y, true);
+                } else {
+					State.data.insectStats.teased = (State.data.insectStats.teased || 0) + 1;
+                    State.save('insectStats', State.data.insectStats);
+                    if (State.data.insectStats.teased >= 50) State.unlockBadge('prankster');
+                    this.spiderHunt(88, 20, false); 
+                }
+            };
+            
+            const svg = document.getElementById('web-svg');
+            const cx = 300, cy = 0;
+            const baseAnchors = [{ x: 0, y: 0 }, { x: 60, y: 100 }, { x: 140, y: 200 }, { x: 220, y: 270 }, { x: 300, y: 300 }];
+            
+            const animateWeb = () => {
+                const time = Date.now();
+                let pathStr = '';
+                const curAnchors = baseAnchors.map((a, i) => {
+                    if (i === 0 || i === baseAnchors.length - 1) return a;
+                    const sway = Math.sin((time / 1500) + i) * 15; 
+                    return { x: a.x + sway, y: a.y + sway }
+                });
+                curAnchors.forEach(p => {
+                    pathStr += `<line x1="${cx}" y1="${cy}" x2="${p.x}" y2="${p.y}" stroke="rgba(255,255,255,0.4)" stroke-width="2.5"/>`
+                });
+                const levels = 7;
+                for (let i = 1; i <= levels; i++) {
+                    const t = i / levels;
+                    let d = '';
+                    for (let j = 0; j < curAnchors.length; j++) {
+                        const ax = cx + (curAnchors[j].x - cx) * t,
+                            ay = cy + (curAnchors[j].y - cy) * t;
+                        if (j === 0) d += `M ${ax} ${ay}`;
+                        else {
+                            const px = cx + (curAnchors[j - 1].x - cx) * t,
+                                py = cy + (curAnchors[j - 1].y - cy) * t;
+                            const midX = (px + ax) / 2,
+                                midY = (py + ay) / 2,
+                                sag = 15 * t * (1 - t * 0.5),
+                                dx = midX - cx,
+                                dy = midY - cy,
+                                len = Math.sqrt(dx * dx + dy * dy),
+                                nx = dx / len,
+                                ny = dy / len,
+                                qx = midX - nx * sag,
+                                qy = midY - ny * sag;
+                            d += ` Q ${qx} ${qy} ${ax} ${ay}`
+                        }
+                    }
+                    pathStr += `<path d="${d}" stroke="rgba(255,255,255,0.3)" stroke-width="2.5" fill="none"/>`
+                }
+                svg.innerHTML = pathStr;
+                this.webRaf = requestAnimationFrame(animateWeb)
+            };
+            animateWeb()
         }
     },
-
-    spiderHunt(targetXPercent, targetYPercent, isFood) {
+    
+spiderHunt(targetXPercent, targetYPercent, isFood) {
         const wrap = document.getElementById('spider-wrap');
         if (!wrap) return;
-
-        // FAT CHECK ON HUNT
-        if (Date.now() < (State.data.spiderFullUntil || 0)) {
+		
+		if (Date.now() < (State.data.spiderFullUntil || 0)) {
             const body = wrap.querySelector('#spider-body');
-            const lines = GAME_DIALOGUE.spider.full;
+            const lines = GAME_DIALOGUE.spider.full || ["I'm too full..."];
             const text = lines[Math.floor(Math.random() * lines.length)];
+            
             if(wrap.showBubble) wrap.showBubble(text);
             if(body) {
                 body.style.animation = 'shake 1s ease-in-out';
                 setTimeout(() => body.style.animation = '', 1000);
             }
-            return; // Too fat to hunt!
+            return; // Stop here, don't hunt
         }
-
-        const body = wrap.querySelector('#spider-body');
+		
         const thread = wrap.querySelector('#spider-thread');
+        const body = wrap.querySelector('#spider-body');
         const scuttle = wrap.spiderScuttle;
+		
+		const anchor = wrap.querySelector('#spider-anchor');
+        if (anchor && body) {
+            const eaten = State.data.insectStats.eaten || 0;
+            let scale = Math.min(0.6 + (eaten * 0.005), 1.3); // Base size
+
+            const isFull = Date.now() < (State.data.spiderFullUntil || 0);
+            
+            if (isFull) {
+                scale = scale * 1.5; // Max fatness (50% bigger)
+                body.classList.add('spider-fat');
+            } else {
+                // Incremental growth: 10% bigger per bug currently in stomach
+                const recentBugs = State.data.spiderEatLog ? State.data.spiderEatLog.length : 0;
+                scale = scale * (1 + (recentBugs * 0.1)); 
+                body.classList.remove('spider-fat');
+            }
+            anchor.style.transform = `scale(${scale.toFixed(2)})`;
+        }
         
+        // Cancel any existing scuttle
         if (scuttle) scuttle.cancel(body);
         body.classList.remove('scuttling-motion', 'spider-paused', 'spider-idle');
         body.classList.add('hunting-scuttle');
@@ -2859,6 +3092,7 @@ halloween(active) {
         const destX = isFood ? targetXPercent : 88;
         const destY = isFood ? targetYPercent : 20;
         
+        // Hunt scuttle - urgent but still spider-like
         const huntScuttle = {
             active: true,
             move(onComplete) {
@@ -2868,6 +3102,7 @@ halloween(active) {
                 
                 const doMove = () => {
                     if (!this.active) return;
+                    
                     const remaining = Math.abs(destX - posX);
                     if (remaining < 0.5) {
                         body.classList.remove('hunting-scuttle', 'spider-paused');
@@ -2876,38 +3111,48 @@ halloween(active) {
                     }
                     
                     const roll = Math.random();
+                    
                     if (roll < 0.25) {
+                        // Brief pause to look around (25% chance)
                         body.classList.remove('hunting-scuttle');
                         body.classList.add('spider-paused');
+                        const pauseTime = 200 + Math.random() * 400;
                         setTimeout(() => {
                             if (!this.active) return;
                             body.classList.remove('spider-paused');
                             body.classList.add('hunting-scuttle');
                             setTimeout(doMove, 100);
-                        }, 200 + Math.random() * 400);
+                        }, pauseTime);
                     } else {
-                        const burstSteps = 3 + Math.floor(Math.random() * 3);
-                        const stepSize = 1 + Math.random() * 0.8;
+                        // Burst of movement
+                        const burstSteps = 3 + Math.floor(Math.random() * 3); // 3-5 steps
+                        const stepSize = 1 + Math.random() * 0.8; // 1-1.8% per step
                         let burstCount = 0;
+                        
                         const doBurst = () => {
                             if (!this.active || burstCount >= burstSteps) {
                                 setTimeout(doMove, 150 + Math.random() * 200);
                                 return;
                             }
+                            
                             const rem = Math.abs(destX - posX);
                             if (rem < 0.5) {
                                 body.classList.remove('hunting-scuttle', 'spider-paused');
                                 onComplete();
                                 return;
                             }
+                            
                             posX += Math.min(rem, stepSize) * direction;
                             wrap.style.left = posX + '%';
                             burstCount++;
+                            
                             setTimeout(doBurst, 60 + Math.random() * 40);
                         };
+                        
                         doBurst();
                     }
                 };
+                
                 setTimeout(doMove, 200);
             }
         };
@@ -2926,8 +3171,10 @@ halloween(active) {
             setTimeout(() => {
                 setTimeout(() => {
                     if (isFood && MosquitoManager.state === 'stuck') {
+                        // Scenario 1: Caught the bug
                         MosquitoManager.eat();
                         if(wrap.showBubble) wrap.showBubble("YUM!");
+                        
                         body.style.animation = 'shake 0.2s ease-in-out';
                         setTimeout(() => {
                             body.style.animation = '';
@@ -2938,6 +3185,7 @@ halloween(active) {
                         const missedPhrases = GAME_DIALOGUE.spider.missed || ["Too slow!", "My lunch!"];
                         const missedText = missedPhrases[Math.floor(Math.random() * missedPhrases.length)];
                         if(wrap.showBubble) wrap.showBubble(missedText);
+                        
                         body.style.animation = 'shake 0.5s ease-in-out';
                         setTimeout(() => {
                             body.style.animation = '';
@@ -2945,9 +3193,11 @@ halloween(active) {
                         }, 1500);
                     }
                     else {
+                        // Scenario 3: Tricked (Empty Web clicked)
                         const angryPhrases = GAME_DIALOGUE.spider.trickedEnd;
                         const angryText = angryPhrases[Math.floor(Math.random() * angryPhrases.length)];
                         if(wrap.showBubble) wrap.showBubble(angryText);
+                        
                         body.style.animation = 'shake 0.3s ease-in-out';
                         setTimeout(() => {
                             body.style.animation = '';
@@ -5141,6 +5391,7 @@ init() {
                         const isSafe = e.target.checked;
                         State.save('settings', { ...State.data.settings, arachnophobiaMode: isSafe });
                         
+                        // --- FIX: Refund bug if web disappears ---
                         if (isSafe && typeof MosquitoManager !== 'undefined' && MosquitoManager.state === 'stuck') {
                              State.data.insectStats.saved++;
                              State.save('insectStats', State.data.insectStats);
