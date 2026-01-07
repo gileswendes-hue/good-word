@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.97.13', 
+    APP_VERSION: '5.98.1', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -2883,6 +2883,25 @@ halloween(active) {
         const thread = wrap.querySelector('#spider-thread');
         const scuttle = wrap.spiderScuttle;
         
+		const anchor = wrap.querySelector('#spider-anchor');
+        if (anchor && body) {
+            const eaten = State.data.insectStats.eaten || 0;
+            let scale = Math.min(0.6 + (eaten * 0.005), 1.3); // Base size
+
+            const isFull = Date.now() < (State.data.spiderFullUntil || 0);
+            
+            if (isFull) {
+                scale = scale * 1.5; // Max fatness (50% bigger)
+                body.classList.add('spider-fat');
+            } else {
+                // Incremental growth: 10% bigger per bug currently in stomach
+                const recentBugs = State.data.spiderEatLog ? State.data.spiderEatLog.length : 0;
+                scale = scale * (1 + (recentBugs * 0.1)); 
+                body.classList.remove('spider-fat');
+            }
+            anchor.style.transform = `scale(${scale.toFixed(2)})`;
+        }
+		
         const runDrop = () => {
             if (!document.body.contains(wrap)) return;
             if (wrap.classList.contains('hunting')) return;
