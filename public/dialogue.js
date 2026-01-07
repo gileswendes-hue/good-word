@@ -9,7 +9,6 @@ const GAME_DIALOGUE = {
 
     // All spider speech
     spider: {
-        // Time-based idle phrases - called via getIdlePhrase()
         idle: {
             morning: [
                 "Good morning!",
@@ -87,7 +86,6 @@ const GAME_DIALOGUE = {
             ]
         },
 
-        // Helper function to get time-appropriate phrase
         getIdlePhrase() {
             const hour = new Date().getHours();
             let timeKey;
@@ -100,7 +98,6 @@ const GAME_DIALOGUE = {
             return phrases[Math.floor(Math.random() * phrases.length)];
         },
 
-        // When clicked (50% chance Happy)
         pokeHappy: [
             "Ticklish!", 
             "Seen any good bugs lately?", 
@@ -123,7 +120,6 @@ const GAME_DIALOGUE = {
             "Boop!"
         ],
 
-        // When clicked (50% chance Grumpy)
         pokeGrumpy: [
             "Do not touch!", 
             "I bite!", 
@@ -143,7 +139,6 @@ const GAME_DIALOGUE = {
             "Go poke a wasp."
         ],
 
-        // When hunting real food
         hunting: [
             "Dinner time!", 
             "Gotcha!", 
@@ -161,7 +156,25 @@ const GAME_DIALOGUE = {
             "Intercept course set."
         ],
 
-        // When dropped on an empty web (Tricked)
+        full: [
+            "I'm cultivating mass.",
+            "My abdomen... it's heavy.",
+            "I ate too many spicy flies.",
+            "Put me on a diet.",
+            "I regret everything.",
+            "Food coma initiated.",
+            "No more... please...",
+            "Roll me to the corner.",
+            "Does this web make me look fat?",
+            "I'm not fat, I'm festively plump.",
+            "Requires heavy lifting equipment.",
+            "Too. Much. Protein.",
+            "Gravity is my enemy today.",
+            "I can't feel my legs.",
+            "Burp.",
+            "I think I ate a rock."
+        ],
+        
         trickedStart: [
             "Is that a fly?!", 
             "Who touched my house?", 
@@ -200,7 +213,6 @@ const GAME_DIALOGUE = {
             "I want a refund."
         ],
 
-        // Reactions to specific food
         eating: {
             "🐞": "Crunchy shell!",
             "🐝": "Spicy snack!",
@@ -218,7 +230,6 @@ const GAME_DIALOGUE = {
             default: "Yummy!"
         },
 
-        // When the fly is saved before the spider gets there
         missed: [
             "Too slow! 😠",
             "My lunch!",
