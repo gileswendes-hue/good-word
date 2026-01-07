@@ -2692,7 +2692,6 @@ halloween(active) {
                         
                         doBurstStep();
                     }
-                    }
                 };
                 
                 // Start after initial delay
