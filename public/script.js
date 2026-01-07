@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.98.2', 
+    APP_VERSION: '5.98.3', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -2601,18 +2601,18 @@ halloween(active) {
                     50% { transform: rotate(-10deg); }
                     75% { transform: rotate(8deg); }
                 }
-                .scuttling-motion {
-                    animation: spider-leg-twitch 0.3s infinite ease-in-out;
-                }
+				.scuttling-motion {
+				animation: spider-leg-twitch 0.8s infinite ease-in-out; /* Was 0.3s */
+				}
                 .spider-paused {
                     animation: spider-pause-wiggle 0.4s ease-in-out;
                 }
                 .hunting-scuttle {
                     animation: spider-leg-twitch 0.2s infinite ease-in-out;
                 }
-                .spider-idle {
-                    animation: spider-idle-wiggle 2s infinite ease-in-out;
-                }
+				.spider-idle {
+				animation: spider-idle-wiggle 4s infinite ease-in-out; /* Slower idle sway */
+				}
 				.spider-fat {
 					filter: drop-shadow(0 10px 5px rgba(0,0,0,0.4)); transition: transform 1s cubic-bezier(0.5, 0, 0.5, 1); 
 				}
@@ -2663,15 +2663,14 @@ halloween(active) {
                             body.classList.add('scuttling-motion');
                             setTimeout(moveStep, 150);
                         }, pauseTime);
-                    } else {
-                        // MOVE - take a burst of quick steps then pause
-                        const burstSteps = 2 + Math.floor(Math.random() * 3); // 2-4 steps in burst
-                        const stepSize = 0.8 + Math.random() * 0.6; // Small steps 0.8-1.4%
+					} else {
+                        // MOVE - Slower, more deliberate steps
+                        const burstSteps = 2 + Math.floor(Math.random() * 3);
+                        const stepSize = 0.2 + Math.random() * 0.3; // CHANGED: Smaller steps (was 0.8+)
                         let burstCount = 0;
                         
                         const doBurstStep = () => {
                             if (!this.active || burstCount >= burstSteps) {
-                                // After burst, longer wait then next decision
                                 setTimeout(moveStep, 200 + Math.random() * 300);
                                 return;
                             }
@@ -2687,11 +2686,12 @@ halloween(active) {
                             wrap.style.left = this.currentX + '%';
                             burstCount++;
                             
-                            // Very short delay between burst steps (quick scuttle)
-                            setTimeout(doBurstStep, 50 + Math.random() * 50);
+                            // CHANGED: Slower delay between steps (was 50+)
+                            setTimeout(doBurstStep, 150 + Math.random() * 100); 
                         };
                         
                         doBurstStep();
+                    }
                     }
                 };
                 
@@ -2883,21 +2883,24 @@ halloween(active) {
         const thread = wrap.querySelector('#spider-thread');
         const scuttle = wrap.spiderScuttle;
         
-		const anchor = wrap.querySelector('#spider-anchor');
-        if (anchor && body) {
+const anchor = wrap.querySelector('#spider-anchor');
+        const currentBody = wrap.querySelector('#spider-body'); // Ensure we have the body
+
+        if (anchor && currentBody) {
             const eaten = State.data.insectStats.eaten || 0;
-            let scale = Math.min(0.6 + (eaten * 0.005), 1.3); // Base size
+            // Increased base size slightly (0.7 start)
+            let scale = Math.min(0.7 + (eaten * 0.005), 1.4); 
 
             const isFull = Date.now() < (State.data.spiderFullUntil || 0);
             
             if (isFull) {
-                scale = scale * 1.5; // Max fatness (50% bigger)
-                body.classList.add('spider-fat');
+                scale = scale * 1.6; // Max fatness (60% bigger)
+                currentBody.classList.add('spider-fat');
             } else {
-                // Incremental growth: 10% bigger per bug currently in stomach
+                // Incremental growth: 20% bigger per bug (was 15%)
                 const recentBugs = State.data.spiderEatLog ? State.data.spiderEatLog.length : 0;
-                scale = scale * (1 + (recentBugs * 0.1)); 
-                body.classList.remove('spider-fat');
+                scale = scale * (1 + (recentBugs * 0.20)); 
+                currentBody.classList.remove('spider-fat');
             }
             anchor.style.transform = `scale(${scale.toFixed(2)})`;
         }
