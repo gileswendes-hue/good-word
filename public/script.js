@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.97.11', 
+    APP_VERSION: '5.97.12', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -2578,6 +2578,7 @@ halloween(active) {
             return;
         }
 
+        // 1. INJECT STYLES
         if (!document.getElementById('spider-motion-style')) {
             const s = document.createElement('style');
             s.id = 'spider-motion-style';
@@ -2618,6 +2619,7 @@ halloween(active) {
             document.head.appendChild(s);
         }
 
+        // 2. SCUTTLE HELPER
         const spiderScuttle = {
             active: false,
             targetX: 50,
@@ -2678,9 +2680,34 @@ halloween(active) {
             }
         };
 
+        // 3. CREATE WEB (This was missing!)
+        if (!document.getElementById('spider-web-corner')) {
+            const web = document.createElement('div');
+            web.id = 'spider-web-corner';
+            Object.assign(web.style, {
+                position: 'fixed', top: '0', right: '0', 
+                width: '350px', height: '350px', pointerEvents: 'none', zIndex: '10'
+            });
+            web.innerHTML = `
+                <svg viewBox="0 0 200 200" style="width:100%;height:100%;opacity:0.4;filter:drop-shadow(1px 1px 2px rgba(0,0,0,0.5));">
+                    <defs><filter id="glow"><feGaussianBlur stdDeviation="1.5" result="coloredBlur"/><feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+                    <g stroke="white" stroke-width="1.5" fill="none" filter="url(#glow)">
+                        <line x1="200" y1="0" x2="0" y2="40" />
+                        <line x1="200" y1="0" x2="20" y2="120" />
+                        <line x1="200" y1="0" x2="100" y2="190" />
+                        <path d="M180 5 Q 190 20 185 30" />
+                        <path d="M150 10 Q 140 40 160 80" />
+                        <path d="M110 20 Q 90 60 120 140" />
+                        <path d="M70 30 Q 40 80 80 180" />
+                        <path d="M30 40 Q 5 100 40 200" />
+                    </g>
+                </svg>`;
+            document.body.appendChild(web);
+        }
+
         let wrap = document.getElementById('spider-wrap');
         
-        // 1. CREATION (Runs once)
+        // 4. CREATE SPIDER (This was missing!)
         if (!wrap) {
             wrap = document.createElement('div');
             wrap.id = 'spider-wrap';
@@ -2773,7 +2800,7 @@ halloween(active) {
             };
         }
 
-        // 2. VISUAL UPDATES (Runs every time)
+        // 5. UPDATE SPIDER VISUALS (Size & Fatness)
         const anchor = wrap.querySelector('#spider-anchor');
         const body = wrap.querySelector('#spider-body');
 
