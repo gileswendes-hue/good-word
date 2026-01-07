@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.97.10', 
+    APP_VERSION: '5.97.11', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -2606,19 +2606,11 @@ halloween(active) {
                     50% { transform: rotate(-10deg); }
                     75% { transform: rotate(8deg); }
                 }
-                .scuttling-motion {
-                    animation: spider-leg-twitch 0.3s infinite ease-in-out;
-                }
-                .spider-paused {
-                    animation: spider-pause-wiggle 0.4s ease-in-out;
-                }
-                .hunting-scuttle {
-                    animation: spider-leg-twitch 0.2s infinite ease-in-out;
-                }
-                .spider-idle {
-                    animation: spider-idle-wiggle 2s infinite ease-in-out;
-                }
-				.spider-fat {
+                .scuttling-motion { animation: spider-leg-twitch 0.3s infinite ease-in-out; }
+                .spider-paused { animation: spider-pause-wiggle 0.4s ease-in-out; }
+                .hunting-scuttle { animation: spider-leg-twitch 0.2s infinite ease-in-out; }
+                .spider-idle { animation: spider-idle-wiggle 2s infinite ease-in-out; }
+                .spider-fat {
                     filter: drop-shadow(0 10px 5px rgba(0,0,0,0.4)); 
                     transition: transform 1s cubic-bezier(0.5, 0, 0.5, 1);
                 }
@@ -2626,98 +2618,67 @@ halloween(active) {
             document.head.appendChild(s);
         }
 
-        // Spider scuttle movement system - jerky, realistic movement
         const spiderScuttle = {
             active: false,
             targetX: 50,
             currentX: 50,
-            
             start(wrap, body, targetPercent, onComplete) {
                 this.active = true;
                 this.targetX = targetPercent;
                 this.currentX = parseFloat(wrap.style.left) || 50;
-                
                 const totalDist = Math.abs(this.targetX - this.currentX);
                 const direction = this.targetX > this.currentX ? 1 : -1;
-                
                 body.classList.add('scuttling-motion');
                 
                 const moveStep = () => {
-                    if (!this.active) {
-                        this.stop(body, onComplete);
-                        return;
-                    }
-                    
+                    if (!this.active) { this.stop(body, onComplete); return; }
                     const remaining = Math.abs(this.targetX - this.currentX);
-                    if (remaining < 0.5) {
-                        this.stop(body, onComplete);
-                        return;
-                    }
+                    if (remaining < 0.5) { this.stop(body, onComplete); return; }
                     
-                    // Decide: move or pause?
                     const roll = Math.random();
-                    
                     if (roll < 0.35) {
-                        // PAUSE - stop and wiggle (35% chance)
                         body.classList.remove('scuttling-motion');
                         body.classList.add('spider-paused');
-                        
-                        const pauseTime = 400 + Math.random() * 800; // 400-1200ms pause
                         setTimeout(() => {
                             if (!this.active) return;
                             body.classList.remove('spider-paused');
                             body.classList.add('scuttling-motion');
                             setTimeout(moveStep, 150);
-                        }, pauseTime);
+                        }, 400 + Math.random() * 800);
                     } else {
-                        // MOVE - take a burst of quick steps then pause
-                        const burstSteps = 2 + Math.floor(Math.random() * 3); // 2-4 steps in burst
-                        const stepSize = 0.8 + Math.random() * 0.6; // Small steps 0.8-1.4%
+                        const burstSteps = 2 + Math.floor(Math.random() * 3);
+                        const stepSize = 0.8 + Math.random() * 0.6;
                         let burstCount = 0;
-                        
                         const doBurstStep = () => {
                             if (!this.active || burstCount >= burstSteps) {
-                                // After burst, longer wait then next decision
                                 setTimeout(moveStep, 200 + Math.random() * 300);
                                 return;
                             }
-                            
                             const rem = Math.abs(this.targetX - this.currentX);
-                            if (rem < 0.5) {
-                                this.stop(body, onComplete);
-                                return;
-                            }
-                            
+                            if (rem < 0.5) { this.stop(body, onComplete); return; }
                             const actualStep = Math.min(rem, stepSize);
                             this.currentX += actualStep * direction;
                             wrap.style.left = this.currentX + '%';
                             burstCount++;
-                            
-                            // Very short delay between burst steps (quick scuttle)
                             setTimeout(doBurstStep, 50 + Math.random() * 50);
                         };
-                        
                         doBurstStep();
                     }
                 };
-                
-                // Start after initial delay
                 setTimeout(moveStep, 300);
             },
-            
             stop(body, onComplete) {
                 this.active = false;
                 body.classList.remove('scuttling-motion', 'spider-paused');
                 if (onComplete) onComplete();
             },
-            
             cancel(body) {
                 this.active = false;
                 body.classList.remove('scuttling-motion', 'spider-paused');
             }
         };
 
-let wrap = document.getElementById('spider-wrap');
+        let wrap = document.getElementById('spider-wrap');
         
         // 1. CREATION (Runs once)
         if (!wrap) {
@@ -2729,7 +2690,6 @@ let wrap = document.getElementById('spider-wrap');
                 pointerEvents: 'none' 
             });
             
-            // Create structure
             wrap.innerHTML = `
                 <div id="spider-anchor" style="transform-origin: top center; transition: transform 1s ease;">
                     <div id="spider-thread" style="width: 2px; background: rgba(255,255,255,0.6); margin: 0 auto; height: 0; transition: height 4s ease-in-out;"></div>
@@ -2742,121 +2702,43 @@ let wrap = document.getElementById('spider-wrap');
             const body = wrap.querySelector('#spider-body');
             const thread = wrap.querySelector('#spider-thread');
             
-            const showSpiderBubble = (text, positionClass = '') => {
+            const showSpiderBubble = (text) => {
                 const old = document.getElementById('spider-bubble-dynamic');
-                if (old) {
-                    if (old.rafId) cancelAnimationFrame(old.rafId);
-                    old.remove();
-                }
+                if (old) { if (old.rafId) cancelAnimationFrame(old.rafId); old.remove(); }
 
                 const b = document.createElement('div');
                 b.id = 'spider-bubble-dynamic';
                 Object.assign(b.style, {
-                    position: 'fixed', 
-                    background: 'white', color: '#1f2937', padding: '8px 14px', 
-                    borderRadius: '16px', fontSize: '14px', fontWeight: 'bold', 
-                    fontFamily: 'sans-serif', whiteSpace: 'nowrap', width: 'max-content',
-                    pointerEvents: 'none', opacity: '0', transition: 'opacity 0.2s', 
-                    boxShadow: '0 4px 10px rgba(0,0,0,0.3)', border: '2px solid #1f2937',
-                    zIndex: '110',      
-                    willChange: 'top, left'
+                    position: 'fixed', background: 'white', color: '#1f2937', padding: '8px 14px', 
+                    borderRadius: '16px', fontSize: '14px', fontWeight: 'bold', fontFamily: 'sans-serif', 
+                    whiteSpace: 'nowrap', width: 'max-content', pointerEvents: 'none', opacity: '0', 
+                    transition: 'opacity 0.2s', boxShadow: '0 4px 10px rgba(0,0,0,0.3)', 
+                    border: '2px solid #1f2937', zIndex: '110', willChange: 'top, left'
                 });
                 b.textContent = text;
-
                 const arrow = document.createElement('div');
-                Object.assign(arrow.style, {
-                    position: 'absolute', width: '0', height: '0',
-                    borderStyle: 'solid', pointerEvents: 'none'
-                });
+                Object.assign(arrow.style, { position: 'absolute', width: '0', height: '0', borderStyle: 'solid', pointerEvents: 'none' });
                 b.appendChild(arrow);
                 document.body.appendChild(b);
 
                 const updatePosition = () => {
                     if (!b.parentNode) return; 
-
                     const spiderRect = body.getBoundingClientRect();
                     const bubRect = b.getBoundingClientRect();
-                    const currentTransform = body.style.transform || '';
-                    const gap = 15;
+                    const top = spiderRect.top - bubRect.height - 15;
+                    const left = spiderRect.left + (spiderRect.width / 2) - (bubRect.width / 2);
+                    
+                    Object.assign(arrow.style, {
+                        bottom: '-8px', left: '50%', transform: 'translateX(-50%)',
+                        borderWidth: '8px 8px 0 8px', borderColor: '#1f2937 transparent transparent transparent'
+                    });
 
-                    let rotation = 0;
-                    if (positionClass === 'upside-down' || currentTransform.includes('180deg')) rotation = 180;
-                    else if (currentTransform.includes('90deg') && !currentTransform.includes('-90deg')) rotation = 90;
-                    else if (currentTransform.includes('-90deg')) rotation = -90;
-
-                    let top, left;
-
-                    if (rotation === 0) {
-                        top = spiderRect.top - bubRect.height - gap;
-                        left = spiderRect.left + (spiderRect.width / 2) - (bubRect.width / 2);
-                        
-                        Object.assign(arrow.style, {
-                            bottom: '-8px', left: '50%', right: 'auto', top: 'auto',
-                            transform: 'translateX(-50%) translateY(0)',
-                            borderWidth: '8px 8px 0 8px',
-                            borderColor: '#1f2937 transparent transparent transparent'
-                        });
-                    } 
-                    else if (rotation === 180) {
-                        top = spiderRect.bottom + gap;
-                        left = spiderRect.left + (spiderRect.width / 2) - (bubRect.width / 2);
-                        
-                        Object.assign(arrow.style, {
-                            top: '-8px', left: '50%', right: 'auto', bottom: 'auto',
-                            transform: 'translateX(-50%) translateY(0)',
-                            borderWidth: '0 8px 8px 8px',
-                            borderColor: 'transparent transparent #1f2937 transparent'
-                        });
-                    }
-                    else if (rotation === 90) {
-                        top = spiderRect.top + (spiderRect.height / 2) - (bubRect.height / 2);
-                        left = spiderRect.left - bubRect.width - gap;
-                        
-                        Object.assign(arrow.style, {
-                            right: '-8px', top: '50%', left: 'auto', bottom: 'auto',
-                            transform: 'translateY(-50%) translateX(0)',
-                            borderWidth: '8px 0 8px 8px',
-                            borderColor: 'transparent transparent transparent #1f2937'
-                        });
-                    }
-                    else if (rotation === -90) {
-                        top = spiderRect.top + (spiderRect.height / 2) - (bubRect.height / 2);
-                        left = spiderRect.right + gap;
-                        
-                        Object.assign(arrow.style, {
-                            left: '-8px', top: '50%', right: 'auto', bottom: 'auto',
-                            transform: 'translateY(-50%) translateX(0)',
-                            borderWidth: '8px 8px 8px 0',
-                            borderColor: 'transparent #1f2937 transparent transparent'
-                        });
-                    }
-
-                    if (left < 10) left = 10;
-                    if (left + bubRect.width > window.innerWidth - 10) left = window.innerWidth - bubRect.width - 10;
-                    if (top < 10) top = 10;
-                    if (top + bubRect.height > window.innerHeight - 10) top = window.innerHeight - bubRect.height - 10;
-
-                    b.style.top = `${top}px`;
-                    b.style.left = `${left}px`;
-
+                    b.style.top = `${Math.max(10, top)}px`;
+                    b.style.left = `${Math.max(10, Math.min(window.innerWidth - bubRect.width - 10, left))}px`;
                     b.rafId = requestAnimationFrame(updatePosition);
                 };
-
-                requestAnimationFrame(() => {
-                    b.style.opacity = '1';
-                    updatePosition();
-                });
-
-                setTimeout(() => {
-                    if (b.parentNode) {
-                        b.style.opacity = '0'; 
-                        setTimeout(() => {
-                            if (b.rafId) cancelAnimationFrame(b.rafId);
-                            b.remove();
-                        }, 300);
-                    }
-                }, 2000);
-                
+                requestAnimationFrame(() => { b.style.opacity = '1'; updatePosition(); });
+                setTimeout(() => { if (b.parentNode) { b.style.opacity = '0'; setTimeout(() => b.remove(), 300); } }, 2000);
                 return b;
             };
             wrap.showBubble = showSpiderBubble;
@@ -2864,8 +2746,8 @@ let wrap = document.getElementById('spider-wrap');
             body.onclick = (e) => {
                 e.stopPropagation();
                 State.unlockBadge('spider');
-
-                // Fat Check (Click)
+                
+                // FAT CHECK ON CLICK
                 const isFull = Date.now() < (State.data.spiderFullUntil || 0);
                 if (isFull) {
                     const lines = GAME_DIALOGUE.spider.full;
@@ -2876,7 +2758,6 @@ let wrap = document.getElementById('spider-wrap');
                     return; 
                 }
 
-                // Normal Poke
                 const willFall = Math.random() < 0.2; 
                 const lines = willFall ? GAME_DIALOGUE.spider.pokeGrumpy : GAME_DIALOGUE.spider.pokeHappy;
                 const text = lines[Math.floor(Math.random() * lines.length)];
@@ -2892,13 +2773,10 @@ let wrap = document.getElementById('spider-wrap');
             };
         }
 
-        // 2. REFERENCES & UPDATES (Runs every time)
-        const body = wrap.querySelector('#spider-body');
+        // 2. VISUAL UPDATES (Runs every time)
         const anchor = wrap.querySelector('#spider-anchor');
-        const thread = wrap.querySelector('#spider-thread');
-        const scuttle = wrap.spiderScuttle;
+        const body = wrap.querySelector('#spider-body');
 
-        // Visual Updates (Size & Fatness)
         if (anchor && body) {
             const eaten = State.data.insectStats.eaten || 0;
             let scale = Math.min(0.6 + (eaten * 0.005), 1.3); 
@@ -2910,18 +2788,36 @@ let wrap = document.getElementById('spider-wrap');
                 const timeLeft = fullUntil - now;
                 const oneHour = 60 * 60 * 1000;
                 const fullness = Math.max(0, timeLeft / oneHour);
-                
-                // Add up to 50% extra size
                 scale = scale * (1 + (fullness * 0.5));
                 body.classList.add('spider-fat');
             } else {
                 body.classList.remove('spider-fat');
             }
-            
             anchor.style.transform = `scale(${scale.toFixed(2)})`;
         }
+    },
+
+    spiderHunt(targetXPercent, targetYPercent, isFood) {
+        const wrap = document.getElementById('spider-wrap');
+        if (!wrap) return;
+
+        // FAT CHECK ON HUNT
+        if (Date.now() < (State.data.spiderFullUntil || 0)) {
+            const body = wrap.querySelector('#spider-body');
+            const lines = GAME_DIALOGUE.spider.full;
+            const text = lines[Math.floor(Math.random() * lines.length)];
+            if(wrap.showBubble) wrap.showBubble(text);
+            if(body) {
+                body.style.animation = 'shake 1s ease-in-out';
+                setTimeout(() => body.style.animation = '', 1000);
+            }
+            return; // Too fat to hunt!
+        }
+
+        const body = wrap.querySelector('#spider-body');
+        const thread = wrap.querySelector('#spider-thread');
+        const scuttle = wrap.spiderScuttle;
         
-        // Cancel any existing scuttle
         if (scuttle) scuttle.cancel(body);
         body.classList.remove('scuttling-motion', 'spider-paused', 'spider-idle');
         body.classList.add('hunting-scuttle');
@@ -2936,7 +2832,6 @@ let wrap = document.getElementById('spider-wrap');
         const destX = isFood ? targetXPercent : 88;
         const destY = isFood ? targetYPercent : 20;
         
-        // Hunt scuttle - urgent but still spider-like
         const huntScuttle = {
             active: true,
             move(onComplete) {
@@ -2946,7 +2841,6 @@ let wrap = document.getElementById('spider-wrap');
                 
                 const doMove = () => {
                     if (!this.active) return;
-                    
                     const remaining = Math.abs(destX - posX);
                     if (remaining < 0.5) {
                         body.classList.remove('hunting-scuttle', 'spider-paused');
@@ -2955,48 +2849,38 @@ let wrap = document.getElementById('spider-wrap');
                     }
                     
                     const roll = Math.random();
-                    
                     if (roll < 0.25) {
-                        // Brief pause to look around (25% chance)
                         body.classList.remove('hunting-scuttle');
                         body.classList.add('spider-paused');
-                        const pauseTime = 200 + Math.random() * 400;
                         setTimeout(() => {
                             if (!this.active) return;
                             body.classList.remove('spider-paused');
                             body.classList.add('hunting-scuttle');
                             setTimeout(doMove, 100);
-                        }, pauseTime);
+                        }, 200 + Math.random() * 400);
                     } else {
-                        // Burst of movement
-                        const burstSteps = 3 + Math.floor(Math.random() * 3); // 3-5 steps
-                        const stepSize = 1 + Math.random() * 0.8; // 1-1.8% per step
+                        const burstSteps = 3 + Math.floor(Math.random() * 3);
+                        const stepSize = 1 + Math.random() * 0.8;
                         let burstCount = 0;
-                        
                         const doBurst = () => {
                             if (!this.active || burstCount >= burstSteps) {
                                 setTimeout(doMove, 150 + Math.random() * 200);
                                 return;
                             }
-                            
                             const rem = Math.abs(destX - posX);
                             if (rem < 0.5) {
                                 body.classList.remove('hunting-scuttle', 'spider-paused');
                                 onComplete();
                                 return;
                             }
-                            
                             posX += Math.min(rem, stepSize) * direction;
                             wrap.style.left = posX + '%';
                             burstCount++;
-                            
                             setTimeout(doBurst, 60 + Math.random() * 40);
                         };
-                        
                         doBurst();
                     }
                 };
-                
                 setTimeout(doMove, 200);
             }
         };
@@ -3015,10 +2899,8 @@ let wrap = document.getElementById('spider-wrap');
             setTimeout(() => {
                 setTimeout(() => {
                     if (isFood && MosquitoManager.state === 'stuck') {
-                        // Scenario 1: Caught the bug
                         MosquitoManager.eat();
                         if(wrap.showBubble) wrap.showBubble("YUM!");
-                        
                         body.style.animation = 'shake 0.2s ease-in-out';
                         setTimeout(() => {
                             body.style.animation = '';
@@ -3029,7 +2911,6 @@ let wrap = document.getElementById('spider-wrap');
                         const missedPhrases = GAME_DIALOGUE.spider.missed || ["Too slow!", "My lunch!"];
                         const missedText = missedPhrases[Math.floor(Math.random() * missedPhrases.length)];
                         if(wrap.showBubble) wrap.showBubble(missedText);
-                        
                         body.style.animation = 'shake 0.5s ease-in-out';
                         setTimeout(() => {
                             body.style.animation = '';
@@ -3037,11 +2918,9 @@ let wrap = document.getElementById('spider-wrap');
                         }, 1500);
                     }
                     else {
-                        // Scenario 3: Tricked (Empty Web clicked)
                         const angryPhrases = GAME_DIALOGUE.spider.trickedEnd;
                         const angryText = angryPhrases[Math.floor(Math.random() * angryPhrases.length)];
                         if(wrap.showBubble) wrap.showBubble(angryText);
-                        
                         body.style.animation = 'shake 0.3s ease-in-out';
                         setTimeout(() => {
                             body.style.animation = '';
