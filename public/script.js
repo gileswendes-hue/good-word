@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.97.8', 
+    APP_VERSION: '5.97.9', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -274,6 +274,8 @@ const State = {
             caught: parseInt(localStorage.getItem('fishCaught') || 0),
             spared: parseInt(localStorage.getItem('fishSpared') || 0)
         },
+		spiderEatLog: safeParse('spiderEatLog', []), 
+        spiderFullUntil: parseInt(localStorage.getItem('spiderFullUntil') || 0),
         
         badges: {
             cake: localStorage.getItem('cakeBadgeUnlocked') === 'true',
@@ -338,7 +340,6 @@ const State = {
         isDailyMode: false
     },
 
-    // <--- ADDED (Fixes "State.init is not a function" crash)
     init() {
         console.log("State Initialized");
     },
@@ -386,6 +387,8 @@ const State = {
         else if (k === 'lastMosquitoSpawn') s.setItem(k, v);
         else s.setItem(k, v);
     },
+		if (k === 'spiderEatLog') localStorage.setItem('spiderEatLog', JSON.stringify(v));
+        else if (k === 'spiderFullUntil') localStorage.setItem('spiderFullUntil', v);
     
     unlockBadge(n) {
         if (this.data.badges[n]) return;
@@ -1114,14 +1117,42 @@ splat() {
         this.raf = requestAnimationFrame(() => this.loop());
     },
 
-    eat() {
-        if (this.state !== 'stuck') return;
-        UIManager.showPostVoteMessage("Chomp! 🕷️");
-        State.data.insectStats.eaten++;
-        State.save('insectStats', State.data.insectStats);
-        if (State.data.insectStats.eaten >= 100) State.unlockBadge('exterminator');
-        this.finish();
-    },
+eat() {
+    if (this.state !== 'stuck') return;
+    UIManager.showPostVoteMessage("Chomp! 🕷️");
+    State.data.insectStats.eaten++;
+    State.save('insectStats', State.data.insectStats);
+    if (State.data.insectStats.eaten >= 100) State.unlockBadge('exterminator');
+
+    // --- NEW: FAT SPIDER LOGIC ---
+    const now = Date.now();
+    const FIVE_MINS = 5 * 60 * 1000;
+    const ONE_HOUR = 60 * 60 * 1000;
+
+    // 1. Add current timestamp
+    if (!State.data.spiderEatLog) State.data.spiderEatLog = [];
+    State.data.spiderEatLog.push(now);
+
+    // 2. Filter log to only keep bugs eaten in the last 5 minutes
+    State.data.spiderEatLog = State.data.spiderEatLog.filter(t => (now - t) < FIVE_MINS);
+    State.save('spiderEatLog', State.data.spiderEatLog);
+
+    // 3. Check if threshold reached (5 bugs in 5 mins)
+    if (State.data.spiderEatLog.length >= 5) {
+        // Trigger Full Mode for 1 Hour
+        State.data.spiderFullUntil = now + ONE_HOUR;
+        State.save('spiderFullUntil', State.data.spiderFullUntil);
+        
+        // Clear log so it doesn't trigger immediately again after the hour is up (optional)
+        State.data.spiderEatLog = []; 
+        State.save('spiderEatLog', []);
+        
+        setTimeout(() => UIManager.showPostVoteMessage("The spider looks... bloated."), 1500);
+    }
+    // -----------------------------
+
+    this.finish();
+},
 
     finish() {
         State.save('lastMosquitoSpawn', Date.now());
@@ -2583,6 +2614,10 @@ halloween(active) {
                 .spider-idle {
                     animation: spider-idle-wiggle 2s infinite ease-in-out;
                 }
+				.spider-fat {
+                    filter: drop-shadow(0 10px 5px rgba(0,0,0,0.4)); 
+                    transition: transform 1s cubic-bezier(0.5, 0, 0.5, 1);
+                }
             `;
             document.head.appendChild(s);
         }
@@ -2689,15 +2724,34 @@ halloween(active) {
             });
             
             const eaten = State.data.insectStats.eaten || 0;
-            const scale = Math.min(0.6 + (eaten * 0.005), 1.3).toFixed(2);
-            
-            wrap.innerHTML = `
-                <div id="spider-anchor" style="transform: scale(${scale}); transform-origin: top center;">
-                    <div id="spider-thread" style="width: 2px; background: rgba(255,255,255,0.6); margin: 0 auto; height: 0; transition: height 4s ease-in-out;"></div>
-                    <div id="spider-body" style="font-size: 3rem; margin-top: -10px; cursor: pointer; position: relative; z-index: 2; pointer-events: auto; transition: transform 1s ease;">
-                        🕷️
-                    </div>
-                </div>`;
+    let scale = Math.min(0.6 + (eaten * 0.005), 1.3); // Base size logic
+
+    // --- NEW: CALCULATE FAT MODIFIER ---
+    const now = Date.now();
+    const fullUntil = State.data.spiderFullUntil || 0;
+    let fatClass = '';
+    
+    if (now < fullUntil) {
+        const timeLeft = fullUntil - now;
+        const oneHour = 60 * 60 * 1000;
+        // Percentage (0.0 to 1.0) of how "fresh" the fullness is
+        const fullness = Math.max(0, timeLeft / oneHour);
+        
+        // Add up to 50% extra size based on fullness
+        // E.g., immediately after eating: scale * 1.5
+        // After 30 mins: scale * 1.25
+        scale = scale * (1 + (fullness * 0.5));
+        fatClass = 'spider-fat';
+    }
+    // -----------------------------------
+
+    wrap.innerHTML = `
+        <div id="spider-anchor" style="transform: scale(${scale.toFixed(2)}); transform-origin: top center; transition: transform 1s ease;">
+            <div id="spider-thread" style="width: 2px; background: rgba(255,255,255,0.6); margin: 0 auto; height: 0; transition: height 4s ease-in-out;"></div>
+            <div id="spider-body" class="${fatClass}" style="font-size: 3rem; margin-top: -10px; cursor: pointer; position: relative; z-index: 2; pointer-events: auto; transition: transform 1s ease;">
+                🕷️
+            </div>
+        </div>`;
             document.body.appendChild(wrap);
             
             const body = wrap.querySelector('#spider-body');
@@ -2830,6 +2884,18 @@ halloween(active) {
             body.onclick = (e) => {
                 e.stopPropagation();
                 State.unlockBadge('spider');
+				
+				const isFull = Date.now() < (State.data.spiderFullUntil || 0);
+    
+    if (isFull) {
+        const lines = GAME_DIALOGUE.spider.full;
+        const text = lines[Math.floor(Math.random() * lines.length)];
+        showSpiderBubble(text);
+        body.style.animation = 'shake 0.8s ease-in-out'; 
+        setTimeout(() => { body.style.animation = ''; }, 1000);
+        return; 
+    }
+				
                 const willFall = Math.random() < 0.2; 
                 const lines = willFall ? GAME_DIALOGUE.spider.pokeGrumpy : GAME_DIALOGUE.spider.pokeHappy;
                 const text = lines[Math.floor(Math.random() * lines.length)];
@@ -3007,6 +3073,23 @@ halloween(active) {
 spiderHunt(targetXPercent, targetYPercent, isFood) {
         const wrap = document.getElementById('spider-wrap');
         if (!wrap) return;
+		
+		if (Date.now() < (State.data.spiderFullUntil || 0)) {
+        const body = wrap.querySelector('#spider-body');
+        
+        // Show complaint bubble
+        const lines = GAME_DIALOGUE.spider.full;
+        const text = lines[Math.floor(Math.random() * lines.length)];
+        if(wrap.showBubble) wrap.showBubble(text);
+        
+        // Lazy wobble
+        if(body) {
+            body.style.animation = 'shake 1s ease-in-out';
+            setTimeout(() => body.style.animation = '', 1000);
+        }
+        return; // Abort the hunt
+    }
+		
         const thread = wrap.querySelector('#spider-thread');
         const body = wrap.querySelector('#spider-body');
         const scuttle = wrap.spiderScuttle;
@@ -5325,7 +5408,6 @@ init() {
                         const isSafe = e.target.checked;
                         State.save('settings', { ...State.data.settings, arachnophobiaMode: isSafe });
                         
-                        // --- FIX: Refund bug if web disappears ---
                         if (isSafe && typeof MosquitoManager !== 'undefined' && MosquitoManager.state === 'stuck') {
                              State.data.insectStats.saved++;
                              State.save('insectStats', State.data.insectStats);
