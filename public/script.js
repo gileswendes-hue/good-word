@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.99.2', 
+    APP_VERSION: '5.99.3', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4396,232 +4396,235 @@ showRoleReveal(title, subtitle, type = 'neutral') {
     },
 	
 openProfile() {
-    this.updateProfileDisplay();
-    const d = State.data;
+        this.updateProfileDisplay();
+        const d = State.data;
 
-    // --- 1. RETROACTIVE BADGE CHECKS (Fixes "The Saint" & others) ---
-    // If you have the stats (e.g. 100 saves) but no badge, this unlocks it instantly.
-    if (d.insectStats.saved >= 100 && !d.badges.saint) State.unlockBadge('saint');
-    if (d.insectStats.eaten >= 100 && !d.badges.exterminator) State.unlockBadge('exterminator');
-    if (d.insectStats.teased >= 50 && !d.badges.prankster) State.unlockBadge('prankster');
-    if (d.voteCount >= 1000 && !d.badges.judge) State.unlockBadge('judge');
-    if (d.contributorCount >= 5 && !d.badges.bard) State.unlockBadge('bard');
-    if ((d.unlockedThemes.length + 1) >= 5 && !d.badges.traveler) State.unlockBadge('traveler');
-    if (d.fishStats.caught >= 250 && !d.badges.angler) State.unlockBadge('angler');
-    if (d.fishStats.spared >= 250 && !d.badges.shepherd) State.unlockBadge('shepherd');
-    // ----------------------------------------------------------------
+        // --- 1. RETROACTIVE BADGE CHECKS ---
+        if (d.insectStats.saved >= 100 && !d.badges.saint) State.unlockBadge('saint');
+        if (d.insectStats.eaten >= 100 && !d.badges.exterminator) State.unlockBadge('exterminator');
+        if (d.insectStats.teased >= 50 && !d.badges.prankster) State.unlockBadge('prankster');
+        if (d.voteCount >= 1000 && !d.badges.judge) State.unlockBadge('judge');
+        if (d.contributorCount >= 5 && !d.badges.bard) State.unlockBadge('bard');
+        if ((d.unlockedThemes.length + 1) >= 5 && !d.badges.traveler) State.unlockBadge('traveler');
+        if (d.fishStats.caught >= 250 && !d.badges.angler) State.unlockBadge('angler');
+        if (d.fishStats.spared >= 250 && !d.badges.shepherd) State.unlockBadge('shepherd');
+        // -----------------------------------
 
-    DOM.profile.streak.textContent = d.daily.streak || 0;
-    DOM.profile.totalVotes.textContent = d.voteCount.toLocaleString();
-    DOM.profile.contributions.textContent = d.contributorCount.toLocaleString();
-    
-    const bestEl = document.getElementById('bestDailyStreak');
-    if (bestEl) bestEl.textContent = d.daily.bestStreak || 0;
-    const goldenEl = document.getElementById('goldenWordsFound');
-    if (goldenEl) goldenEl.textContent = d.daily.goldenWordsFound || 0;
-    
-    // Karma Title Logic
-    const saved = d.insectStats.saved;
-    const eaten = d.insectStats.eaten;
-    let karmaTitle = "Garden Observer";
-    if (saved > 20 && saved > eaten) karmaTitle = "Friend of Bugs 🐞";
-    if (saved > 50 && saved > eaten) karmaTitle = "Guardian of the Garden 🌿";
-    if (eaten > 20 && eaten > saved) karmaTitle = "Spider Feeder 🕸️";
-    if (eaten > 50 && eaten > saved) karmaTitle = "Spider Sympathiser 🕷️";
-    if (saved > 50 && eaten > 50) karmaTitle = "Lord of the Flies 👑";
-    if (d.badges.chopper) karmaTitle = "Air Traffic Controller 🚁";
-    if (d.badges.angler) karmaTitle = "The Best in Brixham 🎣";
-
-    DOM.profile.statsTitle.innerHTML = `${d.username ? d.username + "'s" : "Your"} Stats<br><span class="text-xs text-indigo-500 font-bold uppercase tracking-widest mt-1 block">${karmaTitle}</span>`;
-
-    const totalAvailable = Object.keys(CONFIG.THEME_SECRETS).length + 1;
-    const userCount = d.unlockedThemes.length + 1;
-    DOM.profile.themes.textContent = `${userCount} / ${totalAvailable}`;
-    
-    // Badge Rows 1 & 2 (Unchanged)
-    const row1 = [
-        { k: 'cake', i: '🎂', w: 'CAKE' }, { k: 'llama', i: '🦙', w: 'LLAMA' }, 
-        { k: 'potato', i: '🥔', w: 'POTATO' }, { k: 'squirrel', i: '🐿️', w: 'SQUIRREL' }, 
-        { k: 'spider', i: '🕷️', w: 'SPIDER' }, { k: 'germ', i: '🦠', w: 'GERM' }, 
-        { k: 'bone', i: '🦴', w: 'MASON' }
-    ];
-    
-    const row2 = [
-        { k: 'poop', i: '💩' }, { k: 'penguin', i: '🐧' }, { k: 'scorpion', i: '🦂' }, 
-        { k: 'mushroom', i: '🍄' }, { k: 'needle', i: '💉' }, { k: 'diamond', i: '💎' },
-        { k: 'rock', i: '🤘' }, { k: 'chopper', i: '🚁' }, { k: 'snowman', i: '⛄' }
-    ];
-    
-    const row_fish = [
-        { k: 'fish', i: '🐟', t: 'Blue Fish' }, { k: 'tropical', i: '🐠', t: 'Tropical Fish' }, 
-        { k: 'puffer', i: '🐡', t: 'Pufferfish' }, { k: 'shark', i: '🦈', t: 'Shark' },
-        { k: 'octopus', i: '🐙', t: 'The Kraken' }
-    ];
-    
-    // --- GOLD ACHIEVEMENT CONFIGURATION ---
-    // Added 'val' (current stat) and 'gold' (target for gold status)
-    const row3 = [
-        { k: 'exterminator', i: '☠️', t: 'The Exterminator', d: 'Fed 100 bugs', val: d.insectStats.eaten, gold: 1000 }, 
-        { k: 'saint', i: '😇', t: 'The Saint', d: 'Saved 100 bugs', val: d.insectStats.saved, gold: 1000 }, 
-        { k: 'prankster', i: '🃏', t: 'Original Prankster', d: 'Teased spider 50 times', val: d.insectStats.teased, gold: 500 },
-        { k: 'judge', i: '⚖️', t: 'The Judge', d: 'Cast 1,000 votes', val: d.voteCount, gold: 10000 },
-        { k: 'bard', i: '✍️', t: 'The Bard', d: '5 accepted words', val: d.contributorCount, gold: 50 },
-        { k: 'traveler', i: '🌍', t: 'The Traveller', d: 'Unlocked 5 themes', val: userCount, gold: 10 },
-        { k: 'angler', i: '🔱', t: 'The Best in Brixham', d: 'Caught 250 fish', val: d.fishStats.caught, gold: 2500 },
-        { k: 'shepherd', i: '🛟', t: 'Sea Shepherd', d: 'Spared 250 fish', val: d.fishStats.spared, gold: 2500 }
-    ];
-
-    // Helper to render badges with Gold Logic
-    const renderRow = (list) => `<div class="flex flex-wrap justify-center gap-3 text-3xl w-full">` + list.map(x => {
-        const un = d.badges[x.k];
-        let defTitle = x.k.charAt(0).toUpperCase() + x.k.slice(1);
-        let classes = `badge-item relative transition-all duration-300 transform `;
-        let style = '';
+        DOM.profile.streak.textContent = d.daily.streak || 0;
+        DOM.profile.totalVotes.textContent = d.voteCount.toLocaleString();
+        DOM.profile.contributions.textContent = d.contributorCount.toLocaleString();
         
-        // Check for Gold Status (Unlocks 10x higher)
-        const isGold = x.gold && x.val >= x.gold;
-        if (isGold) {
-            defTitle = `✨ GOLD ${x.t || defTitle} ✨`;
-            classes += `hover:scale-125 cursor-pointer animate-pulse-slow`;
-            // Gold glow styling
-            style = `text-shadow: 0 0 10px #fbbf24, 0 0 20px #d97706; filter: drop-shadow(0 0 2px rgba(0,0,0,0.5));`;
-        } else if (un) {
-            classes += `hover:scale-125 cursor-pointer`;
-        } else {
-            classes += `opacity-25 grayscale`;
-        }
-
-        return `<span class="${classes}" 
-                style="${style}"
-                title="${un ? (x.t || defTitle) : 'Locked'}" 
-                data-key="${x.k}"
-                ${x.w ? `data-word="${x.w}"` : ''} 
-                data-title="${un ? (isGold ? '✨ GOLD STATUS ✨' : (x.t || defTitle)) : 'Locked'}" 
-                data-desc="${un ? (isGold ? `Legendary! You reached ${x.gold}+ (${x.val})` : (x.d || 'Unlocked!')) : 'Keep playing to find this item!'}"
-                >${x.i}</span>`
-    }).join('') + `</div>`;
-
-    // --- Bug Jar / Bug Street Logic (Unchanged) ---
-    let bugJarHTML = '';
-    if (saved > 0) {
-        const bugCount = Math.min(saved, 40);
-        let bugsStr = '';
-        for(let i=0; i<bugCount; i++) bugsStr += `<span class="jar-bug" style="cursor: pointer; display: inline-block; padding: 2px; transition: transform 0.1s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">🦟</span>`;
-        bugJarHTML = `<div class="w-full text-center my-4 p-3 bg-green-50 rounded-xl border border-green-100 relative overflow-hidden">
-            <div class="text-[10px] font-bold text-green-600 mb-1 uppercase tracking-wider">The Bug Jar (${saved})</div>
-            <div id="jar-container" class="text-xl leading-6 opacity-90 break-words" style="letter-spacing: 1px;">${bugsStr}</div>
-            ${State.data.currentTheme === 'halloween' ? '<div class="text-[9px] text-green-500 mt-1 italic">Tap a bug to feed the spider!</div>' : ''}
-        </div>`;
-    }
-    
-    let bugHotelHTML = '';
-    const splattedCount = State.data.insectStats.splatted || 0;
-    const collection = State.data.insectStats.collection || [];
-    const bugTypes = [{ char: '🦟', type: 'house' }, { char: '🐞', type: 'house' }, { char: '🐝', type: 'house' }, { char: '🚁', type: 'hotel' }];
-    const requiredChars = bugTypes.map(b => b.char);
-    const isComplete = requiredChars.every(c => collection.includes(c));
-
-    if (splattedCount > 0 || collection.length > 0) {
-        let innerHTML = '';
-        if (isComplete) {
-            innerHTML = `<div class="flex justify-center gap-3 filter drop-shadow-sm mb-1">`;
-            bugTypes.forEach(bug => {
-                const style = bug.type === 'hotel' ? 'border-2 border-red-500 bg-red-100 rounded-md shadow-sm text-2xl px-2 py-1' : 'border-2 border-green-500 bg-green-100 rounded-md shadow-sm text-2xl px-2 py-1';
-                innerHTML += `<span class="${style}">${bug.char}</span>`;
-            });
-            innerHTML += `</div><div class="text-[9px] text-green-700 mt-1 font-bold uppercase tracking-widest">You've won capitalism!</div>`;
-            bugHotelHTML = `<div class="w-full text-center my-4 p-3 bg-green-50 rounded-xl border-2 border-green-500 relative overflow-hidden shadow-md"><div class="absolute top-0 right-0 bg-green-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-bl-lg">WINNER</div><div class="text-[10px] font-bold text-green-800 mb-3 uppercase tracking-wider">Bug Street Completed</div>${innerHTML}</div>`;
-        } else {
-            innerHTML = `<div class="flex justify-center gap-2 flex-wrap">`;
-            bugTypes.forEach(bug => {
-                const hasIt = collection.includes(bug.char);
-                innerHTML += hasIt ? `<span class="inline-block p-1 rounded-md ${bug.type==='hotel'?'border-2 border-red-400 bg-white':'border-2 border-green-400 bg-white'} text-2xl">${bug.char}</span>` : `<span class="inline-block p-1 rounded-md border-2 border-dashed border-gray-300 text-2xl grayscale opacity-30">${bug.char}</span>`;
-            });
-            innerHTML += `</div>`;
-            bugHotelHTML = `<div class="w-full text-center my-4 p-3 bg-stone-100 rounded-xl border border-stone-200 relative overflow-hidden"><div class="text-[10px] font-bold text-stone-500 mb-2 uppercase tracking-wider">Bug Street (${collection.length}/4)</div>${innerHTML}</div>`;
-        }
-    }
-    // ------------------------------------
-
-    const b = DOM.profile.badges;
-    b.innerHTML = 
-        `<div class="text-xs font-bold text-gray-500 uppercase mb-2 mt-2">🏆 Word Badges</div>` + renderRow(row1) + 
-        `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🧸 Found Items</div>` + renderRow(row2) + 
-        `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🌊 Aquarium</div>` + renderRow(row_fish) + 
-        bugJarHTML + bugHotelHTML + 
-        `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🎖️ Achievements</div>` + renderRow(row3);
-
-    const showTooltip = (targetEl, title, desc) => {
-        document.querySelectorAll('.global-badge-tooltip').forEach(t => t.remove());
-        const tip = document.createElement('div');
-        tip.className = 'global-badge-tooltip';
-        Object.assign(tip.style, {
-            position: 'fixed', backgroundColor: '#1f2937', color: 'white', padding: '8px 12px', 
-            borderRadius: '8px', fontSize: '12px', textAlign: 'center', width: 'max-content', 
-            maxWidth: '200px', zIndex: '9999', boxShadow: '0 4px 6px rgba(0,0,0,0.3)', 
-            pointerEvents: 'none', lineHeight: '1.4', opacity: '0', transition: 'opacity 0.2s'
-        });
-        tip.innerHTML = `<div class="font-bold text-yellow-300 mb-1 text-sm border-b border-gray-600 pb-1">${title}</div><div class="text-gray-200">${desc}</div>`;
-        const arrow = document.createElement('div');
-        Object.assign(arrow.style, {
-            position: 'absolute', top: '100%', left: '50%', marginLeft: '-6px',
-            borderWidth: '6px', borderStyle: 'solid', borderColor: '#1f2937 transparent transparent transparent'
-        });
-        tip.appendChild(arrow);
-        document.body.appendChild(tip);
-        const rect = targetEl.getBoundingClientRect();
-        const tipHeight = tip.offsetHeight || 60; 
-        tip.style.top = (rect.top - tipHeight - 12) + 'px'; 
-        tip.style.left = (rect.left + rect.width / 2) + 'px';
-        tip.style.transform = 'translateX(-50%)';
-        requestAnimationFrame(() => tip.style.opacity = '1');
-        targetEl.style.transform = "scale(1.2)";
-        setTimeout(() => targetEl.style.transform = "", 200);
-        setTimeout(() => { 
-            tip.style.opacity = '0';
-            setTimeout(() => { if(tip.parentNode) tip.remove(); }, 200);
-        }, 3000);
-    };
-
-    b.querySelectorAll('.badge-item').forEach(el => {
-        el.onclick = (e) => {
-            e.stopPropagation();
-            if (el.classList.contains('grayscale')) {
-                showTooltip(el, "Locked: " + el.dataset.title, el.dataset.desc || "Keep playing!");
-                return;
+        // --- FIX: DISPLAY WORD STREAK RECORD INSTEAD OF DAILY BEST ---
+        const bestEl = document.getElementById('bestDailyStreak');
+        if (bestEl) {
+            // Check longestStreak first. If 0, check highScores list to self-heal data.
+            let bestRecord = d.longestStreak || 0;
+            if (bestRecord === 0 && d.highScores && d.highScores.length > 0) {
+                bestRecord = d.highScores[0].score; // Grab top score from leaderboard
+                State.save('longestStreak', bestRecord); // Save it so it sticks
             }
-            if (el.dataset.word) {
-                Game.loadSpecial(el.dataset.word);
-                ModalManager.toggle('profile', false);
+            bestEl.textContent = bestRecord;
+        }
+        // -------------------------------------------------------------
+
+        const goldenEl = document.getElementById('goldenWordsFound');
+        if (goldenEl) goldenEl.textContent = d.daily.goldenWordsFound || 0;
+        
+        // Karma Title Logic
+        const saved = d.insectStats.saved;
+        const eaten = d.insectStats.eaten;
+        let karmaTitle = "Garden Observer";
+        if (saved > 20 && saved > eaten) karmaTitle = "Friend of Bugs 🐞";
+        if (saved > 50 && saved > eaten) karmaTitle = "Guardian of the Garden 🌿";
+        if (eaten > 20 && eaten > saved) karmaTitle = "Spider Feeder 🕸️";
+        if (eaten > 50 && eaten > saved) karmaTitle = "Spider Sympathiser 🕷️";
+        if (saved > 50 && eaten > 50) karmaTitle = "Lord of the Flies 👑";
+        if (d.badges.chopper) karmaTitle = "Air Traffic Controller 🚁";
+        if (d.badges.angler) karmaTitle = "The Best in Brixham 🎣";
+
+        DOM.profile.statsTitle.innerHTML = `${d.username ? d.username + "'s" : "Your"} Stats<br><span class="text-xs text-indigo-500 font-bold uppercase tracking-widest mt-1 block">${karmaTitle}</span>`;
+
+        const totalAvailable = Object.keys(CONFIG.THEME_SECRETS).length + 1;
+        const userCount = d.unlockedThemes.length + 1;
+        DOM.profile.themes.textContent = `${userCount} / ${totalAvailable}`;
+        
+        // Badge Rows
+        const row1 = [
+            { k: 'cake', i: '🎂', w: 'CAKE' }, { k: 'llama', i: '🦙', w: 'LLAMA' }, 
+            { k: 'potato', i: '🥔', w: 'POTATO' }, { k: 'squirrel', i: '🐿️', w: 'SQUIRREL' }, 
+            { k: 'spider', i: '🕷️', w: 'SPIDER' }, { k: 'germ', i: '🦠', w: 'GERM' }, 
+            { k: 'bone', i: '🦴', w: 'MASON' }
+        ];
+        
+        const row2 = [
+            { k: 'poop', i: '💩' }, { k: 'penguin', i: '🐧' }, { k: 'scorpion', i: '🦂' }, 
+            { k: 'mushroom', i: '🍄' }, { k: 'needle', i: '💉' }, { k: 'diamond', i: '💎' },
+            { k: 'rock', i: '🤘' }, { k: 'chopper', i: '🚁' }, { k: 'snowman', i: '⛄' }
+        ];
+        
+        const row_fish = [
+            { k: 'fish', i: '🐟', t: 'Blue Fish' }, { k: 'tropical', i: '🐠', t: 'Tropical Fish' }, 
+            { k: 'puffer', i: '🐡', t: 'Pufferfish' }, { k: 'shark', i: '🦈', t: 'Shark' },
+            { k: 'octopus', i: '🐙', t: 'The Kraken' }
+        ];
+        
+        // Gold Achievements
+        const row3 = [
+            { k: 'exterminator', i: '☠️', t: 'The Exterminator', d: 'Fed 100 bugs', val: d.insectStats.eaten, gold: 1000 }, 
+            { k: 'saint', i: '😇', t: 'The Saint', d: 'Saved 100 bugs', val: d.insectStats.saved, gold: 1000 }, 
+            { k: 'prankster', i: '🃏', t: 'Original Prankster', d: 'Teased spider 50 times', val: d.insectStats.teased, gold: 500 },
+            { k: 'judge', i: '⚖️', t: 'The Judge', d: 'Cast 1,000 votes', val: d.voteCount, gold: 10000 },
+            { k: 'bard', i: '✍️', t: 'The Bard', d: '5 accepted words', val: d.contributorCount, gold: 50 },
+            { k: 'traveler', i: '🌍', t: 'The Traveller', d: 'Unlocked 5 themes', val: userCount, gold: 10 },
+            { k: 'angler', i: '🔱', t: 'The Best in Brixham', d: 'Caught 250 fish', val: d.fishStats.caught, gold: 2500 },
+            { k: 'shepherd', i: '🛟', t: 'Sea Shepherd', d: 'Spared 250 fish', val: d.fishStats.spared, gold: 2500 }
+        ];
+
+        const renderRow = (list) => `<div class="flex flex-wrap justify-center gap-3 text-3xl w-full">` + list.map(x => {
+            const un = d.badges[x.k];
+            let defTitle = x.k.charAt(0).toUpperCase() + x.k.slice(1);
+            let classes = `badge-item relative transition-all duration-300 transform `;
+            let style = '';
+            
+            const isGold = x.gold && x.val >= x.gold;
+            if (isGold) {
+                defTitle = `✨ GOLD ${x.t || defTitle} ✨`;
+                classes += `hover:scale-125 cursor-pointer animate-pulse-slow`;
+                style = `text-shadow: 0 0 10px #fbbf24, 0 0 20px #d97706; filter: drop-shadow(0 0 2px rgba(0,0,0,0.5));`;
+            } else if (un) {
+                classes += `hover:scale-125 cursor-pointer`;
             } else {
-                showTooltip(el, el.dataset.title, el.dataset.desc);
+                classes += `opacity-25 grayscale`;
+            }
+
+            return `<span class="${classes}" 
+                    style="${style}"
+                    title="${un ? (x.t || defTitle) : 'Locked'}" 
+                    data-key="${x.k}"
+                    ${x.w ? `data-word="${x.w}"` : ''} 
+                    data-title="${un ? (isGold ? '✨ GOLD STATUS ✨' : (x.t || defTitle)) : 'Locked'}" 
+                    data-desc="${un ? (isGold ? `Legendary! You reached ${x.gold}+ (${x.val})` : (x.d || 'Unlocked!')) : 'Keep playing to find this item!'}"
+                    >${x.i}</span>`
+        }).join('') + `</div>`;
+
+        let bugJarHTML = '';
+        if (saved > 0) {
+            const bugCount = Math.min(saved, 40);
+            let bugsStr = '';
+            for(let i=0; i<bugCount; i++) bugsStr += `<span class="jar-bug" style="cursor: pointer; display: inline-block; padding: 2px; transition: transform 0.1s;" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">🦟</span>`;
+            bugJarHTML = `<div class="w-full text-center my-4 p-3 bg-green-50 rounded-xl border border-green-100 relative overflow-hidden">
+                <div class="text-[10px] font-bold text-green-600 mb-1 uppercase tracking-wider">The Bug Jar (${saved})</div>
+                <div id="jar-container" class="text-xl leading-6 opacity-90 break-words" style="letter-spacing: 1px;">${bugsStr}</div>
+                ${State.data.currentTheme === 'halloween' ? '<div class="text-[9px] text-green-500 mt-1 italic">Tap a bug to feed the spider!</div>' : ''}
+            </div>`;
+        }
+        
+        let bugHotelHTML = '';
+        const splattedCount = State.data.insectStats.splatted || 0;
+        const collection = State.data.insectStats.collection || [];
+        const bugTypes = [{ char: '🦟', type: 'house' }, { char: '🐞', type: 'house' }, { char: '🐝', type: 'house' }, { char: '🚁', type: 'hotel' }];
+        const requiredChars = bugTypes.map(b => b.char);
+        const isComplete = requiredChars.every(c => collection.includes(c));
+
+        if (splattedCount > 0 || collection.length > 0) {
+            let innerHTML = '';
+            if (isComplete) {
+                innerHTML = `<div class="flex justify-center gap-3 filter drop-shadow-sm mb-1">`;
+                bugTypes.forEach(bug => {
+                    const style = bug.type === 'hotel' ? 'border-2 border-red-500 bg-red-100 rounded-md shadow-sm text-2xl px-2 py-1' : 'border-2 border-green-500 bg-green-100 rounded-md shadow-sm text-2xl px-2 py-1';
+                    innerHTML += `<span class="${style}">${bug.char}</span>`;
+                });
+                innerHTML += `</div><div class="text-[9px] text-green-700 mt-1 font-bold uppercase tracking-widest">You've won capitalism!</div>`;
+                bugHotelHTML = `<div class="w-full text-center my-4 p-3 bg-green-50 rounded-xl border-2 border-green-500 relative overflow-hidden shadow-md"><div class="absolute top-0 right-0 bg-green-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-bl-lg">WINNER</div><div class="text-[10px] font-bold text-green-800 mb-3 uppercase tracking-wider">Bug Street Completed</div>${innerHTML}</div>`;
+            } else {
+                innerHTML = `<div class="flex justify-center gap-2 flex-wrap">`;
+                bugTypes.forEach(bug => {
+                    const hasIt = collection.includes(bug.char);
+                    innerHTML += hasIt ? `<span class="inline-block p-1 rounded-md ${bug.type==='hotel'?'border-2 border-red-400 bg-white':'border-2 border-green-400 bg-white'} text-2xl">${bug.char}</span>` : `<span class="inline-block p-1 rounded-md border-2 border-dashed border-gray-300 text-2xl grayscale opacity-30">${bug.char}</span>`;
+                });
+                innerHTML += `</div>`;
+                bugHotelHTML = `<div class="w-full text-center my-4 p-3 bg-stone-100 rounded-xl border border-stone-200 relative overflow-hidden"><div class="text-[10px] font-bold text-stone-500 mb-2 uppercase tracking-wider">Bug Street (${collection.length}/4)</div>${innerHTML}</div>`;
             }
         }
-    });
-    
-    // Add Bug Jar listeners
-    const jarBugs = b.querySelectorAll('.jar-bug');
-    jarBugs.forEach(bug => {
-        bug.onclick = (e) => {
-            e.stopPropagation();
-            if (State.data.settings.arachnophobiaMode) {
-                 showTooltip(bug, "Spider Hidden", "You can't feed the spider while Arachnophobia Mode is on!");
-                 return;
-            }
-            if (State.data.currentTheme !== 'halloween') {
-                showTooltip(bug, "Spider Missing", "Please visit the spider on the Halloween theme to feed");
-                return;
-            }
-            ModalManager.toggle('profile', false);
-            State.data.insectStats.saved = Math.max(0, State.data.insectStats.saved - 1);
-            State.save('insectStats', State.data.insectStats);
-            if (typeof MosquitoManager !== 'undefined') MosquitoManager.spawnStuck('🦟');
-            UIManager.showPostVoteMessage("Feeding time! 🕷️");
-        };
-    });
 
-    ModalManager.toggle('profile', true);
-},
+        const b = DOM.profile.badges;
+        b.innerHTML = 
+            `<div class="text-xs font-bold text-gray-500 uppercase mb-2 mt-2">🏆 Word Badges</div>` + renderRow(row1) + 
+            `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🧸 Found Items</div>` + renderRow(row2) + 
+            `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🌊 Aquarium</div>` + renderRow(row_fish) + 
+            bugJarHTML + bugHotelHTML + 
+            `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🎖️ Achievements</div>` + renderRow(row3);
+
+        const showTooltip = (targetEl, title, desc) => {
+            document.querySelectorAll('.global-badge-tooltip').forEach(t => t.remove());
+            const tip = document.createElement('div');
+            tip.className = 'global-badge-tooltip';
+            Object.assign(tip.style, {
+                position: 'fixed', backgroundColor: '#1f2937', color: 'white', padding: '8px 12px', 
+                borderRadius: '8px', fontSize: '12px', textAlign: 'center', width: 'max-content', 
+                maxWidth: '200px', zIndex: '9999', boxShadow: '0 4px 6px rgba(0,0,0,0.3)', 
+                pointerEvents: 'none', lineHeight: '1.4', opacity: '0', transition: 'opacity 0.2s'
+            });
+            tip.innerHTML = `<div class="font-bold text-yellow-300 mb-1 text-sm border-b border-gray-600 pb-1">${title}</div><div class="text-gray-200">${desc}</div>`;
+            const arrow = document.createElement('div');
+            Object.assign(arrow.style, {
+                position: 'absolute', top: '100%', left: '50%', marginLeft: '-6px',
+                borderWidth: '6px', borderStyle: 'solid', borderColor: '#1f2937 transparent transparent transparent'
+            });
+            tip.appendChild(arrow);
+            document.body.appendChild(tip);
+            const rect = targetEl.getBoundingClientRect();
+            const tipHeight = tip.offsetHeight || 60; 
+            tip.style.top = (rect.top - tipHeight - 12) + 'px'; 
+            tip.style.left = (rect.left + rect.width / 2) + 'px';
+            tip.style.transform = 'translateX(-50%)';
+            requestAnimationFrame(() => tip.style.opacity = '1');
+            targetEl.style.transform = "scale(1.2)";
+            setTimeout(() => targetEl.style.transform = "", 200);
+            setTimeout(() => { 
+                tip.style.opacity = '0';
+                setTimeout(() => { if(tip.parentNode) tip.remove(); }, 200);
+            }, 3000);
+        };
+
+        b.querySelectorAll('.badge-item').forEach(el => {
+            el.onclick = (e) => {
+                e.stopPropagation();
+                if (el.classList.contains('grayscale')) {
+                    showTooltip(el, "Locked: " + el.dataset.title, el.dataset.desc || "Keep playing!");
+                    return;
+                }
+                if (el.dataset.word) {
+                    Game.loadSpecial(el.dataset.word);
+                    ModalManager.toggle('profile', false);
+                } else {
+                    showTooltip(el, el.dataset.title, el.dataset.desc);
+                }
+            }
+        });
+        
+        const jarBugs = b.querySelectorAll('.jar-bug');
+        jarBugs.forEach(bug => {
+            bug.onclick = (e) => {
+                e.stopPropagation();
+                if (State.data.settings.arachnophobiaMode) {
+                     showTooltip(bug, "Spider Hidden", "You can't feed the spider while Arachnophobia Mode is on!");
+                     return;
+                }
+                if (State.data.currentTheme !== 'halloween') {
+                    showTooltip(bug, "Spider Missing", "Please visit the spider on the Halloween theme to feed");
+                    return;
+                }
+                ModalManager.toggle('profile', false);
+                State.data.insectStats.saved = Math.max(0, State.data.insectStats.saved - 1);
+                State.save('insectStats', State.data.insectStats);
+                if (typeof MosquitoManager !== 'undefined') MosquitoManager.spawnStuck('🦟');
+                UIManager.showPostVoteMessage("Feeding time! 🕷️");
+            };
+        });
+
+        ModalManager.toggle('profile', true);
+    },
 	
 displayWord(w) {
         if (!w) {
