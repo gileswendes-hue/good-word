@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.98.6', 
+    APP_VERSION: '5.98.7', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1574,6 +1574,8 @@ rs.innerHTML = `
         100% { transform: translateY(110vh); }
     }
 `;
+
+	document.head.appendChild(rs);
     
         Object.entries(CONFIG.THEME_SECRETS).forEach(([k, v]) => {
             try {
