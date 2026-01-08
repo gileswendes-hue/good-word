@@ -1840,7 +1840,7 @@ const WeatherManager = {
     ALLOWED_THEMES: ['default', 'ballpit', 'banana', 'dark', 'fire', 'halloween', 'plymouth', 'rainbow', 'summer', 'woodland'],
     
     RAIN_CODES: [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99],
-    SNOW_CODES: [71, 73, 75, 77, 85, 86],
+    SNOW_CODES: [71, 73, 75, 77, 85, 86], // Snow fall & showers
     
     isRaining: false,
     isSnowing: false,
@@ -1897,14 +1897,12 @@ const WeatherManager = {
     },
 
     updateVisuals() {
-        // If we are on the actual Winter theme, let the theme handle the snow itself.
         const t = State.runtime.currentTheme;
         if (t === 'winter') return; 
 
         const isAllowedTheme = this.ALLOWED_THEMES.includes(t);
         const enabled = State.data.settings.enableWeather;
 
-        // Reset both first
         Effects.rain(false);
         Effects.weatherSnow(false);
 
@@ -1918,17 +1916,6 @@ const WeatherManager = {
     }
 };
 
-updateVisuals() {
-        const currentTheme = State.runtime.currentTheme; 
-        const isAllowedTheme = this.ALLOWED_THEMES.includes(currentTheme);
-        
-        if (State.data.settings.enableWeather && this.isRaining && isAllowedTheme) {
-            Effects.rain(true);
-        } else {
-            Effects.rain(false);
-        }
-    }
-};
 
 const CommunityGoal = {
     MILESTONE: 50000, // 50k increments
