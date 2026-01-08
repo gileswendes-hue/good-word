@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.98.4', 
+    APP_VERSION: '5.98.5', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -222,6 +222,7 @@ const safeParse = (key, fallback) => {
 };
 
 const DEFAULT_SETTINGS = {
+	enableWeather: false,
     showTips: true,
     showPercentages: true,
     colorblindMode: false,
@@ -1555,6 +1556,24 @@ const ThemeManager = {
         const s = document.createElement("style");
         s.innerText = `@keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }`;
         document.head.appendChild(s);
+		
+		const rs = document.createElement("style");
+rs.innerHTML = `
+    .rain-drop {
+        position: absolute;
+        background: rgba(173, 216, 230, 0.6);
+        width: 2px;
+        height: 15px;
+        bottom: 100%;
+        animation: rain-fall linear infinite;
+        pointer-events: none;
+        z-index: 50;
+    }
+    @keyframes rain-fall {
+        0% { transform: translateY(0); }
+        100% { transform: translateY(110vh); }
+    }
+`;
     
         Object.entries(CONFIG.THEME_SECRETS).forEach(([k, v]) => {
             try {
@@ -1814,7 +1833,71 @@ checkUnlock(w) {
     }
 };
 
-// CommunityGoal - Shows progress towards community vote milestones
+const WeatherManager = {
+    // Themes where rain is allowed
+    ALLOWED_THEMES: ['default', 'ballpit', 'banana', 'dark', 'fire', 'halloween', 'plymouth', 'rainbow', 'summer', 'woodland'],
+    RAIN_CODES: [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99],
+    isRaining: false,
+    hasChecked: false,
+
+    init() {
+        if (State.data.settings.enableWeather) this.checkWeather();
+    },
+
+    toggle(active) {
+        State.data.settings.enableWeather = active;
+        State.save('settings', State.data.settings);
+        if (active) {
+            this.checkWeather();
+        } else {
+            this.isRaining = false;
+            this.updateVisuals();
+        }
+    },
+
+    checkWeather() {
+        if (!navigator.geolocation) return;
+        UIManager.showPostVoteMessage("Checking local weather... ☁️");
+        navigator.geolocation.getCurrentPosition(
+            async (pos) => {
+                try {
+                    const lat = pos.coords.latitude;
+                    const lon = pos.coords.longitude;
+                    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`;
+                    const response = await fetch(url);
+                    const data = await response.json();
+                    const code = data.current_weather.weathercode;
+                    
+                    this.isRaining = this.RAIN_CODES.includes(code);
+                    this.hasChecked = true;
+                    
+                    if (this.isRaining) UIManager.showPostVoteMessage("It's raining! 🌧️");
+                    else UIManager.showPostVoteMessage("No rain detected. ☀️");
+                    
+                    this.updateVisuals();
+                } catch (e) { console.error("Weather fetch failed", e); }
+            },
+            (err) => {
+                UIManager.showPostVoteMessage("Location denied 🚫");
+                const toggle = document.getElementById('toggleWeather');
+                if (toggle) toggle.checked = false;
+                State.data.settings.enableWeather = false;
+                State.save('settings', State.data.settings);
+            }
+        );
+    },
+
+    updateVisuals() {
+        const currentTheme = State.runtime.currentTheme;
+        const isAllowedTheme = this.ALLOWED_THEMES.includes(currentTheme);
+        if (State.data.settings.enableWeather && this.isRaining && isAllowedTheme) {
+            Effects.rain(true);
+        } else {
+            Effects.rain(false);
+        }
+    }
+};
+
 const CommunityGoal = {
     MILESTONE: 50000, // 50k increments
     
@@ -2042,6 +2125,28 @@ const Effects = {
     snowmanTimeout: null,
     plymouthShooterTimeout: null, 
     
+rain(active) {
+        const c = document.getElementById('rain-effect');
+        if (!c) return;
+        if (!active) {
+            c.innerHTML = '';
+            c.classList.add('hidden');
+            return;
+        }
+        c.classList.remove('hidden');
+        if (c.children.length > 0) return;
+        const count = 80;
+        for (let i = 0; i < count; i++) {
+            const drop = document.createElement('div');
+            drop.className = 'rain-drop';
+            drop.style.left = Math.random() * 100 + 'vw';
+            drop.style.animationDuration = (Math.random() * 0.5 + 0.5) + 's';
+            drop.style.animationDelay = (Math.random() * 2) + 's';
+            drop.style.opacity = Math.random() * 0.5 + 0.3;
+            c.appendChild(drop);
+        }
+    },	
+	
 plymouth(a) {
         const c = DOM.theme.effects.plymouth;
 
@@ -5270,6 +5375,9 @@ init() {
                 html += mkTog('toggleTilt', 'Gravity Tilt (Default Theme)', s.enableTilt);
                 html += mkTog('toggleMirror', 'Mirror Mode', s.mirrorMode);
                 html += mkTog('toggleLights', '🎄 Christmas Lights', s.showLights, 'text-green-600');
+				html += mkTog('toggleWeather', '🌧️ Real-time Rain', s.enableWeather, 'text-blue-500');
+				html += `<p class="text-xs text-gray-400 mt-1 mb-2">Requires location. ...only happens if it's raining!</p>`;
+				
                 html += `</div></div>`;
 
                 // 5. INTERFACE
@@ -5465,6 +5573,7 @@ init() {
                 document.getElementById('toggleTilt').onchange = e => {
                     State.save('settings', { ...State.data.settings, enableTilt: e.target.checked });
                     TiltManager.refresh();
+					if (window.WeatherManager) window.WeatherManager.updateVisuals();
                 };
                 document.getElementById('toggleMirror').onchange = e => {
                     State.save('settings', { ...State.data.settings, mirrorMode: e.target.checked });
@@ -5474,11 +5583,11 @@ init() {
                     State.save('settings', { ...State.data.settings, showLights: e.target.checked });
                     Game.updateLights();
                 };
-				
-				document.getElementById('toggleLights').onchange = e => {
-                    State.save('settings', { ...State.data.settings, showLights: e.target.checked });
-                    Game.updateLights();
-                };
+				const wToggle = document.getElementById('toggleWeather');
+				if (wToggle) {
+					wToggle.onchange = e => WeatherManager.toggle(e.target.checked);
+				}
+
 
                 // --- Data Management listeners (only exist when not in Kids Mode) ---
                 const exportBtn = document.getElementById('exportSaveBtn');
@@ -7058,6 +7167,7 @@ const Game = {
             
             InputHandler.init();
             ThemeManager.init();
+			WeatherManager.init();
             ModalManager.init();
             UIManager.updateProfileDisplay();
             MosquitoManager.startMonitoring();
