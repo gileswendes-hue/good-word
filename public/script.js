@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.99.1', 
+    APP_VERSION: '5.99.2', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -5440,7 +5440,7 @@ init() {
                 html += mkTog('toggleMirror', 'Mirror Mode', s.mirrorMode);
                 html += mkTog('toggleLights', '🎄 Christmas Lights', s.showLights, 'text-green-600');
 				html += mkTog('toggleWeather', '🌧️ Real-time Weather', s.enableWeather, 'text-blue-500');
-				html += `<p class="text-xs text-gray-400 mt-1 mb-2">Requires location. ...only happens if it's raining!</p>`;
+				html += `<p class="text-xs text-gray-400 mt-1 mb-2">Requires location. ...only happens if it's raining (or snowing)!</p>`;
 				
                 html += `</div></div>`;
 
