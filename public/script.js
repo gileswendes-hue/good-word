@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.98.8', 
+    APP_VERSION: '5.98.9', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1814,6 +1814,7 @@ rs.innerHTML = `
         if (State.runtime.allWords.length > 0) UIManager.displayWord(State.runtime.allWords[State.runtime.currentWordIndex]);
         Accessibility.apply();
         TiltManager.refresh();
+		if (window.WeatherManager) window.WeatherManager.updateVisuals();
     },
 	
 checkUnlock(w) {
@@ -5437,6 +5438,7 @@ init() {
                     }
                     State.save('settings', newSettings);
                     Game.refreshData(true);
+					
                 };
 
                 document.getElementById('toggleControversial').onchange = e => {
@@ -5551,6 +5553,7 @@ init() {
                             State.save('settings', { ...State.data.settings, kidsMode: true });
                             updateMultiplayerVisibility(true);
                             Game.refreshData(true);
+							ModalManager.toggle('settings', false);
                         }
                     } else {
                         e.target.checked = true;
@@ -5566,6 +5569,7 @@ init() {
                             updateMultiplayerVisibility(false);
                             Game.refreshData(true);
                             document.getElementById('toggleKidsMode').checked = false;
+							ModalManager.toggle('settings', false);
                         }, () => {
                             document.getElementById('toggleKidsMode').checked = true; 
                         });
