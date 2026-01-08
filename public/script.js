@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.99.10', 
+    APP_VERSION: '5.99.11', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4419,15 +4419,13 @@ openProfile() {
         
         // --- 3. FIX: UPDATE RECORD AFTER RENDER ---
         // We use setTimeout to ensure this runs AFTER the modal HTML is fully built/reset.
-        setTimeout(() => {
+		setTimeout(() => {
             const bestEl = document.getElementById('bestDailyStreak');
             if (bestEl) {
-                // Force read the live data directly from memory
-                const liveRecord = State.data.longestStreak || 0;
-                bestEl.textContent = liveRecord.toLocaleString();
+                // Read the "72" directly from memory
+                bestEl.textContent = (parseInt(State.data.longestStreak) || 0).toLocaleString();
             }
         }, 50);
-        // ------------------------------------------
 
         // --- 4. TITLE & THEMES ---
         const saved = d.insectStats.saved;
