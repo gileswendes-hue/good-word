@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.99.4', 
+    APP_VERSION: '5.99.5', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4399,7 +4399,6 @@ openProfile() {
         this.updateProfileDisplay();
         const d = State.data;
 
-        // --- 1. RETROACTIVE BADGE CHECKS ---
         if (d.insectStats.saved >= 100 && !d.badges.saint) State.unlockBadge('saint');
         if (d.insectStats.eaten >= 100 && !d.badges.exterminator) State.unlockBadge('exterminator');
         if (d.insectStats.teased >= 50 && !d.badges.prankster) State.unlockBadge('prankster');
@@ -4408,24 +4407,23 @@ openProfile() {
         if ((d.unlockedThemes.length + 1) >= 5 && !d.badges.traveler) State.unlockBadge('traveler');
         if (d.fishStats.caught >= 250 && !d.badges.angler) State.unlockBadge('angler');
         if (d.fishStats.spared >= 250 && !d.badges.shepherd) State.unlockBadge('shepherd');
-        // -----------------------------------
 
         DOM.profile.streak.textContent = d.daily.streak || 0;
         DOM.profile.totalVotes.textContent = d.voteCount.toLocaleString();
         DOM.profile.contributions.textContent = d.contributorCount.toLocaleString();
         
-        // --- FIX: DISPLAY WORD STREAK RECORD INSTEAD OF DAILY BEST ---
-        const bestEl = document.getElementById('bestDailyStreak');
+		const bestEl = document.getElementById('bestDailyStreak');
         if (bestEl) {
-            // Check longestStreak first. If 0, check highScores list to self-heal data.
             let bestRecord = d.longestStreak || 0;
-            if (bestRecord === 0 && d.highScores && d.highScores.length > 0) {
-                bestRecord = d.highScores[0].score; // Grab top score from leaderboard
-                State.save('longestStreak', bestRecord); // Save it so it sticks
+            if (d.highScores && d.highScores.length > 0) {
+                const topScore = d.highScores[0].score || 0;
+                if (topScore > bestRecord) {
+                    bestRecord = topScore;
+                    State.save('longestStreak', bestRecord); 
+                }
             }
             bestEl.textContent = bestRecord;
         }
-        // -------------------------------------------------------------
 
         const goldenEl = document.getElementById('goldenWordsFound');
         if (goldenEl) goldenEl.textContent = d.daily.goldenWordsFound || 0;
