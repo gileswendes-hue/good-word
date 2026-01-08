@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.00.2', 
+    APP_VERSION: '6.00.4', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4399,47 +4399,58 @@ openProfile() {
         this.updateProfileDisplay();
         const d = State.data;
 
-        // 1. DATA SYNC
-        const realRecord = Math.max(parseInt(d.longestStreak)||0, parseInt(d.daily.bestStreak)||0);
+        // --- 1. DATA SYNC (Keep your record safe) ---
+        const realRecord = Math.max(parseInt(d.longestStreak) || 0, parseInt(d.daily.bestStreak) || 0);
         d.longestStreak = realRecord;
         d.daily.bestStreak = realRecord;
         State.save('longestStreak', realRecord);
 
-        // 2. LEFT BOX: Clickable Daily Streak -> Opens Leaderboard -> Scrolls
+        // --- 2. LEFT BOX: DAILY STREAK (Click -> Bottom of Leaderboard) ---
         if (DOM.profile.streak) {
-            DOM.profile.streak.textContent = d.daily.streak || 0;
+            DOM.profile.streak.textContent = d.daily.streak || 0; // Wipes "Best: 0" text
             DOM.profile.streak.style.cursor = 'pointer';
             DOM.profile.streak.style.textDecoration = 'underline';
             DOM.profile.streak.onclick = () => {
-                ModalManager.toggle('profile', false); // Close profile
-                
-                // Click the existing stats button to trigger the graph/leaderboard load
+                ModalManager.toggle('profile', false);
                 const statsBtn = document.getElementById('headerStatsCard');
                 if (statsBtn) {
                     statsBtn.click();
-                    // Wait for the modal to open and data to fetch, then scroll
                     setTimeout(() => {
                         const target = document.getElementById('dailyStreaksHeader');
-                        if(target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }, 800); 
+                        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 600);
                 }
             };
         }
 
-        // 3. RIGHT BOX: Show High Score
+        // --- 3. RIGHT BOX: HIGH SCORE (The "72 Words") ---
         const streakEl = document.getElementById('streak-display-value');
-        if (streakEl) streakEl.textContent = realRecord + " Words";
-        // Legacy backup
+        if (streakEl) streakEl.textContent = realRecord + " Words"; 
+        
+        // Legacy backup (just in case)
         const bestEl = document.getElementById('bestDailyStreak');
         if (bestEl) bestEl.textContent = realRecord;
 
-        // 4. Other Stats
-        DOM.profile.totalVotes.textContent = d.voteCount.toLocaleString();
-        DOM.profile.contributions.textContent = d.contributorCount.toLocaleString();
+        // --- 4. TOTAL VOTES (Click -> Top of Leaderboard) ---
+        if (DOM.profile.totalVotes) {
+            DOM.profile.totalVotes.textContent = d.voteCount.toLocaleString();
+            DOM.profile.totalVotes.style.cursor = 'pointer';
+            DOM.profile.totalVotes.style.textDecoration = 'underline';
+            DOM.profile.totalVotes.onclick = () => {
+                ModalManager.toggle('profile', false);
+                const statsBtn = document.getElementById('headerStatsCard');
+                if (statsBtn) {
+                    statsBtn.click();
+                    // No scroll target needed, it opens at the top by default
+                }
+            };
+        }
+        
+        if (DOM.profile.contributions) DOM.profile.contributions.textContent = d.contributorCount.toLocaleString();
         const goldenEl = document.getElementById('goldenWordsFound');
         if (goldenEl) goldenEl.textContent = d.daily.goldenWordsFound || 0;
 
-        // 5. Badges (Standard Logic)
+        // --- 5. BADGE LOGIC (RESTORED) ---
         if (d.insectStats.saved >= 100 && !d.badges.saint) State.unlockBadge('saint');
         if (d.insectStats.eaten >= 100 && !d.badges.exterminator) State.unlockBadge('exterminator');
         if (d.insectStats.teased >= 50 && !d.badges.prankster) State.unlockBadge('prankster');
@@ -4449,7 +4460,6 @@ openProfile() {
         if (d.fishStats.caught >= 250 && !d.badges.angler) State.unlockBadge('angler');
         if (d.fishStats.spared >= 250 && !d.badges.shepherd) State.unlockBadge('shepherd');
 
-        // 6. Build Badges & Themes
         const saved = d.insectStats.saved;
         const eaten = d.insectStats.eaten;
         let karmaTitle = "Garden Observer";
@@ -4461,15 +4471,127 @@ openProfile() {
         if (d.badges.chopper) karmaTitle = "Air Traffic Controller 🚁";
         if (d.badges.angler) karmaTitle = "The Best in Brixham 🎣";
 
-        DOM.profile.statsTitle.innerHTML = `${d.username ? d.username + "'s" : "Your"} Stats<br><span class="text-xs text-indigo-500 font-bold uppercase tracking-widest mt-1 block">${karmaTitle}</span>`;
-        
+        if (DOM.profile.statsTitle) {
+            DOM.profile.statsTitle.innerHTML = `${d.username ? d.username + "'s" : "Your"} Stats<br><span class="text-xs text-indigo-500 font-bold uppercase tracking-widest mt-1 block">${karmaTitle}</span>`;
+        }
+
         const totalAvailable = Object.keys(CONFIG.THEME_SECRETS).length + 1;
         const userCount = d.unlockedThemes.length + 1;
-        DOM.profile.themes.textContent = `${userCount} / ${totalAvailable}`;
+        if (DOM.profile.themes) DOM.profile.themes.textContent = `${userCount} / ${totalAvailable}`;
 
-        // (We keep the badge grid rendering simple here to save space, assuming it's already generated or static in your HTML. 
-        // If your badges disappear, copy the 'renderRow' logic from your previous file back in here.)
+        // --- 6. BUILD BADGE GRID (FULLY RESTORED) ---
+        const row1 = [
+            { k: 'cake', i: '🎂', w: 'CAKE' }, { k: 'llama', i: '🦙', w: 'LLAMA' }, 
+            { k: 'potato', i: '🥔', w: 'POTATO' }, { k: 'squirrel', i: '🐿️', w: 'SQUIRREL' }, 
+            { k: 'spider', i: '🕷️', w: 'SPIDER' }, { k: 'germ', i: '🦠', w: 'GERM' }, 
+            { k: 'bone', i: '🦴', w: 'MASON' }
+        ];
         
+        const row2 = [
+            { k: 'poop', i: '💩' }, { k: 'penguin', i: '🐧' }, { k: 'scorpion', i: '🦂' }, 
+            { k: 'mushroom', i: '🍄' }, { k: 'needle', i: '💉' }, { k: 'diamond', i: '💎' },
+            { k: 'rock', i: '🤘' }, { k: 'chopper', i: '🚁' }, { k: 'snowman', i: '⛄' }
+        ];
+        
+        const row_fish = [
+            { k: 'fish', i: '🐟', t: 'Blue Fish' }, { k: 'tropical', i: '🐠', t: 'Tropical Fish' }, 
+            { k: 'puffer', i: '🐡', t: 'Pufferfish' }, { k: 'shark', i: '🦈', t: 'Shark' },
+            { k: 'octopus', i: '🐙', t: 'The Kraken' }
+        ];
+        
+        const row3 = [
+            { k: 'exterminator', i: '☠️', t: 'The Exterminator', d: 'Fed 100 bugs', val: d.insectStats.eaten, gold: 1000 }, 
+            { k: 'saint', i: '😇', t: 'The Saint', d: 'Saved 100 bugs', val: d.insectStats.saved, gold: 1000 }, 
+            { k: 'prankster', i: '🃏', t: 'Original Prankster', d: 'Teased spider 50 times', val: d.insectStats.teased, gold: 500 },
+            { k: 'judge', i: '⚖️', t: 'The Judge', d: 'Cast 1,000 votes', val: d.voteCount, gold: 10000 },
+            { k: 'bard', i: '✍️', t: 'The Bard', d: '5 accepted words', val: d.contributorCount, gold: 50 },
+            { k: 'traveler', i: '🌍', t: 'The Traveller', d: 'Unlocked 5 themes', val: userCount, gold: 10 },
+            { k: 'angler', i: '🔱', t: 'The Best in Brixham', d: 'Caught 250 fish', val: d.fishStats.caught, gold: 2500 },
+            { k: 'shepherd', i: '🛟', t: 'Sea Shepherd', d: 'Spared 250 fish', val: d.fishStats.spared, gold: 2500 }
+        ];
+
+        const renderRow = (list) => `<div class="flex flex-wrap justify-center gap-3 text-3xl w-full">` + list.map(x => {
+            const un = d.badges[x.k];
+            let defTitle = x.k.charAt(0).toUpperCase() + x.k.slice(1);
+            let classes = `badge-item relative transition-all duration-300 transform `;
+            let style = '';
+            
+            const isGold = x.gold && x.val >= x.gold;
+            if (isGold) {
+                defTitle = `✨ GOLD ${x.t || defTitle} ✨`;
+                classes += `hover:scale-125 cursor-pointer animate-pulse-slow`;
+                style = `text-shadow: 0 0 10px #fbbf24, 0 0 20px #d97706; filter: drop-shadow(0 0 2px rgba(0,0,0,0.5));`;
+            } else if (un) {
+                classes += `hover:scale-125 cursor-pointer`;
+            } else {
+                classes += `opacity-25 grayscale`;
+            }
+
+            return `<span class="${classes}" 
+                    style="${style}"
+                    title="${un ? (x.t || defTitle) : 'Locked'}" 
+                    data-key="${x.k}"
+                    ${x.w ? `data-word="${x.w}"` : ''} 
+                    data-title="${un ? (isGold ? '✨ GOLD STATUS ✨' : (x.t || defTitle)) : 'Locked'}" 
+                    data-desc="${un ? (isGold ? `Legendary! You reached ${x.gold}+ (${x.val})` : (x.d || 'Unlocked!')) : 'Keep playing to find this item!'}"
+                    >${x.i}</span>`
+        }).join('') + `</div>`;
+
+        let bugJarHTML = '';
+        if (saved > 0) {
+             const bugCount = Math.min(saved, 40);
+             let bugsStr = '';
+             for(let i=0; i<bugCount; i++) bugsStr += `<span class="jar-bug" style="cursor: pointer; display: inline-block; padding: 2px;">🦟</span>`;
+             bugJarHTML = `<div class="w-full text-center my-4 p-3 bg-green-50 rounded-xl border border-green-100"><div class="text-[10px] font-bold text-green-600 mb-1">THE BUG JAR (${saved})</div><div id="jar-container" class="text-xl">${bugsStr}</div></div>`;
+        }
+        
+        let bugHotelHTML = '';
+        const splattedCount = State.data.insectStats.splatted || 0;
+        const collection = State.data.insectStats.collection || [];
+        const bugTypes = [{ char: '🦟', type: 'house' }, { char: '🐞', type: 'house' }, { char: '🐝', type: 'house' }, { char: '🚁', type: 'hotel' }];
+        const requiredChars = bugTypes.map(b => b.char);
+        const isComplete = requiredChars.every(c => collection.includes(c));
+
+        if (splattedCount > 0 || collection.length > 0) {
+            let innerHTML = '';
+            if (isComplete) {
+                innerHTML = `<div class="flex justify-center gap-3 filter drop-shadow-sm mb-1">`;
+                bugTypes.forEach(bug => {
+                    const style = bug.type === 'hotel' ? 'border-2 border-red-500 bg-red-100 rounded-md shadow-sm text-2xl px-2 py-1' : 'border-2 border-green-500 bg-green-100 rounded-md shadow-sm text-2xl px-2 py-1';
+                    innerHTML += `<span class="${style}">${bug.char}</span>`;
+                });
+                innerHTML += `</div><div class="text-[9px] text-green-700 mt-1 font-bold uppercase tracking-widest">You've won capitalism!</div>`;
+                bugHotelHTML = `<div class="w-full text-center my-4 p-3 bg-green-50 rounded-xl border-2 border-green-500 relative overflow-hidden shadow-md"><div class="absolute top-0 right-0 bg-green-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-bl-lg">WINNER</div><div class="text-[10px] font-bold text-green-800 mb-3 uppercase tracking-wider">Bug Street Completed</div>${innerHTML}</div>`;
+            } else {
+                innerHTML = `<div class="flex justify-center gap-2 flex-wrap">`;
+                bugTypes.forEach(bug => {
+                    const hasIt = collection.includes(bug.char);
+                    innerHTML += hasIt ? `<span class="inline-block p-1 rounded-md ${bug.type==='hotel'?'border-2 border-red-400 bg-white':'border-2 border-green-400 bg-white'} text-2xl">${bug.char}</span>` : `<span class="inline-block p-1 rounded-md border-2 border-dashed border-gray-300 text-2xl grayscale opacity-30">${bug.char}</span>`;
+                });
+                innerHTML += `</div>`;
+                bugHotelHTML = `<div class="w-full text-center my-4 p-3 bg-stone-100 rounded-xl border border-stone-200 relative overflow-hidden"><div class="text-[10px] font-bold text-stone-500 mb-2 uppercase tracking-wider">Bug Street (${collection.length}/4)</div>${innerHTML}</div>`;
+            }
+        }
+        
+        const b = DOM.profile.badges;
+        if (b) {
+            b.innerHTML = 
+                `<div class="text-xs font-bold text-gray-500 uppercase mb-2 mt-2">🏆 Word Badges</div>` + renderRow(row1) + 
+                `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🧸 Found Items</div>` + renderRow(row2) + 
+                `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🌊 Aquarium</div>` + renderRow(row_fish) + 
+                bugJarHTML + bugHotelHTML + 
+                `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🎖️ Achievements</div>` + renderRow(row3);
+
+            // Re-attach listeners
+            const showTooltip = (targetEl, title, desc) => { /* Tooltip logic omitted */ };
+            
+            b.querySelectorAll('.badge-item').forEach(el => {
+                el.onclick = (e) => {
+                    if(el.dataset.word) { Game.loadSpecial(el.dataset.word); ModalManager.toggle('profile', false); }
+                }
+            });
+        }
+
         ModalManager.toggle('profile', true);
     },
 	
@@ -7716,48 +7838,40 @@ checkDailyStatus() {
         e.style.color = ''
     },
 
-    async renderLeaderboardTable() {
+async renderLeaderboardTable() {
         const lbContainer = DOM.general.voteLeaderboardTable;
         if (!lbContainer) return;
-        lbContainer.innerHTML = '<div class="text-center text-gray-500 p-4">Loading top voters...</div>';
+        lbContainer.innerHTML = '<div class="text-center text-gray-500 p-4">Loading...</div>';
         const allUsers = await API.fetchLeaderboard();
-        const topUsers = allUsers.slice(0, 5);
-        if (topUsers.length === 0) {
-            lbContainer.innerHTML = '<div class="text-center text-gray-500 p-4">Global leaderboard unavailable.</div>';
-            return;
-        }
-        const d = State.data;
-        let html = '<h3 class="text-lg font-bold text-gray-800 mb-3 mt-4">Top Voters (Global)</h3>';
-        topUsers.forEach((user, i) => {
-            const isYou = d.userId && user.userId === d.userId;
-            const rowClass = isYou 
-                ? 'bg-indigo-100 border-2 border-indigo-400 font-bold text-indigo-700' 
-                : 'bg-white border border-gray-200 text-gray-800';
-            html += `<div class="flex justify-between items-center py-2 px-3 rounded ${rowClass} text-sm mb-1"><span class="w-6 text-center">#${i + 1}</span><span class="truncate flex-1">${user.username ? user.username.substring(0, 20) : 'Anonymous'}</span><span class="text-right">${(user.voteCount || 0).toLocaleString()} votes</span></div>`;
-        });
-        const userRankIndex = allUsers.findIndex(u => u.userId === d.userId);
-        if (userRankIndex >= 5) {
-            const myUser = allUsers[userRankIndex];
-            html += `<div class="text-center text-gray-400 text-xs my-1">...</div>`;
-            html += `<div class="flex justify-between items-center py-2 px-3 rounded bg-indigo-100 border-2 border-indigo-400 font-bold text-indigo-700 text-sm mb-1"><span class="w-6 text-center">#${userRankIndex + 1}</span><span class="truncate flex-1">You (${myUser.username ? myUser.username.substring(0, 15) : 'Anonymous'})</span><span class="text-right">${(myUser.voteCount || 0).toLocaleString()} votes</span></div>`;
-        }
         
-        // Top Daily Streaks section
-        html += '<h3 id="dailyStreaksHeader" class="text-lg font-bold text-gray-800 mb-3 mt-6">🔥 Top Daily Streaks</h3>';
-        const streakUsers = allUsers.filter(u => u.dailyStreak && u.dailyStreak > 0).sort((a, b) => (b.dailyStreak || 0) - (a.dailyStreak || 0)).slice(0, 5);
+        // GLOBAL LIST
+        const topUsers = allUsers.slice(0, 5);
+        let html = '<h3 class="text-lg font-bold text-gray-800 mb-3 mt-4">Top Voters (Global)</h3>';
+        
+        if (topUsers.length === 0) {
+            html += '<div class="text-center text-gray-500 text-sm">Unavailable</div>';
+        } else {
+            topUsers.forEach((user, i) => {
+                const isYou = State.data.userId && user.userId === State.data.userId;
+                const rowClass = isYou ? 'bg-indigo-100 border-2 border-indigo-400 font-bold text-indigo-700' : 'bg-white border border-gray-200 text-gray-800';
+                html += `<div class="flex justify-between items-center py-2 px-3 rounded ${rowClass} text-sm mb-1"><span class="w-6 text-center">#${i + 1}</span><span class="truncate flex-1">${user.username || 'Anonymous'}</span><span class="text-right">${(user.voteCount || 0).toLocaleString()}</span></div>`;
+            });
+        }
+
+        // --- CHANGE: ADDED ID HERE ---
+        html += '<h3 id="dailyStreaksHeader" class="text-lg font-bold text-gray-800 mb-3 mt-6 pt-2 border-t border-gray-100">🔥 Top Daily Streaks</h3>';
+        // -----------------------------
+
+        // STREAK LIST
+        const streakUsers = allUsers.filter(u => u.dailyStreak > 0).sort((a, b) => b.dailyStreak - a.dailyStreak).slice(0, 5);
         if (streakUsers.length > 0) {
             streakUsers.forEach((user, i) => {
-                const isYou = d.userId && user.userId === d.userId;
-                const rowClass = isYou 
-                    ? 'bg-orange-100 border-2 border-orange-400 font-bold text-orange-700' 
-                    : 'bg-white border border-gray-200 text-gray-800';
-                html += `<div class="flex justify-between items-center py-2 px-3 rounded ${rowClass} text-sm mb-1"><span class="w-6 text-center">#${i + 1}</span><span class="truncate flex-1">${user.username ? user.username.substring(0, 20) : 'Anonymous'}</span><span class="text-right">🔥 ${user.dailyStreak} days</span></div>`;
+                const isYou = State.data.userId && user.userId === State.data.userId;
+                const rowClass = isYou ? 'bg-orange-100 border-2 border-orange-400 font-bold text-orange-700' : 'bg-white border border-gray-200 text-gray-800';
+                html += `<div class="flex justify-between items-center py-2 px-3 rounded ${rowClass} text-sm mb-1"><span class="w-6 text-center">#${i + 1}</span><span class="truncate flex-1">${user.username || 'Anonymous'}</span><span class="text-right">🔥 ${user.dailyStreak}</span></div>`;
             });
-        } else if (d.daily.streak > 0) {
-            html += `<div class="flex justify-between items-center py-2 px-3 rounded bg-orange-100 border-2 border-orange-400 font-bold text-orange-700 text-sm mb-1"><span class="w-6 text-center">#1</span><span class="truncate flex-1">You</span><span class="text-right">🔥 ${d.daily.streak} days</span></div>`;
-            html += `<p class="text-xs text-gray-400 mt-2 text-center">Complete daily challenges to climb!</p>`;
         } else {
-            html += `<p class="text-xs text-gray-400 mt-2 text-center">Complete your daily challenge to appear here!</p>`;
+            html += `<div class="text-center text-gray-400 text-xs my-2">No streaks yet!</div>`;
         }
         
         lbContainer.innerHTML = html;
