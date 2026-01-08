@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.99.0', 
+    APP_VERSION: '5.99.1', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1899,9 +1899,15 @@ const WeatherManager = {
     updateVisuals() {
         const t = State.runtime.currentTheme;
         Effects.rain(false);
-        Effects.weatherSnow(false); 
+        
+        // FIX: Explicitly unhide snow container on Winter theme
+        if (t === 'winter') {
+            const s = document.getElementById('snow-effect');
+            if (s) s.style.display = ''; 
+            return;
+        }
 
-        if (t === 'winter') return; 
+        Effects.weatherSnow(false); 
 
         const isAllowedTheme = this.ALLOWED_THEMES.includes(t);
         const enabled = State.data.settings.enableWeather;
