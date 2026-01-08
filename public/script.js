@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.99.5', 
+    APP_VERSION: '5.99.6', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4414,15 +4414,25 @@ openProfile() {
         
 		const bestEl = document.getElementById('bestDailyStreak');
         if (bestEl) {
-            let bestRecord = d.longestStreak || 0;
-            if (d.highScores && d.highScores.length > 0) {
-                const topScore = d.highScores[0].score || 0;
-                if (topScore > bestRecord) {
-                    bestRecord = topScore;
-                    State.save('longestStreak', bestRecord); 
+            // 1. Start with the saved record (or 0)
+            let currentRecord = parseInt(d.longestStreak) || 0;
+            
+            // 2. "Self-Heal": Scan ALL local High Scores for a higher number
+            // This handles unsorted lists or string/number mismatches
+            if (Array.isArray(d.highScores) && d.highScores.length > 0) {
+                const maxInHistory = d.highScores.reduce((max, item) => {
+                    const s = parseInt(item.score) || 0;
+                    return s > max ? s : max;
+                }, 0);
+                
+                if (maxInHistory > currentRecord) {
+                    currentRecord = maxInHistory;
+                    State.save('longestStreak', currentRecord); // Save the fix permanently
                 }
             }
-            bestEl.textContent = bestRecord;
+            
+            // 3. Display the result
+            bestEl.textContent = currentRecord.toLocaleString();
         }
 
         const goldenEl = document.getElementById('goldenWordsFound');
