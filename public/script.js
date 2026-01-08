@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.98.7', 
+    APP_VERSION: '5.98.8', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1559,9 +1559,9 @@ const ThemeManager = {
 		
 		const rs = document.createElement("style");
 rs.innerHTML = `
-    .rain-drop {
+.rain-drop {
         position: absolute;
-        background: rgba(173, 216, 230, 0.6);
+        background: rgba(59, 130, 246, 0.9); /* <--- CHANGED HERE */
         width: 2px;
         height: 15px;
         bottom: 100%;
@@ -2142,7 +2142,7 @@ rain(active) {
             const drop = document.createElement('div');
             drop.className = 'rain-drop';
             drop.style.left = Math.random() * 100 + 'vw';
-            drop.style.animationDuration = (Math.random() * 0.5 + 0.5) + 's';
+            drop.style.animationDuration = (Math.random() * 0.5 + 0.8) + 's';
             drop.style.animationDelay = (Math.random() * 2) + 's';
             drop.style.opacity = Math.random() * 0.5 + 0.3;
             c.appendChild(drop);
