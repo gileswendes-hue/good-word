@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.99.11', 
+    APP_VERSION: '5.99.12', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4399,7 +4399,18 @@ openProfile() {
         this.updateProfileDisplay();
         const d = State.data;
 
-        // --- 1. BADGE UNLOCK CHECKS ---
+        // --- 1. DATA HEALING (Sync all record trackers) ---
+        const savedRecord = parseInt(d.longestStreak) || 0;
+        const dailyRecord = parseInt(d.daily.bestStreak) || 0;
+        const realRecord = Math.max(savedRecord, dailyRecord);
+        
+        if (d.longestStreak < realRecord) {
+            d.longestStreak = realRecord;
+            State.save('longestStreak', realRecord);
+        }
+        // --------------------------------------------------
+
+        // --- 2. BADGE UNLOCK CHECKS ---
         if (d.insectStats.saved >= 100 && !d.badges.saint) State.unlockBadge('saint');
         if (d.insectStats.eaten >= 100 && !d.badges.exterminator) State.unlockBadge('exterminator');
         if (d.insectStats.teased >= 50 && !d.badges.prankster) State.unlockBadge('prankster');
@@ -4409,23 +4420,27 @@ openProfile() {
         if (d.fishStats.caught >= 250 && !d.badges.angler) State.unlockBadge('angler');
         if (d.fishStats.spared >= 250 && !d.badges.shepherd) State.unlockBadge('shepherd');
 
-        // --- 2. BASIC STATS ---
-        DOM.profile.streak.textContent = d.daily.streak || 0;
+        // --- 3. BASIC STATS & FAIL-SAFE DISPLAY ---
         DOM.profile.totalVotes.textContent = d.voteCount.toLocaleString();
         DOM.profile.contributions.textContent = d.contributorCount.toLocaleString();
 
         const goldenEl = document.getElementById('goldenWordsFound');
         if (goldenEl) goldenEl.textContent = d.daily.goldenWordsFound || 0;
+
+        // Try to find the specific Best Streak element
+        const bestEl = document.getElementById('bestDailyStreak');
         
-        // --- 3. FIX: UPDATE RECORD AFTER RENDER ---
-        // We use setTimeout to ensure this runs AFTER the modal HTML is fully built/reset.
-		setTimeout(() => {
-            const bestEl = document.getElementById('bestDailyStreak');
-            if (bestEl) {
-                // Read the "72" directly from memory
-                bestEl.textContent = (parseInt(State.data.longestStreak) || 0).toLocaleString();
-            }
-        }, 50);
+        if (bestEl) {
+            // Plan A: Update the dedicated element
+            DOM.profile.streak.textContent = d.daily.streak || 0;
+            bestEl.textContent = realRecord.toLocaleString();
+        } else {
+            // Plan B: Element missing? Show record in the main streak box
+            // Display format: "Current (Best: 72)"
+            const current = d.daily.streak || 0;
+            DOM.profile.streak.innerHTML = `${current} <span style="font-size:0.6em; color:#888;">(Best: ${realRecord})</span>`;
+        }
+        // ------------------------------------------
 
         // --- 4. TITLE & THEMES ---
         const saved = d.insectStats.saved;
@@ -4503,7 +4518,6 @@ openProfile() {
                     >${x.i}</span>`
         }).join('') + `</div>`;
 
-        // ... (Bug Jar and Hotel Logic logic remains same, condensed here for brevity)
         let bugJarHTML = '';
         if (saved > 0) {
              const bugCount = Math.min(saved, 40);
