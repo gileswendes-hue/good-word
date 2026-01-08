@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.99.16', 
+    APP_VERSION: '5.99.14', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4411,27 +4411,23 @@ openProfile() {
         State.save('daily', d.daily); 
         // -----------------------------------
 
-        // --- 2. BASIC STATS ---
-        DOM.profile.totalVotes.textContent = d.voteCount.toLocaleString();
-        DOM.profile.contributions.textContent = d.contributorCount.toLocaleString();
+        // --- 2. BASIC STATS (Left Box & Center) ---
+        if (DOM.profile.streak) DOM.profile.streak.textContent = d.daily.streak || 0;
+        if (DOM.profile.totalVotes) DOM.profile.totalVotes.textContent = d.voteCount.toLocaleString();
+        if (DOM.profile.contributions) DOM.profile.contributions.textContent = d.contributorCount.toLocaleString();
         
         const goldenEl = document.getElementById('goldenWordsFound');
         if (goldenEl) goldenEl.textContent = d.daily.goldenWordsFound || 0;
 
-        // --- 3. THE "HOSTILE TAKEOVER" DISPLAY FIX ---
-        // Since we can't find the ID of the "0" box, we will force the record 
-        // to appear inside the Main Streak box, which we KNOW is visible.
-        const current = d.daily.streak || 0;
+        // --- 3. THE FIX: RIGHT BOX UPDATE ---
+        // This is the specific line that was in 5.97.8 but missing in 5.99.
+        // It targets the Right Box (Word Streak Challenge).
+        const streakEl = document.getElementById('streak-display-value');
+        if(streakEl) {
+            streakEl.textContent = realRecord + " Words";
+        }
         
-        // This injects the Best Score directly under the current score
-        DOM.profile.streak.innerHTML = `
-            ${current}
-            <div style="font-size: 10px; opacity: 0.6; line-height: 1.2; font-weight: normal; margin-top: -2px;">
-                BEST: <span style="color: #4f46e5; font-weight: bold;">${realRecord}</span>
-            </div>
-        `;
-        
-        // We still try to update the old box just in case, but it doesn't matter anymore.
+        // Also update the legacy ID just in case
         const bestEl = document.getElementById('bestDailyStreak');
         if (bestEl) bestEl.textContent = realRecord;
         // ---------------------------------------------
@@ -4458,11 +4454,13 @@ openProfile() {
         if (d.badges.chopper) karmaTitle = "Air Traffic Controller 🚁";
         if (d.badges.angler) karmaTitle = "The Best in Brixham 🎣";
 
-        DOM.profile.statsTitle.innerHTML = `${d.username ? d.username + "'s" : "Your"} Stats<br><span class="text-xs text-indigo-500 font-bold uppercase tracking-widest mt-1 block">${karmaTitle}</span>`;
+        if (DOM.profile.statsTitle) {
+            DOM.profile.statsTitle.innerHTML = `${d.username ? d.username + "'s" : "Your"} Stats<br><span class="text-xs text-indigo-500 font-bold uppercase tracking-widest mt-1 block">${karmaTitle}</span>`;
+        }
 
         const totalAvailable = Object.keys(CONFIG.THEME_SECRETS).length + 1;
         const userCount = d.unlockedThemes.length + 1;
-        DOM.profile.themes.textContent = `${userCount} / ${totalAvailable}`;
+        if (DOM.profile.themes) DOM.profile.themes.textContent = `${userCount} / ${totalAvailable}`;
         
         // --- 6. BUILD BADGE GRID ---
         const row1 = [
@@ -4559,20 +4557,22 @@ openProfile() {
         }
         
         const b = DOM.profile.badges;
-        b.innerHTML = 
-            `<div class="text-xs font-bold text-gray-500 uppercase mb-2 mt-2">🏆 Word Badges</div>` + renderRow(row1) + 
-            `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🧸 Found Items</div>` + renderRow(row2) + 
-            `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🌊 Aquarium</div>` + renderRow(row_fish) + 
-            bugJarHTML + bugHotelHTML + 
-            `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🎖️ Achievements</div>` + renderRow(row3);
+        if (b) {
+            b.innerHTML = 
+                `<div class="text-xs font-bold text-gray-500 uppercase mb-2 mt-2">🏆 Word Badges</div>` + renderRow(row1) + 
+                `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🧸 Found Items</div>` + renderRow(row2) + 
+                `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🌊 Aquarium</div>` + renderRow(row_fish) + 
+                bugJarHTML + bugHotelHTML + 
+                `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🎖️ Achievements</div>` + renderRow(row3);
 
-        const showTooltip = (targetEl, title, desc) => { /* Tooltip logic */ };
-        
-        b.querySelectorAll('.badge-item').forEach(el => {
-             el.onclick = (e) => {
-                 if(el.dataset.word) { Game.loadSpecial(el.dataset.word); ModalManager.toggle('profile', false); }
-             }
-        });
+            const showTooltip = (targetEl, title, desc) => { /* Tooltip logic omitted */ };
+            
+            b.querySelectorAll('.badge-item').forEach(el => {
+                el.onclick = (e) => {
+                    if(el.dataset.word) { Game.loadSpecial(el.dataset.word); ModalManager.toggle('profile', false); }
+                }
+            });
+        }
 
         ModalManager.toggle('profile', true);
     },
