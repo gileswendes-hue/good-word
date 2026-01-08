@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.99.7', 
+    APP_VERSION: '5.99.8', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4413,27 +4413,7 @@ openProfile() {
         DOM.profile.contributions.textContent = d.contributorCount.toLocaleString();
         
 		const bestEl = document.getElementById('bestDailyStreak');
-        if (bestEl) {
-            // 1. Start with the saved record (or 0)
-            let currentRecord = parseInt(d.longestStreak) || 0;
-            
-            // 2. "Self-Heal": Scan ALL local High Scores for a higher number
-            // This handles unsorted lists or string/number mismatches
-            if (Array.isArray(d.highScores) && d.highScores.length > 0) {
-                const maxInHistory = d.highScores.reduce((max, item) => {
-                    const s = parseInt(item.score) || 0;
-                    return s > max ? s : max;
-                }, 0);
-                
-                if (maxInHistory > currentRecord) {
-                    currentRecord = maxInHistory;
-                    State.save('longestStreak', currentRecord); // Save the fix permanently
-                }
-            }
-            
-            // 3. Display the result
-            bestEl.textContent = currentRecord.toLocaleString();
-        }
+		if (bestEl) bestEl.textContent = State.data.longestStreak || 0;
 
         const goldenEl = document.getElementById('goldenWordsFound');
         if (goldenEl) goldenEl.textContent = d.daily.goldenWordsFound || 0;
@@ -8633,7 +8613,6 @@ const StreakManager = {
     window.RoomManager = RoomManager;
     window.UIManager = UIManager;
 	window.WeatherManager = WeatherManager;
-	window.State = State;
 
     console.log("%c Good Word / Bad Word ", "background: #4f46e5; color: #bada55; padding: 4px; border-radius: 4px;");
     console.log("Play fair! ️😇");
