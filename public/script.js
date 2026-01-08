@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.99.14', 
+    APP_VERSION: '5.99.15', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4396,30 +4396,58 @@ showRoleReveal(title, subtitle, type = 'neutral') {
     },
 	
 openProfile() {
+        this.updateProfileDisplay();
         const d = State.data;
 
-        // --- 1. THE BRIDGE: Sync your 72 (longestStreak) to the variable this function expects (bestStreak) ---
-        // This is the missing link that makes the old code work with your new data.
-        if ((d.longestStreak || 0) > (d.daily.bestStreak || 0)) {
-            d.daily.bestStreak = d.longestStreak;
-            State.save('daily', d.daily); // Save it so it sticks forever
-        }
-        // ---------------------------------------------------------------------------------------------------
+        // --- 1. SYNC DATA ---
+        // Ensure we use the highest number found in any variable
+        const maxScore = Math.max(
+            parseInt(d.longestStreak) || 0, 
+            parseInt(d.daily.bestStreak) || 0
+        );
+        d.longestStreak = maxScore;
+        d.daily.bestStreak = maxScore; 
+        State.save('longestStreak', maxScore);
 
-        this.updateProfileDisplay();
-        
-        DOM.profile.streak.textContent = d.daily.streak || 0;
+        // --- 2. BASIC STATS ---
         DOM.profile.totalVotes.textContent = d.voteCount.toLocaleString();
         DOM.profile.contributions.textContent = d.contributorCount.toLocaleString();
         
-        // Update best daily streak and golden words (EXACT LOGIC FROM 5.97.8)
-        const bestEl = document.getElementById('bestDailyStreak');
-        if (bestEl) bestEl.textContent = d.longestStreak || 0;
-        
         const goldenEl = document.getElementById('goldenWordsFound');
         if (goldenEl) goldenEl.textContent = d.daily.goldenWordsFound || 0;
-        
-        // --- KARMA TITLE LOGIC ---
+
+        // --- 3. FAIL-SAFE STREAK DISPLAY ---
+        // A. Show Current Streak
+        const currentStreak = d.daily.streak || 0;
+        DOM.profile.streak.innerHTML = currentStreak;
+
+        // B. Handle Best Streak Element (Force Visibility)
+        const bestEl = document.getElementById('bestDailyStreak');
+        if (bestEl) {
+            bestEl.textContent = maxScore.toLocaleString();
+            bestEl.style.display = 'inline-block'; // Force show
+            bestEl.style.visibility = 'visible';   // Force show
+            bestEl.style.opacity = '1';            // Force show
+        }
+
+        // C. BACKUP: If Current is 0 but Best is > 0, show it in the main box too
+        // This ensures you see it even if the 'bestEl' above is hidden by CSS
+        if (maxScore > 0) {
+            DOM.profile.streak.innerHTML += ` <span style="font-size:0.5em; opacity:0.8; font-weight:normal;">(Best: ${maxScore})</span>`;
+        }
+        // ------------------------------------
+
+        // --- 4. BADGE UNLOCK CHECKS ---
+        if (d.insectStats.saved >= 100 && !d.badges.saint) State.unlockBadge('saint');
+        if (d.insectStats.eaten >= 100 && !d.badges.exterminator) State.unlockBadge('exterminator');
+        if (d.insectStats.teased >= 50 && !d.badges.prankster) State.unlockBadge('prankster');
+        if (d.voteCount >= 1000 && !d.badges.judge) State.unlockBadge('judge');
+        if (d.contributorCount >= 5 && !d.badges.bard) State.unlockBadge('bard');
+        if ((d.unlockedThemes.length + 1) >= 5 && !d.badges.traveler) State.unlockBadge('traveler');
+        if (d.fishStats.caught >= 250 && !d.badges.angler) State.unlockBadge('angler');
+        if (d.fishStats.spared >= 250 && !d.badges.shepherd) State.unlockBadge('shepherd');
+
+        // --- 5. TITLE & THEMES ---
         const saved = d.insectStats.saved;
         const eaten = d.insectStats.eaten;
         let karmaTitle = "Garden Observer";
@@ -4437,7 +4465,7 @@ openProfile() {
         const userCount = d.unlockedThemes.length + 1;
         DOM.profile.themes.textContent = `${userCount} / ${totalAvailable}`;
         
-        // --- BUILD BADGE GRID (Preserved from 5.99 to keep new badges working) ---
+        // --- 6. BUILD BADGE GRID ---
         const row1 = [
             { k: 'cake', i: '🎂', w: 'CAKE' }, { k: 'llama', i: '🦙', w: 'LLAMA' }, 
             { k: 'potato', i: '🥔', w: 'POTATO' }, { k: 'squirrel', i: '🐿️', w: 'SQUIRREL' }, 
@@ -4503,15 +4531,43 @@ openProfile() {
              bugJarHTML = `<div class="w-full text-center my-4 p-3 bg-green-50 rounded-xl border border-green-100"><div class="text-[10px] font-bold text-green-600 mb-1">THE BUG JAR (${saved})</div><div id="jar-container" class="text-xl">${bugsStr}</div></div>`;
         }
         
+        // Bug Street / Hotel Logic
+        let bugHotelHTML = '';
+        const splattedCount = State.data.insectStats.splatted || 0;
+        const collection = State.data.insectStats.collection || [];
+        const bugTypes = [{ char: '🦟', type: 'house' }, { char: '🐞', type: 'house' }, { char: '🐝', type: 'house' }, { char: '🚁', type: 'hotel' }];
+        const requiredChars = bugTypes.map(b => b.char);
+        const isComplete = requiredChars.every(c => collection.includes(c));
+
+        if (splattedCount > 0 || collection.length > 0) {
+            let innerHTML = '';
+            if (isComplete) {
+                innerHTML = `<div class="flex justify-center gap-3 filter drop-shadow-sm mb-1">`;
+                bugTypes.forEach(bug => {
+                    const style = bug.type === 'hotel' ? 'border-2 border-red-500 bg-red-100 rounded-md shadow-sm text-2xl px-2 py-1' : 'border-2 border-green-500 bg-green-100 rounded-md shadow-sm text-2xl px-2 py-1';
+                    innerHTML += `<span class="${style}">${bug.char}</span>`;
+                });
+                innerHTML += `</div><div class="text-[9px] text-green-700 mt-1 font-bold uppercase tracking-widest">You've won capitalism!</div>`;
+                bugHotelHTML = `<div class="w-full text-center my-4 p-3 bg-green-50 rounded-xl border-2 border-green-500 relative overflow-hidden shadow-md"><div class="absolute top-0 right-0 bg-green-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-bl-lg">WINNER</div><div class="text-[10px] font-bold text-green-800 mb-3 uppercase tracking-wider">Bug Street Completed</div>${innerHTML}</div>`;
+            } else {
+                innerHTML = `<div class="flex justify-center gap-2 flex-wrap">`;
+                bugTypes.forEach(bug => {
+                    const hasIt = collection.includes(bug.char);
+                    innerHTML += hasIt ? `<span class="inline-block p-1 rounded-md ${bug.type==='hotel'?'border-2 border-red-400 bg-white':'border-2 border-green-400 bg-white'} text-2xl">${bug.char}</span>` : `<span class="inline-block p-1 rounded-md border-2 border-dashed border-gray-300 text-2xl grayscale opacity-30">${bug.char}</span>`;
+                });
+                innerHTML += `</div>`;
+                bugHotelHTML = `<div class="w-full text-center my-4 p-3 bg-stone-100 rounded-xl border border-stone-200 relative overflow-hidden"><div class="text-[10px] font-bold text-stone-500 mb-2 uppercase tracking-wider">Bug Street (${collection.length}/4)</div>${innerHTML}</div>`;
+            }
+        }
+        
         const b = DOM.profile.badges;
         b.innerHTML = 
             `<div class="text-xs font-bold text-gray-500 uppercase mb-2 mt-2">🏆 Word Badges</div>` + renderRow(row1) + 
             `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🧸 Found Items</div>` + renderRow(row2) + 
             `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🌊 Aquarium</div>` + renderRow(row_fish) + 
-            bugJarHTML + 
+            bugJarHTML + bugHotelHTML + 
             `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🎖️ Achievements</div>` + renderRow(row3);
 
-        // Re-attach listeners
         const showTooltip = (targetEl, title, desc) => { /* Tooltip logic */ };
         
         b.querySelectorAll('.badge-item').forEach(el => {
@@ -4520,7 +4576,6 @@ openProfile() {
              }
         });
 
-        // --- 6. OPEN MODAL ---
         ModalManager.toggle('profile', true);
     },
 	
