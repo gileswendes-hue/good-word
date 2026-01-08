@@ -4407,7 +4407,7 @@ openProfile() {
 
         // --- 2. LEFT BOX: DAILY STREAK (Click -> Bottom of Leaderboard) ---
         if (DOM.profile.streak) {
-            DOM.profile.streak.textContent = d.daily.streak || 0; // Wipes "Best: 0" text
+            DOM.profile.streak.textContent = d.daily.streak || 0;
             DOM.profile.streak.style.cursor = 'pointer';
             DOM.profile.streak.style.textDecoration = 'underline';
             DOM.profile.streak.onclick = () => {
@@ -4479,24 +4479,34 @@ openProfile() {
         const userCount = d.unlockedThemes.length + 1;
         if (DOM.profile.themes) DOM.profile.themes.textContent = `${userCount} / ${totalAvailable}`;
 
-        // --- 6. BUILD BADGE GRID (FULLY RESTORED) ---
         const row1 = [
-            { k: 'cake', i: '🎂', w: 'CAKE' }, { k: 'llama', i: '🦙', w: 'LLAMA' }, 
-            { k: 'potato', i: '🥔', w: 'POTATO' }, { k: 'squirrel', i: '🐿️', w: 'SQUIRREL' }, 
-            { k: 'spider', i: '🕷️', w: 'SPIDER' }, { k: 'germ', i: '🦠', w: 'GERM' }, 
+            { k: 'cake', i: '🎂', w: 'CAKE' }, 
+            { k: 'llama', i: '🦙', w: 'LLAMA' }, 
+            { k: 'potato', i: '🥔', w: 'POTATO' }, 
+            { k: 'squirrel', i: '🐿️', w: 'SQUIRREL' }, 
+            { k: 'spider', i: '🕷️', w: 'SPIDER' }, 
+            { k: 'germ', i: '🦠', w: 'GERM' }, 
             { k: 'bone', i: '🦴', w: 'MASON' }
         ];
         
         const row2 = [
-            { k: 'poop', i: '💩' }, { k: 'penguin', i: '🐧' }, { k: 'scorpion', i: '🦂' }, 
-            { k: 'mushroom', i: '🍄' }, { k: 'needle', i: '💉' }, { k: 'diamond', i: '💎' },
-            { k: 'rock', i: '🤘' }, { k: 'chopper', i: '🚁' }, { k: 'snowman', i: '⛄' }
+            { k: 'poop', i: '💩', d: 'squelch.' }, 
+            { k: 'penguin', i: '🐧', d: 'noot noot!' }, 
+            { k: 'scorpion', i: '🦂', d: 'I am in your tent.' }, 
+            { k: 'mushroom', i: '🍄', d: 'edible once.' }, 
+            { k: 'needle', i: '💉', d: 'wheedle, wheedle, pry and needle' }, 
+            { k: 'diamond', i: '💎', d: 'hidden Gem.' },
+            { k: 'rock', i: '🤘', d: 'space rock!' }, 
+            { k: 'chopper', i: '🚁', d: 'Get to the choppa!' }, 
+            { k: 'snowman', i: '⛄', d: "# We're walking in the air..." }
         ];
         
         const row_fish = [
-            { k: 'fish', i: '🐟', t: 'Blue Fish' }, { k: 'tropical', i: '🐠', t: 'Tropical Fish' }, 
-            { k: 'puffer', i: '🐡', t: 'Pufferfish' }, { k: 'shark', i: '🦈', t: 'Shark' },
-            { k: 'octopus', i: '🐙', t: 'The Kraken' }
+            { k: 'fish', i: '🐟', t: 'Blue Fish', d: 'A standard catch.' }, 
+            { k: 'tropical', i: '🐠', t: 'Tropical Fish', d: 'Found in the deep.' }, 
+            { k: 'puffer', i: '🐡', t: 'Pufferfish', d: 'Spiky friend.' }, 
+            { k: 'shark', i: '🦈', t: 'Shark', d: 'Gonna need a bigger boat.' },
+            { k: 'octopus', i: '🐙', t: 'The Kraken', d: 'Ink-credible!' }
         ];
         
         const row3 = [
