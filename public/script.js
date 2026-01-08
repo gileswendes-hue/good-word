@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.99.13', 
+    APP_VERSION: '5.99.14', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4414,7 +4414,7 @@ openProfile() {
         
         // Update best daily streak and golden words (EXACT LOGIC FROM 5.97.8)
         const bestEl = document.getElementById('bestDailyStreak');
-        if (bestEl) bestEl.textContent = d.daily.bestStreak || 0;
+        if (bestEl) bestEl.textContent = d.longestStreak || 0;
         
         const goldenEl = document.getElementById('goldenWordsFound');
         if (goldenEl) goldenEl.textContent = d.daily.goldenWordsFound || 0;
