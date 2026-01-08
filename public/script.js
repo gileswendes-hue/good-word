@@ -1814,7 +1814,7 @@ rs.innerHTML = `
         if (State.runtime.allWords.length > 0) UIManager.displayWord(State.runtime.allWords[State.runtime.currentWordIndex]);
         Accessibility.apply();
         TiltManager.refresh();
-		if (window.WeatherManager) window.WeatherManager.updateVisuals();
+		if (typeof WeatherManager !== 'undefined') WeatherManager.updateVisuals();
     },
 	
 checkUnlock(w) {
@@ -2135,8 +2135,10 @@ rain(active) {
         if (!active) {
             c.innerHTML = '';
             c.classList.add('hidden');
+            c.style.display = 'none'; // Force hide immediately
             return;
         }
+        c.style.display = ''; // Restore visibility
         c.classList.remove('hidden');
         if (c.children.length > 0) return;
         const count = 80;
