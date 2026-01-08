@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.98.11', 
+    APP_VERSION: '5.98.12', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -8623,7 +8623,8 @@ const StreakManager = {
 
     window.onload = Game.init.bind(Game);
     window.RoomManager = RoomManager;
-    window.UIManager = UIManager; // Added missing export
+    window.UIManager = UIManager;
+	window.WeatherManager = WeatherManager;
 
     console.log("%c Good Word / Bad Word ", "background: #4f46e5; color: #bada55; padding: 4px; border-radius: 4px;");
     console.log("Play fair! ️😇");
