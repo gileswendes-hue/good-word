@@ -4412,11 +4412,25 @@ openProfile() {
         DOM.profile.totalVotes.textContent = d.voteCount.toLocaleString();
         DOM.profile.contributions.textContent = d.contributorCount.toLocaleString();
         
-		const bestEl = document.getElementById('bestDailyStreak');
-		if (bestEl) bestEl.textContent = State.data.longestStreak || 0;
-
-        const goldenEl = document.getElementById('goldenWordsFound');
-        if (goldenEl) goldenEl.textContent = d.daily.goldenWordsFound || 0;
+const bestEl = document.getElementById('bestDailyStreak');
+        if (bestEl) {
+            let currentRecord = parseInt(State.data.longestStreak) || 0;
+            
+            // SELF-HEAL: If record is 0, scan history to find the real number
+            if (State.data.highScores && Array.isArray(State.data.highScores)) {
+                const maxInHistory = State.data.highScores.reduce((max, item) => {
+                    return Math.max(max, parseInt(item.score) || 0);
+                }, 0);
+                
+                // If history proves you have a better score, restore it!
+                if (maxInHistory > currentRecord) {
+                    currentRecord = maxInHistory;
+                    State.data.longestStreak = currentRecord;
+                    State.save('longestStreak', currentRecord); 
+                }
+            }
+            bestEl.textContent = currentRecord.toLocaleString();
+        }
         
         // Karma Title Logic
         const saved = d.insectStats.saved;
