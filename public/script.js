@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.98.5', 
+    APP_VERSION: '5.98.6', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1888,7 +1888,7 @@ const WeatherManager = {
     },
 
     updateVisuals() {
-        const currentTheme = State.runtime.currentTheme;
+        const currentTheme = State.data.currentTheme;
         const isAllowedTheme = this.ALLOWED_THEMES.includes(currentTheme);
         if (State.data.settings.enableWeather && this.isRaining && isAllowedTheme) {
             Effects.rain(true);
