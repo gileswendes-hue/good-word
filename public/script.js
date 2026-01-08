@@ -8633,6 +8633,7 @@ const StreakManager = {
     window.RoomManager = RoomManager;
     window.UIManager = UIManager;
 	window.WeatherManager = WeatherManager;
+	window.State = State;
 
     console.log("%c Good Word / Bad Word ", "background: #4f46e5; color: #bada55; padding: 4px; border-radius: 4px;");
     console.log("Play fair! ️😇");
