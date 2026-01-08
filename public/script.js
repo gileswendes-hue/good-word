@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.99.6', 
+    APP_VERSION: '5.99.7', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -8368,6 +8368,11 @@ const StreakManager = {
     },
 
     endStreak() {
+		const current = State.runtime.streak;
+        if (current > (parseInt(State.data.longestStreak) || 0)) {
+            State.data.longestStreak = current;
+            State.save('longestStreak', current);
+        }
         if (this.timer) clearTimeout(this.timer);
         const finalScore = State.runtime.streak;
         
