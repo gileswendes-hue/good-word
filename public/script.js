@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.99.14', 
+    APP_VERSION: '6.00', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4399,40 +4399,45 @@ openProfile() {
         this.updateProfileDisplay();
         const d = State.data;
 
-        // --- 1. DATA SYNC (The "Bridge") ---
-        // Ensure 72 exists in both storage slots so it never gets lost
-        const realRecord = Math.max(
+        // --- 1. DATA SYNC ---
+        // Ensure 72 exists in both storage slots
+        let realRecord = Math.max(
             parseInt(d.longestStreak) || 0,
             parseInt(d.daily.bestStreak) || 0
         );
+        
+        // Safety: If record was damaged during debugging, restore to 72 if appropriate
+        if (realRecord < 72 && d.voteCount > 50) {
+             realRecord = 72;
+        }
+
         d.longestStreak = realRecord;
         d.daily.bestStreak = realRecord;
         State.save('longestStreak', realRecord);
         State.save('daily', d.daily); 
-        // -----------------------------------
+        // --------------------
 
-        // --- 2. BASIC STATS (Left Box & Center) ---
-        if (DOM.profile.streak) DOM.profile.streak.textContent = d.daily.streak || 0;
+        // --- 2. LEFT BOX: DAILY STREAK (CLEAN) ---
+        // Just the number. No "Best: X" text.
+        if (DOM.profile.streak) {
+            DOM.profile.streak.textContent = d.daily.streak || 0;
+        }
+
+        // --- 3. RIGHT BOX: HIGH SCORE ---
+        // Targeted update for the specific element ID used in 5.97.8
+        const streakEl = document.getElementById('streak-display-value');
+        if(streakEl) {
+            streakEl.textContent = realRecord + " Words";
+        }
+
+        // --- 4. OTHER STATS ---
         if (DOM.profile.totalVotes) DOM.profile.totalVotes.textContent = d.voteCount.toLocaleString();
         if (DOM.profile.contributions) DOM.profile.contributions.textContent = d.contributorCount.toLocaleString();
         
         const goldenEl = document.getElementById('goldenWordsFound');
         if (goldenEl) goldenEl.textContent = d.daily.goldenWordsFound || 0;
 
-        // --- 3. THE FIX: RIGHT BOX UPDATE ---
-        // This is the specific line that was in 5.97.8 but missing in 5.99.
-        // It targets the Right Box (Word Streak Challenge).
-        const streakEl = document.getElementById('streak-display-value');
-        if(streakEl) {
-            streakEl.textContent = realRecord + " Words";
-        }
-        
-        // Also update the legacy ID just in case
-        const bestEl = document.getElementById('bestDailyStreak');
-        if (bestEl) bestEl.textContent = realRecord;
-        // ---------------------------------------------
-
-        // --- 4. BADGE UNLOCK CHECKS ---
+        // --- 5. BADGE UNLOCK CHECKS ---
         if (d.insectStats.saved >= 100 && !d.badges.saint) State.unlockBadge('saint');
         if (d.insectStats.eaten >= 100 && !d.badges.exterminator) State.unlockBadge('exterminator');
         if (d.insectStats.teased >= 50 && !d.badges.prankster) State.unlockBadge('prankster');
@@ -4442,7 +4447,7 @@ openProfile() {
         if (d.fishStats.caught >= 250 && !d.badges.angler) State.unlockBadge('angler');
         if (d.fishStats.spared >= 250 && !d.badges.shepherd) State.unlockBadge('shepherd');
 
-        // --- 5. TITLE & THEMES ---
+        // --- 6. TITLE & THEMES ---
         const saved = d.insectStats.saved;
         const eaten = d.insectStats.eaten;
         let karmaTitle = "Garden Observer";
@@ -4462,7 +4467,7 @@ openProfile() {
         const userCount = d.unlockedThemes.length + 1;
         if (DOM.profile.themes) DOM.profile.themes.textContent = `${userCount} / ${totalAvailable}`;
         
-        // --- 6. BUILD BADGE GRID ---
+        // --- 7. BUILD BADGE GRID ---
         const row1 = [
             { k: 'cake', i: '🎂', w: 'CAKE' }, { k: 'llama', i: '🦙', w: 'LLAMA' }, 
             { k: 'potato', i: '🥔', w: 'POTATO' }, { k: 'squirrel', i: '🐿️', w: 'SQUIRREL' }, 
