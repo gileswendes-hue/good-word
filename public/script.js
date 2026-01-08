@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.99.15', 
+    APP_VERSION: '5.99.16', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4399,15 +4399,17 @@ openProfile() {
         this.updateProfileDisplay();
         const d = State.data;
 
-        // --- 1. SYNC DATA ---
-        // Ensure we use the highest number found in any variable
-        const maxScore = Math.max(
-            parseInt(d.longestStreak) || 0, 
+        // --- 1. DATA SYNC (The "Bridge") ---
+        // Ensure 72 exists in both storage slots so it never gets lost
+        const realRecord = Math.max(
+            parseInt(d.longestStreak) || 0,
             parseInt(d.daily.bestStreak) || 0
         );
-        d.longestStreak = maxScore;
-        d.daily.bestStreak = maxScore; 
-        State.save('longestStreak', maxScore);
+        d.longestStreak = realRecord;
+        d.daily.bestStreak = realRecord;
+        State.save('longestStreak', realRecord);
+        State.save('daily', d.daily); 
+        // -----------------------------------
 
         // --- 2. BASIC STATS ---
         DOM.profile.totalVotes.textContent = d.voteCount.toLocaleString();
@@ -4416,26 +4418,23 @@ openProfile() {
         const goldenEl = document.getElementById('goldenWordsFound');
         if (goldenEl) goldenEl.textContent = d.daily.goldenWordsFound || 0;
 
-        // --- 3. FAIL-SAFE STREAK DISPLAY ---
-        // A. Show Current Streak
-        const currentStreak = d.daily.streak || 0;
-        DOM.profile.streak.innerHTML = currentStreak;
-
-        // B. Handle Best Streak Element (Force Visibility)
+        // --- 3. THE "HOSTILE TAKEOVER" DISPLAY FIX ---
+        // Since we can't find the ID of the "0" box, we will force the record 
+        // to appear inside the Main Streak box, which we KNOW is visible.
+        const current = d.daily.streak || 0;
+        
+        // This injects the Best Score directly under the current score
+        DOM.profile.streak.innerHTML = `
+            ${current}
+            <div style="font-size: 10px; opacity: 0.6; line-height: 1.2; font-weight: normal; margin-top: -2px;">
+                BEST: <span style="color: #4f46e5; font-weight: bold;">${realRecord}</span>
+            </div>
+        `;
+        
+        // We still try to update the old box just in case, but it doesn't matter anymore.
         const bestEl = document.getElementById('bestDailyStreak');
-        if (bestEl) {
-            bestEl.textContent = maxScore.toLocaleString();
-            bestEl.style.display = 'inline-block'; // Force show
-            bestEl.style.visibility = 'visible';   // Force show
-            bestEl.style.opacity = '1';            // Force show
-        }
-
-        // C. BACKUP: If Current is 0 but Best is > 0, show it in the main box too
-        // This ensures you see it even if the 'bestEl' above is hidden by CSS
-        if (maxScore > 0) {
-            DOM.profile.streak.innerHTML += ` <span style="font-size:0.5em; opacity:0.8; font-weight:normal;">(Best: ${maxScore})</span>`;
-        }
-        // ------------------------------------
+        if (bestEl) bestEl.textContent = realRecord;
+        // ---------------------------------------------
 
         // --- 4. BADGE UNLOCK CHECKS ---
         if (d.insectStats.saved >= 100 && !d.badges.saint) State.unlockBadge('saint');
@@ -4531,7 +4530,6 @@ openProfile() {
              bugJarHTML = `<div class="w-full text-center my-4 p-3 bg-green-50 rounded-xl border border-green-100"><div class="text-[10px] font-bold text-green-600 mb-1">THE BUG JAR (${saved})</div><div id="jar-container" class="text-xl">${bugsStr}</div></div>`;
         }
         
-        // Bug Street / Hotel Logic
         let bugHotelHTML = '';
         const splattedCount = State.data.insectStats.splatted || 0;
         const collection = State.data.insectStats.collection || [];
