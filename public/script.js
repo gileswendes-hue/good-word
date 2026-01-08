@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.98.10', 
+    APP_VERSION: '5.98.11', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1837,10 +1837,13 @@ checkUnlock(w) {
 };
 
 const WeatherManager = {
-    // Themes where rain is allowed
     ALLOWED_THEMES: ['default', 'ballpit', 'banana', 'dark', 'fire', 'halloween', 'plymouth', 'rainbow', 'summer', 'woodland'],
+    
     RAIN_CODES: [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99],
+    SNOW_CODES: [71, 73, 75, 77, 85, 86],
+    
     isRaining: false,
+    isSnowing: false,
     hasChecked: false,
 
     init() {
@@ -1854,6 +1857,7 @@ const WeatherManager = {
             this.checkWeather();
         } else {
             this.isRaining = false;
+            this.isSnowing = false;
             this.updateVisuals();
         }
     },
@@ -1872,10 +1876,12 @@ const WeatherManager = {
                     const code = data.current_weather.weathercode;
                     
                     this.isRaining = this.RAIN_CODES.includes(code);
+                    this.isSnowing = this.SNOW_CODES.includes(code);
                     this.hasChecked = true;
                     
-                    if (this.isRaining) UIManager.showPostVoteMessage("It's raining! 🌧️");
-                    else UIManager.showPostVoteMessage("No rain detected. ☀️");
+                    if (this.isSnowing) UIManager.showPostVoteMessage("It's snowing! ❄️");
+                    else if (this.isRaining) UIManager.showPostVoteMessage("It's raining! 🌧️");
+                    else UIManager.showPostVoteMessage("Weather is clear. ☀️");
                     
                     this.updateVisuals();
                 } catch (e) { console.error("Weather fetch failed", e); }
@@ -1889,6 +1895,28 @@ const WeatherManager = {
             }
         );
     },
+
+    updateVisuals() {
+        // If we are on the actual Winter theme, let the theme handle the snow itself.
+        const t = State.runtime.currentTheme;
+        if (t === 'winter') return; 
+
+        const isAllowedTheme = this.ALLOWED_THEMES.includes(t);
+        const enabled = State.data.settings.enableWeather;
+
+        // Reset both first
+        Effects.rain(false);
+        Effects.weatherSnow(false);
+
+        if (enabled && isAllowedTheme) {
+            if (this.isSnowing) {
+                Effects.weatherSnow(true);
+            } else if (this.isRaining) {
+                Effects.rain(true);
+            }
+        }
+    }
+};
 
 updateVisuals() {
         const currentTheme = State.runtime.currentTheme; 
@@ -2152,6 +2180,44 @@ rain(active) {
             c.appendChild(drop);
         }
     },	
+	
+weatherSnow(active) {
+        const c = document.getElementById('snow-effect');
+        if (!c) return;
+        
+        if (!active) {
+            if (State.runtime.currentTheme !== 'winter') {
+                c.innerHTML = '';
+                c.classList.add('hidden');
+                c.style.display = 'none';
+            }
+            return;
+        }
+
+        // Force overlay styles (just like rain)
+        c.classList.remove('hidden');
+        c.style.display = 'block';
+        Object.assign(c.style, {
+            position: 'fixed', inset: '0', pointerEvents: 'none', zIndex: '50'
+        });
+
+        if (c.children.length > 0) return; // Prevent double spawn
+
+        // Create snow particles (simplified from standard snow effect)
+        for (let i = 0; i < 60; i++) {
+            const f = document.createElement('div');
+            f.className = 'snow-particle';
+            const s = Math.random() * 12 + 5;
+            f.style.width = f.style.height = `${s}px`;
+            f.style.opacity = Math.random() * .6 + .3;
+            if (s < 4) f.style.filter = `blur(${Math.random()*2}px)`;
+            f.style.left = `${Math.random()*100}vw`;
+            f.style.setProperty('--sway', `${(Math.random()-.5)*100}px`);
+            f.style.animationDuration = `${Math.random()*15+8}s`;
+            f.style.animationDelay = `-${Math.random()*15}s`;
+            c.appendChild(f);
+        }
+    },
 	
 plymouth(a) {
         const c = DOM.theme.effects.plymouth;
@@ -5381,7 +5447,7 @@ init() {
                 html += mkTog('toggleTilt', 'Gravity Tilt (Default Theme)', s.enableTilt);
                 html += mkTog('toggleMirror', 'Mirror Mode', s.mirrorMode);
                 html += mkTog('toggleLights', '🎄 Christmas Lights', s.showLights, 'text-green-600');
-				html += mkTog('toggleWeather', '🌧️ Real-time Rain', s.enableWeather, 'text-blue-500');
+				html += mkTog('toggleWeather', '🌧️ Real-time Weather', s.enableWeather, 'text-blue-500');
 				html += `<p class="text-xs text-gray-400 mt-1 mb-2">Requires location. ...only happens if it's raining!</p>`;
 				
                 html += `</div></div>`;
