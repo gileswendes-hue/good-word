@@ -4399,17 +4399,19 @@ openProfile() {
         this.updateProfileDisplay();
         const d = State.data;
 
-        // --- 1. DATA SYNC (Keep your record safe) ---
+        // --- 1. DATA SYNC ---
         const realRecord = Math.max(parseInt(d.longestStreak) || 0, parseInt(d.daily.bestStreak) || 0);
         d.longestStreak = realRecord;
         d.daily.bestStreak = realRecord;
         State.save('longestStreak', realRecord);
 
-        // --- 2. LEFT BOX: DAILY STREAK (Click -> Bottom of Leaderboard) ---
+        // --- 2. LEFT BOX: DAILY STREAK (Click -> Scroll to Daily Leaderboard) ---
         if (DOM.profile.streak) {
             DOM.profile.streak.textContent = d.daily.streak || 0;
             DOM.profile.streak.style.cursor = 'pointer';
             DOM.profile.streak.style.textDecoration = 'underline';
+            DOM.profile.streak.title = "View Daily Leaderboard";
+            
             DOM.profile.streak.onclick = () => {
                 ModalManager.toggle('profile', false);
                 const statsBtn = document.getElementById('headerStatsCard');
@@ -4423,15 +4425,13 @@ openProfile() {
             };
         }
 
-        // --- 3. RIGHT BOX: HIGH SCORE (The "72 Words") ---
+        // --- 3. RIGHT BOX: HIGH SCORE ---
         const streakEl = document.getElementById('streak-display-value');
-        if (streakEl) streakEl.textContent = realRecord + " Words"; 
-        
-        // Legacy backup (just in case)
+        if (streakEl) streakEl.textContent = realRecord + " Words";
         const bestEl = document.getElementById('bestDailyStreak');
         if (bestEl) bestEl.textContent = realRecord;
 
-        // --- 4. TOTAL VOTES (Click -> Top of Leaderboard) ---
+        // --- 4. CENTER: TOTAL VOTES (Click -> Top of Leaderboard) ---
         if (DOM.profile.totalVotes) {
             DOM.profile.totalVotes.textContent = d.voteCount.toLocaleString();
             DOM.profile.totalVotes.style.cursor = 'pointer';
@@ -4439,18 +4439,15 @@ openProfile() {
             DOM.profile.totalVotes.onclick = () => {
                 ModalManager.toggle('profile', false);
                 const statsBtn = document.getElementById('headerStatsCard');
-                if (statsBtn) {
-                    statsBtn.click();
-                    // No scroll target needed, it opens at the top by default
-                }
+                if (statsBtn) statsBtn.click();
             };
         }
-        
+
         if (DOM.profile.contributions) DOM.profile.contributions.textContent = d.contributorCount.toLocaleString();
         const goldenEl = document.getElementById('goldenWordsFound');
         if (goldenEl) goldenEl.textContent = d.daily.goldenWordsFound || 0;
 
-        // --- 5. BADGE LOGIC (RESTORED) ---
+        // --- 5. BADGE LOGIC ---
         if (d.insectStats.saved >= 100 && !d.badges.saint) State.unlockBadge('saint');
         if (d.insectStats.eaten >= 100 && !d.badges.exterminator) State.unlockBadge('exterminator');
         if (d.insectStats.teased >= 50 && !d.badges.prankster) State.unlockBadge('prankster');
@@ -4479,13 +4476,11 @@ openProfile() {
         const userCount = d.unlockedThemes.length + 1;
         if (DOM.profile.themes) DOM.profile.themes.textContent = `${userCount} / ${totalAvailable}`;
 
+        // --- 6. BUILD BADGE GRID (With your specific descriptions) ---
         const row1 = [
-            { k: 'cake', i: '🎂', w: 'CAKE' }, 
-            { k: 'llama', i: '🦙', w: 'LLAMA' }, 
-            { k: 'potato', i: '🥔', w: 'POTATO' }, 
-            { k: 'squirrel', i: '🐿️', w: 'SQUIRREL' }, 
-            { k: 'spider', i: '🕷️', w: 'SPIDER' }, 
-            { k: 'germ', i: '🦠', w: 'GERM' }, 
+            { k: 'cake', i: '🎂', w: 'CAKE' }, { k: 'llama', i: '🦙', w: 'LLAMA' }, 
+            { k: 'potato', i: '🥔', w: 'POTATO' }, { k: 'squirrel', i: '🐿️', w: 'SQUIRREL' }, 
+            { k: 'spider', i: '🕷️', w: 'SPIDER' }, { k: 'germ', i: '🦠', w: 'GERM' }, 
             { k: 'bone', i: '🦴', w: 'MASON' }
         ];
         
@@ -4582,7 +4577,7 @@ openProfile() {
                 bugHotelHTML = `<div class="w-full text-center my-4 p-3 bg-stone-100 rounded-xl border border-stone-200 relative overflow-hidden"><div class="text-[10px] font-bold text-stone-500 mb-2 uppercase tracking-wider">Bug Street (${collection.length}/4)</div>${innerHTML}</div>`;
             }
         }
-        
+
         const b = DOM.profile.badges;
         if (b) {
             b.innerHTML = 
@@ -4592,13 +4587,59 @@ openProfile() {
                 bugJarHTML + bugHotelHTML + 
                 `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🎖️ Achievements</div>` + renderRow(row3);
 
-            // Re-attach listeners
-            const showTooltip = (targetEl, title, desc) => { /* Tooltip logic omitted */ };
+            // --- 7. TOOLTIPS & SPIDER LOGIC (RESTORED) ---
+            const showTooltip = (targetEl, title, desc) => {
+                document.querySelectorAll('.global-badge-tooltip').forEach(t => t.remove());
+                const tip = document.createElement('div');
+                tip.className = 'global-badge-tooltip';
+                Object.assign(tip.style, {
+                    position: 'fixed', backgroundColor: '#1f2937', color: 'white', padding: '8px 12px', 
+                    borderRadius: '8px', fontSize: '12px', textAlign: 'center', width: 'max-content', 
+                    maxWidth: '200px', zIndex: '9999', boxShadow: '0 4px 6px rgba(0,0,0,0.3)', 
+                    pointerEvents: 'none', lineHeight: '1.4', opacity: '0', transition: 'opacity 0.2s'
+                });
+                tip.innerHTML = `<div class="font-bold text-yellow-300 mb-1 text-sm border-b border-gray-600 pb-1">${title}</div><div class="text-gray-200">${desc}</div>`;
+                document.body.appendChild(tip);
+                const rect = targetEl.getBoundingClientRect();
+                tip.style.top = (rect.top - 60) + 'px'; 
+                tip.style.left = (rect.left + rect.width / 2) + 'px';
+                tip.style.transform = 'translateX(-50%)';
+                requestAnimationFrame(() => tip.style.opacity = '1');
+                targetEl.style.transform = "scale(1.2)";
+                setTimeout(() => targetEl.style.transform = "", 200);
+                setTimeout(() => { tip.style.opacity = '0'; setTimeout(() => tip.remove(), 200); }, 3000);
+            };
             
             b.querySelectorAll('.badge-item').forEach(el => {
                 el.onclick = (e) => {
-                    if(el.dataset.word) { Game.loadSpecial(el.dataset.word); ModalManager.toggle('profile', false); }
+                    e.stopPropagation();
+                    if (el.dataset.word && !el.classList.contains('grayscale')) {
+                        Game.loadSpecial(el.dataset.word); 
+                        ModalManager.toggle('profile', false);
+                    } else {
+                        showTooltip(el, el.dataset.title, el.dataset.desc);
+                    }
                 }
+            });
+
+            // SPIDER FEEDING LOGIC
+            b.querySelectorAll('.jar-bug').forEach(bug => {
+                bug.onclick = (e) => {
+                    e.stopPropagation();
+                    if (State.data.settings.arachnophobiaMode) {
+                         showTooltip(bug, "Spider Hidden", "You can't feed the spider while Arachnophobia Mode is on!");
+                         return;
+                    }
+                    if (State.data.currentTheme !== 'halloween') {
+                        showTooltip(bug, "Spider Missing", "Please visit the spider on the Halloween theme to feed");
+                        return;
+                    }
+                    ModalManager.toggle('profile', false);
+                    State.data.insectStats.saved = Math.max(0, State.data.insectStats.saved - 1);
+                    State.save('insectStats', State.data.insectStats);
+                    if (typeof MosquitoManager !== 'undefined') MosquitoManager.spawnStuck('🦟');
+                    UIManager.showPostVoteMessage("Feeding time! 🕷️");
+                };
             });
         }
 
