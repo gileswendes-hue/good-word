@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.99.12', 
+    APP_VERSION: '5.99.13', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -4396,53 +4396,30 @@ showRoleReveal(title, subtitle, type = 'neutral') {
     },
 	
 openProfile() {
-        this.updateProfileDisplay();
         const d = State.data;
 
-        // --- 1. DATA HEALING (Sync all record trackers) ---
-        const savedRecord = parseInt(d.longestStreak) || 0;
-        const dailyRecord = parseInt(d.daily.bestStreak) || 0;
-        const realRecord = Math.max(savedRecord, dailyRecord);
-        
-        if (d.longestStreak < realRecord) {
-            d.longestStreak = realRecord;
-            State.save('longestStreak', realRecord);
+        // --- 1. THE BRIDGE: Sync your 72 (longestStreak) to the variable this function expects (bestStreak) ---
+        // This is the missing link that makes the old code work with your new data.
+        if ((d.longestStreak || 0) > (d.daily.bestStreak || 0)) {
+            d.daily.bestStreak = d.longestStreak;
+            State.save('daily', d.daily); // Save it so it sticks forever
         }
-        // --------------------------------------------------
+        // ---------------------------------------------------------------------------------------------------
 
-        // --- 2. BADGE UNLOCK CHECKS ---
-        if (d.insectStats.saved >= 100 && !d.badges.saint) State.unlockBadge('saint');
-        if (d.insectStats.eaten >= 100 && !d.badges.exterminator) State.unlockBadge('exterminator');
-        if (d.insectStats.teased >= 50 && !d.badges.prankster) State.unlockBadge('prankster');
-        if (d.voteCount >= 1000 && !d.badges.judge) State.unlockBadge('judge');
-        if (d.contributorCount >= 5 && !d.badges.bard) State.unlockBadge('bard');
-        if ((d.unlockedThemes.length + 1) >= 5 && !d.badges.traveler) State.unlockBadge('traveler');
-        if (d.fishStats.caught >= 250 && !d.badges.angler) State.unlockBadge('angler');
-        if (d.fishStats.spared >= 250 && !d.badges.shepherd) State.unlockBadge('shepherd');
-
-        // --- 3. BASIC STATS & FAIL-SAFE DISPLAY ---
+        this.updateProfileDisplay();
+        
+        DOM.profile.streak.textContent = d.daily.streak || 0;
         DOM.profile.totalVotes.textContent = d.voteCount.toLocaleString();
         DOM.profile.contributions.textContent = d.contributorCount.toLocaleString();
-
+        
+        // Update best daily streak and golden words (EXACT LOGIC FROM 5.97.8)
+        const bestEl = document.getElementById('bestDailyStreak');
+        if (bestEl) bestEl.textContent = d.daily.bestStreak || 0;
+        
         const goldenEl = document.getElementById('goldenWordsFound');
         if (goldenEl) goldenEl.textContent = d.daily.goldenWordsFound || 0;
-
-        // Try to find the specific Best Streak element
-        const bestEl = document.getElementById('bestDailyStreak');
         
-        if (bestEl) {
-            // Plan A: Update the dedicated element
-            DOM.profile.streak.textContent = d.daily.streak || 0;
-            bestEl.textContent = realRecord.toLocaleString();
-        } else {
-            // Plan B: Element missing? Show record in the main streak box
-            // Display format: "Current (Best: 72)"
-            const current = d.daily.streak || 0;
-            DOM.profile.streak.innerHTML = `${current} <span style="font-size:0.6em; color:#888;">(Best: ${realRecord})</span>`;
-        }
-        // ------------------------------------------
-
-        // --- 4. TITLE & THEMES ---
+        // --- KARMA TITLE LOGIC ---
         const saved = d.insectStats.saved;
         const eaten = d.insectStats.eaten;
         let karmaTitle = "Garden Observer";
@@ -4460,7 +4437,7 @@ openProfile() {
         const userCount = d.unlockedThemes.length + 1;
         DOM.profile.themes.textContent = `${userCount} / ${totalAvailable}`;
         
-        // --- 5. BUILD BADGE GRID ---
+        // --- BUILD BADGE GRID (Preserved from 5.99 to keep new badges working) ---
         const row1 = [
             { k: 'cake', i: '🎂', w: 'CAKE' }, { k: 'llama', i: '🦙', w: 'LLAMA' }, 
             { k: 'potato', i: '🥔', w: 'POTATO' }, { k: 'squirrel', i: '🐿️', w: 'SQUIRREL' }, 
