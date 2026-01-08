@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '5.98.12', 
+    APP_VERSION: '5.99.0', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1840,7 +1840,7 @@ const WeatherManager = {
     ALLOWED_THEMES: ['default', 'ballpit', 'banana', 'dark', 'fire', 'halloween', 'plymouth', 'rainbow', 'summer', 'woodland'],
     
     RAIN_CODES: [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99],
-    SNOW_CODES: [71, 73, 75, 77, 85, 86], // Snow fall & showers
+    SNOW_CODES: [71, 73, 75, 77, 85, 86],
     
     isRaining: false,
     isSnowing: false,
@@ -1898,13 +1898,13 @@ const WeatherManager = {
 
     updateVisuals() {
         const t = State.runtime.currentTheme;
+        Effects.rain(false);
+        Effects.weatherSnow(false); 
+
         if (t === 'winter') return; 
 
         const isAllowedTheme = this.ALLOWED_THEMES.includes(t);
         const enabled = State.data.settings.enableWeather;
-
-        Effects.rain(false);
-        Effects.weatherSnow(false);
 
         if (enabled && isAllowedTheme) {
             if (this.isSnowing) {
@@ -1915,7 +1915,6 @@ const WeatherManager = {
         }
     }
 };
-
 
 const CommunityGoal = {
     MILESTONE: 50000, // 50k increments
