@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.1.11', 
+    APP_VERSION: '6.1.12', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1395,9 +1395,8 @@ eat() {
             setTimeout(() => UIManager.showPostVoteMessage("The spider is stuffed!"), 1500);
         }
         
-        // 4. Update visuals (Size) immediately
-        if (Effects && Effects.halloween) Effects.halloween(true);
-        // ------------------------
+        // Visual update now happens in spiderHunt after eating (puff animation)
+        // No need to recreate the whole halloween effect
 
         this.finish();
     },
@@ -3650,6 +3649,40 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                         // Scenario 1: Caught the bug
                         MosquitoManager.eat();
                         if(wrap.showBubble) wrap.showBubble("YUM!");
+                        
+                        // --- PUFF UP ANIMATION (like pufferfish) ---
+                        const anchor = wrap.querySelector('#spider-anchor');
+                        if (anchor) {
+                            // Get current scale
+                            const currentTransform = anchor.style.transform || 'scale(1)';
+                            const scaleMatch = currentTransform.match(/scale\(([^)]+)\)/);
+                            const currentScale = scaleMatch ? parseFloat(scaleMatch[1]) : 1;
+                            
+                            // Calculate new scale based on updated eat log
+                            const eaten = State.data.insectStats.eaten || 0;
+                            let newScale = Math.min(0.6 + (eaten * 0.005), 1.3);
+                            const isFull = Date.now() < (State.data.spiderFullUntil || 0);
+                            
+                            if (isFull) {
+                                newScale = newScale * 1.5;
+                                body.classList.add('spider-fat');
+                            } else {
+                                const recentBugs = State.data.spiderEatLog ? State.data.spiderEatLog.length : 0;
+                                newScale = newScale * (1 + (recentBugs * 0.15));
+                            }
+                            
+                            // Animate the growth with a satisfying "gulp" effect
+                            anchor.style.transition = 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
+                            
+                            // First, bulge out bigger than target
+                            anchor.style.transform = `scale(${(newScale * 1.25).toFixed(2)})`;
+                            
+                            // Then settle to actual new size
+                            setTimeout(() => {
+                                anchor.style.transform = `scale(${newScale.toFixed(2)})`;
+                            }, 300);
+                        }
+                        // --- END PUFF UP ---
                         
                         body.style.animation = 'shake 0.2s ease-in-out';
                         setTimeout(() => {
