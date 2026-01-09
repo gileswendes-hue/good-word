@@ -80,8 +80,19 @@ const loadKidsWords = () => {
 loadKidsWords();
 
 const rooms = {};
+const localRooms = {}; // WebRTC local rooms for offline/festival play
 const MODE_MINS = { 'coop': 2, 'versus': 4, 'vip': 3, 'hipster': 3, 'speed': 2, 'survival': 2, 'traitor': 3, 'kids': 2, 'okstoopid': 2 };
 const MODE_MAXS = { 'okstoopid': 2 };
+
+// Clean up stale local rooms (older than 4 hours)
+setInterval(() => {
+    const now = Date.now();
+    for (const code in localRooms) {
+        if (now - localRooms[code].created > 4 * 60 * 60 * 1000) {
+            delete localRooms[code];
+        }
+    }
+}, 60000);
 
 function shuffle(array) {
     for (let i = array.length - 1; i > 0; i--) {
@@ -197,7 +208,164 @@ io.on('connection', (socket) => {
         if (typeof callback === 'function') callback();
     });
 
-    socket.on('disconnect', () => { removePlayerFromAllRooms(socket.id); });
+    socket.on('disconnect', () => { 
+        removePlayerFromAllRooms(socket.id);
+        // Clean up any local rooms this socket was hosting
+        for (const code in localRooms) {
+            if (localRooms[code].host === socket.id) {
+                // Notify all peers that host disconnected
+                localRooms[code].peers.forEach(peerId => {
+                    io.to(peerId).emit('localHostDisconnected');
+                });
+                delete localRooms[code];
+            } else {
+                // Remove from peers list if was a peer
+                const peerIdx = localRooms[code].peers.indexOf(socket.id);
+                if (peerIdx !== -1) {
+                    localRooms[code].peers.splice(peerIdx, 1);
+                    io.to(localRooms[code].host).emit('localPeerDisconnected', { peerId: socket.id });
+                }
+            }
+        }
+    });
+
+    // ============ WebRTC Local Mode Signaling ============
+    
+    // Host creates a local room
+    socket.on('createLocalRoom', async ({ username, rounds = 10 }) => {
+        // Generate 4-char room code
+        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        let code;
+        do {
+            code = '';
+            for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
+        } while (localRooms[code]);
+        
+        // Fetch words for this room
+        let words = [];
+        try {
+            words = await Word.aggregate([{ $sample: { size: parseInt(rounds) || 10 } }]);
+        } catch (e) {
+            console.error('Failed to fetch words for local room:', e);
+            words = [{ text: 'ERROR', _id: 'err' }];
+        }
+        
+        localRooms[code] = {
+            host: socket.id,
+            hostName: username || 'Host',
+            peers: [],
+            words: words,
+            created: Date.now(),
+            rounds: rounds
+        };
+        
+        socket.join(`local_${code}`);
+        socket.emit('localRoomCreated', { 
+            roomCode: code, 
+            words: words,
+            rounds: rounds
+        });
+        console.log(`Local room ${code} created by ${username}`);
+    });
+    
+    // Peer wants to join a local room
+    socket.on('joinLocalRoom', ({ roomCode, username }) => {
+        const code = roomCode.toUpperCase();
+        const room = localRooms[code];
+        
+        if (!room) {
+            socket.emit('localRoomError', { message: 'Room not found' });
+            return;
+        }
+        
+        if (room.peers.length >= 15) {
+            socket.emit('localRoomError', { message: 'Room is full' });
+            return;
+        }
+        
+        room.peers.push(socket.id);
+        socket.join(`local_${code}`);
+        
+        // Tell the peer about the host
+        socket.emit('localRoomJoined', { 
+            roomCode: code,
+            hostId: room.host,
+            hostName: room.hostName
+        });
+        
+        // Tell the host about the new peer
+        io.to(room.host).emit('localPeerJoined', { 
+            peerId: socket.id, 
+            peerName: username || 'Player'
+        });
+        
+        console.log(`${username} joined local room ${code}`);
+    });
+    
+    // WebRTC signaling: offer from host to peer
+    socket.on('rtcOffer', ({ targetId, offer, roomCode }) => {
+        io.to(targetId).emit('rtcOffer', { 
+            from: socket.id, 
+            offer: offer,
+            roomCode: roomCode
+        });
+    });
+    
+    // WebRTC signaling: answer from peer to host
+    socket.on('rtcAnswer', ({ targetId, answer }) => {
+        io.to(targetId).emit('rtcAnswer', { 
+            from: socket.id, 
+            answer: answer 
+        });
+    });
+    
+    // WebRTC signaling: ICE candidate exchange
+    socket.on('rtcIceCandidate', ({ targetId, candidate }) => {
+        io.to(targetId).emit('rtcIceCandidate', { 
+            from: socket.id, 
+            candidate: candidate 
+        });
+    });
+    
+    // Host can request fresh words
+    socket.on('refreshLocalWords', async ({ roomCode, rounds }) => {
+        const code = roomCode.toUpperCase();
+        const room = localRooms[code];
+        if (!room || room.host !== socket.id) return;
+        
+        try {
+            room.words = await Word.aggregate([{ $sample: { size: parseInt(rounds) || 10 } }]);
+            socket.emit('localWordsRefreshed', { words: room.words });
+        } catch (e) {
+            console.error('Failed to refresh words:', e);
+        }
+    });
+    
+    // Leave local room
+    socket.on('leaveLocalRoom', ({ roomCode }) => {
+        const code = roomCode?.toUpperCase();
+        const room = localRooms[code];
+        if (!room) return;
+        
+        socket.leave(`local_${code}`);
+        
+        if (room.host === socket.id) {
+            // Host leaving - close the room
+            room.peers.forEach(peerId => {
+                io.to(peerId).emit('localHostDisconnected');
+            });
+            delete localRooms[code];
+        } else {
+            // Peer leaving
+            const idx = room.peers.indexOf(socket.id);
+            if (idx !== -1) {
+                room.peers.splice(idx, 1);
+                io.to(room.host).emit('localPeerDisconnected', { peerId: socket.id });
+            }
+        }
+    });
+    
+    // ============ End WebRTC Signaling ============
 
     socket.on('refreshLobby', ({ roomCode }) => {
         const room = rooms[roomCode];
