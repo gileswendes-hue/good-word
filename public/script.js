@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.3', 
+    APP_VERSION: '6.2.4', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -6404,6 +6404,8 @@ const LocalPeerManager = {
     players: [], // { id, name, vote, connected }
     gameState: 'lobby', // lobby, playing, results
     votes: {},
+    gameMode: 'coop',
+    rounds: 10,
     
     // ICE servers for WebRTC
     iceServers: [
@@ -6435,14 +6437,17 @@ const LocalPeerManager = {
         this.socket.off('localRoomError');
         this.socket.off('localHostDisconnected');
         this.socket.off('localPeerDisconnected');
+        this.socket.off('localWordsRefreshed');
         
         // Host: room created
         this.socket.on('localRoomCreated', ({ roomCode, words, rounds }) => {
             console.log('[LocalPeer] Room created:', roomCode);
             this.roomCode = roomCode;
             this.words = words;
+            this.rounds = rounds;
             this.isHost = true;
             this.gameState = 'lobby';
+            this.gameMode = 'coop';
             this.players = [{ id: 'host', name: State.data.username || 'Host', vote: null, connected: true }];
             this.showLocalLobby();
             UIManager.showPostVoteMessage(`Room: ${roomCode} 📡`);
@@ -6532,6 +6537,14 @@ const LocalPeerManager = {
                 this.updateLobbyUI();
             }
         });
+        
+        // Host: words refreshed
+        this.socket.on('localWordsRefreshed', ({ words }) => {
+            console.log('[LocalPeer] Words refreshed:', words.length);
+            this.words = words;
+            UIManager.showPostVoteMessage(`Got ${words.length} new words! 📝`);
+            this.showLocalLobby();
+        });
     },
     
     // Host: create a local room
@@ -6597,9 +6610,11 @@ const LocalPeerManager = {
             this.sendToPeer(peerId, {
                 type: 'init',
                 words: this.words,
-                players: this.players.map(p => ({ id: p.id, name: p.name })),
+                players: this.players.map(p => ({ id: p.id, name: p.name, connected: p.connected })),
                 gameState: this.gameState,
-                currentWordIndex: this.currentWordIndex
+                currentWordIndex: this.currentWordIndex,
+                gameMode: this.gameMode || 'coop',
+                rounds: this.rounds || 10
             });
             
             this.updateLobbyUI();
@@ -6730,17 +6745,27 @@ const LocalPeerManager = {
                 this.players = data.players;
                 this.gameState = data.gameState;
                 this.currentWordIndex = data.currentWordIndex;
+                this.gameMode = data.gameMode || 'coop';
+                this.rounds = data.rounds || 10;
                 if (this.gameState === 'lobby') {
                     this.showLocalLobby();
                 } else {
                     this.showWord();
                 }
                 break;
+            
+            case 'modeChange':
+                this.gameMode = data.mode;
+                this.rounds = data.rounds;
+                this.showLocalLobby(); // Re-render lobby
+                break;
                 
             case 'gameStart':
                 this.words = data.words;
+                this.gameMode = data.mode || 'coop';
                 this.gameState = 'playing';
                 this.currentWordIndex = 0;
+                this.closeLocalUI();
                 this.showWord();
                 break;
                 
@@ -6788,17 +6813,42 @@ const LocalPeerManager = {
     startGame() {
         if (!this.isHost) return;
         
+        // Check minimum players
+        const modeConfig = {
+            'coop': 2, 'versus': 4, 'vip': 3, 'hipster': 3, 'survival': 2
+        };
+        const minPlayers = modeConfig[this.gameMode] || 2;
+        const connectedCount = this.players.filter(p => p.connected || p.id === 'host').length;
+        
+        if (connectedCount < minPlayers) {
+            UIManager.showPostVoteMessage(`Need ${minPlayers}+ players for ${this.gameMode}`);
+            return;
+        }
+        
         this.gameState = 'playing';
         this.currentWordIndex = 0;
         this.votes = {};
         
-        // Reset player votes
-        this.players.forEach(p => p.vote = null);
+        // Limit words to selected rounds
+        if (this.words.length > this.rounds) {
+            this.words = this.words.slice(0, this.rounds);
+        }
         
-        // Broadcast game start
+        // Reset player votes and scores
+        this.players.forEach(p => {
+            p.vote = null;
+            p.score = 0;
+            p.lives = 3; // For survival mode
+        });
+        
+        // Close lobby UI
+        this.closeLocalUI();
+        
+        // Broadcast game start with mode
         this.broadcast({
             type: 'gameStart',
-            words: this.words
+            words: this.words,
+            mode: this.gameMode
         });
         
         this.showWord();
@@ -6894,59 +6944,160 @@ const LocalPeerManager = {
     
     // UI Methods
     showLocalLobby() {
+        this.closeLocalUI();
+        
         const code = this.roomCode;
         const isHost = this.isHost;
+        const playerCount = this.players.length;
+        const connectedCount = this.players.filter(p => p.connected || p.id === 'host').length;
+        
+        // Mode config (same as RoomManager)
+        const modeConfig = {
+            'coop': { label: '🤝 Co-op', desc: 'Match the majority together!', min: 2 },
+            'versus': { label: '⚔️ Versus', desc: 'Red vs Blue teams', min: 4 },
+            'vip': { label: '⭐ VIP', desc: 'Match the VIP\'s vote!', min: 3 },
+            'hipster': { label: '🕶️ Hipster', desc: 'Vote with the minority', min: 3 },
+            'survival': { label: '💀 Survival', desc: '3 lives - match or die!', min: 2 }
+        };
+        
+        const currentMode = this.gameMode || 'coop';
+        const currentRounds = this.rounds || 10;
+        const modeInfo = modeConfig[currentMode];
+        const hasEnoughPlayers = connectedCount >= (modeInfo?.min || 2);
+        
+        // Generate mode buttons (host only can click)
+        const modesHtml = Object.entries(modeConfig).map(([key, conf]) => {
+            const isSelected = currentMode === key;
+            const canSelect = isHost;
+            return `
+                <button ${canSelect ? `onclick="LocalPeerManager.setMode('${key}')"` : ''} 
+                    class="p-2 rounded-lg text-left transition ${isSelected 
+                        ? 'bg-green-100 border-2 border-green-500' 
+                        : canSelect ? 'bg-gray-50 border border-gray-200 hover:bg-gray-100' : 'bg-gray-50 border border-gray-200 opacity-60'
+                    }">
+                    <div class="font-bold text-sm ${isSelected ? 'text-green-700' : 'text-gray-700'}">${conf.label}</div>
+                    <div class="text-xs text-gray-500">${conf.desc}</div>
+                </button>
+            `;
+        }).join('');
+        
+        // Generate player list
+        const playersHtml = this.players.map(p => {
+            const isConnected = p.connected || p.id === 'host';
+            const isHostPlayer = p.id === 'host';
+            return `
+                <div class="flex items-center justify-between bg-white rounded-lg px-3 py-2 shadow-sm border ${isConnected ? 'border-green-200' : 'border-yellow-200'}">
+                    <div class="flex items-center gap-2">
+                        <span class="${isConnected ? 'text-green-500' : 'text-yellow-500'} text-lg">${isConnected ? '●' : '○'}</span>
+                        <span class="font-medium">${p.name}</span>
+                    </div>
+                    ${isHostPlayer ? '<span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">HOST</span>' : ''}
+                </div>
+            `;
+        }).join('');
         
         const html = `
-        <div id="localLobby" class="fixed inset-0 bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900 z-[9999] flex items-center justify-center p-4">
-            <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 text-center">
-                <div class="mb-4">
-                    <span class="text-xs font-bold text-purple-600 bg-purple-100 px-3 py-1 rounded-full">LOCAL MODE</span>
+        <div id="localLobby" class="fixed inset-0 bg-gradient-to-br from-green-900 via-emerald-900 to-teal-900 z-[9999] flex items-center justify-center p-4 overflow-y-auto">
+            <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6">
+                <!-- Header -->
+                <div class="text-center mb-4">
+                    <span class="text-xs font-bold text-green-600 bg-green-100 px-3 py-1 rounded-full">📡 LOCAL MODE</span>
+                    <h2 class="text-2xl font-black text-gray-800 mt-2">Room: <span class="text-green-600 font-mono">${code}</span></h2>
+                    <p class="text-sm text-gray-500">Share this code with nearby players</p>
                 </div>
                 
-                <h2 class="text-3xl font-black text-gray-800 mb-2">Room Code</h2>
-                <div class="text-5xl font-mono font-black text-purple-600 tracking-widest mb-4 select-all">${code}</div>
-                <p class="text-sm text-gray-500 mb-6">Share this code with nearby players</p>
-                
+                <!-- Players -->
                 <div class="bg-gray-50 rounded-xl p-4 mb-4">
-                    <h3 class="font-bold text-gray-700 mb-2">Players (${this.players.length})</h3>
-                    <div id="localPlayerList" class="space-y-2 max-h-40 overflow-y-auto">
-                        ${this.players.map(p => `
-                            <div class="flex items-center justify-between bg-white rounded-lg px-3 py-2 shadow-sm">
-                                <span class="font-medium">${p.name}</span>
-                                <span class="${p.connected || p.id === 'host' ? 'text-green-500' : 'text-yellow-500'}">${p.connected || p.id === 'host' ? '●' : '○'}</span>
-                            </div>
-                        `).join('')}
+                    <h3 class="font-bold text-gray-700 mb-2 flex items-center justify-between">
+                        <span>Players</span>
+                        <span class="text-sm font-normal text-gray-500">${connectedCount}/${playerCount} connected</span>
+                    </h3>
+                    <div id="localPlayerList" class="space-y-2 max-h-32 overflow-y-auto">
+                        ${playersHtml}
                     </div>
                 </div>
                 
+                <!-- Game Mode (Host controls) -->
+                <div class="mb-4">
+                    <h3 class="font-bold text-gray-700 mb-2">${isHost ? 'Select Mode' : 'Game Mode'}</h3>
+                    <div class="grid grid-cols-2 gap-2" id="localModeGrid">
+                        ${modesHtml}
+                    </div>
+                </div>
+                
+                <!-- Rounds Slider (Host only) -->
                 ${isHost ? `
-                    <button onclick="LocalPeerManager.startGame()" class="w-full bg-purple-600 text-white font-bold py-3 rounded-xl mb-2 hover:bg-purple-700 transition ${this.players.length < 2 ? 'opacity-50' : ''}">
-                        Start Game 🎮
-                    </button>
+                <div class="mb-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="font-bold text-gray-700">Rounds</span>
+                        <span id="localRoundsDisplay" class="text-green-600 font-bold">${currentRounds}</span>
+                    </div>
+                    <input type="range" min="5" max="30" value="${currentRounds}" 
+                        oninput="LocalPeerManager.setRounds(this.value); document.getElementById('localRoundsDisplay').textContent = this.value"
+                        class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-600">
+                </div>
                 ` : `
-                    <div class="text-gray-500 py-3">Waiting for host to start...</div>
+                <div class="mb-4 text-center text-gray-500">
+                    <span class="font-bold">${currentRounds} Rounds</span> · <span>${modeInfo?.label || 'Co-op'}</span>
+                </div>
                 `}
                 
-                <button onclick="LocalPeerManager.leaveRoom()" class="w-full bg-gray-200 text-gray-700 font-bold py-2 rounded-xl hover:bg-gray-300 transition">
-                    Leave Room
-                </button>
+                <!-- Action Buttons -->
+                <div class="space-y-2">
+                    ${isHost ? `
+                        <button onclick="LocalPeerManager.startGame()" 
+                            class="w-full py-4 rounded-xl font-black text-lg transition transform active:scale-95 ${
+                                hasEnoughPlayers 
+                                    ? 'bg-green-600 hover:bg-green-700 text-white shadow-lg' 
+                                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            }" ${hasEnoughPlayers ? '' : 'disabled'}>
+                            ${hasEnoughPlayers ? '🎮 START GAME' : `Need ${modeInfo?.min || 2}+ players`}
+                        </button>
+                        <button onclick="LocalPeerManager.refreshWords()" class="w-full py-2 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition">
+                            🔄 Refresh Words (${this.words.length})
+                        </button>
+                    ` : `
+                        <div class="w-full py-4 bg-gray-100 rounded-xl text-center text-gray-500 font-bold">
+                            ⏳ Waiting for host to start...
+                        </div>
+                    `}
+                    <button onclick="LocalPeerManager.leaveRoom()" class="w-full py-2 bg-red-50 text-red-600 font-bold rounded-xl hover:bg-red-100 transition">
+                        Leave Room
+                    </button>
+                </div>
             </div>
         </div>`;
         
         document.body.insertAdjacentHTML('beforeend', html);
     },
     
+    setMode(mode) {
+        if (!this.isHost) return;
+        this.gameMode = mode;
+        // Broadcast to peers
+        this.broadcast({ type: 'modeChange', mode: mode, rounds: this.rounds || 10 });
+        this.showLocalLobby(); // Re-render
+    },
+    
+    setRounds(rounds) {
+        if (!this.isHost) return;
+        this.rounds = parseInt(rounds);
+        // Broadcast to peers
+        this.broadcast({ type: 'modeChange', mode: this.gameMode || 'coop', rounds: this.rounds });
+    },
+    
+    async refreshWords() {
+        if (!this.isHost || !this.socket?.connected) return;
+        UIManager.showMessage('Fetching new words... 📥');
+        this.socket.emit('refreshLocalWords', { roomCode: this.roomCode, rounds: this.rounds || 10 });
+    },
+    
     updateLobbyUI() {
-        const list = document.getElementById('localPlayerList');
-        if (!list) return;
-        
-        list.innerHTML = this.players.map(p => `
-            <div class="flex items-center justify-between bg-white rounded-lg px-3 py-2 shadow-sm">
-                <span class="font-medium">${p.name}</span>
-                <span class="${p.connected || p.id === 'host' ? 'text-green-500' : 'text-yellow-500'}">${p.connected || p.id === 'host' ? '●' : '○'}</span>
-            </div>
-        `).join('');
+        const lobby = document.getElementById('localLobby');
+        if (lobby) {
+            // Re-render the whole lobby to update player list and button states
+            this.showLocalLobby();
+        }
     },
     
     showWord() {
