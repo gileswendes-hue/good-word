@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.18', 
+    APP_VERSION: '6.2.19', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -2827,39 +2827,33 @@ halloween(active) {
             s.innerHTML = `
                 @keyframes spider-idle-wiggle {
                     0%, 100% { transform: rotate(0deg) scaleX(1); }
-                    15% { transform: rotate(6deg) scaleX(1.05); }
-                    30% { transform: rotate(-4deg) scaleX(0.95); }
-                    45% { transform: rotate(3deg) scaleX(1.02); }
-                    60% { transform: rotate(-5deg) scaleX(0.98); }
-                    75% { transform: rotate(2deg) scaleX(1.01); }
-                    90% { transform: rotate(-2deg) scaleX(0.99); }
+                    15% { transform: rotate(2deg); }
+                    30% { transform: rotate(-2deg); }
+                    45% { transform: rotate(1deg); }
+                    60% { transform: rotate(-1deg); }
+                    75% { transform: rotate(1deg); }
+                    90% { transform: rotate(-1deg); }
                 }
                 @keyframes spider-leg-twitch {
-                    0%, 40%, 100% { transform: rotate(0deg) scaleX(1) scaleY(1); }
-                    10% { transform: rotate(8deg) scaleX(1.08) scaleY(0.94); }
-                    20% { transform: rotate(-6deg) scaleX(0.94) scaleY(1.06); }
-                    50% { transform: rotate(0deg) scaleX(1) scaleY(1); }
-                    60% { transform: rotate(-7deg) scaleX(1.06) scaleY(0.95); }
-                    70% { transform: rotate(5deg) scaleX(0.95) scaleY(1.04); }
-                    80% { transform: rotate(-3deg) scaleX(1.02) scaleY(0.98); }
+                    0%, 100% { transform: rotate(0deg); }
+                    25% { transform: rotate(3deg); }
+                    75% { transform: rotate(-3deg); }
                 }
                 @keyframes spider-pause-wiggle {
                     0%, 100% { transform: rotate(0deg); }
-                    25% { transform: rotate(12deg); }
-                    50% { transform: rotate(-10deg); }
-                    75% { transform: rotate(8deg); }
+                    50% { transform: rotate(5deg); }
                 }
 				.scuttling-motion {
-				animation: spider-leg-twitch 0.8s infinite ease-in-out; /* Was 0.3s */
+				animation: spider-leg-twitch 1.2s infinite ease-in-out;
 				}
                 .spider-paused {
-                    animation: spider-pause-wiggle 0.4s ease-in-out;
+                    animation: spider-pause-wiggle 0.8s ease-in-out;
                 }
                 .hunting-scuttle {
-                    animation: spider-leg-twitch 0.4s infinite ease-in-out;
+                    animation: spider-leg-twitch 0.6s infinite ease-in-out;
                 }
 				.spider-idle {
-				animation: spider-idle-wiggle 4s infinite ease-in-out; /* Slower idle sway */
+				animation: spider-idle-wiggle 4s infinite ease-in-out;
 				}
 				.spider-fat {
 					filter: drop-shadow(0 10px 5px rgba(0,0,0,0.4)); transition: transform 1s cubic-bezier(0.5, 0, 0.5, 1); 
@@ -2899,27 +2893,27 @@ halloween(active) {
                     // Decide: move or pause?
                     const roll = Math.random();
                     
-                    if (roll < 0.35) {
-                        // PAUSE - stop and wiggle (35% chance)
+                    if (roll < 0.15) {
+                        // PAUSE - stop briefly (15% chance, was 35%)
                         body.classList.remove('scuttling-motion');
                         body.classList.add('spider-paused');
                         
-                        const pauseTime = 400 + Math.random() * 800; // 400-1200ms pause
+                        const pauseTime = 300 + Math.random() * 400; // 300-700ms pause
                         setTimeout(() => {
                             if (!this.active) return;
                             body.classList.remove('spider-paused');
                             body.classList.add('scuttling-motion');
-                            setTimeout(moveStep, 150);
+                            setTimeout(moveStep, 100);
                         }, pauseTime);
 					} else {
-                        // MOVE - Slower, more deliberate steps
-                        const burstSteps = 2 + Math.floor(Math.random() * 3);
-                        const stepSize = 0.2 + Math.random() * 0.3; // CHANGED: Smaller steps (was 0.8+)
+                        // MOVE - Smooth, steady steps
+                        const burstSteps = 4 + Math.floor(Math.random() * 4);
+                        const stepSize = 0.4 + Math.random() * 0.3;
                         let burstCount = 0;
                         
                         const doBurstStep = () => {
                             if (!this.active || burstCount >= burstSteps) {
-                                setTimeout(moveStep, 200 + Math.random() * 300);
+                                setTimeout(moveStep, 100 + Math.random() * 150);
                                 return;
                             }
                             
@@ -2934,8 +2928,8 @@ halloween(active) {
                             wrap.style.left = this.currentX + '%';
                             burstCount++;
                             
-                            // CHANGED: Slower delay between steps (was 50+)
-                            setTimeout(doBurstStep, 150 + Math.random() * 100); 
+                            // Smoother timing
+                            setTimeout(doBurstStep, 80 + Math.random() * 60); 
                         };
                         
                         doBurstStep();
@@ -2943,7 +2937,7 @@ halloween(active) {
                 };
                 
                 // Start after initial delay
-                setTimeout(moveStep, 300);
+                setTimeout(moveStep, 200);
             },
             
             stop(body, onComplete) {
