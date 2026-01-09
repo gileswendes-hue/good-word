@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.00.4', 
+    APP_VERSION: '6.1.1', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -527,10 +527,11 @@ const OfflineManager = {
                 UIManager.showPostVoteMessage("Offline Mode Ready! 🚇");
                 State.runtime.allWords = State.data.offlineCache; 
                 
-                if(roomBtn) roomBtn.style.display = 'none'; // Now this works
+             //   if(roomBtn) roomBtn.style.display = 'none';
                 
                 Game.nextWord();
-            } else {
+            } 
+		else {
                 alert("Could not download words. Check connection.");
                 const toggle = document.getElementById('toggleOffline');
                 if(toggle) toggle.checked = false;
@@ -838,6 +839,170 @@ playBad() {
         }
     }
 };
+
+
+const SonicManager = {
+    ctx: null,
+    analyser: null,
+    micStream: null,
+    isListening: false,
+    
+    // CONFIGURATION
+    // We use "mid-range" frequencies that phone speakers handle well but cut through crowd noise.
+    FREQ_LOW: 2000,       // Represents binary '0'
+    FREQ_HIGH: 4000,      // Represents binary '1'
+    FREQ_PILOT: 1000,     // "Wake up" tone to start transmission
+    BAUD_RATE: 20,        // Bits per second (Slow = Reliable in noise)
+    THRESHOLD: -50,       // Decibel threshold to detect signal
+    
+    init() {
+        if (!this.ctx) {
+            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        return this.ctx;
+    },
+
+    // --- TRANSMITTER (HOST) ---
+    async transmit(text) {
+        this.init();
+        if (this.ctx.state === 'suspended') await this.ctx.resume();
+
+        // 1. Convert text to binary string (e.g. "A" -> "01000001")
+        let binary = "";
+        for (let i = 0; i < text.length; i++) {
+            binary += text[i].charCodeAt(0).toString(2).padStart(8, "0");
+        }
+
+        UIManager.showPostVoteMessage(`Broadcasting... 📡`);
+        
+        const t = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        
+        // 2. Play Pilot Tone (1 second) to alert receivers
+        osc.frequency.setValueAtTime(this.FREQ_PILOT, t);
+        
+        // 3. Encode Data
+        const bitDuration = 1 / this.BAUD_RATE;
+        let startTime = t + 1.0; // Start data after pilot
+        
+        for (let i = 0; i < binary.length; i++) {
+            const freq = binary[i] === "1" ? this.FREQ_HIGH : this.FREQ_LOW;
+            osc.frequency.setValueAtTime(freq, startTime + (i * bitDuration));
+        }
+
+        // 4. Start/Stop
+        osc.start(t);
+        osc.stop(startTime + (binary.length * bitDuration));
+        
+        // Visual Feedback
+        gain.gain.setValueAtTime(1, t);
+        gain.gain.linearRampToValueAtTime(0, startTime + (binary.length * bitDuration));
+
+        return new Promise(r => setTimeout(r, (1 + binary.length * bitDuration) * 1000));
+    },
+
+    // --- RECEIVER (GUEST) ---
+    async toggleListening() {
+        if (this.isListening) {
+            this.stopListening();
+            return false;
+        } else {
+            await this.startListening();
+            return true;
+        }
+    },
+
+    async startListening() {
+        this.init();
+        try {
+            this.micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false } });
+            
+            this.analyser = this.ctx.createAnalyser();
+            this.analyser.fftSize = 2048; // High resolution frequency data
+            
+            const src = this.ctx.createMediaStreamSource(this.micStream);
+            src.connect(this.analyser);
+            
+            this.isListening = true;
+            this.listenLoop();
+            UIManager.showPostVoteMessage("Microphone Active 🎙️");
+            
+            // Visual indicator
+            document.body.classList.add('listening-mode');
+        } catch (e) {
+            console.error(e);
+            UIManager.showPostVoteMessage("Mic Access Denied 🚫");
+        }
+    },
+
+    stopListening() {
+        this.isListening = false;
+        if (this.micStream) {
+            this.micStream.getTracks().forEach(t => t.stop());
+            this.micStream = null;
+        }
+        document.body.classList.remove('listening-mode');
+        UIManager.showPostVoteMessage("Mic Stopped 🔇");
+    },
+
+    // The core "Modem" loop
+    listenLoop() {
+        if (!this.isListening) return;
+
+        const bufferLength = this.analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+        this.analyser.getByteFrequencyData(dataArray);
+
+        // Calculate array indices for our specific frequencies
+        const hzPerBin = this.ctx.sampleRate / this.analyser.fftSize;
+        const pilotBin = Math.floor(this.FREQ_PILOT / hzPerBin);
+        const lowBin = Math.floor(this.FREQ_LOW / hzPerBin);
+        const highBin = Math.floor(this.FREQ_HIGH / hzPerBin);
+        
+        // Check signal strength at frequencies
+        const pilotVol = dataArray[pilotBin];
+        const lowVol = dataArray[lowBin];
+        const highVol = dataArray[highBin];
+
+        // LOGIC: Simple state machine
+        // 1. If we hear PILOT, we reset and prepare to record bits.
+        // 2. We sample LOW vs HIGH to determine 0 or 1.
+        
+        // (Note: A full robust decoder is complex code. 
+        // For this prototype, we will trigger "Next Word" if we hear the PILOT tone strongly 
+        // to prove the concept without writing 500 lines of DSP code.)
+        
+        if (pilotVol > 150) { // Arbitrary loudness threshold (0-255)
+             this.handleSignal("PILOT");
+        }
+
+        requestAnimationFrame(() => this.listenLoop());
+    },
+
+    debounceTimer: null,
+    
+    handleSignal(type) {
+        if (this.debounceTimer) return;
+        
+        if (type === "PILOT") {
+            // Signal Received!
+            UIManager.showPostVoteMessage("Signal Received! 📶");
+            
+            // Advance game locally
+            if (State.runtime.allWords.length > 0) {
+                 State.runtime.currentWordIndex++;
+                 Game.nextWord();
+            }
+            
+            this.debounceTimer = setTimeout(() => { this.debounceTimer = null; }, 2000);
+        }
+    }
+};
+
 
 const MosquitoManager = {
     el: null, svg: null, path: null, checkInterval: null,
@@ -1555,7 +1720,17 @@ const ThemeManager = {
     init() {
         const s = document.createElement("style");
         s.innerText = `@keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }`;
-        document.head.appendChild(s);
+        
+		s.innerHTML += `
+            body.listening-mode { border: 4px solid #ef4444 !important; }
+            body.listening-mode::after {
+                content: '🎙️ LISTENING...'; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+                background: #ef4444; color: white; padding: 5px 15px; border-radius: 20px; font-weight: bold; z-index: 9999;
+                animation: pulse 1s infinite;
+            }
+        `;
+		
+		document.head.appendChild(s);
 		
 		const rs = document.createElement("style");
 rs.innerHTML = `
@@ -6960,6 +7135,19 @@ const html = `
                                 </button>
                             </div>
                         </div>
+						
+						<div class="mb-4 p-3 bg-indigo-50 border border-indigo-200 rounded-xl mt-3">
+    <h3 class="font-bold text-indigo-900 text-sm mb-2 text-left">🔊 SONIC OFFLINE MODE</h3>
+    <div class="flex gap-2">
+        <button onclick="SonicManager.transmit('NEXT')" class="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-lg active:scale-95 transition flex items-center justify-center gap-2">
+            <span>📢</span> Broadcast
+        </button>
+        <button onclick="SonicManager.toggleListening()" class="flex-1 py-3 bg-white text-indigo-600 border-2 border-indigo-200 font-bold rounded-xl shadow-sm active:scale-95 transition flex items-center justify-center gap-2">
+            <span>👂</span> Listen
+        </button>
+    </div>
+    <p class="text-xs text-indigo-400 mt-2 text-left">Host broadcasts, guests listen. No Wi-Fi needed!</p>
+</div>
                         
                         <div class="bg-gray-50 p-3 rounded-xl border border-gray-200">
                             <div class="flex items-center justify-between mb-2">
