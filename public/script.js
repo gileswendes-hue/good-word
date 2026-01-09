@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.16', 
+    APP_VERSION: '6.2.18', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -2972,7 +2972,6 @@ halloween(active) {
             const maxBugs = 5;
             const cappedEaten = Math.min(eaten, maxBugs);
             const fontSize = (3 + (cappedEaten * 0.6)).toFixed(2); // 3rem -> 6rem over 5 bugs
-            console.log('[Spider] Creating spider, eaten:', eaten, 'fontSize:', fontSize + 'rem');
             
             wrap.innerHTML = `
                 <div id="spider-anchor" style="transform-origin: top center;">
@@ -3465,7 +3464,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                         if (anchor) {
                             // Calculate new scale based on updated eat count
                             const eaten = State.data.insectStats.eaten || 0;
-                            console.log('[Spider] Bugs eaten:', eaten);
                             
                             // Base size grows with total bugs eaten (lifetime)
                             // 0.7 base + 0.05 per bug = visible growth! (max 2.0)
@@ -3484,7 +3482,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                                 newScale = baseScale * (1 + (recentBugs * 0.20));
                             }
                             
-                            console.log('[Spider] New scale:', newScale.toFixed(2));
                             
                             // Show visible feedback
                             UIManager.showPostVoteMessage(`🕷️ ${eaten} bugs eaten! Size: ${newScale.toFixed(2)}x`);
@@ -3497,15 +3494,12 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                             const newFontSize = baseFontSize + (cappedEaten * 0.6); // 3rem -> 6rem over 5 bugs
                             const bulgeFontSize = newFontSize * 1.2;
                             
-                            console.log('[Spider] Setting bulge font-size:', bulgeFontSize.toFixed(2) + 'rem');
                             body.style.transition = 'font-size 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
                             body.style.fontSize = bulgeFontSize.toFixed(2) + 'rem';
-                            console.log('[Spider] Body font-size is now:', body.style.fontSize);
                             
                             // Then settle to actual new size
                             setTimeout(() => {
                                 if (body) {
-                                    console.log('[Spider] Setting final font-size:', newFontSize.toFixed(2) + 'rem');
                                     body.style.fontSize = newFontSize.toFixed(2) + 'rem';
                                 }
                             }, 300);
@@ -4986,22 +4980,24 @@ displayWord(w) {
         }
 
         if (OfflineManager.isActive()) {
+            // OFFLINE = RED
+            ind.style.opacity = '1';
+            ind.style.pointerEvents = 'auto';
+            ind.style.backgroundColor = '#fef2f2';
+            ind.style.borderColor = '#ef4444';
+            ind.style.color = '#991b1b';
+            const queueCount = State.data.voteQueue?.length || 0;
+            const queueText = queueCount > 0 ? ` (${queueCount} queued)` : '';
+            ind.innerHTML = `<span style="color:#ef4444">●</span> OFFLINE${queueText}`;
+            ind.title = 'Click to go online and sync votes';
+        } else {
+            // ONLINE = GREEN
             ind.style.opacity = '1';
             ind.style.pointerEvents = 'auto';
             ind.style.backgroundColor = '#dcfce7';
             ind.style.borderColor = '#22c55e';
             ind.style.color = '#166534';
-            const queueCount = State.data.voteQueue?.length || 0;
-            const queueText = queueCount > 0 ? ` (${queueCount} queued)` : '';
-            ind.innerHTML = `<span style="color:#22c55e">●</span> OFFLINE${queueText}`;
-            ind.title = 'Click to go online and sync votes';
-        } else {
-            ind.style.opacity = '1';
-            ind.style.pointerEvents = 'auto';
-            ind.style.backgroundColor = 'white';
-            ind.style.borderColor = '#d1d5db';
-            ind.style.color = '#6b7280';
-            ind.innerHTML = `<span style="color:#d1d5db">○</span> ONLINE`;
+            ind.innerHTML = `<span style="color:#22c55e">●</span> ONLINE`;
             ind.title = 'Click to enable offline mode';
         }
     },
@@ -9674,116 +9670,9 @@ const StreakManager = {
     window.UIManager = UIManager;
 	window.WeatherManager = WeatherManager;
 	window.LocalPeerManager = LocalPeerManager;
-    
-    // Debug/Test commands - type these in browser console
-    window.TEST = {
-        // Unlock and apply Halloween theme
-        halloween: () => {
-            if (!State.data.unlockedThemes.includes('halloween')) {
-                State.data.unlockedThemes.push('halloween');
-                State.save('unlockedThemes', State.data.unlockedThemes);
-            }
-            ThemeManager.apply('halloween');
-            console.log('🎃 Halloween theme activated!');
-        },
-        // Spawn a bug (stuck in web, ready for spider)
-        bug: (type = '🦟') => {
-            MosquitoManager.spawnStuck(type);
-            console.log(`🕸️ Spawned ${type} in web!`);
-        },
-        // Spawn flying bug
-        fly: (type = '🦟') => {
-            MosquitoManager.init(type);
-            console.log(`✈️ Spawned flying ${type}!`);
-        },
-        // Trigger spider hunt (goes to bug location if bug exists)
-        spider: () => {
-            if (MosquitoManager.state === 'stuck') {
-                Effects.spiderHunt(MosquitoManager.x, MosquitoManager.y, true);
-                console.log('🕷️ Spider is hunting the bug!');
-            } else {
-                Effects.spiderHunt(50, 50, false);
-                console.log('🕷️ Spider is hunting (no bug to eat)');
-            }
-        },
-        // Quick feed - spawn bug and immediately feed spider
-        feed: () => {
-            MosquitoManager.spawnStuck('🦟');
-            setTimeout(() => {
-                Effects.spiderHunt(MosquitoManager.x, MosquitoManager.y, true);
-                console.log('🕷️ Feeding spider!');
-            }, 100);
-        },
-        // Feed multiple times to demo growth (max 5 stages)
-        grow: (times = 5) => {
-            const maxBugs = 5;
-            const currentEaten = State.data.insectStats.eaten || 0;
-            const remaining = Math.max(0, maxBugs - currentEaten);
-            const toFeed = Math.min(times, remaining);
-            
-            if (toFeed === 0) {
-                console.log('🕷️ Spider is already at max size (5 bugs)!');
-                TEST.stats();
-                return;
-            }
-            
-            console.log(`🕷️ Feeding spider ${toFeed} times...`);
-            let i = 0;
-            const feedOne = () => {
-                if (i >= toFeed) {
-                    console.log('🕷️ Done!');
-                    TEST.stats();
-                    return;
-                }
-                i++;
-                State.data.insectStats.eaten++;
-                State.save('insectStats', State.data.insectStats);
-                
-                const body = document.querySelector('#spider-body');
-                if (body) {
-                    const eaten = State.data.insectStats.eaten;
-                    const cappedEaten = Math.min(eaten, maxBugs);
-                    const fontSize = (3 + (cappedEaten * 0.6)).toFixed(2);
-                    body.style.transition = 'font-size 0.3s ease';
-                    body.style.fontSize = fontSize + 'rem';
-                    UIManager.showPostVoteMessage(`🕷️ Bug ${eaten}/5! Size: ${fontSize}rem`);
-                }
-                
-                setTimeout(feedOne, 600);
-            };
-            feedOne();
-        },
-        // Check spider stats
-        stats: () => {
-            const eaten = State.data.insectStats.eaten || 0;
-            const maxBugs = 5;
-            const cappedEaten = Math.min(eaten, maxBugs);
-            const fontSize = (3 + (cappedEaten * 0.6)).toFixed(2);
-            const isFull = eaten >= maxBugs;
-            console.log(`🕷️ Spider Stats:
-  - Bugs eaten: ${eaten}${isFull ? ' (MAX!)' : ''}
-  - Growth stage: ${cappedEaten}/5
-  - Font size: ${fontSize}rem
-  - Status: ${isFull ? '😴 FULL - resting!' : '🍽️ Still hungry...'}`);
-        },
-        // Reset spider stats
-        reset: () => {
-            State.data.insectStats.eaten = 0;
-            State.data.spiderEatLog = [];
-            State.data.spiderFullUntil = 0;
-            State.save('insectStats', State.data.insectStats);
-            State.save('spiderEatLog', []);
-            State.save('spiderFullUntil', 0);
-            const body = document.querySelector('#spider-body');
-            if (body) body.style.fontSize = '3rem';
-            console.log('🕷️ Spider reset to baby size!');
-            UIManager.showPostVoteMessage('🕷️ Spider reset!');
-        }
-    };
 
     console.log("%c Good Word / Bad Word ", "background: #4f46e5; color: #bada55; padding: 4px; border-radius: 4px;");
     console.log("Play fair! ️😇");
-    console.log("🧪 Test: TEST.halloween() → TEST.reset() → TEST.grow(10)");
 
 	
 })();
