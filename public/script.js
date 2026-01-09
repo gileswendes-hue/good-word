@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.12', 
+    APP_VERSION: '6.2.13', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -3509,11 +3509,15 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                         
                         if (body) body.style.animation = 'shake 0.2s ease-in-out';
                         
-                        // Delay retreat to show the growth animation
+                        // Stay visible for 5 seconds so you can see the growth!
                         setTimeout(() => {
                             if (body) body.style.animation = '';
-                            this.retreatSpider(thread, wrap, bub, '4s');
-                        }, 2000); // Was 1000, now 2000 to show growth
+                        }, 500);
+                        
+                        // Then retreat after 5 seconds
+                        setTimeout(() => {
+                            this.retreatSpider(thread, wrap, bub, '2s');
+                        }, 5000);
                     } 
                     else if (isFood) {
                         const missedPhrases = GAME_DIALOGUE.spider.missed || ["Too slow!", "My lunch!"];
