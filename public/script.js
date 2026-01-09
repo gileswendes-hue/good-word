@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.2', 
+    APP_VERSION: '6.2.3', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -517,14 +517,35 @@ const OfflineManager = {
         return State.data.settings.offlineMode;
     },
 
-    // Download words to play offline
+    // Download ALL words to play offline (500+)
     async fillCache() {
         try {
-            const res = await fetch(CONFIG.API_BASE_URL);
+            UIManager.showMessage("Downloading words... 📥");
+            const res = await fetch('/api/words/all');
             if (!res.ok) throw new Error('Network error');
             const data = await res.json();
-            State.data.offlineCache = data;
-            State.save('offlineCache', data);
+            
+            if (!data || data.length === 0) {
+                throw new Error('No words received');
+            }
+            
+            // Store with vote counts preserved
+            State.data.offlineCache = data.map(w => ({
+                _id: w._id,
+                text: w.text,
+                goodVotes: w.goodVotes || 0,
+                badVotes: w.badVotes || 0,
+                notWordVotes: w.notWordVotes || 0
+            }));
+            State.save('offlineCache', State.data.offlineCache);
+            
+            // Initialize vote queue if not exists
+            if (!State.data.voteQueue) {
+                State.data.voteQueue = [];
+                State.save('voteQueue', []);
+            }
+            
+            UIManager.showMessage(`Cached ${data.length} words! 📴`);
             return true;
         } catch (e) {
             console.warn("Offline download failed", e);
@@ -532,54 +553,80 @@ const OfflineManager = {
             return State.data.offlineCache && State.data.offlineCache.length > 0;
         }
     },
+    
+    // Queue a vote for later sync
+    queueVote(wordId, voteType) {
+        if (!State.data.voteQueue) State.data.voteQueue = [];
+        
+        // Add to queue
+        State.data.voteQueue.push({
+            id: wordId,
+            type: voteType,
+            timestamp: Date.now()
+        });
+        State.save('voteQueue', State.data.voteQueue);
+        
+        // Also update local cache counts
+        const word = State.data.offlineCache?.find(w => w._id === wordId);
+        if (word) {
+            if (voteType === 'good') word.goodVotes++;
+            else if (voteType === 'bad') word.badVotes++;
+            State.save('offlineCache', State.data.offlineCache);
+        }
+    },
 
-    // Sync votes when back online
+    // Sync queued votes when back online
     async sync() {
         const queue = State.data.voteQueue || [];
-        if (queue.length === 0) return;
+        if (queue.length === 0) {
+            UIManager.showMessage("No votes to sync ✓");
+            return;
+        }
 
-        console.log(`Syncing ${queue.length} votes...`);
-        // We iterate backwards so we can remove items as we process them
+        UIManager.showMessage(`Syncing ${queue.length} votes... 📡`);
+        let synced = 0;
+        
+        // Process votes
         for (let i = queue.length - 1; i >= 0; i--) {
             try {
                 const vote = queue[i];
                 await fetch(`${CONFIG.API_BASE_URL}/${vote.id}/vote`, {
-                    method: 'POST',
+                    method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ type: vote.type })
+                    body: JSON.stringify({ voteType: vote.type })
                 });
-                // Remove from queue on success
                 queue.splice(i, 1);
+                synced++;
             } catch (e) {
                 console.warn("Sync failed for vote", i);
-                // Keep in queue to try again later
             }
         }
+        
         State.data.voteQueue = queue;
         State.save('voteQueue', queue);
+        UIManager.showMessage(`Synced ${synced} votes! ✓`);
     },
 
-    // Update broadcast buttons - NO LONGER NEEDED (P2P handles its own UI)
-    updateBroadcastButtons() {
-        // Legacy - PeerManager now handles multiplayer UI
-    },
-
-    // Toggle Offline Mode (single-player only)
+    // Toggle Offline Mode (single-player)
     async toggle(active) {
-        const roomBtn = document.getElementById('roomBtn');
-        
         if (active) {
-            // ACTIVATING OFFLINE MODE (single-player)
-            UIManager.showMessage("Caching words for offline play... 📥");
+            // ACTIVATING OFFLINE MODE
             const success = await this.fillCache();
             
             if (success) {
                 State.data.settings.offlineMode = true;
                 State.save('settings', State.data.settings);
                 
-                UIManager.showPostVoteMessage(`Offline Mode Active! 📴`);
-                Game.refreshData(false);
+                // Load cached words into game
+                State.runtime.allWords = [...State.data.offlineCache];
+                // Shuffle them
+                for (let i = State.runtime.allWords.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [State.runtime.allWords[i], State.runtime.allWords[j]] = [State.runtime.allWords[j], State.runtime.allWords[i]];
+                }
                 State.runtime.currentWordIndex = 0;
+                
+                UIManager.showPostVoteMessage(`Offline: ${State.data.offlineCache.length} words ready! 📴`);
                 Game.nextWord();
             } else {
                 alert("Could not download words. Check connection.");
@@ -588,11 +635,11 @@ const OfflineManager = {
             }
         } else {
             // DEACTIVATING OFFLINE MODE
-            UIManager.showMessage("Syncing votes... 📡");
             await this.sync();
             State.data.settings.offlineMode = false;
             State.save('settings', State.data.settings);
             
+            // Refresh with fresh online data
             Game.refreshData(); 
         }
         UIManager.updateOfflineIndicator();
@@ -6521,6 +6568,8 @@ const LocalPeerManager = {
     
     // Host: create connection to a new peer
     async connectToPeer(peerId, peerName) {
+        console.log('[LocalPeer] Host connecting to peer:', peerName, peerId);
+        
         const connection = new RTCPeerConnection({ iceServers: this.iceServers });
         const dataChannel = connection.createDataChannel('gameData', { ordered: true });
         
@@ -6533,9 +6582,10 @@ const LocalPeerManager = {
         
         // Add player to list
         this.players.push({ id: peerId, name: peerName, vote: null, connected: false });
+        this.updateLobbyUI();
         
         dataChannel.onopen = () => {
-            console.log(`Data channel open to ${peerName}`);
+            console.log('[LocalPeer] Data channel open to', peerName);
             const peer = this.peers.get(peerId);
             if (peer) peer.ready = true;
             
@@ -6553,6 +6603,7 @@ const LocalPeerManager = {
             });
             
             this.updateLobbyUI();
+            UIManager.showPostVoteMessage(`${peerName} connected! 🎉`);
         };
         
         dataChannel.onmessage = (e) => this.handlePeerMessage(peerId, JSON.parse(e.data));
@@ -6560,46 +6611,75 @@ const LocalPeerManager = {
         
         connection.onicecandidate = (e) => {
             if (e.candidate) {
+                console.log('[LocalPeer] Sending ICE candidate to peer');
                 this.socket.emit('rtcIceCandidate', { targetId: peerId, candidate: e.candidate });
             }
         };
         
+        connection.onconnectionstatechange = () => {
+            console.log('[LocalPeer] Connection state:', connection.connectionState);
+        };
+        
         // Create and send offer
-        const offer = await connection.createOffer();
-        await connection.setLocalDescription(offer);
-        this.socket.emit('rtcOffer', { targetId: peerId, offer, roomCode: this.roomCode });
+        try {
+            const offer = await connection.createOffer();
+            await connection.setLocalDescription(offer);
+            console.log('[LocalPeer] Sending offer to peer via server');
+            this.socket.emit('rtcOffer', { targetId: peerId, offer: offer, roomCode: this.roomCode });
+        } catch (e) {
+            console.error('[LocalPeer] Error creating offer:', e);
+        }
     },
     
     // Peer: handle offer from host
     async handleOffer(hostId, offer) {
-        console.log('[LocalPeer] Handling offer, creating answer...');
-        this.hostConnection = new RTCPeerConnection({ iceServers: this.iceServers });
+        console.log('[LocalPeer] Peer handling offer from host:', hostId);
         
-        this.hostConnection.ondatachannel = (e) => {
-            this.hostDataChannel = e.channel;
+        try {
+            this.hostConnection = new RTCPeerConnection({ iceServers: this.iceServers });
             
-            this.hostDataChannel.onopen = () => {
-                console.log('Connected to host!');
-                UIManager.showPostVoteMessage("Connected! 🎉");
+            this.hostConnection.ondatachannel = (e) => {
+                console.log('[LocalPeer] Data channel received from host');
+                this.hostDataChannel = e.channel;
+                
+                this.hostDataChannel.onopen = () => {
+                    console.log('[LocalPeer] Data channel to host is open!');
+                    UIManager.showPostVoteMessage("Connected! 🎉");
+                };
+                
+                this.hostDataChannel.onmessage = (e) => this.handleHostMessage(JSON.parse(e.data));
+                this.hostDataChannel.onclose = () => {
+                    UIManager.showPostVoteMessage("Disconnected from host");
+                    this.cleanup();
+                };
             };
             
-            this.hostDataChannel.onmessage = (e) => this.handleHostMessage(JSON.parse(e.data));
-            this.hostDataChannel.onclose = () => {
-                UIManager.showPostVoteMessage("Disconnected from host");
-                this.cleanup();
+            this.hostConnection.onicecandidate = (e) => {
+                if (e.candidate) {
+                    console.log('[LocalPeer] Sending ICE candidate to host');
+                    this.socket.emit('rtcIceCandidate', { targetId: hostId, candidate: e.candidate });
+                }
             };
-        };
-        
-        this.hostConnection.onicecandidate = (e) => {
-            if (e.candidate) {
-                this.socket.emit('rtcIceCandidate', { targetId: hostId, candidate: e.candidate });
-            }
-        };
-        
-        await this.hostConnection.setRemoteDescription(offer);
-        const answer = await this.hostConnection.createAnswer();
-        await this.hostConnection.setLocalDescription(answer);
-        this.socket.emit('rtcAnswer', { targetId: hostId, answer });
+            
+            this.hostConnection.onconnectionstatechange = () => {
+                console.log('[LocalPeer] Connection state:', this.hostConnection.connectionState);
+            };
+            
+            console.log('[LocalPeer] Setting remote description (offer)');
+            await this.hostConnection.setRemoteDescription(new RTCSessionDescription(offer));
+            
+            console.log('[LocalPeer] Creating answer');
+            const answer = await this.hostConnection.createAnswer();
+            
+            console.log('[LocalPeer] Setting local description (answer)');
+            await this.hostConnection.setLocalDescription(answer);
+            
+            console.log('[LocalPeer] Sending answer to host via server');
+            this.socket.emit('rtcAnswer', { targetId: hostId, answer: answer });
+        } catch (e) {
+            console.error('[LocalPeer] Error in handleOffer:', e);
+            UIManager.showPostVoteMessage("Connection error ❌");
+        }
     },
     
     // Host: send message to specific peer
@@ -8046,43 +8126,6 @@ const Game = {
 
 async vote(t, s = false) {
         if (State.runtime.isCoolingDown) return;
-
-        // --- OFFLINE / SONIC MODE ---
-        if (OfflineManager.isActive() || document.body.classList.contains('listening-mode')) {
-            // 1. Lock UI immediately
-            UIManager.disableButtons(true);
-            
-            // 2. Clear old colors
-            document.body.classList.remove('vote-good-mode', 'vote-bad-mode');
-            
-            // 3. Apply new color & play sound
-            if (t === 'good') {
-                document.body.classList.add('vote-good-mode');
-                SoundManager.playGood();
-            } else if (t === 'bad') {
-                document.body.classList.add('vote-bad-mode');
-                SoundManager.playBad();
-            }
-            
-            // 4. Show "Waiting" status
-            UIManager.showPostVoteMessage("Vote Locked! Waiting for Host... ⏳");
-			
-			setTimeout(() => {
-                const cancelHandler = () => {
-                    // 1. Remove colors
-                    document.body.classList.remove('vote-good-mode', 'vote-bad-mode');
-                    // 2. Re-enable buttons
-                    UIManager.disableButtons(false);
-                    // 3. Clear message
-                    UIManager.showPostVoteMessage("");
-                    // 4. Clean up listener
-                    document.body.removeEventListener('click', cancelHandler);
-                };
-					document.body.addEventListener('click', cancelHandler, { once: true });
-				}, 500);
-            
-            return; 
-        }
         
         // Minimum delay between votes (300ms)
         const n = Date.now();
@@ -8090,6 +8133,7 @@ async vote(t, s = false) {
             return; // Too fast, ignore
         }
         
+        // Multiplayer mode - send to room
         if (State.runtime.isMultiplayer && typeof RoomManager !== 'undefined' && RoomManager.active) {
              RoomManager.submitVote(t);
              UIManager.disableButtons(true); 
@@ -8176,13 +8220,22 @@ async vote(t, s = false) {
             const un = ThemeManager.checkUnlock(up);
             if (un) SoundManager.playUnlock();
 
-            const res = await API.vote(w._id, t);
-            if (res.status !== 403 && !res.ok) throw 0;
-            w[`${t}Votes`] = (w[`${t}Votes`] || 0) + 1;
-            State.incrementVote();
-            await API.submitUserVotes(State.data.userId, State.data.username, State.data.voteCount);
-            
-            StreakManager.handleSuccess();
+            // OFFLINE MODE: Queue vote for later sync
+            if (OfflineManager.isActive()) {
+                OfflineManager.queueVote(w._id, t);
+                w[`${t}Votes`] = (w[`${t}Votes`] || 0) + 1;
+                State.incrementVote();
+                StreakManager.handleSuccess();
+            } else {
+                // ONLINE MODE: Submit immediately
+                const res = await API.vote(w._id, t);
+                if (res.status !== 403 && !res.ok) throw 0;
+                w[`${t}Votes`] = (w[`${t}Votes`] || 0) + 1;
+                State.incrementVote();
+                await API.submitUserVotes(State.data.userId, State.data.username, State.data.voteCount);
+                
+                StreakManager.handleSuccess();
+            }
             
             if (State.runtime.isDailyMode) {
                 const tod = new Date(), dStr = tod.toISOString().split('T')[0];
