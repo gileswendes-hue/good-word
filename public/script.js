@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.9', 
+    APP_VERSION: '6.2.10', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -3492,20 +3492,27 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                             
                             // First, bulge out bigger than target
                             const bulgeScale = newScale * 1.3;
+                            console.log('[Spider] Setting bulge transform:', bulgeScale.toFixed(2));
                             anchor.style.transform = `scale(${bulgeScale.toFixed(2)})`;
+                            console.log('[Spider] Anchor transform is now:', anchor.style.transform);
                             
                             // Then settle to actual new size
                             setTimeout(() => {
-                                if (anchor) anchor.style.transform = `scale(${newScale.toFixed(2)})`;
+                                if (anchor) {
+                                    console.log('[Spider] Setting final transform:', newScale.toFixed(2));
+                                    anchor.style.transform = `scale(${newScale.toFixed(2)})`;
+                                }
                             }, 300);
                         }
                         // --- END PUFF UP ---
                         
                         if (body) body.style.animation = 'shake 0.2s ease-in-out';
+                        
+                        // Delay retreat to show the growth animation
                         setTimeout(() => {
-                            body.style.animation = '';
+                            if (body) body.style.animation = '';
                             this.retreatSpider(thread, wrap, bub, '4s');
-                        }, 1000);
+                        }, 2000); // Was 1000, now 2000 to show growth
                     } 
                     else if (isFood) {
                         const missedPhrases = GAME_DIALOGUE.spider.missed || ["Too slow!", "My lunch!"];
