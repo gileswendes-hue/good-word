@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.4', 
+    APP_VERSION: '6.2.5', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -617,8 +617,9 @@ const OfflineManager = {
                 State.data.settings.offlineMode = true;
                 State.save('settings', State.data.settings);
                 
-                // Load cached words into game
-                State.runtime.allWords = [...State.data.offlineCache];
+                // Load cached words into game (make a copy to avoid mutating cache)
+                State.runtime.allWords = State.data.offlineCache.map(w => ({...w}));
+                
                 // Shuffle them
                 for (let i = State.runtime.allWords.length - 1; i > 0; i--) {
                     const j = Math.floor(Math.random() * (i + 1));
@@ -626,23 +627,24 @@ const OfflineManager = {
                 }
                 State.runtime.currentWordIndex = 0;
                 
+                UIManager.updateStats();
+                UIManager.updateOfflineIndicator();
                 UIManager.showPostVoteMessage(`Offline: ${State.data.offlineCache.length} words ready! 📴`);
                 Game.nextWord();
             } else {
                 alert("Could not download words. Check connection.");
-                const toggle = document.getElementById('toggleOffline');
-                if(toggle) toggle.checked = false;
             }
         } else {
-            // DEACTIVATING OFFLINE MODE
+            // DEACTIVATING OFFLINE MODE - sync and fetch fresh data
             await this.sync();
             State.data.settings.offlineMode = false;
             State.save('settings', State.data.settings);
             
+            UIManager.updateOfflineIndicator();
+            
             // Refresh with fresh online data
-            Game.refreshData(); 
+            await Game.refreshData();
         }
-        UIManager.updateOfflineIndicator();
     }
 };
 
@@ -2955,6 +2957,7 @@ halloween(active) {
             
             const eaten = State.data.insectStats.eaten || 0;
             const scale = Math.min(0.7 + (eaten * 0.006), 1.4).toFixed(2);
+            console.log('[Spider] Creating spider, eaten:', eaten, 'scale:', scale);
             
             wrap.innerHTML = `
                 <div id="spider-anchor" style="transform: scale(${scale}); transform-origin: top center;">
@@ -3443,25 +3446,36 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                         
                         // --- PUFF UP ANIMATION (like pufferfish) ---
                         const anchor = wrap.querySelector('#spider-anchor');
-                        if (anchor) {
-                            // Calculate new scale based on updated eat log
+                        const body = wrap.querySelector('#spider-body');
+                        
+                        if (anchor && body) {
+                            // Calculate new scale based on updated eat count
                             const eaten = State.data.insectStats.eaten || 0;
-                            let newScale = Math.min(0.7 + (eaten * 0.006), 1.4);
+                            console.log('[Spider] Bugs eaten:', eaten);
+                            
+                            // Base size grows with total bugs eaten (lifetime)
+                            let baseScale = Math.min(0.7 + (eaten * 0.006), 1.4);
+                            
+                            // Recent bugs multiplier (temporary bulge)
+                            const recentBugs = State.data.spiderEatLog ? State.data.spiderEatLog.length : 0;
                             const isFull = Date.now() < (State.data.spiderFullUntil || 0);
                             
+                            let newScale = baseScale;
                             if (isFull) {
-                                newScale = newScale * 1.6;
+                                newScale = baseScale * 1.6;
                                 body.classList.add('spider-fat');
-                            } else {
-                                const recentBugs = State.data.spiderEatLog ? State.data.spiderEatLog.length : 0;
-                                newScale = newScale * (1 + (recentBugs * 0.20));
+                            } else if (recentBugs > 0) {
+                                newScale = baseScale * (1 + (recentBugs * 0.15));
                             }
+                            
+                            console.log('[Spider] New scale:', newScale.toFixed(2));
                             
                             // Animate the growth with a satisfying "gulp" effect
                             anchor.style.transition = 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
                             
                             // First, bulge out bigger than target
-                            anchor.style.transform = `scale(${(newScale * 1.25).toFixed(2)})`;
+                            const bulgeScale = newScale * 1.3;
+                            anchor.style.transform = `scale(${bulgeScale.toFixed(2)})`;
                             
                             // Then settle to actual new size
                             setTimeout(() => {
@@ -4928,20 +4942,33 @@ displayWord(w) {
         if (!ind) {
             ind = document.createElement('div');
             ind.id = 'offlineIndicator';
-            ind.className = 'fixed bottom-4 left-4 text-xs font-bold px-4 py-3 rounded-full shadow-lg z-50 transition-all duration-300 border-2 select-none';
+            ind.className = 'fixed bottom-4 left-4 text-xs font-bold px-4 py-3 rounded-full shadow-lg z-50 transition-all duration-300 border-2 select-none cursor-pointer hover:scale-105 active:scale-95';
+            ind.onclick = () => {
+                // Toggle offline mode
+                const isCurrentlyOffline = OfflineManager.isActive();
+                OfflineManager.toggle(!isCurrentlyOffline);
+            };
             document.body.appendChild(ind);
         }
 
         if (OfflineManager.isActive()) {
             ind.style.opacity = '1';
             ind.style.pointerEvents = 'auto';
-            ind.style.backgroundColor = 'white';
-            ind.style.borderColor = '#6b7280';
-            ind.style.color = 'black';
-            ind.innerHTML = `<span style="color:#6b7280">●</span> OFFLINE MODE`;
+            ind.style.backgroundColor = '#dcfce7';
+            ind.style.borderColor = '#22c55e';
+            ind.style.color = '#166534';
+            const queueCount = State.data.voteQueue?.length || 0;
+            const queueText = queueCount > 0 ? ` (${queueCount} queued)` : '';
+            ind.innerHTML = `<span style="color:#22c55e">●</span> OFFLINE${queueText}`;
+            ind.title = 'Click to go online and sync votes';
         } else {
-            ind.style.opacity = '0';
-            ind.style.pointerEvents = 'none';
+            ind.style.opacity = '1';
+            ind.style.pointerEvents = 'auto';
+            ind.style.backgroundColor = 'white';
+            ind.style.borderColor = '#d1d5db';
+            ind.style.color = '#6b7280';
+            ind.innerHTML = `<span style="color:#d1d5db">○</span> ONLINE`;
+            ind.title = 'Click to enable offline mode';
         }
     },
 		updateControversialIndicator(active) {
