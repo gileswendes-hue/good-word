@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.14', 
+    APP_VERSION: '6.2.15', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -9710,31 +9710,68 @@ const StreakManager = {
                 console.log('🕷️ Feeding spider!');
             }, 100);
         },
+        // Feed multiple times to demo growth
+        grow: (times = 5) => {
+            console.log(`🕷️ Feeding spider ${times} times...`);
+            let i = 0;
+            const feedOne = () => {
+                if (i >= times) {
+                    console.log('🕷️ Done! Spider should be noticeably bigger.');
+                    TEST.stats();
+                    return;
+                }
+                i++;
+                console.log(`🕷️ Feed #${i}...`);
+                // Directly increment eaten count and update spider
+                State.data.insectStats.eaten++;
+                State.save('insectStats', State.data.insectStats);
+                
+                // Update spider body size
+                const body = document.querySelector('#spider-body');
+                if (body) {
+                    const eaten = State.data.insectStats.eaten;
+                    const scale = Math.min(0.7 + (eaten * 0.05), 2.0);
+                    const fontSize = (3 * scale).toFixed(2);
+                    body.style.transition = 'font-size 0.3s ease';
+                    body.style.fontSize = fontSize + 'rem';
+                    UIManager.showPostVoteMessage(`🕷️ ${eaten} bugs! Size: ${scale.toFixed(2)}x`);
+                }
+                
+                setTimeout(feedOne, 500);
+            };
+            feedOne();
+        },
         // Check spider stats
         stats: () => {
             const eaten = State.data.insectStats.eaten || 0;
             const scale = Math.min(0.7 + (eaten * 0.05), 2.0);
+            const fontSize = (3 * scale).toFixed(2);
             console.log(`🕷️ Spider Stats:
   - Bugs eaten (lifetime): ${eaten}
-  - Current scale: ${scale.toFixed(2)}x
+  - Scale: ${scale.toFixed(2)}x
+  - Font size: ${fontSize}rem
   - Recent bugs: ${State.data.spiderEatLog?.length || 0}
   - Is full: ${Date.now() < (State.data.spiderFullUntil || 0)}`);
         },
         // Reset spider stats (for testing growth)
-        resetSpider: () => {
+        reset: () => {
             State.data.insectStats.eaten = 0;
             State.data.spiderEatLog = [];
             State.data.spiderFullUntil = 0;
             State.save('insectStats', State.data.insectStats);
             State.save('spiderEatLog', []);
             State.save('spiderFullUntil', 0);
-            console.log('🕷️ Spider stats reset to 0!');
+            // Also reset the spider's visual size
+            const body = document.querySelector('#spider-body');
+            if (body) body.style.fontSize = '2.1rem'; // 3 * 0.7
+            console.log('🕷️ Spider reset to baby size!');
+            UIManager.showPostVoteMessage('🕷️ Spider reset!');
         }
     };
 
     console.log("%c Good Word / Bad Word ", "background: #4f46e5; color: #bada55; padding: 4px; border-radius: 4px;");
     console.log("Play fair! ️😇");
-    console.log("🧪 Test commands: TEST.halloween(), TEST.bug(), TEST.spider(), TEST.stats()");
+    console.log("🧪 Test: TEST.halloween() → TEST.reset() → TEST.grow(10)");
 
 	
 })();
