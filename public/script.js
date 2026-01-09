@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.1.4', 
+    APP_VERSION: '6.1.5', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -981,10 +981,16 @@ const SonicManager = {
         el.style.color = vol > 40 ? '#4ade80' : '#f87171'; // Green if trigger ready, Red if noise
     },
 
-    handleSignal(vol) {
+	handleSignal(vol) {
         if (this.debounceTimer) return;
         
         console.log("TRIGGERED AT VOLUME:", vol);
+        
+        // --- ADD THIS LINE ---
+        // Clear the Green/Red screen so we can see the new word
+        document.body.classList.remove('vote-good-mode', 'vote-bad-mode');
+        // --------------------
+
         UIManager.showPostVoteMessage("📶 SIGNAL RECEIVED!");
         
         // Advance game
@@ -993,7 +999,6 @@ const SonicManager = {
              Game.nextWord();
         }
         
-        // 2.5 second cooldown to prevent double-skips from echoes
         this.debounceTimer = setTimeout(() => { this.debounceTimer = null; }, 2500);
     }
 };
@@ -1721,6 +1726,22 @@ const ThemeManager = {
                 content: '🎙️ LISTENING...'; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
                 background: #ef4444; color: white; padding: 5px 15px; border-radius: 20px; font-weight: bold; z-index: 9999;
                 animation: pulse 1s infinite;
+            }
+        `;
+		
+		s.innerHTML += `
+            body.vote-good-mode { background: #22c55e !important; overflow: hidden; }
+            body.vote-good-mode * { visibility: hidden; }
+            body.vote-good-mode::after {
+                content: '👍'; visibility: visible; position: fixed; top: 50%; left: 50%; 
+                transform: translate(-50%, -50%); font-size: 150px;
+            }
+
+            body.vote-bad-mode { background: #ef4444 !important; overflow: hidden; }
+            body.vote-bad-mode * { visibility: hidden; }
+            body.vote-bad-mode::after {
+                content: '👎'; visibility: visible; position: fixed; top: 50%; left: 50%; 
+                transform: translate(-50%, -50%); font-size: 150px;
             }
         `;
 		
@@ -7509,6 +7530,19 @@ const Game = {
 
 async vote(t, s = false) {
         if (State.runtime.isCoolingDown) return;
+		
+		if (OfflineManager.isActive() || document.body.classList.contains('listening-mode')) {
+            document.body.classList.remove('vote-good-mode', 'vote-bad-mode');
+            
+            if (t === 'good') {
+                document.body.classList.add('vote-good-mode');
+                SoundManager.playGood();
+            } else if (t === 'bad') {
+                document.body.classList.add('vote-bad-mode');
+                SoundManager.playBad();
+            }
+            return; // Stop here, don't try to send to server
+        }
         
         // Minimum delay between votes (300ms)
         const n = Date.now();
