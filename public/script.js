@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.1', 
+    APP_VERSION: '6.2.2', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -6364,67 +6364,106 @@ const LocalPeerManager = {
         { urls: 'stun:stun1.l.google.com:19302' }
     ],
     
+    initialized: false,
+    hostId: null,
+    
     init(socket) {
+        if (this.initialized && this.socket === socket) return;
         this.socket = socket;
         this.setupSignaling();
+        this.initialized = true;
+        console.log('[LocalPeer] Initialized');
     },
     
     setupSignaling() {
         if (!this.socket) return;
         
+        // Remove old listeners first to prevent duplicates
+        this.socket.off('localRoomCreated');
+        this.socket.off('localRoomJoined');
+        this.socket.off('localPeerJoined');
+        this.socket.off('rtcOffer');
+        this.socket.off('rtcAnswer');
+        this.socket.off('rtcIceCandidate');
+        this.socket.off('localRoomError');
+        this.socket.off('localHostDisconnected');
+        this.socket.off('localPeerDisconnected');
+        
         // Host: room created
         this.socket.on('localRoomCreated', ({ roomCode, words, rounds }) => {
+            console.log('[LocalPeer] Room created:', roomCode);
             this.roomCode = roomCode;
             this.words = words;
             this.isHost = true;
             this.gameState = 'lobby';
             this.players = [{ id: 'host', name: State.data.username || 'Host', vote: null, connected: true }];
             this.showLocalLobby();
-            UIManager.showPostVoteMessage(`Local Room: ${roomCode} 📡`);
+            UIManager.showPostVoteMessage(`Room: ${roomCode} 📡`);
         });
         
-        // Peer: joined room, need to connect to host
+        // Peer: joined room, wait for host's offer
         this.socket.on('localRoomJoined', async ({ roomCode, hostId, hostName }) => {
+            console.log('[LocalPeer] Joined room:', roomCode, 'Host:', hostId);
             this.roomCode = roomCode;
+            this.hostId = hostId;
             this.isHost = false;
-            await this.connectToHost(hostId);
+            UIManager.showPostVoteMessage(`Connecting to ${hostName}... 🔗`);
+            // Now wait for rtcOffer from host
         });
         
-        // Host: new peer wants to connect
+        // Host: new peer wants to connect - create offer
         this.socket.on('localPeerJoined', async ({ peerId, peerName }) => {
+            console.log('[LocalPeer] Peer joined:', peerName, peerId);
             if (!this.isHost) return;
             await this.connectToPeer(peerId, peerName);
         });
         
-        // WebRTC offer received
+        // Peer receives offer from host
         this.socket.on('rtcOffer', async ({ from, offer, roomCode }) => {
-            if (this.isHost) return; // Hosts don't receive offers
-            await this.handleOffer(from, offer);
-        });
-        
-        // WebRTC answer received
-        this.socket.on('rtcAnswer', async ({ from, answer }) => {
-            if (!this.isHost) return; // Only hosts receive answers
-            const peer = this.peers.get(from);
-            if (peer && peer.connection) {
-                await peer.connection.setRemoteDescription(answer);
+            console.log('[LocalPeer] Received offer from:', from);
+            if (this.isHost) return;
+            try {
+                await this.handleOffer(from, offer);
+            } catch (e) {
+                console.error('[LocalPeer] Error handling offer:', e);
+                UIManager.showPostVoteMessage("Connection failed ❌");
             }
         });
         
-        // ICE candidate received
-        this.socket.on('rtcIceCandidate', async ({ from, candidate }) => {
-            if (this.isHost) {
-                const peer = this.peers.get(from);
-                if (peer && peer.connection) {
-                    await peer.connection.addIceCandidate(candidate);
+        // Host receives answer from peer
+        this.socket.on('rtcAnswer', async ({ from, answer }) => {
+            console.log('[LocalPeer] Received answer from:', from);
+            if (!this.isHost) return;
+            const peer = this.peers.get(from);
+            if (peer && peer.connection) {
+                try {
+                    await peer.connection.setRemoteDescription(new RTCSessionDescription(answer));
+                } catch (e) {
+                    console.error('[LocalPeer] Error setting remote description:', e);
                 }
-            } else if (this.hostConnection) {
-                await this.hostConnection.addIceCandidate(candidate);
+            }
+        });
+        
+        // ICE candidate exchange
+        this.socket.on('rtcIceCandidate', async ({ from, candidate }) => {
+            if (!candidate) return;
+            try {
+                if (this.isHost) {
+                    const peer = this.peers.get(from);
+                    if (peer?.connection) {
+                        await peer.connection.addIceCandidate(new RTCIceCandidate(candidate));
+                    }
+                } else if (this.hostConnection) {
+                    await this.hostConnection.addIceCandidate(new RTCIceCandidate(candidate));
+                }
+            } catch (e) {
+                console.error('[LocalPeer] ICE candidate error:', e);
             }
         });
         
         // Error handling
         this.socket.on('localRoomError', ({ message }) => {
+            console.error('[LocalPeer] Error:', message);
             UIManager.showPostVoteMessage(message);
             this.closeLocalUI();
         });
@@ -6436,7 +6475,7 @@ const LocalPeerManager = {
             this.closeLocalUI();
         });
         
-        // Peer disconnected (host receives this)
+        // Peer disconnected
         this.socket.on('localPeerDisconnected', ({ peerId }) => {
             const peer = this.peers.get(peerId);
             if (peer) {
@@ -6531,14 +6570,9 @@ const LocalPeerManager = {
         this.socket.emit('rtcOffer', { targetId: peerId, offer, roomCode: this.roomCode });
     },
     
-    // Peer: connect to host
-    async connectToHost(hostId) {
-        // Wait for offer from host - handled in rtcOffer event
-        UIManager.showPostVoteMessage("Connecting to host... 🔗");
-    },
-    
     // Peer: handle offer from host
     async handleOffer(hostId, offer) {
+        console.log('[LocalPeer] Handling offer, creating answer...');
         this.hostConnection = new RTCPeerConnection({ iceServers: this.iceServers });
         
         this.hostConnection.ondatachannel = (e) => {
@@ -7634,19 +7668,6 @@ const html = `
                                 </button>
                             </div>
                         </div>
-						
-						<div class="mb-4 p-3 bg-green-50 border border-green-200 rounded-xl mt-3">
-    <h3 class="font-bold text-green-900 text-sm mb-2 text-left">📡 LOCAL P2P MODE</h3>
-    <div class="flex gap-2">
-        <button onclick="RoomManager.startP2PHost()" class="flex-1 py-3 bg-green-600 text-white font-bold rounded-xl shadow-lg active:scale-95 transition flex items-center justify-center gap-2">
-            <span>👑</span> Host Game
-        </button>
-        <button onclick="RoomManager.joinP2P()" class="flex-1 py-3 bg-white text-green-600 border-2 border-green-200 font-bold rounded-xl shadow-sm active:scale-95 transition flex items-center justify-center gap-2">
-            <span>🎮</span> Join Game
-        </button>
-    </div>
-    <p class="text-xs text-green-500 mt-2 text-left">Host downloads words, players sync via WebRTC. Works offline after connecting!</p>
-</div>
                         
                         <div class="bg-gray-50 p-3 rounded-xl border border-gray-200">
                             <div class="flex items-center justify-between mb-2">
@@ -7672,7 +7693,22 @@ const html = `
                             </div>
                         </div>
                         
-                        <button onclick="RoomManager.submitEntry()" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 shadow-lg mt-2 transition transform active:scale-95">JOIN / CREATE</button>
+                        <button onclick="RoomManager.submitEntry()" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 shadow-lg mt-2 transition transform active:scale-95 w-full">JOIN / CREATE ONLINE</button>
+                        
+                        <div class="mt-4 pt-4 border-t border-gray-200">
+                            <div class="p-3 bg-green-50 border border-green-200 rounded-xl">
+                                <h3 class="font-bold text-green-900 text-sm mb-2 text-left flex items-center gap-2">📡 LOCAL MODE <span class="text-xs font-normal text-green-600">(No WiFi needed!)</span></h3>
+                                <div class="flex gap-2">
+                                    <button onclick="RoomManager.startP2PHost()" class="flex-1 py-2 bg-green-600 text-white font-bold rounded-xl shadow active:scale-95 transition flex items-center justify-center gap-1 text-sm">
+                                        <span>👑</span> Host
+                                    </button>
+                                    <button onclick="RoomManager.joinP2P()" class="flex-1 py-2 bg-white text-green-600 border-2 border-green-200 font-bold rounded-xl active:scale-95 transition flex items-center justify-center gap-1 text-sm">
+                                        <span>🎮</span> Join
+                                    </button>
+                                </div>
+                                <p class="text-xs text-green-500 mt-2 text-left">For festivals & poor signal. Brief connection to start, then works offline!</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
