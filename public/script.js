@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.1.9', 
+    APP_VERSION: '6.1.10', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -40,7 +40,28 @@ const CONFIG = {
     },
 };
 
-// Content filter for slurs and offensive terms
+const FESTIVAL_PACK = [
+    "Pineapple on Pizza", "TikTok", "Cyclists", "The Royal Family", "Crocs",
+    "Self-Checkout Machines", "Marvel Movies", "Electric Cars", "Vegans",
+    "Nuclear Power", "Bitcoin", "Skinny Jeans", "Voice Notes", "Astrology",
+    "Public Displays of Affection", "Coriander", "Reality TV", "Wasps",
+    "Gender Reveal Parties", "Oat Milk", "Cardi B", "Harry & Meghan",
+    "Slow Walkers", "Clapping When The Plane Lands", "QR Codes", "Croissants",
+    "Flat Earth Theory", "Vaping", "Elon Musk", "Matcha Lattes",
+    "Friends (The TV Show)", "Dark Chocolate", "ASMR", "Ugg Boots",
+    "Sparkling Water", "Mimes", "Jazz", "Golf", "Pagination", "Comic Sans",
+    "The Kardashians", "Craft Beer", "Tipping Culture", "LinkedIn",
+    "NFTs", "Gluten-Free Bread", "Influencers", "Crossfit", "Socks with Sandals",
+    "Camping", "Eurovision", "Disney Adults", "Essential Oils", "Thongs"
+].map((text, i) => ({ _id: `fest_${i}`, text: text, goodVotes:0, badVotes:0 }));
+
+const SONIC_CHANNELS = [
+    { id: 1, name: 'BLUE',  color: '#3b82f6', freqA: 1760, freqB: 2637 }, // A6, E7
+    { id: 2, name: 'RED',   color: '#ef4444', freqA: 1975, freqB: 2960 }, // B6, F#7
+    { id: 3, name: 'GREEN', color: '#22c55e', freqA: 2093, freqB: 3135 }, // C7, G7
+    { id: 4, name: 'GOLD',  color: '#eab308', freqA: 2349, freqB: 3520 }  // D7, A7
+];
+
 const ContentFilter = {
     // Base64 encoded to avoid raw slurs in source code
     // Includes racial slurs, homophobic/transphobic terms, and severe profanity
@@ -328,6 +349,7 @@ const State = {
 
     runtime: {
 		currentTheme: 'default',
+		offlineChannel: 1,
         allWords: [],
         history: [],
         currentWordIndex: 0,
@@ -560,54 +582,46 @@ const OfflineManager = {
     async toggle(active) {
         const roomBtn = document.getElementById('roomBtn');
         const broadcastBtnId = 'offlineBroadcastBtn';
-        
-        if (active) {
-            UIManager.showMessage("Downloading offline pack... 🚇");
-            const success = await this.fillCache();
-            if (success) {
-                State.data.settings.offlineMode = true;
-                State.save('settings', State.data.settings);
-                UIManager.showPostVoteMessage("Offline Mode Ready! 🚇");
-                State.runtime.allWords = State.data.offlineCache; 
-                
-                // --- HARDENED FIX: Floating Control Panel (Reset + Next) ---
-                if (!document.getElementById(broadcastBtnId)) {
-                    // Container
-                    const container = document.createElement('div');
-                    container.id = broadcastBtnId;
-                    Object.assign(container.style, {
-                        position: 'fixed', bottom: '20px', right: '20px',
-                        display: 'flex', flexDirection: 'column', gap: '10px', zIndex: '100'
-                    });
+                // Always remove old one to update color
+                const oldBtn = document.getElementById(broadcastBtnId);
+                if(oldBtn) oldBtn.remove();
 
-                    // 1. NEXT Button (Big Blue)
-                    const btnNext = document.createElement('button');
-                    btnNext.innerHTML = '📢';
-                    btnNext.onclick = () => SonicManager.transmit('NEXT');
-                    Object.assign(btnNext.style, {
-                        width: '60px', height: '60px', borderRadius: '50%',
-                        backgroundColor: '#4f46e5', color: 'white', fontSize: '24px',
-                        boxShadow: '0 4px 15px rgba(0,0,0,0.3)', border: 'none', cursor: 'pointer'
-                    });
+                const chId = State.runtime.offlineChannel || 1;
+                const ch = SONIC_CHANNELS.find(c => c.id === chId) || SONIC_CHANNELS[0];
 
-                    // 2. RESET Button (Small Red)
-                    const btnReset = document.createElement('button');
-                    btnReset.innerHTML = '🔄';
-                    btnReset.onclick = () => {
-                        if(confirm('Reset everyone to Word #1?')) SonicManager.transmit('RESET');
-                    };
-                    Object.assign(btnReset.style, {
-                        width: '40px', height: '40px', borderRadius: '50%',
-                        backgroundColor: '#ef4444', color: 'white', fontSize: '18px',
-                        boxShadow: '0 4px 15px rgba(0,0,0,0.3)', border: 'none', cursor: 'pointer',
-                        alignSelf: 'center'
-                    });
+                const container = document.createElement('div');
+                container.id = broadcastBtnId;
+                Object.assign(container.style, {
+                    position: 'fixed', bottom: '20px', right: '20px',
+                    display: 'flex', flexDirection: 'column', gap: '10px', zIndex: '100'
+                });
 
-                    container.appendChild(btnReset);
-                    container.appendChild(btnNext);
-                    document.body.appendChild(container);
-                }
-                // -----------------------------------------------------------
+                // NEXT Button (Channel Color)
+                const btnNext = document.createElement('button');
+                btnNext.innerHTML = '📢';
+                btnNext.onclick = () => SonicManager.transmit('NEXT');
+                Object.assign(btnNext.style, {
+                    width: '60px', height: '60px', borderRadius: '50%',
+                    backgroundColor: ch.color, color: 'white', fontSize: '24px',
+                    boxShadow: '0 4px 15px rgba(0,0,0,0.3)', border: 'none', cursor: 'pointer'
+                });
+
+                // RESET Button
+                const btnReset = document.createElement('button');
+                btnReset.innerHTML = '🔄';
+                btnReset.onclick = () => {
+                    if(confirm(`Reset CHANNEL ${chId} (${ch.name}) to Word #1?`)) SonicManager.transmit('RESET');
+                };
+                Object.assign(btnReset.style, {
+                    width: '40px', height: '40px', borderRadius: '50%',
+                    backgroundColor: '#1f2937', color: 'white', fontSize: '18px',
+                    boxShadow: '0 4px 15px rgba(0,0,0,0.3)', border: 'none', cursor: 'pointer',
+                    alignSelf: 'center'
+                });
+
+                container.appendChild(btnReset);
+                container.appendChild(btnNext);
+                document.body.appendChild(container);
                 
                 Game.nextWord();
             } else {
@@ -634,75 +648,6 @@ const OfflineManager = {
     }
 };
 
-	async fillCache() {
-        try {
-            let gathered = [];
-            
-            // --- FIX: Check Kids Mode First ---
-            if (State.data.settings.kidsMode) {
-
-                const r = await fetch(CONFIG.KIDS_LIST_FILE);
-                if (!r.ok) throw 0;
-                const t = await r.text();
-                // Convert text lines to compatible objects
-                gathered = t.split('\n')
-                    .map(l => l.trim().toUpperCase())
-                    .filter(l => l.length > 0)
-                    .map((w, i) => ({ 
-                        _id: `kid_${i}`, 
-                        text: w, 
-                        goodVotes: 0, 
-                        badVotes: 0 
-                    }));
-            } else {
-
-                let attempts = 0; 
-                while (gathered.length < this.CACHE_TARGET && attempts < 20) {
-                    const newWords = await API.fetchWords(true); 
-                    if (!newWords || newWords.length === 0) break;
-                    
-                    const existingIds = new Set(gathered.map(w => w._id));
-                    const unique = newWords.filter(w => !existingIds.has(w._id));
-                    gathered = [...gathered, ...unique];
-                    attempts++;
-                }
-            }
-            
-            State.save('offlineCache', gathered);
-            return true;
-        } catch (e) {
-            console.error("Cache fill failed", e);
-            return false;
-        }
-    },
-
-    async sync() {
-        const queue = State.data.pendingVotes;
-        if (queue.length === 0) return;
-
-        let successCount = 0;
-        for (const vote of queue) {
-            try {
-                await fetch(`${CONFIG.API_BASE_URL}/${vote.id}/vote`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        voteType: vote.type,
-                        userId: State.data.userId
-                    })
-                });
-                successCount++;
-            } catch (e) {
-                console.error("Failed to sync vote", vote);
-            }
-        }
-
-        if (successCount > 0) {
-            UIManager.showPostVoteMessage(`Synced ${successCount} votes! ☁️`);
-        }
-        State.save('pendingVotes', []);
-    }
-};
 		
 if (!localStorage.getItem('userId')) localStorage.setItem('userId', State.data.userId);
 
@@ -930,38 +875,38 @@ playBad() {
 const SonicManager = {
     ctx: null, analyser: null, micStream: null, isListening: false, rafId: null,
     
-    // NEW FREQUENCIES (Higher pitch to avoid crowd noise/bass)
-    // TONE_A (Low): 1760Hz (A6)
-    // TONE_B (High): 2637Hz (E7)
-    TONE_A: 1760, 
-    TONE_B: 2637, 
-    
-    detectState: 'IDLE', // IDLE, WAIT_FOR_B, WAIT_FOR_A
-    sequenceTimer: null, 
-    lastTriggerTime: 0,
+    detectState: 'IDLE', 
+    sequenceTimer: null, lastTriggerTime: 0,
 
     init() { if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)(); return this.ctx; },
 
-    // MODE: 'NEXT' (Low->High) or 'RESET' (High->Low)
+    // Helper: Get current channel config
+    getCurrentChannel() {
+        const id = State.runtime.offlineChannel || 1;
+        return SONIC_CHANNELS.find(c => c.id === id) || SONIC_CHANNELS[0];
+    },
+
+    // TRANSMIT (Host)
     async transmit(mode = 'NEXT') {
         this.init();
         if (this.ctx.state === 'suspended') await this.ctx.resume();
         
+        const ch = this.getCurrentChannel();
         const isNext = mode === 'NEXT';
-        UIManager.showPostVoteMessage(isNext ? "Broadcasting Next... 📡" : "Resetting Group... 🔄");
+        
+        UIManager.showPostVoteMessage(isNext ? `${ch.name}: Next... 📡` : `${ch.name}: Reset! 🔄`);
         
         const t = this.ctx.currentTime;
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
-        
         osc.connect(gain); gain.connect(this.ctx.destination);
         
-        // SEQUENCE
-        // NEXT: A (0.4s) -> B (0.4s)
-        // RESET: B (0.6s) -> A (0.6s) (Longer to distinguish)
+        // Use Channel-Specific Frequencies
+        // NEXT: Low -> High
+        // RESET: High -> Low
+        const f1 = isNext ? ch.freqA : ch.freqB;
+        const f2 = isNext ? ch.freqB : ch.freqA;
         const dur = isNext ? 0.4 : 0.6;
-        const f1 = isNext ? this.TONE_A : this.TONE_B;
-        const f2 = isNext ? this.TONE_B : this.TONE_A;
 
         osc.frequency.setValueAtTime(f1, t);
         osc.frequency.setValueAtTime(f2, t + dur);
@@ -969,26 +914,24 @@ const SonicManager = {
         osc.start(t); 
         osc.stop(t + (dur * 2));
         
-        // Volume Envelope (Clean fade in/out)
         gain.gain.setValueAtTime(0, t);
         gain.gain.linearRampToValueAtTime(1, t + 0.05);
         gain.gain.setValueAtTime(1, t + (dur * 2) - 0.05);
         gain.gain.linearRampToValueAtTime(0, t + (dur * 2));
 
-        // Advance Host Logic Locally
+        // Host Logic
         if (isNext) {
             if (State.runtime.allWords.length > 0) {
                  State.runtime.currentWordIndex++;
                  Game.nextWord();
             }
         } else {
-            // Host Reset
+            // Reset logic: Reshuffle using the current channel ID
+            Game.refreshData(false); 
             State.runtime.currentWordIndex = 0;
             Game.nextWord();
-            UIManager.showPostVoteMessage("Game Reset! 🎬");
+            UIManager.showPostVoteMessage(`Reset to ${ch.name} Deck! 🎬`);
         }
-        
-        // Re-enable buttons for Host immediately
         UIManager.disableButtons(false);
     },
 
@@ -1008,8 +951,12 @@ const SonicManager = {
             this.isListening = true;
             this.detectState = 'IDLE';
             this.listenLoop();
-            UIManager.showPostVoteMessage("Mic Active 🎙️");
+            
+            const ch = this.getCurrentChannel();
+            UIManager.showPostVoteMessage(`Listening on ${ch.name}... 👂`);
             document.body.classList.add('listening-mode');
+            // Visual hint for channel color
+            document.body.style.borderBottom = `5px solid ${ch.color}`;
         } catch (e) { console.error(e); UIManager.showPostVoteMessage("Mic Access Denied 🚫"); }
     },
 
@@ -1018,6 +965,7 @@ const SonicManager = {
         if (this.micStream) { this.micStream.getTracks().forEach(t => t.stop()); this.micStream = null; }
         if (this.rafId) cancelAnimationFrame(this.rafId);
         document.body.classList.remove('listening-mode');
+        document.body.style.borderBottom = 'none';
         UIManager.showPostVoteMessage("Mic Stopped 🔇");
     },
 
@@ -1027,47 +975,36 @@ const SonicManager = {
         const dataArray = new Uint8Array(bufferLength);
         this.analyser.getByteFrequencyData(dataArray);
 
-        // --- SIGNAL-TO-NOISE (SNR) CHECK ---
-        // Prevents random loud noise from triggering
+        // Get Frequencies for CURRENT Channel
+        const ch = this.getCurrentChannel();
+
         const getSignalStrength = (targetFreq) => {
             const hzPerBin = this.ctx.sampleRate / this.analyser.fftSize;
             const targetBin = Math.floor(targetFreq / hzPerBin);
-            
-            // 1. Get volume of target tone
             let signalVol = 0;
             for (let i = -2; i <= 2; i++) {
                 if (dataArray[targetBin + i] > signalVol) signalVol = dataArray[targetBin + i];
             }
-            
-            // 2. Get average volume of surrounding frequencies (Noise Floor)
-            let noiseSum = 0;
-            let count = 0;
-            const range = 20; // Check 20 bins away
-            for (let i = -range; i <= range; i++) {
-                if (Math.abs(i) < 4) continue; // Skip the signal itself
+            // SNR Check
+            let noiseSum = 0, count = 0;
+            for (let i = -20; i <= 20; i++) {
+                if (Math.abs(i) < 4) continue; 
                 noiseSum += dataArray[targetBin + i] || 0;
                 count++;
             }
             const noiseFloor = noiseSum / count;
-
-            // 3. STRICT RULE: Signal must be 3x louder than noise floor AND absolute vol > 40
-            if (signalVol > 40 && signalVol > (noiseFloor * 3)) {
-                return true; 
-            }
-            return false;
+            return (signalVol > 40 && signalVol > (noiseFloor * 3));
         };
 
-        const heardA = getSignalStrength(this.TONE_A);
-        const heardB = getSignalStrength(this.TONE_B);
+        const heardA = getSignalStrength(ch.freqA);
+        const heardB = getSignalStrength(ch.freqB);
 
-        // STATE MACHINE
+        // State Machine
         if (this.detectState === 'IDLE') {
             if (heardA) {
-                // Heard LOW tone first -> Could be "NEXT"
                 this.detectState = 'WAIT_FOR_B';
                 this.setTimer();
             } else if (heardB) {
-                // Heard HIGH tone first -> Could be "RESET"
                 this.detectState = 'WAIT_FOR_A';
                 this.setTimer();
             }
@@ -1089,14 +1026,13 @@ const SonicManager = {
     
     triggerAction(type) {
         const now = Date.now();
-        if (now - this.lastTriggerTime < 2000) return; // Cooldown
+        if (now - this.lastTriggerTime < 2000) return;
         this.lastTriggerTime = now;
         this.detectState = 'IDLE';
         if (this.sequenceTimer) clearTimeout(this.sequenceTimer);
 
-        // UNLOCK UI
         document.body.classList.remove('vote-good-mode', 'vote-bad-mode');
-        UIManager.disableButtons(false); // Re-enable voting buttons
+        UIManager.disableButtons(false); 
 
         if (type === 'NEXT') {
             UIManager.showPostVoteMessage("Next Word! 📶");
@@ -1105,9 +1041,12 @@ const SonicManager = {
                  Game.nextWord();
             }
         } else if (type === 'RESET') {
-            UIManager.showPostVoteMessage("Group Reset! 🔄");
+            // Signal received: RESET implies "Method X, GO!"
+            // We must reload the data to match the channel's shuffle
+            Game.refreshData(false);
             State.runtime.currentWordIndex = 0;
             Game.nextWord();
+            UIManager.showPostVoteMessage("Synced to Channel! 🎬");
         }
     }
 };
@@ -5129,21 +5068,63 @@ displayWord(w) {
         const w = topGood[gI];
         c.innerHTML = `<div class="p-4 bg-white rounded-xl shadow-sm border border-gray-200 inline-block w-full max-w-sm"><h3 class="text-2xl font-black text-gray-800 mb-4">${w.text.toUpperCase()}</h3><div class="flex justify-around mb-4"><div class="text-center"><div class="text-sm text-gray-500">Good Rank</div><div class="text-3xl font-bold text-green-600">#${gI+1}</div></div><div class="text-center"><div class="text-sm text-gray-500">Bad Rank</div><div class="text-3xl font-bold text-red-600">#${bI+1}</div></div></div><div class="border-t pt-4 flex justify-between text-sm"><span class="font-bold text-green-600">+${w.good} Good</span><span class="font-bold text-red-600">-${w.bad} Bad</span></div></div>`
     },
-    updateOfflineIndicator() {
+   updateOfflineIndicator() {
         let ind = document.getElementById('offlineIndicator');
         if (!ind) {
             ind = document.createElement('div');
             ind.id = 'offlineIndicator';
-            ind.className = 'fixed bottom-4 left-4 bg-gray-900 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg z-50 transition-opacity duration-500 pointer-events-none';
-            ind.innerHTML = '🚇 OFFLINE MODE';
+            // Styling for clickable badge
+            ind.className = 'fixed bottom-4 left-4 text-xs font-bold px-4 py-3 rounded-full shadow-lg z-50 transition-all duration-300 cursor-pointer border-2 hover:scale-105 active:scale-95 select-none';
+            
+            ind.onclick = () => {
+                if (!OfflineManager.isActive()) return;
+                
+                // Cycle Channel 1-4
+                let current = State.runtime.offlineChannel || 1;
+                current++;
+                if (current > 4) current = 1;
+                State.runtime.offlineChannel = current;
+                
+                // Save and Reload
+                Game.refreshData(false); 
+                State.runtime.currentWordIndex = 0;
+                Game.nextWord();
+                
+                // Restart Mic/Buttons if active
+                if(SonicManager.isListening) {
+                     SonicManager.stopListening();
+                     SonicManager.startListening();
+                }
+                
+                // Update Host Buttons if they exist
+                OfflineManager.toggle(true); 
+                
+                UIManager.updateOfflineIndicator();
+            };
             document.body.appendChild(ind);
         }
+
         if (OfflineManager.isActive()) {
-            const pendingCount = State.data.pendingVotes ? State.data.pendingVotes.length : 0;
+            const chId = State.runtime.offlineChannel || 1;
+            const ch = SONIC_CHANNELS.find(c => c.id === chId) || SONIC_CHANNELS[0];
+            
             ind.style.opacity = '1';
-            ind.innerHTML = `🚇 OFFLINE (${pendingCount})`;
+            ind.style.pointerEvents = 'auto';
+            
+            // Dynamic Color Styling
+            ind.style.backgroundColor = 'white';
+            ind.style.borderColor = ch.color;
+            ind.style.color = 'black';
+            
+            // Text: "CHANNEL 1 (BLUE)"
+            ind.innerHTML = `
+                <span style="color:${ch.color}">●</span> 
+                CHANNEL ${chId} 
+                <span class="opacity-50 text-[10px] ml-1">(${ch.name})</span>
+            `;
         } else {
             ind.style.opacity = '0';
+            ind.style.pointerEvents = 'none';
         }
     },
 		updateControversialIndicator(active) {
@@ -8005,17 +7986,24 @@ async vote(t, s = false) {
         }
 
 		if (d && d.length > 0) {
-            // --- NEW: DETERMINISTIC SYNC ---
-            if (OfflineManager.isActive() || document.body.classList.contains('listening-mode')) {
-                // 1. Sort alphabetically first to ensure baseline matches across devices
+            // --- UPDATED: CHANNEL SYNC & SHUFFLE ---
+            if (OfflineManager.isActive()) {
+                // 1. Load Fixed Pack
+                d = JSON.parse(JSON.stringify(FESTIVAL_PACK));
                 d.sort((a, b) => a.text.localeCompare(b.text));
                 
-                // 2. Shuffle using Today's Date as the seed
-                // This ensures everyone playing today gets the EXACT same word order
-                const todaySeed = new Date().toDateString(); // e.g. "Fri Jan 09 2026"
-                d = SeededShuffle.shuffle(d, todaySeed);
+                // 2. Get Channel Info
+                const chId = State.runtime.offlineChannel || 1;
+                const today = new Date().toDateString(); 
                 
-                console.log("Offline Sync Active: Words shuffled with seed", todaySeed);
+                // 3. SEED: "Fri Jan 09 2026_Channel1"
+                // This ensures Channel 1 always has the same order for everyone
+                const seedStr = `${today}_Channel${chId}`;
+                
+                // 4. Shuffle
+                d = SeededShuffle.shuffle(d, seedStr);
+                
+                console.log(`Loaded ${seedStr}`);
             } else {
                 // Normal random shuffle for single player / online
                 for (let i = d.length - 1; i > 0; i--) {
@@ -8023,6 +8011,7 @@ async vote(t, s = false) {
                     [d[i], d[j]] = [d[j], d[i]];
                 }
             }
+            // ------------------------------------
             
             State.runtime.allWords = d;
             
