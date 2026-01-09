@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.10', 
+    APP_VERSION: '6.2.11', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -9686,10 +9686,23 @@ const StreakManager = {
             MosquitoManager.init(type);
             console.log(`✈️ Spawned flying ${type}!`);
         },
-        // Trigger spider hunt
+        // Trigger spider hunt (goes to bug location if bug exists)
         spider: () => {
-            Effects.spiderHunt();
-            console.log('🕷️ Spider is hunting!');
+            if (MosquitoManager.state === 'stuck') {
+                Effects.spiderHunt(MosquitoManager.x, MosquitoManager.y, true);
+                console.log('🕷️ Spider is hunting the bug!');
+            } else {
+                Effects.spiderHunt(50, 50, false);
+                console.log('🕷️ Spider is hunting (no bug to eat)');
+            }
+        },
+        // Quick feed - spawn bug and immediately feed spider
+        feed: () => {
+            MosquitoManager.spawnStuck('🦟');
+            setTimeout(() => {
+                Effects.spiderHunt(MosquitoManager.x, MosquitoManager.y, true);
+                console.log('🕷️ Feeding spider!');
+            }, 100);
         },
         // Check spider stats
         stats: () => {
