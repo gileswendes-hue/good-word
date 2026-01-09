@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.15', 
+    APP_VERSION: '6.2.16', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -2969,9 +2969,10 @@ halloween(active) {
             });
             
             const eaten = State.data.insectStats.eaten || 0;
-            const scale = Math.min(0.7 + (eaten * 0.05), 2.0);
-            const fontSize = (3 * scale).toFixed(2);
-            console.log('[Spider] Creating spider, eaten:', eaten, 'scale:', scale, 'fontSize:', fontSize + 'rem');
+            const maxBugs = 5;
+            const cappedEaten = Math.min(eaten, maxBugs);
+            const fontSize = (3 + (cappedEaten * 0.6)).toFixed(2); // 3rem -> 6rem over 5 bugs
+            console.log('[Spider] Creating spider, eaten:', eaten, 'fontSize:', fontSize + 'rem');
             
             wrap.innerHTML = `
                 <div id="spider-anchor" style="transform-origin: top center;">
@@ -3489,9 +3490,12 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                             UIManager.showPostVoteMessage(`🕷️ ${eaten} bugs eaten! Size: ${newScale.toFixed(2)}x`);
                             
                             // Change the actual font-size for visible growth
+                            // 5 stages: 0 bugs = 3rem, 5 bugs = 6rem (max)
                             const baseFontSize = 3; // rem
-                            const newFontSize = baseFontSize * newScale;
-                            const bulgeFontSize = baseFontSize * newScale * 1.3;
+                            const maxBugs = 5;
+                            const cappedEaten = Math.min(eaten, maxBugs);
+                            const newFontSize = baseFontSize + (cappedEaten * 0.6); // 3rem -> 6rem over 5 bugs
+                            const bulgeFontSize = newFontSize * 1.2;
                             
                             console.log('[Spider] Setting bulge font-size:', bulgeFontSize.toFixed(2) + 'rem');
                             body.style.transition = 'font-size 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
@@ -9710,50 +9714,59 @@ const StreakManager = {
                 console.log('🕷️ Feeding spider!');
             }, 100);
         },
-        // Feed multiple times to demo growth
+        // Feed multiple times to demo growth (max 5 stages)
         grow: (times = 5) => {
-            console.log(`🕷️ Feeding spider ${times} times...`);
+            const maxBugs = 5;
+            const currentEaten = State.data.insectStats.eaten || 0;
+            const remaining = Math.max(0, maxBugs - currentEaten);
+            const toFeed = Math.min(times, remaining);
+            
+            if (toFeed === 0) {
+                console.log('🕷️ Spider is already at max size (5 bugs)!');
+                TEST.stats();
+                return;
+            }
+            
+            console.log(`🕷️ Feeding spider ${toFeed} times...`);
             let i = 0;
             const feedOne = () => {
-                if (i >= times) {
-                    console.log('🕷️ Done! Spider should be noticeably bigger.');
+                if (i >= toFeed) {
+                    console.log('🕷️ Done!');
                     TEST.stats();
                     return;
                 }
                 i++;
-                console.log(`🕷️ Feed #${i}...`);
-                // Directly increment eaten count and update spider
                 State.data.insectStats.eaten++;
                 State.save('insectStats', State.data.insectStats);
                 
-                // Update spider body size
                 const body = document.querySelector('#spider-body');
                 if (body) {
                     const eaten = State.data.insectStats.eaten;
-                    const scale = Math.min(0.7 + (eaten * 0.05), 2.0);
-                    const fontSize = (3 * scale).toFixed(2);
+                    const cappedEaten = Math.min(eaten, maxBugs);
+                    const fontSize = (3 + (cappedEaten * 0.6)).toFixed(2);
                     body.style.transition = 'font-size 0.3s ease';
                     body.style.fontSize = fontSize + 'rem';
-                    UIManager.showPostVoteMessage(`🕷️ ${eaten} bugs! Size: ${scale.toFixed(2)}x`);
+                    UIManager.showPostVoteMessage(`🕷️ Bug ${eaten}/5! Size: ${fontSize}rem`);
                 }
                 
-                setTimeout(feedOne, 500);
+                setTimeout(feedOne, 600);
             };
             feedOne();
         },
         // Check spider stats
         stats: () => {
             const eaten = State.data.insectStats.eaten || 0;
-            const scale = Math.min(0.7 + (eaten * 0.05), 2.0);
-            const fontSize = (3 * scale).toFixed(2);
+            const maxBugs = 5;
+            const cappedEaten = Math.min(eaten, maxBugs);
+            const fontSize = (3 + (cappedEaten * 0.6)).toFixed(2);
+            const isFull = eaten >= maxBugs;
             console.log(`🕷️ Spider Stats:
-  - Bugs eaten (lifetime): ${eaten}
-  - Scale: ${scale.toFixed(2)}x
+  - Bugs eaten: ${eaten}${isFull ? ' (MAX!)' : ''}
+  - Growth stage: ${cappedEaten}/5
   - Font size: ${fontSize}rem
-  - Recent bugs: ${State.data.spiderEatLog?.length || 0}
-  - Is full: ${Date.now() < (State.data.spiderFullUntil || 0)}`);
+  - Status: ${isFull ? '😴 FULL - resting!' : '🍽️ Still hungry...'}`);
         },
-        // Reset spider stats (for testing growth)
+        // Reset spider stats
         reset: () => {
             State.data.insectStats.eaten = 0;
             State.data.spiderEatLog = [];
@@ -9761,9 +9774,8 @@ const StreakManager = {
             State.save('insectStats', State.data.insectStats);
             State.save('spiderEatLog', []);
             State.save('spiderFullUntil', 0);
-            // Also reset the spider's visual size
             const body = document.querySelector('#spider-body');
-            if (body) body.style.fontSize = '2.1rem'; // 3 * 0.7
+            if (body) body.style.fontSize = '3rem';
             console.log('🕷️ Spider reset to baby size!');
             UIManager.showPostVoteMessage('🕷️ Spider reset!');
         }
