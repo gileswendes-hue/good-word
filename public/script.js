@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.6', 
+    APP_VERSION: '6.2.9', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -2969,7 +2969,7 @@ halloween(active) {
             });
             
             const eaten = State.data.insectStats.eaten || 0;
-            const scale = Math.min(0.7 + (eaten * 0.006), 1.4).toFixed(2);
+            const scale = Math.min(0.7 + (eaten * 0.05), 2.0).toFixed(2);
             console.log('[Spider] Creating spider, eaten:', eaten, 'scale:', scale);
             
             wrap.innerHTML = `
@@ -3137,7 +3137,7 @@ const anchor = wrap.querySelector('#spider-anchor');
         if (anchor && currentBody) {
             const eaten = State.data.insectStats.eaten || 0;
             // Base size with growth per bug eaten lifetime
-            let scale = Math.min(0.7 + (eaten * 0.006), 1.4); 
+            let scale = Math.min(0.7 + (eaten * 0.05), 2.0); 
 
             const isFull = Date.now() < (State.data.spiderFullUntil || 0);
             
@@ -3343,17 +3343,17 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
 		const anchor = wrap.querySelector('#spider-anchor');
         if (anchor && body) {
             const eaten = State.data.insectStats.eaten || 0;
-            let scale = Math.min(0.7 + (eaten * 0.006), 1.4); // Base size
+            let scale = Math.min(0.7 + (eaten * 0.05), 2.0); // Base size
 
             const isFull = Date.now() < (State.data.spiderFullUntil || 0);
             
             if (isFull) {
-                scale = scale * 1.5; // Max fatness (50% bigger)
+                scale = scale * 1.6; // Max fatness (60% bigger)
                 body.classList.add('spider-fat');
             } else {
-                // Incremental growth: 10% bigger per bug currently in stomach
+                // Incremental growth: 20% bigger per bug currently in stomach
                 const recentBugs = State.data.spiderEatLog ? State.data.spiderEatLog.length : 0;
-                scale = scale * (1 + (recentBugs * 0.15)); 
+                scale = scale * (1 + (recentBugs * 0.20)); 
                 body.classList.remove('spider-fat');
             }
             anchor.style.transform = `scale(${scale.toFixed(2)})`;
@@ -3466,7 +3466,8 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                             console.log('[Spider] Bugs eaten:', eaten);
                             
                             // Base size grows with total bugs eaten (lifetime)
-                            let baseScale = Math.min(0.7 + (eaten * 0.006), 1.4);
+                            // 0.7 base + 0.05 per bug = visible growth! (max 2.0)
+                            let baseScale = Math.min(0.7 + (eaten * 0.05), 2.0);
                             
                             // Recent bugs multiplier (temporary bulge)
                             const recentBugs = State.data.spiderEatLog ? State.data.spiderEatLog.length : 0;
@@ -3477,10 +3478,14 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                                 newScale = baseScale * 1.6;
                                 if (body) body.classList.add('spider-fat');
                             } else if (recentBugs > 0) {
-                                newScale = baseScale * (1 + (recentBugs * 0.15));
+                                // Each recent bug adds 20% temporary size
+                                newScale = baseScale * (1 + (recentBugs * 0.20));
                             }
                             
                             console.log('[Spider] New scale:', newScale.toFixed(2));
+                            
+                            // Show visible feedback
+                            UIManager.showPostVoteMessage(`🕷️ ${eaten} bugs eaten! Scale: ${newScale.toFixed(2)}x`);
                             
                             // Animate the growth with a satisfying "gulp" effect
                             anchor.style.transition = 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
@@ -9652,9 +9657,58 @@ const StreakManager = {
     window.UIManager = UIManager;
 	window.WeatherManager = WeatherManager;
 	window.LocalPeerManager = LocalPeerManager;
+    
+    // Debug/Test commands - type these in browser console
+    window.TEST = {
+        // Unlock and apply Halloween theme
+        halloween: () => {
+            if (!State.data.unlockedThemes.includes('halloween')) {
+                State.data.unlockedThemes.push('halloween');
+                State.save('unlockedThemes', State.data.unlockedThemes);
+            }
+            ThemeManager.apply('halloween');
+            console.log('🎃 Halloween theme activated!');
+        },
+        // Spawn a bug (stuck in web, ready for spider)
+        bug: (type = '🦟') => {
+            MosquitoManager.spawnStuck(type);
+            console.log(`🕸️ Spawned ${type} in web!`);
+        },
+        // Spawn flying bug
+        fly: (type = '🦟') => {
+            MosquitoManager.init(type);
+            console.log(`✈️ Spawned flying ${type}!`);
+        },
+        // Trigger spider hunt
+        spider: () => {
+            Effects.spiderHunt();
+            console.log('🕷️ Spider is hunting!');
+        },
+        // Check spider stats
+        stats: () => {
+            const eaten = State.data.insectStats.eaten || 0;
+            const scale = Math.min(0.7 + (eaten * 0.05), 2.0);
+            console.log(`🕷️ Spider Stats:
+  - Bugs eaten (lifetime): ${eaten}
+  - Current scale: ${scale.toFixed(2)}x
+  - Recent bugs: ${State.data.spiderEatLog?.length || 0}
+  - Is full: ${Date.now() < (State.data.spiderFullUntil || 0)}`);
+        },
+        // Reset spider stats (for testing growth)
+        resetSpider: () => {
+            State.data.insectStats.eaten = 0;
+            State.data.spiderEatLog = [];
+            State.data.spiderFullUntil = 0;
+            State.save('insectStats', State.data.insectStats);
+            State.save('spiderEatLog', []);
+            State.save('spiderFullUntil', 0);
+            console.log('🕷️ Spider stats reset to 0!');
+        }
+    };
 
     console.log("%c Good Word / Bad Word ", "background: #4f46e5; color: #bada55; padding: 4px; border-radius: 4px;");
     console.log("Play fair! ️😇");
+    console.log("🧪 Test commands: TEST.halloween(), TEST.bug(), TEST.spider(), TEST.stats()");
 
 	
 })();
