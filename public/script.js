@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.1.10', 
+    APP_VERSION: '6.1.11', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -578,51 +578,81 @@ const OfflineManager = {
         State.save('voteQueue', queue);
     },
 
+    // Update broadcast buttons for current channel (without re-downloading cache)
+    updateBroadcastButtons() {
+        const broadcastBtnId = 'offlineBroadcastBtn';
+        
+        // Remove old buttons
+        const oldBtn = document.getElementById(broadcastBtnId);
+        if(oldBtn) oldBtn.remove();
+        
+        // Only create if offline mode is active
+        if (!this.isActive()) return;
+
+        const chId = State.runtime.offlineChannel || 1;
+        const ch = SONIC_CHANNELS.find(c => c.id === chId) || SONIC_CHANNELS[0];
+
+        const container = document.createElement('div');
+        container.id = broadcastBtnId;
+        Object.assign(container.style, {
+            position: 'fixed', bottom: '20px', right: '20px',
+            display: 'flex', flexDirection: 'column', gap: '10px', zIndex: '100'
+        });
+
+        // NEXT Button (Channel Color)
+        const btnNext = document.createElement('button');
+        btnNext.innerHTML = '📢';
+        btnNext.onclick = () => SonicManager.transmit('NEXT');
+        Object.assign(btnNext.style, {
+            width: '60px', height: '60px', borderRadius: '50%',
+            backgroundColor: ch.color, color: 'white', fontSize: '24px',
+            boxShadow: '0 4px 15px rgba(0,0,0,0.3)', border: 'none', cursor: 'pointer'
+        });
+
+        // RESET Button
+        const btnReset = document.createElement('button');
+        btnReset.innerHTML = '🔄';
+        btnReset.onclick = () => {
+            if(confirm(`Reset CHANNEL ${chId} (${ch.name}) to Word #1?`)) SonicManager.transmit('RESET');
+        };
+        Object.assign(btnReset.style, {
+            width: '40px', height: '40px', borderRadius: '50%',
+            backgroundColor: '#1f2937', color: 'white', fontSize: '18px',
+            boxShadow: '0 4px 15px rgba(0,0,0,0.3)', border: 'none', cursor: 'pointer',
+            alignSelf: 'center'
+        });
+
+        container.appendChild(btnReset);
+        container.appendChild(btnNext);
+        document.body.appendChild(container);
+    },
+
     // Toggle Offline Mode
     async toggle(active) {
         const roomBtn = document.getElementById('roomBtn');
         const broadcastBtnId = 'offlineBroadcastBtn';
-                // Always remove old one to update color
-                const oldBtn = document.getElementById(broadcastBtnId);
-                if(oldBtn) oldBtn.remove();
-
+        
+        if (active) {
+            // ACTIVATING OFFLINE MODE
+            UIManager.showMessage("Caching words for offline play... 📥");
+            const success = await this.fillCache();
+            
+            if (success) {
+                State.data.settings.offlineMode = true;
+                State.save('settings', State.data.settings);
+                
+                // Hide online multiplayer button
+                if(roomBtn) roomBtn.style.display = 'none';
+                
+                // Create broadcast buttons
+                this.updateBroadcastButtons();
+                
                 const chId = State.runtime.offlineChannel || 1;
                 const ch = SONIC_CHANNELS.find(c => c.id === chId) || SONIC_CHANNELS[0];
-
-                const container = document.createElement('div');
-                container.id = broadcastBtnId;
-                Object.assign(container.style, {
-                    position: 'fixed', bottom: '20px', right: '20px',
-                    display: 'flex', flexDirection: 'column', gap: '10px', zIndex: '100'
-                });
-
-                // NEXT Button (Channel Color)
-                const btnNext = document.createElement('button');
-                btnNext.innerHTML = '📢';
-                btnNext.onclick = () => SonicManager.transmit('NEXT');
-                Object.assign(btnNext.style, {
-                    width: '60px', height: '60px', borderRadius: '50%',
-                    backgroundColor: ch.color, color: 'white', fontSize: '24px',
-                    boxShadow: '0 4px 15px rgba(0,0,0,0.3)', border: 'none', cursor: 'pointer'
-                });
-
-                // RESET Button
-                const btnReset = document.createElement('button');
-                btnReset.innerHTML = '🔄';
-                btnReset.onclick = () => {
-                    if(confirm(`Reset CHANNEL ${chId} (${ch.name}) to Word #1?`)) SonicManager.transmit('RESET');
-                };
-                Object.assign(btnReset.style, {
-                    width: '40px', height: '40px', borderRadius: '50%',
-                    backgroundColor: '#1f2937', color: 'white', fontSize: '18px',
-                    boxShadow: '0 4px 15px rgba(0,0,0,0.3)', border: 'none', cursor: 'pointer',
-                    alignSelf: 'center'
-                });
-
-                container.appendChild(btnReset);
-                container.appendChild(btnNext);
-                document.body.appendChild(container);
                 
+                UIManager.showPostVoteMessage(`Offline Mode Active! Channel ${chId} (${ch.name}) 📡`);
+                Game.refreshData(false);
+                State.runtime.currentWordIndex = 0;
                 Game.nextWord();
             } else {
                 alert("Could not download words. Check connection.");
@@ -630,17 +660,23 @@ const OfflineManager = {
                 if(toggle) toggle.checked = false;
             }
         } else {
+            // DEACTIVATING OFFLINE MODE
             UIManager.showMessage("Syncing votes... 📡");
             await this.sync();
             State.data.settings.offlineMode = false;
             State.save('settings', State.data.settings);
             
-            // FIX: Ensure this line is complete
+            // Show online multiplayer button again
             if(roomBtn) roomBtn.style.display = 'block';
             
-            // Remove button when going back online
+            // Remove broadcast buttons when going back online
             const btn = document.getElementById(broadcastBtnId);
             if(btn) btn.remove();
+            
+            // Stop listening if active
+            if(SonicManager.isListening) {
+                SonicManager.stopListening();
+            }
             
             Game.refreshData(); 
         }
@@ -5096,8 +5132,8 @@ displayWord(w) {
                      SonicManager.startListening();
                 }
                 
-                // Update Host Buttons if they exist
-                OfflineManager.toggle(true); 
+                // Update Host Buttons for new channel color
+                OfflineManager.updateBroadcastButtons();
                 
                 UIManager.updateOfflineIndicator();
             };
