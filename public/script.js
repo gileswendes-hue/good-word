@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.1.7', 
+    APP_VERSION: '6.1.8', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -517,33 +517,42 @@ const OfflineManager = {
 
 async toggle(active) {
         const roomBtn = document.getElementById('roomBtn');
-        const broadcastBtnId = 'offlineBroadcastBtn';
-        
-        if (active) {
-            UIManager.showMessage("Downloading offline pack... 🚇");
-            const success = await this.fillCache();
-            if (success) {
-                State.data.settings.offlineMode = true;
-                State.save('settings', State.data.settings);
-                UIManager.showPostVoteMessage("Offline Mode Ready! 🚇");
-                State.runtime.allWords = State.data.offlineCache; 
-                
-                // --- NEW: Add Floating Broadcast Button ---
+const broadcastBtnId = 'offlineBroadcastBtn';
                 if (!document.getElementById(broadcastBtnId)) {
-                    const btn = document.createElement('button');
-                    btn.id = broadcastBtnId;
-                    btn.innerHTML = '📢';
-                    btn.onclick = () => {
-                        SonicManager.transmit(); // Use the new transmit
-                    };
-                    Object.assign(btn.style, {
+                    // Container
+                    const container = document.createElement('div');
+                    container.id = broadcastBtnId;
+                    Object.assign(container.style, {
                         position: 'fixed', bottom: '20px', right: '20px',
+                        display: 'flex', flexDirection: 'column', gap: '10px', zIndex: '100'
+                    });
+
+                    // 1. NEXT Button (Big Blue)
+                    const btnNext = document.createElement('button');
+                    btnNext.innerHTML = '📢';
+                    btnNext.onclick = () => SonicManager.transmit('NEXT');
+                    Object.assign(btnNext.style, {
                         width: '60px', height: '60px', borderRadius: '50%',
                         backgroundColor: '#4f46e5', color: 'white', fontSize: '24px',
-                        boxShadow: '0 4px 15px rgba(0,0,0,0.3)', zIndex: '100',
-                        border: 'none', cursor: 'pointer'
+                        boxShadow: '0 4px 15px rgba(0,0,0,0.3)', border: 'none', cursor: 'pointer'
                     });
-                    document.body.appendChild(btn);
+
+                    // 2. RESET Button (Small Red)
+                    const btnReset = document.createElement('button');
+                    btnReset.innerHTML = '🔄';
+                    btnReset.onclick = () => {
+                        if(confirm('Reset everyone to Word #1?')) SonicManager.transmit('RESET');
+                    };
+                    Object.assign(btnReset.style, {
+                        width: '40px', height: '40px', borderRadius: '50%',
+                        backgroundColor: '#ef4444', color: 'white', fontSize: '18px',
+                        boxShadow: '0 4px 15px rgba(0,0,0,0.3)', border: 'none', cursor: 'pointer',
+                        alignSelf: 'center'
+                    });
+
+                    container.appendChild(btnReset);
+                    container.appendChild(btnNext);
+                    document.body.appendChild(container);
                 }
                 
                 Game.nextWord();
@@ -864,18 +873,25 @@ playBad() {
 const SonicManager = {
     ctx: null, analyser: null, micStream: null, isListening: false, rafId: null,
     
-    // CONFIG: "Doorbell" Protocol (Low then High)
-    TONE_A: 600,  TONE_B: 1200, 
+    // NEW FREQUENCIES (Higher pitch to avoid crowd noise/bass)
+    // TONE_A (Low): 1760Hz (A6)
+    // TONE_B (High): 2637Hz (E7)
+    TONE_A: 1760, 
+    TONE_B: 2637, 
     
-    detectState: 'WAITING_FOR_A', 
-    sequenceTimer: null, lastTriggerTime: 0,
+    detectState: 'IDLE', // IDLE, WAIT_FOR_B, WAIT_FOR_A
+    sequenceTimer: null, 
+    lastTriggerTime: 0,
 
     init() { if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)(); return this.ctx; },
 
-    async transmit() {
+    // MODE: 'NEXT' (Low->High) or 'RESET' (High->Low)
+    async transmit(mode = 'NEXT') {
         this.init();
         if (this.ctx.state === 'suspended') await this.ctx.resume();
-        UIManager.showPostVoteMessage("Broadcasting... 📡");
+        
+        const isNext = mode === 'NEXT';
+        UIManager.showPostVoteMessage(isNext ? "Broadcasting Next... 📡" : "Resetting Group... 🔄");
         
         const t = this.ctx.currentTime;
         const osc = this.ctx.createOscillator();
@@ -883,22 +899,40 @@ const SonicManager = {
         
         osc.connect(gain); gain.connect(this.ctx.destination);
         
-        // SEQUENCE: Low (0.4s) -> High (0.4s)
-        osc.frequency.setValueAtTime(this.TONE_A, t);
-        osc.frequency.setValueAtTime(this.TONE_B, t + 0.4);
-        
-        osc.start(t); osc.stop(t + 0.8);
-        
-        gain.gain.setValueAtTime(0, t);
-        gain.gain.linearRampToValueAtTime(1, t + 0.1);
-        gain.gain.setValueAtTime(1, t + 0.7);
-        gain.gain.linearRampToValueAtTime(0, t + 0.8);
+        // SEQUENCE
+        // NEXT: A (0.4s) -> B (0.4s)
+        // RESET: B (0.6s) -> A (0.6s) (Longer to distinguish)
+        const dur = isNext ? 0.4 : 0.6;
+        const f1 = isNext ? this.TONE_A : this.TONE_B;
+        const f2 = isNext ? this.TONE_B : this.TONE_A;
 
-        // Advance Host's screen immediately
-        if (State.runtime.allWords.length > 0) {
-             State.runtime.currentWordIndex++;
-             Game.nextWord();
+        osc.frequency.setValueAtTime(f1, t);
+        osc.frequency.setValueAtTime(f2, t + dur);
+        
+        osc.start(t); 
+        osc.stop(t + (dur * 2));
+        
+        // Volume Envelope (Clean fade in/out)
+        gain.gain.setValueAtTime(0, t);
+        gain.gain.linearRampToValueAtTime(1, t + 0.05);
+        gain.gain.setValueAtTime(1, t + (dur * 2) - 0.05);
+        gain.gain.linearRampToValueAtTime(0, t + (dur * 2));
+
+        // Advance Host Logic Locally
+        if (isNext) {
+            if (State.runtime.allWords.length > 0) {
+                 State.runtime.currentWordIndex++;
+                 Game.nextWord();
+            }
+        } else {
+            // Host Reset
+            State.runtime.currentWordIndex = 0;
+            Game.nextWord();
+            UIManager.showPostVoteMessage("Game Reset! 🎬");
         }
+        
+        // Re-enable buttons for Host immediately
+        UIManager.disableButtons(false);
     },
 
     async toggleListening() { this.isListening ? this.stopListening() : await this.startListening(); },
@@ -907,13 +941,15 @@ const SonicManager = {
         this.init();
         if (this.ctx.state === 'suspended') await this.ctx.resume();
         try {
-            this.micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+            this.micStream = await navigator.mediaDevices.getUserMedia({ 
+                audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } 
+            });
             this.analyser = this.ctx.createAnalyser();
             this.analyser.fftSize = 2048; 
             const src = this.ctx.createMediaStreamSource(this.micStream);
             src.connect(this.analyser);
             this.isListening = true;
-            this.detectState = 'WAITING_FOR_A';
+            this.detectState = 'IDLE';
             this.listenLoop();
             UIManager.showPostVoteMessage("Mic Active 🎙️");
             document.body.classList.add('listening-mode');
@@ -934,40 +970,87 @@ const SonicManager = {
         const dataArray = new Uint8Array(bufferLength);
         this.analyser.getByteFrequencyData(dataArray);
 
-        const isFreqLoud = (freq) => {
+        // --- SIGNAL-TO-NOISE (SNR) CHECK ---
+        // Prevents random loud noise from triggering
+        const getSignalStrength = (targetFreq) => {
             const hzPerBin = this.ctx.sampleRate / this.analyser.fftSize;
-            const index = Math.floor(freq / hzPerBin);
-            let maxVol = 0;
-            for (let i = -2; i <= 2; i++) if (dataArray[index + i] > maxVol) maxVol = dataArray[index + i];
-            return maxVol > 50; 
+            const targetBin = Math.floor(targetFreq / hzPerBin);
+            
+            // 1. Get volume of target tone
+            let signalVol = 0;
+            for (let i = -2; i <= 2; i++) {
+                if (dataArray[targetBin + i] > signalVol) signalVol = dataArray[targetBin + i];
+            }
+            
+            // 2. Get average volume of surrounding frequencies (Noise Floor)
+            let noiseSum = 0;
+            let count = 0;
+            const range = 20; // Check 20 bins away
+            for (let i = -range; i <= range; i++) {
+                if (Math.abs(i) < 4) continue; // Skip the signal itself
+                noiseSum += dataArray[targetBin + i] || 0;
+                count++;
+            }
+            const noiseFloor = noiseSum / count;
+
+            // 3. STRICT RULE: Signal must be 3x louder than noise floor AND absolute vol > 40
+            if (signalVol > 40 && signalVol > (noiseFloor * 3)) {
+                return true; 
+            }
+            return false;
         };
 
-        if (this.detectState === 'WAITING_FOR_A') {
-            if (isFreqLoud(this.TONE_A)) {
-                this.detectState = 'WAITING_FOR_B';
-                if (this.sequenceTimer) clearTimeout(this.sequenceTimer);
-                this.sequenceTimer = setTimeout(() => { this.detectState = 'WAITING_FOR_A'; }, 1500);
+        const heardA = getSignalStrength(this.TONE_A);
+        const heardB = getSignalStrength(this.TONE_B);
+
+        // STATE MACHINE
+        if (this.detectState === 'IDLE') {
+            if (heardA) {
+                // Heard LOW tone first -> Could be "NEXT"
+                this.detectState = 'WAIT_FOR_B';
+                this.setTimer();
+            } else if (heardB) {
+                // Heard HIGH tone first -> Could be "RESET"
+                this.detectState = 'WAIT_FOR_A';
+                this.setTimer();
             }
         } 
-        else if (this.detectState === 'WAITING_FOR_B') {
-            if (isFreqLoud(this.TONE_B)) this.triggerAction();
+        else if (this.detectState === 'WAIT_FOR_B') {
+            if (heardB) this.triggerAction('NEXT');
         }
+        else if (this.detectState === 'WAIT_FOR_A') {
+            if (heardA) this.triggerAction('RESET');
+        }
+
         this.rafId = requestAnimationFrame(() => this.listenLoop());
     },
     
-    triggerAction() {
+    setTimer() {
+        if (this.sequenceTimer) clearTimeout(this.sequenceTimer);
+        this.sequenceTimer = setTimeout(() => { this.detectState = 'IDLE'; }, 1500);
+    },
+    
+    triggerAction(type) {
         const now = Date.now();
-        if (now - this.lastTriggerTime < 2000) return;
+        if (now - this.lastTriggerTime < 2000) return; // Cooldown
         this.lastTriggerTime = now;
-        this.detectState = 'WAITING_FOR_A';
+        this.detectState = 'IDLE';
         if (this.sequenceTimer) clearTimeout(this.sequenceTimer);
 
-        UIManager.showPostVoteMessage("Signal Received! 📶");
+        // UNLOCK UI
         document.body.classList.remove('vote-good-mode', 'vote-bad-mode');
-        
-        if (State.runtime.allWords.length > 0) {
-             State.runtime.currentWordIndex++;
-             Game.nextWord();
+        UIManager.disableButtons(false); // Re-enable voting buttons
+
+        if (type === 'NEXT') {
+            UIManager.showPostVoteMessage("Next Word! 📶");
+            if (State.runtime.allWords.length > 0) {
+                 State.runtime.currentWordIndex++;
+                 Game.nextWord();
+            }
+        } else if (type === 'RESET') {
+            UIManager.showPostVoteMessage("Group Reset! 🔄");
+            State.runtime.currentWordIndex = 0;
+            Game.nextWord();
         }
     }
 };
@@ -7499,10 +7582,16 @@ const Game = {
 
 async vote(t, s = false) {
         if (State.runtime.isCoolingDown) return;
-		
-		if (OfflineManager.isActive() || document.body.classList.contains('listening-mode')) {
+
+        // --- OFFLINE / SONIC MODE ---
+        if (OfflineManager.isActive() || document.body.classList.contains('listening-mode')) {
+            // 1. Lock UI immediately
+            UIManager.disableButtons(true);
+            
+            // 2. Clear old colors
             document.body.classList.remove('vote-good-mode', 'vote-bad-mode');
             
+            // 3. Apply new color & play sound
             if (t === 'good') {
                 document.body.classList.add('vote-good-mode');
                 SoundManager.playGood();
@@ -7510,7 +7599,25 @@ async vote(t, s = false) {
                 document.body.classList.add('vote-bad-mode');
                 SoundManager.playBad();
             }
-            return; // Stop here, don't try to send to server
+            
+            // 4. Show "Waiting" status
+            UIManager.showPostVoteMessage("Vote Locked! Waiting for Host... ⏳");
+			
+			setTimeout(() => {
+                const cancelHandler = () => {
+                    // 1. Remove colors
+                    document.body.classList.remove('vote-good-mode', 'vote-bad-mode');
+                    // 2. Re-enable buttons
+                    UIManager.disableButtons(false);
+                    // 3. Clear message
+                    UIManager.showPostVoteMessage("");
+                    // 4. Clean up listener
+                    document.body.removeEventListener('click', cancelHandler);
+                };
+					document.body.addEventListener('click', cancelHandler, { once: true });
+				}, 500);
+            
+            return; 
         }
         
         // Minimum delay between votes (300ms)
