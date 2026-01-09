@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.11', 
+    APP_VERSION: '6.2.12', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -3493,14 +3493,15 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                             // First, bulge out bigger than target
                             const bulgeScale = newScale * 1.3;
                             console.log('[Spider] Setting bulge transform:', bulgeScale.toFixed(2));
-                            anchor.style.transform = `scale(${bulgeScale.toFixed(2)})`;
+                            anchor.style.setProperty('transform', `scale(${bulgeScale.toFixed(2)})`, 'important');
                             console.log('[Spider] Anchor transform is now:', anchor.style.transform);
+                            console.log('[Spider] Anchor computed style:', getComputedStyle(anchor).transform);
                             
                             // Then settle to actual new size
                             setTimeout(() => {
                                 if (anchor) {
                                     console.log('[Spider] Setting final transform:', newScale.toFixed(2));
-                                    anchor.style.transform = `scale(${newScale.toFixed(2)})`;
+                                    anchor.style.setProperty('transform', `scale(${newScale.toFixed(2)})`, 'important');
                                 }
                             }, 300);
                         }
