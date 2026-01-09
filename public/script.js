@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.1.5', 
+    APP_VERSION: '6.1.7', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -515,8 +515,9 @@ const OfflineManager = {
         return State.data.settings.offlineMode;
     },
 
-    async toggle(active) {
-		const roomBtn = document.getElementById('roomBtn');
+async toggle(active) {
+        const roomBtn = document.getElementById('roomBtn');
+        const broadcastBtnId = 'offlineBroadcastBtn';
         
         if (active) {
             UIManager.showMessage("Downloading offline pack... 🚇");
@@ -527,11 +528,26 @@ const OfflineManager = {
                 UIManager.showPostVoteMessage("Offline Mode Ready! 🚇");
                 State.runtime.allWords = State.data.offlineCache; 
                 
-             //   if(roomBtn) roomBtn.style.display = 'none';
+                // --- NEW: Add Floating Broadcast Button ---
+                if (!document.getElementById(broadcastBtnId)) {
+                    const btn = document.createElement('button');
+                    btn.id = broadcastBtnId;
+                    btn.innerHTML = '📢';
+                    btn.onclick = () => {
+                        SonicManager.transmit(); // Use the new transmit
+                    };
+                    Object.assign(btn.style, {
+                        position: 'fixed', bottom: '20px', right: '20px',
+                        width: '60px', height: '60px', borderRadius: '50%',
+                        backgroundColor: '#4f46e5', color: 'white', fontSize: '24px',
+                        boxShadow: '0 4px 15px rgba(0,0,0,0.3)', zIndex: '100',
+                        border: 'none', cursor: 'pointer'
+                    });
+                    document.body.appendChild(btn);
+                }
                 
                 Game.nextWord();
-            } 
-		else {
+            } else {
                 alert("Could not download words. Check connection.");
                 const toggle = document.getElementById('toggleOffline');
                 if(toggle) toggle.checked = false;
@@ -541,7 +557,12 @@ const OfflineManager = {
             await this.sync();
             State.data.settings.offlineMode = false;
             State.save('settings', State.data.settings);
-			if(roomBtn) roomBtn.style.display = 'block';
+            if(roomBtn) roomBtn.style.display = 'block';
+            
+            // Remove button when going back online
+            const btn = document.getElementById(broadcastBtnId);
+            if(btn) btn.remove();
+            
             Game.refreshData(); 
         }
         UIManager.updateOfflineIndicator();
@@ -841,165 +862,113 @@ playBad() {
 };
 
 const SonicManager = {
-    ctx: null,
-    analyser: null,
-    micStream: null,
-    isListening: false,
+    ctx: null, analyser: null, micStream: null, isListening: false, rafId: null,
     
-    // Config
-    FREQ_PILOT: 1000, 
-    FREQ_LOW: 2000, 
-    FREQ_HIGH: 4000, 
-    BAUD_RATE: 20,
-    debounceTimer: null,
+    // CONFIG: "Doorbell" Protocol (Low then High)
+    TONE_A: 600,  TONE_B: 1200, 
     
-    init() {
-        if (!this.ctx) {
-            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-        }
-        return this.ctx;
-    },
+    detectState: 'WAITING_FOR_A', 
+    sequenceTimer: null, lastTriggerTime: 0,
 
-    async transmit(text = 'NEXT') {
+    init() { if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)(); return this.ctx; },
+
+    async transmit() {
         this.init();
         if (this.ctx.state === 'suspended') await this.ctx.resume();
-
-        UIManager.showPostVoteMessage(`Broadcasting... 📡`);
+        UIManager.showPostVoteMessage("Broadcasting... 📡");
         
         const t = this.ctx.currentTime;
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
         
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
+        osc.connect(gain); gain.connect(this.ctx.destination);
         
-        // Play a louder, longer sequence to ensure detection
-        // 1. Pilot Tone (1000Hz)
-        osc.frequency.setValueAtTime(this.FREQ_PILOT, t);
+        // SEQUENCE: Low (0.4s) -> High (0.4s)
+        osc.frequency.setValueAtTime(this.TONE_A, t);
+        osc.frequency.setValueAtTime(this.TONE_B, t + 0.4);
         
-        // 2. High "Data" Burst (4000Hz) - adds distinctive character
-        osc.frequency.setValueAtTime(this.FREQ_HIGH, t + 0.4);
+        osc.start(t); osc.stop(t + 0.8);
         
-        // 3. Back to Pilot
-        osc.frequency.setValueAtTime(this.FREQ_PILOT, t + 0.6);
-
-        // Start/Stop (0.8 seconds total)
-        osc.start(t);
-        osc.stop(t + 0.8);
-        
-        gain.gain.setValueAtTime(1, t);
+        gain.gain.setValueAtTime(0, t);
+        gain.gain.linearRampToValueAtTime(1, t + 0.1);
+        gain.gain.setValueAtTime(1, t + 0.7);
         gain.gain.linearRampToValueAtTime(0, t + 0.8);
-    },
 
-    async toggleListening() {
-        if (this.isListening) {
-            this.stopListening();
-        } else {
-            await this.startListening();
+        // Advance Host's screen immediately
+        if (State.runtime.allWords.length > 0) {
+             State.runtime.currentWordIndex++;
+             Game.nextWord();
         }
     },
+
+    async toggleListening() { this.isListening ? this.stopListening() : await this.startListening(); },
 
     async startListening() {
         this.init();
         if (this.ctx.state === 'suspended') await this.ctx.resume();
-
         try {
-            this.micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true } });
-            
+            this.micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
             this.analyser = this.ctx.createAnalyser();
             this.analyser.fftSize = 2048; 
-            this.analyser.smoothingTimeConstant = 0.5; // Smoother readings
-            
             const src = this.ctx.createMediaStreamSource(this.micStream);
             src.connect(this.analyser);
-            
             this.isListening = true;
+            this.detectState = 'WAITING_FOR_A';
             this.listenLoop();
-            
-            UIManager.showPostVoteMessage("Microphone Active 🎙️");
+            UIManager.showPostVoteMessage("Mic Active 🎙️");
             document.body.classList.add('listening-mode');
-        } catch (e) {
-            console.error(e);
-            UIManager.showPostVoteMessage("Mic Access Denied 🚫");
-        }
+        } catch (e) { console.error(e); UIManager.showPostVoteMessage("Mic Access Denied 🚫"); }
     },
 
     stopListening() {
         this.isListening = false;
-        if (this.micStream) {
-            this.micStream.getTracks().forEach(t => t.stop());
-            this.micStream = null;
-        }
+        if (this.micStream) { this.micStream.getTracks().forEach(t => t.stop()); this.micStream = null; }
+        if (this.rafId) cancelAnimationFrame(this.rafId);
         document.body.classList.remove('listening-mode');
-        // Remove debug overlay if it exists
-        const dbg = document.getElementById('sonic-debug');
-        if (dbg) dbg.remove();
-        
         UIManager.showPostVoteMessage("Mic Stopped 🔇");
     },
 
     listenLoop() {
         if (!this.isListening) return;
-
         const bufferLength = this.analyser.frequencyBinCount;
         const dataArray = new Uint8Array(bufferLength);
         this.analyser.getByteFrequencyData(dataArray);
 
-        const hzPerBin = this.ctx.sampleRate / this.analyser.fftSize;
-        const pilotBin = Math.floor(this.FREQ_PILOT / hzPerBin);
-        
-        // --- IMPROVED DETECTION ---
-        // Check the target bin AND its neighbors (spectral leakage)
-        let maxVol = 0;
-        for (let i = -2; i <= 2; i++) {
-            if (dataArray[pilotBin + i] > maxVol) maxVol = dataArray[pilotBin + i];
+        const isFreqLoud = (freq) => {
+            const hzPerBin = this.ctx.sampleRate / this.analyser.fftSize;
+            const index = Math.floor(freq / hzPerBin);
+            let maxVol = 0;
+            for (let i = -2; i <= 2; i++) if (dataArray[index + i] > maxVol) maxVol = dataArray[index + i];
+            return maxVol > 50; 
+        };
+
+        if (this.detectState === 'WAITING_FOR_A') {
+            if (isFreqLoud(this.TONE_A)) {
+                this.detectState = 'WAITING_FOR_B';
+                if (this.sequenceTimer) clearTimeout(this.sequenceTimer);
+                this.sequenceTimer = setTimeout(() => { this.detectState = 'WAITING_FOR_A'; }, 1500);
+            }
+        } 
+        else if (this.detectState === 'WAITING_FOR_B') {
+            if (isFreqLoud(this.TONE_B)) this.triggerAction();
         }
-
-        // VISUAL DEBUGGER (So you can see if it's working)
-        this.updateDebugDisplay(maxVol);
-
-        // Lower threshold to 40 (approx -15dB)
-        // A quiet room is usually 0-10. Talking is 30-100. The beep is 150+.
-        if (maxVol > 40) { 
-             this.handleSignal(maxVol);
-        }
-
-        requestAnimationFrame(() => this.listenLoop());
+        this.rafId = requestAnimationFrame(() => this.listenLoop());
     },
     
-    updateDebugDisplay(vol) {
-        let el = document.getElementById('sonic-debug');
-        if (!el) {
-            el = document.createElement('div');
-            el.id = 'sonic-debug';
-            el.style.cssText = "position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.8); color:white; padding:5px 10px; border-radius:10px; font-size:12px; pointer-events:none; z-index:10000; font-family:monospace;";
-            document.body.appendChild(el);
-        }
-        // Show a bar graph of volume
-        const bars = "|".repeat(Math.min(20, vol / 10));
-        el.textContent = `SIGNAL: ${vol} [${bars}]`;
-        el.style.color = vol > 40 ? '#4ade80' : '#f87171'; // Green if trigger ready, Red if noise
-    },
+    triggerAction() {
+        const now = Date.now();
+        if (now - this.lastTriggerTime < 2000) return;
+        this.lastTriggerTime = now;
+        this.detectState = 'WAITING_FOR_A';
+        if (this.sequenceTimer) clearTimeout(this.sequenceTimer);
 
-	handleSignal(vol) {
-        if (this.debounceTimer) return;
-        
-        console.log("TRIGGERED AT VOLUME:", vol);
-        
-        // --- ADD THIS LINE ---
-        // Clear the Green/Red screen so we can see the new word
+        UIManager.showPostVoteMessage("Signal Received! 📶");
         document.body.classList.remove('vote-good-mode', 'vote-bad-mode');
-        // --------------------
-
-        UIManager.showPostVoteMessage("📶 SIGNAL RECEIVED!");
         
-        // Advance game
         if (State.runtime.allWords.length > 0) {
              State.runtime.currentWordIndex++;
              Game.nextWord();
         }
-        
-        this.debounceTimer = setTimeout(() => { this.debounceTimer = null; }, 2500);
     }
 };
 
@@ -7871,11 +7840,24 @@ async vote(t, s = false) {
             d = await API.getAllWords(); 
         }
 
-        if (d && d.length > 0) {
-            // FIX: SHUFFLE the list so "CURLED" isn't always first
-            for (let i = d.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [d[i], d[j]] = [d[j], d[i]];
+		if (d && d.length > 0) {
+            // --- NEW: DETERMINISTIC SYNC ---
+            if (OfflineManager.isActive() || document.body.classList.contains('listening-mode')) {
+                // 1. Sort alphabetically first to ensure baseline matches across devices
+                d.sort((a, b) => a.text.localeCompare(b.text));
+                
+                // 2. Shuffle using Today's Date as the seed
+                // This ensures everyone playing today gets the EXACT same word order
+                const todaySeed = new Date().toDateString(); // e.g. "Fri Jan 09 2026"
+                d = SeededShuffle.shuffle(d, todaySeed);
+                
+                console.log("Offline Sync Active: Words shuffled with seed", todaySeed);
+            } else {
+                // Normal random shuffle for single player / online
+                for (let i = d.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [d[i], d[j]] = [d[j], d[i]];
+                }
             }
             
             State.runtime.allWords = d;
