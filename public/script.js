@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.13', 
+    APP_VERSION: '6.2.14', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -2969,13 +2969,14 @@ halloween(active) {
             });
             
             const eaten = State.data.insectStats.eaten || 0;
-            const scale = Math.min(0.7 + (eaten * 0.05), 2.0).toFixed(2);
-            console.log('[Spider] Creating spider, eaten:', eaten, 'scale:', scale);
+            const scale = Math.min(0.7 + (eaten * 0.05), 2.0);
+            const fontSize = (3 * scale).toFixed(2);
+            console.log('[Spider] Creating spider, eaten:', eaten, 'scale:', scale, 'fontSize:', fontSize + 'rem');
             
             wrap.innerHTML = `
-                <div id="spider-anchor" style="transform: scale(${scale}); transform-origin: top center;">
+                <div id="spider-anchor" style="transform-origin: top center;">
                     <div id="spider-thread" style="width: 2px; background: rgba(255,255,255,0.6); margin: 0 auto; height: 0; transition: height 4s ease-in-out;"></div>
-                    <div id="spider-body" style="font-size: 3rem; margin-top: -10px; cursor: pointer; position: relative; z-index: 2; pointer-events: auto; transition: transform 1s ease;">
+                    <div id="spider-body" style="font-size: ${fontSize}rem; margin-top: -10px; cursor: pointer; position: relative; z-index: 2; pointer-events: auto; transition: font-size 0.3s ease;">
                         🕷️
                     </div>
                 </div>`;
@@ -3485,23 +3486,23 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                             console.log('[Spider] New scale:', newScale.toFixed(2));
                             
                             // Show visible feedback
-                            UIManager.showPostVoteMessage(`🕷️ ${eaten} bugs eaten! Scale: ${newScale.toFixed(2)}x`);
+                            UIManager.showPostVoteMessage(`🕷️ ${eaten} bugs eaten! Size: ${newScale.toFixed(2)}x`);
                             
-                            // Animate the growth with a satisfying "gulp" effect
-                            anchor.style.transition = 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
+                            // Change the actual font-size for visible growth
+                            const baseFontSize = 3; // rem
+                            const newFontSize = baseFontSize * newScale;
+                            const bulgeFontSize = baseFontSize * newScale * 1.3;
                             
-                            // First, bulge out bigger than target
-                            const bulgeScale = newScale * 1.3;
-                            console.log('[Spider] Setting bulge transform:', bulgeScale.toFixed(2));
-                            anchor.style.setProperty('transform', `scale(${bulgeScale.toFixed(2)})`, 'important');
-                            console.log('[Spider] Anchor transform is now:', anchor.style.transform);
-                            console.log('[Spider] Anchor computed style:', getComputedStyle(anchor).transform);
+                            console.log('[Spider] Setting bulge font-size:', bulgeFontSize.toFixed(2) + 'rem');
+                            body.style.transition = 'font-size 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
+                            body.style.fontSize = bulgeFontSize.toFixed(2) + 'rem';
+                            console.log('[Spider] Body font-size is now:', body.style.fontSize);
                             
                             // Then settle to actual new size
                             setTimeout(() => {
-                                if (anchor) {
-                                    console.log('[Spider] Setting final transform:', newScale.toFixed(2));
-                                    anchor.style.setProperty('transform', `scale(${newScale.toFixed(2)})`, 'important');
+                                if (body) {
+                                    console.log('[Spider] Setting final font-size:', newFontSize.toFixed(2) + 'rem');
+                                    body.style.fontSize = newFontSize.toFixed(2) + 'rem';
                                 }
                             }, 300);
                         }
