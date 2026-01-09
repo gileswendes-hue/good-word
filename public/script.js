@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.1.3', 
+    APP_VERSION: '6.1.4', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -846,7 +846,7 @@ const SonicManager = {
     micStream: null,
     isListening: false,
     
-    // Config: Frequencies (Hz)
+    // Config
     FREQ_PILOT: 1000, 
     FREQ_LOW: 2000, 
     FREQ_HIGH: 4000, 
@@ -860,16 +860,9 @@ const SonicManager = {
         return this.ctx;
     },
 
-    // Default to 'NEXT' if button doesn't pass a word
     async transmit(text = 'NEXT') {
         this.init();
         if (this.ctx.state === 'suspended') await this.ctx.resume();
-
-        // 1. Convert text to binary (Simple ASCII)
-        let binary = "";
-        for (let i = 0; i < text.length; i++) {
-            binary += text[i].charCodeAt(0).toString(2).padStart(8, "0");
-        }
 
         UIManager.showPostVoteMessage(`Broadcasting... 📡`);
         
@@ -880,25 +873,22 @@ const SonicManager = {
         osc.connect(gain);
         gain.connect(this.ctx.destination);
         
-        // 2. Play "Wake Up" Pilot Tone (0.4s)
+        // Play a louder, longer sequence to ensure detection
+        // 1. Pilot Tone (1000Hz)
         osc.frequency.setValueAtTime(this.FREQ_PILOT, t);
         
-        // 3. Encode Data
-        const bitDuration = 1 / this.BAUD_RATE;
-        let startTime = t + 0.4; 
+        // 2. High "Data" Burst (4000Hz) - adds distinctive character
+        osc.frequency.setValueAtTime(this.FREQ_HIGH, t + 0.4);
         
-        for (let i = 0; i < binary.length; i++) {
-            const freq = binary[i] === "1" ? this.FREQ_HIGH : this.FREQ_LOW;
-            osc.frequency.setValueAtTime(freq, startTime + (i * bitDuration));
-        }
+        // 3. Back to Pilot
+        osc.frequency.setValueAtTime(this.FREQ_PILOT, t + 0.6);
 
-        // 4. Start/Stop
+        // Start/Stop (0.8 seconds total)
         osc.start(t);
-        osc.stop(startTime + (binary.length * bitDuration));
+        osc.stop(t + 0.8);
         
-        // Volume Envelope (Fade out at end to avoid clicking)
         gain.gain.setValueAtTime(1, t);
-        gain.gain.linearRampToValueAtTime(0, startTime + (binary.length * bitDuration));
+        gain.gain.linearRampToValueAtTime(0, t + 0.8);
     },
 
     async toggleListening() {
@@ -911,14 +901,14 @@ const SonicManager = {
 
     async startListening() {
         this.init();
-        // Resume context if browser suspended it (common on mobile)
         if (this.ctx.state === 'suspended') await this.ctx.resume();
 
         try {
-            this.micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false } });
+            this.micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true } });
             
             this.analyser = this.ctx.createAnalyser();
             this.analyser.fftSize = 2048; 
+            this.analyser.smoothingTimeConstant = 0.5; // Smoother readings
             
             const src = this.ctx.createMediaStreamSource(this.micStream);
             src.connect(this.analyser);
@@ -941,6 +931,10 @@ const SonicManager = {
             this.micStream = null;
         }
         document.body.classList.remove('listening-mode');
+        // Remove debug overlay if it exists
+        const dbg = document.getElementById('sonic-debug');
+        if (dbg) dbg.remove();
+        
         UIManager.showPostVoteMessage("Mic Stopped 🔇");
     },
 
@@ -954,27 +948,53 @@ const SonicManager = {
         const hzPerBin = this.ctx.sampleRate / this.analyser.fftSize;
         const pilotBin = Math.floor(this.FREQ_PILOT / hzPerBin);
         
-        // Simple Trigger: If we hear the Pilot Tone loud enough
-        if (dataArray[pilotBin] > 150) { 
-             this.handleSignal();
+        // --- IMPROVED DETECTION ---
+        // Check the target bin AND its neighbors (spectral leakage)
+        let maxVol = 0;
+        for (let i = -2; i <= 2; i++) {
+            if (dataArray[pilotBin + i] > maxVol) maxVol = dataArray[pilotBin + i];
+        }
+
+        // VISUAL DEBUGGER (So you can see if it's working)
+        this.updateDebugDisplay(maxVol);
+
+        // Lower threshold to 40 (approx -15dB)
+        // A quiet room is usually 0-10. Talking is 30-100. The beep is 150+.
+        if (maxVol > 40) { 
+             this.handleSignal(maxVol);
         }
 
         requestAnimationFrame(() => this.listenLoop());
     },
     
-    handleSignal() {
+    updateDebugDisplay(vol) {
+        let el = document.getElementById('sonic-debug');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'sonic-debug';
+            el.style.cssText = "position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.8); color:white; padding:5px 10px; border-radius:10px; font-size:12px; pointer-events:none; z-index:10000; font-family:monospace;";
+            document.body.appendChild(el);
+        }
+        // Show a bar graph of volume
+        const bars = "|".repeat(Math.min(20, vol / 10));
+        el.textContent = `SIGNAL: ${vol} [${bars}]`;
+        el.style.color = vol > 40 ? '#4ade80' : '#f87171'; // Green if trigger ready, Red if noise
+    },
+
+    handleSignal(vol) {
         if (this.debounceTimer) return;
         
-        UIManager.showPostVoteMessage("Signal Received! 📶");
+        console.log("TRIGGERED AT VOLUME:", vol);
+        UIManager.showPostVoteMessage("📶 SIGNAL RECEIVED!");
         
-        // Advance game locally
+        // Advance game
         if (State.runtime.allWords.length > 0) {
              State.runtime.currentWordIndex++;
              Game.nextWord();
         }
         
-        // Wait 2 seconds before accepting another signal to prevent double-skips
-        this.debounceTimer = setTimeout(() => { this.debounceTimer = null; }, 2000);
+        // 2.5 second cooldown to prevent double-skips from echoes
+        this.debounceTimer = setTimeout(() => { this.debounceTimer = null; }, 2500);
     }
 };
 
