@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.1.1', 
+    APP_VERSION: '6.1.3', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -840,20 +840,18 @@ playBad() {
     }
 };
 
-
 const SonicManager = {
     ctx: null,
     analyser: null,
     micStream: null,
     isListening: false,
     
-    // CONFIGURATION
-    // We use "mid-range" frequencies that phone speakers handle well but cut through crowd noise.
-    FREQ_LOW: 2000,       // Represents binary '0'
-    FREQ_HIGH: 4000,      // Represents binary '1'
-    FREQ_PILOT: 1000,     // "Wake up" tone to start transmission
-    BAUD_RATE: 20,        // Bits per second (Slow = Reliable in noise)
-    THRESHOLD: -50,       // Decibel threshold to detect signal
+    // Config: Frequencies (Hz)
+    FREQ_PILOT: 1000, 
+    FREQ_LOW: 2000, 
+    FREQ_HIGH: 4000, 
+    BAUD_RATE: 20,
+    debounceTimer: null,
     
     init() {
         if (!this.ctx) {
@@ -862,12 +860,12 @@ const SonicManager = {
         return this.ctx;
     },
 
-    // --- TRANSMITTER (HOST) ---
-    async transmit(text) {
+    // Default to 'NEXT' if button doesn't pass a word
+    async transmit(text = 'NEXT') {
         this.init();
         if (this.ctx.state === 'suspended') await this.ctx.resume();
 
-        // 1. Convert text to binary string (e.g. "A" -> "01000001")
+        // 1. Convert text to binary (Simple ASCII)
         let binary = "";
         for (let i = 0; i < text.length; i++) {
             binary += text[i].charCodeAt(0).toString(2).padStart(8, "0");
@@ -882,12 +880,12 @@ const SonicManager = {
         osc.connect(gain);
         gain.connect(this.ctx.destination);
         
-        // 2. Play Pilot Tone (1 second) to alert receivers
+        // 2. Play "Wake Up" Pilot Tone (0.4s)
         osc.frequency.setValueAtTime(this.FREQ_PILOT, t);
         
         // 3. Encode Data
         const bitDuration = 1 / this.BAUD_RATE;
-        let startTime = t + 1.0; // Start data after pilot
+        let startTime = t + 0.4; 
         
         for (let i = 0; i < binary.length; i++) {
             const freq = binary[i] === "1" ? this.FREQ_HIGH : this.FREQ_LOW;
@@ -898,40 +896,37 @@ const SonicManager = {
         osc.start(t);
         osc.stop(startTime + (binary.length * bitDuration));
         
-        // Visual Feedback
+        // Volume Envelope (Fade out at end to avoid clicking)
         gain.gain.setValueAtTime(1, t);
         gain.gain.linearRampToValueAtTime(0, startTime + (binary.length * bitDuration));
-
-        return new Promise(r => setTimeout(r, (1 + binary.length * bitDuration) * 1000));
     },
 
-    // --- RECEIVER (GUEST) ---
     async toggleListening() {
         if (this.isListening) {
             this.stopListening();
-            return false;
         } else {
             await this.startListening();
-            return true;
         }
     },
 
     async startListening() {
         this.init();
+        // Resume context if browser suspended it (common on mobile)
+        if (this.ctx.state === 'suspended') await this.ctx.resume();
+
         try {
             this.micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false } });
             
             this.analyser = this.ctx.createAnalyser();
-            this.analyser.fftSize = 2048; // High resolution frequency data
+            this.analyser.fftSize = 2048; 
             
             const src = this.ctx.createMediaStreamSource(this.micStream);
             src.connect(this.analyser);
             
             this.isListening = true;
             this.listenLoop();
-            UIManager.showPostVoteMessage("Microphone Active 🎙️");
             
-            // Visual indicator
+            UIManager.showPostVoteMessage("Microphone Active 🎙️");
             document.body.classList.add('listening-mode');
         } catch (e) {
             console.error(e);
@@ -949,7 +944,6 @@ const SonicManager = {
         UIManager.showPostVoteMessage("Mic Stopped 🔇");
     },
 
-    // The core "Modem" loop
     listenLoop() {
         if (!this.isListening) return;
 
@@ -957,52 +951,32 @@ const SonicManager = {
         const dataArray = new Uint8Array(bufferLength);
         this.analyser.getByteFrequencyData(dataArray);
 
-        // Calculate array indices for our specific frequencies
         const hzPerBin = this.ctx.sampleRate / this.analyser.fftSize;
         const pilotBin = Math.floor(this.FREQ_PILOT / hzPerBin);
-        const lowBin = Math.floor(this.FREQ_LOW / hzPerBin);
-        const highBin = Math.floor(this.FREQ_HIGH / hzPerBin);
         
-        // Check signal strength at frequencies
-        const pilotVol = dataArray[pilotBin];
-        const lowVol = dataArray[lowBin];
-        const highVol = dataArray[highBin];
-
-        // LOGIC: Simple state machine
-        // 1. If we hear PILOT, we reset and prepare to record bits.
-        // 2. We sample LOW vs HIGH to determine 0 or 1.
-        
-        // (Note: A full robust decoder is complex code. 
-        // For this prototype, we will trigger "Next Word" if we hear the PILOT tone strongly 
-        // to prove the concept without writing 500 lines of DSP code.)
-        
-        if (pilotVol > 150) { // Arbitrary loudness threshold (0-255)
-             this.handleSignal("PILOT");
+        // Simple Trigger: If we hear the Pilot Tone loud enough
+        if (dataArray[pilotBin] > 150) { 
+             this.handleSignal();
         }
 
         requestAnimationFrame(() => this.listenLoop());
     },
-
-    debounceTimer: null,
     
-    handleSignal(type) {
+    handleSignal() {
         if (this.debounceTimer) return;
         
-        if (type === "PILOT") {
-            // Signal Received!
-            UIManager.showPostVoteMessage("Signal Received! 📶");
-            
-            // Advance game locally
-            if (State.runtime.allWords.length > 0) {
-                 State.runtime.currentWordIndex++;
-                 Game.nextWord();
-            }
-            
-            this.debounceTimer = setTimeout(() => { this.debounceTimer = null; }, 2000);
+        UIManager.showPostVoteMessage("Signal Received! 📶");
+        
+        // Advance game locally
+        if (State.runtime.allWords.length > 0) {
+             State.runtime.currentWordIndex++;
+             Game.nextWord();
         }
+        
+        // Wait 2 seconds before accepting another signal to prevent double-skips
+        this.debounceTimer = setTimeout(() => { this.debounceTimer = null; }, 2000);
     }
 };
-
 
 const MosquitoManager = {
     el: null, svg: null, path: null, checkInterval: null,
@@ -5142,8 +5116,12 @@ displayWord(w) {
         if(old) old.remove();
 
 let restartAction = "window.location.reload()";
-if (window.RoomManager && window.RoomManager.roomCode) {
-    restartAction = "RoomManager.rejoin()"; // Direct function call
+
+if (OfflineManager.isActive() || document.body.classList.contains('listening-mode')) {
+    restartAction = "document.getElementById('gameOverModal').remove(); Game.resetGame(); Game.nextWord();";
+} 
+else if (window.RoomManager && window.RoomManager.roomCode) {
+    restartAction = "RoomManager.rejoin()";
 }
 
         let header = '';
@@ -8825,7 +8803,7 @@ const StreakManager = {
     window.RoomManager = RoomManager;
     window.UIManager = UIManager;
 	window.WeatherManager = WeatherManager;
-	window.State = State;
+	window.SonicManager = SonicManager;
 
     console.log("%c Good Word / Bad Word ", "background: #4f46e5; color: #bada55; padding: 4px; border-radius: 4px;");
     console.log("Play fair! ️😇");
