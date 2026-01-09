@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.0', 
+    APP_VERSION: '6.2.1', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -830,560 +830,6 @@ playBad() {
 // Host downloads words, distributes to peers via WebRTC data channel
 // Real-time sync of word index, no server needed after connection
 
-const PeerManager = {
-    // State
-    isHost: false,
-    isConnected: false,
-    roomCode: null,
-    socket: null,
-    
-    // WebRTC
-    peerConnections: {},  // Host: {peerId: RTCPeerConnection}
-    dataChannels: {},     // Host: {peerId: RTCDataChannel}
-    hostConnection: null, // Peer: connection to host
-    hostChannel: null,    // Peer: data channel to host
-    
-    // Game state (host manages, peers receive)
-    words: [],
-    currentWordIndex: 0,
-    connectedPeers: [],
-    
-    // ICE servers for WebRTC
-    iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
-    ],
-
-    // Get Socket.IO instance (reuse from RoomManager)
-    getSocket() {
-        if (this.socket) return this.socket;
-        if (typeof RoomManager !== 'undefined' && RoomManager.socket) {
-            this.socket = RoomManager.socket;
-            this.setupSocketListeners();
-            return this.socket;
-        }
-        // Fallback: create own connection
-        if (typeof io !== 'undefined') {
-            this.socket = io();
-            this.setupSocketListeners();
-            return this.socket;
-        }
-        console.error('Socket.IO not available');
-        return null;
-    },
-
-    setupSocketListeners() {
-        if (!this.socket || this.socket._p2pListenersAdded) return;
-        this.socket._p2pListenersAdded = true;
-
-        // Host receives: new peer wants to connect
-        this.socket.on('p2p:peerJoined', async ({ peerId }) => {
-            if (!this.isHost) return;
-            console.log('Peer joined:', peerId);
-            await this.createPeerConnection(peerId);
-        });
-
-        // Peer receives: offer from host
-        this.socket.on('p2p:offer', async ({ from, offer }) => {
-            if (this.isHost) return;
-            console.log('Received offer from:', from);
-            await this.handleOffer(from, offer);
-        });
-
-        // Host receives: answer from peer
-        this.socket.on('p2p:answer', async ({ from, answer }) => {
-            if (!this.isHost) return;
-            console.log('Received answer from:', from);
-            const pc = this.peerConnections[from];
-            if (pc) {
-                await pc.setRemoteDescription(new RTCSessionDescription(answer));
-            }
-        });
-
-        // Both: ICE candidates
-        this.socket.on('p2p:ice', async ({ from, candidate }) => {
-            const pc = this.isHost ? this.peerConnections[from] : this.hostConnection;
-            if (pc && candidate) {
-                try {
-                    await pc.addIceCandidate(new RTCIceCandidate(candidate));
-                } catch (e) {
-                    console.warn('ICE candidate error:', e);
-                }
-            }
-        });
-
-        // Peer: host closed room
-        this.socket.on('p2p:closed', () => {
-            if (!this.isHost) {
-                UIManager.showPostVoteMessage('Host disconnected 😢');
-                this.cleanup();
-            }
-        });
-
-        // Host: peer left
-        this.socket.on('p2p:peerLeft', ({ peerId }) => {
-            if (this.isHost) {
-                this.removePeer(peerId);
-                this.updateUI();
-            }
-        });
-    },
-
-    // HOST: Create a room
-    async createRoom(roomCode) {
-        const socket = this.getSocket();
-        if (!socket) return false;
-
-        return new Promise((resolve) => {
-            socket.emit('p2p:create', { roomCode }, (response) => {
-                if (response.success) {
-                    this.isHost = true;
-                    this.roomCode = response.roomCode;
-                    this.isConnected = true;
-                    console.log('P2P Room created:', this.roomCode);
-                    resolve(true);
-                } else {
-                    console.error('Failed to create room:', response.error);
-                    resolve(false);
-                }
-            });
-        });
-    },
-
-    // HOST: Create peer connection for new joiner
-    async createPeerConnection(peerId) {
-        const pc = new RTCPeerConnection({ iceServers: this.iceServers });
-        this.peerConnections[peerId] = pc;
-
-        // Create data channel
-        const channel = pc.createDataChannel('gameData', { ordered: true });
-        this.dataChannels[peerId] = channel;
-        
-        channel.onopen = () => {
-            console.log('Data channel open with:', peerId);
-            this.connectedPeers.push(peerId);
-            this.updateUI();
-            // Send current game state to new peer
-            this.sendToPeer(peerId, {
-                type: 'init',
-                words: this.words,
-                currentIndex: this.currentWordIndex
-            });
-        };
-        
-        channel.onclose = () => {
-            this.removePeer(peerId);
-        };
-
-        // ICE candidates
-        pc.onicecandidate = (e) => {
-            if (e.candidate) {
-                this.socket.emit('p2p:ice', { targetId: peerId, candidate: e.candidate });
-            }
-        };
-
-        // Create and send offer
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        this.socket.emit('p2p:offer', { targetId: peerId, offer: pc.localDescription });
-    },
-
-    // PEER: Join a room
-    async joinRoom(roomCode) {
-        const socket = this.getSocket();
-        if (!socket) return false;
-
-        return new Promise((resolve) => {
-            socket.emit('p2p:join', { roomCode }, (response) => {
-                if (response.success) {
-                    this.isHost = false;
-                    this.roomCode = roomCode.toUpperCase();
-                    console.log('Joined P2P room:', this.roomCode);
-                    resolve(true);
-                } else {
-                    console.error('Failed to join room:', response.error);
-                    UIManager.showPostVoteMessage(response.error || 'Room not found');
-                    resolve(false);
-                }
-            });
-        });
-    },
-
-    // PEER: Handle offer from host
-    async handleOffer(hostId, offer) {
-        const pc = new RTCPeerConnection({ iceServers: this.iceServers });
-        this.hostConnection = pc;
-
-        pc.ondatachannel = (e) => {
-            this.hostChannel = e.channel;
-            this.hostChannel.onopen = () => {
-                console.log('Connected to host!');
-                this.isConnected = true;
-                this.updateUI();
-                UIManager.showPostVoteMessage('Connected to host! 🎮');
-            };
-            this.hostChannel.onmessage = (e) => this.handleMessage(JSON.parse(e.data));
-            this.hostChannel.onclose = () => {
-                this.isConnected = false;
-                UIManager.showPostVoteMessage('Disconnected from host');
-                this.cleanup();
-            };
-        };
-
-        pc.onicecandidate = (e) => {
-            if (e.candidate) {
-                this.socket.emit('p2p:ice', { targetId: hostId, candidate: e.candidate });
-            }
-        };
-
-        await pc.setRemoteDescription(new RTCSessionDescription(offer));
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-        this.socket.emit('p2p:answer', { targetId: hostId, answer: pc.localDescription });
-    },
-
-    // HOST: Send to specific peer
-    sendToPeer(peerId, data) {
-        const channel = this.dataChannels[peerId];
-        if (channel && channel.readyState === 'open') {
-            channel.send(JSON.stringify(data));
-        }
-    },
-
-    // HOST: Broadcast to all peers
-    broadcast(data) {
-        const msg = JSON.stringify(data);
-        for (const peerId in this.dataChannels) {
-            const channel = this.dataChannels[peerId];
-            if (channel && channel.readyState === 'open') {
-                channel.send(msg);
-            }
-        }
-    },
-
-    // PEER: Send to host
-    sendToHost(data) {
-        if (this.hostChannel && this.hostChannel.readyState === 'open') {
-            this.hostChannel.send(JSON.stringify(data));
-        }
-    },
-
-    // Handle incoming messages
-    handleMessage(data) {
-        switch (data.type) {
-            case 'init':
-                // Peer receives word list and current position
-                this.words = data.words;
-                State.runtime.allWords = data.words;
-                State.runtime.currentWordIndex = data.currentIndex;
-                this.currentWordIndex = data.currentIndex;
-                Game.nextWord();
-                UIManager.showPostVoteMessage(`Synced! Word ${data.currentIndex + 1}/${data.words.length}`);
-                this.updateWordCounter();
-                break;
-                
-            case 'next':
-                // Host advanced to next word
-                State.runtime.currentWordIndex = data.index;
-                this.currentWordIndex = data.index;
-                Game.nextWord();
-                // Clear vote state
-                document.body.classList.remove('vote-good-mode', 'vote-bad-mode');
-                UIManager.disableButtons(false);
-                this.updateWordCounter();
-                break;
-                
-            case 'reset':
-                // Host reset the game
-                this.words = data.words;
-                State.runtime.allWords = data.words;
-                State.runtime.currentWordIndex = 0;
-                this.currentWordIndex = 0;
-                Game.nextWord();
-                UIManager.showPostVoteMessage('Game Reset! 🔄');
-                this.updateWordCounter();
-                break;
-        }
-    },
-
-    // HOST: Download words and start hosting
-    async startHosting(roomCode, wordCount = 50) {
-        UIManager.showMessage('Downloading words... 📥');
-        
-        try {
-            // Fetch words from API
-            const res = await fetch(`${CONFIG.API_BASE_URL}/all`);
-            if (!res.ok) throw new Error('Network error');
-            let allWords = await res.json();
-            
-            // Shuffle and take subset
-            for (let i = allWords.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [allWords[i], allWords[j]] = [allWords[j], allWords[i]];
-            }
-            this.words = allWords.slice(0, Math.min(wordCount, allWords.length));
-            
-            // Filter out non-words
-            this.words = this.words.filter(w => (w.notWordVotes || 0) < 3);
-            
-            if (this.words.length === 0) {
-                throw new Error('No words available');
-            }
-            
-            // Create room
-            const success = await this.createRoom(roomCode);
-            if (!success) {
-                UIManager.showPostVoteMessage('Failed to create room');
-                return false;
-            }
-            
-            // Set up local game state
-            State.runtime.allWords = this.words;
-            State.runtime.currentWordIndex = 0;
-            this.currentWordIndex = 0;
-            
-            UIManager.showPostVoteMessage(`Hosting room: ${this.roomCode} 📡`);
-            this.showHostUI();
-            Game.nextWord();
-            
-            return true;
-        } catch (e) {
-            console.error('Failed to start hosting:', e);
-            UIManager.showPostVoteMessage('Failed to download words');
-            return false;
-        }
-    },
-
-    // HOST: Advance to next word
-    nextWord() {
-        if (!this.isHost) return;
-        
-        this.currentWordIndex++;
-        if (this.currentWordIndex >= this.words.length) {
-            this.currentWordIndex = 0; // Loop back
-        }
-        
-        State.runtime.currentWordIndex = this.currentWordIndex;
-        Game.nextWord();
-        
-        // Broadcast to all peers
-        this.broadcast({
-            type: 'next',
-            index: this.currentWordIndex
-        });
-        
-        this.updateWordCounter();
-    },
-
-    // HOST: Reset with new words
-    async resetGame() {
-        if (!this.isHost) return;
-        
-        UIManager.showMessage('Shuffling new words... 🔄');
-        
-        try {
-            const res = await fetch(`${CONFIG.API_BASE_URL}/all`);
-            let allWords = await res.json();
-            
-            for (let i = allWords.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [allWords[i], allWords[j]] = [allWords[j], allWords[i]];
-            }
-            this.words = allWords.slice(0, 50).filter(w => (w.notWordVotes || 0) < 3);
-            
-            State.runtime.allWords = this.words;
-            State.runtime.currentWordIndex = 0;
-            this.currentWordIndex = 0;
-            
-            Game.nextWord();
-            
-            // Broadcast to all peers
-            this.broadcast({
-                type: 'reset',
-                words: this.words
-            });
-            
-            UIManager.showPostVoteMessage('New words loaded! 🎲');
-            this.updateWordCounter();
-        } catch (e) {
-            UIManager.showPostVoteMessage('Failed to reset');
-        }
-    },
-
-    // Remove peer
-    removePeer(peerId) {
-        if (this.peerConnections[peerId]) {
-            this.peerConnections[peerId].close();
-            delete this.peerConnections[peerId];
-        }
-        if (this.dataChannels[peerId]) {
-            delete this.dataChannels[peerId];
-        }
-        const idx = this.connectedPeers.indexOf(peerId);
-        if (idx !== -1) this.connectedPeers.splice(idx, 1);
-    },
-
-    // Cleanup all connections
-    cleanup() {
-        // Close all peer connections
-        for (const peerId in this.peerConnections) {
-            this.peerConnections[peerId].close();
-        }
-        this.peerConnections = {};
-        this.dataChannels = {};
-        
-        // Close host connection
-        if (this.hostConnection) {
-            this.hostConnection.close();
-            this.hostConnection = null;
-        }
-        this.hostChannel = null;
-        
-        // Notify server
-        if (this.socket && this.roomCode) {
-            this.socket.emit('p2p:close', { roomCode: this.roomCode });
-        }
-        
-        // Reset state
-        this.isHost = false;
-        this.isConnected = false;
-        this.roomCode = null;
-        this.words = [];
-        this.currentWordIndex = 0;
-        this.connectedPeers = [];
-        
-        // Remove UI
-        this.removeHostUI();
-        this.removeWordCounter();
-    },
-
-    // Update word counter display
-    updateWordCounter() {
-        let counter = document.getElementById('p2pWordCounter');
-        if (!counter && (this.isHost || this.isConnected)) {
-            counter = document.createElement('div');
-            counter.id = 'p2pWordCounter';
-            Object.assign(counter.style, {
-                position: 'fixed',
-                top: '70px',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                background: 'rgba(0,0,0,0.85)',
-                color: 'white',
-                padding: '10px 24px',
-                borderRadius: '24px',
-                fontSize: '16px',
-                fontWeight: 'bold',
-                fontFamily: 'monospace',
-                zIndex: '150',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
-            });
-            document.body.appendChild(counter);
-        }
-        
-        if (counter) {
-            const idx = State.runtime.currentWordIndex || 0;
-            const total = this.words.length || State.runtime.allWords?.length || 0;
-            const peers = this.isHost ? this.connectedPeers.length : 0;
-            const role = this.isHost ? '👑 HOST' : '🎮 PLAYER';
-            const color = this.isHost ? '#eab308' : '#22c55e';
-            
-            counter.innerHTML = `
-                <span style="color:${color}">${role}</span>
-                <span style="opacity:0.5">|</span>
-                <span>Word</span>
-                <span style="font-size:22px; color:#3b82f6">#${idx + 1}</span>
-                <span style="opacity:0.5">/ ${total}</span>
-                ${this.isHost ? `<span style="opacity:0.5">| 👥 ${peers}</span>` : ''}
-            `;
-        }
-    },
-
-    removeWordCounter() {
-        const counter = document.getElementById('p2pWordCounter');
-        if (counter) counter.remove();
-    },
-
-    // Show host controls
-    showHostUI() {
-        this.removeHostUI(); // Clean up first
-        
-        const container = document.createElement('div');
-        container.id = 'p2pHostControls';
-        Object.assign(container.style, {
-            position: 'fixed', bottom: '20px', right: '20px',
-            display: 'flex', flexDirection: 'column', gap: '10px', zIndex: '100',
-            alignItems: 'center'
-        });
-
-        // Room code display
-        const codeDisplay = document.createElement('div');
-        codeDisplay.innerHTML = `<span style="opacity:0.7">Room:</span> <strong>${this.roomCode}</strong>`;
-        Object.assign(codeDisplay.style, {
-            background: 'white', padding: '8px 16px', borderRadius: '12px',
-            fontSize: '14px', fontFamily: 'monospace', boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
-        });
-
-        // Reset button
-        const btnReset = document.createElement('button');
-        btnReset.innerHTML = '🔄';
-        btnReset.title = 'New Words';
-        btnReset.onclick = () => this.resetGame();
-        Object.assign(btnReset.style, {
-            width: '44px', height: '44px', borderRadius: '50%',
-            backgroundColor: '#6b7280', color: 'white', fontSize: '18px',
-            boxShadow: '0 2px 10px rgba(0,0,0,0.2)', border: 'none', cursor: 'pointer'
-        });
-
-        // Next button
-        const btnNext = document.createElement('button');
-        btnNext.innerHTML = '➡️';
-        btnNext.title = 'Next Word';
-        btnNext.onclick = () => this.nextWord();
-        Object.assign(btnNext.style, {
-            width: '64px', height: '64px', borderRadius: '50%',
-            backgroundColor: '#3b82f6', color: 'white', fontSize: '28px',
-            boxShadow: '0 4px 15px rgba(0,0,0,0.3)', border: 'none', cursor: 'pointer'
-        });
-
-        // Stop button
-        const btnStop = document.createElement('button');
-        btnStop.innerHTML = '⏹️';
-        btnStop.title = 'Stop Hosting';
-        btnStop.onclick = () => {
-            if (confirm('Stop hosting and disconnect all players?')) {
-                this.cleanup();
-                UIManager.showPostVoteMessage('Room closed');
-            }
-        };
-        Object.assign(btnStop.style, {
-            width: '36px', height: '36px', borderRadius: '50%',
-            backgroundColor: '#ef4444', color: 'white', fontSize: '14px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.2)', border: 'none', cursor: 'pointer'
-        });
-
-        container.appendChild(codeDisplay);
-        container.appendChild(btnStop);
-        container.appendChild(btnReset);
-        container.appendChild(btnNext);
-        document.body.appendChild(container);
-        
-        this.updateWordCounter();
-    },
-
-    removeHostUI() {
-        const container = document.getElementById('p2pHostControls');
-        if (container) container.remove();
-    },
-
-    // Update UI (peer count, etc)
-    updateUI() {
-        this.updateWordCounter();
-    }
-};
 
 const MosquitoManager = {
     el: null, svg: null, path: null, checkInterval: null,
@@ -6898,6 +6344,575 @@ const SeededShuffle = {
     }
 };
 
+// ============ WebRTC Local Multiplayer Manager ============
+const LocalPeerManager = {
+    socket: null,
+    isHost: false,
+    roomCode: '',
+    peers: new Map(), // peerId -> { connection, dataChannel, name }
+    hostConnection: null,
+    hostDataChannel: null,
+    words: [],
+    currentWordIndex: 0,
+    players: [], // { id, name, vote, connected }
+    gameState: 'lobby', // lobby, playing, results
+    votes: {},
+    
+    // ICE servers for WebRTC
+    iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+    ],
+    
+    init(socket) {
+        this.socket = socket;
+        this.setupSignaling();
+    },
+    
+    setupSignaling() {
+        if (!this.socket) return;
+        
+        // Host: room created
+        this.socket.on('localRoomCreated', ({ roomCode, words, rounds }) => {
+            this.roomCode = roomCode;
+            this.words = words;
+            this.isHost = true;
+            this.gameState = 'lobby';
+            this.players = [{ id: 'host', name: State.data.username || 'Host', vote: null, connected: true }];
+            this.showLocalLobby();
+            UIManager.showPostVoteMessage(`Local Room: ${roomCode} 📡`);
+        });
+        
+        // Peer: joined room, need to connect to host
+        this.socket.on('localRoomJoined', async ({ roomCode, hostId, hostName }) => {
+            this.roomCode = roomCode;
+            this.isHost = false;
+            await this.connectToHost(hostId);
+        });
+        
+        // Host: new peer wants to connect
+        this.socket.on('localPeerJoined', async ({ peerId, peerName }) => {
+            if (!this.isHost) return;
+            await this.connectToPeer(peerId, peerName);
+        });
+        
+        // WebRTC offer received
+        this.socket.on('rtcOffer', async ({ from, offer, roomCode }) => {
+            if (this.isHost) return; // Hosts don't receive offers
+            await this.handleOffer(from, offer);
+        });
+        
+        // WebRTC answer received
+        this.socket.on('rtcAnswer', async ({ from, answer }) => {
+            if (!this.isHost) return; // Only hosts receive answers
+            const peer = this.peers.get(from);
+            if (peer && peer.connection) {
+                await peer.connection.setRemoteDescription(answer);
+            }
+        });
+        
+        // ICE candidate received
+        this.socket.on('rtcIceCandidate', async ({ from, candidate }) => {
+            if (this.isHost) {
+                const peer = this.peers.get(from);
+                if (peer && peer.connection) {
+                    await peer.connection.addIceCandidate(candidate);
+                }
+            } else if (this.hostConnection) {
+                await this.hostConnection.addIceCandidate(candidate);
+            }
+        });
+        
+        // Error handling
+        this.socket.on('localRoomError', ({ message }) => {
+            UIManager.showPostVoteMessage(message);
+            this.closeLocalUI();
+        });
+        
+        // Host disconnected
+        this.socket.on('localHostDisconnected', () => {
+            UIManager.showPostVoteMessage("Host disconnected 😢");
+            this.cleanup();
+            this.closeLocalUI();
+        });
+        
+        // Peer disconnected (host receives this)
+        this.socket.on('localPeerDisconnected', ({ peerId }) => {
+            const peer = this.peers.get(peerId);
+            if (peer) {
+                this.players = this.players.filter(p => p.id !== peerId);
+                if (peer.connection) peer.connection.close();
+                this.peers.delete(peerId);
+                this.updateLobbyUI();
+            }
+        });
+    },
+    
+    // Host: create a local room
+    async createRoom(rounds = 10) {
+        if (!this.socket) {
+            this.socket = RoomManager.socket; // Reuse existing socket
+        }
+        if (!this.socket?.connected) {
+            UIManager.showPostVoteMessage("Need brief connection to create room");
+            return;
+        }
+        
+        this.socket.emit('createLocalRoom', { 
+            username: State.data.username || 'Host',
+            rounds: rounds
+        });
+    },
+    
+    // Peer: join a local room
+    async joinRoom(roomCode) {
+        if (!this.socket) {
+            this.socket = RoomManager.socket;
+        }
+        if (!this.socket?.connected) {
+            UIManager.showPostVoteMessage("Need brief connection to join");
+            return;
+        }
+        
+        this.socket.emit('joinLocalRoom', {
+            roomCode: roomCode.toUpperCase(),
+            username: State.data.username || 'Player'
+        });
+    },
+    
+    // Host: create connection to a new peer
+    async connectToPeer(peerId, peerName) {
+        const connection = new RTCPeerConnection({ iceServers: this.iceServers });
+        const dataChannel = connection.createDataChannel('gameData', { ordered: true });
+        
+        this.peers.set(peerId, { 
+            connection, 
+            dataChannel, 
+            name: peerName,
+            ready: false
+        });
+        
+        // Add player to list
+        this.players.push({ id: peerId, name: peerName, vote: null, connected: false });
+        
+        dataChannel.onopen = () => {
+            console.log(`Data channel open to ${peerName}`);
+            const peer = this.peers.get(peerId);
+            if (peer) peer.ready = true;
+            
+            // Update player as connected
+            const player = this.players.find(p => p.id === peerId);
+            if (player) player.connected = true;
+            
+            // Send current state to new peer
+            this.sendToPeer(peerId, {
+                type: 'init',
+                words: this.words,
+                players: this.players.map(p => ({ id: p.id, name: p.name })),
+                gameState: this.gameState,
+                currentWordIndex: this.currentWordIndex
+            });
+            
+            this.updateLobbyUI();
+        };
+        
+        dataChannel.onmessage = (e) => this.handlePeerMessage(peerId, JSON.parse(e.data));
+        dataChannel.onclose = () => this.handlePeerDisconnect(peerId);
+        
+        connection.onicecandidate = (e) => {
+            if (e.candidate) {
+                this.socket.emit('rtcIceCandidate', { targetId: peerId, candidate: e.candidate });
+            }
+        };
+        
+        // Create and send offer
+        const offer = await connection.createOffer();
+        await connection.setLocalDescription(offer);
+        this.socket.emit('rtcOffer', { targetId: peerId, offer, roomCode: this.roomCode });
+    },
+    
+    // Peer: connect to host
+    async connectToHost(hostId) {
+        // Wait for offer from host - handled in rtcOffer event
+        UIManager.showPostVoteMessage("Connecting to host... 🔗");
+    },
+    
+    // Peer: handle offer from host
+    async handleOffer(hostId, offer) {
+        this.hostConnection = new RTCPeerConnection({ iceServers: this.iceServers });
+        
+        this.hostConnection.ondatachannel = (e) => {
+            this.hostDataChannel = e.channel;
+            
+            this.hostDataChannel.onopen = () => {
+                console.log('Connected to host!');
+                UIManager.showPostVoteMessage("Connected! 🎉");
+            };
+            
+            this.hostDataChannel.onmessage = (e) => this.handleHostMessage(JSON.parse(e.data));
+            this.hostDataChannel.onclose = () => {
+                UIManager.showPostVoteMessage("Disconnected from host");
+                this.cleanup();
+            };
+        };
+        
+        this.hostConnection.onicecandidate = (e) => {
+            if (e.candidate) {
+                this.socket.emit('rtcIceCandidate', { targetId: hostId, candidate: e.candidate });
+            }
+        };
+        
+        await this.hostConnection.setRemoteDescription(offer);
+        const answer = await this.hostConnection.createAnswer();
+        await this.hostConnection.setLocalDescription(answer);
+        this.socket.emit('rtcAnswer', { targetId: hostId, answer });
+    },
+    
+    // Host: send message to specific peer
+    sendToPeer(peerId, data) {
+        const peer = this.peers.get(peerId);
+        if (peer?.dataChannel?.readyState === 'open') {
+            peer.dataChannel.send(JSON.stringify(data));
+        }
+    },
+    
+    // Host: broadcast to all peers
+    broadcast(data) {
+        const msg = JSON.stringify(data);
+        this.peers.forEach((peer) => {
+            if (peer.dataChannel?.readyState === 'open') {
+                peer.dataChannel.send(msg);
+            }
+        });
+    },
+    
+    // Peer: send to host
+    sendToHost(data) {
+        if (this.hostDataChannel?.readyState === 'open') {
+            this.hostDataChannel.send(JSON.stringify(data));
+        }
+    },
+    
+    // Host: handle message from peer
+    handlePeerMessage(peerId, data) {
+        if (data.type === 'vote') {
+            this.votes[peerId] = data.vote;
+            const player = this.players.find(p => p.id === peerId);
+            if (player) player.vote = data.vote;
+            
+            // Broadcast that player voted
+            this.broadcast({ type: 'playerVoted', playerId: peerId });
+            
+            // Check if all voted
+            this.checkAllVoted();
+        }
+    },
+    
+    // Peer: handle message from host
+    handleHostMessage(data) {
+        switch (data.type) {
+            case 'init':
+                this.words = data.words;
+                this.players = data.players;
+                this.gameState = data.gameState;
+                this.currentWordIndex = data.currentWordIndex;
+                if (this.gameState === 'lobby') {
+                    this.showLocalLobby();
+                } else {
+                    this.showWord();
+                }
+                break;
+                
+            case 'gameStart':
+                this.words = data.words;
+                this.gameState = 'playing';
+                this.currentWordIndex = 0;
+                this.showWord();
+                break;
+                
+            case 'nextWord':
+                this.currentWordIndex = data.wordIndex;
+                this.showWord();
+                break;
+                
+            case 'playerVoted':
+                // Show that a player voted (visual feedback)
+                UIManager.showPostVoteMessage("Vote received! 📩");
+                break;
+                
+            case 'roundResult':
+                this.showRoundResult(data);
+                break;
+                
+            case 'gameEnd':
+                this.showGameEnd(data);
+                break;
+                
+            case 'playerJoined':
+                this.players = data.players;
+                this.updateLobbyUI();
+                break;
+                
+            case 'playerLeft':
+                this.players = data.players;
+                this.updateLobbyUI();
+                break;
+        }
+    },
+    
+    handlePeerDisconnect(peerId) {
+        const peer = this.peers.get(peerId);
+        if (peer) {
+            this.players = this.players.filter(p => p.id !== peerId);
+            this.peers.delete(peerId);
+            this.broadcast({ type: 'playerLeft', players: this.players });
+            this.updateLobbyUI();
+        }
+    },
+    
+    // Host: start the game
+    startGame() {
+        if (!this.isHost) return;
+        
+        this.gameState = 'playing';
+        this.currentWordIndex = 0;
+        this.votes = {};
+        
+        // Reset player votes
+        this.players.forEach(p => p.vote = null);
+        
+        // Broadcast game start
+        this.broadcast({
+            type: 'gameStart',
+            words: this.words
+        });
+        
+        this.showWord();
+    },
+    
+    // Host: advance to next word
+    nextWord() {
+        if (!this.isHost) return;
+        
+        this.currentWordIndex++;
+        this.votes = {};
+        this.players.forEach(p => p.vote = null);
+        
+        if (this.currentWordIndex >= this.words.length) {
+            this.endGame();
+            return;
+        }
+        
+        this.broadcast({
+            type: 'nextWord',
+            wordIndex: this.currentWordIndex
+        });
+        
+        this.showWord();
+    },
+    
+    // Submit vote (both host and peer)
+    submitVote(vote) {
+        if (this.isHost) {
+            // Host votes locally
+            const hostPlayer = this.players.find(p => p.id === 'host');
+            if (hostPlayer) hostPlayer.vote = vote;
+            this.votes['host'] = vote;
+            this.checkAllVoted();
+        } else {
+            // Peer sends to host
+            this.sendToHost({ type: 'vote', vote });
+        }
+        
+        // Visual feedback
+        UIManager.disableButtons(true);
+        document.body.classList.add(vote === 'good' ? 'vote-good-mode' : 'vote-bad-mode');
+        SoundManager.playGood();
+    },
+    
+    // Host: check if all players voted
+    checkAllVoted() {
+        if (!this.isHost) return;
+        
+        const connectedPlayers = this.players.filter(p => p.connected || p.id === 'host');
+        const allVoted = connectedPlayers.every(p => this.votes[p.id] != null);
+        
+        if (allVoted) {
+            this.processRound();
+        }
+    },
+    
+    // Host: process round results
+    processRound() {
+        const votes = this.votes;
+        const voteValues = Object.values(votes);
+        const goodCount = voteValues.filter(v => v === 'good').length;
+        const badCount = voteValues.filter(v => v === 'bad').length;
+        const majority = goodCount > badCount ? 'good' : (badCount > goodCount ? 'bad' : 'tie');
+        const sync = Math.round((Math.max(goodCount, badCount) / voteValues.length) * 100);
+        
+        const result = {
+            type: 'roundResult',
+            word: this.words[this.currentWordIndex]?.text,
+            votes: votes,
+            majority,
+            sync,
+            goodCount,
+            badCount
+        };
+        
+        this.broadcast(result);
+        this.showRoundResult(result);
+        
+        // Auto advance after delay
+        setTimeout(() => {
+            document.body.classList.remove('vote-good-mode', 'vote-bad-mode');
+            UIManager.disableButtons(false);
+            this.nextWord();
+        }, 3000);
+    },
+    
+    endGame() {
+        this.gameState = 'lobby';
+        this.broadcast({ type: 'gameEnd', message: 'Game Over!' });
+        this.showGameEnd({ message: 'Game Over!' });
+    },
+    
+    // UI Methods
+    showLocalLobby() {
+        const code = this.roomCode;
+        const isHost = this.isHost;
+        
+        const html = `
+        <div id="localLobby" class="fixed inset-0 bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900 z-[9999] flex items-center justify-center p-4">
+            <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 text-center">
+                <div class="mb-4">
+                    <span class="text-xs font-bold text-purple-600 bg-purple-100 px-3 py-1 rounded-full">LOCAL MODE</span>
+                </div>
+                
+                <h2 class="text-3xl font-black text-gray-800 mb-2">Room Code</h2>
+                <div class="text-5xl font-mono font-black text-purple-600 tracking-widest mb-4 select-all">${code}</div>
+                <p class="text-sm text-gray-500 mb-6">Share this code with nearby players</p>
+                
+                <div class="bg-gray-50 rounded-xl p-4 mb-4">
+                    <h3 class="font-bold text-gray-700 mb-2">Players (${this.players.length})</h3>
+                    <div id="localPlayerList" class="space-y-2 max-h-40 overflow-y-auto">
+                        ${this.players.map(p => `
+                            <div class="flex items-center justify-between bg-white rounded-lg px-3 py-2 shadow-sm">
+                                <span class="font-medium">${p.name}</span>
+                                <span class="${p.connected || p.id === 'host' ? 'text-green-500' : 'text-yellow-500'}">${p.connected || p.id === 'host' ? '●' : '○'}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                
+                ${isHost ? `
+                    <button onclick="LocalPeerManager.startGame()" class="w-full bg-purple-600 text-white font-bold py-3 rounded-xl mb-2 hover:bg-purple-700 transition ${this.players.length < 2 ? 'opacity-50' : ''}">
+                        Start Game 🎮
+                    </button>
+                ` : `
+                    <div class="text-gray-500 py-3">Waiting for host to start...</div>
+                `}
+                
+                <button onclick="LocalPeerManager.leaveRoom()" class="w-full bg-gray-200 text-gray-700 font-bold py-2 rounded-xl hover:bg-gray-300 transition">
+                    Leave Room
+                </button>
+            </div>
+        </div>`;
+        
+        document.body.insertAdjacentHTML('beforeend', html);
+    },
+    
+    updateLobbyUI() {
+        const list = document.getElementById('localPlayerList');
+        if (!list) return;
+        
+        list.innerHTML = this.players.map(p => `
+            <div class="flex items-center justify-between bg-white rounded-lg px-3 py-2 shadow-sm">
+                <span class="font-medium">${p.name}</span>
+                <span class="${p.connected || p.id === 'host' ? 'text-green-500' : 'text-yellow-500'}">${p.connected || p.id === 'host' ? '●' : '○'}</span>
+            </div>
+        `).join('');
+    },
+    
+    showWord() {
+        this.closeLocalUI();
+        
+        const word = this.words[this.currentWordIndex];
+        if (!word) return;
+        
+        // Use existing game UI
+        State.runtime.isMultiplayer = true; // Prevent normal voting
+        UIManager.displayWord(word);
+        UIManager.disableButtons(false);
+        
+        // Override vote buttons for local mode
+        DOM.game.buttons.good.onclick = () => this.submitVote('good');
+        DOM.game.buttons.bad.onclick = () => this.submitVote('bad');
+        
+        // Show word counter
+        UIManager.showPostVoteMessage(`Word ${this.currentWordIndex + 1}/${this.words.length}`);
+    },
+    
+    showRoundResult(data) {
+        const msg = `${data.sync}% sync! ${data.majority === 'tie' ? "It's a tie!" : data.majority.toUpperCase() + ' wins'}`;
+        UIManager.showPostVoteMessage(msg);
+    },
+    
+    showGameEnd(data) {
+        State.runtime.isMultiplayer = false;
+        UIManager.showPostVoteMessage(data.message || 'Game Over!');
+        
+        // Restore normal vote handlers
+        DOM.game.buttons.good.onclick = () => Game.vote('good');
+        DOM.game.buttons.bad.onclick = () => Game.vote('bad');
+        
+        // Return to lobby after delay
+        setTimeout(() => this.showLocalLobby(), 2000);
+    },
+    
+    closeLocalUI() {
+        const lobby = document.getElementById('localLobby');
+        if (lobby) lobby.remove();
+    },
+    
+    leaveRoom() {
+        if (this.socket?.connected) {
+            this.socket.emit('leaveLocalRoom', { roomCode: this.roomCode });
+        }
+        this.cleanup();
+        this.closeLocalUI();
+    },
+    
+    cleanup() {
+        // Close all peer connections
+        this.peers.forEach(peer => {
+            if (peer.connection) peer.connection.close();
+        });
+        this.peers.clear();
+        
+        if (this.hostConnection) {
+            this.hostConnection.close();
+            this.hostConnection = null;
+        }
+        
+        this.hostDataChannel = null;
+        this.isHost = false;
+        this.roomCode = '';
+        this.words = [];
+        this.players = [];
+        this.votes = {};
+        this.gameState = 'lobby';
+        State.runtime.isMultiplayer = false;
+        
+        // Restore normal vote handlers
+        if (DOM.game?.buttons) {
+            DOM.game.buttons.good.onclick = () => Game.vote('good');
+            DOM.game.buttons.bad.onclick = () => Game.vote('bad');
+        }
+    }
+};
+
 const RoomManager = {
     socket: null,
     active: false,
@@ -7536,31 +7551,23 @@ generateRandomCode() {
 
     // P2P Local Multiplayer - Host
     async startP2PHost() {
-        const codeInput = document.getElementById('menuRoomCodeInput');
-        let roomCode = codeInput?.value?.trim().toUpperCase();
-        
-        if (!roomCode || roomCode.length < 3) {
-            // Generate random code
-            const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-            roomCode = "";
-            for (let i = 0; i < 5; i++) {
-                roomCode += chars[Math.floor(Math.random() * chars.length)];
-            }
+        // Save username if entered
+        const nameInput = document.getElementById('menuUsernameInput');
+        if (nameInput?.value?.trim()) {
+            State.data.username = nameInput.value.trim();
+            State.save('username', State.data.username);
         }
+        
+        // Initialize LocalPeerManager with socket
+        LocalPeerManager.init(this.socket);
         
         // Close menu
         const menu = document.getElementById('mpMenu');
         if (menu) menu.remove();
         
         // Start hosting
-        UIManager.showMessage('Starting P2P host... 📡');
-        const success = await PeerManager.startHosting(roomCode, 50);
-        
-        if (success) {
-            // Hide this menu button while hosting
-            const roomBtn = document.getElementById('roomBtn');
-            if (roomBtn) roomBtn.style.display = 'none';
-        }
+        UIManager.showMessage('Creating local room... 📡');
+        await LocalPeerManager.createRoom(10);
     },
 
     // P2P Local Multiplayer - Join
@@ -7574,21 +7581,23 @@ generateRandomCode() {
             return;
         }
         
+        // Save username if entered
+        const nameInput = document.getElementById('menuUsernameInput');
+        if (nameInput?.value?.trim()) {
+            State.data.username = nameInput.value.trim();
+            State.save('username', State.data.username);
+        }
+        
+        // Initialize LocalPeerManager with socket
+        LocalPeerManager.init(this.socket);
+        
         // Close menu
         const menu = document.getElementById('mpMenu');
         if (menu) menu.remove();
         
         // Join room
-        UIManager.showMessage('Joining P2P room... 🔗');
-        const success = await PeerManager.joinRoom(roomCode);
-        
-        if (success) {
-            // Hide this menu button while connected
-            const roomBtn = document.getElementById('roomBtn');
-            if (roomBtn) roomBtn.style.display = 'none';
-            
-            UIManager.showPostVoteMessage(`Connecting to ${roomCode}...`);
-        }
+        UIManager.showMessage('Joining local room... 🔗');
+        await LocalPeerManager.joinRoom(roomCode);
     },
 
     openMenu() {
@@ -9363,7 +9372,7 @@ const StreakManager = {
     window.RoomManager = RoomManager;
     window.UIManager = UIManager;
 	window.WeatherManager = WeatherManager;
-	window.PeerManager = PeerManager;
+	window.LocalPeerManager = LocalPeerManager;
 
     console.log("%c Good Word / Bad Word ", "background: #4f46e5; color: #bada55; padding: 4px; border-radius: 4px;");
     console.log("Play fair! ️😇");
