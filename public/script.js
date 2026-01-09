@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.5', 
+    APP_VERSION: '6.2.6', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -566,13 +566,23 @@ const OfflineManager = {
         });
         State.save('voteQueue', State.data.voteQueue);
         
-        // Also update local cache counts
-        const word = State.data.offlineCache?.find(w => w._id === wordId);
-        if (word) {
-            if (voteType === 'good') word.goodVotes++;
-            else if (voteType === 'bad') word.badVotes++;
+        // Update local cache counts (for persistence)
+        const cacheWord = State.data.offlineCache?.find(w => w._id === wordId);
+        if (cacheWord) {
+            if (voteType === 'good') cacheWord.goodVotes = (cacheWord.goodVotes || 0) + 1;
+            else if (voteType === 'bad') cacheWord.badVotes = (cacheWord.badVotes || 0) + 1;
             State.save('offlineCache', State.data.offlineCache);
         }
+        
+        // Also update runtime words (for display)
+        const runtimeWord = State.runtime.allWords?.find(w => w._id === wordId);
+        if (runtimeWord) {
+            if (voteType === 'good') runtimeWord.goodVotes = (runtimeWord.goodVotes || 0) + 1;
+            else if (voteType === 'bad') runtimeWord.badVotes = (runtimeWord.badVotes || 0) + 1;
+        }
+        
+        // Update the offline indicator to show queue count
+        UIManager.updateOfflineIndicator();
     },
 
     // Sync queued votes when back online
@@ -618,7 +628,10 @@ const OfflineManager = {
                 State.save('settings', State.data.settings);
                 
                 // Load cached words into game (make a copy to avoid mutating cache)
-                State.runtime.allWords = State.data.offlineCache.map(w => ({...w}));
+                // Filter out words marked as "not a word" (same as online mode)
+                State.runtime.allWords = State.data.offlineCache
+                    .filter(w => (w.notWordVotes || 0) < 3)
+                    .map(w => ({...w}));
                 
                 // Shuffle them
                 for (let i = State.runtime.allWords.length - 1; i > 0; i--) {
@@ -629,7 +642,7 @@ const OfflineManager = {
                 
                 UIManager.updateStats();
                 UIManager.updateOfflineIndicator();
-                UIManager.showPostVoteMessage(`Offline: ${State.data.offlineCache.length} words ready! 📴`);
+                UIManager.showPostVoteMessage(`Offline: ${State.runtime.allWords.length} words ready! 📴`);
                 Game.nextWord();
             } else {
                 alert("Could not download words. Check connection.");
@@ -3446,9 +3459,8 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                         
                         // --- PUFF UP ANIMATION (like pufferfish) ---
                         const anchor = wrap.querySelector('#spider-anchor');
-                        const body = wrap.querySelector('#spider-body');
                         
-                        if (anchor && body) {
+                        if (anchor) {
                             // Calculate new scale based on updated eat count
                             const eaten = State.data.insectStats.eaten || 0;
                             console.log('[Spider] Bugs eaten:', eaten);
@@ -3463,7 +3475,7 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                             let newScale = baseScale;
                             if (isFull) {
                                 newScale = baseScale * 1.6;
-                                body.classList.add('spider-fat');
+                                if (body) body.classList.add('spider-fat');
                             } else if (recentBugs > 0) {
                                 newScale = baseScale * (1 + (recentBugs * 0.15));
                             }
@@ -3479,12 +3491,12 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                             
                             // Then settle to actual new size
                             setTimeout(() => {
-                                anchor.style.transform = `scale(${newScale.toFixed(2)})`;
+                                if (anchor) anchor.style.transform = `scale(${newScale.toFixed(2)})`;
                             }, 300);
                         }
                         // --- END PUFF UP ---
                         
-                        body.style.animation = 'shake 0.2s ease-in-out';
+                        if (body) body.style.animation = 'shake 0.2s ease-in-out';
                         setTimeout(() => {
                             body.style.animation = '';
                             this.retreatSpider(thread, wrap, bub, '4s');
