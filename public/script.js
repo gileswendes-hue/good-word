@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.1.8', 
+    APP_VERSION: '6.1.9', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -509,15 +509,68 @@ const DataManager = {
 };
 
 const OfflineManager = {
-    CACHE_TARGET: 500,
-
+    // Check if we are in offline mode
     isActive() {
         return State.data.settings.offlineMode;
     },
 
-async toggle(active) {
+    // Download words to play offline
+    async fillCache() {
+        try {
+            const res = await fetch(CONFIG.API_BASE_URL);
+            if (!res.ok) throw new Error('Network error');
+            const data = await res.json();
+            State.data.offlineCache = data;
+            State.save('offlineCache', data);
+            return true;
+        } catch (e) {
+            console.warn("Offline download failed", e);
+            // Fallback to existing cache if available
+            return State.data.offlineCache && State.data.offlineCache.length > 0;
+        }
+    },
+
+    // Sync votes when back online
+    async sync() {
+        const queue = State.data.voteQueue || [];
+        if (queue.length === 0) return;
+
+        console.log(`Syncing ${queue.length} votes...`);
+        // We iterate backwards so we can remove items as we process them
+        for (let i = queue.length - 1; i >= 0; i--) {
+            try {
+                const vote = queue[i];
+                await fetch(`${CONFIG.API_BASE_URL}/${vote.id}/vote`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: vote.type })
+                });
+                // Remove from queue on success
+                queue.splice(i, 1);
+            } catch (e) {
+                console.warn("Sync failed for vote", i);
+                // Keep in queue to try again later
+            }
+        }
+        State.data.voteQueue = queue;
+        State.save('voteQueue', queue);
+    },
+
+    // Toggle Offline Mode
+    async toggle(active) {
         const roomBtn = document.getElementById('roomBtn');
-const broadcastBtnId = 'offlineBroadcastBtn';
+        const broadcastBtnId = 'offlineBroadcastBtn';
+        
+        if (active) {
+            UIManager.showMessage("Downloading offline pack... 🚇");
+            const success = await this.fillCache();
+            if (success) {
+                State.data.settings.offlineMode = true;
+                State.save('settings', State.data.settings);
+                UIManager.showPostVoteMessage("Offline Mode Ready! 🚇");
+                State.runtime.allWords = State.data.offlineCache; 
+                
+                // --- HARDENED FIX: Floating Control Panel (Reset + Next) ---
                 if (!document.getElementById(broadcastBtnId)) {
                     // Container
                     const container = document.createElement('div');
@@ -554,6 +607,7 @@ const broadcastBtnId = 'offlineBroadcastBtn';
                     container.appendChild(btnNext);
                     document.body.appendChild(container);
                 }
+                // -----------------------------------------------------------
                 
                 Game.nextWord();
             } else {
@@ -566,6 +620,8 @@ const broadcastBtnId = 'offlineBroadcastBtn';
             await this.sync();
             State.data.settings.offlineMode = false;
             State.save('settings', State.data.settings);
+            
+            // FIX: Ensure this line is complete
             if(roomBtn) roomBtn.style.display = 'block';
             
             // Remove button when going back online
@@ -575,7 +631,8 @@ const broadcastBtnId = 'offlineBroadcastBtn';
             Game.refreshData(); 
         }
         UIManager.updateOfflineIndicator();
-    },
+    }
+};
 
 	async fillCache() {
         try {
