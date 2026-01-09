@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.1.12', 
+    APP_VERSION: '6.2.0', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -40,27 +40,8 @@ const CONFIG = {
     },
 };
 
-const FESTIVAL_PACK = [
-    "Pineapple on Pizza", "TikTok", "Cyclists", "The Royal Family", "Crocs",
-    "Self-Checkout Machines", "Marvel Movies", "Electric Cars", "Vegans",
-    "Nuclear Power", "Bitcoin", "Skinny Jeans", "Voice Notes", "Astrology",
-    "Public Displays of Affection", "Coriander", "Reality TV", "Wasps",
-    "Gender Reveal Parties", "Oat Milk", "Cardi B", "Harry & Meghan",
-    "Slow Walkers", "Clapping When The Plane Lands", "QR Codes", "Croissants",
-    "Flat Earth Theory", "Vaping", "Elon Musk", "Matcha Lattes",
-    "Friends (The TV Show)", "Dark Chocolate", "ASMR", "Ugg Boots",
-    "Sparkling Water", "Mimes", "Jazz", "Golf", "Pagination", "Comic Sans",
-    "The Kardashians", "Craft Beer", "Tipping Culture", "LinkedIn",
-    "NFTs", "Gluten-Free Bread", "Influencers", "Crossfit", "Socks with Sandals",
-    "Camping", "Eurovision", "Disney Adults", "Essential Oils", "Thongs"
-].map((text, i) => ({ _id: `fest_${i}`, text: text, goodVotes:0, badVotes:0 }));
-
-const SONIC_CHANNELS = [
-    { id: 1, name: 'BLUE',  color: '#3b82f6', freqA: 1760, freqB: 2637 }, // A6, E7
-    { id: 2, name: 'RED',   color: '#ef4444', freqA: 1975, freqB: 2960 }, // B6, F#7
-    { id: 3, name: 'GREEN', color: '#22c55e', freqA: 2093, freqB: 3135 }, // C7, G7
-    { id: 4, name: 'GOLD',  color: '#eab308', freqA: 2349, freqB: 3520 }  // D7, A7
-];
+// P2P Channel colors for visual identification
+const P2P_COLORS = ['#3b82f6', '#ef4444', '#22c55e', '#eab308', '#8b5cf6', '#ec4899'];
 
 const ContentFilter = {
     // Base64 encoded to avoid raw slurs in source code
@@ -578,62 +559,17 @@ const OfflineManager = {
         State.save('voteQueue', queue);
     },
 
-    // Update broadcast buttons for current channel (without re-downloading cache)
+    // Update broadcast buttons - NO LONGER NEEDED (P2P handles its own UI)
     updateBroadcastButtons() {
-        const broadcastBtnId = 'offlineBroadcastBtn';
-        
-        // Remove old buttons
-        const oldBtn = document.getElementById(broadcastBtnId);
-        if(oldBtn) oldBtn.remove();
-        
-        // Only create if offline mode is active
-        if (!this.isActive()) return;
-
-        const chId = State.runtime.offlineChannel || 1;
-        const ch = SONIC_CHANNELS.find(c => c.id === chId) || SONIC_CHANNELS[0];
-
-        const container = document.createElement('div');
-        container.id = broadcastBtnId;
-        Object.assign(container.style, {
-            position: 'fixed', bottom: '20px', right: '20px',
-            display: 'flex', flexDirection: 'column', gap: '10px', zIndex: '100'
-        });
-
-        // NEXT Button (Channel Color)
-        const btnNext = document.createElement('button');
-        btnNext.innerHTML = '📢';
-        btnNext.onclick = () => SonicManager.transmit('NEXT');
-        Object.assign(btnNext.style, {
-            width: '60px', height: '60px', borderRadius: '50%',
-            backgroundColor: ch.color, color: 'white', fontSize: '24px',
-            boxShadow: '0 4px 15px rgba(0,0,0,0.3)', border: 'none', cursor: 'pointer'
-        });
-
-        // RESET Button
-        const btnReset = document.createElement('button');
-        btnReset.innerHTML = '🔄';
-        btnReset.onclick = () => {
-            if(confirm(`Reset CHANNEL ${chId} (${ch.name}) to Word #1?`)) SonicManager.transmit('RESET');
-        };
-        Object.assign(btnReset.style, {
-            width: '40px', height: '40px', borderRadius: '50%',
-            backgroundColor: '#1f2937', color: 'white', fontSize: '18px',
-            boxShadow: '0 4px 15px rgba(0,0,0,0.3)', border: 'none', cursor: 'pointer',
-            alignSelf: 'center'
-        });
-
-        container.appendChild(btnReset);
-        container.appendChild(btnNext);
-        document.body.appendChild(container);
+        // Legacy - PeerManager now handles multiplayer UI
     },
 
-    // Toggle Offline Mode
+    // Toggle Offline Mode (single-player only)
     async toggle(active) {
         const roomBtn = document.getElementById('roomBtn');
-        const broadcastBtnId = 'offlineBroadcastBtn';
         
         if (active) {
-            // ACTIVATING OFFLINE MODE
+            // ACTIVATING OFFLINE MODE (single-player)
             UIManager.showMessage("Caching words for offline play... 📥");
             const success = await this.fillCache();
             
@@ -641,16 +577,7 @@ const OfflineManager = {
                 State.data.settings.offlineMode = true;
                 State.save('settings', State.data.settings);
                 
-                // Hide online multiplayer button
-                if(roomBtn) roomBtn.style.display = 'none';
-                
-                // Create broadcast buttons
-                this.updateBroadcastButtons();
-                
-                const chId = State.runtime.offlineChannel || 1;
-                const ch = SONIC_CHANNELS.find(c => c.id === chId) || SONIC_CHANNELS[0];
-                
-                UIManager.showPostVoteMessage(`Offline Mode Active! Channel ${chId} (${ch.name}) 📡`);
+                UIManager.showPostVoteMessage(`Offline Mode Active! 📴`);
                 Game.refreshData(false);
                 State.runtime.currentWordIndex = 0;
                 Game.nextWord();
@@ -665,18 +592,6 @@ const OfflineManager = {
             await this.sync();
             State.data.settings.offlineMode = false;
             State.save('settings', State.data.settings);
-            
-            // Show online multiplayer button again
-            if(roomBtn) roomBtn.style.display = 'block';
-            
-            // Remove broadcast buttons when going back online
-            const btn = document.getElementById(broadcastBtnId);
-            if(btn) btn.remove();
-            
-            // Stop listening if active
-            if(SonicManager.isListening) {
-                SonicManager.stopListening();
-            }
             
             Game.refreshData(); 
         }
@@ -908,182 +823,565 @@ playBad() {
     }
 };
 
-const SonicManager = {
-    ctx: null, analyser: null, micStream: null, isListening: false, rafId: null,
+
+// ============================================
+// P2P OFFLINE MULTIPLAYER - WebRTC Based
+// ============================================
+// Host downloads words, distributes to peers via WebRTC data channel
+// Real-time sync of word index, no server needed after connection
+
+const PeerManager = {
+    // State
+    isHost: false,
+    isConnected: false,
+    roomCode: null,
+    socket: null,
     
-    detectState: 'IDLE', 
-    sequenceTimer: null, lastTriggerTime: 0,
+    // WebRTC
+    peerConnections: {},  // Host: {peerId: RTCPeerConnection}
+    dataChannels: {},     // Host: {peerId: RTCDataChannel}
+    hostConnection: null, // Peer: connection to host
+    hostChannel: null,    // Peer: data channel to host
+    
+    // Game state (host manages, peers receive)
+    words: [],
+    currentWordIndex: 0,
+    connectedPeers: [],
+    
+    // ICE servers for WebRTC
+    iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+    ],
 
-    init() { if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)(); return this.ctx; },
-
-    // Helper: Get current channel config
-    getCurrentChannel() {
-        const id = State.runtime.offlineChannel || 1;
-        return SONIC_CHANNELS.find(c => c.id === id) || SONIC_CHANNELS[0];
-    },
-
-    // TRANSMIT (Host)
-    async transmit(mode = 'NEXT') {
-        this.init();
-        if (this.ctx.state === 'suspended') await this.ctx.resume();
-        
-        const ch = this.getCurrentChannel();
-        const isNext = mode === 'NEXT';
-        
-        UIManager.showPostVoteMessage(isNext ? `${ch.name}: Next... 📡` : `${ch.name}: Reset! 🔄`);
-        
-        const t = this.ctx.currentTime;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.connect(gain); gain.connect(this.ctx.destination);
-        
-        // Use Channel-Specific Frequencies
-        // NEXT: Low -> High
-        // RESET: High -> Low
-        const f1 = isNext ? ch.freqA : ch.freqB;
-        const f2 = isNext ? ch.freqB : ch.freqA;
-        const dur = isNext ? 0.4 : 0.6;
-
-        osc.frequency.setValueAtTime(f1, t);
-        osc.frequency.setValueAtTime(f2, t + dur);
-        
-        osc.start(t); 
-        osc.stop(t + (dur * 2));
-        
-        gain.gain.setValueAtTime(0, t);
-        gain.gain.linearRampToValueAtTime(1, t + 0.05);
-        gain.gain.setValueAtTime(1, t + (dur * 2) - 0.05);
-        gain.gain.linearRampToValueAtTime(0, t + (dur * 2));
-
-        // Host Logic
-        if (isNext) {
-            if (State.runtime.allWords.length > 0) {
-                 State.runtime.currentWordIndex++;
-                 Game.nextWord();
-            }
-        } else {
-            // Reset logic: Reshuffle using the current channel ID
-            Game.refreshData(false); 
-            State.runtime.currentWordIndex = 0;
-            Game.nextWord();
-            UIManager.showPostVoteMessage(`Reset to ${ch.name} Deck! 🎬`);
+    // Get Socket.IO instance (reuse from RoomManager)
+    getSocket() {
+        if (this.socket) return this.socket;
+        if (typeof RoomManager !== 'undefined' && RoomManager.socket) {
+            this.socket = RoomManager.socket;
+            this.setupSocketListeners();
+            return this.socket;
         }
-        UIManager.disableButtons(false);
+        // Fallback: create own connection
+        if (typeof io !== 'undefined') {
+            this.socket = io();
+            this.setupSocketListeners();
+            return this.socket;
+        }
+        console.error('Socket.IO not available');
+        return null;
     },
 
-    async toggleListening() { this.isListening ? this.stopListening() : await this.startListening(); },
+    setupSocketListeners() {
+        if (!this.socket || this.socket._p2pListenersAdded) return;
+        this.socket._p2pListenersAdded = true;
 
-    async startListening() {
-        this.init();
-        if (this.ctx.state === 'suspended') await this.ctx.resume();
-        try {
-            this.micStream = await navigator.mediaDevices.getUserMedia({ 
-                audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } 
+        // Host receives: new peer wants to connect
+        this.socket.on('p2p:peerJoined', async ({ peerId }) => {
+            if (!this.isHost) return;
+            console.log('Peer joined:', peerId);
+            await this.createPeerConnection(peerId);
+        });
+
+        // Peer receives: offer from host
+        this.socket.on('p2p:offer', async ({ from, offer }) => {
+            if (this.isHost) return;
+            console.log('Received offer from:', from);
+            await this.handleOffer(from, offer);
+        });
+
+        // Host receives: answer from peer
+        this.socket.on('p2p:answer', async ({ from, answer }) => {
+            if (!this.isHost) return;
+            console.log('Received answer from:', from);
+            const pc = this.peerConnections[from];
+            if (pc) {
+                await pc.setRemoteDescription(new RTCSessionDescription(answer));
+            }
+        });
+
+        // Both: ICE candidates
+        this.socket.on('p2p:ice', async ({ from, candidate }) => {
+            const pc = this.isHost ? this.peerConnections[from] : this.hostConnection;
+            if (pc && candidate) {
+                try {
+                    await pc.addIceCandidate(new RTCIceCandidate(candidate));
+                } catch (e) {
+                    console.warn('ICE candidate error:', e);
+                }
+            }
+        });
+
+        // Peer: host closed room
+        this.socket.on('p2p:closed', () => {
+            if (!this.isHost) {
+                UIManager.showPostVoteMessage('Host disconnected 😢');
+                this.cleanup();
+            }
+        });
+
+        // Host: peer left
+        this.socket.on('p2p:peerLeft', ({ peerId }) => {
+            if (this.isHost) {
+                this.removePeer(peerId);
+                this.updateUI();
+            }
+        });
+    },
+
+    // HOST: Create a room
+    async createRoom(roomCode) {
+        const socket = this.getSocket();
+        if (!socket) return false;
+
+        return new Promise((resolve) => {
+            socket.emit('p2p:create', { roomCode }, (response) => {
+                if (response.success) {
+                    this.isHost = true;
+                    this.roomCode = response.roomCode;
+                    this.isConnected = true;
+                    console.log('P2P Room created:', this.roomCode);
+                    resolve(true);
+                } else {
+                    console.error('Failed to create room:', response.error);
+                    resolve(false);
+                }
             });
-            this.analyser = this.ctx.createAnalyser();
-            this.analyser.fftSize = 2048; 
-            const src = this.ctx.createMediaStreamSource(this.micStream);
-            src.connect(this.analyser);
-            this.isListening = true;
-            this.detectState = 'IDLE';
-            this.listenLoop();
-            
-            const ch = this.getCurrentChannel();
-            UIManager.showPostVoteMessage(`Listening on ${ch.name}... 👂`);
-            document.body.classList.add('listening-mode');
-            // Visual hint for channel color
-            document.body.style.borderBottom = `5px solid ${ch.color}`;
-        } catch (e) { console.error(e); UIManager.showPostVoteMessage("Mic Access Denied 🚫"); }
+        });
     },
 
-    stopListening() {
-        this.isListening = false;
-        if (this.micStream) { this.micStream.getTracks().forEach(t => t.stop()); this.micStream = null; }
-        if (this.rafId) cancelAnimationFrame(this.rafId);
-        document.body.classList.remove('listening-mode');
-        document.body.style.borderBottom = 'none';
-        UIManager.showPostVoteMessage("Mic Stopped 🔇");
-    },
+    // HOST: Create peer connection for new joiner
+    async createPeerConnection(peerId) {
+        const pc = new RTCPeerConnection({ iceServers: this.iceServers });
+        this.peerConnections[peerId] = pc;
 
-    listenLoop() {
-        if (!this.isListening) return;
-        const bufferLength = this.analyser.frequencyBinCount;
-        const dataArray = new Uint8Array(bufferLength);
-        this.analyser.getByteFrequencyData(dataArray);
-
-        // Get Frequencies for CURRENT Channel
-        const ch = this.getCurrentChannel();
-
-        const getSignalStrength = (targetFreq) => {
-            const hzPerBin = this.ctx.sampleRate / this.analyser.fftSize;
-            const targetBin = Math.floor(targetFreq / hzPerBin);
-            let signalVol = 0;
-            for (let i = -2; i <= 2; i++) {
-                if (dataArray[targetBin + i] > signalVol) signalVol = dataArray[targetBin + i];
-            }
-            // SNR Check
-            let noiseSum = 0, count = 0;
-            for (let i = -20; i <= 20; i++) {
-                if (Math.abs(i) < 4) continue; 
-                noiseSum += dataArray[targetBin + i] || 0;
-                count++;
-            }
-            const noiseFloor = noiseSum / count;
-            return (signalVol > 40 && signalVol > (noiseFloor * 3));
+        // Create data channel
+        const channel = pc.createDataChannel('gameData', { ordered: true });
+        this.dataChannels[peerId] = channel;
+        
+        channel.onopen = () => {
+            console.log('Data channel open with:', peerId);
+            this.connectedPeers.push(peerId);
+            this.updateUI();
+            // Send current game state to new peer
+            this.sendToPeer(peerId, {
+                type: 'init',
+                words: this.words,
+                currentIndex: this.currentWordIndex
+            });
+        };
+        
+        channel.onclose = () => {
+            this.removePeer(peerId);
         };
 
-        const heardA = getSignalStrength(ch.freqA);
-        const heardB = getSignalStrength(ch.freqB);
-
-        // State Machine
-        if (this.detectState === 'IDLE') {
-            if (heardA) {
-                this.detectState = 'WAIT_FOR_B';
-                this.setTimer();
-            } else if (heardB) {
-                this.detectState = 'WAIT_FOR_A';
-                this.setTimer();
+        // ICE candidates
+        pc.onicecandidate = (e) => {
+            if (e.candidate) {
+                this.socket.emit('p2p:ice', { targetId: peerId, candidate: e.candidate });
             }
-        } 
-        else if (this.detectState === 'WAIT_FOR_B') {
-            if (heardB) this.triggerAction('NEXT');
-        }
-        else if (this.detectState === 'WAIT_FOR_A') {
-            if (heardA) this.triggerAction('RESET');
-        }
+        };
 
-        this.rafId = requestAnimationFrame(() => this.listenLoop());
+        // Create and send offer
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        this.socket.emit('p2p:offer', { targetId: peerId, offer: pc.localDescription });
     },
-    
-    setTimer() {
-        if (this.sequenceTimer) clearTimeout(this.sequenceTimer);
-        this.sequenceTimer = setTimeout(() => { this.detectState = 'IDLE'; }, 1500);
+
+    // PEER: Join a room
+    async joinRoom(roomCode) {
+        const socket = this.getSocket();
+        if (!socket) return false;
+
+        return new Promise((resolve) => {
+            socket.emit('p2p:join', { roomCode }, (response) => {
+                if (response.success) {
+                    this.isHost = false;
+                    this.roomCode = roomCode.toUpperCase();
+                    console.log('Joined P2P room:', this.roomCode);
+                    resolve(true);
+                } else {
+                    console.error('Failed to join room:', response.error);
+                    UIManager.showPostVoteMessage(response.error || 'Room not found');
+                    resolve(false);
+                }
+            });
+        });
     },
-    
-    triggerAction(type) {
-        const now = Date.now();
-        if (now - this.lastTriggerTime < 2000) return;
-        this.lastTriggerTime = now;
-        this.detectState = 'IDLE';
-        if (this.sequenceTimer) clearTimeout(this.sequenceTimer);
 
-        document.body.classList.remove('vote-good-mode', 'vote-bad-mode');
-        UIManager.disableButtons(false); 
+    // PEER: Handle offer from host
+    async handleOffer(hostId, offer) {
+        const pc = new RTCPeerConnection({ iceServers: this.iceServers });
+        this.hostConnection = pc;
 
-        if (type === 'NEXT') {
-            UIManager.showPostVoteMessage("Next Word! 📶");
-            if (State.runtime.allWords.length > 0) {
-                 State.runtime.currentWordIndex++;
-                 Game.nextWord();
+        pc.ondatachannel = (e) => {
+            this.hostChannel = e.channel;
+            this.hostChannel.onopen = () => {
+                console.log('Connected to host!');
+                this.isConnected = true;
+                this.updateUI();
+                UIManager.showPostVoteMessage('Connected to host! 🎮');
+            };
+            this.hostChannel.onmessage = (e) => this.handleMessage(JSON.parse(e.data));
+            this.hostChannel.onclose = () => {
+                this.isConnected = false;
+                UIManager.showPostVoteMessage('Disconnected from host');
+                this.cleanup();
+            };
+        };
+
+        pc.onicecandidate = (e) => {
+            if (e.candidate) {
+                this.socket.emit('p2p:ice', { targetId: hostId, candidate: e.candidate });
             }
-        } else if (type === 'RESET') {
-            // Signal received: RESET implies "Method X, GO!"
-            // We must reload the data to match the channel's shuffle
-            Game.refreshData(false);
+        };
+
+        await pc.setRemoteDescription(new RTCSessionDescription(offer));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        this.socket.emit('p2p:answer', { targetId: hostId, answer: pc.localDescription });
+    },
+
+    // HOST: Send to specific peer
+    sendToPeer(peerId, data) {
+        const channel = this.dataChannels[peerId];
+        if (channel && channel.readyState === 'open') {
+            channel.send(JSON.stringify(data));
+        }
+    },
+
+    // HOST: Broadcast to all peers
+    broadcast(data) {
+        const msg = JSON.stringify(data);
+        for (const peerId in this.dataChannels) {
+            const channel = this.dataChannels[peerId];
+            if (channel && channel.readyState === 'open') {
+                channel.send(msg);
+            }
+        }
+    },
+
+    // PEER: Send to host
+    sendToHost(data) {
+        if (this.hostChannel && this.hostChannel.readyState === 'open') {
+            this.hostChannel.send(JSON.stringify(data));
+        }
+    },
+
+    // Handle incoming messages
+    handleMessage(data) {
+        switch (data.type) {
+            case 'init':
+                // Peer receives word list and current position
+                this.words = data.words;
+                State.runtime.allWords = data.words;
+                State.runtime.currentWordIndex = data.currentIndex;
+                this.currentWordIndex = data.currentIndex;
+                Game.nextWord();
+                UIManager.showPostVoteMessage(`Synced! Word ${data.currentIndex + 1}/${data.words.length}`);
+                this.updateWordCounter();
+                break;
+                
+            case 'next':
+                // Host advanced to next word
+                State.runtime.currentWordIndex = data.index;
+                this.currentWordIndex = data.index;
+                Game.nextWord();
+                // Clear vote state
+                document.body.classList.remove('vote-good-mode', 'vote-bad-mode');
+                UIManager.disableButtons(false);
+                this.updateWordCounter();
+                break;
+                
+            case 'reset':
+                // Host reset the game
+                this.words = data.words;
+                State.runtime.allWords = data.words;
+                State.runtime.currentWordIndex = 0;
+                this.currentWordIndex = 0;
+                Game.nextWord();
+                UIManager.showPostVoteMessage('Game Reset! 🔄');
+                this.updateWordCounter();
+                break;
+        }
+    },
+
+    // HOST: Download words and start hosting
+    async startHosting(roomCode, wordCount = 50) {
+        UIManager.showMessage('Downloading words... 📥');
+        
+        try {
+            // Fetch words from API
+            const res = await fetch(`${CONFIG.API_BASE_URL}/all`);
+            if (!res.ok) throw new Error('Network error');
+            let allWords = await res.json();
+            
+            // Shuffle and take subset
+            for (let i = allWords.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [allWords[i], allWords[j]] = [allWords[j], allWords[i]];
+            }
+            this.words = allWords.slice(0, Math.min(wordCount, allWords.length));
+            
+            // Filter out non-words
+            this.words = this.words.filter(w => (w.notWordVotes || 0) < 3);
+            
+            if (this.words.length === 0) {
+                throw new Error('No words available');
+            }
+            
+            // Create room
+            const success = await this.createRoom(roomCode);
+            if (!success) {
+                UIManager.showPostVoteMessage('Failed to create room');
+                return false;
+            }
+            
+            // Set up local game state
+            State.runtime.allWords = this.words;
             State.runtime.currentWordIndex = 0;
+            this.currentWordIndex = 0;
+            
+            UIManager.showPostVoteMessage(`Hosting room: ${this.roomCode} 📡`);
+            this.showHostUI();
             Game.nextWord();
-            UIManager.showPostVoteMessage("Synced to Channel! 🎬");
+            
+            return true;
+        } catch (e) {
+            console.error('Failed to start hosting:', e);
+            UIManager.showPostVoteMessage('Failed to download words');
+            return false;
         }
+    },
+
+    // HOST: Advance to next word
+    nextWord() {
+        if (!this.isHost) return;
+        
+        this.currentWordIndex++;
+        if (this.currentWordIndex >= this.words.length) {
+            this.currentWordIndex = 0; // Loop back
+        }
+        
+        State.runtime.currentWordIndex = this.currentWordIndex;
+        Game.nextWord();
+        
+        // Broadcast to all peers
+        this.broadcast({
+            type: 'next',
+            index: this.currentWordIndex
+        });
+        
+        this.updateWordCounter();
+    },
+
+    // HOST: Reset with new words
+    async resetGame() {
+        if (!this.isHost) return;
+        
+        UIManager.showMessage('Shuffling new words... 🔄');
+        
+        try {
+            const res = await fetch(`${CONFIG.API_BASE_URL}/all`);
+            let allWords = await res.json();
+            
+            for (let i = allWords.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [allWords[i], allWords[j]] = [allWords[j], allWords[i]];
+            }
+            this.words = allWords.slice(0, 50).filter(w => (w.notWordVotes || 0) < 3);
+            
+            State.runtime.allWords = this.words;
+            State.runtime.currentWordIndex = 0;
+            this.currentWordIndex = 0;
+            
+            Game.nextWord();
+            
+            // Broadcast to all peers
+            this.broadcast({
+                type: 'reset',
+                words: this.words
+            });
+            
+            UIManager.showPostVoteMessage('New words loaded! 🎲');
+            this.updateWordCounter();
+        } catch (e) {
+            UIManager.showPostVoteMessage('Failed to reset');
+        }
+    },
+
+    // Remove peer
+    removePeer(peerId) {
+        if (this.peerConnections[peerId]) {
+            this.peerConnections[peerId].close();
+            delete this.peerConnections[peerId];
+        }
+        if (this.dataChannels[peerId]) {
+            delete this.dataChannels[peerId];
+        }
+        const idx = this.connectedPeers.indexOf(peerId);
+        if (idx !== -1) this.connectedPeers.splice(idx, 1);
+    },
+
+    // Cleanup all connections
+    cleanup() {
+        // Close all peer connections
+        for (const peerId in this.peerConnections) {
+            this.peerConnections[peerId].close();
+        }
+        this.peerConnections = {};
+        this.dataChannels = {};
+        
+        // Close host connection
+        if (this.hostConnection) {
+            this.hostConnection.close();
+            this.hostConnection = null;
+        }
+        this.hostChannel = null;
+        
+        // Notify server
+        if (this.socket && this.roomCode) {
+            this.socket.emit('p2p:close', { roomCode: this.roomCode });
+        }
+        
+        // Reset state
+        this.isHost = false;
+        this.isConnected = false;
+        this.roomCode = null;
+        this.words = [];
+        this.currentWordIndex = 0;
+        this.connectedPeers = [];
+        
+        // Remove UI
+        this.removeHostUI();
+        this.removeWordCounter();
+    },
+
+    // Update word counter display
+    updateWordCounter() {
+        let counter = document.getElementById('p2pWordCounter');
+        if (!counter && (this.isHost || this.isConnected)) {
+            counter = document.createElement('div');
+            counter.id = 'p2pWordCounter';
+            Object.assign(counter.style, {
+                position: 'fixed',
+                top: '70px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                background: 'rgba(0,0,0,0.85)',
+                color: 'white',
+                padding: '10px 24px',
+                borderRadius: '24px',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                fontFamily: 'monospace',
+                zIndex: '150',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
+            });
+            document.body.appendChild(counter);
+        }
+        
+        if (counter) {
+            const idx = State.runtime.currentWordIndex || 0;
+            const total = this.words.length || State.runtime.allWords?.length || 0;
+            const peers = this.isHost ? this.connectedPeers.length : 0;
+            const role = this.isHost ? '👑 HOST' : '🎮 PLAYER';
+            const color = this.isHost ? '#eab308' : '#22c55e';
+            
+            counter.innerHTML = `
+                <span style="color:${color}">${role}</span>
+                <span style="opacity:0.5">|</span>
+                <span>Word</span>
+                <span style="font-size:22px; color:#3b82f6">#${idx + 1}</span>
+                <span style="opacity:0.5">/ ${total}</span>
+                ${this.isHost ? `<span style="opacity:0.5">| 👥 ${peers}</span>` : ''}
+            `;
+        }
+    },
+
+    removeWordCounter() {
+        const counter = document.getElementById('p2pWordCounter');
+        if (counter) counter.remove();
+    },
+
+    // Show host controls
+    showHostUI() {
+        this.removeHostUI(); // Clean up first
+        
+        const container = document.createElement('div');
+        container.id = 'p2pHostControls';
+        Object.assign(container.style, {
+            position: 'fixed', bottom: '20px', right: '20px',
+            display: 'flex', flexDirection: 'column', gap: '10px', zIndex: '100',
+            alignItems: 'center'
+        });
+
+        // Room code display
+        const codeDisplay = document.createElement('div');
+        codeDisplay.innerHTML = `<span style="opacity:0.7">Room:</span> <strong>${this.roomCode}</strong>`;
+        Object.assign(codeDisplay.style, {
+            background: 'white', padding: '8px 16px', borderRadius: '12px',
+            fontSize: '14px', fontFamily: 'monospace', boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+        });
+
+        // Reset button
+        const btnReset = document.createElement('button');
+        btnReset.innerHTML = '🔄';
+        btnReset.title = 'New Words';
+        btnReset.onclick = () => this.resetGame();
+        Object.assign(btnReset.style, {
+            width: '44px', height: '44px', borderRadius: '50%',
+            backgroundColor: '#6b7280', color: 'white', fontSize: '18px',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.2)', border: 'none', cursor: 'pointer'
+        });
+
+        // Next button
+        const btnNext = document.createElement('button');
+        btnNext.innerHTML = '➡️';
+        btnNext.title = 'Next Word';
+        btnNext.onclick = () => this.nextWord();
+        Object.assign(btnNext.style, {
+            width: '64px', height: '64px', borderRadius: '50%',
+            backgroundColor: '#3b82f6', color: 'white', fontSize: '28px',
+            boxShadow: '0 4px 15px rgba(0,0,0,0.3)', border: 'none', cursor: 'pointer'
+        });
+
+        // Stop button
+        const btnStop = document.createElement('button');
+        btnStop.innerHTML = '⏹️';
+        btnStop.title = 'Stop Hosting';
+        btnStop.onclick = () => {
+            if (confirm('Stop hosting and disconnect all players?')) {
+                this.cleanup();
+                UIManager.showPostVoteMessage('Room closed');
+            }
+        };
+        Object.assign(btnStop.style, {
+            width: '36px', height: '36px', borderRadius: '50%',
+            backgroundColor: '#ef4444', color: 'white', fontSize: '14px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.2)', border: 'none', cursor: 'pointer'
+        });
+
+        container.appendChild(codeDisplay);
+        container.appendChild(btnStop);
+        container.appendChild(btnReset);
+        container.appendChild(btnNext);
+        document.body.appendChild(container);
+        
+        this.updateWordCounter();
+    },
+
+    removeHostUI() {
+        const container = document.getElementById('p2pHostControls');
+        if (container) container.remove();
+    },
+
+    // Update UI (peer count, etc)
+    updateUI() {
+        this.updateWordCounter();
     }
 };
 
@@ -3050,7 +3348,7 @@ halloween(active) {
                     animation: spider-pause-wiggle 0.4s ease-in-out;
                 }
                 .hunting-scuttle {
-                    animation: spider-leg-twitch 0.2s infinite ease-in-out;
+                    animation: spider-leg-twitch 0.4s infinite ease-in-out;
                 }
 				.spider-idle {
 				animation: spider-idle-wiggle 4s infinite ease-in-out; /* Slower idle sway */
@@ -3163,7 +3461,7 @@ halloween(active) {
             });
             
             const eaten = State.data.insectStats.eaten || 0;
-            const scale = Math.min(0.6 + (eaten * 0.005), 1.3).toFixed(2);
+            const scale = Math.min(0.7 + (eaten * 0.006), 1.4).toFixed(2);
             
             wrap.innerHTML = `
                 <div id="spider-anchor" style="transform: scale(${scale}); transform-origin: top center;">
@@ -3329,8 +3627,8 @@ const anchor = wrap.querySelector('#spider-anchor');
 
         if (anchor && currentBody) {
             const eaten = State.data.insectStats.eaten || 0;
-            // Increased base size slightly (0.7 start)
-            let scale = Math.min(0.7 + (eaten * 0.005), 1.4); 
+            // Base size with growth per bug eaten lifetime
+            let scale = Math.min(0.7 + (eaten * 0.006), 1.4); 
 
             const isFull = Date.now() < (State.data.spiderFullUntil || 0);
             
@@ -3338,7 +3636,7 @@ const anchor = wrap.querySelector('#spider-anchor');
                 scale = scale * 1.6; // Max fatness (60% bigger)
                 currentBody.classList.add('spider-fat');
             } else {
-                // Incremental growth: 20% bigger per bug (was 15%)
+                // Incremental growth: 20% bigger per bug in recent stomach
                 const recentBugs = State.data.spiderEatLog ? State.data.spiderEatLog.length : 0;
                 scale = scale * (1 + (recentBugs * 0.20)); 
                 currentBody.classList.remove('spider-fat');
@@ -3536,7 +3834,7 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
 		const anchor = wrap.querySelector('#spider-anchor');
         if (anchor && body) {
             const eaten = State.data.insectStats.eaten || 0;
-            let scale = Math.min(0.6 + (eaten * 0.005), 1.3); // Base size
+            let scale = Math.min(0.7 + (eaten * 0.006), 1.4); // Base size
 
             const isFull = Date.now() < (State.data.spiderFullUntil || 0);
             
@@ -3653,22 +3951,17 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                         // --- PUFF UP ANIMATION (like pufferfish) ---
                         const anchor = wrap.querySelector('#spider-anchor');
                         if (anchor) {
-                            // Get current scale
-                            const currentTransform = anchor.style.transform || 'scale(1)';
-                            const scaleMatch = currentTransform.match(/scale\(([^)]+)\)/);
-                            const currentScale = scaleMatch ? parseFloat(scaleMatch[1]) : 1;
-                            
                             // Calculate new scale based on updated eat log
                             const eaten = State.data.insectStats.eaten || 0;
-                            let newScale = Math.min(0.6 + (eaten * 0.005), 1.3);
+                            let newScale = Math.min(0.7 + (eaten * 0.006), 1.4);
                             const isFull = Date.now() < (State.data.spiderFullUntil || 0);
                             
                             if (isFull) {
-                                newScale = newScale * 1.5;
+                                newScale = newScale * 1.6;
                                 body.classList.add('spider-fat');
                             } else {
                                 const recentBugs = State.data.spiderEatLog ? State.data.spiderEatLog.length : 0;
-                                newScale = newScale * (1 + (recentBugs * 0.15));
+                                newScale = newScale * (1 + (recentBugs * 0.20));
                             }
                             
                             // Animate the growth with a satisfying "gulp" effect
@@ -5142,55 +5435,17 @@ displayWord(w) {
         if (!ind) {
             ind = document.createElement('div');
             ind.id = 'offlineIndicator';
-            // Styling for clickable badge
-            ind.className = 'fixed bottom-4 left-4 text-xs font-bold px-4 py-3 rounded-full shadow-lg z-50 transition-all duration-300 cursor-pointer border-2 hover:scale-105 active:scale-95 select-none';
-            
-            ind.onclick = () => {
-                if (!OfflineManager.isActive()) return;
-                
-                // Cycle Channel 1-4
-                let current = State.runtime.offlineChannel || 1;
-                current++;
-                if (current > 4) current = 1;
-                State.runtime.offlineChannel = current;
-                
-                // Save and Reload
-                Game.refreshData(false); 
-                State.runtime.currentWordIndex = 0;
-                Game.nextWord();
-                
-                // Restart Mic/Buttons if active
-                if(SonicManager.isListening) {
-                     SonicManager.stopListening();
-                     SonicManager.startListening();
-                }
-                
-                // Update Host Buttons for new channel color
-                OfflineManager.updateBroadcastButtons();
-                
-                UIManager.updateOfflineIndicator();
-            };
+            ind.className = 'fixed bottom-4 left-4 text-xs font-bold px-4 py-3 rounded-full shadow-lg z-50 transition-all duration-300 border-2 select-none';
             document.body.appendChild(ind);
         }
 
         if (OfflineManager.isActive()) {
-            const chId = State.runtime.offlineChannel || 1;
-            const ch = SONIC_CHANNELS.find(c => c.id === chId) || SONIC_CHANNELS[0];
-            
             ind.style.opacity = '1';
             ind.style.pointerEvents = 'auto';
-            
-            // Dynamic Color Styling
             ind.style.backgroundColor = 'white';
-            ind.style.borderColor = ch.color;
+            ind.style.borderColor = '#6b7280';
             ind.style.color = 'black';
-            
-            // Text: "CHANNEL 1 (BLUE)"
-            ind.innerHTML = `
-                <span style="color:${ch.color}">●</span> 
-                CHANNEL ${chId} 
-                <span class="opacity-50 text-[10px] ml-1">(${ch.name})</span>
-            `;
+            ind.innerHTML = `<span style="color:#6b7280">●</span> OFFLINE MODE`;
         } else {
             ind.style.opacity = '0';
             ind.style.pointerEvents = 'none';
@@ -7279,6 +7534,63 @@ generateRandomCode() {
         }
     },
 
+    // P2P Local Multiplayer - Host
+    async startP2PHost() {
+        const codeInput = document.getElementById('menuRoomCodeInput');
+        let roomCode = codeInput?.value?.trim().toUpperCase();
+        
+        if (!roomCode || roomCode.length < 3) {
+            // Generate random code
+            const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+            roomCode = "";
+            for (let i = 0; i < 5; i++) {
+                roomCode += chars[Math.floor(Math.random() * chars.length)];
+            }
+        }
+        
+        // Close menu
+        const menu = document.getElementById('mpMenu');
+        if (menu) menu.remove();
+        
+        // Start hosting
+        UIManager.showMessage('Starting P2P host... 📡');
+        const success = await PeerManager.startHosting(roomCode, 50);
+        
+        if (success) {
+            // Hide this menu button while hosting
+            const roomBtn = document.getElementById('roomBtn');
+            if (roomBtn) roomBtn.style.display = 'none';
+        }
+    },
+
+    // P2P Local Multiplayer - Join
+    async joinP2P() {
+        const codeInput = document.getElementById('menuRoomCodeInput');
+        const roomCode = codeInput?.value?.trim().toUpperCase();
+        
+        if (!roomCode || roomCode.length < 3) {
+            UIManager.showPostVoteMessage('Enter a room code! 📝');
+            if (codeInput) codeInput.focus();
+            return;
+        }
+        
+        // Close menu
+        const menu = document.getElementById('mpMenu');
+        if (menu) menu.remove();
+        
+        // Join room
+        UIManager.showMessage('Joining P2P room... 🔗');
+        const success = await PeerManager.joinRoom(roomCode);
+        
+        if (success) {
+            // Hide this menu button while connected
+            const roomBtn = document.getElementById('roomBtn');
+            if (roomBtn) roomBtn.style.display = 'none';
+            
+            UIManager.showPostVoteMessage(`Connecting to ${roomCode}...`);
+        }
+    },
+
     openMenu() {
         const existing = document.getElementById('mpMenu');
         if (existing) existing.remove();
@@ -7314,17 +7626,17 @@ const html = `
                             </div>
                         </div>
 						
-						<div class="mb-4 p-3 bg-indigo-50 border border-indigo-200 rounded-xl mt-3">
-    <h3 class="font-bold text-indigo-900 text-sm mb-2 text-left">🔊 SONIC OFFLINE MODE</h3>
+						<div class="mb-4 p-3 bg-green-50 border border-green-200 rounded-xl mt-3">
+    <h3 class="font-bold text-green-900 text-sm mb-2 text-left">📡 LOCAL P2P MODE</h3>
     <div class="flex gap-2">
-        <button onclick="SonicManager.transmit('NEXT')" class="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-lg active:scale-95 transition flex items-center justify-center gap-2">
-            <span>📢</span> Broadcast
+        <button onclick="RoomManager.startP2PHost()" class="flex-1 py-3 bg-green-600 text-white font-bold rounded-xl shadow-lg active:scale-95 transition flex items-center justify-center gap-2">
+            <span>👑</span> Host Game
         </button>
-        <button onclick="SonicManager.toggleListening()" class="flex-1 py-3 bg-white text-indigo-600 border-2 border-indigo-200 font-bold rounded-xl shadow-sm active:scale-95 transition flex items-center justify-center gap-2">
-            <span>👂</span> Listen
+        <button onclick="RoomManager.joinP2P()" class="flex-1 py-3 bg-white text-green-600 border-2 border-green-200 font-bold rounded-xl shadow-sm active:scale-95 transition flex items-center justify-center gap-2">
+            <span>🎮</span> Join Game
         </button>
     </div>
-    <p class="text-xs text-indigo-400 mt-2 text-left">Host broadcasts, guests listen. No Wi-Fi needed!</p>
+    <p class="text-xs text-green-500 mt-2 text-left">Host downloads words, players sync via WebRTC. Works offline after connecting!</p>
 </div>
                         
                         <div class="bg-gray-50 p-3 rounded-xl border border-gray-200">
@@ -8055,32 +8367,22 @@ async vote(t, s = false) {
         }
 
 		if (d && d.length > 0) {
-            // --- UPDATED: CHANNEL SYNC & SHUFFLE ---
+            // Offline single-player uses cached words
             if (OfflineManager.isActive()) {
-                // 1. Load Fixed Pack
-                d = JSON.parse(JSON.stringify(FESTIVAL_PACK));
-                d.sort((a, b) => a.text.localeCompare(b.text));
-                
-                // 2. Get Channel Info
-                const chId = State.runtime.offlineChannel || 1;
-                const today = new Date().toDateString(); 
-                
-                // 3. SEED: "Fri Jan 09 2026_Channel1"
-                // This ensures Channel 1 always has the same order for everyone
-                const seedStr = `${today}_Channel${chId}`;
-                
-                // 4. Shuffle
-                d = SeededShuffle.shuffle(d, seedStr);
-                
-                console.log(`Loaded ${seedStr}`);
+                // Use the cached words from fillCache()
+                d = State.data.offlineCache || d;
+                // Shuffle randomly
+                for (let i = d.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [d[i], d[j]] = [d[j], d[i]];
+                }
             } else {
-                // Normal random shuffle for single player / online
+                // Normal random shuffle for online single player
                 for (let i = d.length - 1; i > 0; i--) {
                     const j = Math.floor(Math.random() * (i + 1));
                     [d[i], d[j]] = [d[j], d[i]];
                 }
             }
-            // ------------------------------------
             
             State.runtime.allWords = d;
             
@@ -9061,7 +9363,7 @@ const StreakManager = {
     window.RoomManager = RoomManager;
     window.UIManager = UIManager;
 	window.WeatherManager = WeatherManager;
-	window.SonicManager = SonicManager;
+	window.PeerManager = PeerManager;
 
     console.log("%c Good Word / Bad Word ", "background: #4f46e5; color: #bada55; padding: 4px; border-radius: 4px;");
     console.log("Play fair! ️😇");
