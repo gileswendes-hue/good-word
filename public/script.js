@@ -1,11 +1,10 @@
 (function() {
 const CONFIG = {
     API_BASE_URL: '/api/words',
-	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.21', 
-	KIDS_LIST_FILE: 'kids_words.txt',
+    SCORE_API_URL: '/api/scores',
+    APP_VERSION: '6.2.22',
+    KIDS_LIST_FILE: 'kids_words.txt',
 
-  
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
         LLAMA: { text: 'LLAMA', prob: 0.005, fade: 8000, msg: "what llama?", dur: 3000 },
@@ -48,7 +47,7 @@ const ContentFilter = {
     // Includes racial slurs, homophobic/transphobic terms, and severe profanity
     _encoded: 'bmlnZ2VyfG5pZ2dhfGZhZ2dvdHxmYWd8ZHlrZXx0cmFubnl8cmV0YXJkfHNwYXN0aWN8Y2hpbmt8Z29va3xzcGljfGtpa2V8d2V0YmFja3xiZWFuZXJ8Y29vbnxyYWdoZWFkfHRvd2VsaGVhZHxjYW1lbGpvY2tleXxwYWtpfHdvcHxqYXB8Y3JhY2tlcnxob25reXxncmluZ298bmVncm98Y29sb3JlZHxuZWdyZXNzfG11bGF0dG98aGFsZmJyZWVkfHF1ZWVyfHF1ZWVyc3xob21vfGhvbW9zfGxlc2JvfHNoZW1hbGV8aGVzaGV8dHJhbnN2ZXN0aXRlfGhlcm1hcGhyb2RpdGV8c29kb21pdGV8YnVnZ2VyfG5vbmNlfHBlZG98cGFlZG98cGVkb3BoaWxlfHBlcnZlcnR8cmFwaXN0fG1vbGVzdGVyfG5henl8bmF6aXN8aGl0bGVyfGhvbG9jYXVzdHxqaWhhZHxqaWhhZGl8dGVycm9yaXN0',
     _patterns: null,
-    
+
     init() {
         try {
             const decoded = atob(this._encoded);
@@ -70,14 +69,14 @@ const ContentFilter = {
             this._patterns = [];
         }
     },
-    
+
     isOffensive(text) {
         if (!this._patterns) this.init();
         if (!text || typeof text !== 'string') return false;
         const normalized = text.toLowerCase().replace(/[_\-\.]/g, '');
         return this._patterns.some(pattern => pattern.test(normalized));
     },
-    
+
     // For server-side, export the raw check
     getOffensiveTerms() {
         try {
@@ -123,15 +122,15 @@ const loadDOM = () => ({
             custom: document.getElementById('customWordButton')
         },
         message: document.getElementById('postVoteMessage'),
-        historyList: document.getElementById('history-list') // <--- RESTORED (Fixes Multiplayer Crash)
+        historyList: document.getElementById('history-list')
     },
-    // --- RESTORED (Fixes Loading Crash) ---
+
     screens: {
         loading: document.getElementById('loading-screen'),
         start: document.getElementById('start-screen'),
         game: document.getElementById('game-screen')
     },
-    // --------------------------------------
+
     rankings: {
         good: document.getElementById('goodRankings'),
         bad: document.getElementById('badRankings'),
@@ -200,13 +199,13 @@ const loadDOM = () => ({
             tilt: document.getElementById('toggleTilt'),
             mirror: document.getElementById('toggleMirror'),
             hideMultiplayer: document.getElementById('toggleHideMultiplayer'),
-            mute: null, 
+            mute: null,
             zeroVotes: null
         }
     },
     general: {
         version: document.querySelector('.version-indicator'),
-		voteLeaderboardTable: document.getElementById('voteLeaderboardTable'),
+        voteLeaderboardTable: document.getElementById('voteLeaderboardTable'),
         voteChartCanvas: document.getElementById('voteChartCanvas')
     }
 });
@@ -224,7 +223,7 @@ const safeParse = (key, fallback) => {
 };
 
 const DEFAULT_SETTINGS = {
-	enableWeather: false,
+    enableWeather: false,
     showTips: true,
     showPercentages: true,
     colorblindMode: false,
@@ -239,8 +238,8 @@ const DEFAULT_SETTINGS = {
     offlineMode: false,
     arachnophobiaMode: false,
     randomizeTheme: true,
-	noStreaksMode: false,
-	controversialOnly: false,
+    noStreaksMode: false,
+    controversialOnly: false,
     hideMultiplayer: false,
     extremeDrinkingMode: false,
     hideCards: false
@@ -259,11 +258,11 @@ const State = {
         offlineCache: safeParse('offlineCache', []),
         unlockedThemes: safeParse('unlockedThemes', []),
         seenHistory: safeParse('seenHistory', []),
-		discovered: safeParse('discoveredFeatures', []),
-		
-		spiderEatLog: safeParse('spiderEatLog', []), 
+        discovered: safeParse('discoveredFeatures', []),
+
+        spiderEatLog: safeParse('spiderEatLog', []),
         spiderFullUntil: parseInt(localStorage.getItem('spiderFullUntil') || 0),
-		
+
         snowmanCollected: parseInt(localStorage.getItem('snowmanCollected') || 0),
 
         insectStats: {
@@ -272,14 +271,14 @@ const State = {
             teased: parseInt(localStorage.getItem('insectTeased') || 0),
             splatted: parseInt(localStorage.getItem('insectSplatted') || 0),
             collection: JSON.parse(localStorage.getItem('insectCollection') || '[]')
-		},
+        },
 
-        wordHistory: JSON.parse(localStorage.getItem('wordCountHistory') || '[]'),       
+        wordHistory: JSON.parse(localStorage.getItem('wordCountHistory') || '[]'),
         fishStats: {
             caught: parseInt(localStorage.getItem('fishCaught') || 0),
             spared: parseInt(localStorage.getItem('fishSpared') || 0)
         },
-        
+
         badges: {
             cake: localStorage.getItem('cakeBadgeUnlocked') === 'true',
             llama: localStorage.getItem('llamaBadgeUnlocked') === 'true',
@@ -300,7 +299,7 @@ const State = {
             saint: localStorage.getItem('saintBadgeUnlocked') === 'true',
             prankster: localStorage.getItem('pranksterBadgeUnlocked') === 'true',
             judge: localStorage.getItem('judgeBadgeUnlocked') === 'true',
-            bard: localStorage.getItem('bardBadgeUnlocked') === 'true',       
+            bard: localStorage.getItem('bardBadgeUnlocked') === 'true',
             traveler: localStorage.getItem('travelerBadgeUnlocked') === 'true',
             fish: localStorage.getItem('fishBadgeUnlocked') === 'true',
             tropical: localStorage.getItem('tropicalBadgeUnlocked') === 'true',
@@ -311,11 +310,11 @@ const State = {
             angler: localStorage.getItem('anglerBadgeUnlocked') === 'true',
             shepherd: localStorage.getItem('shepherdBadgeUnlocked') === 'true'
         },
-        settings: { 
-            ...DEFAULT_SETTINGS, 
-            ...(JSON.parse(localStorage.getItem('userSettings')) || {}) 
+        settings: {
+            ...DEFAULT_SETTINGS,
+            ...(JSON.parse(localStorage.getItem('userSettings')) || {})
         },
-            
+
         currentTheme: localStorage.getItem('currentTheme') || 'default',
         voteCounterForTips: parseInt(localStorage.getItem('voteCounterForTips')) || 0,
         manualTheme: localStorage.getItem('manualTheme') === 'true',
@@ -329,8 +328,8 @@ const State = {
     },
 
     runtime: {
-		currentTheme: 'default',
-		offlineChannel: 1,
+        currentTheme: 'default',
+        offlineChannel: 1,
         allWords: [],
         history: [],
         currentWordIndex: 0,
@@ -345,17 +344,16 @@ const State = {
     },
 
     init() {
-        console.log("State Initialized");
     },
 
     save(k, v) {
         this.data[k] = v;
         const s = localStorage;
-        
+
         if (['pendingVotes','offlineCache','highScores','unlockedThemes','seenHistory','settings'].includes(k)) {
             s.setItem(k, JSON.stringify(v));
         }
-        
+
         if (k === 'pendingVotes') s.setItem('pendingVotes', JSON.stringify(v));
         else if (k === 'offlineCache') s.setItem('offlineCache', JSON.stringify(v));
         else if (k === 'highScores') s.setItem('highScores', JSON.stringify(v));
@@ -365,13 +363,13 @@ const State = {
             s.setItem('insectTeased', v.teased);
             s.setItem('insectSplatted', v.splatted);
             s.setItem('insectCollection', JSON.stringify(v.collection));
-        } 
+        }
         else if (k === 'wordHistory') {
             s.setItem('wordCountHistory', JSON.stringify(v));
         }
         else if (k === 'fishStats') {
             s.setItem('fishCaught', v.caught);
-            s.setItem('fishSpared', v.spared); 
+            s.setItem('fishSpared', v.spared);
         }
         else if (k.startsWith('badge_')) {
             s.setItem(k, v);
@@ -379,7 +377,7 @@ const State = {
         else if (k === 'settings') s.setItem('userSettings', JSON.stringify(v));
         else if (k === 'unlockedThemes') s.setItem('unlockedThemes', JSON.stringify(v));
         else if (k === 'seenHistory') s.setItem('seenHistory', JSON.stringify(v));
-		else if (k === 'discovered') s.setItem('discoveredFeatures', JSON.stringify(v));
+        else if (k === 'discovered') s.setItem('discoveredFeatures', JSON.stringify(v));
         else if (k === 'snowmanCollected') s.setItem('snowmanCollected', v);
         else if (k === 'daily') {
             s.setItem('dailyStreak', v.streak);
@@ -389,18 +387,18 @@ const State = {
         }
         else if (k === 'profilePhoto') s.setItem('profilePhoto', v);
         else if (k === 'lastMosquitoSpawn') s.setItem(k, v);
-		
-		else if (k === 'spiderEatLog') s.setItem('spiderEatLog', JSON.stringify(v));
+
+        else if (k === 'spiderEatLog') s.setItem('spiderEatLog', JSON.stringify(v));
         else if (k === 'spiderFullUntil') s.setItem('spiderFullUntil', v);
-		
+
         else s.setItem(k, v);
     },
-    
+
     unlockBadge(n) {
         if (this.data.badges[n]) return;
         this.data.badges[n] = true;
         localStorage.setItem(`${n}BadgeUnlocked`, 'true');
-        
+
         const cleanName = n === 'ballpit' ? 'Ball Pit' : n.charAt(0).toUpperCase() + n.slice(1);
         if (window.StreakManager) StreakManager.showNotification(`🏆 Unlocked: ${cleanName}`, 'success');
         else UIManager.showPostVoteMessage(`Unlocked ${cleanName} badge!`);
@@ -442,7 +440,7 @@ const DataManager = {
 
     exportData() {
         const data = JSON.parse(JSON.stringify(State.data));
-        
+
         const payload = {
             data: data,
             hash: this.generateHash(data),
@@ -459,13 +457,13 @@ const DataManager = {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        
+
         UIManager.showPostVoteMessage("Backup saved! 💾");
     },
 
     importData(file) {
         if (!file) return;
-        
+
         const reader = new FileReader();
         reader.onload = (e) => {
             try {
@@ -483,7 +481,7 @@ const DataManager = {
                 }
 
                 if (confirm(`Restore data from ${new Date(parsed.timestamp).toLocaleDateString()}? Current progress will be overwritten.`)) {
-                    
+
                     Object.keys(parsed.data).forEach(key => {
                         State.save(key, parsed.data[key]);
                     });
@@ -524,11 +522,11 @@ const OfflineManager = {
             const res = await fetch('/api/words/all');
             if (!res.ok) throw new Error('Network error');
             const data = await res.json();
-            
+
             if (!data || data.length === 0) {
                 throw new Error('No words received');
             }
-            
+
             // Store with vote counts preserved
             State.data.offlineCache = data.map(w => ({
                 _id: w._id,
@@ -538,13 +536,13 @@ const OfflineManager = {
                 notWordVotes: w.notWordVotes || 0
             }));
             State.save('offlineCache', State.data.offlineCache);
-            
+
             // Initialize vote queue if not exists
             if (!State.data.voteQueue) {
                 State.data.voteQueue = [];
                 State.save('voteQueue', []);
             }
-            
+
             UIManager.showMessage(`Cached ${data.length} words! 📴`);
             return true;
         } catch (e) {
@@ -553,11 +551,11 @@ const OfflineManager = {
             return State.data.offlineCache && State.data.offlineCache.length > 0;
         }
     },
-    
+
     // Queue a vote for later sync
     queueVote(wordId, voteType) {
         if (!State.data.voteQueue) State.data.voteQueue = [];
-        
+
         // Add to queue
         State.data.voteQueue.push({
             id: wordId,
@@ -565,7 +563,7 @@ const OfflineManager = {
             timestamp: Date.now()
         });
         State.save('voteQueue', State.data.voteQueue);
-        
+
         // Update local cache counts (for persistence)
         const cacheWord = State.data.offlineCache?.find(w => w._id === wordId);
         if (cacheWord) {
@@ -573,14 +571,14 @@ const OfflineManager = {
             else if (voteType === 'bad') cacheWord.badVotes = (cacheWord.badVotes || 0) + 1;
             State.save('offlineCache', State.data.offlineCache);
         }
-        
+
         // Also update runtime words (for display)
         const runtimeWord = State.runtime.allWords?.find(w => w._id === wordId);
         if (runtimeWord) {
             if (voteType === 'good') runtimeWord.goodVotes = (runtimeWord.goodVotes || 0) + 1;
             else if (voteType === 'bad') runtimeWord.badVotes = (runtimeWord.badVotes || 0) + 1;
         }
-        
+
         // Update the offline indicator to show queue count
         UIManager.updateOfflineIndicator();
     },
@@ -595,7 +593,7 @@ const OfflineManager = {
 
         UIManager.showMessage(`Syncing ${queue.length} votes... 📡`);
         let synced = 0;
-        
+
         // Process votes
         for (let i = queue.length - 1; i >= 0; i--) {
             try {
@@ -611,7 +609,7 @@ const OfflineManager = {
                 console.warn("Sync failed for vote", i);
             }
         }
-        
+
         State.data.voteQueue = queue;
         State.save('voteQueue', queue);
         UIManager.showMessage(`Synced ${synced} votes! ✓`);
@@ -622,24 +620,24 @@ const OfflineManager = {
         if (active) {
             // ACTIVATING OFFLINE MODE
             const success = await this.fillCache();
-            
+
             if (success) {
                 State.data.settings.offlineMode = true;
                 State.save('settings', State.data.settings);
-                
+
                 // Load cached words into game (make a copy to avoid mutating cache)
                 // Filter out words marked as "not a word" (same as online mode)
                 State.runtime.allWords = State.data.offlineCache
                     .filter(w => (w.notWordVotes || 0) < 3)
                     .map(w => ({...w}));
-                
+
                 // Shuffle them
                 for (let i = State.runtime.allWords.length - 1; i > 0; i--) {
                     const j = Math.floor(Math.random() * (i + 1));
                     [State.runtime.allWords[i], State.runtime.allWords[j]] = [State.runtime.allWords[j], State.runtime.allWords[i]];
                 }
                 State.runtime.currentWordIndex = 0;
-                
+
                 UIManager.updateStats();
                 UIManager.updateOfflineIndicator();
                 UIManager.showPostVoteMessage(`Offline: ${State.runtime.allWords.length} words ready! 📴`);
@@ -652,16 +650,15 @@ const OfflineManager = {
             await this.sync();
             State.data.settings.offlineMode = false;
             State.save('settings', State.data.settings);
-            
+
             UIManager.updateOfflineIndicator();
-            
+
             // Refresh with fresh online data
             await Game.refreshData();
         }
     }
 };
 
-		
 if (!localStorage.getItem('userId')) localStorage.setItem('userId', State.data.userId);
 
 const Accessibility = {
@@ -671,7 +668,7 @@ const Accessibility = {
         b.classList.toggle('mode-colorblind', s.colorblindMode);
         b.classList.toggle('mode-large-text', s.largeText);
         b.style.transform = s.mirrorMode ? 'scaleX(-1)' : '';
-        b.style.overflowX = 'hidden'; 
+        b.style.overflowX = 'hidden';
 
         if (State.runtime.allWords.length > 0) {
             const currentWord = State.runtime.allWords[State.runtime.currentWordIndex];
@@ -734,7 +731,7 @@ const SoundManager = {
         if (this.masterGain) {
             const isMuted = State.data.settings.muteSounds;
             this.masterGain.gain.setValueAtTime(isMuted ? 0 : 0.3, this.ctx.currentTime);
-            if (isMuted) this.stopBuzz(); 
+            if (isMuted) this.stopBuzz();
         }
     },
 
@@ -744,16 +741,16 @@ const SoundManager = {
 
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
-        
+
         osc.type = type;
         osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-        
+
         gain.gain.setValueAtTime(vol, this.ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
-        
+
         osc.connect(gain);
         gain.connect(this.masterGain);
-        
+
         osc.start();
         osc.stop(this.ctx.currentTime + duration);
     },
@@ -767,16 +764,14 @@ playBad() {
         if (!this.ctx) this.init();
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
-        
 
-        osc.type = 'sawtooth'; 
+        osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(300, this.ctx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(50, this.ctx.currentTime + 0.25);
-        
 
         gain.gain.setValueAtTime(0.8, this.ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
-        
+
         osc.connect(gain);
         gain.connect(this.masterGain);
         osc.start();
@@ -787,22 +782,22 @@ playBad() {
         if (!this.ctx) this.init();
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
-        
-        osc.type = 'sine'; 
+
+        osc.type = 'sine';
         osc.frequency.setValueAtTime(200, this.ctx.currentTime);
         osc.frequency.linearRampToValueAtTime(50, this.ctx.currentTime + 0.3);
-        
+
         gain.gain.setValueAtTime(0, this.ctx.currentTime);
         gain.gain.linearRampToValueAtTime(0.2, this.ctx.currentTime + 0.1);
         gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.3);
-        
+
         osc.connect(gain);
         gain.connect(this.masterGain);
         osc.start();
         osc.stop(this.ctx.currentTime + 0.3);
     },
-	
-	playPop() {
+
+    playPop() {
         if (State.data.settings.muteSounds) return;
         if (!this.ctx) this.init();
         if (this.ctx.state === 'suspended') this.ctx.resume();
@@ -821,7 +816,7 @@ playBad() {
 
         osc.connect(gain);
         gain.connect(this.masterGain);
-        
+
         osc.start();
         osc.stop(t + 0.15);
     },
@@ -834,11 +829,11 @@ playBad() {
             const gain = this.ctx.createGain();
             osc.type = 'triangle';
             osc.frequency.value = freq;
-            
+
             gain.gain.setValueAtTime(0, now);
             gain.gain.linearRampToValueAtTime(0.1, now + 0.5 + (i * 0.1));
             gain.gain.linearRampToValueAtTime(0, now + 3);
-            
+
             osc.connect(gain);
             gain.connect(this.masterGain);
             osc.start();
@@ -847,17 +842,17 @@ playBad() {
     },
 
     startBuzz() {
-        if (State.data.settings.muteSounds) return; 
+        if (State.data.settings.muteSounds) return;
         if (!this.ctx) this.init();
         if (this.mosquitoOsc) this.stopBuzz();
-        
+
         this.mosquitoOsc = this.ctx.createOscillator();
         this.mosquitoOsc.type = 'sawtooth';
-        this.mosquitoOsc.frequency.value = 600; 
-        
+        this.mosquitoOsc.frequency.value = 600;
+
         this.mosquitoGain = this.ctx.createGain();
-        this.mosquitoGain.gain.setValueAtTime(0.015, this.ctx.currentTime); 
-        
+        this.mosquitoGain.gain.setValueAtTime(0.015, this.ctx.currentTime);
+
         this.mosquitoOsc.connect(this.mosquitoGain);
         this.mosquitoGain.connect(this.masterGain);
         this.mosquitoOsc.start();
@@ -885,25 +880,23 @@ playBad() {
     }
 };
 
-
 // ============================================
 // P2P OFFLINE MULTIPLAYER - WebRTC Based
 // ============================================
 // Host downloads words, distributes to peers via WebRTC data channel
 // Real-time sync of word index, no server needed after connection
 
-
 const MosquitoManager = {
     el: null, svg: null, path: null, checkInterval: null,
-    x: 50, y: 50, angle: 0, 
-    speed: 0.2, 
+    x: 50, y: 50, angle: 0,
+    speed: 0.2,
     turnCycle: 0, loopTimer: 0,
     trailPoints: [], MAX_TRAIL: 80,
     state: 'hidden', raf: null,
-    huntTimer: null, 
+    huntTimer: null,
     type: '🦟',
-    config: {}, 
-    COOLDOWN: 1 * 60 * 1000, 
+    config: {},
+    COOLDOWN: 1 * 60 * 1000,
 
     TYPES: {
         '🐞': { name: 'Ladybird', speed: 0.2, turnRate: 0.005, wobble: 0.01, badge: null },
@@ -919,46 +912,46 @@ const MosquitoManager = {
     },
 
     attemptSpawn() {
-        if (State.runtime.currentTheme !== 'halloween') return; 
+        if (State.runtime.currentTheme !== 'halloween') return;
         if (this.el) return;
         const now = Date.now();
-		
+
         const last = State.data.lastMosquitoSpawn;
         if (now - last < this.COOLDOWN) return;
-        if (Math.random() > 0.3) return; 
+        if (Math.random() > 0.3) return;
         this.init();
     },
 
     spawnStuck(typeChar) {
-        if (this.el) this.remove(); 
+        if (this.el) this.remove();
 
         this.type = typeChar || '🦟';
         this.config = this.TYPES[this.type] || this.TYPES['🦟'];
-        
+
         this.el = document.createElement('div');
         this.el.textContent = this.type;
         this.el.className = 'mosquito-entity';
-        
-        this.x = 88; 
-        this.y = 20; 
+
+        this.x = 88;
+        this.y = 20;
 
 Object.assign(this.el.style, {
-            position: 'fixed', 
-            fontSize: '1.8rem', 
+            position: 'fixed',
+            fontSize: '1.8rem',
             zIndex: '100',
-            left: this.x + '%', 
+            left: this.x + '%',
             top: this.y + '%',
-            transform: 'translate(-50%, -50%)', 
+            transform: 'translate(-50%, -50%)',
             filter: 'drop-shadow(1px 2px 3px rgba(0,0,0,0.5))',
-            cursor: 'pointer',       
-            pointerEvents: 'auto'   
+            cursor: 'pointer',
+            pointerEvents: 'auto'
         });
 
 this.el.onclick = (e) => {
             e.stopPropagation();
             if (this.state === 'stuck') {
                 if (this.huntTimer) clearTimeout(this.huntTimer);
-                this.splat(); 
+                this.splat();
 
             }
             else if (this.state === 'flying') {
@@ -966,9 +959,9 @@ this.el.onclick = (e) => {
             }
         };
 
-	document.body.appendChild(this.el);
+    document.body.appendChild(this.el);
         this.state = 'stuck';
-        
+
         setTimeout(() => {
             if (State.runtime.currentTheme === 'halloween') {
                 Effects.spiderHunt(this.x, this.y, true);
@@ -978,13 +971,13 @@ this.el.onclick = (e) => {
 
     init() {
         if (this.el) this.remove();
-        
+
         let rareChance = 0.02;
         if (State.data.insectStats.saved > 20) rareChance = 0.05;
-        if (State.data.insectStats.saved > 50) rareChance = 0.10; 
+        if (State.data.insectStats.saved > 50) rareChance = 0.10;
 
         const keys = ['🐞', '🐝', '🦟'];
-        const isRare = Math.random() < rareChance; 
+        const isRare = Math.random() < rareChance;
         this.type = isRare ? '🚁' : keys[Math.floor(Math.random() * keys.length)];
         this.config = this.TYPES[this.type];
 
@@ -993,17 +986,17 @@ this.el.onclick = (e) => {
         this.el = document.createElement('div');
         this.el.textContent = this.type;
         this.el.className = 'mosquito-entity';
-        
+
         const startRight = Math.random() > 0.5;
-        this.x = startRight ? 105 : -5; 
+        this.x = startRight ? 105 : -5;
         this.y = Math.random() * 50 + 10;
-        this.angle = startRight ? Math.PI : 0; 
+        this.angle = startRight ? Math.PI : 0;
 
         Object.assign(this.el.style, {
-            position: 'fixed', 
-            fontSize: this.type === '🚁' ? '2.5rem' : '1.8rem', 
+            position: 'fixed',
+            fontSize: this.type === '🚁' ? '2.5rem' : '1.8rem',
             zIndex: '100',
-            pointerEvents: 'auto', cursor: 'pointer', transition: 'none', 
+            pointerEvents: 'auto', cursor: 'pointer', transition: 'none',
             filter: 'drop-shadow(1px 2px 3px rgba(0,0,0,0.5))',
             left: this.x + '%', top: this.y + '%', willChange: 'transform, left, top'
         });
@@ -1013,18 +1006,18 @@ this.el.onclick = (e) => {
             position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
             pointerEvents: 'none', zIndex: '99'
         });
-        
+
         this.path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         this.path.setAttribute("fill", "none");
-        this.path.setAttribute("stroke", "rgba(255, 255, 255, 0.6)"); 
-        this.path.setAttribute("stroke-width", "1.5"); 
+        this.path.setAttribute("stroke", "rgba(255, 255, 255, 0.6)");
+        this.path.setAttribute("stroke-width", "1.5");
         this.path.setAttribute("stroke-dasharray", "5, 5");
         this.path.setAttribute("stroke-linecap", "round");
-        
+
         this.svg.appendChild(this.path);
         document.body.appendChild(this.svg);
         document.body.appendChild(this.el);
-        
+
         this.el.onclick = (e) => {
             e.stopPropagation();
             if (this.state === 'stuck') {
@@ -1032,29 +1025,29 @@ this.el.onclick = (e) => {
                 this.startRescue();
             }
             else if (this.state === 'flying') {
-                this.splat(); 
+                this.splat();
             }
         };
-        
+
         this.state = 'flying';
         this.trailPoints = [];
-        this.turnCycle = Math.random() * 100; 
-        SoundManager.startBuzz(); 
+        this.turnCycle = Math.random() * 100;
+        SoundManager.startBuzz();
         this.loop();
     },
 
     startRescue() {
         this.state = 'thanking';
-        SoundManager.stopBuzz(); 
-        
+        SoundManager.stopBuzz();
+
         if (this.path) this.path.setAttribute('d', '');
-        
+
         State.data.insectStats.saved++;
         State.save('insectStats', State.data.insectStats);
-        
+
         if (this.config.badge) State.unlockBadge(this.config.badge);
         if (State.data.insectStats.saved >= 100) State.unlockBadge('saint');
-        
+
         const msg = GAME_DIALOGUE.insects[this.type] || "Saved!";
         UIManager.showPostVoteMessage(msg);
 
@@ -1068,27 +1061,27 @@ this.el.onclick = (e) => {
             boxShadow: '0 2px 5px rgba(0,0,0,0.2)', pointerEvents: 'none', zIndex: '101'
         });
         this.el.appendChild(bubble);
-        
+
         setTimeout(() => {
             if (bubble) bubble.remove();
             this.state = 'leaving';
             SoundManager.startBuzz();
             this.angle = Math.random() * Math.PI * 2;
-            this.speed = 0.6; 
+            this.speed = 0.6;
         }, 2000);
     },
-	
+
 splat() {
         if (this.state === 'splatted') return;
         this.state = 'splatted';
-        
+
         State.data.insectStats.splatted = (State.data.insectStats.splatted || 0) + 1;
 
         if (!State.data.insectStats.collection) State.data.insectStats.collection = [];
         if (!State.data.insectStats.collection.includes(this.type)) {
             State.data.insectStats.collection.push(this.type);
         }
-        
+
         State.save('insectStats', State.data.insectStats);
 
         UIManager.showPostVoteMessage("Splat! 🦶");
@@ -1096,7 +1089,7 @@ splat() {
 
         this.el.style.transition = 'transform 0.1s ease-out, opacity 0.2s';
         this.el.style.transform = 'translate(-50%, -50%) scale(1.5) rotate(45deg)';
-        this.el.style.filter = 'grayscale(100%) brightness(0.5)'; 
+        this.el.style.filter = 'grayscale(100%) brightness(0.5)';
         this.el.style.opacity = '0';
 
         setTimeout(() => this.remove(), 200);
@@ -1104,26 +1097,26 @@ splat() {
     loop() {
         if (!document.body.contains(this.el)) return;
         if (this.state === 'flying' || this.state === 'leaving') {
-            this.turnCycle += this.config.turnRate; 
+            this.turnCycle += this.config.turnRate;
             let turnAmount = Math.sin(this.turnCycle) * this.config.wobble;
             if (this.type === '🚁') {
-                turnAmount = 0; 
+                turnAmount = 0;
                 this.y += Math.sin(Date.now() / 200) * 0.05;
             }
             this.angle += turnAmount;
             this.x += Math.cos(this.angle) * this.speed;
             this.y += Math.sin(this.angle) * this.speed;
-            
+
             if (this.state === 'flying') {
-                if (this.x > 110) { 
-                    this.x = -10; 
-                    this.angle = 0 + (Math.random() * 0.5 - 0.25); 
-                    this.trailPoints = []; 
+                if (this.x > 110) {
+                    this.x = -10;
+                    this.angle = 0 + (Math.random() * 0.5 - 0.25);
+                    this.trailPoints = [];
                 }
-                else if (this.x < -10) { 
-                    this.x = 110; 
-                    this.angle = Math.PI + (Math.random() * 0.5 - 0.25); 
-                    this.trailPoints = []; 
+                else if (this.x < -10) {
+                    this.x = 110;
+                    this.angle = Math.PI + (Math.random() * 0.5 - 0.25);
+                    this.trailPoints = [];
                 }
                 if (this.y < 5 || this.y > 95) {
                     this.angle = -this.angle;
@@ -1132,22 +1125,22 @@ splat() {
             }
             this.el.style.left = this.x + '%';
             this.el.style.top = this.y + '%';
-            
+
             // Handle Rotation and Centering
             const facingRight = Math.cos(this.angle) > 0;
             this.el.style.transform = `translate(-50%, -50%) ${facingRight ? 'scaleX(-1)' : 'scaleX(1)'}`;
-            
+
             const pxX = (this.x / 100) * window.innerWidth;
             const pxY = (this.y / 100) * window.innerHeight;
-            
+
             if (pxX > 0 && pxX < window.innerWidth) this.trailPoints.push({x: pxX, y: pxY});
-            
+
             if (this.trailPoints.length > this.MAX_TRAIL) this.trailPoints.shift();
             if (this.trailPoints.length > 1) {
                 const d = `M ${this.trailPoints.map(p => `${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' L ')}`;
                 this.path.setAttribute('d', d);
             }
-            
+
             const distRight = window.innerWidth - pxX;
             const distTop = pxY;
             const inWebZone = (distRight + distTop) < 300;
@@ -1155,17 +1148,17 @@ splat() {
 
             if (this.state === 'flying' && inWebZone && isVisible && !State.data.settings.arachnophobiaMode) {
                 this.state = 'stuck';
-                SoundManager.stopBuzz(); 
+                SoundManager.stopBuzz();
                 UIManager.showPostVoteMessage(`The ${this.config.name} is stuck!`);
                 this.huntTimer = setTimeout(() => {
                     if (this.state === 'stuck') Effects.spiderHunt(this.x, this.y, true);
-                }, 2500); 
+                }, 2500);
             }
             if (this.state === 'leaving') {
                 if (this.x < -10 || this.x > 110 || this.y < -10 || this.y > 110) this.finish();
             }
         } else if (this.state === 'stuck') {
-            const jitterX = (Math.random() - 0.5) * 5; 
+            const jitterX = (Math.random() - 0.5) * 5;
             const jitterY = (Math.random() - 0.5) * 5;
             this.el.style.transform = `translate(calc(-50% + ${jitterX}px), calc(-50% + ${jitterY}px))`;
         } else if (this.state === 'thanking') {
@@ -1185,10 +1178,10 @@ eat() {
         const now = Date.now();
         const oneHourAgo = now - (60 * 60 * 1000);
         if (!State.data.spiderEatLog) State.data.spiderEatLog = [];
-        
+
         // 1. Log this bug
         State.data.spiderEatLog.push(now);
-        
+
         // 2. Keep only bugs from last hour (they "digest" after 1 hour)
         State.data.spiderEatLog = State.data.spiderEatLog.filter(t => t > oneHourAgo);
         State.save('spiderEatLog', State.data.spiderEatLog);
@@ -1197,7 +1190,7 @@ eat() {
         if (State.data.spiderEatLog.length >= 5) {
             setTimeout(() => UIManager.showPostVoteMessage("The spider is stuffed! 🕷️💤"), 1500);
         }
-        
+
         // Visual update now happens in spiderHunt after eating (puff animation)
 
         this.finish();
@@ -1213,7 +1206,7 @@ eat() {
         if (this.huntTimer) clearTimeout(this.huntTimer);
         SoundManager.stopBuzz();
         if (this.el && this.el.parentNode) this.el.remove();
-        if (this.svg && this.svg.parentNode) this.svg.remove(); 
+        if (this.svg && this.svg.parentNode) this.svg.remove();
         this.el = null;
         this.svg = null;
         this.trailPoints = [];
@@ -1225,7 +1218,7 @@ const TiltManager = {
     active: false,
     handle(e) {
         if (!TiltManager.active) return;
-        const x = e.gamma || 0; 
+        const x = e.gamma || 0;
         const y = e.beta || 0;
         const moveX = Math.min(Math.max(x, -25), 25);
         const moveY = Math.min(Math.max(y - 45, -25), 25);
@@ -1243,7 +1236,7 @@ const TiltManager = {
         if (!this.active) return;
         this.active = false;
         window.removeEventListener('deviceorientation', this.handle, true);
-        DOM.game.wordFrame.style.transform = ''; 
+        DOM.game.wordFrame.style.transform = '';
     },
     refresh() {
         this.stop();
@@ -1298,10 +1291,10 @@ const Physics = {
             maxX = minX + cylW;
         const balls = Physics.balls;
         const len = balls.length;
-        
+
         // Reduce physics substeps on slower frames (adaptive quality)
         const substeps = len > 50 ? 4 : 6;
-        
+
         for (let s = 0; s < substeps; s++) {
             // Update positions
             for (let i = 0; i < len; i++) {
@@ -1321,10 +1314,10 @@ const Physics = {
                     if (b.y > H - b.r * 2) { b.y = H - b.r * 2; b.vy *= -0.15 }
                 }
             }
-            
+
             // Build spatial grid for collision detection
             Physics.buildGrid();
-            
+
             // Collision detection using spatial partitioning
             const checked = new Set();
             for (let i = 0; i < len; i++) {
@@ -1335,7 +1328,7 @@ const Physics = {
                     const pairKey = i < j ? `${i},${j}` : `${j},${i}`;
                     if (checked.has(pairKey)) continue;
                     checked.add(pairKey);
-                    
+
                     const b2 = balls[j];
                     const dx = (b2.x + b2.r) - (b1.x + b1.r),
                         dy = (b2.y + b2.r) - (b1.y + b1.r);
@@ -1360,7 +1353,7 @@ const Physics = {
                 }
             }
         }
-        
+
         // Batch DOM updates with rounded positions for less jitter
         for (let i = 0; i < len; i++) {
             const b = balls[i];
@@ -1387,25 +1380,24 @@ async getAllWords() {
 
     async fetchWords(forceNetwork = false) {
         if (OfflineManager.isActive() && !forceNetwork) {
-            console.log("Serving from Offline Cache 🚇");
-            return State.data.offlineCache; 
+            return State.data.offlineCache;
         }
 
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 8000); 
-            
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
+
             const r = await fetch(CONFIG.API_BASE_URL, { signal: controller.signal });
             clearTimeout(timeoutId);
-            
+
             if (!r.ok) {
                 throw new Error(`Server Status ${r.status}`);
             }
             return await r.json();
 
         } catch (e) {
-            const isConnectionError = e.name === 'AbortError' || 
-                                    e.message === 'Failed to fetch' || 
+            const isConnectionError = e.name === 'AbortError' ||
+                                    e.message === 'Failed to fetch' ||
                                     e.message.toLowerCase().includes('network');
 
             if (isConnectionError) {
@@ -1417,7 +1409,7 @@ async getAllWords() {
             }
 
             console.warn("API Error (Still Online):", e);
-            return null; 
+            return null;
         }
     },
 
@@ -1428,7 +1420,7 @@ async fetchKidsWords() {
             if (OfflineManager.isActive()) {
                 // Use offline cache for kids mode
                 dbWords = State.data.offlineCache || [];
-                
+
                 // If no cache available, can't do kids mode offline
                 if (dbWords.length === 0) {
                     return [{ _id: 'offline_placeholder', text: 'Go online to cache words first', goodVotes: 0, badVotes: 0, isPlaceholder: true }];
@@ -1436,7 +1428,7 @@ async fetchKidsWords() {
             } else {
                 dbWords = await this.getAllWords() || [];
             }
-            
+
             // Try to get the kids word list file
             let safeList = [];
             try {
@@ -1450,28 +1442,28 @@ async fetchKidsWords() {
             } catch (e) {
                 console.warn("Could not fetch kids word list:", e);
             }
-            
+
             // If we have a kids word list, filter to only those words
             if (safeList.length > 0) {
                 const combinedList = safeList
                     .map(text => dbWords.find(w => w.text.toUpperCase() === text))
                     .filter(w => w && w._id);
-                
+
                 if (combinedList.length > 0) {
                     return combinedList;
                 }
             }
-            
-            // Fallback: If offline with cache but no kids list file, 
+
+            // Fallback: If offline with cache but no kids list file,
             // just use the cached words (better than nothing)
             if (OfflineManager.isActive() && dbWords.length > 0) {
                 console.warn("Kids word list unavailable offline - using full cache");
                 return dbWords;
             }
-            
+
             // No words found at all
-            const msg = OfflineManager.isActive() 
-                ? 'Kids Mode needs online first' 
+            const msg = OfflineManager.isActive()
+                ? 'Kids Mode needs online first'
                 : 'No Kids Words in DB';
             console.warn("No kids words found:", msg);
             return [{ _id: 'offline_placeholder', text: msg, goodVotes: 0, badVotes: 0, isPlaceholder: true }];
@@ -1494,7 +1486,7 @@ async fetchKidsWords() {
             const queue = State.data.pendingVotes;
             queue.push({ id, type, time: Date.now() });
             State.save('pendingVotes', queue);
-            
+
             UIManager.updateOfflineIndicator();
 
             return { ok: true, status: 200, json: async () => ({}) };
@@ -1526,12 +1518,12 @@ async fetchKidsWords() {
             body: JSON.stringify({ text })
         });
     },
-    
+
     async define(w) {
          return fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${w.toLowerCase()}`);
     },
-	
-	async getGlobalScores() {
+
+    async getGlobalScores() {
         try {
             const r = await fetch(CONFIG.SCORE_API_URL);
             if (!r.ok) return [];
@@ -1547,34 +1539,34 @@ async fetchKidsWords() {
                 body: JSON.stringify({ name, score, userId: State.data.userId })
             });
         } catch (e) { console.error("Score submit failed", e); }
-    }, // <--- FIXED: Added closing brace and comma here
+    },
 
     async submitUserVotes(userId, username, voteCount, dailyStreak = null, bestDailyStreak = null) {
         try {
             const body = { userId, username, voteCount };
             if (dailyStreak !== null) body.dailyStreak = dailyStreak;
             if (bestDailyStreak !== null) body.bestDailyStreak = bestDailyStreak;
-            await fetch('/api/leaderboard', { 
+            await fetch('/api/leaderboard', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
             });
-        } catch (e) { 
-            console.warn("Failed to submit user stats:", e); 
+        } catch (e) {
+            console.warn("Failed to submit user stats:", e);
         }
     },
-    
+
     async fetchLeaderboard() {
         try {
             const r = await fetch('/api/leaderboard');
             if (!r.ok) return [];
-            return await r.json(); 
-        } catch (e) { 
+            return await r.json();
+        } catch (e) {
             console.error("Failed to fetch leaderboard:", e);
-            return []; 
+            return [];
         }
     },
-    
+
     async fetchGlobalStatsHistory() {
         try {
             const r = await fetch('/api/stats/history');
@@ -1604,8 +1596,8 @@ const ThemeManager = {
     init() {
         const s = document.createElement("style");
         s.innerText = `@keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }`;
-        
-		s.innerHTML += `
+
+        s.innerHTML += `
             body.listening-mode { border: 4px solid #ef4444 !important; }
             body.listening-mode::after {
                 content: '🎙️ LISTENING...'; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
@@ -1613,26 +1605,26 @@ const ThemeManager = {
                 animation: pulse 1s infinite;
             }
         `;
-		
-		s.innerHTML += `
+
+        s.innerHTML += `
             body.vote-good-mode { background: #22c55e !important; overflow: hidden; }
             body.vote-good-mode * { visibility: hidden; }
             body.vote-good-mode::after {
-                content: '👍'; visibility: visible; position: fixed; top: 50%; left: 50%; 
+                content: '👍'; visibility: visible; position: fixed; top: 50%; left: 50%;
                 transform: translate(-50%, -50%); font-size: 150px;
             }
 
             body.vote-bad-mode { background: #ef4444 !important; overflow: hidden; }
             body.vote-bad-mode * { visibility: hidden; }
             body.vote-bad-mode::after {
-                content: '👎'; visibility: visible; position: fixed; top: 50%; left: 50%; 
+                content: '👎'; visibility: visible; position: fixed; top: 50%; left: 50%;
                 transform: translate(-50%, -50%); font-size: 150px;
             }
         `;
-		
-		document.head.appendChild(s);
-		
-		const rs = document.createElement("style");
+
+        document.head.appendChild(s);
+
+        const rs = document.createElement("style");
 rs.innerHTML = `
 .rain-drop {
         position: absolute;
@@ -1650,18 +1642,18 @@ rs.innerHTML = `
     }
 `;
 
-	document.head.appendChild(rs);
-    
+    document.head.appendChild(rs);
+
         Object.entries(CONFIG.THEME_SECRETS).forEach(([k, v]) => {
             try {
                 atob(v).split('|').forEach(w => this.wordMap[w] = k)
             } catch {}
         });
-        
+
         if ((State.data.unlockedThemes.length + 1) >= 5) {
             State.unlockBadge('traveler');
         }
-        
+
         this.populateChooser();
 
         let currentThemeToApply = State.data.currentTheme;
@@ -1673,7 +1665,7 @@ rs.innerHTML = `
         } else {
             this.apply(State.data.currentTheme);
         }
-        
+
         DOM.theme.chooser.value = currentThemeToApply;
     },
     populateChooser() {
@@ -1690,7 +1682,7 @@ rs.innerHTML = `
         c.value = State.data.currentTheme
     },
     apply(t, m = false) {
-		State.runtime.currentTheme = t;
+        State.runtime.currentTheme = t;
         if (m !== 'temp') {
             State.save('currentTheme', t);
             if (m === true) State.save('manualTheme', true);
@@ -1699,12 +1691,12 @@ rs.innerHTML = `
         // Apply classes carefully to preserve layout
         document.body.className = document.body.className.split(' ').filter(c => !c.startsWith('theme-')).join(' ');
         document.body.classList.add(`theme-${t}`);
-        
+
         if (t === 'banana') {
             if (!document.getElementById('banana-style')) {
                 const s = document.createElement('style');
                 s.id = 'banana-style';
-                
+
                 s.innerHTML = `
                     body.theme-banana {
                         background: linear-gradient(160deg, #ffe135 0%, #ffec4d 30%, #fff59d 50%, #ffeb3b 70%, #fdd835 100%) !important;
@@ -1718,7 +1710,7 @@ rs.innerHTML = `
                         left: 0;
                         right: 0;
                         bottom: 0;
-                        background-image: 
+                        background-image:
                             /* Large bruise spots */
                             radial-gradient(ellipse 120px 50px at 8% 15%, rgba(101, 67, 33, 0.35) 0%, rgba(101, 67, 33, 0.15) 40%, transparent 70%),
                             radial-gradient(ellipse 90px 40px at 85% 25%, rgba(92, 64, 51, 0.3) 0%, rgba(92, 64, 51, 0.1) 50%, transparent 75%),
@@ -1751,7 +1743,7 @@ rs.innerHTML = `
                     }
                     body.theme-banana #wordDisplay {
                         color: #4a3520 !important;
-                        text-shadow: 
+                        text-shadow:
                             2px 2px 4px rgba(139, 90, 43, 0.15),
                             -1px -1px 2px rgba(255, 255, 255, 0.3),
                             0 0 8px rgba(101, 67, 33, 0.1);
@@ -1839,7 +1831,7 @@ rs.innerHTML = `
         e.ballpit.classList.toggle('hidden', t !== 'ballpit');
         e.space.classList.toggle('hidden', t !== 'space');
         e.woodland.classList.toggle('hidden', t !== 'woodland');
-        
+
         if (t === 'winter') {
             Effects.snow();
             SnowmanBuilder.init();
@@ -1850,10 +1842,10 @@ rs.innerHTML = `
             const sb = document.getElementById('snowman-builder');
             if (sb) sb.style.opacity = '0';
         }
-        
+
         if (t === 'submarine') Effects.bubbles(true);
-        else Effects.bubbles(false); 
-        
+        else Effects.bubbles(false);
+
         if (t === 'fire') Effects.fire();
         else e.fire.innerHTML = '';
         if (t === 'summer') Effects.summer();
@@ -1889,9 +1881,9 @@ rs.innerHTML = `
         if (State.runtime.allWords.length > 0) UIManager.displayWord(State.runtime.allWords[State.runtime.currentWordIndex]);
         Accessibility.apply();
         TiltManager.refresh();
-		if (typeof WeatherManager !== 'undefined') WeatherManager.updateVisuals();
+        if (typeof WeatherManager !== 'undefined') WeatherManager.updateVisuals();
     },
-	
+
 checkUnlock(w) {
         const t = this.wordMap[w];
         if (t && !State.data.unlockedThemes.includes(t)) {
@@ -1902,7 +1894,7 @@ checkUnlock(w) {
             }
             this.populateChooser();
             if (!State.data.manualTheme) this.apply(t);
-            
+
             const cleanTheme = t === 'ballpit' ? 'Ball Pit' : t.charAt(0).toUpperCase() + t.slice(1);
             if (window.StreakManager) StreakManager.showNotification(`🎨 Theme Unlocked: ${cleanTheme}`, 'success');
             return true
@@ -1913,10 +1905,10 @@ checkUnlock(w) {
 
 const WeatherManager = {
     ALLOWED_THEMES: ['default', 'ballpit', 'banana', 'dark', 'fire', 'halloween', 'plymouth', 'rainbow', 'summer', 'woodland'],
-    
+
     RAIN_CODES: [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99],
     SNOW_CODES: [71, 73, 75, 77, 85, 86],
-    
+
     isRaining: false,
     isSnowing: false,
     hasChecked: false,
@@ -1949,15 +1941,15 @@ const WeatherManager = {
                     const response = await fetch(url);
                     const data = await response.json();
                     const code = data.current_weather.weathercode;
-                    
+
                     this.isRaining = this.RAIN_CODES.includes(code);
                     this.isSnowing = this.SNOW_CODES.includes(code);
                     this.hasChecked = true;
-                    
+
                     if (this.isSnowing) UIManager.showPostVoteMessage("It's snowing! ❄️");
                     else if (this.isRaining) UIManager.showPostVoteMessage("It's raining! 🌧️");
                     else UIManager.showPostVoteMessage("Weather is clear. ☀️");
-                    
+
                     this.updateVisuals();
                 } catch (e) { console.error("Weather fetch failed", e); }
             },
@@ -1974,15 +1966,15 @@ const WeatherManager = {
     updateVisuals() {
         const t = State.runtime.currentTheme;
         Effects.rain(false);
-        
-        // FIX: Explicitly unhide snow container on Winter theme
+
+        // Explicitly unhide snow container on Winter theme
         if (t === 'winter') {
             const s = document.getElementById('snow-effect');
-            if (s) s.style.display = ''; 
+            if (s) s.style.display = '';
             return;
         }
 
-        Effects.weatherSnow(false); 
+        Effects.weatherSnow(false);
 
         const isAllowedTheme = this.ALLOWED_THEMES.includes(t);
         const enabled = State.data.settings.enableWeather;
@@ -1999,22 +1991,22 @@ const WeatherManager = {
 
 const CommunityGoal = {
     MILESTONE: 50000, // 50k increments
-    
+
     update(totalVotes) {
         const bar = DOM.header.communityGoalBar;
         const text = DOM.header.communityGoalText;
         if (!bar || !text) return;
-        
+
         const currentMilestone = Math.floor(totalVotes / this.MILESTONE) * this.MILESTONE + this.MILESTONE;
         const prevMilestone = currentMilestone - this.MILESTONE;
         const progress = ((totalVotes - prevMilestone) / this.MILESTONE) * 100;
         const remaining = currentMilestone - totalVotes;
-        
+
         bar.style.width = Math.min(progress, 100) + '%';
-        
+
         // Format numbers
         const fmt = n => n >= 1000000 ? (n/1000000).toFixed(1) + 'M' : n >= 1000 ? Math.round(n/1000) + 'k' : n;
-        
+
         if (progress >= 95) {
             text.textContent = `🏆 Almost there! ${fmt(remaining)} to ${fmt(currentMilestone)}!`;
             bar.style.animation = 'pulse 1s infinite';
@@ -2029,12 +2021,12 @@ const CommunityGoal = {
 const SnowmanBuilder = {
     TOTAL_PARTS: 100, // 100 snowmen collected = 1 complete snowman
     container: null,
-    
+
     init() {
         // Create container next to logo
         const logoArea = document.getElementById('logoArea');
         if (!logoArea || this.container) return;
-        
+
         // Add style to shift logo when snowman/dog visible
         if (!document.getElementById('snowman-logo-style')) {
             const style = document.createElement('style');
@@ -2045,7 +2037,7 @@ const SnowmanBuilder = {
             `;
             document.head.appendChild(style);
         }
-        
+
         this.container = document.createElement('div');
         this.container.id = 'snowman-builder';
         this.container.style.cssText = `
@@ -2064,15 +2056,15 @@ const SnowmanBuilder = {
             transition: opacity 0.5s ease, width 0.3s ease;
         `;
         logoArea.appendChild(this.container);
-        
+
         this.render();
     },
-    
+
     collect() {
         const count = State.data.snowmanCollected + 1;
         State.save('snowmanCollected', count);
         this.render();
-        
+
         if (count === this.TOTAL_PARTS) {
             UIManager.showPostVoteMessage("⛄ Snowman complete! Keep going...");
         } else if (count === 101) {
@@ -2083,23 +2075,23 @@ const SnowmanBuilder = {
             UIManager.showPostVoteMessage(`⛄ Snowman ${count}% built!`);
         }
     },
-    
+
     render() {
         if (!this.container) this.init();
         if (!this.container) return;
-        
+
         const count = State.data.snowmanCollected || 0;
         const progress = Math.min(count / this.TOTAL_PARTS, 1);
         const logoArea = document.getElementById('logoArea');
-        
+
         if (count === 0) {
             this.container.style.opacity = '0';
             if (logoArea) logoArea.classList.remove('has-snowman', 'has-snowdog');
             return;
         }
-        
+
         this.container.style.opacity = '1';
-        
+
         // Update logo shift class
         if (logoArea) {
             logoArea.classList.remove('has-snowman', 'has-snowdog');
@@ -2109,27 +2101,27 @@ const SnowmanBuilder = {
                 logoArea.classList.add('has-snowman');
             }
         }
-        
+
         this.container.style.width = count > 100 ? '115px' : '65px';
         this.container.style.flexDirection = count > 100 ? 'row' : 'column';
         this.container.style.alignItems = 'flex-end';
         this.container.style.gap = '6px';
-        
+
         let html = '';
-        
+
         // Snow dog (after 100, builds up to 150)
         if (count > 100) {
             const dogProg = Math.min((count - 100) / 50, 1);
             html += '<div style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;margin-left:-5px;">';
             html += '<div style="position:relative;width:44px;height:42px;">';
-            
+
             // Dog body (bigger, lowered to connect with legs)
             if (dogProg > 0) {
                 const w = Math.round(30 * Math.min(dogProg / 0.3, 1));
                 const h = Math.round(18 * Math.min(dogProg / 0.3, 1));
                 html += `<div style="position:absolute;bottom:6px;left:50%;transform:translateX(-50%);width:${w}px;height:${h}px;background:radial-gradient(ellipse at 30% 30%, #fff, #d0d0d0);border-radius:50%;box-shadow:inset -2px -2px 4px rgba(0,0,0,0.1);z-index:1;"></div>`;
             }
-            
+
             // Dog head (moved up and to right side of body)
             if (dogProg > 0.3) {
                 const s = Math.round(15 * Math.min((dogProg - 0.3) / 0.25, 1));
@@ -2140,7 +2132,7 @@ const SnowmanBuilder = {
                     ${hasEars ? `<div style="position:absolute;top:-5px;left:0px;width:5px;height:7px;background:linear-gradient(180deg, #bbb, #ddd);border-radius:50% 50% 40% 40%;border:1px solid rgba(0,0,0,0.2);"></div><div style="position:absolute;top:-5px;right:0px;width:5px;height:7px;background:linear-gradient(180deg, #bbb, #ddd);border-radius:50% 50% 40% 40%;border:1px solid rgba(0,0,0,0.2);"></div>` : ''}
                 </div>`;
             }
-            
+
             // Dog legs (black stick legs - positioned under body)
             if (dogProg > 0.55) {
                 const lh = Math.round(8 * Math.min((dogProg - 0.55) / 0.2, 1));
@@ -2151,23 +2143,23 @@ const SnowmanBuilder = {
                 html += `<div style="position:absolute;bottom:0;left:10px;width:2px;height:${lh}px;background:#2a2a2a;border-radius:1px;"></div>`;
                 html += `<div style="position:absolute;bottom:0;left:16px;width:2px;height:${lh}px;background:#2a2a2a;border-radius:1px;"></div>`;
             }
-            
+
             // Tail (on left side, curved up from body)
             if (dogProg > 0.8) html += `<div style="position:absolute;bottom:12px;left:2px;width:6px;height:8px;background:linear-gradient(to top, #d0d0d0, #e8e8e8);border-radius:40% 40% 50% 50%;transform:rotate(-20deg);box-shadow:inset -1px -1px 2px rgba(0,0,0,0.1);"></div>`;
-            
+
             html += '</div></div>';
         }
-        
+
         // Snowman (bigger sizes)
         html += '<div style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;">';
-        
+
         const bottomProgress = Math.min(progress / 0.33, 1);
         const middleProgress = progress > 0.33 ? Math.min((progress - 0.33) / 0.33, 1) : 0;
         const topProgress = progress > 0.66 ? Math.min((progress - 0.66) / 0.24, 1) : 0;
         const accessoryProgress = progress > 0.90 ? (progress - 0.90) / 0.10 : 0;
-        
+
         if (accessoryProgress > 0.8) html += `<div style="font-size:16px;margin-bottom:-10px;">🎩</div>`;
-        
+
         // Head (bigger: 26px max)
         if (topProgress > 0) {
             const size = Math.round(26 * topProgress);
@@ -2177,7 +2169,7 @@ const SnowmanBuilder = {
                 ${hasNose ? `<div style="position:absolute;top:48%;left:50%;transform:translateX(-50%);border-left:3px solid transparent;border-right:3px solid transparent;border-top:10px solid #ff6b35;"></div>` : ''}
             </div>`;
         }
-        
+
         // Body with arms (bigger: 36px max)
         if (middleProgress > 0) {
             const size = Math.round(36 * middleProgress);
@@ -2188,15 +2180,15 @@ const SnowmanBuilder = {
                 ${hasArms ? `<div style="position:absolute;left:-16px;top:35%;width:18px;height:3px;background:linear-gradient(90deg, #3e2723, #5d4037);border-radius:2px;transform:rotate(-25deg);box-shadow:0 1px 1px rgba(0,0,0,0.2);"></div><div style="position:absolute;right:-16px;top:35%;width:18px;height:3px;background:linear-gradient(90deg, #5d4037, #3e2723);border-radius:2px;transform:rotate(25deg);box-shadow:0 1px 1px rgba(0,0,0,0.2);"></div>` : ''}
             </div>`;
         }
-        
+
         // Base (bigger: 46px max)
         if (bottomProgress > 0) {
             const size = Math.round(46 * bottomProgress);
             html += `<div style="width:${size}px;height:${size}px;background:radial-gradient(circle at 30% 30%, #fff, #e8e8e8);border-radius:50%;box-shadow:inset -3px -3px 5px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.15);"></div>`;
         }
-        
+
         html += '</div>';
-        
+
         // Counter: show X/100 up to 100, then X/100 for 101+
         let counterText;
         if (count <= 100) {
@@ -2205,10 +2197,10 @@ const SnowmanBuilder = {
             counterText = `${count}/100`;
         }
         html += `<div style="position:absolute;bottom:-2px;right:2px;font-size:8px;color:#555;font-weight:bold;">${counterText}</div>`;
-        
+
         this.container.innerHTML = html;
     },
-    
+
     reset() {
         State.save('snowmanCollected', 0);
         this.render();
@@ -2222,8 +2214,8 @@ const Effects = {
     fishTimeout: null,
     spaceRareTimeout: null,
     snowmanTimeout: null,
-    plymouthShooterTimeout: null, 
-    
+    plymouthShooterTimeout: null,
+
 rain(active) {
         const c = document.getElementById('rain-effect');
         if (!c) return;
@@ -2246,12 +2238,12 @@ rain(active) {
             drop.style.opacity = Math.random() * 0.5 + 0.3;
             c.appendChild(drop);
         }
-    },	
-	
+    },
+
 weatherSnow(active) {
         const c = document.getElementById('snow-effect');
         if (!c) return;
-        
+
         if (!active) {
             if (State.runtime.currentTheme !== 'winter') {
                 c.innerHTML = '';
@@ -2285,7 +2277,7 @@ weatherSnow(active) {
             c.appendChild(f);
         }
     },
-	
+
 plymouth(a) {
         const c = DOM.theme.effects.plymouth;
 
@@ -2436,7 +2428,7 @@ plymouth(a) {
     },
 
     fire() { const c = DOM.theme.effects.fire; c.innerHTML = ''; for (let i = 0; i < 80; i++) { const p = document.createElement('div'); p.className = 'fire-particle'; p.style.animationDuration = `${Math.random()*1.5+0.5}s`; p.style.animationDelay = `${Math.random()}s`; p.style.left = `calc(10% + (80% * ${Math.random()}))`; const size = Math.random() * 3 + 2; p.style.width = p.style.height = `${size}em`; p.style.setProperty('--sway', `${(Math.random()-.5)*20}px`); c.appendChild(p) } for (let i = 0; i < 15; i++) { const s = document.createElement('div'); s.className = 'smoke-particle'; s.style.animationDelay = `${Math.random()*3}s`; s.style.left = `${Math.random()*90+5}%`; s.style.setProperty('--sway', `${(Math.random()-.5)*150}px`); c.appendChild(s) } },
-    
+
 bubbles(active) {
         const c = DOM.theme.effects.bubble;
         if (this.fishTimeout) clearTimeout(this.fishTimeout);
@@ -2445,7 +2437,7 @@ bubbles(active) {
 
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         const isLowPower = navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4;
-        
+
         const particleCount = (isMobile || isLowPower) ? 15 : 35;
 
         const cl = [10, 30, 70, 90];
@@ -2454,11 +2446,11 @@ bubbles(active) {
             p.className = 'bubble-particle';
             const s = Math.random() * 30 + 10;
             p.style.width = p.style.height = `${s}px`;
-            
+
             // Optimization: Use transform for positioning if possible, but left is okay here
             // We group them to prevent layout thrashing
             p.style.left = `${cl[Math.floor(Math.random()*cl.length)]+(Math.random()-.5)*20}%`;
-            
+
             p.style.animationDuration = `${Math.random()*10+10}s`;
             p.style.animationDelay = `-${Math.random()*15}s`;
             c.appendChild(p);
@@ -2512,8 +2504,8 @@ spawnFish() {
 
                 const wrap = document.createElement('div');
         wrap.className = 'submarine-fish-wrap';
-        wrap.style.position = 'fixed'; 
-        wrap.style.zIndex = '10';      
+        wrap.style.position = 'fixed';
+        wrap.style.zIndex = '10';
 
         const inner = document.createElement('div');
 
@@ -2536,27 +2528,27 @@ spawnFish() {
 
         const isBoot = fishEmoji === '🥾';
         const startLeft = Math.random() > 0.5;
-        const baseDir = startLeft ? -1 : 1; 
+        const baseDir = startLeft ? -1 : 1;
         const duration = (Math.random() * (config.speed[1] - config.speed[0]) + config.speed[0]) || 15;
         const isFakeOut = !isBoot && fishEmoji !== '🐙' && Math.random() < 0.10;
 
         if (isBoot) {
             inner.style.animation = 'spin-slow 10s linear infinite';
             inner.style.transition = 'transform 0.5s';
-            wrap.style.left = (Math.random() * 80 + 10) + '%'; 
-            wrap.style.top = '110vh'; 
+            wrap.style.left = (Math.random() * 80 + 10) + '%';
+            wrap.style.top = '110vh';
             inner.style.transform = `rotate(${Math.random() * 360}deg)`;
         } else {
             inner.style.transition = 'font-size 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), transform 0.2s';
             wrap.style.top = (Math.random() * 80 + 10) + 'vh';
             wrap.style.left = startLeft ? '-150px' : '110vw';
-            
+
             if (!isBoot) inner.style.transform = `scaleX(${baseDir})`;
         }
-        wrap.appendChild(inner); 
+        wrap.appendChild(inner);
         c.appendChild(wrap);
 
-        void wrap.offsetWidth; 
+        void wrap.offsetWidth;
 
         const showBubble = (text) => {
             const old = wrap.querySelector('.fish-bubble');
@@ -2589,7 +2581,7 @@ spawnFish() {
         const handleEscape = (e) => {
             const prop = isBoot ? 'top' : 'left';
             if (e.propertyName !== prop) return;
-            
+
             if (wrap.parentNode) {
                 if (!isBoot) {
                     State.data.fishStats.spared = (State.data.fishStats.spared || 0) + 1;
@@ -2625,7 +2617,7 @@ spawnFish() {
             }
 
             const data = fishData[fishEmoji];
-            
+
             if (fishEmoji === '🐙') {
                 e.stopPropagation();
                 if (data.k) State.unlockBadge(data.k);
@@ -2657,20 +2649,20 @@ spawnFish() {
                     setTimeout(() => ink.remove(), 1000);
                 }
 
-                const jetSpeed = Math.random() * 0.8 + 1.2; 
+                const jetSpeed = Math.random() * 0.8 + 1.2;
                 wrap.style.transition = `left ${jetSpeed}s cubic-bezier(0.25, 1, 0.5, 1), top ${jetSpeed}s ease-out`;
 
-                wrap.style.left = (110 + Math.random() * 30) + 'vw'; 
-                wrap.style.top = (-20 - Math.random() * 30) + 'vh'; 
+                wrap.style.left = (110 + Math.random() * 30) + 'vw';
+                wrap.style.top = (-20 - Math.random() * 30) + 'vh';
 
                 setTimeout(() => { if(wrap.parentNode) wrap.remove(); }, jetSpeed * 1000 + 200);
                 return;
             }
 
             if (isFakeOut) {
-                 showBubble('hey!'); 
+                 showBubble('hey!');
                  SoundManager.playPop();
-                 
+
                  // 1. Stop current movement
                  const currentLeft = getComputedStyle(wrap).left;
                  wrap.style.transition = 'none';
@@ -2679,21 +2671,21 @@ spawnFish() {
                  // 2. Wait, then Flip & Swim Back
                  setTimeout(() => {
                      if(!wrap.parentNode) return;
-                     
+
                      // INSTANTLY FLIP (Remove transition to make it snappy)
-                     inner.style.transition = 'none'; 
-                     inner.style.transform = `scaleX(${-baseDir})`; 
-                     
+                     inner.style.transition = 'none';
+                     inner.style.transform = `scaleX(${-baseDir})`;
+
                      // Swim back to start
                      wrap.style.transition = `left ${duration * 0.5}s linear`;
                      wrap.style.left = startLeft ? '-150px' : '110vw';
-                     
-                     setTimeout(() => { 
-                         if(wrap.parentNode) wrap.remove(); 
+
+                     setTimeout(() => {
+                         if(wrap.parentNode) wrap.remove();
                      }, duration * 500 + 100);
-                     
+
                  }, 600);
-                 
+
                  return;
             }
 
@@ -2703,7 +2695,7 @@ spawnFish() {
                 State.save('fishStats', State.data.fishStats);
                 if (State.data.fishStats.caught >= 250) State.unlockBadge('angler');
             }
-            
+
             if (fishEmoji === '🐡') UIManager.showPostVoteMessage("Popped!");
             SoundManager.playPop();
 
@@ -2731,7 +2723,7 @@ spawnFish() {
 
         requestAnimationFrame(() => {
             if (isBoot) {
-                wrap.style.top = '-20%'; 
+                wrap.style.top = '-20%';
                 wrap.style.transition = `top ${duration}s linear`;
             } else {
                 wrap.style.left = startLeft ? '125vw' : '-25vw';
@@ -2766,13 +2758,13 @@ spawnFish() {
         const spawnSnowman = () => {
             if (State.runtime.currentTheme !== 'winter') return;
             const sm = document.createElement('div');
-            sm.className = 'snow-particle'; 
+            sm.className = 'snow-particle';
             sm.textContent = '⛄';
             Object.assign(sm.style, {
                 position: 'absolute', fontSize: '2.5rem', width: 'auto', height: 'auto',
-                opacity: '1', left: `${Math.random() * 85 + 5}vw`, top: '-15vh', 
+                opacity: '1', left: `${Math.random() * 85 + 5}vw`, top: '-15vh',
                 filter: 'drop-shadow(1px 1px 2px rgba(0,0,0,0.3))', cursor: 'pointer',
-                zIndex: '101', pointerEvents: 'auto', animation: 'none', 
+                zIndex: '101', pointerEvents: 'auto', animation: 'none',
                 transition: 'top 8s linear, transform 8s ease-in-out'
             });
             const handleInteract = (e) => {
@@ -2787,26 +2779,26 @@ spawnFish() {
             sm.addEventListener('mousedown', handleInteract);
             sm.addEventListener('touchstart', handleInteract, { passive: false });
             c.appendChild(sm);
-            void sm.offsetWidth; 
+            void sm.offsetWidth;
             requestAnimationFrame(() => {
-                sm.style.top = '110vh'; 
-                sm.style.transform = `rotate(${Math.random() * 360}deg)`; 
+                sm.style.top = '110vh';
+                sm.style.transform = `rotate(${Math.random() * 360}deg)`;
             });
             setTimeout(() => { if (sm.parentNode) sm.remove(); }, 9000);
             this.snowmanTimeout = setTimeout(spawnSnowman, Math.random() * 30000 + 15000);
         };
         this.snowmanTimeout = setTimeout(spawnSnowman, Math.random() * 5000 + 5000);
     },
-	
+
     summer() { const c = DOM.theme.effects.summer; c.innerHTML = ''; const g = document.createElement('div'); g.className = 'summer-grass'; c.appendChild(g); for (let i = 0; i < 8; i++) { const d = document.createElement('div'); d.className = `summer-cloud v${Math.floor(Math.random()*3)+1}`; const w = Math.random() * 100 + 100; d.style.width = `${w}px`; d.style.height = `${w*.35}px`; d.style.top = `${Math.random()*60}%`; d.style.animationDuration = `${Math.random()*60+60}s`; d.style.animationDelay = `-${Math.random()*100}s`; c.appendChild(d) } },
-    
+
 halloween(active) {
         if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
         if (this.webRaf) cancelAnimationFrame(this.webRaf);
-        
+
         // Arachnophobia Check
         const isSafeMode = State.data.settings.arachnophobiaMode;
-        
+
         if (!active || isSafeMode) {
             const old = document.getElementById('spider-wrap');
             if (old) old.remove();
@@ -2839,21 +2831,21 @@ halloween(active) {
                     0%, 100% { transform: rotate(0deg); }
                     50% { transform: rotate(5deg); }
                 }
-				.scuttling-motion {
-				animation: spider-leg-twitch 1.2s infinite ease-in-out;
-				}
+                .scuttling-motion {
+                animation: spider-leg-twitch 1.2s infinite ease-in-out;
+                }
                 .spider-paused {
                     animation: spider-pause-wiggle 0.8s ease-in-out;
                 }
                 .hunting-scuttle {
                     animation: spider-leg-twitch 0.6s infinite ease-in-out;
                 }
-				.spider-idle {
-				animation: spider-idle-wiggle 4s infinite ease-in-out;
-				}
-				.spider-fat {
-					filter: drop-shadow(0 10px 5px rgba(0,0,0,0.4)); transition: transform 1s cubic-bezier(0.5, 0, 0.5, 1); 
-				}
+                .spider-idle {
+                animation: spider-idle-wiggle 4s infinite ease-in-out;
+                }
+                .spider-fat {
+                    filter: drop-shadow(0 10px 5px rgba(0,0,0,0.4)); transition: transform 1s cubic-bezier(0.5, 0, 0.5, 1);
+                }
             `;
             document.head.appendChild(s);
         }
@@ -2863,37 +2855,37 @@ halloween(active) {
             active: false,
             targetX: 50,
             currentX: 50,
-            
+
             start(wrap, body, targetPercent, onComplete) {
                 this.active = true;
                 this.targetX = targetPercent;
                 this.currentX = parseFloat(wrap.style.left) || 50;
-                
+
                 const totalDist = Math.abs(this.targetX - this.currentX);
                 const direction = this.targetX > this.currentX ? 1 : -1;
-                
+
                 body.classList.add('scuttling-motion');
-                
+
                 const moveStep = () => {
                     if (!this.active) {
                         this.stop(body, onComplete);
                         return;
                     }
-                    
+
                     const remaining = Math.abs(this.targetX - this.currentX);
                     if (remaining < 0.5) {
                         this.stop(body, onComplete);
                         return;
                     }
-                    
+
                     // Decide: move or pause?
                     const roll = Math.random();
-                    
+
                     if (roll < 0.15) {
                         // PAUSE - stop briefly (15% chance, was 35%)
                         body.classList.remove('scuttling-motion');
                         body.classList.add('spider-paused');
-                        
+
                         const pauseTime = 300 + Math.random() * 400; // 300-700ms pause
                         setTimeout(() => {
                             if (!this.active) return;
@@ -2901,47 +2893,47 @@ halloween(active) {
                             body.classList.add('scuttling-motion');
                             setTimeout(moveStep, 100);
                         }, pauseTime);
-					} else {
+                    } else {
                         // MOVE - Smooth, steady steps
                         const burstSteps = 4 + Math.floor(Math.random() * 4);
                         const stepSize = 0.4 + Math.random() * 0.3;
                         let burstCount = 0;
-                        
+
                         const doBurstStep = () => {
                             if (!this.active || burstCount >= burstSteps) {
                                 setTimeout(moveStep, 100 + Math.random() * 150);
                                 return;
                             }
-                            
+
                             const rem = Math.abs(this.targetX - this.currentX);
                             if (rem < 0.5) {
                                 this.stop(body, onComplete);
                                 return;
                             }
-                            
+
                             const actualStep = Math.min(rem, stepSize);
                             this.currentX += actualStep * direction;
                             wrap.style.left = this.currentX + '%';
                             burstCount++;
-                            
+
                             // Smoother timing
-                            setTimeout(doBurstStep, 80 + Math.random() * 60); 
+                            setTimeout(doBurstStep, 80 + Math.random() * 60);
                         };
-                        
+
                         doBurstStep();
                     }
                 };
-                
+
                 // Start after initial delay
                 setTimeout(moveStep, 200);
             },
-            
+
             stop(body, onComplete) {
                 this.active = false;
                 body.classList.remove('scuttling-motion', 'spider-paused');
                 if (onComplete) onComplete();
             },
-            
+
             cancel(body) {
                 this.active = false;
                 body.classList.remove('scuttling-motion', 'spider-paused');
@@ -2955,9 +2947,9 @@ halloween(active) {
             wrap.spiderScuttle = spiderScuttle; // Attach for external access
             Object.assign(wrap.style, {
                 position: 'fixed', left: '50%', top: '-15vh', zIndex: '102',
-                pointerEvents: 'none' 
+                pointerEvents: 'none'
             });
-            
+
             // Spider size based on bugs eaten in last hour (not lifetime)
             const now = Date.now();
             const oneHourAgo = now - (60 * 60 * 1000);
@@ -2967,7 +2959,7 @@ halloween(active) {
             const maxBugs = 5;
             const cappedEaten = Math.min(recentBugs, maxBugs);
             const fontSize = (3 + (cappedEaten * 0.6)).toFixed(2); // 3rem -> 6rem over 5 bugs
-            
+
             wrap.innerHTML = `
                 <div id="spider-anchor" style="transform-origin: top center;">
                     <div id="spider-thread" style="width: 2px; background: rgba(255,255,255,0.6); margin: 0 auto; height: 0; transition: height 4s ease-in-out;"></div>
@@ -2976,11 +2968,11 @@ halloween(active) {
                     </div>
                 </div>`;
             document.body.appendChild(wrap);
-            
+
             const body = wrap.querySelector('#spider-body');
             const thread = wrap.querySelector('#spider-thread');
-			
-	const showSpiderBubble = (text) => {
+
+    const showSpiderBubble = (text) => {
                 // 1. Cleanup old bubble
                 const old = document.getElementById('spider-bubble-dynamic');
                 if (old) {
@@ -2991,13 +2983,13 @@ halloween(active) {
                 const b = document.createElement('div');
                 b.id = 'spider-bubble-dynamic';
                 Object.assign(b.style, {
-                    position: 'fixed', 
-                    background: 'white', color: '#1f2937', padding: '8px 14px', 
-                    borderRadius: '16px', fontSize: '14px', fontWeight: 'bold', 
+                    position: 'fixed',
+                    background: 'white', color: '#1f2937', padding: '8px 14px',
+                    borderRadius: '16px', fontSize: '14px', fontWeight: 'bold',
                     fontFamily: 'sans-serif', whiteSpace: 'nowrap', width: 'max-content',
-                    pointerEvents: 'none', opacity: '0', transition: 'opacity 0.2s', 
+                    pointerEvents: 'none', opacity: '0', transition: 'opacity 0.2s',
                     boxShadow: '0 4px 10px rgba(0,0,0,0.3)', border: '2px solid #1f2937',
-                    zIndex: '110',      
+                    zIndex: '110',
                     willChange: 'top, left'
                 });
                 b.textContent = text;
@@ -3028,19 +3020,19 @@ halloween(active) {
                     if (rotation === 0) {
                         top = spiderRect.top - bubRect.height - gap;
                         left = spiderRect.left + (spiderRect.width / 2) - (bubRect.width / 2);
-                        
+
                         Object.assign(arrow.style, {
                             bottom: '-8px', left: '50%', right: 'auto', top: 'auto',
                             transform: 'translateX(-50%) translateY(0)',
                             borderWidth: '8px 8px 0 8px',
                             borderColor: '#1f2937 transparent transparent transparent'
                         });
-                    } 
+                    }
                     else if (rotation === 180) {
                         // Upside Down: Bubble BELOW
                         top = spiderRect.bottom + gap;
                         left = spiderRect.left + (spiderRect.width / 2) - (bubRect.width / 2);
-                        
+
                         Object.assign(arrow.style, {
                             top: '-8px', left: '50%', right: 'auto', bottom: 'auto',
                             transform: 'translateX(-50%) translateY(0)',
@@ -3052,7 +3044,7 @@ halloween(active) {
                         // Climbing Right Wall: Bubble LEFT
                         top = spiderRect.top + (spiderRect.height / 2) - (bubRect.height / 2);
                         left = spiderRect.left - bubRect.width - gap;
-                        
+
                         Object.assign(arrow.style, {
                             right: '-8px', top: '50%', left: 'auto', bottom: 'auto',
                             transform: 'translateY(-50%) translateX(0)',
@@ -3064,7 +3056,7 @@ halloween(active) {
                         // Climbing Left Wall: Bubble RIGHT
                         top = spiderRect.top + (spiderRect.height / 2) - (bubRect.height / 2);
                         left = spiderRect.right + gap;
-                        
+
                         Object.assign(arrow.style, {
                             left: '-8px', top: '50%', right: 'auto', bottom: 'auto',
                             transform: 'translateY(-50%) translateX(0)',
@@ -3091,32 +3083,32 @@ halloween(active) {
 
                 setTimeout(() => {
                     if (b.parentNode) {
-                        b.style.opacity = '0'; 
+                        b.style.opacity = '0';
                         setTimeout(() => {
                             if (b.rafId) cancelAnimationFrame(b.rafId);
                             b.remove();
                         }, 300);
                     }
                 }, 2000);
-                
+
                 return b;
             };
-			
+
             wrap.showBubble = showSpiderBubble;
 
             body.onclick = (e) => {
                 e.stopPropagation();
                 State.unlockBadge('spider');
-                const willFall = Math.random() < 0.2; 
+                const willFall = Math.random() < 0.2;
                 const lines = willFall ? GAME_DIALOGUE.spider.pokeGrumpy : GAME_DIALOGUE.spider.pokeHappy;
                 const text = lines[Math.floor(Math.random() * lines.length)];
-                
+
                 showSpiderBubble(text);
                 body.style.animation = 'shake 0.3s ease-in-out';
-                
+
                 if (willFall) {
                     if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
-                    setTimeout(() => { this.spiderFall(wrap, thread, body); }, 400); 
+                    setTimeout(() => { this.spiderFall(wrap, thread, body); }, 400);
                 } else {
                     setTimeout(() => { body.style.animation = ''; }, 2000);
                 }
@@ -3126,51 +3118,51 @@ halloween(active) {
         const body = wrap.querySelector('#spider-body');
         const thread = wrap.querySelector('#spider-thread');
         const scuttle = wrap.spiderScuttle;
-        
+
 const anchor = wrap.querySelector('#spider-anchor');
         const currentBody = wrap.querySelector('#spider-body'); // Ensure we have the body
 
         if (anchor && currentBody) {
             const eaten = State.data.insectStats.eaten || 0;
             // Base size with growth per bug eaten lifetime
-            let scale = Math.min(0.7 + (eaten * 0.05), 2.0); 
+            let scale = Math.min(0.7 + (eaten * 0.05), 2.0);
 
             const isFull = Date.now() < (State.data.spiderFullUntil || 0);
-            
+
             if (isFull) {
                 scale = scale * 1.6; // Max fatness (60% bigger)
                 currentBody.classList.add('spider-fat');
             } else {
                 // Incremental growth: 20% bigger per bug in recent stomach
                 const recentBugs = State.data.spiderEatLog ? State.data.spiderEatLog.length : 0;
-                scale = scale * (1 + (recentBugs * 0.20)); 
+                scale = scale * (1 + (recentBugs * 0.20));
                 currentBody.classList.remove('spider-fat');
             }
             anchor.style.transform = `scale(${scale.toFixed(2)})`;
         }
-		
+
         const runDrop = () => {
             if (!document.body.contains(wrap)) return;
             if (wrap.classList.contains('hunting')) return;
             if (scuttle) scuttle.cancel(body);
-            
+
             const actionRoll = Math.random();
-            body.style.transform = 'rotate(0deg)'; 
+            body.style.transform = 'rotate(0deg)';
             body.classList.remove('scuttling-motion', 'spider-paused', 'spider-idle');
-            thread.style.opacity = '1'; 
-            
+            thread.style.opacity = '1';
+
             if (actionRoll < 0.7) {
                 const safeLeft = Math.random() * 60 + 20;
-                
+
                 // Use new scuttle system for realistic movement
                 if (scuttle) {
                     scuttle.start(wrap, body, safeLeft, () => {
                         if (wrap.classList.contains('hunting')) return;
-                        body.style.transform = 'rotate(180deg)'; 
+                        body.style.transform = 'rotate(180deg)';
                         body.classList.add('spider-idle');
-                        thread.style.transition = 'height 2.5s ease-in-out'; 
-                        thread.style.height = '18vh'; 
-                        
+                        thread.style.transition = 'height 2.5s ease-in-out';
+                        thread.style.height = '18vh';
+
                         setTimeout(() => {
                              if (wrap.classList.contains('hunting')) return;
                              // Use time-based idle phrase
@@ -3183,43 +3175,43 @@ const anchor = wrap.querySelector('#spider-anchor');
                                      text = phrases[Math.floor(Math.random() * phrases.length)];
                                  }
                              }
-                             
-                             if(wrap.showBubble) wrap.showBubble(text, 'upside-down'); 
-                             
+
+                             if(wrap.showBubble) wrap.showBubble(text, 'upside-down');
+
                              setTimeout(() => {
                                  if (wrap.classList.contains('hunting')) return;
                                  body.classList.remove('spider-idle');
-                                 thread.style.height = '0'; 
+                                 thread.style.height = '0';
                                  this.spiderTimeout = setTimeout(runDrop, Math.random() * 5000 + 5000);
-                             }, 2500); 
+                             }, 2500);
                         }, 2500);
                     });
                 }
                 return;
             }
-			
+
             if (actionRoll < 0.9) {
                 const isLeft = Math.random() > 0.5;
-                const wallX = isLeft ? 5 : 85; 
-                
+                const wallX = isLeft ? 5 : 85;
+
                 // Use new scuttle system
                 if (scuttle) {
                     scuttle.start(wrap, body, wallX, () => {
                         if (wrap.classList.contains('hunting')) return;
-                        
-                        thread.style.opacity = '0'; 
+
+                        thread.style.opacity = '0';
                         body.style.transform = `rotate(${isLeft ? 90 : -90}deg)`;
-                        
-                        const climbDepth = Math.random() * 40 + 30; 
+
+                        const climbDepth = Math.random() * 40 + 30;
                         thread.style.transition = 'height 4s ease-in-out';
                         thread.style.height = climbDepth + 'vh';
-                        
+
                         setTimeout(() => {
                              if (wrap.classList.contains('hunting')) return;
-                             thread.style.height = '0'; 
+                             thread.style.height = '0';
                              setTimeout(() => {
                                  body.style.transform = 'rotate(0deg)';
-                                 thread.style.opacity = '1'; 
+                                 thread.style.opacity = '1';
                                  this.spiderTimeout = setTimeout(runDrop, Math.random() * 5000 + 5000);
                              }, 4000);
                         }, 5000);
@@ -3227,44 +3219,44 @@ const anchor = wrap.querySelector('#spider-anchor');
                 }
                 return;
             }
-            
-            const safeLeft = Math.random() * 60 + 20; 
+
+            const safeLeft = Math.random() * 60 + 20;
             if (scuttle) {
                 scuttle.start(wrap, body, safeLeft, () => {
                     runDrop();
                 });
             }
         };
-        
+
         this.spiderTimeout = setTimeout(runDrop, 1000);
-        
+
         if (!document.getElementById('spider-web-corner')) {
             const web = document.createElement('div');
             web.id = 'spider-web-corner';
             web.innerHTML = `<svg id="web-svg" viewBox="0 0 300 300" style="width:300px;height:300px;position:fixed;top:0;right:0;z-index:55;pointer-events:auto;cursor:pointer;opacity:0.7;filter:drop-shadow(1px 1px 2px rgba(0,0,0,0.5))"></svg>`;
             document.body.appendChild(web);
-            
+
             web.onclick = () => {
                 if (MosquitoManager.state === 'stuck') {
                     this.spiderHunt(MosquitoManager.x, MosquitoManager.y, true);
                 } else {
-					State.data.insectStats.teased = (State.data.insectStats.teased || 0) + 1;
+                    State.data.insectStats.teased = (State.data.insectStats.teased || 0) + 1;
                     State.save('insectStats', State.data.insectStats);
                     if (State.data.insectStats.teased >= 50) State.unlockBadge('prankster');
-                    this.spiderHunt(88, 20, false); 
+                    this.spiderHunt(88, 20, false);
                 }
             };
-            
+
             const svg = document.getElementById('web-svg');
             const cx = 300, cy = 0;
             const baseAnchors = [{ x: 0, y: 0 }, { x: 60, y: 100 }, { x: 140, y: 200 }, { x: 220, y: 270 }, { x: 300, y: 300 }];
-            
+
             const animateWeb = () => {
                 const time = Date.now();
                 let pathStr = '';
                 const curAnchors = baseAnchors.map((a, i) => {
                     if (i === 0 || i === baseAnchors.length - 1) return a;
-                    const sway = Math.sin((time / 1500) + i) * 15; 
+                    const sway = Math.sin((time / 1500) + i) * 15;
                     return { x: a.x + sway, y: a.y + sway }
                 });
                 curAnchors.forEach(p => {
@@ -3302,20 +3294,20 @@ const anchor = wrap.querySelector('#spider-anchor');
             animateWeb()
         }
     },
-    
+
 spiderHunt(targetXPercent, targetYPercent, isFood) {
         const wrap = document.getElementById('spider-wrap');
         if (!wrap) return;
-		
+
 if (Date.now() < (State.data.spiderFullUntil || 0)) {
             const body = wrap.querySelector('#spider-body');
             const thread = wrap.querySelector('#spider-thread');
             const lines = GAME_DIALOGUE.spider.full || ["I'm stuffed."];
             const text = lines[Math.floor(Math.random() * lines.length)];
-            
+
             // 1. Drop down slightly so he is visible
             thread.style.transition = 'height 1s ease-out';
-            thread.style.height = '20vh'; 
+            thread.style.height = '20vh';
 
             setTimeout(() => {
                 // 2. Complain & Shake
@@ -3328,33 +3320,33 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                     thread.style.height = '0';
                 }, 1500);
             }, 1000); // Wait for drop
-            
+
             return; // Stop here, don't hunt normally
         }
-		
+
         const thread = wrap.querySelector('#spider-thread');
         const body = wrap.querySelector('#spider-body');
         const scuttle = wrap.spiderScuttle;
-		
-		const anchor = wrap.querySelector('#spider-anchor');
+
+        const anchor = wrap.querySelector('#spider-anchor');
         if (anchor && body) {
             const eaten = State.data.insectStats.eaten || 0;
             let scale = Math.min(0.7 + (eaten * 0.05), 2.0); // Base size
 
             const isFull = Date.now() < (State.data.spiderFullUntil || 0);
-            
+
             if (isFull) {
                 scale = scale * 1.6; // Max fatness (60% bigger)
                 body.classList.add('spider-fat');
             } else {
                 // Incremental growth: 20% bigger per bug currently in stomach
                 const recentBugs = State.data.spiderEatLog ? State.data.spiderEatLog.length : 0;
-                scale = scale * (1 + (recentBugs * 0.20)); 
+                scale = scale * (1 + (recentBugs * 0.20));
                 body.classList.remove('spider-fat');
             }
             anchor.style.transform = `scale(${scale.toFixed(2)})`;
         }
-        
+
         // Cancel any existing scuttle
         if (scuttle) scuttle.cancel(body);
         body.classList.remove('scuttling-motion', 'spider-paused', 'spider-idle');
@@ -3362,14 +3354,14 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
 
         if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
         wrap.classList.add('hunting');
-        
+
         let phrases = isFood ? GAME_DIALOGUE.spider.hunting : GAME_DIALOGUE.spider.trickedStart;
         const text = phrases[Math.floor(Math.random() * phrases.length)];
         const bub = wrap.showBubble ? wrap.showBubble(text) : null;
 
         const destX = isFood ? targetXPercent : 88;
         const destY = isFood ? targetYPercent : 20;
-        
+
         // Hunt scuttle - urgent but still spider-like
         const huntScuttle = {
             active: true,
@@ -3377,19 +3369,19 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 const currentX = parseFloat(wrap.style.left) || 50;
                 const direction = destX > currentX ? 1 : -1;
                 let posX = currentX;
-                
+
                 const doMove = () => {
                     if (!this.active) return;
-                    
+
                     const remaining = Math.abs(destX - posX);
                     if (remaining < 0.5) {
                         body.classList.remove('hunting-scuttle', 'spider-paused');
                         onComplete();
                         return;
                     }
-                    
+
                     const roll = Math.random();
-                    
+
                     if (roll < 0.25) {
                         // Brief pause to look around (25% chance)
                         body.classList.remove('hunting-scuttle');
@@ -3406,35 +3398,35 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                         const burstSteps = 3 + Math.floor(Math.random() * 3); // 3-5 steps
                         const stepSize = 1 + Math.random() * 0.8; // 1-1.8% per step
                         let burstCount = 0;
-                        
+
                         const doBurst = () => {
                             if (!this.active || burstCount >= burstSteps) {
                                 setTimeout(doMove, 150 + Math.random() * 200);
                                 return;
                             }
-                            
+
                             const rem = Math.abs(destX - posX);
                             if (rem < 0.5) {
                                 body.classList.remove('hunting-scuttle', 'spider-paused');
                                 onComplete();
                                 return;
                             }
-                            
+
                             posX += Math.min(rem, stepSize) * direction;
                             wrap.style.left = posX + '%';
                             burstCount++;
-                            
+
                             setTimeout(doBurst, 60 + Math.random() * 40);
                         };
-                        
+
                         doBurst();
                     }
                 };
-                
+
                 setTimeout(doMove, 200);
             }
         };
-        
+
         huntScuttle.move(() => {
             const anchor = document.getElementById('spider-anchor');
             let scale = 1;
@@ -3442,20 +3434,20 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 const match = anchor.style.transform.match(/scale\(([^)]+)\)/);
                 if (match) scale = parseFloat(match[1]);
             }
-            const dropVH = (destY + 10) / scale; 
-            thread.style.transition = 'height 3s cubic-bezier(0.45, 0, 0.55, 1)'; 
+            const dropVH = (destY + 10) / scale;
+            thread.style.transition = 'height 3s cubic-bezier(0.45, 0, 0.55, 1)';
             thread.style.height = dropVH + 'vh';
-            
+
             setTimeout(() => {
                 setTimeout(() => {
                     if (isFood && MosquitoManager.state === 'stuck') {
                         // Scenario 1: Caught the bug
                         MosquitoManager.eat();
                         if(wrap.showBubble) wrap.showBubble("YUM!");
-                        
+
                         // --- PUFF UP ANIMATION (like pufferfish) ---
                         const anchor = wrap.querySelector('#spider-anchor');
-                        
+
                         if (anchor) {
                             // Size based on bugs eaten in last hour
                             const now = Date.now();
@@ -3463,50 +3455,50 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                             const recentBugs = (State.data.spiderEatLog || []).filter(t => t > oneHourAgo).length;
                             const maxBugs = 5;
                             const cappedBugs = Math.min(recentBugs, maxBugs);
-                            
+
                             // Show visible feedback
                             UIManager.showPostVoteMessage(`🕷️ ${recentBugs} bug${recentBugs !== 1 ? 's' : ''} in belly!`);
-                            
+
                             // Change the actual font-size for visible growth
                             // 5 stages: 0 bugs = 3rem, 5 bugs = 6rem (max)
                             const baseFontSize = 3; // rem
                             const newFontSize = baseFontSize + (cappedBugs * 0.6); // 3rem -> 6rem over 5 bugs
                             const bulgeFontSize = newFontSize * 1.2;
-                            
+
                             body.style.transition = 'font-size 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
                             body.style.fontSize = bulgeFontSize.toFixed(2) + 'rem';
-                            
+
                             // Then settle to actual new size
                             setTimeout(() => {
                                 if (body) {
                                     body.style.fontSize = newFontSize.toFixed(2) + 'rem';
                                 }
                             }, 300);
-                            
+
                             // Add fat class if at max
                             if (cappedBugs >= maxBugs) {
                                 body.classList.add('spider-fat');
                             }
                         }
                         // --- END PUFF UP ---
-                        
+
                         if (body) body.style.animation = 'shake 0.2s ease-in-out';
-                        
+
                         // Stay visible briefly
                         setTimeout(() => {
                             if (body) body.style.animation = '';
                         }, 500);
-                        
+
                         // Then retreat after 5 seconds
                         setTimeout(() => {
                             this.retreatSpider(thread, wrap, bub, '2s');
                         }, 5000);
-                    } 
+                    }
                     else if (isFood) {
                         const missedPhrases = GAME_DIALOGUE.spider.missed || ["Too slow!", "My lunch!"];
                         const missedText = missedPhrases[Math.floor(Math.random() * missedPhrases.length)];
                         if(wrap.showBubble) wrap.showBubble(missedText);
-                        
+
                         body.style.animation = 'shake 0.5s ease-in-out';
                         setTimeout(() => {
                             body.style.animation = '';
@@ -3518,15 +3510,15 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                         const angryPhrases = GAME_DIALOGUE.spider.trickedEnd;
                         const angryText = angryPhrases[Math.floor(Math.random() * angryPhrases.length)];
                         if(wrap.showBubble) wrap.showBubble(angryText);
-                        
+
                         body.style.animation = 'shake 0.3s ease-in-out';
                         setTimeout(() => {
                             body.style.animation = '';
                             this.retreatSpider(thread, wrap, bub, '4s');
                         }, 1500);
                     }
-                }, 2000); 
-            }, 3000); 
+                }, 2000);
+            }, 3000);
         });
     },
 
@@ -3536,21 +3528,21 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             setTimeout(() => bub.remove(), 300);
         }
         thread.style.transition = 'height 0.8s cubic-bezier(0.55, 0.085, 0.68, 0.53), opacity 0s linear';
-        thread.style.opacity = '0'; 
-        
+        thread.style.opacity = '0';
+
         requestAnimationFrame(() => { thread.style.height = '120vh'; });
-        
+
         setTimeout(() => {
             thread.style.transition = 'none';
             wrap.style.transition = 'none';
-            wrap.style.left = '88%'; 
-            thread.style.height = '120vh'; 
-            void wrap.offsetWidth; 
+            wrap.style.left = '88%';
+            thread.style.height = '120vh';
+            void wrap.offsetWidth;
             thread.style.opacity = '1';
-            
+
             requestAnimationFrame(() => {
                 thread.style.transition = 'height 5s ease-in-out';
-                thread.style.height = '0'; 
+                thread.style.height = '0';
             });
             wrap.classList.remove('hunting');
             setTimeout(() => this.halloween(true), 6000);
@@ -3650,7 +3642,7 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         for (let i = 0; i < 4; i++) addBall('germ');
         Physics.run()
     },
-    
+
     space(active) {
         const c = DOM.theme.effects.space;
         if (this.spaceRareTimeout) clearTimeout(this.spaceRareTimeout);
@@ -3690,7 +3682,7 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         createPlanet(40, '20%', '80%', ['#fee440', '#f15bb5'], false);
         createPlanet(200, '-5%', '60%', ['#1b1b1b', '#3a3a3a'], true);
         const spawnRock = () => {
-            if (!DOM.theme.effects.space.checkVisibility()) return; 
+            if (!DOM.theme.effects.space.checkVisibility()) return;
             const wrap = document.createElement('div');
             wrap.className = 'space-rock-wrap';
             const inner = document.createElement('div');
@@ -3698,20 +3690,20 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             inner.className = 'space-rock-inner';
             wrap.appendChild(inner);
             const startLeft = Math.random() > 0.5;
-            const duration = Math.random() * 10 + 10; 
+            const duration = Math.random() * 10 + 10;
             wrap.style.transition = `left ${duration}s linear, top ${duration}s ease-in-out`;
-            wrap.style.top = Math.random() * 80 + 10 + 'vh'; 
-            wrap.style.left = startLeft ? '-150px' : '110vw'; 
+            wrap.style.top = Math.random() * 80 + 10 + 'vh';
+            wrap.style.left = startLeft ? '-150px' : '110vw';
             wrap.onclick = (e) => {
                 e.stopPropagation(); e.preventDefault();
                 State.unlockBadge('rock');
                 UIManager.showPostVoteMessage("SPACE ROCK! 🤘");
-                wrap.style.display = 'none'; 
+                wrap.style.display = 'none';
             };
             c.appendChild(wrap);
             requestAnimationFrame(() => {
                 wrap.style.left = startLeft ? '110vw' : '-150px';
-                wrap.style.top = Math.random() * 80 + 10 + 'vh'; 
+                wrap.style.top = Math.random() * 80 + 10 + 'vh';
             });
             setTimeout(() => { if(wrap.parentNode) wrap.remove(); }, duration * 1000);
             this.spaceRareTimeout = setTimeout(spawnRock, Math.random() * 12000 + 8000);
@@ -3721,23 +3713,23 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
 
     woodlandTimeout: null,
     woodlandCreatureTimeout: null,
-    
+
     woodland(active) {
         const c = DOM.theme.effects.woodland;
         if (this.woodlandTimeout) clearTimeout(this.woodlandTimeout);
         if (this.woodlandCreatureTimeout) clearTimeout(this.woodlandCreatureTimeout);
-        
-        if (!active) { 
-            c.innerHTML = ''; 
-            return; 
+
+        if (!active) {
+            c.innerHTML = '';
+            return;
         }
-        
+
         c.innerHTML = '';
-        
+
         // Determine time of day (4 modes: dawn, day, dusk, night)
         const hour = new Date().getHours();
         let timeOfDay, lightColor, lightOpacity, bgGradient;
-        
+
         if (hour >= 5 && hour < 8) {
             timeOfDay = 'dawn';
             lightColor = 'rgba(255, 200, 150, 0.3)';
@@ -3759,7 +3751,7 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             lightOpacity = 0.15;
             bgGradient = 'linear-gradient(180deg, #1a1a2e 0%, #16213e 30%, #1f3a28 100%)';
         }
-        
+
         // Set container style
         c.style.cssText = `
             position: fixed;
@@ -3769,7 +3761,7 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             overflow: hidden;
             background: ${bgGradient};
         `;
-        
+
         // Create forest floor
         const floor = document.createElement('div');
         floor.style.cssText = `
@@ -3781,7 +3773,7 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             background: linear-gradient(180deg, transparent 0%, #3d2914 30%, #2a1f0f 100%);
         `;
         c.appendChild(floor);
-        
+
         // Add fallen leaves on floor
         for (let i = 0; i < 20; i++) {
             const leaf = document.createElement('div');
@@ -3797,7 +3789,7 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             `;
             c.appendChild(leaf);
         }
-        
+
         // Create trees (realistic organic shapes on sides)
         const createTree = (left, size, zIndex) => {
             const tree = document.createElement('div');
@@ -3810,7 +3802,7 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 height: ${size * 3}px;
                 z-index: ${zIndex};
             `;
-            
+
             // Trunk with bark texture
             const trunk = document.createElement('div');
             const trunkW = size * 0.18;
@@ -3821,17 +3813,17 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 transform: translateX(-50%);
                 width: ${trunkW}px;
                 height: ${size * 1.2}px;
-                background: linear-gradient(90deg, 
-                    #1a1208 0%, 
-                    #3d2914 20%, 
-                    #5a4025 40%, 
-                    #3d2914 60%, 
-                    #2a1f0f 80%, 
+                background: linear-gradient(90deg,
+                    #1a1208 0%,
+                    #3d2914 20%,
+                    #5a4025 40%,
+                    #3d2914 60%,
+                    #2a1f0f 80%,
                     #1a1208 100%);
                 border-radius: 3px 3px 8px 8px;
                 box-shadow: inset -3px 0 8px rgba(0,0,0,0.4), inset 3px 0 8px rgba(0,0,0,0.2);
             `;
-            
+
             // Add bark lines
             for (let b = 0; b < 6; b++) {
                 const line = document.createElement('div');
@@ -3847,12 +3839,12 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 trunk.appendChild(line);
             }
             tree.appendChild(trunk);
-            
+
             // Create organic foliage clusters
-            const foliageColors = timeOfDay === 'night' 
+            const foliageColors = timeOfDay === 'night'
                 ? ['#0d1f0d', '#152515', '#1a2f1a', '#0f1a0f']
                 : ['#1e4d1e', '#2d5a2d', '#3a6b3a', '#275227', '#1f4a1f'];
-            
+
             const clusters = 8 + Math.floor(Math.random() * 5);
             for (let i = 0; i < clusters; i++) {
                 const cluster = document.createElement('div');
@@ -3862,7 +3854,7 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 const cx = Math.cos(angle) * radius;
                 const cy = Math.sin(angle) * radius * 0.6;
                 const baseY = size * 1.4;
-                
+
                 cluster.style.cssText = `
                     position: absolute;
                     bottom: ${baseY + cy}px;
@@ -3870,16 +3862,16 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                     transform: translateX(-50%);
                     width: ${clusterSize}px;
                     height: ${clusterSize * 0.85}px;
-                    background: radial-gradient(ellipse at 30% 30%, 
-                        ${foliageColors[Math.floor(Math.random() * foliageColors.length)]} 0%, 
-                        ${foliageColors[Math.floor(Math.random() * foliageColors.length)]} 70%, 
+                    background: radial-gradient(ellipse at 30% 30%,
+                        ${foliageColors[Math.floor(Math.random() * foliageColors.length)]} 0%,
+                        ${foliageColors[Math.floor(Math.random() * foliageColors.length)]} 70%,
                         transparent 100%);
                     border-radius: 50% 50% 45% 55% / 60% 55% 45% 40%;
                     filter: blur(0.5px);
                 `;
                 tree.appendChild(cluster);
             }
-            
+
             // Add a central dense cluster
             const centerCluster = document.createElement('div');
             centerCluster.style.cssText = `
@@ -3889,14 +3881,14 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 transform: translateX(-50%);
                 width: ${size * 0.7}px;
                 height: ${size * 0.6}px;
-                background: radial-gradient(ellipse at 40% 35%, 
-                    ${foliageColors[1]} 0%, 
-                    ${foliageColors[0]} 60%, 
+                background: radial-gradient(ellipse at 40% 35%,
+                    ${foliageColors[1]} 0%,
+                    ${foliageColors[0]} 60%,
                     transparent 100%);
                 border-radius: 50%;
             `;
             tree.appendChild(centerCluster);
-            
+
             // Top cluster
             const topCluster = document.createElement('div');
             topCluster.style.cssText = `
@@ -3906,17 +3898,17 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 transform: translateX(-50%);
                 width: ${size * 0.5}px;
                 height: ${size * 0.45}px;
-                background: radial-gradient(ellipse at 35% 30%, 
-                    ${foliageColors[2]} 0%, 
-                    ${foliageColors[0]} 70%, 
+                background: radial-gradient(ellipse at 35% 30%,
+                    ${foliageColors[2]} 0%,
+                    ${foliageColors[0]} 70%,
                     transparent 100%);
                 border-radius: 45% 55% 50% 50% / 60% 60% 40% 40%;
             `;
             tree.appendChild(topCluster);
-            
+
             return tree;
         };
-        
+
         // Add trees on both sides (more trees, varied sizes)
         c.appendChild(createTree(true, 130, 3));
         c.appendChild(createTree(true, 90, 2));
@@ -3924,7 +3916,7 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         c.appendChild(createTree(false, 110, 3));
         c.appendChild(createTree(false, 75, 2));
         c.appendChild(createTree(false, 50, 1));
-        
+
         // Create hiding spots (bushes, logs, rocks)
         const hidingSpots = [];
         const spotTypes = [
@@ -3932,7 +3924,7 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             { emoji: '🪵', name: 'log', width: 80, height: 35 },
             { emoji: '🌳', name: 'bush', width: 50, height: 50 }
         ];
-        
+
         for (let i = 0; i < 5; i++) {
             const spotType = spotTypes[Math.floor(Math.random() * spotTypes.length)];
             const spot = document.createElement('div');
@@ -3952,7 +3944,7 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             c.appendChild(spot);
             hidingSpots.push({ el: spot, left: leftPos, creature: null });
         }
-        
+
         // Create light rays through trees
         const lightOverlay = document.createElement('div');
         lightOverlay.style.cssText = `
@@ -3961,7 +3953,7 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             pointer-events: none;
             z-index: 5;
         `;
-        
+
         // Add light beams
         for (let i = 0; i < 6; i++) {
             const beam = document.createElement('div');
@@ -3980,7 +3972,7 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             lightOverlay.appendChild(beam);
         }
         c.appendChild(lightOverlay);
-        
+
         // Add CSS animation for light sway
         if (!document.getElementById('woodland-styles')) {
             const style = document.createElement('style');
@@ -4007,7 +3999,7 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             `;
             document.head.appendChild(style);
         }
-        
+
         // Woodland creatures that peek out from hiding spots
         const creatures = ['🐿️', '🦊', '🐺', '🦉', '🦔', '🐁'];
         const creatureMessages = {
@@ -4018,26 +4010,26 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             '🦔': 'A hedgehog snuffles about!',
             '🐁': 'A tiny mouse scurries by!'
         };
-        
+
         const spawnCreature = () => {
             if (State.runtime.currentTheme !== 'woodland') return;
-            
+
             // Find an empty hiding spot
             const emptySpots = hidingSpots.filter(s => !s.creature);
             if (emptySpots.length === 0) {
                 this.woodlandCreatureTimeout = setTimeout(spawnCreature, 5000);
                 return;
             }
-            
+
             const spot = emptySpots[Math.floor(Math.random() * emptySpots.length)];
             const creature = creatures[Math.floor(Math.random() * creatures.length)];
-            
+
             // Night mode: only owls and wolves are active
             const nightCreatures = ['🦉', '🐺'];
-            const activeCreature = timeOfDay === 'night' 
+            const activeCreature = timeOfDay === 'night'
                 ? nightCreatures[Math.floor(Math.random() * nightCreatures.length)]
                 : creature;
-            
+
             const critterEl = document.createElement('div');
             critterEl.className = 'woodland-creature';
             critterEl.textContent = activeCreature;
@@ -4051,7 +4043,7 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 cursor: pointer;
                 filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.4));
             `;
-            
+
             // Night mode: add glowing eyes effect for some creatures
             if (timeOfDay === 'night' && (activeCreature === '🦉' || activeCreature === '🐺')) {
                 const eyes = document.createElement('div');
@@ -4072,10 +4064,10 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 `;
                 critterEl.appendChild(eyes);
             }
-            
+
             spot.creature = critterEl;
             c.appendChild(critterEl);
-            
+
             // Click to interact
             critterEl.onclick = (e) => {
                 e.stopPropagation();
@@ -4088,7 +4080,7 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                     spot.creature = null;
                 }, 300);
             };
-            
+
             // Auto-hide after animation
             setTimeout(() => {
                 if (critterEl.parentNode) {
@@ -4096,15 +4088,15 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                     spot.creature = null;
                 }
             }, 6000);
-            
+
             // Schedule next creature
             const nextDelay = timeOfDay === 'night' ? 15000 : 8000;
             this.woodlandCreatureTimeout = setTimeout(spawnCreature, Math.random() * nextDelay + 5000);
         };
-        
+
         // Start creature spawning after a short delay
         this.woodlandCreatureTimeout = setTimeout(spawnCreature, 3000);
-        
+
         // Add floating particles (dust motes in light, fireflies at night)
         for (let i = 0; i < (timeOfDay === 'night' ? 15 : 8); i++) {
             const particle = document.createElement('div');
@@ -4121,33 +4113,33 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 animation: float${i} ${10 + Math.random() * 10}s ease-in-out infinite;
                 z-index: 6;
             `;
-            
+
             // Add keyframes for this particle
             const style = document.createElement('style');
             style.textContent = `
                 @keyframes float${i} {
-                    0%, 100% { 
-                        transform: translate(0, 0) scale(1); 
-                        opacity: ${isFirefly ? 0.3 : 0.5}; 
+                    0%, 100% {
+                        transform: translate(0, 0) scale(1);
+                        opacity: ${isFirefly ? 0.3 : 0.5};
                     }
-                    25% { 
-                        transform: translate(${Math.random() * 40 - 20}px, ${Math.random() * 30 - 15}px) scale(${isFirefly ? 1.2 : 1}); 
-                        opacity: ${isFirefly ? 1 : 0.7}; 
+                    25% {
+                        transform: translate(${Math.random() * 40 - 20}px, ${Math.random() * 30 - 15}px) scale(${isFirefly ? 1.2 : 1});
+                        opacity: ${isFirefly ? 1 : 0.7};
                     }
-                    50% { 
-                        transform: translate(${Math.random() * 40 - 20}px, ${Math.random() * 30 - 15}px) scale(1); 
-                        opacity: ${isFirefly ? 0.2 : 0.4}; 
+                    50% {
+                        transform: translate(${Math.random() * 40 - 20}px, ${Math.random() * 30 - 15}px) scale(1);
+                        opacity: ${isFirefly ? 0.2 : 0.4};
                     }
-                    75% { 
-                        transform: translate(${Math.random() * 40 - 20}px, ${Math.random() * 30 - 15}px) scale(${isFirefly ? 1.3 : 1}); 
-                        opacity: ${isFirefly ? 0.9 : 0.6}; 
+                    75% {
+                        transform: translate(${Math.random() * 40 - 20}px, ${Math.random() * 30 - 15}px) scale(${isFirefly ? 1.3 : 1});
+                        opacity: ${isFirefly ? 0.9 : 0.6};
                     }
                 }
             `;
             document.head.appendChild(style);
             c.appendChild(particle);
         }
-        
+
         // Add some mushrooms at the base
         for (let i = 0; i < 4; i++) {
             const mushroom = document.createElement('div');
@@ -4181,7 +4173,7 @@ const ShareManager = {
         const randomMsg = messages[Math.floor(Math.random() * messages.length)];
 
         const targetUrl = `${window.location.origin}/?word=${encodeURIComponent(word)}`;
-        const colorHex = type === 'good' ? '16a34a' : 'dc2626'; 
+        const colorHex = type === 'good' ? '16a34a' : 'dc2626';
         const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&color=${colorHex}&margin=20&data=${encodeURIComponent(targetUrl)}`;
 
         try {
@@ -4191,10 +4183,10 @@ const ShareManager = {
 
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
-            
+
             // Increased height slightly to fit new labels
             const width = 400;
-            const height = 580; 
+            const height = 580;
             canvas.width = width;
             canvas.height = height;
 
@@ -4204,12 +4196,12 @@ const ShareManager = {
 
             // 1. Header: "GOOD WORD!" or "BAD WORD!"
             ctx.textAlign = 'center';
-            ctx.font = '900 36px Inter, system-ui, sans-serif'; 
+            ctx.font = '900 36px Inter, system-ui, sans-serif';
             ctx.fillStyle = type === 'good' ? '#16a34a' : '#dc2626';
             ctx.fillText(type === 'good' ? "GOOD WORD!" : "BAD WORD!", width / 2, 50);
 
             // 2. QR Code
-            ctx.drawImage(qrImg, 0, 60, 400, 400); 
+            ctx.drawImage(qrImg, 0, 60, 400, 400);
 
             // 3. Label: "Word:"
             ctx.font = 'bold 16px sans-serif';
@@ -4218,9 +4210,9 @@ const ShareManager = {
 
             // 4. The Word (Extra Bold)
             ctx.fillStyle = '#1f2937'; // Dark Grey
-            
+
             // Scale logic for long words
-            ctx.font = '900 40px Inter, system-ui, sans-serif'; 
+            ctx.font = '900 40px Inter, system-ui, sans-serif';
             const textWidth = ctx.measureText(word).width;
             if (textWidth > 360) {
                 const scale = 360 / textWidth;
@@ -4256,10 +4248,10 @@ const ShareManager = {
             UIManager.showPostVoteMessage("Could not generate QR.");
         }
     },
-	
-	async shareCompatibility(p1, p2, score, matches, totalRounds) {
+
+    async shareCompatibility(p1, p2, score, matches, totalRounds) {
         UIManager.showPostVoteMessage("Printing coupon... 💘");
-        
+
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         const width = 600;
@@ -4278,7 +4270,7 @@ const ShareManager = {
         ctx.strokeStyle = "#db2777"; // pink-600
         ctx.lineWidth = 8;
         ctx.strokeRect(10, 10, width-20, height-20);
-        
+
         ctx.strokeStyle = "#fdf2f8"; // white inner line
         ctx.lineWidth = 4;
         ctx.strokeRect(18, 18, width-36, height-36);
@@ -4298,12 +4290,12 @@ const ShareManager = {
         ctx.fillStyle = "#db2777"; // pink-600
         ctx.font = "900 140px system-ui, sans-serif";
         ctx.fillText(`${score}%`, width/2, 260);
-        
+
         // 6. Match Details
         ctx.fillStyle = "#6b7280"; // gray-500
         ctx.font = "bold 22px system-ui, sans-serif";
         ctx.fillText(`Matched ${matches || 0} of ${totalRounds || 0} words`, width/2, 310);
-        
+
         // 7. Footer
         ctx.fillStyle = "#9d174d";
         ctx.font = "bold 18px system-ui, sans-serif";
@@ -4313,7 +4305,7 @@ const ShareManager = {
         try {
             const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
             const file = new File([blob], 'compatibility_test.png', { type: 'image/png' });
-            
+
             const shareData = {
                 title: 'Compatibility Result',
                 text: `We are ${score}% compatible! Matched ${matches}/${totalRounds} words 💘 Test your relationship on GBword.com`,
@@ -4335,9 +4327,9 @@ const ShareManager = {
         }
     },
 
-    async generateImage() { 
+    async generateImage() {
         // ... (keep existing generateImage logic) ...
-        // If you need the full code for generateImage again, let me know, 
+        // If you need the full code for generateImage again, let me know,
         // otherwise just keep the previous version here.
         const canvas = document.createElement('canvas');
         // ... rest of generateImage ...
@@ -4385,12 +4377,12 @@ const UIManager = {
             }
         }
     },
-    
+
     addToHistory(word, vote) {
         // Safely tries to find the history list (it might be missing in your HTML)
         const list = document.getElementById('history-list');
         if (!list) return;
-        
+
         const item = document.createElement('div');
         item.className = `flex justify-between items-center p-3 mb-2 rounded-lg bg-white border-l-4 shadow-sm animate-slide-in ${vote === 'good' ? 'border-green-500' : 'border-red-500'}`;
         item.innerHTML = `
@@ -4400,7 +4392,6 @@ const UIManager = {
         list.insertBefore(item, list.firstChild);
         if (list.children.length > 50) list.lastChild.remove();
     },
-    // -----------------------------------
 
     showMessage(t, err = false) {
         const wd = DOM.game.wordDisplay;
@@ -4432,16 +4423,16 @@ const UIManager = {
             }, 5000)
         }, 150)
     },
-	
+
 updateStats() {
         const w = State.runtime.allWords;
         if (!w.length) return;
-        
-        // FIX: Always show daily streak in header, ignoring noStreaksMode (which is only for in-game counters)
+
+        // Always show daily streak in header, ignoring noStreaksMode (which is only for in-game counters)
         DOM.header.streak.textContent = State.data.daily.streak || 0;
 
         DOM.header.userVotes.textContent = State.data.voteCount.toLocaleString();
-        
+
         const totalGood = w.reduce((a, b) => a + (b.goodVotes || 0), 0);
         const totalBad = w.reduce((a, b) => a + (b.badVotes || 0), 0);
         const globalTotal = totalGood + totalBad;
@@ -4454,7 +4445,7 @@ updateStats() {
         // --- GRAPH LOGIC ---
         if (globalTotal > 0) {
             const goodPct = (totalGood / globalTotal) * 100;
-            const badPct = 100 - goodPct; 
+            const badPct = 100 - goodPct;
 
             DOM.header.barGood.style.width = `${goodPct}%`;
             DOM.header.barBad.style.width = `${badPct}%`;
@@ -4462,17 +4453,17 @@ updateStats() {
             DOM.header.barGood.style.width = '50%';
             DOM.header.barBad.style.width = '50%';
         }
-        
+
         // Update community goal bar
         CommunityGoal.update(globalTotal);
-        
+
         this.renderMiniRankings();
     },
 
 showRoleReveal(title, subtitle, type = 'neutral') {
         const colors = { evil: 'bg-red-600', good: 'bg-green-600', neutral: 'bg-indigo-600' };
         const bg = colors[type] || colors.neutral;
-        
+
         const el = document.createElement('div');
         el.className = 'fixed inset-0 z-[10000] flex items-center justify-center bg-black/90 px-4';
         el.innerHTML = `
@@ -4489,8 +4480,8 @@ showRoleReveal(title, subtitle, type = 'neutral') {
 
     updateProfileDisplay() {
         const n = State.data.username;
-        const p = State.data.profilePhoto; 
-        
+        const p = State.data.profilePhoto;
+
         DOM.header.profileLabel.textContent = n ? `${n}'s Profile` : 'My Profile';
         DOM.profile.statsTitle.textContent = n ? `${n}'s Stats` : 'Your Stats';
         if (n) DOM.inputs.username.value = n;
@@ -4513,7 +4504,7 @@ showRoleReveal(title, subtitle, type = 'neutral') {
             DOM.profile.modalImage.classList.add('hidden');
         }
     },
-	
+
 openProfile() {
         this.updateProfileDisplay();
         const d = State.data;
@@ -4530,7 +4521,7 @@ openProfile() {
             DOM.profile.streak.style.cursor = 'pointer';
             DOM.profile.streak.style.textDecoration = 'underline';
             DOM.profile.streak.title = "View Daily Leaderboard";
-            
+
             DOM.profile.streak.onclick = () => {
                 ModalManager.toggle('profile', false);
                 const statsBtn = document.getElementById('headerStatsCard');
@@ -4597,35 +4588,35 @@ openProfile() {
 
         // --- 6. BUILD BADGE GRID (With your specific descriptions) ---
         const row1 = [
-            { k: 'cake', i: '🎂', w: 'CAKE' }, { k: 'llama', i: '🦙', w: 'LLAMA' }, 
-            { k: 'potato', i: '🥔', w: 'POTATO' }, { k: 'squirrel', i: '🐿️', w: 'SQUIRREL' }, 
-            { k: 'spider', i: '🕷️', w: 'SPIDER' }, { k: 'germ', i: '🦠', w: 'GERM' }, 
+            { k: 'cake', i: '🎂', w: 'CAKE' }, { k: 'llama', i: '🦙', w: 'LLAMA' },
+            { k: 'potato', i: '🥔', w: 'POTATO' }, { k: 'squirrel', i: '🐿️', w: 'SQUIRREL' },
+            { k: 'spider', i: '🕷️', w: 'SPIDER' }, { k: 'germ', i: '🦠', w: 'GERM' },
             { k: 'bone', i: '🦴', w: 'MASON' }
         ];
-        
+
         const row2 = [
-            { k: 'poop', i: '💩', d: 'squelch.' }, 
-            { k: 'penguin', i: '🐧', d: 'noot noot!' }, 
-            { k: 'scorpion', i: '🦂', d: 'I am in your tent.' }, 
-            { k: 'mushroom', i: '🍄', d: 'edible once.' }, 
-            { k: 'needle', i: '💉', d: 'wheedle, wheedle, pry and needle' }, 
+            { k: 'poop', i: '💩', d: 'squelch.' },
+            { k: 'penguin', i: '🐧', d: 'noot noot!' },
+            { k: 'scorpion', i: '🦂', d: 'I am in your tent.' },
+            { k: 'mushroom', i: '🍄', d: 'edible once.' },
+            { k: 'needle', i: '💉', d: 'wheedle, wheedle, pry and needle' },
             { k: 'diamond', i: '💎', d: 'hidden Gem.' },
-            { k: 'rock', i: '🤘', d: 'space rock!' }, 
-            { k: 'chopper', i: '🚁', d: 'Get to the choppa!' }, 
+            { k: 'rock', i: '🤘', d: 'space rock!' },
+            { k: 'chopper', i: '🚁', d: 'Get to the choppa!' },
             { k: 'snowman', i: '⛄', d: "# We're walking in the air..." }
         ];
-        
+
         const row_fish = [
-            { k: 'fish', i: '🐟', t: 'Blue Fish', d: 'A standard catch.' }, 
-            { k: 'tropical', i: '🐠', t: 'Tropical Fish', d: 'Found in the deep.' }, 
-            { k: 'puffer', i: '🐡', t: 'Pufferfish', d: 'Spiky friend.' }, 
+            { k: 'fish', i: '🐟', t: 'Blue Fish', d: 'A standard catch.' },
+            { k: 'tropical', i: '🐠', t: 'Tropical Fish', d: 'Found in the deep.' },
+            { k: 'puffer', i: '🐡', t: 'Pufferfish', d: 'Spiky friend.' },
             { k: 'shark', i: '🦈', t: 'Shark', d: 'Gonna need a bigger boat.' },
             { k: 'octopus', i: '🐙', t: 'The Kraken', d: 'Ink-credible!' }
         ];
-        
+
         const row3 = [
-            { k: 'exterminator', i: '☠️', t: 'The Exterminator', d: 'Fed 100 bugs', val: d.insectStats.eaten, gold: 1000 }, 
-            { k: 'saint', i: '😇', t: 'The Saint', d: 'Saved 100 bugs', val: d.insectStats.saved, gold: 1000 }, 
+            { k: 'exterminator', i: '☠️', t: 'The Exterminator', d: 'Fed 100 bugs', val: d.insectStats.eaten, gold: 1000 },
+            { k: 'saint', i: '😇', t: 'The Saint', d: 'Saved 100 bugs', val: d.insectStats.saved, gold: 1000 },
             { k: 'prankster', i: '🃏', t: 'Original Prankster', d: 'Teased spider 50 times', val: d.insectStats.teased, gold: 500 },
             { k: 'judge', i: '⚖️', t: 'The Judge', d: 'Cast 1,000 votes', val: d.voteCount, gold: 10000 },
             { k: 'bard', i: '✍️', t: 'The Bard', d: '5 accepted words', val: d.contributorCount, gold: 50 },
@@ -4639,7 +4630,7 @@ openProfile() {
             let defTitle = x.k.charAt(0).toUpperCase() + x.k.slice(1);
             let classes = `badge-item relative transition-all duration-300 transform `;
             let style = '';
-            
+
             const isGold = x.gold && x.val >= x.gold;
             if (isGold) {
                 defTitle = `✨ GOLD ${x.t || defTitle} ✨`;
@@ -4651,12 +4642,12 @@ openProfile() {
                 classes += `opacity-25 grayscale`;
             }
 
-            return `<span class="${classes}" 
+            return `<span class="${classes}"
                     style="${style}"
-                    title="${un ? (x.t || defTitle) : 'Locked'}" 
+                    title="${un ? (x.t || defTitle) : 'Locked'}"
                     data-key="${x.k}"
-                    ${x.w ? `data-word="${x.w}"` : ''} 
-                    data-title="${un ? (isGold ? '✨ GOLD STATUS ✨' : (x.t || defTitle)) : 'Locked'}" 
+                    ${x.w ? `data-word="${x.w}"` : ''}
+                    data-title="${un ? (isGold ? '✨ GOLD STATUS ✨' : (x.t || defTitle)) : 'Locked'}"
                     data-desc="${un ? (isGold ? `Legendary! You reached ${x.gold}+ (${x.val})` : (x.d || 'Unlocked!')) : 'Keep playing to find this item!'}"
                     >${x.i}</span>`
         }).join('') + `</div>`;
@@ -4668,7 +4659,7 @@ openProfile() {
              for(let i=0; i<bugCount; i++) bugsStr += `<span class="jar-bug" style="cursor: pointer; display: inline-block; padding: 2px;">🦟</span>`;
              bugJarHTML = `<div class="w-full text-center my-4 p-3 bg-green-50 rounded-xl border border-green-100"><div class="text-[10px] font-bold text-green-600 mb-1">THE BUG JAR (${saved})</div><div id="jar-container" class="text-xl">${bugsStr}</div></div>`;
         }
-        
+
         let bugHotelHTML = '';
         const splattedCount = State.data.insectStats.splatted || 0;
         const collection = State.data.insectStats.collection || [];
@@ -4699,11 +4690,11 @@ openProfile() {
 
         const b = DOM.profile.badges;
         if (b) {
-            b.innerHTML = 
-                `<div class="text-xs font-bold text-gray-500 uppercase mb-2 mt-2">🏆 Word Badges</div>` + renderRow(row1) + 
-                `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🧸 Found Items</div>` + renderRow(row2) + 
-                `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🌊 Aquarium</div>` + renderRow(row_fish) + 
-                bugJarHTML + bugHotelHTML + 
+            b.innerHTML =
+                `<div class="text-xs font-bold text-gray-500 uppercase mb-2 mt-2">🏆 Word Badges</div>` + renderRow(row1) +
+                `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🧸 Found Items</div>` + renderRow(row2) +
+                `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🌊 Aquarium</div>` + renderRow(row_fish) +
+                bugJarHTML + bugHotelHTML +
                 `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🎖️ Achievements</div>` + renderRow(row3);
 
             // --- 7. TOOLTIPS & SPIDER LOGIC (RESTORED) ---
@@ -4712,15 +4703,15 @@ openProfile() {
                 const tip = document.createElement('div');
                 tip.className = 'global-badge-tooltip';
                 Object.assign(tip.style, {
-                    position: 'fixed', backgroundColor: '#1f2937', color: 'white', padding: '8px 12px', 
-                    borderRadius: '8px', fontSize: '12px', textAlign: 'center', width: 'max-content', 
-                    maxWidth: '200px', zIndex: '9999', boxShadow: '0 4px 6px rgba(0,0,0,0.3)', 
+                    position: 'fixed', backgroundColor: '#1f2937', color: 'white', padding: '8px 12px',
+                    borderRadius: '8px', fontSize: '12px', textAlign: 'center', width: 'max-content',
+                    maxWidth: '200px', zIndex: '9999', boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
                     pointerEvents: 'none', lineHeight: '1.4', opacity: '0', transition: 'opacity 0.2s'
                 });
                 tip.innerHTML = `<div class="font-bold text-yellow-300 mb-1 text-sm border-b border-gray-600 pb-1">${title}</div><div class="text-gray-200">${desc}</div>`;
                 document.body.appendChild(tip);
                 const rect = targetEl.getBoundingClientRect();
-                tip.style.top = (rect.top - 60) + 'px'; 
+                tip.style.top = (rect.top - 60) + 'px';
                 tip.style.left = (rect.left + rect.width / 2) + 'px';
                 tip.style.transform = 'translateX(-50%)';
                 requestAnimationFrame(() => tip.style.opacity = '1');
@@ -4728,12 +4719,12 @@ openProfile() {
                 setTimeout(() => targetEl.style.transform = "", 200);
                 setTimeout(() => { tip.style.opacity = '0'; setTimeout(() => tip.remove(), 200); }, 3000);
             };
-            
+
             b.querySelectorAll('.badge-item').forEach(el => {
                 el.onclick = (e) => {
                     e.stopPropagation();
                     if (el.dataset.word && !el.classList.contains('grayscale')) {
-                        Game.loadSpecial(el.dataset.word); 
+                        Game.loadSpecial(el.dataset.word);
                         ModalManager.toggle('profile', false);
                     } else {
                         showTooltip(el, el.dataset.title, el.dataset.desc);
@@ -4764,13 +4755,13 @@ openProfile() {
 
         ModalManager.toggle('profile', true);
     },
-	
+
 displayWord(w) {
         if (!w) {
             this.showMessage("No words available!");
             return
         }
-        
+
         // Skip offensive words - move to next word
         if (ContentFilter.isOffensive(w.text)) {
             console.warn('Skipping filtered word');
@@ -4778,11 +4769,11 @@ displayWord(w) {
             Game.nextWord();
             return;
         }
-        
+
         const wd = DOM.game.wordDisplay,
             txt = w.text.toUpperCase();
         wd.textContent = txt;
-        
+
         // --- NEW: Floating Controversial Badge Logic ---
         const g = w.goodVotes || 0;
         const b = w.badVotes || 0;
@@ -4796,21 +4787,20 @@ displayWord(w) {
             }
         }
         this.updateControversialIndicator(isContro);
-        // -----------------------------------------------
-        
+
         // Check if golden word in daily challenge
-        const isGolden = State.runtime.isDailyMode && 
-                        State.runtime.dailyChallengeType === 'golden' && 
-                        State.runtime.goldenWord && 
-                        (w._id === State.runtime.goldenWord._id || 
+        const isGolden = State.runtime.isDailyMode &&
+                        State.runtime.dailyChallengeType === 'golden' &&
+                        State.runtime.goldenWord &&
+                        (w._id === State.runtime.goldenWord._id ||
                          String(w._id) === String(State.runtime.goldenWord._id) ||
                          w.text === State.runtime.goldenWord.text);
-        
+
         wd.className = 'font-extrabold text-gray-900 text-center min-h-[72px]';
         wd.classList.remove('golden-word');
         wd.style.cssText = '';
         wd.style.opacity = '1';
-        
+
         if (isGolden) {
             // Golden word styling - ALWAYS golden, regardless of theme
             if (!document.getElementById('golden-style')) {
@@ -4835,7 +4825,7 @@ displayWord(w) {
             wd.style.cursor = 'grab';
             return;
         }
-        
+
         const t = State.runtime.currentTheme;
         if (['dark', 'halloween', 'submarine', 'fire', 'plymouth'].includes(t)) wd.style.color = '#f3f4f6';
         if (t === 'halloween') {
@@ -4887,10 +4877,10 @@ displayWord(w) {
         if (!State.runtime.isCoolingDown) this.disableButtons(false);
         wd.style.cursor = 'grab'
     },
-	
+
     fitText(t) {
         const isLarge = State.data.settings.largeText;
-        const baseSize = isLarge ? 140 : 96; 
+        const baseSize = isLarge ? 140 : 96;
         const minSize = isLarge ? 32 : 24;
 
         const wd = DOM.game.wordDisplay;
@@ -4994,7 +4984,7 @@ displayWord(w) {
             ind.title = 'Click to enable offline mode';
         }
     },
-		updateControversialIndicator(active) {
+        updateControversialIndicator(active) {
         let ind = document.getElementById('controversialIndicator');
         if (!ind) {
             ind = document.createElement('div');
@@ -5014,7 +5004,7 @@ displayWord(w) {
         // 1. Dynamic Background & Text
         let bgClass = 'bg-indigo-900';
         let roleText = '<div class="text-indigo-300 text-xl font-bold mt-4 tracking-widest opacity-50">GET READY</div>';
-        
+
         if (isTraitor) {
             bgClass = 'bg-red-900';
             roleText = '<div class="text-red-400 text-3xl font-black animate-pulse mt-4 tracking-widest border-2 border-red-500 px-4 py-1 rounded">YOU ARE THE TRAITOR</div>';
@@ -5036,7 +5026,7 @@ displayWord(w) {
         const el = document.createElement('div');
         el.id = 'game-countdown';
         el.className = `fixed inset-0 ${bgClass} z-[99999] flex flex-col items-center justify-center transition-colors duration-500`;
-        
+
         // 2. HTML Structure
         el.innerHTML = `
             <div id="cd-text" class="text-white font-black text-9xl animate-ping opacity-90">${seconds}</div>
@@ -5060,7 +5050,7 @@ displayWord(w) {
                     text.classList.add('animate-bounce');
                 }
                 if (typeof Haptics !== 'undefined') Haptics.heavy();
-                
+
                 setTimeout(() => {
                     el.remove();
                     if (callback) callback();
@@ -5075,7 +5065,7 @@ displayWord(w) {
         const old = document.getElementById(modalId);
         if(old) old.remove();
 
-        const drinkersHtml = data.drinkers.map(d => 
+        const drinkersHtml = data.drinkers.map(d =>
             `<div class="font-bold text-lg text-yellow-900 border-b border-yellow-200 last:border-0 py-1">
                 ${d.icon || '🍺'} ${d.name} <span class="text-sm font-normal text-yellow-700">- ${d.reason}</span>
             </div>`
@@ -5087,7 +5077,7 @@ displayWord(w) {
                 <div class="text-6xl mb-4 animate-bounce">🍻</div>
                 <h2 class="text-3xl font-black text-yellow-900 mb-2">DRINK PENALTY!</h2>
                 <div class="text-yellow-800 font-bold mb-6 text-lg bg-yellow-200 inline-block px-3 py-1 rounded-lg">${data.msg || "Penalty Round"}</div>
-                
+
                 <div class="bg-white rounded-xl p-4 mb-6 border-2 border-yellow-200 shadow-inner max-h-[30vh] overflow-y-auto">
                     ${drinkersHtml || '<div class="text-gray-400 italic">Everyone is safe... for now.</div>'}
                 </div>
@@ -5117,14 +5107,14 @@ let restartAction = "window.location.reload()";
 
 if (OfflineManager.isActive() || document.body.classList.contains('listening-mode')) {
     restartAction = "document.getElementById('gameOverModal').remove(); Game.resetGame(); Game.nextWord();";
-} 
+}
 else if (window.RoomManager && window.RoomManager.roomCode) {
     restartAction = "RoomManager.rejoin()";
 }
 
         let header = '';
         let body = '';
-        
+
         // --- 1. OK STOOPID (Couples Mode) ---
         if (data.mode === 'okstoopid') {
             // Use server-calculated compatibility
@@ -5132,7 +5122,7 @@ else if (window.RoomManager && window.RoomManager.roomCode) {
             const percent = okData.compatibility || 0;
             const matches = okData.matches || 0;
             const totalRounds = okData.totalRounds || RoomManager.currentWordCount || 10;
-            
+
             let verdict = "AWKWARD...";
             if (percent > 40) verdict = "JUST FRIENDS?";
             if (percent > 60) verdict = "DATING MATERIAL";
@@ -5147,7 +5137,7 @@ else if (window.RoomManager && window.RoomManager.roomCode) {
                     <div class="text-sm text-gray-500 mt-3">Matched ${matches} of ${totalRounds} words</div>
                 </div>
             `;
-            
+
             // Generate Compatibility Image (Optional Share Feature)
             setTimeout(() => {
                 if(ShareManager && ShareManager.shareCompatibility) {
@@ -5158,21 +5148,21 @@ else if (window.RoomManager && window.RoomManager.roomCode) {
                 }
             }, 100);
         }
-        
+
         // --- 2. TRAITOR MODE ---
         else if (data.mode === 'traitor') {
-            // FIX: Added safety checks to prevent crashes if data is missing
+            // Added safety checks to prevent crashes if data is missing
             const rankings = data.rankings || [];
             const traitor = rankings.find(p => p.id === data.specialRoleId);
             const traitorName = traitor ? traitor.name : "Unknown";
-            
+
             // Check message content safely
             const isTraitorWin = data.msg && data.msg.includes("Traitor Wins");
 
             header = `<h2 class="text-3xl font-black text-center mb-2 ${isTraitorWin ? 'text-red-600' : 'text-green-600'}">
                 ${isTraitorWin ? 'TRAITOR WINS!' : 'TEAM WINS!'}
             </h2>`;
-            
+
             body = `
                 <div class="bg-gray-800 text-white p-4 rounded-xl text-center mb-6">
                     <div class="text-xs uppercase tracking-widest text-gray-400 mb-1">THE TRAITOR WAS</div>
@@ -5186,7 +5176,7 @@ else if (window.RoomManager && window.RoomManager.roomCode) {
             const redScore = data.scores.red || 0;
             const blueScore = data.scores.blue || 0;
             let winner = redScore > blueScore ? "🔴 RED TEAM WINS!" : (blueScore > redScore ? "🔵 BLUE TEAM WINS!" : "🤝 IT'S A TIE!");
-            
+
             header = `<h2 class="text-3xl font-black text-center mb-4 text-gray-800">${winner}</h2>`;
             body = `
                 <div class="flex justify-center gap-4 mb-6 w-full">
@@ -5200,7 +5190,7 @@ else if (window.RoomManager && window.RoomManager.roomCode) {
                     </div>
                 </div>`;
         }
-        
+
         // --- 4. STANDARD / SURVIVAL ---
         else {
             header = `<h2 class="text-3xl font-black text-center mb-4 text-indigo-700">GAME OVER</h2>`;
@@ -5213,7 +5203,7 @@ else if (window.RoomManager && window.RoomManager.roomCode) {
             data.rankings.forEach((p, i) => {
                 const isMe = p.id === RoomManager.playerId;
                 const isTraitor = p.id === data.specialRoleId;
-                
+
                 let badge = '';
                 if (data.mode === 'survival' && (p.lives <= 0)) badge = '💀';
                 if (data.mode === 'traitor' && isTraitor) badge = '🕵️';
@@ -5236,9 +5226,9 @@ else if (window.RoomManager && window.RoomManager.roomCode) {
         <div id="${modalId}" class="fixed inset-0 bg-black/80 z-[10000] flex items-center justify-center p-4 animate-fade-in font-sans">
             <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 transform scale-100 relative overflow-hidden">
                 <button onclick="window.location.href = window.location.pathname" class="absolute top-3 right-4 text-gray-400 hover:text-gray-600 font-bold text-2xl z-10">&times;</button>
-                
+
                 ${header}
-                
+
                 ${body}
 
                 <div class="bg-white border border-gray-200 rounded-xl mb-6 max-h-[30vh] overflow-y-auto custom-scrollbar">
@@ -5247,7 +5237,7 @@ else if (window.RoomManager && window.RoomManager.roomCode) {
 
                 <div class="flex flex-col gap-3">
                     ${data.mode === 'okstoopid' ? `<button id="share-result-btn" class="w-full py-3 bg-pink-100 hover:bg-pink-200 text-pink-600 font-bold rounded-xl transition">📸 Share Coupon</button>` : ''}
-                    
+
 <button onclick="${restartAction}" class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-xl shadow-lg transition transform active:scale-95 flex items-center justify-center gap-2">
     <span>🔄</span> PLAY AGAIN
 </button>
@@ -5304,13 +5294,13 @@ showProfile() {
         const streak = State.data.daily?.streak || 0;
         const total = State.data.voteCount || 0;
         const name = State.data.username || "Guest";
-        
+
         const html = `
         <div id="${modalId}" class="fixed inset-0 bg-black/80 z-[10000] flex items-center justify-center p-4 animate-fade-in font-sans">
             <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 transform scale-100 relative overflow-hidden text-center">
                 <button onclick="document.getElementById('${modalId}').remove()" class="absolute top-3 right-4 text-gray-400 text-2xl">&times;</button>
                 <h2 class="text-3xl font-black text-gray-800 mb-6">PROFILE</h2>
-                
+
                 <div class="grid grid-cols-2 gap-4 mb-6">
                     <div class="bg-orange-50 p-4 rounded-xl border border-orange-100">
                         <div class="text-3xl mb-1">🔥</div>
@@ -5323,7 +5313,7 @@ showProfile() {
                         <div class="text-xs font-bold text-blue-400">TOTAL VOTES</div>
                     </div>
                 </div>
-                
+
                 <div class="bg-gray-50 p-3 rounded-lg text-sm text-gray-500 font-bold mb-4">
                     Playing as: <span class="text-indigo-600">${name}</span>
                 </div>
@@ -5352,7 +5342,7 @@ const PinPad = {
     mode: 'set', // 'set' or 'verify'
     onSuccess: null,
     onCancel: null,
-    
+
     // Security Constants
     MAX_ATTEMPTS: 3,
     LOCKOUT_MS: 60000,
@@ -5362,12 +5352,12 @@ const PinPad = {
         const el = document.createElement('div');
         el.id = 'pinPadModal';
         el.className = 'fixed inset-0 bg-gray-900 bg-opacity-95 z-[200] hidden flex items-center justify-center';
-        
+
         el.innerHTML = `
             <div class="bg-white rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl transform transition-all scale-100">
                 <h3 id="pinTitle" class="text-2xl font-bold text-center mb-2 text-gray-800">Parent Lock</h3>
                 <p id="pinSubtitle" class="text-gray-500 text-center mb-6 text-sm transition-colors duration-200">Enter PIN</p>
-                
+
                 <div id="pinDots" class="flex justify-center gap-4 mb-8">
                     <div class="w-4 h-4 rounded-full bg-gray-200 border-2 border-gray-100"></div>
                     <div class="w-4 h-4 rounded-full bg-gray-200 border-2 border-gray-100"></div>
@@ -5376,7 +5366,7 @@ const PinPad = {
                 </div>
 
                 <div class="grid grid-cols-3 gap-4 mb-6">
-                    ${[1,2,3,4,5,6,7,8,9].map(n => 
+                    ${[1,2,3,4,5,6,7,8,9].map(n =>
                         `<button onclick="PinPad.handleInput('${n}')" class="h-16 w-16 rounded-full bg-gray-100 text-2xl font-bold text-gray-700 active:bg-gray-200 active:scale-95 transition-all mx-auto flex items-center justify-center">${n}</button>`
                     ).join('')}
                     <div class="h-16 w-16"></div>
@@ -5385,7 +5375,7 @@ const PinPad = {
                         <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M3 12l6.414 6.414a2 2 0 001.414.586H19a2 2 0 002-2V7a2 2 0 00-2-2h-8.172a2 2 0 00-1.414.586L3 12z"></path></svg>
                     </button>
                 </div>
-                
+
                 <button onclick="PinPad.close()" class="w-full py-3 text-gray-500 font-semibold active:text-gray-700">Cancel</button>
             </div>
         `;
@@ -5406,11 +5396,11 @@ const PinPad = {
         this.onCancel = onCancel;
         this.input = '';
         this.updateDisplay();
-        
+
         const m = document.getElementById('pinPadModal');
         const t = document.getElementById('pinTitle');
         const s = document.getElementById('pinSubtitle');
-        
+
         if (this.mode === 'set') {
             t.textContent = "Create PIN";
             s.textContent = "Set a 4-digit code for parents";
@@ -5468,7 +5458,7 @@ const PinPad = {
             }
 
             const savedPin = State.data.settings.kidsModePin;
-            
+
             if (this.input === savedPin) {
                 Haptics.medium();
                 this.resetSecurity();
@@ -5477,23 +5467,23 @@ const PinPad = {
             } else {
                 Haptics.heavy();
                 this.shakeBox();
-                
+
                 const attempts = this.recordFailure();
                 if (attempts >= this.MAX_ATTEMPTS) {
                      s.textContent = "LOCKED FOR 60 SECONDS!";
                      s.className = "text-red-600 font-bold text-center mb-6 text-sm animate-pulse";
-                     
+
                      // Force an alert so they definitely see it
                      setTimeout(() => {
                         alert("Too many failed attempts. Parental controls locked for 60 seconds.");
                         this.close(false);
                      }, 500);
-                     
+
                 } else {
                      const left = this.MAX_ATTEMPTS - attempts;
                      s.textContent = `Wrong PIN! ${left} attempts remaining`;
                      s.className = "text-red-500 font-semibold text-center mb-6 text-sm";
-                     
+
                      setTimeout(() => {
                          this.input = '';
                          this.updateDisplay();
@@ -5507,7 +5497,7 @@ const PinPad = {
         const box = document.querySelector('#pinPadModal > div');
         if (box) {
             box.classList.remove('animate-shake');
-            void box.offsetWidth; 
+            void box.offsetWidth;
             box.classList.add('animate-shake');
         }
     },
@@ -5516,7 +5506,7 @@ const PinPad = {
     getAttempts() {
         return parseInt(localStorage.getItem('pin_attempts') || 0);
     },
-    
+
     getLockoutTime() {
         return parseInt(localStorage.getItem('pin_lockout_until') || 0);
     },
@@ -5533,7 +5523,7 @@ const PinPad = {
     recordFailure() {
         const newAttempts = this.getAttempts() + 1;
         localStorage.setItem('pin_attempts', newAttempts);
-        
+
         if (newAttempts >= this.MAX_ATTEMPTS) {
             localStorage.setItem('pin_lockout_until', Date.now() + this.LOCKOUT_MS);
         }
@@ -5558,20 +5548,19 @@ init() {
         document.getElementById('showSettingsButton').onclick = () => {
             const s = State.data.settings;
             const container = document.getElementById('settingsModalContainer').querySelector('.space-y-4');
-            
-            if (container) {
-                container.classList.add('max-h-[60vh]', 'overflow-y-auto', 'pr-2'); 
 
+            if (container) {
+                container.classList.add('max-h-[60vh]', 'overflow-y-auto', 'pr-2');
 
                 const mkTog = (id, label, checked, color = 'text-indigo-600') => `
                     <div class="flex items-center justify-between">
                         <label for="${id}" class="text-lg font-medium text-gray-700">${label}</label>
-                        <input type="checkbox" id="${id}" ${checked ? 'checked' : ''} 
+                        <input type="checkbox" id="${id}" ${checked ? 'checked' : ''}
                                class="h-6 w-6 ${color} border-gray-300 rounded focus:ring-indigo-500">
                     </div>`;
 
                 let html = '';
-                
+
                 // 1. NETWORK
                 const isOffline = s.offlineMode || false;
                 html += `<div class="mb-6">
@@ -5580,21 +5569,21 @@ init() {
                 html += mkTog('toggleOffline', '🚇 Offline Mode', isOffline, 'text-gray-800');
                 html += `<p class="text-xs text-gray-400 mt-1">Saves words locally. Votes sync when you reconnect.</p>`;
                 html += `</div></div>`;
- 
+
                 // 2. SETTINGS
                 html += `<div class="mb-6"><h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 border-b border-gray-100 pb-1">Settings</h3><div class="space-y-4">`;
-				
-				html += mkTog('toggleNoStreaks', '🧘 No Streaks, please!', s.noStreaksMode);
+
+                html += mkTog('toggleNoStreaks', '🧘 No Streaks, please!', s.noStreaksMode);
                 html += `<p class="text-xs text-gray-400 mt-1 mb-2">Hides timers and streak counters for a relaxed game.</p>`;
-				
-				if (State.data.unlockedThemes.length > 0) {
+
+                if (State.data.unlockedThemes.length > 0) {
                      html += mkTog('toggleRandomTheme', '🔀 Randomise Theme on Load', s.randomizeTheme);
                 }
                 html += mkTog('togglePercentages', 'Show Vote Percentages', s.showPercentages);
                 html += mkTog('toggleTips', 'Show Tips & Hints', s.showTips);
                 html += `<button onclick="TipManager.open()" class="w-full mt-2 py-2 bg-indigo-50 text-indigo-600 font-bold rounded-lg border border-indigo-100 hover:bg-indigo-100 transition">💡 Submit Your Own Tip</button>`;
                 html += mkTog('toggleZeroVotes', 'Show Only New Words (0/0)', s.zeroVotesOnly);
-				html += mkTog('toggleControversial', 'Show Only Controversial Words', s.controversialOnly, 'text-orange-600');
+                html += mkTog('toggleControversial', 'Show Only Controversial Words', s.controversialOnly, 'text-orange-600');
                 html += `</div></div>`;
 
                 // 3. ACCESSIBILITY
@@ -5602,7 +5591,7 @@ init() {
                 html += mkTog('toggleColorblind', 'Colourblind Mode', s.colorblindMode);
                 html += mkTog('toggleLargeText', 'Increase Text Size', s.largeText);
                 html += mkTog('toggleMute', 'Mute All Sounds', s.muteSounds);
-				if (State.data.unlockedThemes.includes('halloween')) {
+                if (State.data.unlockedThemes.includes('halloween')) {
                     html += mkTog('toggleArachnophobia', '🚫 Arachnophobia Mode', s.arachnophobiaMode);
                 }
                 html += mkTog('toggleKidsMode', '🧸 Kids Mode', s.kidsMode, 'text-pink-600');
@@ -5613,9 +5602,9 @@ init() {
                 html += mkTog('toggleTilt', 'Gravity Tilt (Default Theme)', s.enableTilt);
                 html += mkTog('toggleMirror', 'Mirror Mode', s.mirrorMode);
                 html += mkTog('toggleLights', '🎄 Christmas Lights', s.showLights, 'text-green-600');
-				html += mkTog('toggleWeather', '🌧️ Real-time Weather', s.enableWeather, 'text-blue-500');
-				html += `<p class="text-xs text-gray-400 mt-1 mb-2">Requires location. ...only happens if it's raining (or snowing)!</p>`;
-				
+                html += mkTog('toggleWeather', '🌧️ Real-time Weather', s.enableWeather, 'text-blue-500');
+                html += `<p class="text-xs text-gray-400 mt-1 mb-2">Requires location. ...only happens if it's raining (or snowing)!</p>`;
+
                 html += `</div></div>`;
 
                 // 5. INTERFACE
@@ -5627,10 +5616,10 @@ init() {
 
                 // Hide Data Management in Kids Mode to prevent children from deleting progress
                 if (!s.kidsMode) {
-				html += `<div class="mt-8 pt-4 border-t-2 border-gray-100">
+                html += `<div class="mt-8 pt-4 border-t-2 border-gray-100">
                     <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Data Management</h3>
                     <p class="text-xs text-gray-500 mb-4">Please clear local data or back up your game statistics and achievements here.</p>
-                    
+
                     <div class="grid grid-cols-2 gap-3 mb-3">
                         <button id="exportSaveBtn" class="py-2 bg-blue-50 text-blue-600 font-bold rounded-lg border border-blue-100 hover:bg-blue-100 transition flex items-center justify-center gap-2">
                             💾 Back Up!
@@ -5649,16 +5638,16 @@ init() {
 
                 // INJECT HTML
                 container.innerHTML = html;
-                
+
                 // Network
                 document.getElementById('toggleOffline').onchange = e => OfflineManager.toggle(e.target.checked);
 
                 // Settings
-                document.getElementById('togglePercentages').onchange = e => 
+                document.getElementById('togglePercentages').onchange = e =>
                     State.save('settings', { ...State.data.settings, showPercentages: e.target.checked });
-                document.getElementById('toggleTips').onchange = e => 
+                document.getElementById('toggleTips').onchange = e =>
                     State.save('settings', { ...State.data.settings, showTips: e.target.checked });
-					const randBtn = document.getElementById('toggleRandomTheme');
+                    const randBtn = document.getElementById('toggleRandomTheme');
                 if (randBtn) {
                     randBtn.onchange = e => State.save('settings', { ...State.data.settings, randomizeTheme: e.target.checked });
                 }
@@ -5673,7 +5662,7 @@ init() {
                     }
                     State.save('settings', newSettings);
                     Game.refreshData(true);
-					
+
                 };
 
                 document.getElementById('toggleControversial').onchange = e => {
@@ -5688,16 +5677,16 @@ init() {
                     State.save('settings', newSettings);
                     Game.refreshData(true);
                 };
-				
-				document.getElementById('toggleNoStreaks').onchange = e => {
+
+                document.getElementById('toggleNoStreaks').onchange = e => {
                     State.save('settings', { ...State.data.settings, noStreaksMode: e.target.checked });
                     UIManager.updateStats();
-                    
+
                     // Remove floating counter if it exists
                     const floatEl = document.getElementById('streak-floating-counter');
                     if (floatEl) floatEl.remove();
                 };
-				
+
                 // Accessibility
                 document.getElementById('toggleColorblind').onchange = e => {
                     State.save('settings', { ...State.data.settings, colorblindMode: e.target.checked });
@@ -5707,8 +5696,8 @@ init() {
                     State.save('settings', { ...State.data.settings, largeText: e.target.checked });
                     Accessibility.apply();
                 };
-				
-				// Hide Multiplayer toggle
+
+                // Hide Multiplayer toggle
                 const hideMultiplayerToggle = document.getElementById('toggleHideMultiplayer');
                 if (hideMultiplayerToggle) {
                     hideMultiplayerToggle.onchange = e => {
@@ -5721,7 +5710,7 @@ init() {
                         }
                     };
                 }
-                
+
                 // Hide Cards toggle (Theme Mode)
                 const hideCardsToggle = document.getElementById('toggleHideCards');
                 if (hideCardsToggle) {
@@ -5730,18 +5719,18 @@ init() {
                         Game.applyHideCards(e.target.checked);
                     };
                 }
-				
-				document.getElementById('toggleMute').onchange = e => {
+
+                document.getElementById('toggleMute').onchange = e => {
                     State.save('settings', { ...State.data.settings, muteSounds: e.target.checked });
                     SoundManager.updateMute();
                 };
 
-				const arachBtn = document.getElementById('toggleArachnophobia');
+                const arachBtn = document.getElementById('toggleArachnophobia');
                 if (arachBtn) {
                     arachBtn.onchange = e => {
                         const isSafe = e.target.checked;
                         State.save('settings', { ...State.data.settings, arachnophobiaMode: isSafe });
-                        
+
                         // --- FIX: Refund bug if web disappears ---
                         if (isSafe && typeof MosquitoManager !== 'undefined' && MosquitoManager.state === 'stuck') {
                              State.data.insectStats.saved++;
@@ -5749,7 +5738,6 @@ init() {
                              MosquitoManager.remove();
                              UIManager.showPostVoteMessage("Bug returned to jar! 🦟");
                         }
-                        // -----------------------------------------
 
                         if (State.data.currentTheme === 'halloween') {
                             Effects.halloween(true);
@@ -5762,7 +5750,7 @@ init() {
                     const savedPin = State.data.settings.kidsModePin;
                     const roomBtn = document.getElementById('roomBtn');
 
-                    e.preventDefault(); 
+                    e.preventDefault();
 
                     const updateMultiplayerVisibility = (kidsOn) => {
                         if (roomBtn) {
@@ -5779,16 +5767,16 @@ init() {
                                 UIManager.showPostVoteMessage(`Kids Mode Active! 🧸`);
                                 updateMultiplayerVisibility(true);
                                 Game.refreshData(true);
-                                this.toggle('settings', false); 
+                                this.toggle('settings', false);
                             }, () => {
-                                
+
                                 document.getElementById('toggleKidsMode').checked = false;
                             });
                         } else {
                             State.save('settings', { ...State.data.settings, kidsMode: true });
                             updateMultiplayerVisibility(true);
                             Game.refreshData(true);
-							ModalManager.toggle('settings', false);
+                            ModalManager.toggle('settings', false);
                         }
                     } else {
                         e.target.checked = true;
@@ -5798,15 +5786,15 @@ init() {
                             Game.refreshData(true);
                             return;
                         }
-                        
+
                         PinPad.open('verify', () => {
                             State.save('settings', { ...State.data.settings, kidsMode: false });
                             updateMultiplayerVisibility(false);
                             Game.refreshData(true);
                             document.getElementById('toggleKidsMode').checked = false;
-							ModalManager.toggle('settings', false);
+                            ModalManager.toggle('settings', false);
                         }, () => {
-                            document.getElementById('toggleKidsMode').checked = true; 
+                            document.getElementById('toggleKidsMode').checked = true;
                         });
                     }
                 };
@@ -5814,7 +5802,7 @@ init() {
                 document.getElementById('toggleTilt').onchange = e => {
                     State.save('settings', { ...State.data.settings, enableTilt: e.target.checked });
                     TiltManager.refresh();
-					if (window.WeatherManager) window.WeatherManager.updateVisuals();
+                    if (window.WeatherManager) window.WeatherManager.updateVisuals();
                 };
                 document.getElementById('toggleMirror').onchange = e => {
                     State.save('settings', { ...State.data.settings, mirrorMode: e.target.checked });
@@ -5824,27 +5812,26 @@ init() {
                     State.save('settings', { ...State.data.settings, showLights: e.target.checked });
                     Game.updateLights();
                 };
-				const wToggle = document.getElementById('toggleWeather');
-				if (wToggle) {
-					wToggle.onchange = e => WeatherManager.toggle(e.target.checked);
-				}
-
+                const wToggle = document.getElementById('toggleWeather');
+                if (wToggle) {
+                    wToggle.onchange = e => WeatherManager.toggle(e.target.checked);
+                }
 
                 // --- Data Management listeners (only exist when not in Kids Mode) ---
                 const exportBtn = document.getElementById('exportSaveBtn');
                 const importInput = document.getElementById('importFileInput');
                 const importBtn = document.getElementById('importSaveBtn');
                 const clearBtn = document.getElementById('clearAllDataButton');
-                
+
                 if (exportBtn) exportBtn.onclick = () => DataManager.exportData();
-                
+
                 if (importBtn && importInput) {
                     importBtn.onclick = () => importInput.click();
                     importInput.onchange = (e) => {
                         if (e.target.files.length > 0) {
                             DataManager.importData(e.target.files[0]);
                         }
-                        e.target.value = ''; 
+                        e.target.value = '';
                     };
                 }
                 if (clearBtn) clearBtn.onclick = State.clearAll;
@@ -5878,8 +5865,8 @@ init() {
             shareBtn.onclick = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                e.stopImmediatePropagation(); 
-                
+                e.stopImmediatePropagation();
+
                 const currentWord = State.runtime.allWords[State.runtime.currentWordIndex];
                 if (currentWord) ShareManager.shareWord(currentWord.text);
             };
@@ -5893,7 +5880,7 @@ init() {
         };
         DOM.header.userStatsBar.onclick = () => UIManager.openProfile();
         document.getElementById('closeProfileModal').onclick = () => this.toggle('profile', false);
-        
+
         document.getElementById('saveUsernameBtn').onclick = async () => {
             const n = DOM.inputs.username.value.trim(),
                 m = DOM.profile.saveMsg;
@@ -5918,7 +5905,7 @@ init() {
             }
             setTimeout(() => m.textContent = '', 2000)
         };
-        
+
         document.getElementById('shareProfileButton').onclick = () => ShareManager.share();
         DOM.daily.closeBtn.onclick = () => {
             this.toggle('dailyResult', false);
@@ -5936,7 +5923,7 @@ init() {
                 const img = new Image();
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
-                    const MAX_SIZE = 150; 
+                    const MAX_SIZE = 150;
                     let width = img.width;
                     let height = img.height;
                     if (width > height) {
@@ -5965,7 +5952,7 @@ init() {
             };
             reader.readAsDataURL(file);
         };
-		
+
         const btnGood = document.getElementById('btnOpenGoodRankings');
         if (btnGood) btnGood.onclick = () => {
             UIManager.renderFullRankings();
@@ -5989,10 +5976,10 @@ init() {
         const headerStats = document.getElementById('headerStatsCard');
         if (headerStats) {
             headerStats.onclick = (e) => {
-                e.preventDefault(); 
+                e.preventDefault();
                 Game.renderGraphs();
-				Game.renderLeaderboardTable();
-                
+                Game.renderLeaderboardTable();
+
                 const gm = document.getElementById('graphModalContainer');
                 if (gm) {
                     gm.classList.remove('hidden');
@@ -6000,7 +5987,7 @@ init() {
                 }
             };
         }
-        
+
         const closeGraph = document.getElementById('closeGraphModal');
         if (closeGraph) {
             closeGraph.onclick = () => {
@@ -6011,9 +5998,9 @@ init() {
                 }
             };
         }
-        
+
         Object.keys(DOM.modals).forEach(k => {
-            DOM.modals[k].style.zIndex = '150'; 
+            DOM.modals[k].style.zIndex = '150';
             DOM.modals[k].addEventListener('click', e => {
                 if (e.target === DOM.modals[k]) this.toggle(k, false);
             });
@@ -6080,7 +6067,7 @@ send() {
         this.close();
         if (typeof ModalManager !== 'undefined') ModalManager.toggle('settings', false); // Close settings too
         window.scrollTo({ top: 0, behavior: 'smooth' }); // Scroll to top
-        // -------------------------------------
+        --
 
         UIManager.showPostVoteMessage("Tip sent! Thanks! 💌");
 
@@ -6098,23 +6085,23 @@ window.TipManager = TipManager;
 const ContactManager = {
     serviceID: 'service_b6d75wi',
     templateID: 'template_qody7q7',
-    COOLDOWN_MINS: 10, 
+    COOLDOWN_MINS: 10,
 
     init() {
         if (document.getElementById('contactModal')) return;
-        
+
         const el = document.createElement('div');
         el.id = 'contactModal';
         // Use items-start with padding-top to position modal higher, avoiding keyboard overlap
         el.className = 'fixed inset-0 bg-gray-900 bg-opacity-95 z-[200] hidden flex items-start justify-center pt-16 overflow-y-auto';
-        
+
         el.innerHTML = `
             <div class="bg-white rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl mb-8">
                 <h3 class="text-2xl font-bold text-center mb-2 text-gray-800">Contact Developer</h3>
                 <p class="text-gray-500 text-center mb-4 text-sm">Found a bug or have a question?</p>
-                
+
                 <textarea id="contactInput" rows="5" class="w-full p-3 border border-gray-300 rounded-lg mb-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none" placeholder="Write your message here..."></textarea>
-                
+
                 <div id="contactError" class="text-red-500 text-sm font-bold text-center h-5 mb-2"></div>
 
                 <div class="flex gap-3">
@@ -6140,7 +6127,7 @@ const ContactManager = {
 
     send() {
         const errDiv = document.getElementById('contactError');
-        
+
         // 1. CHECK COOLDOWN
         const lastSent = parseInt(localStorage.getItem('lastContactSent') || 0);
         const now = Date.now();
@@ -6156,18 +6143,18 @@ const ContactManager = {
         const input = document.getElementById('contactInput');
         const text = input.value.trim();
 
-        if (!text) { 
+        if (!text) {
             errDiv.textContent = "Please write a message first!";
-            return; 
+            return;
         }
 
         // --- NEW: Close Modal & Scroll Up ---
         this.close();
         window.scrollTo({ top: 0, behavior: 'smooth' }); // Scroll to top
-        // ------------------------------------
+        -
 
         UIManager.showPostVoteMessage("Message sent! I'll read it soon. 📨");
-        
+
         // 2. SET TIMESTAMP
         localStorage.setItem('lastContactSent', now);
 
@@ -6183,9 +6170,9 @@ window.ContactManager = ContactManager;
 const InputHandler = {
     sX: 0, sY: 0, drag: false, scroll: false, raf: null,
     init() {
-		if (!DOM.game.card || !DOM.game.wordDisplay) return;
+        if (!DOM.game.card || !DOM.game.wordDisplay) return;
         const c = DOM.game.card, wd = DOM.game.wordDisplay;
-        
+
         const startDrag = (x, y) => {
             if (State.runtime.isCoolingDown || DOM.game.buttons.good.disabled) return;
             this.sX = x; this.sY = y; this.drag = false; this.scroll = false;
@@ -6225,7 +6212,7 @@ const InputHandler = {
             wd.classList.remove('override-theme-color');
             if (this.raf) cancelAnimationFrame(this.raf);
             if (Math.abs(dX) > CONFIG.VOTE.SWIPE_THRESHOLD) {
-                let l = dX < 0; 
+                let l = dX < 0;
                 if (State.data.settings.mirrorMode) l = !l;
                 wd.style.transition = 'transform .4s ease-out, opacity .4s ease-out';
                 const exitX = l ? -window.innerWidth : window.innerWidth;
@@ -6267,7 +6254,7 @@ const DiscoveryManager = {
         { id: 'stats', selector: '#userStatsBar', msg: 'View Progress', pos: 'bottom' },
         { id: 'rankings', selector: '#headerStatsCard', msg: 'See Graphs', pos: 'bottom' }
     ],
-    
+
     timer: null,
 
     init() {
@@ -6319,7 +6306,7 @@ const DiscoveryManager = {
     },
 
     check() {
-		if (State.runtime.isMultiplayer) return;
+        if (State.runtime.isMultiplayer) return;
         const nextTarget = this.targets.find(t => !State.data.discovered.includes(t.id));
         if (nextTarget) {
             // Trigger if new user (no discoveries) or random chance
@@ -6328,15 +6315,15 @@ const DiscoveryManager = {
             }
         }
     },
-	
-	clear() {
+
+    clear() {
         document.querySelectorAll('.discovery-halo').forEach(el => el.classList.remove('discovery-halo'));
         document.querySelectorAll('.discovery-tooltip').forEach(el => el.remove());
     },
 
     highlight(target) {
         const el = document.querySelector(target.selector);
-        if (!el || el.offsetParent === null) return; 
+        if (!el || el.offsetParent === null) return;
 
         const rect = el.getBoundingClientRect();
         if (rect.top < 0 || rect.bottom > window.innerHeight) {
@@ -6348,19 +6335,19 @@ const DiscoveryManager = {
         const tip = document.createElement('div');
         tip.className = 'discovery-tooltip';
         tip.textContent = target.msg;
-        
+
         // --- NEW: Handle Position Logic (Left/Right/Bottom) ---
         const pos = target.pos || 'bottom';
         const arrow = document.createElement('div'); // Create arrow manually for control
-        
+
         if (pos === 'left') {
             tip.style.right = '110%'; // Push to left
             tip.style.top = '50%';
             tip.style.transform = 'translateY(-50%)';
             // Arrow pointing Right (from left side)
-            tip.classList.add('arrow-right'); 
+            tip.classList.add('arrow-right');
             Object.assign(tip.style, { right: 'calc(100% + 10px)', top: '50%', transform: 'translateY(-50%)' });
-        } 
+        }
         else if (pos === 'right') {
             tip.style.left = '110%'; // Push to right
             tip.style.top = '50%';
@@ -6369,7 +6356,7 @@ const DiscoveryManager = {
         }
         else {
             // Default Bottom
-            tip.style.top = '115%'; 
+            tip.style.top = '115%';
             tip.style.left = '50%';
             tip.style.transform = 'translateX(-50%)';
         }
@@ -6390,22 +6377,22 @@ const DiscoveryManager = {
             document.head.appendChild(s);
         }
         tip.classList.add('pos-' + pos);
-        
+
         const originalPos = getComputedStyle(el).position;
         if (originalPos === 'static') el.style.position = 'relative';
-        
+
         el.appendChild(tip);
 
         const onDiscover = (e) => {
             el.classList.remove('discovery-halo');
             if (tip) tip.remove();
-            
+
             if (!State.data.discovered.includes(target.id)) {
                 State.data.discovered.push(target.id);
                 State.save('discovered', State.data.discovered);
             }
             el.removeEventListener('click', onDiscover);
-            setTimeout(() => this.check(), 60000); 
+            setTimeout(() => this.check(), 60000);
         };
 
         el.addEventListener('click', onDiscover);
@@ -6456,27 +6443,26 @@ const LocalPeerManager = {
     votes: {},
     gameMode: 'coop',
     rounds: 10,
-    
+
     // ICE servers for WebRTC
     iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' }
     ],
-    
+
     initialized: false,
     hostId: null,
-    
+
     init(socket) {
         if (this.initialized && this.socket === socket) return;
         this.socket = socket;
         this.setupSignaling();
         this.initialized = true;
-        console.log('[LocalPeer] Initialized');
     },
-    
+
     setupSignaling() {
         if (!this.socket) return;
-        
+
         // Remove old listeners first to prevent duplicates
         this.socket.off('localRoomCreated');
         this.socket.off('localRoomJoined');
@@ -6488,10 +6474,9 @@ const LocalPeerManager = {
         this.socket.off('localHostDisconnected');
         this.socket.off('localPeerDisconnected');
         this.socket.off('localWordsRefreshed');
-        
+
         // Host: room created
         this.socket.on('localRoomCreated', ({ roomCode, words, rounds }) => {
-            console.log('[LocalPeer] Room created:', roomCode);
             this.roomCode = roomCode;
             this.words = words;
             this.rounds = rounds;
@@ -6502,27 +6487,24 @@ const LocalPeerManager = {
             this.showLocalLobby();
             UIManager.showPostVoteMessage(`Room: ${roomCode} 📡`);
         });
-        
+
         // Peer: joined room, wait for host's offer
         this.socket.on('localRoomJoined', async ({ roomCode, hostId, hostName }) => {
-            console.log('[LocalPeer] Joined room:', roomCode, 'Host:', hostId);
             this.roomCode = roomCode;
             this.hostId = hostId;
             this.isHost = false;
             UIManager.showPostVoteMessage(`Connecting to ${hostName}... 🔗`);
             // Now wait for rtcOffer from host
         });
-        
+
         // Host: new peer wants to connect - create offer
         this.socket.on('localPeerJoined', async ({ peerId, peerName }) => {
-            console.log('[LocalPeer] Peer joined:', peerName, peerId);
             if (!this.isHost) return;
             await this.connectToPeer(peerId, peerName);
         });
-        
+
         // Peer receives offer from host
         this.socket.on('rtcOffer', async ({ from, offer, roomCode }) => {
-            console.log('[LocalPeer] Received offer from:', from);
             if (this.isHost) return;
             try {
                 await this.handleOffer(from, offer);
@@ -6531,10 +6513,9 @@ const LocalPeerManager = {
                 UIManager.showPostVoteMessage("Connection failed ❌");
             }
         });
-        
+
         // Host receives answer from peer
         this.socket.on('rtcAnswer', async ({ from, answer }) => {
-            console.log('[LocalPeer] Received answer from:', from);
             if (!this.isHost) return;
             const peer = this.peers.get(from);
             if (peer && peer.connection) {
@@ -6545,7 +6526,7 @@ const LocalPeerManager = {
                 }
             }
         });
-        
+
         // ICE candidate exchange
         this.socket.on('rtcIceCandidate', async ({ from, candidate }) => {
             if (!candidate) return;
@@ -6562,21 +6543,21 @@ const LocalPeerManager = {
                 console.error('[LocalPeer] ICE candidate error:', e);
             }
         });
-        
+
         // Error handling
         this.socket.on('localRoomError', ({ message }) => {
             console.error('[LocalPeer] Error:', message);
             UIManager.showPostVoteMessage(message);
             this.closeLocalUI();
         });
-        
+
         // Host disconnected
         this.socket.on('localHostDisconnected', () => {
             UIManager.showPostVoteMessage("Host disconnected 😢");
             this.cleanup();
             this.closeLocalUI();
         });
-        
+
         // Peer disconnected
         this.socket.on('localPeerDisconnected', ({ peerId }) => {
             const peer = this.peers.get(peerId);
@@ -6587,16 +6568,15 @@ const LocalPeerManager = {
                 this.updateLobbyUI();
             }
         });
-        
+
         // Host: words refreshed
         this.socket.on('localWordsRefreshed', ({ words }) => {
-            console.log('[LocalPeer] Words refreshed:', words.length);
             this.words = words;
             UIManager.showPostVoteMessage(`Got ${words.length} new words! 📝`);
             this.showLocalLobby();
         });
     },
-    
+
     // Host: create a local room
     async createRoom(rounds = 10) {
         if (!this.socket) {
@@ -6606,13 +6586,13 @@ const LocalPeerManager = {
             UIManager.showPostVoteMessage("Need brief connection to create room");
             return;
         }
-        
-        this.socket.emit('createLocalRoom', { 
+
+        this.socket.emit('createLocalRoom', {
             username: State.data.username || 'Host',
             rounds: rounds
         });
     },
-    
+
     // Peer: join a local room
     async joinRoom(roomCode) {
         if (!this.socket) {
@@ -6622,40 +6602,38 @@ const LocalPeerManager = {
             UIManager.showPostVoteMessage("Need brief connection to join");
             return;
         }
-        
+
         this.socket.emit('joinLocalRoom', {
             roomCode: roomCode.toUpperCase(),
             username: State.data.username || 'Player'
         });
     },
-    
+
     // Host: create connection to a new peer
     async connectToPeer(peerId, peerName) {
-        console.log('[LocalPeer] Host connecting to peer:', peerName, peerId);
-        
+
         const connection = new RTCPeerConnection({ iceServers: this.iceServers });
         const dataChannel = connection.createDataChannel('gameData', { ordered: true });
-        
-        this.peers.set(peerId, { 
-            connection, 
-            dataChannel, 
+
+        this.peers.set(peerId, {
+            connection,
+            dataChannel,
             name: peerName,
             ready: false
         });
-        
+
         // Add player to list
         this.players.push({ id: peerId, name: peerName, vote: null, connected: false });
         this.updateLobbyUI();
-        
+
         dataChannel.onopen = () => {
-            console.log('[LocalPeer] Data channel open to', peerName);
             const peer = this.peers.get(peerId);
             if (peer) peer.ready = true;
-            
+
             // Update player as connected
             const player = this.players.find(p => p.id === peerId);
             if (player) player.connected = true;
-            
+
             // Send current state to new peer
             this.sendToPeer(peerId, {
                 type: 'init',
@@ -6666,87 +6644,75 @@ const LocalPeerManager = {
                 gameMode: this.gameMode || 'coop',
                 rounds: this.rounds || 10
             });
-            
+
             this.updateLobbyUI();
             UIManager.showPostVoteMessage(`${peerName} connected! 🎉`);
         };
-        
+
         dataChannel.onmessage = (e) => this.handlePeerMessage(peerId, JSON.parse(e.data));
         dataChannel.onclose = () => this.handlePeerDisconnect(peerId);
-        
+
         connection.onicecandidate = (e) => {
             if (e.candidate) {
-                console.log('[LocalPeer] Sending ICE candidate to peer');
                 this.socket.emit('rtcIceCandidate', { targetId: peerId, candidate: e.candidate });
             }
         };
-        
+
         connection.onconnectionstatechange = () => {
-            console.log('[LocalPeer] Connection state:', connection.connectionState);
         };
-        
+
         // Create and send offer
         try {
             const offer = await connection.createOffer();
             await connection.setLocalDescription(offer);
-            console.log('[LocalPeer] Sending offer to peer via server');
             this.socket.emit('rtcOffer', { targetId: peerId, offer: offer, roomCode: this.roomCode });
         } catch (e) {
             console.error('[LocalPeer] Error creating offer:', e);
         }
     },
-    
+
     // Peer: handle offer from host
     async handleOffer(hostId, offer) {
-        console.log('[LocalPeer] Peer handling offer from host:', hostId);
-        
+
         try {
             this.hostConnection = new RTCPeerConnection({ iceServers: this.iceServers });
-            
+
             this.hostConnection.ondatachannel = (e) => {
-                console.log('[LocalPeer] Data channel received from host');
                 this.hostDataChannel = e.channel;
-                
+
                 this.hostDataChannel.onopen = () => {
-                    console.log('[LocalPeer] Data channel to host is open!');
                     UIManager.showPostVoteMessage("Connected! 🎉");
                 };
-                
+
                 this.hostDataChannel.onmessage = (e) => this.handleHostMessage(JSON.parse(e.data));
                 this.hostDataChannel.onclose = () => {
                     UIManager.showPostVoteMessage("Disconnected from host");
                     this.cleanup();
                 };
             };
-            
+
             this.hostConnection.onicecandidate = (e) => {
                 if (e.candidate) {
-                    console.log('[LocalPeer] Sending ICE candidate to host');
                     this.socket.emit('rtcIceCandidate', { targetId: hostId, candidate: e.candidate });
                 }
             };
-            
+
             this.hostConnection.onconnectionstatechange = () => {
-                console.log('[LocalPeer] Connection state:', this.hostConnection.connectionState);
             };
-            
-            console.log('[LocalPeer] Setting remote description (offer)');
+
             await this.hostConnection.setRemoteDescription(new RTCSessionDescription(offer));
-            
-            console.log('[LocalPeer] Creating answer');
+
             const answer = await this.hostConnection.createAnswer();
-            
-            console.log('[LocalPeer] Setting local description (answer)');
+
             await this.hostConnection.setLocalDescription(answer);
-            
-            console.log('[LocalPeer] Sending answer to host via server');
+
             this.socket.emit('rtcAnswer', { targetId: hostId, answer: answer });
         } catch (e) {
             console.error('[LocalPeer] Error in handleOffer:', e);
             UIManager.showPostVoteMessage("Connection error ❌");
         }
     },
-    
+
     // Host: send message to specific peer
     sendToPeer(peerId, data) {
         const peer = this.peers.get(peerId);
@@ -6754,7 +6720,7 @@ const LocalPeerManager = {
             peer.dataChannel.send(JSON.stringify(data));
         }
     },
-    
+
     // Host: broadcast to all peers
     broadcast(data) {
         const msg = JSON.stringify(data);
@@ -6764,29 +6730,29 @@ const LocalPeerManager = {
             }
         });
     },
-    
+
     // Peer: send to host
     sendToHost(data) {
         if (this.hostDataChannel?.readyState === 'open') {
             this.hostDataChannel.send(JSON.stringify(data));
         }
     },
-    
+
     // Host: handle message from peer
     handlePeerMessage(peerId, data) {
         if (data.type === 'vote') {
             this.votes[peerId] = data.vote;
             const player = this.players.find(p => p.id === peerId);
             if (player) player.vote = data.vote;
-            
+
             // Broadcast that player voted
             this.broadcast({ type: 'playerVoted', playerId: peerId });
-            
+
             // Check if all voted
             this.checkAllVoted();
         }
     },
-    
+
     // Peer: handle message from host
     handleHostMessage(data) {
         switch (data.type) {
@@ -6803,13 +6769,13 @@ const LocalPeerManager = {
                     this.showWord();
                 }
                 break;
-            
+
             case 'modeChange':
                 this.gameMode = data.mode;
                 this.rounds = data.rounds;
                 this.showLocalLobby(); // Re-render lobby
                 break;
-                
+
             case 'gameStart':
                 this.words = data.words;
                 this.gameMode = data.mode || 'coop';
@@ -6818,37 +6784,37 @@ const LocalPeerManager = {
                 this.closeLocalUI();
                 this.showWord();
                 break;
-                
+
             case 'nextWord':
                 this.currentWordIndex = data.wordIndex;
                 this.showWord();
                 break;
-                
+
             case 'playerVoted':
                 // Show that a player voted (visual feedback)
                 UIManager.showPostVoteMessage("Vote received! 📩");
                 break;
-                
+
             case 'roundResult':
                 this.showRoundResult(data);
                 break;
-                
+
             case 'gameEnd':
                 this.showGameEnd(data);
                 break;
-                
+
             case 'playerJoined':
                 this.players = data.players;
                 this.updateLobbyUI();
                 break;
-                
+
             case 'playerLeft':
                 this.players = data.players;
                 this.updateLobbyUI();
                 break;
         }
     },
-    
+
     handlePeerDisconnect(peerId) {
         const peer = this.peers.get(peerId);
         if (peer) {
@@ -6858,73 +6824,73 @@ const LocalPeerManager = {
             this.updateLobbyUI();
         }
     },
-    
+
     // Host: start the game
     startGame() {
         if (!this.isHost) return;
-        
+
         // Check minimum players
         const modeConfig = {
             'coop': 2, 'versus': 4, 'vip': 3, 'hipster': 3, 'survival': 2
         };
         const minPlayers = modeConfig[this.gameMode] || 2;
         const connectedCount = this.players.filter(p => p.connected || p.id === 'host').length;
-        
+
         if (connectedCount < minPlayers) {
             UIManager.showPostVoteMessage(`Need ${minPlayers}+ players for ${this.gameMode}`);
             return;
         }
-        
+
         this.gameState = 'playing';
         this.currentWordIndex = 0;
         this.votes = {};
-        
+
         // Limit words to selected rounds
         if (this.words.length > this.rounds) {
             this.words = this.words.slice(0, this.rounds);
         }
-        
+
         // Reset player votes and scores
         this.players.forEach(p => {
             p.vote = null;
             p.score = 0;
             p.lives = 3; // For survival mode
         });
-        
+
         // Close lobby UI
         this.closeLocalUI();
-        
+
         // Broadcast game start with mode
         this.broadcast({
             type: 'gameStart',
             words: this.words,
             mode: this.gameMode
         });
-        
+
         this.showWord();
     },
-    
+
     // Host: advance to next word
     nextWord() {
         if (!this.isHost) return;
-        
+
         this.currentWordIndex++;
         this.votes = {};
         this.players.forEach(p => p.vote = null);
-        
+
         if (this.currentWordIndex >= this.words.length) {
             this.endGame();
             return;
         }
-        
+
         this.broadcast({
             type: 'nextWord',
             wordIndex: this.currentWordIndex
         });
-        
+
         this.showWord();
     },
-    
+
     // Submit vote (both host and peer)
     submitVote(vote) {
         if (this.isHost) {
@@ -6937,25 +6903,25 @@ const LocalPeerManager = {
             // Peer sends to host
             this.sendToHost({ type: 'vote', vote });
         }
-        
+
         // Visual feedback
         UIManager.disableButtons(true);
         document.body.classList.add(vote === 'good' ? 'vote-good-mode' : 'vote-bad-mode');
         SoundManager.playGood();
     },
-    
+
     // Host: check if all players voted
     checkAllVoted() {
         if (!this.isHost) return;
-        
+
         const connectedPlayers = this.players.filter(p => p.connected || p.id === 'host');
         const allVoted = connectedPlayers.every(p => this.votes[p.id] != null);
-        
+
         if (allVoted) {
             this.processRound();
         }
     },
-    
+
     // Host: process round results
     processRound() {
         const votes = this.votes;
@@ -6964,7 +6930,7 @@ const LocalPeerManager = {
         const badCount = voteValues.filter(v => v === 'bad').length;
         const majority = goodCount > badCount ? 'good' : (badCount > goodCount ? 'bad' : 'tie');
         const sync = Math.round((Math.max(goodCount, badCount) / voteValues.length) * 100);
-        
+
         const result = {
             type: 'roundResult',
             word: this.words[this.currentWordIndex]?.text,
@@ -6974,10 +6940,10 @@ const LocalPeerManager = {
             goodCount,
             badCount
         };
-        
+
         this.broadcast(result);
         this.showRoundResult(result);
-        
+
         // Auto advance after delay
         setTimeout(() => {
             document.body.classList.remove('vote-good-mode', 'vote-bad-mode');
@@ -6985,22 +6951,22 @@ const LocalPeerManager = {
             this.nextWord();
         }, 3000);
     },
-    
+
     endGame() {
         this.gameState = 'lobby';
         this.broadcast({ type: 'gameEnd', message: 'Game Over!' });
         this.showGameEnd({ message: 'Game Over!' });
     },
-    
+
     // UI Methods
     showLocalLobby() {
         this.closeLocalUI();
-        
+
         const code = this.roomCode;
         const isHost = this.isHost;
         const playerCount = this.players.length;
         const connectedCount = this.players.filter(p => p.connected || p.id === 'host').length;
-        
+
         // Mode config (same as RoomManager)
         const modeConfig = {
             'coop': { label: '🤝 Co-op', desc: 'Match the majority together!', min: 2 },
@@ -7009,20 +6975,20 @@ const LocalPeerManager = {
             'hipster': { label: '🕶️ Hipster', desc: 'Vote with the minority', min: 3 },
             'survival': { label: '💀 Survival', desc: '3 lives - match or die!', min: 2 }
         };
-        
+
         const currentMode = this.gameMode || 'coop';
         const currentRounds = this.rounds || 10;
         const modeInfo = modeConfig[currentMode];
         const hasEnoughPlayers = connectedCount >= (modeInfo?.min || 2);
-        
+
         // Generate mode buttons (host only can click)
         const modesHtml = Object.entries(modeConfig).map(([key, conf]) => {
             const isSelected = currentMode === key;
             const canSelect = isHost;
             return `
-                <button ${canSelect ? `onclick="LocalPeerManager.setMode('${key}')"` : ''} 
-                    class="p-2 rounded-lg text-left transition ${isSelected 
-                        ? 'bg-green-100 border-2 border-green-500' 
+                <button ${canSelect ? `onclick="LocalPeerManager.setMode('${key}')"` : ''}
+                    class="p-2 rounded-lg text-left transition ${isSelected
+                        ? 'bg-green-100 border-2 border-green-500'
                         : canSelect ? 'bg-gray-50 border border-gray-200 hover:bg-gray-100' : 'bg-gray-50 border border-gray-200 opacity-60'
                     }">
                     <div class="font-bold text-sm ${isSelected ? 'text-green-700' : 'text-gray-700'}">${conf.label}</div>
@@ -7030,7 +6996,7 @@ const LocalPeerManager = {
                 </button>
             `;
         }).join('');
-        
+
         // Generate player list
         const playersHtml = this.players.map(p => {
             const isConnected = p.connected || p.id === 'host';
@@ -7045,7 +7011,7 @@ const LocalPeerManager = {
                 </div>
             `;
         }).join('');
-        
+
         const html = `
         <div id="localLobby" class="fixed inset-0 bg-gradient-to-br from-green-900 via-emerald-900 to-teal-900 z-[9999] flex items-center justify-center p-4 overflow-y-auto">
             <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6">
@@ -7055,7 +7021,7 @@ const LocalPeerManager = {
                     <h2 class="text-2xl font-black text-gray-800 mt-2">Room: <span class="text-green-600 font-mono">${code}</span></h2>
                     <p class="text-sm text-gray-500">Share this code with nearby players</p>
                 </div>
-                
+
                 <!-- Players -->
                 <div class="bg-gray-50 rounded-xl p-4 mb-4">
                     <h3 class="font-bold text-gray-700 mb-2 flex items-center justify-between">
@@ -7066,7 +7032,7 @@ const LocalPeerManager = {
                         ${playersHtml}
                     </div>
                 </div>
-                
+
                 <!-- Game Mode (Host controls) -->
                 <div class="mb-4">
                     <h3 class="font-bold text-gray-700 mb-2">${isHost ? 'Select Mode' : 'Game Mode'}</h3>
@@ -7074,7 +7040,7 @@ const LocalPeerManager = {
                         ${modesHtml}
                     </div>
                 </div>
-                
+
                 <!-- Rounds Slider (Host only) -->
                 ${isHost ? `
                 <div class="mb-4">
@@ -7082,7 +7048,7 @@ const LocalPeerManager = {
                         <span class="font-bold text-gray-700">Rounds</span>
                         <span id="localRoundsDisplay" class="text-green-600 font-bold">${currentRounds}</span>
                     </div>
-                    <input type="range" min="5" max="30" value="${currentRounds}" 
+                    <input type="range" min="5" max="30" value="${currentRounds}"
                         oninput="LocalPeerManager.setRounds(this.value); document.getElementById('localRoundsDisplay').textContent = this.value"
                         class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-600">
                 </div>
@@ -7091,14 +7057,14 @@ const LocalPeerManager = {
                     <span class="font-bold">${currentRounds} Rounds</span> · <span>${modeInfo?.label || 'Co-op'}</span>
                 </div>
                 `}
-                
+
                 <!-- Action Buttons -->
                 <div class="space-y-2">
                     ${isHost ? `
-                        <button onclick="LocalPeerManager.startGame()" 
+                        <button onclick="LocalPeerManager.startGame()"
                             class="w-full py-4 rounded-xl font-black text-lg transition transform active:scale-95 ${
-                                hasEnoughPlayers 
-                                    ? 'bg-green-600 hover:bg-green-700 text-white shadow-lg' 
+                                hasEnoughPlayers
+                                    ? 'bg-green-600 hover:bg-green-700 text-white shadow-lg'
                                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                             }" ${hasEnoughPlayers ? '' : 'disabled'}>
                             ${hasEnoughPlayers ? '🎮 START GAME' : `Need ${modeInfo?.min || 2}+ players`}
@@ -7117,10 +7083,10 @@ const LocalPeerManager = {
                 </div>
             </div>
         </div>`;
-        
+
         document.body.insertAdjacentHTML('beforeend', html);
     },
-    
+
     setMode(mode) {
         if (!this.isHost) return;
         this.gameMode = mode;
@@ -7128,20 +7094,20 @@ const LocalPeerManager = {
         this.broadcast({ type: 'modeChange', mode: mode, rounds: this.rounds || 10 });
         this.showLocalLobby(); // Re-render
     },
-    
+
     setRounds(rounds) {
         if (!this.isHost) return;
         this.rounds = parseInt(rounds);
         // Broadcast to peers
         this.broadcast({ type: 'modeChange', mode: this.gameMode || 'coop', rounds: this.rounds });
     },
-    
+
     async refreshWords() {
         if (!this.isHost || !this.socket?.connected) return;
         UIManager.showMessage('Fetching new words... 📥');
         this.socket.emit('refreshLocalWords', { roomCode: this.roomCode, rounds: this.rounds || 10 });
     },
-    
+
     updateLobbyUI() {
         const lobby = document.getElementById('localLobby');
         if (lobby) {
@@ -7149,48 +7115,48 @@ const LocalPeerManager = {
             this.showLocalLobby();
         }
     },
-    
+
     showWord() {
         this.closeLocalUI();
-        
+
         const word = this.words[this.currentWordIndex];
         if (!word) return;
-        
+
         // Use existing game UI
         State.runtime.isMultiplayer = true; // Prevent normal voting
         UIManager.displayWord(word);
         UIManager.disableButtons(false);
-        
+
         // Override vote buttons for local mode
         DOM.game.buttons.good.onclick = () => this.submitVote('good');
         DOM.game.buttons.bad.onclick = () => this.submitVote('bad');
-        
+
         // Show word counter
         UIManager.showPostVoteMessage(`Word ${this.currentWordIndex + 1}/${this.words.length}`);
     },
-    
+
     showRoundResult(data) {
         const msg = `${data.sync}% sync! ${data.majority === 'tie' ? "It's a tie!" : data.majority.toUpperCase() + ' wins'}`;
         UIManager.showPostVoteMessage(msg);
     },
-    
+
     showGameEnd(data) {
         State.runtime.isMultiplayer = false;
         UIManager.showPostVoteMessage(data.message || 'Game Over!');
-        
+
         // Restore normal vote handlers
         DOM.game.buttons.good.onclick = () => Game.vote('good');
         DOM.game.buttons.bad.onclick = () => Game.vote('bad');
-        
+
         // Return to lobby after delay
         setTimeout(() => this.showLocalLobby(), 2000);
     },
-    
+
     closeLocalUI() {
         const lobby = document.getElementById('localLobby');
         if (lobby) lobby.remove();
     },
-    
+
     leaveRoom() {
         if (this.socket?.connected) {
             this.socket.emit('leaveLocalRoom', { roomCode: this.roomCode });
@@ -7198,19 +7164,19 @@ const LocalPeerManager = {
         this.cleanup();
         this.closeLocalUI();
     },
-    
+
     cleanup() {
         // Close all peer connections
         this.peers.forEach(peer => {
             if (peer.connection) peer.connection.close();
         });
         this.peers.clear();
-        
+
         if (this.hostConnection) {
             this.hostConnection.close();
             this.hostConnection = null;
         }
-        
+
         this.hostDataChannel = null;
         this.isHost = false;
         this.roomCode = '';
@@ -7219,7 +7185,7 @@ const LocalPeerManager = {
         this.votes = {};
         this.gameState = 'lobby';
         State.runtime.isMultiplayer = false;
-        
+
         // Restore normal vote handlers
         if (DOM.game?.buttons) {
             DOM.game.buttons.good.onclick = () => Game.vote('good');
@@ -7234,36 +7200,36 @@ const RoomManager = {
     roomCode: '',
     playerId: null,
     isHost: false,
-    
+
     // STATE
     currentMode: 'coop',
     currentWordCount: 10,
     drinkingMode: false,
     extremeDrinkingMode: false,
     players: [],
-    
+
     // ROLE STATE
     amITraitor: false,
     myTeam: null,
     vipId: null,
     vipName: null,
     amIVip: false,
-    
+
     // PUBLIC GAMES
     isPublic: false,
     maxPlayers: 8,
     publicGames: [],
-    
+
     // THEME SYNC STATE
     originalTheme: 'default',
     hostTheme: null,
-    
+
     listenersAttached: false,
-    
+
     modeConfig: {
-        'coop': { label: '🤝 Co-op Sync', desc: 'Vote together! Match with the Global Majority.', min: 2 }, 
+        'coop': { label: '🤝 Co-op Sync', desc: 'Vote together! Match with the Global Majority.', min: 2 },
         'okstoopid': { label: '💘 OK Stoopid', desc: 'Couples Mode. Match each other quickly for the highest score!', min: 2, max: 2 },
-        'versus': { label: '⚔️ Team Versus', desc: 'Red vs Blue. Best Team wins.', min: 2 }, 
+        'versus': { label: '⚔️ Team Versus', desc: 'Red vs Blue. Best Team wins.', min: 2 },
         'vip': { label: '⭐ The VIP', desc: 'One player is the VIP. Everyone tries to match their vote!', min: 3 },
         'hipster': { label: '🕶️ Hipster Mode', desc: 'Be unique! Score by voting with the minority.', min: 3 },
         'speed': { label: '⏱️ Speed Demon', desc: 'Vote fast! Speed and accuracy wins.', min: 2 },
@@ -7274,7 +7240,7 @@ const RoomManager = {
 
     init() {
         window.RoomManager = this;
-        
+
         // Add required CSS for circular text
         if (!document.getElementById('mp-circular-css')) {
             const style = document.createElement('style');
@@ -7298,14 +7264,14 @@ const RoomManager = {
             `;
             document.head.appendChild(style);
         }
-        
+
         let btn = document.getElementById('roomBtn');
-        if (btn) btn.remove(); 
+        if (btn) btn.remove();
         btn = document.createElement('button');
         btn.id = 'roomBtn';
         btn.className = 'fixed top-3 left-3 z-[60] bg-white rounded-full shadow-lg hover:bg-gray-50 transition border-2 border-indigo-100';
         btn.style.cssText = 'width: 68px; height: 68px; padding: 0;';
-        
+
         // Generate circular text using individual rotated characters
         const text = 'MULTIPLAYER · ';
         let chars = '';
@@ -7313,7 +7279,7 @@ const RoomManager = {
             const rotation = (i * 360 / text.length);
             chars += `<span style="transform: rotate(${rotation}deg)">${text[i]}</span>`;
         }
-        
+
         btn.innerHTML = `
             <div style="position: relative; width: 100%; height: 100%;">
                 <div class="mp-circular-text">${chars}</div>
@@ -7350,54 +7316,54 @@ const RoomManager = {
     document.getElementById('gameOverModal')?.remove();
     this.active = false;
     State.runtime.isMultiplayer = true; // Keep MP flag true
-    
+
     // Reset UI
     const banner = document.querySelector('.mp-banner-text');
     if(banner) banner.remove();
     const ui = document.getElementById('mp-mode-ui');
     if(ui) ui.remove();
-    
+
     // Re-render lobby and ensure socket is clean
     this.renderLobby();
-    
+
     // Emit join event again to ensure server knows we are back in lobby state
-    this.socket.emit('joinRoom', { 
-        roomCode: this.roomCode, 
+    this.socket.emit('joinRoom', {
+        roomCode: this.roomCode,
         username: this.getUsername(),
-        theme: State.data.currentTheme 
+        theme: State.data.currentTheme
     });
 },
 
     connect() {
         if (typeof io === 'undefined') return;
         if (!this.socket) this.socket = io({ transports: ['websocket'], upgrade: false });
-        
+
         if (this.socket.connected) this.playerId = this.socket.id;
         if (this.listenersAttached) return;
         this.listenersAttached = true;
 
         this.socket.on('connect', () => { this.playerId = this.socket.id; });
-        
+
         // PUBLIC GAMES LIST
         this.socket.on('publicGamesList', (games) => {
             this.publicGames = games || [];
             this.renderPublicGames();
         });
-        
+
         // Room full error
         this.socket.on('roomFull', ({ message }) => {
             alert(message || 'This room is full!');
         });
 
         this.socket.on('roleAlert', (msg) => {
-             this.amITraitor = true; 
+             this.amITraitor = true;
         });
-        
+
         // Team assignment notification for versus mode
         this.socket.on('teamAssigned', ({ team }) => {
             this.myTeam = team;
         });
-        
+
         // VIP assignment notification - everyone knows who the VIP is
         this.socket.on('vipAssigned', ({ vipId, vipName }) => {
             this.vipId = vipId;
@@ -7406,28 +7372,27 @@ const RoomManager = {
         });
 
         this.socket.on('gameStarted', (data) => {
-            console.log("GAME START SIGNAL RECEIVED"); 
             this.closeLobby();
             this.active = true;
-            
+
             // Build VIP info if applicable
             const vipInfo = this.vipId ? {
                 isMe: this.amIVip,
                 name: this.vipName
             } : null;
-            
+
             UIManager.showCountdown(3, () => {
                 if (Game && Game.startMultiplayer) {
                     Game.startMultiplayer(data);
                 }
-            }, this.amITraitor, this.myTeam, vipInfo); 
+            }, this.amITraitor, this.myTeam, vipInfo);
             this.amITraitor = false;
             this.myTeam = null;
             this.vipId = null;
             this.vipName = null;
             this.amIVip = false;
         });
-        
+
         // Not enough players to start
         this.socket.on('startError', ({ message }) => {
             alert(message || 'Cannot start game');
@@ -7455,7 +7420,7 @@ const RoomManager = {
             this.players = data.players || [];
             this.isPublic = data.isPublic || false;
             this.maxPlayers = data.maxPlayers || 8;
-            
+
             this.isHost = (data.host === this.playerId);
             if(this.players.length > 0 && this.players[0].id === this.playerId) this.isHost = true;
 
@@ -7465,25 +7430,25 @@ const RoomManager = {
         });
 
 this.socket.on('nextWord', (data) => {
-            // FIX: Reset data for the new round
+            // Reset data for the new round
             State.runtime.allWords = [data.word];
             State.runtime.currentWordIndex = 0;
-            
-            // FIX: Hard reset the UI to ensure the new word is visible and clickable
+
+            // Hard reset the UI to ensure the new word is visible and clickable
             const wd = DOM.game.wordDisplay;
             wd.className = ''; // Remove 'fly-left' animations from previous round
             wd.style.transform = 'none';
             wd.style.opacity = '1';
             wd.style.filter = 'none';
-            wd.style.color = ''; 
-            
+            wd.style.color = '';
+
             UIManager.displayWord(data.word);
-            
+
             // Check if player is dead (survival) or spectator
             const me = this.players.find(p => p.id === this.playerId);
             const isDead = this.currentMode === 'survival' && me && me.lives <= 0;
             const isSpectator = me && me.isSpectator;
-            
+
             if (isDead || isSpectator) {
                 // Disable voting buttons for dead/spectating players
                 UIManager.disableButtons(true);
@@ -7494,11 +7459,11 @@ this.socket.on('nextWord', (data) => {
                 DOM.game.buttons.good.style.opacity = '1';
                 DOM.game.buttons.bad.style.opacity = '1';
             }
-            
+
             const banner = document.querySelector('.mp-banner-text');
             if (banner) {
                 let label = `${RoomManager.modeConfig[this.currentMode]?.label} (${data.wordCurrent}/${data.wordTotal})`;
-                
+
                 // --- ADDED: Lives Indicator for Survival Mode ---
                 if (this.currentMode === 'survival') {
                     if (me && typeof me.lives === 'number') {
@@ -7509,13 +7474,12 @@ this.socket.on('nextWord', (data) => {
                         }
                     }
                 }
-                
+
                 // Spectator indicator
                 if (isSpectator && !isDead) {
                     label = `👁️ Spectating (${data.wordCurrent}/${data.wordTotal})`;
                 }
-                // ------------------------------------------------
-                
+
                 banner.textContent = label;
             }
         });
@@ -7523,9 +7487,9 @@ this.socket.on('nextWord', (data) => {
         this.socket.on('playerVoted', () => { Haptics.light(); });
 
 this.socket.on('roundResult', (data) => {
-    // FIX: Update local player state immediately to show heart loss
+    // Update local player state immediately to show heart loss
     if (data.players) this.players = data.players;
-    
+
     // Refresh the banner immediately
     const banner = document.querySelector('.mp-banner-text');
     if (banner && this.currentMode === 'survival') {
@@ -7551,7 +7515,7 @@ this.socket.on('roundResult', (data) => {
         });
 
         this.socket.on('gameOver', (data) => {
-            this.cleanupMultiplayer(); 
+            this.cleanupMultiplayer();
             const banner = document.querySelector('.mp-banner-text');
             if(banner) banner.remove();
             const ui = document.getElementById('mp-mode-ui');
@@ -7567,29 +7531,29 @@ this.socket.on('roundResult', (data) => {
             this.active = false;
             State.runtime.isMultiplayer = false;
             UIManager.showKickedModal();
-            this.socket.disconnect(); 
+            this.socket.disconnect();
         });
     },
 
 cleanupMultiplayer() {
         if (this.originalTheme) {
-            ThemeManager.apply(this.originalTheme); 
+            ThemeManager.apply(this.originalTheme);
             this.hostTheme = null;
         }
     },
 
     emitUpdate() {
-        const payload = { 
-            roomCode: this.roomCode, 
-            mode: this.currentMode, 
-            rounds: this.currentWordCount, 
+        const payload = {
+            roomCode: this.roomCode,
+            mode: this.currentMode,
+            rounds: this.currentWordCount,
             drinking: this.drinkingMode,
             extremeDrinking: this.extremeDrinkingMode,
-            theme: State.data.currentTheme 
+            theme: State.data.currentTheme
         };
         this.socket.emit('updateSettings', payload);
     },
-    
+
     reannounce() {
         if (!this.isPublic || !this.isHost) return;
         this.socket.emit('keepAlive', { roomCode: this.roomCode });
@@ -7633,14 +7597,14 @@ cleanupMultiplayer() {
         const name = p ? (p.name || 'Guest') : 'Player';
         UIManager.showKickConfirm(targetId, name);
     },
-    
+
     emitKick(targetId) {
         this.socket.emit('kickPlayer', { roomCode: this.roomCode, targetId });
     },
 
 startGame() {
         const count = this.players.length;
-        
+
         if (this.currentMode === 'okstoopid' && count !== 2) return StreakManager.showNotification("⚠️ OK Stoopid requires exactly 2 players!", "neutral");
         if (this.currentMode === 'traitor' && count < 3) return StreakManager.showNotification("⚠️ Traitor Mode requires 3+ players!", "neutral");
         if (this.currentMode === 'coop' && count < 3) return StreakManager.showNotification("⚠️ Co-op requires 3+ players!", "neutral");
@@ -7667,7 +7631,7 @@ renderLobby() {
         const existingModal = document.getElementById('lobbyModal');
         let scrollPlayers = 0;
         let scrollSettings = 0;
-        
+
         if (existingModal) {
             const scrolls = existingModal.querySelectorAll('.custom-scrollbar');
             if (scrolls[0]) scrollPlayers = scrolls[0].scrollTop;
@@ -7682,17 +7646,17 @@ renderLobby() {
         const safeCode = this.roomCode || '...';
         const roomIsPublic = this.isPublic;
         const roomMaxPlayers = this.maxPlayers || 8;
-        
+
         // Check minimum and maximum players for current mode
         const modeSettings = this.modeConfig[activeMode] || {};
         const minPlayers = modeSettings.min || 2;
         const maxPlayers = modeSettings.max || null; // null means no max
         const playersList = this.players || [];
         const hasEnoughPlayers = playersList.length >= minPlayers && (!maxPlayers || playersList.length <= maxPlayers);
-        const playerCountIssue = playersList.length < minPlayers 
-            ? `Need ${minPlayers} players` 
+        const playerCountIssue = playersList.length < minPlayers
+            ? `Need ${minPlayers} players`
             : (maxPlayers && playersList.length > maxPlayers ? `Max ${maxPlayers} players` : null);
-        
+
         if (this.roomCode) {
             const newUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?room=${this.roomCode}`;
             window.history.replaceState({path: newUrl}, '', newUrl);
@@ -7700,12 +7664,12 @@ renderLobby() {
 
         const joinUrl = `${window.location.origin}?room=${safeCode}`;
         const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(joinUrl)}`;
-        
+
         // Public/Private badge with reannounce button for host
-        const reannounceBtn = (roomIsPublic && this.isHost) 
+        const reannounceBtn = (roomIsPublic && this.isHost)
             ? `<button onclick="RoomManager.reannounce()" class="ml-2 bg-green-500 hover:bg-green-600 text-white text-xs font-bold px-2 py-1 rounded-full transition">📢 Reannounce</button>`
             : '';
-        const privacyBadge = roomIsPublic 
+        const privacyBadge = roomIsPublic
             ? `<div class="inline-flex items-center gap-1 bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-full mt-1"><span>🌍</span> Public (${playersList.length}/${roomMaxPlayers})${reannounceBtn}</div>`
             : `<div class="inline-flex items-center gap-1 bg-gray-100 text-gray-600 text-xs font-bold px-2 py-1 rounded-full mt-1"><span>🔒</span> Private</div>`;
 
@@ -7713,8 +7677,8 @@ renderLobby() {
         const playersHtml = playersList.map(p => {
             let displayName = p.name || 'Guest';
             const isMe = p.id === this.playerId;
-            const kickBtn = (this.isHost && !isMe) 
-                ? `<button onclick="RoomManager.kickPlayer('${p.id}')" class="text-red-400 hover:text-red-600 font-bold px-3 py-1 ml-2 rounded hover:bg-red-50" title="Kick Player">✕</button>` 
+            const kickBtn = (this.isHost && !isMe)
+                ? `<button onclick="RoomManager.kickPlayer('${p.id}')" class="text-red-400 hover:text-red-600 font-bold px-3 py-1 ml-2 rounded hover:bg-red-50" title="Kick Player">✕</button>`
                 : '';
 
             return `<div class="flex items-center space-x-3 bg-white border border-gray-100 p-3 rounded-lg mb-2 shadow-sm">
@@ -7728,11 +7692,11 @@ renderLobby() {
         let modesHtml = '';
         Object.entries(this.modeConfig).forEach(([key, conf]) => {
             const isSelected = (activeMode === key);
-            if (!this.isHost && !isSelected) return; 
+            if (!this.isHost && !isSelected) return;
 
             const clickAttr = this.isHost ? `onclick="window.RoomManager.updateMode('${key}')"` : '';
-            let styleClass = isSelected 
-                ? 'bg-indigo-100 border-[3px] border-indigo-500 shadow-inner' 
+            let styleClass = isSelected
+                ? 'bg-indigo-100 border-[3px] border-indigo-500 shadow-inner'
                 : 'bg-white border border-gray-200 hover:bg-gray-50 cursor-pointer';
 
             modesHtml += `
@@ -7777,33 +7741,33 @@ renderLobby() {
         const html = `
         <div id="lobbyModal" class="fixed inset-0 bg-gray-900 z-[9999] flex flex-col md:flex-row font-sans h-full">
             <div class="w-full md:w-1/3 bg-white p-4 md:p-6 flex flex-col border-b md:border-b-0 md:border-r border-gray-200 z-10 shadow-md md:shadow-none shrink-0 h-[40%] md:h-full overflow-hidden">
-			
+
 <div class="flex justify-between md:flex-col md:items-center mb-4 md:mb-6 shrink-0 w-full">
                     <div class="text-left md:text-center w-full">
                         <div class="text-xs text-gray-400 font-bold">ROOM CODE</div>
                         <div class="text-4xl md:text-6xl font-black text-indigo-600 font-mono tracking-widest leading-none">${safeCode}</div>
                         ${privacyBadge}
                     </div>
-                    
+
                     <div class="md:mt-6 w-auto md:w-full flex justify-end md:justify-center">
                         <img src="${qrSrc}" onclick="UIManager.expandQR('${qrSrc}')" class="rounded-lg w-20 h-20 md:w-32 md:h-32 border shadow-inner cursor-pointer hover:opacity-80 transition bg-white block">
                     </div>
                 </div>
-                
+
                 <div class="text-xs font-bold text-gray-400 uppercase mb-2 shrink-0">Players</div>
-                
+
                 <div class="flex-1 overflow-y-auto custom-scrollbar p-1 border rounded-lg md:border-0 min-h-0 bg-gray-50 md:bg-white">
                     ${playersHtml}
                 </div>
-                
+
                 <div class="shrink-0 mt-2 md:mt-4 pt-2 border-t md:border-0 border-gray-100">
                     <button onclick="window.location.href = window.location.pathname" class="w-full py-2 md:py-3 text-red-500 font-bold bg-red-50 hover:bg-red-100 rounded-xl transition text-sm">Leave Room</button>
                 </div>
             </div>
-            
+
             <div class="w-full md:w-2/3 bg-gray-50 p-4 md:p-6 flex flex-col relative h-[60%] md:h-full overflow-hidden">
                 <h2 class="text-xl md:text-2xl font-black text-gray-800 mb-2 md:mb-4 shrink-0">Game Settings</h2>
-                
+
                 <div class="flex-1 overflow-y-auto custom-scrollbar min-h-0 pb-20">
                     <div class="bg-white p-3 md:p-4 rounded-xl shadow-sm border border-gray-200 mb-3 md:mb-6 ${sliderOpacity}">
                         <div class="flex justify-between items-center mb-2">
@@ -7817,7 +7781,7 @@ renderLobby() {
                     </div>
 
                     <div class="font-bold text-gray-700 mb-2 text-sm md:text-base">${this.isHost ? 'Select Mode' : 'Current Mode'}</div>
-                    
+
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3">
                         ${modesHtml}
                     </div>
@@ -7825,12 +7789,12 @@ renderLobby() {
 
                 <div class="absolute bottom-0 left-0 right-0 p-4 md:p-6 bg-white border-t flex items-center justify-between shadow-[0_-5px_15px_rgba(0,0,0,0.05)] z-20 shrink-0">
                     <div class="text-xs md:text-sm text-gray-500 hidden sm:block">
-                        ${this.isHost 
-                            ? (hasEnoughPlayers ? 'You are the Host.' : (playerCountIssue + ` (have ${playersList.length})`)) 
+                        ${this.isHost
+                            ? (hasEnoughPlayers ? 'You are the Host.' : (playerCountIssue + ` (have ${playersList.length})`))
                             : 'Waiting for Host...'}
                     </div>
-                    ${this.isHost ? 
-                        (hasEnoughPlayers 
+                    ${this.isHost ?
+                        (hasEnoughPlayers
                             ? `<button onclick="window.RoomManager.startGame()" class="w-full sm:w-auto px-6 py-3 md:px-8 md:py-4 bg-green-500 hover:bg-green-600 text-white text-lg md:text-xl font-black rounded-xl shadow-lg transform transition active:scale-95 flex items-center justify-center gap-2"><span>START GAME</span> 🚀</button>`
                             : `<div class="w-full sm:w-auto px-6 py-3 md:px-8 md:py-4 bg-gray-300 text-gray-500 text-lg md:text-xl font-bold rounded-xl border border-gray-300 flex items-center justify-center gap-2 cursor-not-allowed"><span>${maxPlayers ? 'EXACTLY ' + maxPlayers + ' PLAYERS' : 'NEED ' + minPlayers + ' PLAYERS'}</span> 👥</div>`)
                         : `<div class="w-full sm:w-auto px-6 py-3 md:px-8 md:py-4 bg-gray-100 text-gray-400 text-lg md:text-xl font-bold rounded-xl border border-gray-200 flex items-center justify-center gap-2 cursor-not-allowed"><span>WAITING...</span> ⏳</div>`
@@ -7872,14 +7836,14 @@ generateRandomCode() {
             State.data.username = nameInput.value.trim();
             State.save('username', State.data.username);
         }
-        
+
         // Initialize LocalPeerManager with socket
         LocalPeerManager.init(this.socket);
-        
+
         // Close menu
         const menu = document.getElementById('mpMenu');
         if (menu) menu.remove();
-        
+
         // Start hosting
         UIManager.showMessage('Creating local room... 📡');
         await LocalPeerManager.createRoom(10);
@@ -7889,27 +7853,27 @@ generateRandomCode() {
     async joinP2P() {
         const codeInput = document.getElementById('menuRoomCodeInput');
         const roomCode = codeInput?.value?.trim().toUpperCase();
-        
+
         if (!roomCode || roomCode.length < 3) {
             UIManager.showPostVoteMessage('Enter a room code! 📝');
             if (codeInput) codeInput.focus();
             return;
         }
-        
+
         // Save username if entered
         const nameInput = document.getElementById('menuUsernameInput');
         if (nameInput?.value?.trim()) {
             State.data.username = nameInput.value.trim();
             State.save('username', State.data.username);
         }
-        
+
         // Initialize LocalPeerManager with socket
         LocalPeerManager.init(this.socket);
-        
+
         // Close menu
         const menu = document.getElementById('mpMenu');
         if (menu) menu.remove();
-        
+
         // Join room
         UIManager.showMessage('Joining local room... 🔗');
         await LocalPeerManager.joinRoom(roomCode);
@@ -7919,37 +7883,37 @@ generateRandomCode() {
         const existing = document.getElementById('mpMenu');
         if (existing) existing.remove();
         const currentName = State.data.username || '';
-        
+
         // Request public games list from server
         if (this.socket && this.socket.connected) {
             this.socket.emit('getPublicGames');
         }
-        
+
 const html = `
         <div id="mpMenu" class="fixed inset-0 bg-black/80 z-[9999] flex items-start justify-center pt-8 md:items-center md:pt-0 backdrop-blur-sm p-4 overflow-y-auto">
             <div class="flex flex-col md:flex-row gap-4 w-full max-w-4xl">
-                
+
                 <div class="bg-white p-6 rounded-2xl shadow-2xl text-center flex-1 animate-pop relative border-t-4 border-indigo-500">
                     <button onclick="document.getElementById('mpMenu').remove()" class="absolute top-3 right-4 text-gray-400 text-xl hover:text-gray-600">&times;</button>
                     <h2 class="text-2xl font-black mb-4 text-gray-800">MULTIPLAYER MODE</h2>
-                    
+
                     <div class="flex flex-col gap-3">
                         <div>
                             <label class="text-xs font-bold text-gray-400 uppercase text-left block mb-1">Your Name</label>
                             <input type="text" id="menuUsernameInput" placeholder="NAME" value="${currentName}" maxlength="16" class="w-full p-3 border-2 border-gray-200 rounded-xl font-bold text-center focus:border-indigo-500 outline-none">
                         </div>
-                        
+
                         <div class="mb-2">
                             <label class="text-xs font-bold text-gray-400 uppercase text-left block mb-1">Room Code</label>
                             <div class="flex gap-2 items-stretch">
                                 <input type="text" id="menuRoomCodeInput" placeholder="ENTER CODE" class="flex-1 p-3 border-2 border-gray-300 rounded-xl font-mono text-center text-xl uppercase focus:border-indigo-500 outline-none min-w-0" maxlength="10">
                                 <button onclick="RoomManager.generateRandomCode()" class="bg-gray-100 hover:bg-indigo-100 text-indigo-600 font-bold px-3 md:px-4 rounded-xl border-2 border-gray-200 hover:border-indigo-200 transition-colors flex items-center justify-center gap-2 whitespace-nowrap text-xs md:text-sm">
-                                    <span>🎲</span> 
+                                    <span>🎲</span>
                                     <span>Random <span class="hidden sm:inline">Code</span></span>
                                 </button>
                             </div>
                         </div>
-                        
+
                         <div class="bg-gray-50 p-3 rounded-xl border border-gray-200">
                             <div class="flex items-center justify-between mb-2">
                                 <label class="text-sm font-bold text-gray-700 flex items-center gap-2">
@@ -7960,7 +7924,7 @@ const html = `
                                     <div id="privacyKnob" class="absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200"></div>
                                 </button>
                             </div>
-                            
+
                             <div id="maxPlayersSection" class="hidden mt-3 pt-3 border-t border-gray-200">
                                 <div class="flex items-center justify-between">
                                     <label class="text-sm font-bold text-gray-600">Max Players</label>
@@ -7973,9 +7937,9 @@ const html = `
                                 <p class="text-xs text-gray-400 mt-1">Public games are visible to everyone</p>
                             </div>
                         </div>
-                        
+
                         <button onclick="RoomManager.submitEntry()" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 shadow-lg mt-2 transition transform active:scale-95 w-full">JOIN / CREATE ONLINE</button>
-                        
+
                         <div class="mt-4 pt-4 border-t border-gray-200">
                             <div class="p-3 bg-green-50 border border-green-200 rounded-xl">
                                 <h3 class="font-bold text-green-900 text-sm mb-2 text-left flex items-center gap-2">📡 LOCAL MODE <span class="text-xs font-normal text-green-600">(No WiFi needed!)</span></h3>
@@ -7992,7 +7956,7 @@ const html = `
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="bg-white p-6 rounded-2xl shadow-2xl flex-1 animate-pop relative border-t-4 border-green-500" style="animation-delay: 0.1s">
                     <div class="flex items-center justify-between mb-4">
                         <h2 class="text-2xl font-black text-gray-800 flex items-center gap-2">
@@ -8003,14 +7967,14 @@ const html = `
                             <span class="hidden sm:inline">Group</span>
                         </a>
                     </div>
-                    
+
                     <div id="publicGamesList" class="space-y-2 max-h-80 overflow-y-auto custom-scrollbar">
                         <div class="text-center py-8 text-gray-400">
                             <div class="text-3xl mb-2">📡</div>
                             <p class="text-sm">Searching for games...</p>
                         </div>
                     </div>
-                    
+
                     <button onclick="RoomManager.refreshPublicGames()" class="w-full mt-4 py-2 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition flex items-center justify-center gap-2">
                         <span>🔄</span> Refresh List
                     </button>
@@ -8019,11 +7983,11 @@ const html = `
         </div>`;
         document.body.insertAdjacentHTML('beforeend', html);
         setTimeout(() => document.getElementById('menuRoomCodeInput')?.focus(), 100);
-        
+
         // Render any cached public games
         this.renderPublicGames();
     },
-    
+
     togglePrivacy() {
         this.isPublic = !this.isPublic;
         const toggle = document.getElementById('privacyToggle');
@@ -8031,7 +7995,7 @@ const html = `
         const icon = document.getElementById('privacyIcon');
         const label = document.getElementById('privacyLabel');
         const maxSection = document.getElementById('maxPlayersSection');
-        
+
         if (this.isPublic) {
             toggle.classList.remove('bg-gray-300');
             toggle.classList.add('bg-indigo-500');
@@ -8048,13 +8012,13 @@ const html = `
             maxSection.classList.add('hidden');
         }
     },
-    
+
     adjustMaxPlayers(delta) {
         this.maxPlayers = Math.min(20, Math.max(2, this.maxPlayers + delta));
         const display = document.getElementById('maxPlayersDisplay');
         if (display) display.textContent = this.maxPlayers;
     },
-    
+
     refreshPublicGames() {
         if (this.socket && this.socket.connected) {
             this.socket.emit('getPublicGames');
@@ -8068,11 +8032,11 @@ const html = `
             }
         }
     },
-    
+
     renderPublicGames() {
         const list = document.getElementById('publicGamesList');
         if (!list) return;
-        
+
         if (!this.publicGames || this.publicGames.length === 0) {
             list.innerHTML = `
                 <div class="text-center py-8 text-gray-400">
@@ -8082,12 +8046,12 @@ const html = `
                 </div>`;
             return;
         }
-        
+
         list.innerHTML = this.publicGames.map(game => {
             const isFull = game.players >= game.maxPlayers;
             const spotsLeft = game.maxPlayers - game.players;
             const modeLabel = this.modeConfig[game.mode]?.label || game.mode;
-            
+
             return `
                 <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-200 ${isFull ? 'opacity-50' : 'hover:bg-gray-100'} transition">
                     <div class="flex-1 min-w-0">
@@ -8100,7 +8064,7 @@ const html = `
                             ${!isFull ? `<span class="text-green-600">${spotsLeft} spot${spotsLeft !== 1 ? 's' : ''} left</span>` : '<span class="text-red-500">Full</span>'}
                         </div>
                     </div>
-                    <button 
+                    <button
                         onclick="RoomManager.joinPublicGame('${game.roomCode}')"
                         ${isFull ? 'disabled' : ''}
                         class="px-4 py-2 ${isFull ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700'} font-bold rounded-lg transition text-sm">
@@ -8109,7 +8073,7 @@ const html = `
                 </div>`;
         }).join('');
     },
-    
+
     joinPublicGame(roomCode) {
         const nameInput = document.getElementById('menuUsernameInput');
         const nameToUse = nameInput ? nameInput.value.trim() : '';
@@ -8127,7 +8091,7 @@ const html = `
         const code = codeInput.value.trim().toUpperCase();
         const nameToUse = nameInput ? nameInput.value.trim() : '';
         if (nameToUse) {
-            State.save('username', nameToUse); 
+            State.save('username', nameToUse);
             if(DOM.inputs.username) DOM.inputs.username.value = nameToUse;
         }
         if (code.length > 0) this.attemptJoinOrCreate(code, nameToUse);
@@ -8135,8 +8099,8 @@ const html = `
 
     attemptJoinOrCreate(code, nameOverride = null) {
         this.roomCode = code;
-        this.socket.emit('joinRoom', { 
-            roomCode: code, 
+        this.socket.emit('joinRoom', {
+            roomCode: code,
             username: nameOverride || this.getUsername(),
             theme: State.data.currentTheme,
             isPublic: this.isPublic,
@@ -8153,12 +8117,12 @@ const Game = {
         DOM = loadDOM();
         try {
             // Logo click-to-refresh is handled in HTML
-            
+
             const vEl = document.querySelector('.version-indicator');
             if (vEl) {
                 vEl.textContent = `v${CONFIG.APP_VERSION} | Made by Gilxs in 12,025`;
                 Object.assign(vEl.style, {
-                    position: 'fixed', bottom: '15px', left: '50%', transform: 'translateX(-50%)', 
+                    position: 'fixed', bottom: '15px', left: '50%', transform: 'translateX(-50%)',
                     zIndex: '5', pointerEvents: 'none', fontFamily: 'system-ui, -apple-system, sans-serif',
                     fontSize: '11px', fontWeight: '600', color: '#374151', letterSpacing: '0.05em',
                     backgroundColor: 'rgba(255, 255, 255, 0.92)', padding: '6px 14px',
@@ -8171,7 +8135,7 @@ const Game = {
             try { SoundManager.init(); } catch(e) { console.warn("Audio init deferred"); }
             if (typeof this.updateLights === 'function') this.updateLights();
             UIManager.updateOfflineIndicator();
-            
+
             window.StreakManager = StreakManager;
             window.ContactManager = ContactManager;
             window.PinPad = PinPad;
@@ -8196,13 +8160,13 @@ const Game = {
                 if (document.getElementById('lobbyModal')) return;
 
                 switch(e.code) {
-                    case 'ArrowLeft': 
-                        this.vote('good'); 
+                    case 'ArrowLeft':
+                        this.vote('good');
                         DOM.game.buttons.good.classList.add('active-press');
                         setTimeout(() => DOM.game.buttons.good.classList.remove('active-press'), 150);
                         break;
-                    case 'ArrowRight': 
-                        this.vote('bad'); 
+                    case 'ArrowRight':
+                        this.vote('bad');
                         DOM.game.buttons.bad.classList.add('active-press');
                         setTimeout(() => DOM.game.buttons.bad.classList.remove('active-press'), 150);
                         break;
@@ -8216,7 +8180,7 @@ const Game = {
 
             document.getElementById('showHelpButton').onclick = () => { window.scrollTo({ top: 0, behavior: 'smooth' }); UIManager.showPostVoteMessage("What's going on? There aren't really any rules, but if you're really confused then drop me a message and I'll see if I can help!"); };
             document.getElementById('showDonateButton').onclick = () => { window.scrollTo({ top: 0, behavior: 'smooth' }); UIManager.showPostVoteMessage("That's very kind, but I'm not accepting any donations at the moment. Have fun!"); };
-            
+
             document.getElementById('submitWordButton').onclick = async () => {
                 const t = DOM.inputs.newWord.value.trim();
                 if (!t || t.includes(' ') || t.length > 45) { DOM.inputs.modalMsg.textContent = "Invalid word."; return }
@@ -8246,32 +8210,32 @@ const Game = {
 
             State.init();
             RoomManager.init();
-            
+
             // Apply hide multiplayer setting on load (also hide in Kids Mode for child safety)
             if (State.data.settings.hideMultiplayer || State.data.settings.kidsMode) {
                 const roomBtn = document.getElementById('roomBtn');
                 if (roomBtn) roomBtn.style.display = 'none';
             }
-            
+
             DOM.inputs.username.value = State.data.username === 'Unknown' ? '' : State.data.username;
             DOM.inputs.username.addEventListener('change', (e) => State.save('username', e.target.value.trim() || 'Guest'));
-            
+
             UIManager.updateStreak(State.data.streak);
             State.runtime.history.forEach(h => UIManager.addToHistory(h.word, h.vote));
-            
+
             InputHandler.init();
             ThemeManager.init();
-			WeatherManager.init();
+            WeatherManager.init();
             ModalManager.init();
             UIManager.updateProfileDisplay();
             MosquitoManager.startMonitoring();
             this.checkDailyStatus();
-            
+
             // Apply hide cards setting on load
             if (State.data.settings.hideCards) {
                 this.applyHideCards(true);
             }
-            
+
             await this.refreshData();
             DiscoveryManager.init();
 
@@ -8294,7 +8258,7 @@ const Game = {
 
     async nextWord() {
         if (State.runtime.isMultiplayer) return;
-        
+
         // --- RANDOM FETCH LOGIC RESTORED ---
         if (State.runtime.allWords.length <= State.runtime.currentWordIndex) {
             try {
@@ -8304,7 +8268,7 @@ const Game = {
                 else State.runtime.allWords.push({ text: 'RETRY', _id: null });
             } catch(e) { State.runtime.allWords.push({ text: 'OFFLINE', _id: null }); }
         }
-        
+
         // Smart Filtering
         if (!State.runtime.isMultiplayer) {
             if (State.data.settings.zeroVotesOnly) {
@@ -8327,21 +8291,21 @@ const Game = {
 
 async vote(t, s = false) {
         if (State.runtime.isCoolingDown) return;
-        
+
         // Minimum delay between votes (300ms)
         const n = Date.now();
         if (State.runtime.lastVoteTime > 0 && (n - State.runtime.lastVoteTime) < 300) {
             return; // Too fast, ignore
         }
-        
+
         // Multiplayer mode - send to room
         if (State.runtime.isMultiplayer && typeof RoomManager !== 'undefined' && RoomManager.active) {
              RoomManager.submitVote(t);
-             UIManager.disableButtons(true); 
-             DOM.game.wordDisplay.style.opacity = '0.5'; 
-             return; 
+             UIManager.disableButtons(true);
+             DOM.game.wordDisplay.style.opacity = '0.5';
+             return;
         }
-        
+
         // Track mashing - if voting faster than STREAK_WINDOW, increment count
         if (State.runtime.lastVoteTime > 0 && (n - State.runtime.lastVoteTime) < CONFIG.VOTE.STREAK_WINDOW) {
             State.runtime.mashCount++;
@@ -8361,11 +8325,11 @@ async vote(t, s = false) {
         const w = State.runtime.allWords[State.runtime.currentWordIndex],
             up = w.text.toUpperCase(),
             { CAKE, LLAMA, POTATO, SQUIRREL, MASON } = CONFIG.SPECIAL;
-        
+
         UIManager.disableButtons(true);
         const wd = DOM.game.wordDisplay;
         const colors = Accessibility.getColors();
-        
+
         if (!s && (t === 'good' || t === 'bad')) {
             Game.cleanStyles(wd);
             wd.style.setProperty('--dynamic-swipe-color', t === 'good' ? colors.good : colors.bad);
@@ -8374,11 +8338,11 @@ async vote(t, s = false) {
             await new Promise(r => setTimeout(r, 50));
             wd.classList.remove('color-fade');
             wd.classList.add(t === 'good' ? 'animate-fly-left' : 'animate-fly-right');
-            
+
             if (t === 'good') SoundManager.playGood();
             else SoundManager.playBad();
         }
-        
+
         const hSpec = (c, k) => {
             if (window.StreakManager) window.StreakManager.extend(c.fade + c.dur);
             State.unlockBadge(k);
@@ -8410,13 +8374,13 @@ async vote(t, s = false) {
                 }, c.dur)
             }, c.fade)
         };
-        
+
         if (up === CAKE.text) { hSpec(CAKE, 'cake'); return }
         if (up === LLAMA.text) { hSpec(LLAMA, 'llama'); return }
         if (up === POTATO.text) { hSpec(POTATO, 'potato'); return }
         if (up === SQUIRREL.text) { hSpec(SQUIRREL, 'squirrel'); return }
         if (up === MASON.text) { hSpec(MASON, 'bone'); return }
-        
+
         try {
             const un = ThemeManager.checkUnlock(up);
             if (un) SoundManager.playUnlock();
@@ -8434,23 +8398,23 @@ async vote(t, s = false) {
                 w[`${t}Votes`] = (w[`${t}Votes`] || 0) + 1;
                 State.incrementVote();
                 await API.submitUserVotes(State.data.userId, State.data.username, State.data.voteCount);
-                
+
                 StreakManager.handleSuccess();
             }
-            
+
             if (State.runtime.isDailyMode) {
                 const tod = new Date(), dStr = tod.toISOString().split('T')[0];
-                
+
                 // Golden word challenge
                 if (State.runtime.dailyChallengeType === 'golden') {
                     State.runtime.dailyVotesCount = (State.runtime.dailyVotesCount || 0) + 1;
-                    const isGolden = (State.runtime.goldenWord && w._id === State.runtime.goldenWord._id) || 
+                    const isGolden = (State.runtime.goldenWord && w._id === State.runtime.goldenWord._id) ||
                                     (Math.random() < 0.1 && State.runtime.dailyVotesCount >= 3);
-                    
+
                     if (isGolden && !State.runtime.goldenWordFound) {
                         State.runtime.goldenWordFound = true;
                         UIManager.showPostVoteMessage("🌟 GOLDEN WORD! 🌟");
-                        
+
                         const last = State.data.daily.lastDate;
                         let s = State.data.daily.streak;
                         if (last) {
@@ -8461,7 +8425,7 @@ async vote(t, s = false) {
                         const golden = (State.data.daily.goldenWordsFound || 0) + 1;
                         State.save('daily', { streak: s, lastDate: dStr, bestStreak: best, goldenWordsFound: golden });
                         DOM.daily.streakResult.textContent = '🔥 ' + s + ' 🌟';
-                        
+
                         setTimeout(() => this.finishDailyChallenge(), 1500);
                         return;
                     } else {
@@ -8470,7 +8434,7 @@ async vote(t, s = false) {
                         return;
                     }
                 }
-                
+
                 // Single word challenge
                 const last = State.data.daily.lastDate;
                 let s = State.data.daily.streak;
@@ -8481,7 +8445,7 @@ async vote(t, s = false) {
                 const best = Math.max(s, State.data.daily.bestStreak || 0);
                 State.save('daily', { streak: s, lastDate: dStr, bestStreak: best });
                 DOM.daily.streakResult.textContent = '🔥 ' + s;
-                
+
                 this.finishDailyChallenge();
                 return;
             }
@@ -8491,7 +8455,7 @@ async vote(t, s = false) {
             else if (State.data.settings.showPercentages && (t === 'good' || t === 'bad')) {
                 const tot = (w.goodVotes || 0) + (w.badVotes || 0);
                 const p = Math.round((w[`${t}Votes`] / tot) * 100);
-                
+
                 if (State.runtime.isDrinkingMode && p < 50) {
                     m = `🍺 DRINK! (You are in the minority: ${p}%)`;
                 } else {
@@ -8499,7 +8463,7 @@ async vote(t, s = false) {
                 }
             }
 
-            if (State.data.settings.showTips && !State.runtime.isMultiplayer) { 
+            if (State.data.settings.showTips && !State.runtime.isMultiplayer) {
                 State.save('voteCounterForTips', State.data.voteCounterForTips + 1);
                 // Random tip interval: show tip when counter reaches nextTipAt
                 if (!State.runtime.nextTipAt) State.runtime.nextTipAt = Math.floor(Math.random() * 11) + 5; // 5-15
@@ -8514,7 +8478,7 @@ async vote(t, s = false) {
             UIManager.showPostVoteMessage(m);
             if (t === 'good' || t === 'bad') Haptics.medium();
             UIManager.updateStats();
-            
+
             UIManager.addToHistory(w.text, t);
             State.runtime.history.unshift({ word: w.text, vote: t });
             if(State.runtime.history.length > 50) State.runtime.history.pop();
@@ -8563,14 +8527,14 @@ async vote(t, s = false) {
             <button onclick="window.location.href = window.location.pathname" class="bg-red-500 text-white px-3 py-1 rounded-full font-bold text-xs shadow-lg hover:bg-red-600 transition cursor-pointer pointer-events-auto">EXIT</button>
         `;
         document.body.appendChild(ui);
-        
+
         this.resetGame();
-        
+
         if (data.words && data.words.length > 0) {
             State.runtime.allWords = data.words;
-            this.nextWord(); 
+            this.nextWord();
         } else {
-            State.runtime.allWords = []; 
+            State.runtime.allWords = [];
             UIManager.showMessage("Get Ready...");
         }
     },
@@ -8586,15 +8550,15 @@ async vote(t, s = false) {
         const t = CONFIG.VOTE.COOLDOWN_TIERS;
         let r = t[Math.min(State.runtime.mashLevel, t.length - 1)];
         UIManager.showMessage(`Mashing detected. Wait ${r}s...`, true);
-        Haptics.heavy(); 
-        
+        Haptics.heavy();
+
         State.runtime.cooldownTimer = setInterval(() => {
             r--;
             if (r > 0) UIManager.showMessage(`Wait ${r}s...`, true);
             else {
                 clearInterval(State.runtime.cooldownTimer);
                 State.runtime.isCoolingDown = false;
-                State.runtime.mashCount = 0; 
+                State.runtime.mashCount = 0;
                 State.runtime.mashLevel++;
                 UIManager.displayWord(State.runtime.allWords[State.runtime.currentWordIndex]);
             }
@@ -8637,20 +8601,19 @@ async vote(t, s = false) {
 
  async refreshData(u = true) {
         if (State.runtime.isMultiplayer) return;
-    
+
         if (u) UIManager.showMessage(State.data.settings.kidsMode ? "Loading Kids Mode..." : "Loading...");
-        
+
         // Toggle buttons visibility
         const isKids = State.data.settings.kidsMode;
         DOM.game.buttons.custom.style.display = isKids ? 'none' : 'block';
         DOM.game.buttons.notWord.style.display = isKids ? 'none' : 'block';
-        
+
         // --- FIX: REMOVED THE LINE THAT FORCED THE BANNER TO SHOW ---
         // DOM.game.dailyBanner.style.display = isKids ? 'none' : 'block'; <--- DELETED
-        
+
         // --- ADDED: CHECK STATUS INSTEAD ---
         this.checkDailyStatus();
-        // -----------------------------------
 
         ['compareWordsButton','qrGoodBtn','qrBadBtn'].forEach(id => {
             const el = document.getElementById(id);
@@ -8661,11 +8624,11 @@ async vote(t, s = false) {
         if (isKids) {
             d = await API.fetchKidsWords();
         } else {
-            // FIX: Fetch ALL words (restores Global Stats)
-            d = await API.getAllWords(); 
+            // Fetch ALL words (restores Global Stats)
+            d = await API.getAllWords();
         }
 
-		if (d && d.length > 0) {
+        if (d && d.length > 0) {
             // Offline single-player uses cached words
             if (OfflineManager.isActive()) {
                 // Use the cached words from fillCache()
@@ -8682,9 +8645,9 @@ async vote(t, s = false) {
                     [d[i], d[j]] = [d[j], d[i]];
                 }
             }
-            
+
             State.runtime.allWords = d;
-            
+
             // Filter logic
             if (!isKids) {
                  State.runtime.allWords = d.filter(w => (w.notWordVotes || 0) < 3);
@@ -8704,7 +8667,7 @@ async vote(t, s = false) {
                 if (idx !== -1) {
                     State.runtime.currentWordIndex = idx;
                     UIManager.displayWord(State.runtime.allWords[idx]);
-                    window.history.replaceState({}, document.title, "/"); 
+                    window.history.replaceState({}, document.title, "/");
                     UIManager.showPostVoteMessage("Shared word loaded! 🔗");
                 } else {
                     State.runtime.currentWordIndex = 0;
@@ -8713,16 +8676,16 @@ async vote(t, s = false) {
             } else {
                 // Show first word of the shuffled list
                 State.runtime.currentWordIndex = 0;
-                UIManager.displayWord(State.runtime.allWords[0]); 
+                UIManager.displayWord(State.runtime.allWords[0]);
             }
-            
+
             const today = new Date().toISOString().split('T')[0];
             const history = State.data.wordHistory;
             const currentCount = State.runtime.allWords.length;
 
             if (history.length === 0 || history[history.length - 1].date !== today) {
                 history.push({ date: today, count: currentCount });
-                if (history.length > 365) history.shift(); 
+                if (history.length > 365) history.shift();
                 State.save('wordHistory', history);
             }
         }
@@ -8733,7 +8696,7 @@ async vote(t, s = false) {
         const header = document.querySelector('header');
         const themesPanel = document.querySelector('.mt-6.p-4.bg-white\\/70'); // Themes panel
         const rankingsSection = document.getElementById('rankingsSection'); // Top good/bad words
-        
+
         if (hide) {
             if (gameCard) gameCard.style.opacity = '0';
             if (gameCard) gameCard.style.pointerEvents = 'none';
@@ -8761,26 +8724,26 @@ async vote(t, s = false) {
         const d = State.data;
         const totalVotesEl = document.getElementById('dailyTotalVotes');
         if (totalVotesEl) totalVotesEl.textContent = d.voteCount.toLocaleString();
-        
+
         // Submit streak to server
         await API.submitUserVotes(
-            d.userId, 
-            d.username, 
-            d.voteCount, 
-            d.daily.streak, 
+            d.userId,
+            d.username,
+            d.voteCount,
+            d.daily.streak,
             d.daily.bestStreak
         );
-        
+
         // Update total votes and golden count in modal
         const dailyVotesEl = document.getElementById('dailyTotalVotes');
         if (dailyVotesEl) dailyVotesEl.textContent = d.voteCount.toLocaleString();
         const goldenCountEl = document.getElementById('dailyGoldenCount');
         if (goldenCountEl) goldenCountEl.textContent = '🌟 ' + (d.daily.goldenWordsFound || 0);
-        
+
         const leaderboard = await API.fetchLeaderboard();
         const userRankIndex = leaderboard.findIndex(u => u.userId === d.userId);
         const totalUsers = leaderboard.length;
-        
+
         if (userRankIndex >= 0) {
             const rank = userRankIndex + 1;
             DOM.daily.worldRank.textContent = '#' + rank;
@@ -8795,14 +8758,14 @@ async vote(t, s = false) {
             const ctx = document.getElementById('dailyRankContext');
             if (ctx) ctx.textContent = 'Keep voting to climb!';
         }
-        
+
         State.runtime.isDailyMode = false;
         State.runtime.dailyChallengeType = null;
         State.runtime.goldenWord = null;
         DOM.game.dailyBanner.classList.remove('daily-locked-mode');
         DOM.game.buttons.notWord.style.visibility = '';
         DOM.game.buttons.custom.style.visibility = '';
-        
+
         this.checkDailyStatus();
         setTimeout(() => ModalManager.toggle('dailyResult', true), 600);
         this.refreshData(true);
@@ -8811,13 +8774,13 @@ async vote(t, s = false) {
     activateDailyMode() {
         if (State.runtime.isDailyMode) return;
         const t = new Date().toISOString().split('T')[0];
-        
+
         if (t === State.data.daily.lastDate) return;
         State.runtime.isDailyMode = true;
         DOM.game.dailyBanner.classList.add('daily-locked-mode');
         DOM.game.buttons.notWord.style.visibility = 'hidden';
         DOM.game.buttons.custom.style.visibility = 'hidden';
-        
+
         // Calculate date seed
         let seed = 0;
         for (let i = 0; i < t.length; i++) {
@@ -8825,11 +8788,11 @@ async vote(t, s = false) {
             seed |= 0;
         }
         seed = Math.abs(seed);
-        
+
         // 50% golden, 50% single
         const isGolden = (seed % 2) === 0;
         State.runtime.dailyChallengeType = isGolden ? 'golden' : 'single';
-        
+
         if (isGolden) {
             UIManager.showMessage('🌟 Find the Golden Word!');
             State.runtime.goldenWordFound = false;
@@ -8837,10 +8800,10 @@ async vote(t, s = false) {
         } else {
             UIManager.showMessage('Loading Daily Word...');
         }
-        
+
         API.getAllWords().then(words => {
             const sortedWords = words.sort((a, b) => a.text.localeCompare(b.text));
-            
+
             if (isGolden) {
                 const goldenIdx = (seed * 7) % sortedWords.length;
                 State.runtime.goldenWord = sortedWords[goldenIdx];
@@ -8919,11 +8882,11 @@ async renderLeaderboardTable() {
         if (!lbContainer) return;
         lbContainer.innerHTML = '<div class="text-center text-gray-500 p-4">Loading...</div>';
         const allUsers = await API.fetchLeaderboard();
-        
+
         // GLOBAL LIST
         const topUsers = allUsers.slice(0, 5);
         let html = '<h3 class="text-lg font-bold text-gray-800 mb-3 mt-4">Top Voters (Global)</h3>';
-        
+
         if (topUsers.length === 0) {
             html += '<div class="text-center text-gray-500 text-sm">Unavailable</div>';
         } else {
@@ -8949,7 +8912,7 @@ async renderLeaderboardTable() {
         } else {
             html += `<div class="text-center text-gray-400 text-xs my-2">No streaks yet!</div>`;
         }
-        
+
         lbContainer.innerHTML = html;
     },
 
@@ -8982,7 +8945,7 @@ async renderLeaderboardTable() {
             const ctx = cvsScatter.getContext('2d');
             const W = cvsScatter.width;
             const H = cvsScatter.height;
-            const P = 40; 
+            const P = 40;
             ctx.clearRect(0, 0, W, H);
             let maxGood = 0, maxBad = 0;
             w.forEach(word => {
@@ -8997,15 +8960,15 @@ async renderLeaderboardTable() {
             for(let i=1; i<=4; i++) {
                 const y = H - P - (i/5)*(H - 2*P);
                 const x = P + (i/5)*(W - 2*P);
-                ctx.moveTo(P, y); ctx.lineTo(W-P, y); 
-                ctx.moveTo(x, P); ctx.lineTo(x, H-P); 
+                ctx.moveTo(P, y); ctx.lineTo(W-P, y);
+                ctx.moveTo(x, P); ctx.lineTo(x, H-P);
             }
             ctx.stroke();
             ctx.beginPath();
             ctx.strokeStyle = "#9ca3af";
             ctx.lineWidth = 2;
-            ctx.moveTo(P, P); ctx.lineTo(P, H - P); 
-            ctx.lineTo(W - P, H - P); 
+            ctx.moveTo(P, P); ctx.lineTo(P, H - P);
+            ctx.lineTo(W - P, H - P);
             ctx.stroke();
             drawText(ctx, "Bad Votes →", W / 2, H - 10, "#4b5563", 12);
             ctx.save();
@@ -9024,32 +8987,32 @@ async renderLeaderboardTable() {
                 const y = (H - P) - (g / maxGood) * (H - 2 * P);
                 ctx.beginPath();
                 ctx.arc(x, y, 3, 0, Math.PI * 2);
-                if (g > b * 1.5) ctx.fillStyle = "rgba(34, 197, 94, 0.6)"; 
-                else if (b > g * 1.5) ctx.fillStyle = "rgba(239, 68, 68, 0.6)"; 
-                else ctx.fillStyle = "rgba(107, 114, 128, 0.6)"; 
+                if (g > b * 1.5) ctx.fillStyle = "rgba(34, 197, 94, 0.6)";
+                else if (b > g * 1.5) ctx.fillStyle = "rgba(239, 68, 68, 0.6)";
+                else ctx.fillStyle = "rgba(107, 114, 128, 0.6)";
                 ctx.fill();
             });
         }
-        
+
         // VOTE HISTORY CHART - Total votes over time (from global stats)
         const cvsVoteHistory = document.getElementById('voteHistoryCanvas');
         if (cvsVoteHistory) {
             const ctx = cvsVoteHistory.getContext('2d');
             const W = cvsVoteHistory.width;
             const H = cvsVoteHistory.height;
-            const P = 50; 
+            const P = 50;
             const GRAPH_H = H - 2 * P;
-            const Y_PLOT_MAX = P;      
-            const Y_PLOT_MIN = H - P;  
+            const Y_PLOT_MAX = P;
+            const Y_PLOT_MIN = H - P;
             ctx.clearRect(0, 0, W, H);
-            
+
             // Use global history or fall back to computed value
             let voteHistory = globalHistory.filter(h => h.totalVotes > 0);
             if (voteHistory.length === 0) {
                 const today = new Date().toISOString().split('T')[0];
                 voteHistory = [{ date: today, totalVotes: totalVotes }];
             }
-            
+
             // Format and display tracking start date
             const formatTrackingDate = (dateStr) => {
                 const date = new Date(dateStr + 'T00:00:00');
@@ -9065,31 +9028,31 @@ async renderLeaderboardTable() {
                 if (diffDays < 30) return `(Since ${month} ${day})`;
                 return `(Since ${month} ${day}, ${year})`;
             };
-            
+
             const startDate = voteHistory[0]?.date;
             const voteTrackingEl = document.getElementById('voteTrackingStart');
             if (voteTrackingEl && startDate) {
                 voteTrackingEl.textContent = formatTrackingDate(startDate);
             }
-            
+
             const maxVotes = Math.max(...voteHistory.map(h => h.totalVotes || 0), 1000);
             const Y_MIN_VALUE = 0;
             const Y_MAX_VALUE = Math.ceil(maxVotes / 10000) * 10000 || 100000;
             const VALUE_RANGE = Y_MAX_VALUE - Y_MIN_VALUE;
-            
+
             // Axes
             ctx.beginPath();
             ctx.strokeStyle = "#ccc";
             ctx.lineWidth = 1;
             ctx.moveTo(P, Y_PLOT_MAX); ctx.lineTo(P, Y_PLOT_MIN); ctx.lineTo(W - P, Y_PLOT_MIN);
             ctx.stroke();
-            
+
             const getYVotes = (count) => {
-                if (count <= Y_MIN_VALUE) return Y_PLOT_MIN; 
+                if (count <= Y_MIN_VALUE) return Y_PLOT_MIN;
                 const plotRatio = count / VALUE_RANGE;
                 return Y_PLOT_MIN - plotRatio * GRAPH_H;
             };
-            
+
             // Y-axis labels
             ctx.textAlign = "right";
             for (let i = 0; i <= 4; i++) {
@@ -9101,7 +9064,7 @@ async renderLeaderboardTable() {
                 ctx.stroke();
                 drawText(ctx, val.toLocaleString(), P - 5, y + 5, "#666", 9);
             }
-            
+
             // Draw line
             if (voteHistory.length > 0) {
                 const xDivisor = voteHistory.length > 1 ? voteHistory.length - 1 : 1;
@@ -9115,7 +9078,7 @@ async renderLeaderboardTable() {
                     else ctx.lineTo(x, y);
                 });
                 ctx.stroke();
-                
+
                 // Draw points
                 voteHistory.forEach((h, i) => {
                     const x = P + (i / xDivisor) * (W - 2 * P);
@@ -9133,7 +9096,7 @@ async renderLeaderboardTable() {
                     }
                 });
             }
-            
+
             // X-axis date labels (start and end)
             if (voteHistory.length > 0) {
                 const formatShortDate = (dateStr) => {
@@ -9148,7 +9111,7 @@ async renderLeaderboardTable() {
                     drawText(ctx, formatShortDate(voteHistory[voteHistory.length - 1].date), W - P, H - P + 15, "#999", 9);
                 }
             }
-            
+
             ctx.textAlign = "center";
             drawText(ctx, "Time →", W / 2, H - 5, "#999", 10);
             ctx.save();
@@ -9164,12 +9127,12 @@ async renderLeaderboardTable() {
             const ctx = cvsLine.getContext('2d');
             const W = cvsLine.width;
             const H = cvsLine.height;
-            const P = 40; 
+            const P = 40;
             const GRAPH_H = H - 2 * P;
-            const Y_PLOT_MAX = P;      
-            const Y_PLOT_MIN = H - P;  
+            const Y_PLOT_MAX = P;
+            const Y_PLOT_MIN = H - P;
             ctx.clearRect(0, 0, W, H);
-            
+
             // Use global history if available, otherwise fall back to local
             let history = globalHistory.filter(h => h.totalWords > 0);
             if (history.length === 0) {
@@ -9181,7 +9144,7 @@ async renderLeaderboardTable() {
             }
             // Normalize to have count property
             history = history.map(h => ({ ...h, count: h.totalWords || h.count || 0 }));
-            
+
             // Display tracking start date for dictionary chart
             const formatTrackingDate = (dateStr) => {
                 const date = new Date(dateStr + 'T00:00:00');
@@ -9197,13 +9160,13 @@ async renderLeaderboardTable() {
                 if (diffDays < 30) return `(Since ${month} ${day})`;
                 return `(Since ${month} ${day}, ${year})`;
             };
-            
+
             const dictStartDate = history[0]?.date;
             const dictTrackingEl = document.getElementById('dictTrackingStart');
             if (dictTrackingEl && dictStartDate) {
                 dictTrackingEl.textContent = formatTrackingDate(dictStartDate);
             }
-            
+
             const currentMaxData = Math.max(...history.map(h => h.count), w.length);
             const Y_MIN_VALUE = 3000;
             const SOFT_MAX = 6000;
@@ -9220,7 +9183,7 @@ async renderLeaderboardTable() {
             ctx.moveTo(P, Y_PLOT_MAX); ctx.lineTo(P, Y_PLOT_MIN); ctx.lineTo(W - P, Y_PLOT_MIN);
             ctx.stroke();
             const getY = (count) => {
-                if (count <= Y_MIN_VALUE) return Y_PLOT_MIN; 
+                if (count <= Y_MIN_VALUE) return Y_PLOT_MIN;
                 const valueAboveMin = count - Y_MIN_VALUE;
                 const plotRatio = valueAboveMin / VALUE_RANGE;
                 return Y_PLOT_MIN - plotRatio * GRAPH_H;
@@ -9229,7 +9192,7 @@ async renderLeaderboardTable() {
             drawText(ctx, Y_MAX_VALUE.toLocaleString(), P - 5, P + 5, "#666", 10);
             const markers = [Y_MIN_VALUE, SOFT_MAX];
             if (Y_MAX_VALUE !== SOFT_MAX) {
-                const step = Y_MAX_VALUE / 4; 
+                const step = Y_MAX_VALUE / 4;
                 for (let i = 1; i <= 3; i++) markers.push(Math.round(i * step / 100) * 100);
             }
             [...new Set(markers)].sort((a,b)=>a-b).forEach(mark => {
@@ -9242,7 +9205,7 @@ async renderLeaderboardTable() {
                     drawText(ctx, mark.toLocaleString(), P - 5, y + 5, "#666", 10);
                 }
             });
-            drawText(ctx, Y_MIN_VALUE.toLocaleString(), P - 5, Y_PLOT_MIN + 5, "#666", 10); 
+            drawText(ctx, Y_MIN_VALUE.toLocaleString(), P - 5, Y_PLOT_MIN + 5, "#666", 10);
             if (history.length > 0) {
                 const xDivisor = history.length > 1 ? history.length - 1 : 1;
                 ctx.beginPath();
@@ -9271,7 +9234,7 @@ async renderLeaderboardTable() {
                     }
                 });
             }
-            
+
             // X-axis date labels (start and end)
             if (history.length > 0 && history[0].date) {
                 const formatShortDate = (dateStr) => {
@@ -9286,7 +9249,7 @@ async renderLeaderboardTable() {
                     drawText(ctx, formatShortDate(history[history.length - 1].date), W - P, H - P + 15, "#999", 9);
                 }
             }
-            
+
             ctx.textAlign = "center";
             drawText(ctx, "Time →", W / 2, H - 5, "#999", 10);
             ctx.save();
@@ -9353,31 +9316,31 @@ async renderLeaderboardTable() {
         }
     }
 };
-	
+
 const StreakManager = {
     timer: null,
-    loopTimer: null, 
-    LIMIT: 6500, 
-	
+    loopTimer: null,
+    LIMIT: 6500,
+
     extend(ms) {
         if (this.timer) clearTimeout(this.timer);
         this.timer = setTimeout(() => this.endStreak(), this.LIMIT + ms);
     },
 
     handleSuccess() {
-        if (State.data.settings.noStreaksMode) return; 
+        if (State.data.settings.noStreaksMode) return;
 
         const now = Date.now();
         if (State.runtime.streak > 0 && (now - State.runtime.lastStreakTime) > this.LIMIT) {
             this.endStreak();
-            State.runtime.streak = 1; 
+            State.runtime.streak = 1;
         } else {
             State.runtime.streak++;
         }
-        
+
         State.runtime.lastStreakTime = now;
         const currentStreak = State.runtime.streak;
-        
+
         if (currentStreak > State.data.longestStreak) {
             State.save('longestStreak', currentStreak);
             const el = document.getElementById('streak-display-value');
@@ -9397,19 +9360,19 @@ const StreakManager = {
     },
 
     endStreak() {
-		const current = State.runtime.streak;
+        const current = State.runtime.streak;
         if (current > (parseInt(State.data.longestStreak) || 0)) {
             State.data.longestStreak = current;
             State.save('longestStreak', current);
         }
         if (this.timer) clearTimeout(this.timer);
         const finalScore = State.runtime.streak;
-        
+
         if (finalScore >= 5) {
             this.showNotification(`Streak Ended: ${finalScore} Words`, "neutral");
             this.checkHighScore(finalScore);
         }
-        
+
         const counter = document.getElementById('streak-floating-counter');
         if (counter) {
             counter.style.opacity = '0';
@@ -9454,7 +9417,7 @@ const StreakManager = {
         if (!State.data.highScores) State.data.highScores = [];
         const scores = State.data.highScores;
         const minScore = scores.length < 8 ? 0 : scores[scores.length - 1].score;
-        
+
         if (score > minScore || scores.length < 8) {
             setTimeout(() => this.promptName(score), 500);
         }
@@ -9467,7 +9430,7 @@ const StreakManager = {
                 <div style="background:white; padding:2rem; border-radius:1rem; text-align:center; max-width:90%; width:300px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
                     <h2 style="color:#4f46e5; font-size:1.5rem; font-weight:900; margin-bottom:0.5rem; text-transform: uppercase;">New High Score!</h2>
                     <p style="color:#4b5563; font-size:1.25rem; font-weight:bold; margin-bottom:1.5rem;">Streak: ${score}</p>
-                    <input type="text" id="hsNameInput" maxlength="3" placeholder="AAA" 
+                    <input type="text" id="hsNameInput" maxlength="3" placeholder="AAA"
                         style="font-size:2rem; text-align:center; width:100%; letter-spacing:0.2em; border:2px solid #e5e7eb; border-radius:0.5rem; padding:0.5rem; text-transform:uppercase; margin-bottom:1.5rem; font-weight:bold;">
                     <button id="hsSaveBtn" style="width:100%; padding:1rem; background:#4f46e5; color:white; border:none; border-radius:0.5rem; font-weight:bold; font-size:1rem; cursor:pointer; transition: background 0.2s;">SAVE SCORE</button>
                 </div>
@@ -9480,7 +9443,7 @@ const StreakManager = {
             const name = (document.getElementById('hsNameInput').value || "AAA").toUpperCase();
             const scores = State.data.highScores || [];
             scores.push({ name, score, date: Date.now() });
-            scores.sort((a,b) => b.score - a.score); 
+            scores.sort((a,b) => b.score - a.score);
             if(scores.length > 8) scores.pop();
             State.save('highScores', scores);
             API.submitHighScore(name, score);
@@ -9498,13 +9461,13 @@ const StreakManager = {
         const url = window.location.origin;
 
         if (navigator.share) {
-            try { 
-                await navigator.share({ title: 'High Scores', text: text, url: url }); 
+            try {
+                await navigator.share({ title: 'High Scores', text: text, url: url });
             } catch(e) { }
         } else {
-            try { 
-                await navigator.clipboard.writeText(`${text} ${url}`); 
-                UIManager.showPostVoteMessage("Score copied to clipboard! 📋"); 
+            try {
+                await navigator.clipboard.writeText(`${text} ${url}`);
+                UIManager.showPostVoteMessage("Score copied to clipboard! 📋");
             } catch(e) {
                 UIManager.showPostVoteMessage("Could not share.");
             }
@@ -9553,7 +9516,7 @@ const StreakManager = {
                         <div id="hs-display-area" class="min-h-[340px]">
                             <div class="text-center mt-20 text-cyan-400 crt-text animate-pulse">CONNECTING...</div>
                         </div>
-                        
+
                         <div class="mt-4 flex justify-between items-center crt-text text-xs text-gray-400 font-bold">
                              <span id="hs-page-indicator">LOADING</span>
                              <div class="flex gap-2">
@@ -9585,7 +9548,7 @@ const StreakManager = {
 
         const area = document.getElementById('hs-display-area');
         const indicator = document.getElementById('hs-page-indicator');
-        
+
         let showingGlobal = true;
         let touchStartX = 0;
         let touchEndX = 0;
@@ -9597,14 +9560,14 @@ const StreakManager = {
             setTimeout(() => {
                 if (showingGlobal) {
                     indicator.textContent = "PAGE 1/2 [WORLD]";
-                    indicator.style.color = '#34d399'; 
+                    indicator.style.color = '#34d399';
                     let h = `<div class="text-cyan-400 text-sm crt-text mb-4 border-b-2 border-cyan-700 pb-1 font-black">GLOBAL RANKINGS</div>`;
                     if (topGlobal.length === 0) h += '<div class="text-gray-500 text-xs crt-text mt-8 text-center">NO DATA FOUND</div>';
                     else h += topGlobal.map((s,i) => renderRow(s, i, 'text-cyan-400')).join('');
                     area.innerHTML = h;
                 } else {
                     indicator.textContent = "PAGE 2/2 [LOCAL]";
-                    indicator.style.color = '#fbbf24'; 
+                    indicator.style.color = '#fbbf24';
                     let h = `<div class="text-yellow-400 text-sm crt-text mb-4 border-b-2 border-yellow-700 pb-1 font-black">${username.toUpperCase()}'S RECORDS</div>`;
                     if (localScores.length === 0) h += '<div class="text-gray-500 text-xs crt-text mt-8 text-center">PLAY TO SET SCORES</div>';
                     else h += localScores.map((s,i) => renderRow(s, i, 'text-yellow-400')).join('');
@@ -9614,7 +9577,7 @@ const StreakManager = {
                 area.style.opacity = '1';
             }, 200);
         };
-        
+
         const switchPage = () => {
             showingGlobal = !showingGlobal;
             renderPage();
@@ -9622,19 +9585,19 @@ const StreakManager = {
             if (this.loopTimer) clearTimeout(this.loopTimer);
             this.loopTimer = setTimeout(autoSwitch, 5000);
         };
-        
+
         const autoSwitch = () => {
             if(!document.getElementById('highScoreModal')) return;
             showingGlobal = !showingGlobal;
             renderPage();
             this.loopTimer = setTimeout(autoSwitch, 5000);
         };
-        
+
         // Swipe support
         area.addEventListener('touchstart', (e) => {
             touchStartX = e.changedTouches[0].screenX;
         }, { passive: true });
-        
+
         area.addEventListener('touchend', (e) => {
             touchEndX = e.changedTouches[0].screenX;
             const diff = touchStartX - touchEndX;
@@ -9642,15 +9605,15 @@ const StreakManager = {
                 switchPage();
             }
         }, { passive: true });
-        
+
         // Click to switch page
         area.style.cursor = 'pointer';
         area.onclick = switchPage;
-        
+
         renderPage();
         this.loopTimer = setTimeout(autoSwitch, 5000);
     },
-    
+
     closeLeaderboard() {
         const el = document.getElementById('highScoreModal');
         if(el) el.remove();
@@ -9661,11 +9624,10 @@ const StreakManager = {
     window.onload = Game.init.bind(Game);
     window.RoomManager = RoomManager;
     window.UIManager = UIManager;
-	window.WeatherManager = WeatherManager;
-	window.LocalPeerManager = LocalPeerManager;
+    window.WeatherManager = WeatherManager;
+    window.LocalPeerManager = LocalPeerManager;
 
     console.log("%c Good Word / Bad Word ", "background: #4f46e5; color: #bada55; padding: 4px; border-radius: 4px;");
     console.log("Play fair! ️😇");
 
-	
 })();
