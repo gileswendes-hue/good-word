@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.23',
+    APP_VERSION: '6.2.24',
     KIDS_LIST_FILE: 'kids_words.txt',
 
     SPECIAL: {
@@ -2814,34 +2814,28 @@ halloween(active) {
             s.id = 'spider-motion-style';
             s.innerHTML = `
                 @keyframes spider-idle-wiggle {
-                    0%, 100% { transform: rotate(0deg) scaleX(1); }
-                    15% { transform: rotate(2deg); }
-                    30% { transform: rotate(-2deg); }
-                    45% { transform: rotate(1deg); }
-                    60% { transform: rotate(-1deg); }
-                    75% { transform: rotate(1deg); }
-                    90% { transform: rotate(-1deg); }
-                }
-                @keyframes spider-leg-twitch {
                     0%, 100% { transform: rotate(0deg); }
-                    25% { transform: rotate(3deg); }
-                    75% { transform: rotate(-3deg); }
+                    50% { transform: rotate(2deg); }
+                }
+                @keyframes spider-moving {
+                    0%, 100% { transform: rotate(-1deg); }
+                    50% { transform: rotate(1deg); }
                 }
                 @keyframes spider-pause-wiggle {
                     0%, 100% { transform: rotate(0deg); }
-                    50% { transform: rotate(5deg); }
+                    50% { transform: rotate(3deg); }
                 }
                 .scuttling-motion {
-                animation: spider-leg-twitch 1.2s infinite ease-in-out;
+                    animation: spider-moving 0.8s infinite ease-in-out;
                 }
                 .spider-paused {
-                    animation: spider-pause-wiggle 0.8s ease-in-out;
+                    animation: spider-pause-wiggle 1s ease-in-out;
                 }
                 .hunting-scuttle {
-                    animation: spider-leg-twitch 0.6s infinite ease-in-out;
+                    animation: spider-moving 0.5s infinite ease-in-out;
                 }
                 .spider-idle {
-                animation: spider-idle-wiggle 4s infinite ease-in-out;
+                    animation: spider-idle-wiggle 3s infinite ease-in-out;
                 }
                 .spider-fat {
                     filter: drop-shadow(0 10px 5px rgba(0,0,0,0.4)); transition: transform 1s cubic-bezier(0.5, 0, 0.5, 1);
@@ -2850,7 +2844,7 @@ halloween(active) {
             document.head.appendChild(s);
         }
 
-        // Spider scuttle movement system - jerky, realistic movement
+        // Spider movement system - smooth CSS transitions
         const spiderScuttle = {
             active: false,
             targetX: 50,
@@ -2861,71 +2855,17 @@ halloween(active) {
                 this.targetX = targetPercent;
                 this.currentX = parseFloat(wrap.style.left) || 50;
 
-                const totalDist = Math.abs(this.targetX - this.currentX);
-                const direction = this.targetX > this.currentX ? 1 : -1;
-
                 body.classList.add('scuttling-motion');
 
-                const moveStep = () => {
-                    if (!this.active) {
-                        this.stop(body, onComplete);
-                        return;
-                    }
+                // Use CSS transition for smooth movement
+                wrap.style.transition = 'left 2s ease-in-out';
+                wrap.style.left = targetPercent + '%';
 
-                    const remaining = Math.abs(this.targetX - this.currentX);
-                    if (remaining < 0.5) {
-                        this.stop(body, onComplete);
-                        return;
-                    }
-
-                    // Decide: move or pause?
-                    const roll = Math.random();
-
-                    if (roll < 0.15) {
-                        // PAUSE - stop briefly (15% chance, was 35%)
-                        body.classList.remove('scuttling-motion');
-                        body.classList.add('spider-paused');
-
-                        const pauseTime = 300 + Math.random() * 400; // 300-700ms pause
-                        setTimeout(() => {
-                            if (!this.active) return;
-                            body.classList.remove('spider-paused');
-                            body.classList.add('scuttling-motion');
-                            setTimeout(moveStep, 100);
-                        }, pauseTime);
-                    } else {
-                        // MOVE - Smooth, steady steps
-                        const burstSteps = 4 + Math.floor(Math.random() * 4);
-                        const stepSize = 0.4 + Math.random() * 0.3;
-                        let burstCount = 0;
-
-                        const doBurstStep = () => {
-                            if (!this.active || burstCount >= burstSteps) {
-                                setTimeout(moveStep, 100 + Math.random() * 150);
-                                return;
-                            }
-
-                            const rem = Math.abs(this.targetX - this.currentX);
-                            if (rem < 0.5) {
-                                this.stop(body, onComplete);
-                                return;
-                            }
-
-                            const actualStep = Math.min(rem, stepSize);
-                            this.currentX += actualStep * direction;
-                            wrap.style.left = this.currentX + '%';
-                            burstCount++;
-
-                            // Smoother timing
-                            setTimeout(doBurstStep, 80 + Math.random() * 60);
-                        };
-
-                        doBurstStep();
-                    }
-                };
-
-                // Start after initial delay
-                setTimeout(moveStep, 200);
+                // Complete after transition
+                setTimeout(() => {
+                    this.currentX = targetPercent;
+                    this.stop(body, onComplete);
+                }, 2000);
             },
 
             stop(body, onComplete) {
