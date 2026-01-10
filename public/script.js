@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.24',
+    APP_VERSION: '6.2.25',
     KIDS_LIST_FILE: 'kids_words.txt',
 
     SPECIAL: {
@@ -3302,72 +3302,15 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         const destX = isFood ? targetXPercent : 88;
         const destY = isFood ? targetYPercent : 20;
 
-        // Hunt scuttle - urgent but still spider-like
-        const huntScuttle = {
-            active: true,
-            move(onComplete) {
-                const currentX = parseFloat(wrap.style.left) || 50;
-                const direction = destX > currentX ? 1 : -1;
-                let posX = currentX;
+        // Smooth hunt movement using CSS transition
+        const currentX = parseFloat(wrap.style.left) || 50;
+        wrap.style.transition = 'left 1s ease-in-out';
+        wrap.style.left = destX + '%';
 
-                const doMove = () => {
-                    if (!this.active) return;
+        // After horizontal movement, drop down
+        setTimeout(() => {
+            body.classList.remove('hunting-scuttle');
 
-                    const remaining = Math.abs(destX - posX);
-                    if (remaining < 0.5) {
-                        body.classList.remove('hunting-scuttle', 'spider-paused');
-                        onComplete();
-                        return;
-                    }
-
-                    const roll = Math.random();
-
-                    if (roll < 0.25) {
-                        // Brief pause to look around (25% chance)
-                        body.classList.remove('hunting-scuttle');
-                        body.classList.add('spider-paused');
-                        const pauseTime = 200 + Math.random() * 400;
-                        setTimeout(() => {
-                            if (!this.active) return;
-                            body.classList.remove('spider-paused');
-                            body.classList.add('hunting-scuttle');
-                            setTimeout(doMove, 100);
-                        }, pauseTime);
-                    } else {
-                        // Burst of movement
-                        const burstSteps = 3 + Math.floor(Math.random() * 3); // 3-5 steps
-                        const stepSize = 1 + Math.random() * 0.8; // 1-1.8% per step
-                        let burstCount = 0;
-
-                        const doBurst = () => {
-                            if (!this.active || burstCount >= burstSteps) {
-                                setTimeout(doMove, 150 + Math.random() * 200);
-                                return;
-                            }
-
-                            const rem = Math.abs(destX - posX);
-                            if (rem < 0.5) {
-                                body.classList.remove('hunting-scuttle', 'spider-paused');
-                                onComplete();
-                                return;
-                            }
-
-                            posX += Math.min(rem, stepSize) * direction;
-                            wrap.style.left = posX + '%';
-                            burstCount++;
-
-                            setTimeout(doBurst, 60 + Math.random() * 40);
-                        };
-
-                        doBurst();
-                    }
-                };
-
-                setTimeout(doMove, 200);
-            }
-        };
-
-        huntScuttle.move(() => {
             const anchor = document.getElementById('spider-anchor');
             let scale = 1;
             if (anchor && anchor.style.transform) {
@@ -3375,11 +3318,11 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 if (match) scale = parseFloat(match[1]);
             }
             const dropVH = (destY + 10) / scale;
-            thread.style.transition = 'height 3s cubic-bezier(0.45, 0, 0.55, 1)';
+            thread.style.transition = 'height 2s cubic-bezier(0.45, 0, 0.55, 1)';
             thread.style.height = dropVH + 'vh';
 
+            // Wait for drop, then handle result
             setTimeout(() => {
-                setTimeout(() => {
                     if (isFood && MosquitoManager.state === 'stuck') {
                         // Scenario 1: Caught the bug
                         MosquitoManager.eat();
@@ -3457,9 +3400,8 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                             this.retreatSpider(thread, wrap, bub, '4s');
                         }, 1500);
                     }
-                }, 2000);
-            }, 3000);
-        });
+                }, 2000); // Wait for drop animation
+            }, 1000); // Wait for horizontal movement
     },
 
     spiderFall(wrap, thread, body, bub) {
