@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.25',
+    APP_VERSION: '6.2.26',
     KIDS_LIST_FILE: 'kids_words.txt',
 
     SPECIAL: {
@@ -3317,7 +3317,15 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 const match = anchor.style.transform.match(/scale\(([^)]+)\)/);
                 if (match) scale = parseFloat(match[1]);
             }
-            const dropVH = (destY + 10) / scale;
+            
+            // Calculate drop distance - need to account for wrap being at -15vh
+            // To reach destY (e.g. 20vh from top), thread needs to be destY + 15 (the offset)
+            const dropVH = destY + 15 + 10; // +15 to compensate for -15vh top, +10 for margin
+            
+            // Force the transition to work
+            thread.style.transition = 'none';
+            thread.style.height = '0';
+            void thread.offsetWidth; // Force reflow
             thread.style.transition = 'height 2s cubic-bezier(0.45, 0, 0.55, 1)';
             thread.style.height = dropVH + 'vh';
 
