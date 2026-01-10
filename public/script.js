@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
 	SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.19', 
+    APP_VERSION: '6.2.21', 
 	KIDS_LIST_FILE: 'kids_words.txt',
 
   
@@ -1183,26 +1183,22 @@ eat() {
 
         // --- FAT SPIDER LOGIC ---
         const now = Date.now();
+        const oneHourAgo = now - (60 * 60 * 1000);
         if (!State.data.spiderEatLog) State.data.spiderEatLog = [];
         
         // 1. Log this bug
         State.data.spiderEatLog.push(now);
         
-        // 2. Keep only bugs from last 5 mins
-        State.data.spiderEatLog = State.data.spiderEatLog.filter(t => (now - t) < 5 * 60 * 1000);
+        // 2. Keep only bugs from last hour (they "digest" after 1 hour)
+        State.data.spiderEatLog = State.data.spiderEatLog.filter(t => t > oneHourAgo);
         State.save('spiderEatLog', State.data.spiderEatLog);
 
-        // 3. Check for Fullness (5 bugs)
+        // 3. Check for Fullness (5 bugs in last hour = max size)
         if (State.data.spiderEatLog.length >= 5) {
-            State.data.spiderFullUntil = now + (60 * 60 * 1000); // Full for 1 hour
-            State.save('spiderFullUntil', State.data.spiderFullUntil);
-            State.data.spiderEatLog = []; // Reset counter
-            State.save('spiderEatLog', []);
-            setTimeout(() => UIManager.showPostVoteMessage("The spider is stuffed!"), 1500);
+            setTimeout(() => UIManager.showPostVoteMessage("The spider is stuffed! 🕷️💤"), 1500);
         }
         
         // Visual update now happens in spiderHunt after eating (puff animation)
-        // No need to recreate the whole halloween effect
 
         this.finish();
     },
@@ -2962,9 +2958,14 @@ halloween(active) {
                 pointerEvents: 'none' 
             });
             
-            const eaten = State.data.insectStats.eaten || 0;
+            // Spider size based on bugs eaten in last hour (not lifetime)
+            const now = Date.now();
+            const oneHourAgo = now - (60 * 60 * 1000);
+            if (!State.data.spiderEatLog) State.data.spiderEatLog = [];
+            // Filter to bugs eaten in last hour
+            const recentBugs = State.data.spiderEatLog.filter(t => t > oneHourAgo).length;
             const maxBugs = 5;
-            const cappedEaten = Math.min(eaten, maxBugs);
+            const cappedEaten = Math.min(recentBugs, maxBugs);
             const fontSize = (3 + (cappedEaten * 0.6)).toFixed(2); // 3rem -> 6rem over 5 bugs
             
             wrap.innerHTML = `
@@ -3456,36 +3457,20 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                         const anchor = wrap.querySelector('#spider-anchor');
                         
                         if (anchor) {
-                            // Calculate new scale based on updated eat count
-                            const eaten = State.data.insectStats.eaten || 0;
-                            
-                            // Base size grows with total bugs eaten (lifetime)
-                            // 0.7 base + 0.05 per bug = visible growth! (max 2.0)
-                            let baseScale = Math.min(0.7 + (eaten * 0.05), 2.0);
-                            
-                            // Recent bugs multiplier (temporary bulge)
-                            const recentBugs = State.data.spiderEatLog ? State.data.spiderEatLog.length : 0;
-                            const isFull = Date.now() < (State.data.spiderFullUntil || 0);
-                            
-                            let newScale = baseScale;
-                            if (isFull) {
-                                newScale = baseScale * 1.6;
-                                if (body) body.classList.add('spider-fat');
-                            } else if (recentBugs > 0) {
-                                // Each recent bug adds 20% temporary size
-                                newScale = baseScale * (1 + (recentBugs * 0.20));
-                            }
-                            
+                            // Size based on bugs eaten in last hour
+                            const now = Date.now();
+                            const oneHourAgo = now - (60 * 60 * 1000);
+                            const recentBugs = (State.data.spiderEatLog || []).filter(t => t > oneHourAgo).length;
+                            const maxBugs = 5;
+                            const cappedBugs = Math.min(recentBugs, maxBugs);
                             
                             // Show visible feedback
-                            UIManager.showPostVoteMessage(`🕷️ ${eaten} bugs eaten! Size: ${newScale.toFixed(2)}x`);
+                            UIManager.showPostVoteMessage(`🕷️ ${recentBugs} bug${recentBugs !== 1 ? 's' : ''} in belly!`);
                             
                             // Change the actual font-size for visible growth
                             // 5 stages: 0 bugs = 3rem, 5 bugs = 6rem (max)
                             const baseFontSize = 3; // rem
-                            const maxBugs = 5;
-                            const cappedEaten = Math.min(eaten, maxBugs);
-                            const newFontSize = baseFontSize + (cappedEaten * 0.6); // 3rem -> 6rem over 5 bugs
+                            const newFontSize = baseFontSize + (cappedBugs * 0.6); // 3rem -> 6rem over 5 bugs
                             const bulgeFontSize = newFontSize * 1.2;
                             
                             body.style.transition = 'font-size 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
@@ -3497,12 +3482,17 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                                     body.style.fontSize = newFontSize.toFixed(2) + 'rem';
                                 }
                             }, 300);
+                            
+                            // Add fat class if at max
+                            if (cappedBugs >= maxBugs) {
+                                body.classList.add('spider-fat');
+                            }
                         }
                         // --- END PUFF UP ---
                         
                         if (body) body.style.animation = 'shake 0.2s ease-in-out';
                         
-                        // Stay visible for 5 seconds so you can see the growth!
+                        // Stay visible briefly
                         setTimeout(() => {
                             if (body) body.style.animation = '';
                         }, 500);
@@ -4817,20 +4807,29 @@ displayWord(w) {
                          w.text === State.runtime.goldenWord.text);
         
         wd.className = 'font-extrabold text-gray-900 text-center min-h-[72px]';
+        wd.classList.remove('golden-word');
         wd.style.cssText = '';
         wd.style.opacity = '1';
         
         if (isGolden) {
-            // Golden word styling
+            // Golden word styling - ALWAYS golden, regardless of theme
             if (!document.getElementById('golden-style')) {
                 const s = document.createElement('style');
                 s.id = 'golden-style';
-                s.textContent = '@keyframes golden-glow{0%,100%{text-shadow:0 0 10px #fbbf24,0 0 20px #f59e0b,0 0 5px #fde68a;}50%{text-shadow:0 0 20px #fbbf24,0 0 40px #f59e0b,0 0 60px #d97706;}}';
+                s.textContent = `
+                    @keyframes golden-glow {
+                        0%, 100% { text-shadow: 0 0 10px #fbbf24, 0 0 20px #f59e0b, 0 0 5px #fde68a; }
+                        50% { text-shadow: 0 0 20px #fbbf24, 0 0 40px #f59e0b, 0 0 60px #d97706; }
+                    }
+                    .golden-word {
+                        color: #f59e0b !important;
+                        text-shadow: 0 0 10px #fbbf24, 0 0 20px #f59e0b !important;
+                        animation: golden-glow 1.5s ease-in-out infinite !important;
+                    }
+                `;
                 document.head.appendChild(s);
             }
-            wd.style.color = '#f59e0b';
-            wd.style.textShadow = '0 0 10px #fbbf24, 0 0 20px #f59e0b';
-            wd.style.animation = 'golden-glow 1.5s ease-in-out infinite';
+            wd.classList.add('golden-word');
             this.fitText(txt);
             if (!State.runtime.isCoolingDown) this.disableButtons(false);
             wd.style.cursor = 'grab';
@@ -8827,8 +8826,8 @@ async vote(t, s = false) {
         }
         seed = Math.abs(seed);
         
-        // 25% golden, 75% single
-        const isGolden = (seed % 4) === 3;
+        // 50% golden, 50% single
+        const isGolden = (seed % 2) === 0;
         State.runtime.dailyChallengeType = isGolden ? 'golden' : 'single';
         
         if (isGolden) {
