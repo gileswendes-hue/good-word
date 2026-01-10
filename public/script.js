@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.22',
+    APP_VERSION: '6.2.23',
     KIDS_LIST_FILE: 'kids_words.txt',
 
     SPECIAL: {
@@ -8802,12 +8802,34 @@ async vote(t, s = false) {
         }
 
         API.getAllWords().then(words => {
+            // Use date seed for deterministic daily selection
             const sortedWords = words.sort((a, b) => a.text.localeCompare(b.text));
 
             if (isGolden) {
+                // Pick golden word deterministically based on date
                 const goldenIdx = (seed * 7) % sortedWords.length;
                 State.runtime.goldenWord = sortedWords[goldenIdx];
-                const shuffled = [...words].sort(() => Math.random() - 0.5);
+
+                // Proper Fisher-Yates shuffle for random word order
+                const shuffled = [...words];
+                for (let i = shuffled.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+                }
+
+                // Golden word appears randomly between position 10-25
+                const goldenPosition = 10 + Math.floor(Math.random() * 16);
+
+                // Remove golden word from its current position and insert at target
+                const goldenWordIdx = shuffled.findIndex(w =>
+                    w._id === State.runtime.goldenWord._id ||
+                    w.text === State.runtime.goldenWord.text
+                );
+                if (goldenWordIdx !== -1) {
+                    shuffled.splice(goldenWordIdx, 1);
+                }
+                shuffled.splice(goldenPosition, 0, State.runtime.goldenWord);
+
                 State.runtime.allWords = shuffled;
                 State.runtime.currentWordIndex = 0;
                 UIManager.displayWord(shuffled[0]);
