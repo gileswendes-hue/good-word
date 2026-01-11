@@ -2,9 +2,8 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.57',
+    APP_VERSION: '6.2.59',
     KIDS_LIST_FILE: 'kids_words.txt',
-
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
         LLAMA: { text: 'LLAMA', prob: 0.005, fade: 8000, msg: "what llama?", dur: 3000 },
@@ -22,7 +21,6 @@ const CONFIG = {
         STREAK_WINDOW: 800,      // 800ms between votes counts as mashing (was 2000)
         SWIPE_THRESHOLD: 100
     },
-
     THEME_SECRETS: {
         rainbow: 'UkFJTkJPV3xHQVl8U1BBUktMRXxDT0xPVVJ8UFJJREV8VU5JQ09STnxQUk9VRHxRVUVFUnxHTElUVEVSfExFU0JJQU58VElOU0VM',
         dark: 'TUlETklHSFR8QkxBQ0t8U0hBREV8R09USHxTSEFET1d8TklOSkF8REFSS3xOSUdIVHxTVEVBTFRI',
@@ -40,23 +38,15 @@ const CONFIG = {
         ocean: 'T0NFQU58U0VBU0lERXxCT0FUfFNBSUx8TkFWWXxZQUNIVHxGSVNIfFdIQUxFfERPTFBISU58SE9SSVpPTg=='
     },
 };
-
-// P2P Channel colors for visual identification
 const P2P_COLORS = ['#3b82f6', '#ef4444', '#22c55e', '#eab308', '#8b5cf6', '#ec4899'];
-
 const ContentFilter = {
-    // Base64 encoded to avoid raw slurs in source code
-    // Includes racial slurs, homophobic/transphobic terms, and severe profanity
     _encoded: 'bmlnZ2VyfG5pZ2dhfGZhZ2dvdHxmYWd8ZHlrZXx0cmFubnl8cmV0YXJkfHNwYXN0aWN8Y2hpbmt8Z29va3xzcGljfGtpa2V8d2V0YmFja3xiZWFuZXJ8Y29vbnxyYWdoZWFkfHRvd2VsaGVhZHxjYW1lbGpvY2tleXxwYWtpfHdvcHxqYXB8Y3JhY2tlcnxob25reXxncmluZ298bmVncm98Y29sb3JlZHxuZWdyZXNzfG11bGF0dG98aGFsZmJyZWVkfHF1ZWVyfHF1ZWVyc3xob21vfGhvbW9zfGxlc2JvfHNoZW1hbGV8aGVzaGV8dHJhbnN2ZXN0aXRlfGhlcm1hcGhyb2RpdGV8c29kb21pdGV8YnVnZ2VyfG5vbmNlfHBlZG98cGFlZG98cGVkb3BoaWxlfHBlcnZlcnR8cmFwaXN0fG1vbGVzdGVyfG5henl8bmF6aXN8aGl0bGVyfGhvbG9jYXVzdHxqaWhhZHxqaWhhZGl8dGVycm9yaXN0',
     _patterns: null,
-
     init() {
         try {
             const decoded = atob(this._encoded);
             const terms = decoded.split('|');
-            // Create pattern that matches whole words and common evasions
             this._patterns = terms.map(term => {
-                // Match the term with common character substitutions
                 const escaped = term
                     .replace(/a/g, '[a@4]')
                     .replace(/e/g, '[e3]')
@@ -71,15 +61,12 @@ const ContentFilter = {
             this._patterns = [];
         }
     },
-
     isOffensive(text) {
         if (!this._patterns) this.init();
         if (!text || typeof text !== 'string') return false;
         const normalized = text.toLowerCase().replace(/[_\-\.]/g, '');
         return this._patterns.some(pattern => pattern.test(normalized));
     },
-
-    // For server-side, export the raw check
     getOffensiveTerms() {
         try {
             return atob(this._encoded).split('|');
@@ -88,10 +75,7 @@ const ContentFilter = {
         }
     }
 };
-
-// Initialize filter
 ContentFilter.init();
-
 let DOM = {}; // Changed to let
 const loadDOM = () => ({
     header: {
@@ -126,13 +110,11 @@ const loadDOM = () => ({
         message: document.getElementById('postVoteMessage'),
         historyList: document.getElementById('history-list')
     },
-
     screens: {
         loading: document.getElementById('loading-screen'),
         start: document.getElementById('start-screen'),
         game: document.getElementById('game-screen')
     },
-
     rankings: {
         good: document.getElementById('goodRankings'),
         bad: document.getElementById('badRankings'),
@@ -213,11 +195,9 @@ const loadDOM = () => ({
         voteChartCanvas: document.getElementById('voteChartCanvas')
     }
 });
-
 const safeParse = (key, fallback) => {
     try {
         const item = localStorage.getItem(key);
-        // If data is corrupt (e.g. "[object Object]"), return fallback
         if (item === "[object Object]") return fallback;
         return item ? JSON.parse(item) : fallback;
     } catch (e) {
@@ -225,7 +205,6 @@ const safeParse = (key, fallback) => {
         return fallback;
     }
 };
-
 const DEFAULT_SETTINGS = {
     enableWeather: false,
     showTips: true,
@@ -248,7 +227,6 @@ const DEFAULT_SETTINGS = {
     extremeDrinkingMode: false,
     hideCards: false
 };
-
 const State = {
     data: {
         userId: localStorage.getItem('userId') || crypto.randomUUID(),
@@ -263,12 +241,9 @@ const State = {
         unlockedThemes: safeParse('unlockedThemes', []),
         seenHistory: safeParse('seenHistory', []),
         discovered: safeParse('discoveredFeatures', []),
-
         spiderEatLog: safeParse('spiderEatLog', []),
         spiderFullUntil: parseInt(localStorage.getItem('spiderFullUntil') || 0),
-
         snowmanCollected: parseInt(localStorage.getItem('snowmanCollected') || 0),
-
         insectStats: {
             saved: parseInt(localStorage.getItem('insectSaved') || 0),
             eaten: parseInt(localStorage.getItem('insectEaten') || 0),
@@ -276,13 +251,11 @@ const State = {
             splatted: parseInt(localStorage.getItem('insectSplatted') || 0),
             collection: JSON.parse(localStorage.getItem('insectCollection') || '[]')
         },
-
         wordHistory: JSON.parse(localStorage.getItem('wordCountHistory') || '[]'),
         fishStats: {
             caught: parseInt(localStorage.getItem('fishCaught') || 0),
             spared: parseInt(localStorage.getItem('fishSpared') || 0)
         },
-
         badges: {
             cake: localStorage.getItem('cakeBadgeUnlocked') === 'true',
             llama: localStorage.getItem('llamaBadgeUnlocked') === 'true',
@@ -318,7 +291,6 @@ const State = {
             ...DEFAULT_SETTINGS,
             ...(JSON.parse(localStorage.getItem('userSettings')) || {})
         },
-
         currentTheme: localStorage.getItem('currentTheme') || 'default',
         voteCounterForTips: parseInt(localStorage.getItem('voteCounterForTips')) || 0,
         manualTheme: localStorage.getItem('manualTheme') === 'true',
@@ -330,7 +302,6 @@ const State = {
             goldenWordsFound: parseInt(localStorage.getItem('goldenWordsFound') || 0)
         }
     },
-
     runtime: {
         currentTheme: 'default',
         offlineChannel: 1,
@@ -346,23 +317,18 @@ const State = {
         cooldownTimer: null,
         mashLevel: 0,
         isDailyMode: false,
-        // Anti-cheat tracking
         lastVoteType: null,
         sameVoteStreak: 0,
         buttonPresses: [], // Track timestamps of button presses
     },
-
     init() {
     },
-
     save(k, v) {
         this.data[k] = v;
         const s = localStorage;
-
         if (['pendingVotes','offlineCache','highScores','unlockedThemes','seenHistory','settings'].includes(k)) {
             s.setItem(k, JSON.stringify(v));
         }
-
         if (k === 'pendingVotes') s.setItem('pendingVotes', JSON.stringify(v));
         else if (k === 'offlineCache') s.setItem('offlineCache', JSON.stringify(v));
         else if (k === 'highScores') s.setItem('highScores', JSON.stringify(v));
@@ -396,18 +362,14 @@ const State = {
         }
         else if (k === 'profilePhoto') s.setItem('profilePhoto', v);
         else if (k === 'lastMosquitoSpawn') s.setItem(k, v);
-
         else if (k === 'spiderEatLog') s.setItem('spiderEatLog', JSON.stringify(v));
         else if (k === 'spiderFullUntil') s.setItem('spiderFullUntil', v);
-
         else s.setItem(k, v);
     },
-
     unlockBadge(n) {
         if (this.data.badges[n]) return;
         this.data.badges[n] = true;
         localStorage.setItem(`${n}BadgeUnlocked`, 'true');
-
         const cleanName = n === 'ballpit' ? 'Ball Pit' : n.charAt(0).toUpperCase() + n.slice(1);
         if (window.StreakManager) StreakManager.showNotification(`🏆 Unlocked: ${cleanName}`, 'success');
         else UIManager.showPostVoteMessage(`Unlocked ${cleanName} badge!`);
@@ -417,7 +379,6 @@ const State = {
         localStorage.setItem('voteCount', this.data.voteCount);
         if (this.data.voteCount >= 1000) this.unlockBadge('judge');
     },
-
     incrementContributor() {
         this.data.contributorCount++;
         localStorage.setItem('contributorCount', this.data.contributorCount);
@@ -432,10 +393,8 @@ const State = {
         }
     }
 };
-
 const DataManager = {
     SALT: "ch34T3r5_N3v3r_wIn",
-
     generateHash(data) {
         const str = JSON.stringify(data) + this.SALT;
         let hash = 0;
@@ -446,17 +405,14 @@ const DataManager = {
         }
         return hash.toString(16);
     },
-
     exportData() {
         const data = JSON.parse(JSON.stringify(State.data));
-
         const payload = {
             data: data,
             hash: this.generateHash(data),
             timestamp: Date.now(),
             version: CONFIG.APP_VERSION
         };
-
         const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -466,35 +422,27 @@ const DataManager = {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-
         UIManager.showPostVoteMessage("Backup saved! 💾");
     },
-
     importData(file) {
         if (!file) return;
-
         const reader = new FileReader();
         reader.onload = (e) => {
             try {
                 const parsed = JSON.parse(e.target.result);
-
                 if (!parsed.hash || !parsed.data) {
                     alert("Error: Invalid backup file format.");
                     return;
                 }
-
                 const calculatedHash = this.generateHash(parsed.data);
                 if (calculatedHash !== parsed.hash) {
                     alert("⚠️ Tamper Protection: This backup file has been modified and cannot be loaded.");
                     return;
                 }
-
                 if (confirm(`Restore data from ${new Date(parsed.timestamp).toLocaleDateString()}? Current progress will be overwritten.`)) {
-
                     Object.keys(parsed.data).forEach(key => {
                         State.save(key, parsed.data[key]);
                     });
-
                     if (parsed.data.badges) {
                         Object.entries(parsed.data.badges).forEach(([badgeName, isUnlocked]) => {
                             if (isUnlocked) {
@@ -504,11 +452,9 @@ const DataManager = {
                             }
                         });
                     }
-
                     alert("Data restored successfully! Reloading...");
                     window.location.reload();
                 }
-
             } catch (err) {
                 console.error(err);
                 alert("Failed to parse backup file.");
@@ -517,26 +463,19 @@ const DataManager = {
         reader.readAsText(file);
     }
 };
-
 const OfflineManager = {
-    // Check if we are in offline mode
     isActive() {
         return State.data.settings.offlineMode;
     },
-
-    // Download ALL words to play offline (500+)
     async fillCache() {
         try {
             UIManager.showMessage("Downloading words... 📥");
             const res = await fetch('/api/words/all');
             if (!res.ok) throw new Error('Network error');
             const data = await res.json();
-
             if (!data || data.length === 0) {
                 throw new Error('No words received');
             }
-
-            // Store with vote counts preserved
             State.data.offlineCache = data.map(w => ({
                 _id: w._id,
                 text: w.text,
@@ -545,58 +484,41 @@ const OfflineManager = {
                 notWordVotes: w.notWordVotes || 0
             }));
             State.save('offlineCache', State.data.offlineCache);
-
-            // Initialize vote queue if not exists
             if (!State.data.voteQueue) {
                 State.data.voteQueue = [];
                 State.save('voteQueue', []);
             }
-
             UIManager.showMessage(`Cached ${data.length} words! 📴`);
             return true;
         } catch (e) {
             console.warn("Offline download failed", e);
-            // Fallback to existing cache if available
             return State.data.offlineCache && State.data.offlineCache.length > 0;
         }
     },
-
-    // Queue a vote for later sync
     queueVote(wordId, voteType) {
         if (!State.data.voteQueue) State.data.voteQueue = [];
-
-        // Add to queue
         State.data.voteQueue.push({
             id: wordId,
             type: voteType,
             timestamp: Date.now()
         });
         State.save('voteQueue', State.data.voteQueue);
-
-        // Update the word in offlineCache (which is same objects as allWords/fullWordList)
         const word = State.data.offlineCache?.find(w => w._id === wordId);
         if (word) {
             if (voteType === 'good') word.goodVotes = (word.goodVotes || 0) + 1;
             else if (voteType === 'bad') word.badVotes = (word.badVotes || 0) + 1;
             State.save('offlineCache', State.data.offlineCache);
         }
-
-        // Update the offline indicator to show queue count
         UIManager.updateOfflineIndicator();
     },
-
-    // Sync queued votes when back online
     async sync() {
         const queue = State.data.voteQueue || [];
         if (queue.length === 0) {
             UIManager.showMessage("No votes to sync ✓");
             return;
         }
-
         UIManager.showMessage(`Syncing ${queue.length} votes... 📡`);
         let synced = 0;
-
-        // Process votes
         for (let i = queue.length - 1; i >= 0; i--) {
             try {
                 const vote = queue[i];
@@ -611,35 +533,24 @@ const OfflineManager = {
                 console.warn("Sync failed for vote", i);
             }
         }
-
         State.data.voteQueue = queue;
         State.save('voteQueue', queue);
         UIManager.showMessage(`Synced ${synced} votes! ✓`);
     },
-
-    // Toggle Offline Mode (single-player)
     async toggle(active) {
         if (active) {
-            // ACTIVATING OFFLINE MODE
             const success = await this.fillCache();
-
             if (success) {
                 State.data.settings.offlineMode = true;
                 State.save('settings', State.data.settings);
-
-                // Load cached words into game - use same objects as cache for consistent updates
-                // Filter out words marked as "not a word" (same as online mode)
                 State.runtime.allWords = State.data.offlineCache
                     .filter(w => (w.notWordVotes || 0) < 3);
                 State.runtime.fullWordList = State.runtime.allWords; // Same reference
-
-                // Shuffle them
                 for (let i = State.runtime.allWords.length - 1; i > 0; i--) {
                     const j = Math.floor(Math.random() * (i + 1));
                     [State.runtime.allWords[i], State.runtime.allWords[j]] = [State.runtime.allWords[j], State.runtime.allWords[i]];
                 }
                 State.runtime.currentWordIndex = 0;
-
                 UIManager.updateStats();
                 UIManager.updateOfflineIndicator();
                 UIManager.showPostVoteMessage(`Offline: ${State.runtime.allWords.length} words ready! 📴`);
@@ -648,21 +559,15 @@ const OfflineManager = {
                 alert("Could not download words. Check connection.");
             }
         } else {
-            // DEACTIVATING OFFLINE MODE - sync and fetch fresh data
             await this.sync();
             State.data.settings.offlineMode = false;
             State.save('settings', State.data.settings);
-
             UIManager.updateOfflineIndicator();
-
-            // Refresh with fresh online data
             await Game.refreshData();
         }
     }
 };
-
 if (!localStorage.getItem('userId')) localStorage.setItem('userId', State.data.userId);
-
 const Accessibility = {
     apply() {
         const s = State.data.settings,
@@ -671,7 +576,6 @@ const Accessibility = {
         b.classList.toggle('mode-large-text', s.largeText);
         b.style.transform = s.mirrorMode ? 'scaleX(-1)' : '';
         b.style.overflowX = 'hidden';
-
         if (State.runtime.allWords.length > 0) {
             const currentWord = State.runtime.allWords[State.runtime.currentWordIndex];
             if(currentWord) UIManager.fitText(currentWord.text);
@@ -685,7 +589,6 @@ const Accessibility = {
         }
     }
 };
-
 const Utils = {
     hexToRgba(hex, alpha) {
         let r = 0, g = 0, b = 0;
@@ -701,7 +604,6 @@ const Utils = {
         return `rgba(${r}, ${g}, ${b}, ${alpha})`
     }
 };
-
 const Haptics = {
     light() {
         if (navigator.vibrate) navigator.vibrate(10);
@@ -713,13 +615,11 @@ const Haptics = {
         if (navigator.vibrate) navigator.vibrate(200);
     }
 };
-
 const SoundManager = {
     ctx: null,
     masterGain: null,
     mosquitoOsc: null,
     mosquitoGain: null,
-
     init() {
         if (!this.ctx) {
             this.ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -728,7 +628,6 @@ const SoundManager = {
             this.updateMute();
         }
     },
-
     updateMute() {
         if (this.masterGain) {
             const isMuted = State.data.settings.muteSounds;
@@ -736,93 +635,70 @@ const SoundManager = {
             if (isMuted) this.stopBuzz();
         }
     },
-
     playTone(freq, type, duration, vol = 1) {
         if (!this.ctx) this.init();
         if (this.ctx.state === 'suspended') this.ctx.resume();
-
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
-
         osc.type = type;
         osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-
         gain.gain.setValueAtTime(vol, this.ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
-
         osc.connect(gain);
         gain.connect(this.masterGain);
-
         osc.start();
         osc.stop(this.ctx.currentTime + duration);
     },
-
     playGood() {
         this.playTone(880, 'sine', 0.6, 0.4);
         setTimeout(() => this.playTone(1760, 'sine', 0.4, 0.2), 50);
     },
-
 playBad() {
         if (!this.ctx) this.init();
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
-
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(300, this.ctx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(50, this.ctx.currentTime + 0.25);
-
         gain.gain.setValueAtTime(0.8, this.ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
-
         osc.connect(gain);
         gain.connect(this.masterGain);
         osc.start();
         osc.stop(this.ctx.currentTime + 0.3);
     },
-
     playWhoosh() {
         if (!this.ctx) this.init();
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
-
         osc.type = 'sine';
         osc.frequency.setValueAtTime(200, this.ctx.currentTime);
         osc.frequency.linearRampToValueAtTime(50, this.ctx.currentTime + 0.3);
-
         gain.gain.setValueAtTime(0, this.ctx.currentTime);
         gain.gain.linearRampToValueAtTime(0.2, this.ctx.currentTime + 0.1);
         gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.3);
-
         osc.connect(gain);
         gain.connect(this.masterGain);
         osc.start();
         osc.stop(this.ctx.currentTime + 0.3);
     },
-
     playPop() {
         if (State.data.settings.muteSounds) return;
         if (!this.ctx) this.init();
         if (this.ctx.state === 'suspended') this.ctx.resume();
-
         const t = this.ctx.currentTime;
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
-
-        // A quick frequency drop simulates a "pop"
         osc.type = 'sine';
         osc.frequency.setValueAtTime(800, t);
         osc.frequency.exponentialRampToValueAtTime(100, t + 0.1);
-
         gain.gain.setValueAtTime(0.5, t);
         gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
-
         osc.connect(gain);
         gain.connect(this.masterGain);
-
         osc.start();
         osc.stop(t + 0.15);
     },
-
     playUnlock() {
         if (!this.ctx) this.init();
         const now = this.ctx.currentTime;
@@ -831,30 +707,24 @@ playBad() {
             const gain = this.ctx.createGain();
             osc.type = 'triangle';
             osc.frequency.value = freq;
-
             gain.gain.setValueAtTime(0, now);
             gain.gain.linearRampToValueAtTime(0.1, now + 0.5 + (i * 0.1));
             gain.gain.linearRampToValueAtTime(0, now + 3);
-
             osc.connect(gain);
             gain.connect(this.masterGain);
             osc.start();
             osc.stop(now + 3.5);
         });
     },
-
     startBuzz() {
         if (State.data.settings.muteSounds) return;
         if (!this.ctx) this.init();
         if (this.mosquitoOsc) this.stopBuzz();
-
         this.mosquitoOsc = this.ctx.createOscillator();
         this.mosquitoOsc.type = 'sawtooth';
         this.mosquitoOsc.frequency.value = 600;
-
         this.mosquitoGain = this.ctx.createGain();
         this.mosquitoGain.gain.setValueAtTime(0.015, this.ctx.currentTime);
-
         this.mosquitoOsc.connect(this.mosquitoGain);
         this.mosquitoGain.connect(this.masterGain);
         this.mosquitoOsc.start();
@@ -881,13 +751,6 @@ playBad() {
         }
     }
 };
-
-// ============================================
-// P2P OFFLINE MULTIPLAYER - WebRTC Based
-// ============================================
-// Host downloads words, distributes to peers via WebRTC data channel
-// Real-time sync of word index, no server needed after connection
-
 const MosquitoManager = {
     el: null, svg: null, path: null, checkInterval: null,
     x: 50, y: 50, angle: 0,
@@ -899,44 +762,35 @@ const MosquitoManager = {
     type: '🦟',
     config: {},
     COOLDOWN: 1 * 60 * 1000,
-
     TYPES: {
         '🐞': { name: 'Ladybird', speed: 0.2, turnRate: 0.005, wobble: 0.01, badge: null },
         '🐝': { name: 'Bee', speed: 0.35, turnRate: 0.1, wobble: 0.05, badge: null },
         '🦟': { name: 'Mosquito', speed: 0.2, turnRate: 0.02, wobble: 0.02, badge: null },
         '🚁': { name: 'Chopper', speed: 0.45, turnRate: 0.001, wobble: 0.0, badge: 'chopper' }
     },
-
     startMonitoring() {
         if (this.checkInterval) clearInterval(this.checkInterval);
         this.attemptSpawn();
         this.checkInterval = setInterval(() => this.attemptSpawn(), 10000);
     },
-
     attemptSpawn() {
         if (State.runtime.currentTheme !== 'halloween') return;
         if (this.el) return;
         const now = Date.now();
-
         const last = State.data.lastMosquitoSpawn;
         if (now - last < this.COOLDOWN) return;
         if (Math.random() > 0.3) return;
         this.init();
     },
-
     spawnStuck(typeChar) {
         if (this.el) this.remove();
-
         this.type = typeChar || '🦟';
         this.config = this.TYPES[this.type] || this.TYPES['🦟'];
-
         this.el = document.createElement('div');
         this.el.textContent = this.type;
         this.el.className = 'mosquito-entity';
-
         this.x = 88;
         this.y = 20;
-
 Object.assign(this.el.style, {
             position: 'fixed',
             fontSize: '1.8rem',
@@ -948,52 +802,41 @@ Object.assign(this.el.style, {
             cursor: 'pointer',
             pointerEvents: 'auto'
         });
-
 this.el.onclick = (e) => {
             e.stopPropagation();
             if (this.state === 'stuck') {
                 if (this.huntTimer) clearTimeout(this.huntTimer);
                 this.splat();
-
             }
             else if (this.state === 'flying') {
                 this.splat();
             }
         };
-
     document.body.appendChild(this.el);
         this.state = 'stuck';
-
         setTimeout(() => {
             if (State.runtime.currentTheme === 'halloween') {
                 Effects.spiderHunt(this.x, this.y, true);
             }
         }, 100);
     },
-
     init() {
         if (this.el) this.remove();
-
         let rareChance = 0.02;
         if (State.data.insectStats.saved > 20) rareChance = 0.05;
         if (State.data.insectStats.saved > 50) rareChance = 0.10;
-
         const keys = ['🐞', '🐝', '🦟'];
         const isRare = Math.random() < rareChance;
         this.type = isRare ? '🚁' : keys[Math.floor(Math.random() * keys.length)];
         this.config = this.TYPES[this.type];
-
         this.speed = this.config.speed;
-
         this.el = document.createElement('div');
         this.el.textContent = this.type;
         this.el.className = 'mosquito-entity';
-
         const startRight = Math.random() > 0.5;
         this.x = startRight ? 105 : -5;
         this.y = Math.random() * 50 + 10;
         this.angle = startRight ? Math.PI : 0;
-
         Object.assign(this.el.style, {
             position: 'fixed',
             fontSize: this.type === '🚁' ? '2.5rem' : '1.8rem',
@@ -1002,24 +845,20 @@ this.el.onclick = (e) => {
             filter: 'drop-shadow(1px 2px 3px rgba(0,0,0,0.5))',
             left: this.x + '%', top: this.y + '%', willChange: 'transform, left, top'
         });
-
         this.svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         Object.assign(this.svg.style, {
             position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
             pointerEvents: 'none', zIndex: '99'
         });
-
         this.path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         this.path.setAttribute("fill", "none");
         this.path.setAttribute("stroke", "rgba(255, 255, 255, 0.6)");
         this.path.setAttribute("stroke-width", "1.5");
         this.path.setAttribute("stroke-dasharray", "5, 5");
         this.path.setAttribute("stroke-linecap", "round");
-
         this.svg.appendChild(this.path);
         document.body.appendChild(this.svg);
         document.body.appendChild(this.el);
-
         this.el.onclick = (e) => {
             e.stopPropagation();
             if (this.state === 'stuck') {
@@ -1030,29 +869,22 @@ this.el.onclick = (e) => {
                 this.splat();
             }
         };
-
         this.state = 'flying';
         this.trailPoints = [];
         this.turnCycle = Math.random() * 100;
         SoundManager.startBuzz();
         this.loop();
     },
-
     startRescue() {
         this.state = 'thanking';
         SoundManager.stopBuzz();
-
         if (this.path) this.path.setAttribute('d', '');
-
         State.data.insectStats.saved++;
         State.save('insectStats', State.data.insectStats);
-
         if (this.config.badge) State.unlockBadge(this.config.badge);
         if (State.data.insectStats.saved >= 100) State.unlockBadge('saint');
-
         const msg = GAME_DIALOGUE.insects[this.type] || "Saved!";
         UIManager.showPostVoteMessage(msg);
-
         const bubble = document.createElement('div');
         bubble.textContent = "Thank you! 💖";
         Object.assign(bubble.style, {
@@ -1063,7 +895,6 @@ this.el.onclick = (e) => {
             boxShadow: '0 2px 5px rgba(0,0,0,0.2)', pointerEvents: 'none', zIndex: '101'
         });
         this.el.appendChild(bubble);
-
         setTimeout(() => {
             if (bubble) bubble.remove();
             this.state = 'leaving';
@@ -1072,28 +903,21 @@ this.el.onclick = (e) => {
             this.speed = 0.6;
         }, 2000);
     },
-
 splat() {
         if (this.state === 'splatted') return;
         this.state = 'splatted';
-
         State.data.insectStats.splatted = (State.data.insectStats.splatted || 0) + 1;
-
         if (!State.data.insectStats.collection) State.data.insectStats.collection = [];
         if (!State.data.insectStats.collection.includes(this.type)) {
             State.data.insectStats.collection.push(this.type);
         }
-
         State.save('insectStats', State.data.insectStats);
-
         UIManager.showPostVoteMessage("Splat! 🦶");
         Haptics.heavy();
-
         this.el.style.transition = 'transform 0.1s ease-out, opacity 0.2s';
         this.el.style.transform = 'translate(-50%, -50%) scale(1.5) rotate(45deg)';
         this.el.style.filter = 'grayscale(100%) brightness(0.5)';
         this.el.style.opacity = '0';
-
         setTimeout(() => this.remove(), 200);
     },
     loop() {
@@ -1108,7 +932,6 @@ splat() {
             this.angle += turnAmount;
             this.x += Math.cos(this.angle) * this.speed;
             this.y += Math.sin(this.angle) * this.speed;
-
             if (this.state === 'flying') {
                 if (this.x > 110) {
                     this.x = -10;
@@ -1127,27 +950,20 @@ splat() {
             }
             this.el.style.left = this.x + '%';
             this.el.style.top = this.y + '%';
-
-            // Handle Rotation and Centering
             const facingRight = Math.cos(this.angle) > 0;
             this.el.style.transform = `translate(-50%, -50%) ${facingRight ? 'scaleX(-1)' : 'scaleX(1)'}`;
-
             const pxX = (this.x / 100) * window.innerWidth;
             const pxY = (this.y / 100) * window.innerHeight;
-
             if (pxX > 0 && pxX < window.innerWidth) this.trailPoints.push({x: pxX, y: pxY});
-
             if (this.trailPoints.length > this.MAX_TRAIL) this.trailPoints.shift();
             if (this.trailPoints.length > 1) {
                 const d = `M ${this.trailPoints.map(p => `${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' L ')}`;
                 this.path.setAttribute('d', d);
             }
-
             const distRight = window.innerWidth - pxX;
             const distTop = pxY;
             const inWebZone = (distRight + distTop) < 300;
             const isVisible = pxX > 50 && pxX < (window.innerWidth - 50) && pxY > 50 && pxY < (window.innerHeight - 50);
-
             if (this.state === 'flying' && inWebZone && isVisible && !State.data.settings.arachnophobiaMode) {
                 this.state = 'stuck';
                 SoundManager.stopBuzz();
@@ -1168,41 +984,27 @@ splat() {
         }
         this.raf = requestAnimationFrame(() => this.loop());
     },
-
 eat() {
         if (this.state !== 'stuck') return;
         UIManager.showPostVoteMessage("Chomp! 🕷️");
         State.data.insectStats.eaten++;
         State.save('insectStats', State.data.insectStats);
         if (State.data.insectStats.eaten >= 100) State.unlockBadge('exterminator');
-
-        // --- FAT SPIDER LOGIC ---
         const now = Date.now();
         const oneHourAgo = now - (60 * 60 * 1000);
         if (!State.data.spiderEatLog) State.data.spiderEatLog = [];
-
-        // 1. Log this bug
         State.data.spiderEatLog.push(now);
-
-        // 2. Keep only bugs from last hour (they "digest" after 1 hour)
         State.data.spiderEatLog = State.data.spiderEatLog.filter(t => t > oneHourAgo);
         State.save('spiderEatLog', State.data.spiderEatLog);
-
-        // 3. Check for Fullness (5 bugs in last hour = max size)
         if (State.data.spiderEatLog.length >= 5) {
             setTimeout(() => UIManager.showPostVoteMessage("The spider is stuffed! 🕷️💤"), 1500);
         }
-
-        // Visual update now happens in spiderHunt after eating (puff animation)
-
         this.finish();
     },
-
     finish() {
         State.save('lastMosquitoSpawn', Date.now());
         this.remove();
     },
-
     remove() {
         if (this.raf) cancelAnimationFrame(this.raf);
         if (this.huntTimer) clearTimeout(this.huntTimer);
@@ -1215,7 +1017,6 @@ eat() {
         this.state = 'hidden';
     }
 };
-
 const TiltManager = {
     active: false,
     handle(e) {
@@ -1245,7 +1046,6 @@ const TiltManager = {
         this.start();
     }
 };
-
 const Physics = {
     balls: [],
     gx: 0,
@@ -1293,12 +1093,8 @@ const Physics = {
             maxX = minX + cylW;
         const balls = Physics.balls;
         const len = balls.length;
-
-        // Reduce physics substeps on slower frames (adaptive quality)
         const substeps = len > 50 ? 4 : 6;
-
         for (let s = 0; s < substeps; s++) {
-            // Update positions
             for (let i = 0; i < len; i++) {
                 const b = balls[i];
                 if (!b.drag) {
@@ -1316,11 +1112,7 @@ const Physics = {
                     if (b.y > H - b.r * 2) { b.y = H - b.r * 2; b.vy *= -0.15 }
                 }
             }
-
-            // Build spatial grid for collision detection
             Physics.buildGrid();
-
-            // Collision detection using spatial partitioning
             const checked = new Set();
             for (let i = 0; i < len; i++) {
                 const b1 = balls[i];
@@ -1330,7 +1122,6 @@ const Physics = {
                     const pairKey = i < j ? `${i},${j}` : `${j},${i}`;
                     if (checked.has(pairKey)) continue;
                     checked.add(pairKey);
-
                     const b2 = balls[j];
                     const dx = (b2.x + b2.r) - (b1.x + b1.r),
                         dy = (b2.y + b2.r) - (b1.y + b1.r);
@@ -1355,8 +1146,6 @@ const Physics = {
                 }
             }
         }
-
-        // Batch DOM updates with rounded positions for less jitter
         for (let i = 0; i < len; i++) {
             const b = balls[i];
             b.el.style.transform = `translate3d(${Math.round(b.x)}px,${Math.round(b.y)}px,0)`;
@@ -1367,9 +1156,7 @@ const Physics = {
         Effects.ballLoop = requestAnimationFrame(Physics.run)
     }
 };
-
 const API = {
-
 async getAllWords() {
         try {
             const res = await fetch('/api/words/all');
@@ -1379,29 +1166,23 @@ async getAllWords() {
             return [];
         }
     },
-
     async fetchWords(forceNetwork = false) {
         if (OfflineManager.isActive() && !forceNetwork) {
             return State.data.offlineCache;
         }
-
         try {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 8000);
-
             const r = await fetch(CONFIG.API_BASE_URL, { signal: controller.signal });
             clearTimeout(timeoutId);
-
             if (!r.ok) {
                 throw new Error(`Server Status ${r.status}`);
             }
             return await r.json();
-
         } catch (e) {
             const isConnectionError = e.name === 'AbortError' ||
                                     e.message === 'Failed to fetch' ||
                                     e.message.toLowerCase().includes('network');
-
             if (isConnectionError) {
                 if (State.data.offlineCache && State.data.offlineCache.length > 0) {
                     UIManager.showPostVoteMessage("Connection lost. Switched to Offline. 🚇");
@@ -1409,29 +1190,21 @@ async getAllWords() {
                 }
                 return null;
             }
-
             console.warn("API Error (Still Online):", e);
             return null;
         }
     },
-
 async fetchKidsWords() {
         try {
-            // Get words source - use offline cache if in offline mode, otherwise fetch from DB
             let dbWords = [];
             if (OfflineManager.isActive()) {
-                // Use offline cache for kids mode
                 dbWords = State.data.offlineCache || [];
-
-                // If no cache available, can't do kids mode offline
                 if (dbWords.length === 0) {
                     return [{ _id: 'offline_placeholder', text: 'Go online to cache words first', goodVotes: 0, badVotes: 0, isPlaceholder: true }];
                 }
             } else {
                 dbWords = await this.getAllWords() || [];
             }
-
-            // Try to get the kids word list file
             let safeList = [];
             try {
                 const listResponse = await fetch(CONFIG.KIDS_LIST_FILE);
@@ -1444,56 +1217,40 @@ async fetchKidsWords() {
             } catch (e) {
                 console.warn("Could not fetch kids word list:", e);
             }
-
-            // If we have a kids word list, filter to only those words
             if (safeList.length > 0) {
                 const combinedList = safeList
                     .map(text => dbWords.find(w => w.text.toUpperCase() === text))
                     .filter(w => w && w._id);
-
                 if (combinedList.length > 0) {
                     return combinedList;
                 }
             }
-
-            // Fallback: If offline with cache but no kids list file,
-            // just use the cached words (better than nothing)
             if (OfflineManager.isActive() && dbWords.length > 0) {
                 console.warn("Kids word list unavailable offline - using full cache");
                 return dbWords;
             }
-
-            // No words found at all
             const msg = OfflineManager.isActive()
                 ? 'Kids Mode needs online first'
                 : 'No Kids Words in DB';
             console.warn("No kids words found:", msg);
             return [{ _id: 'offline_placeholder', text: msg, goodVotes: 0, badVotes: 0, isPlaceholder: true }];
-
         } catch (e) {
             console.error("Kids mode load error:", e);
-            // Fallback object to prevent crash
             return [{ _id: 'err', text: 'Error Loading', goodVotes: 0, badVotes: 0, isPlaceholder: true }];
         }
     },
-
     async vote(id, type) {
-        // Skip voting for placeholder entries (temp, err, offline_placeholder, or fake kid_ IDs)
         if (!id || id === 'temp' || id === 'err' || id === 'offline_placeholder' || id.startsWith('kid_')) {
             console.warn("Skipping vote for placeholder ID:", id);
             return { ok: false, status: 400 };
         }
-
         if (OfflineManager.isActive()) {
             const queue = State.data.pendingVotes;
             queue.push({ id, type, time: Date.now() });
             State.save('pendingVotes', queue);
-
             UIManager.updateOfflineIndicator();
-
             return { ok: true, status: 200, json: async () => ({}) };
         }
-
         return fetch(`${CONFIG.API_BASE_URL}/${id}/vote`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -1503,13 +1260,11 @@ async fetchKidsWords() {
             })
         });
     },
-
     async submitWord(text) {
         if (OfflineManager.isActive()) {
             UIManager.showPostVoteMessage("Cannot submit new words offline 🚫");
             return { ok: false };
         }
-        // Check for offensive content
         if (ContentFilter.isOffensive(text)) {
             UIManager.showPostVoteMessage("This word is not allowed 🚫");
             return { ok: false, status: 403 };
@@ -1520,11 +1275,9 @@ async fetchKidsWords() {
             body: JSON.stringify({ text })
         });
     },
-
     async define(w) {
          return fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${w.toLowerCase()}`);
     },
-
     async getGlobalScores() {
         try {
             const r = await fetch(CONFIG.SCORE_API_URL);
@@ -1532,7 +1285,6 @@ async fetchKidsWords() {
             return await r.json();
         } catch (e) { return []; }
     },
-
     async submitHighScore(name, score) {
         try {
             await fetch(CONFIG.SCORE_API_URL, {
@@ -1542,7 +1294,6 @@ async fetchKidsWords() {
             });
         } catch (e) { console.error("Score submit failed", e); }
     },
-
     async submitUserVotes(userId, username, voteCount, dailyStreak = null, bestDailyStreak = null) {
         try {
             const body = { userId, username, voteCount };
@@ -1557,7 +1308,6 @@ async fetchKidsWords() {
             console.warn("Failed to submit user stats:", e);
         }
     },
-
     async fetchLeaderboard() {
         try {
             const r = await fetch('/api/leaderboard');
@@ -1568,7 +1318,6 @@ async fetchKidsWords() {
             return [];
         }
     },
-
     async fetchGlobalStatsHistory() {
         try {
             const r = await fetch('/api/stats/history');
@@ -1579,7 +1328,6 @@ async fetchKidsWords() {
             return [];
         }
     },
-
     async submitGlobalSnapshot(totalWords, totalVotes, goodVotes, badVotes) {
         try {
             await fetch('/api/stats/snapshot', {
@@ -1592,13 +1340,11 @@ async fetchKidsWords() {
         }
     }
 };
-
 const ThemeManager = {
     wordMap: {},
     init() {
         const s = document.createElement("style");
         s.innerText = `@keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }`;
-
         s.innerHTML += `
             body.listening-mode { border: 4px solid #ef4444 !important; }
             body.listening-mode::after {
@@ -1607,7 +1353,6 @@ const ThemeManager = {
                 animation: pulse 1s infinite;
             }
         `;
-
         s.innerHTML += `
             body.vote-good-mode { background: #22c55e !important; overflow: hidden; }
             body.vote-good-mode * { visibility: hidden; }
@@ -1615,7 +1360,6 @@ const ThemeManager = {
                 content: '👍'; visibility: visible; position: fixed; top: 50%; left: 50%;
                 transform: translate(-50%, -50%); font-size: 150px;
             }
-
             body.vote-bad-mode { background: #ef4444 !important; overflow: hidden; }
             body.vote-bad-mode * { visibility: hidden; }
             body.vote-bad-mode::after {
@@ -1623,9 +1367,7 @@ const ThemeManager = {
                 transform: translate(-50%, -50%); font-size: 150px;
             }
         `;
-
         document.head.appendChild(s);
-
         const rs = document.createElement("style");
 rs.innerHTML = `
 .rain-drop {
@@ -1643,23 +1385,17 @@ rs.innerHTML = `
         100% { transform: translateY(110vh); }
     }
 `;
-
     document.head.appendChild(rs);
-
         Object.entries(CONFIG.THEME_SECRETS).forEach(([k, v]) => {
             try {
                 atob(v).split('|').forEach(w => this.wordMap[w] = k)
             } catch {}
         });
-
         if ((State.data.unlockedThemes.length + 1) >= 5) {
             State.unlockBadge('traveler');
         }
-
         this.populateChooser();
-
         let currentThemeToApply = State.data.currentTheme;
-
         if (State.data.settings.randomizeTheme && State.data.unlockedThemes.length > 0) {
             const available = ['default', ...State.data.unlockedThemes];
             currentThemeToApply = available[Math.floor(Math.random() * available.length)];
@@ -1667,29 +1403,21 @@ rs.innerHTML = `
         } else {
             this.apply(State.data.currentTheme);
         }
-
-        // Update chooser button with the actually applied theme
         this.updateChooserButton(currentThemeToApply);
     },
-    
     updateChooserButton(theme) {
         const name = theme === 'ballpit' ? 'Ball Pit' : theme.charAt(0).toUpperCase() + theme.slice(1);
         if (DOM.theme.chooserBtn) {
             DOM.theme.chooserBtn.innerHTML = `${name} ▼`;
         }
     },
-    
     populateChooser() {
-        // Update the button text if it exists
         const current = State.data.currentTheme || 'default';
         this.updateChooserButton(current);
     },
-    
     showGallery() {
-        // Remove existing gallery if open
         const existing = document.getElementById('theme-gallery-popup');
         if (existing) { existing.remove(); return; }
-        
         const themeInfo = {
             default: { icon: '🎨', name: 'Default', color: 'bg-gray-100' },
             rainbow: { icon: '🌈', name: 'Rainbow', color: 'bg-gradient-to-r from-red-400 via-yellow-400 to-blue-400' },
@@ -1707,11 +1435,9 @@ rs.innerHTML = `
             flight: { icon: '✈️', name: 'Flight', color: 'bg-sky-400' },
             ocean: { icon: '🌊', name: 'Ocean', color: 'bg-blue-500' }
         };
-        
         const unlockedThemes = ['default', ...State.data.unlockedThemes];
         const allThemeKeys = Object.keys(themeInfo);
         const currentTheme = State.runtime.currentTheme || 'default';
-        
         const popup = document.createElement('div');
         popup.id = 'theme-gallery-popup';
         popup.className = 'fixed inset-0 z-[9999] flex items-end justify-center';
@@ -1726,18 +1452,13 @@ rs.innerHTML = `
                 <p class="text-xs text-gray-400 mt-4 text-center">Vote on secret words to unlock themes!</p>
             </div>
         `;
-        
         document.body.appendChild(popup);
-        
         const grid = document.getElementById('theme-grid');
-        
         allThemeKeys.forEach(key => {
             const info = themeInfo[key];
             const unlocked = unlockedThemes.includes(key);
             const isActive = currentTheme === key;
-            
             const tile = document.createElement('div');
-            
             if (unlocked) {
                 tile.className = `theme-tile p-3 rounded-xl ${info.color} ${isActive ? 'ring-3 ring-indigo-500 ring-offset-2' : ''} hover:scale-105 transition-all cursor-pointer flex flex-col items-center justify-center aspect-square shadow-md`;
                 tile.innerHTML = `
@@ -1758,11 +1479,8 @@ rs.innerHTML = `
                     <span class="text-xs font-bold text-gray-400">???</span>
                 `;
             }
-            
             grid.appendChild(tile);
         });
-        
-        // Add slide-up animation
         if (!document.getElementById('gallery-animation-style')) {
             const style = document.createElement('style');
             style.id = 'gallery-animation-style';
@@ -1776,23 +1494,18 @@ rs.innerHTML = `
             document.head.appendChild(style);
         }
     },
-    
     apply(t, m = false) {
         State.runtime.currentTheme = t;
         if (m !== 'temp') {
             State.save('currentTheme', t);
             if (m === true) State.save('manualTheme', true);
         }
-
-        // Apply classes carefully to preserve layout
         document.body.className = document.body.className.split(' ').filter(c => !c.startsWith('theme-')).join(' ');
         document.body.classList.add(`theme-${t}`);
-
         if (t === 'banana') {
             if (!document.getElementById('banana-style')) {
                 const s = document.createElement('style');
                 s.id = 'banana-style';
-
                 s.innerHTML = `
                     body.theme-banana {
                         background: linear-gradient(160deg, #ffe135 0%, #ffec4d 30%, #fff59d 50%, #ffeb3b 70%, #fdd835 100%) !important;
@@ -1861,8 +1574,6 @@ rs.innerHTML = `
             const old = document.getElementById('banana-style');
             if (old) old.remove();
         }
-
-        // Woodland theme styles
         if (t === 'woodland') {
             if (!document.getElementById('woodland-theme-style')) {
                 const s = document.createElement('style');
@@ -1917,8 +1628,6 @@ rs.innerHTML = `
             const old = document.getElementById('woodland-theme-style');
             if (old) old.remove();
         }
-
-        // Ocean theme styles - transparent cards
         if (t === 'ocean') {
             if (!document.getElementById('ocean-theme-style')) {
                 const s = document.createElement('style');
@@ -1951,8 +1660,6 @@ rs.innerHTML = `
             const old = document.getElementById('ocean-theme-style');
             if (old) old.remove();
         }
-
-        // Flight theme styles - transparent cards
         if (t === 'flight') {
             if (!document.getElementById('flight-theme-style')) {
                 const s = document.createElement('style');
@@ -1985,7 +1692,6 @@ rs.innerHTML = `
             const old = document.getElementById('flight-theme-style');
             if (old) old.remove();
         }
-
         const e = DOM.theme.effects;
         e.snow.classList.toggle('hidden', t !== 'winter');
         e.bubble.classList.toggle('hidden', t !== 'submarine');
@@ -1997,21 +1703,17 @@ rs.innerHTML = `
         e.woodland.classList.toggle('hidden', t !== 'woodland');
         if (e.flight) e.flight.classList.toggle('hidden', t !== 'flight');
         if (e.ocean) e.ocean.classList.toggle('hidden', t !== 'ocean');
-
         if (t === 'winter') {
             Effects.snow();
             SnowmanBuilder.init();
             SnowmanBuilder.render();
         } else {
             e.snow.innerHTML = '';
-            // Hide snowman builder when not winter
             const sb = document.getElementById('snowman-builder');
             if (sb) sb.style.opacity = '0';
         }
-
         if (t === 'submarine') Effects.bubbles(true);
         else Effects.bubbles(false);
-
         if (t === 'fire') Effects.fire();
         else e.fire.innerHTML = '';
         if (t === 'summer') Effects.summer();
@@ -2033,7 +1735,6 @@ rs.innerHTML = `
         else Effects.ocean(false);
         Effects.halloween(t === 'halloween');
         if (t !== 'halloween') MosquitoManager.remove();
-
         const cards = document.querySelectorAll('.card, .ranking-card'),
             isR = t === 'rainbow';
         [DOM.game.card, ...cards].forEach(el => {
@@ -2053,7 +1754,6 @@ rs.innerHTML = `
         TiltManager.refresh();
         if (typeof WeatherManager !== 'undefined') WeatherManager.updateVisuals();
     },
-
 checkUnlock(w) {
         const t = this.wordMap[w];
         if (t && !State.data.unlockedThemes.includes(t)) {
@@ -2064,7 +1764,6 @@ checkUnlock(w) {
             }
             this.populateChooser();
             if (!State.data.manualTheme) this.apply(t);
-
             const cleanTheme = t === 'ballpit' ? 'Ball Pit' : t.charAt(0).toUpperCase() + t.slice(1);
             if (window.StreakManager) StreakManager.showNotification(`🎨 Theme Unlocked: ${cleanTheme}`, 'success');
             return true
@@ -2072,21 +1771,16 @@ checkUnlock(w) {
         return false
     }
 };
-
 const WeatherManager = {
     ALLOWED_THEMES: ['default', 'ballpit', 'banana', 'dark', 'fire', 'halloween', 'plymouth', 'rainbow', 'summer', 'woodland'],
-
     RAIN_CODES: [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99],
     SNOW_CODES: [71, 73, 75, 77, 85, 86],
-
     isRaining: false,
     isSnowing: false,
     hasChecked: false,
-
     init() {
         if (State.data.settings.enableWeather) this.checkWeather();
     },
-
     toggle(active) {
         State.data.settings.enableWeather = active;
         State.save('settings', State.data.settings);
@@ -2098,7 +1792,6 @@ const WeatherManager = {
             this.updateVisuals();
         }
     },
-
     checkWeather() {
         if (!navigator.geolocation) return;
         UIManager.showPostVoteMessage("Checking local weather... ☁️");
@@ -2111,15 +1804,12 @@ const WeatherManager = {
                     const response = await fetch(url);
                     const data = await response.json();
                     const code = data.current_weather.weathercode;
-
                     this.isRaining = this.RAIN_CODES.includes(code);
                     this.isSnowing = this.SNOW_CODES.includes(code);
                     this.hasChecked = true;
-
                     if (this.isSnowing) UIManager.showPostVoteMessage("It's snowing! ❄️");
                     else if (this.isRaining) UIManager.showPostVoteMessage("It's raining! 🌧️");
                     else UIManager.showPostVoteMessage("Weather is clear. ☀️");
-
                     this.updateVisuals();
                 } catch (e) { console.error("Weather fetch failed", e); }
             },
@@ -2132,23 +1822,17 @@ const WeatherManager = {
             }
         );
     },
-
     updateVisuals() {
         const t = State.runtime.currentTheme;
         Effects.rain(false);
-
-        // Explicitly unhide snow container on Winter theme
         if (t === 'winter') {
             const s = document.getElementById('snow-effect');
             if (s) s.style.display = '';
             return;
         }
-
         Effects.weatherSnow(false);
-
         const isAllowedTheme = this.ALLOWED_THEMES.includes(t);
         const enabled = State.data.settings.enableWeather;
-
         if (enabled && isAllowedTheme) {
             if (this.isSnowing) {
                 Effects.weatherSnow(true);
@@ -2158,25 +1842,18 @@ const WeatherManager = {
         }
     }
 };
-
 const CommunityGoal = {
     MILESTONE: 50000, // 50k increments
-
     update(totalVotes) {
         const bar = DOM.header.communityGoalBar;
         const text = DOM.header.communityGoalText;
         if (!bar || !text) return;
-
         const currentMilestone = Math.floor(totalVotes / this.MILESTONE) * this.MILESTONE + this.MILESTONE;
         const prevMilestone = currentMilestone - this.MILESTONE;
         const progress = ((totalVotes - prevMilestone) / this.MILESTONE) * 100;
         const remaining = currentMilestone - totalVotes;
-
         bar.style.width = Math.min(progress, 100) + '%';
-
-        // Format numbers
         const fmt = n => n >= 1000000 ? (n/1000000).toFixed(1) + 'M' : n >= 1000 ? Math.round(n/1000) + 'k' : n;
-
         if (progress >= 95) {
             text.textContent = `🏆 Almost there! ${fmt(remaining)} to ${fmt(currentMilestone)}!`;
             bar.style.animation = 'pulse 1s infinite';
@@ -2186,18 +1863,12 @@ const CommunityGoal = {
         }
     }
 };
-
-// SnowmanBuilder - Builds a snowman in the header as user collects snowmen
 const SnowmanBuilder = {
     TOTAL_PARTS: 100, // 100 snowmen collected = 1 complete snowman
     container: null,
-
     init() {
-        // Create container next to logo
         const logoArea = document.getElementById('logoArea');
         if (!logoArea || this.container) return;
-
-        // Add style to shift logo when snowman/dog visible
         if (!document.getElementById('snowman-logo-style')) {
             const style = document.createElement('style');
             style.id = 'snowman-logo-style';
@@ -2207,7 +1878,6 @@ const SnowmanBuilder = {
             `;
             document.head.appendChild(style);
         }
-
         this.container = document.createElement('div');
         this.container.id = 'snowman-builder';
         this.container.style.cssText = `
@@ -2226,15 +1896,12 @@ const SnowmanBuilder = {
             transition: opacity 0.5s ease, width 0.3s ease;
         `;
         logoArea.appendChild(this.container);
-
         this.render();
     },
-
     collect() {
         const count = State.data.snowmanCollected + 1;
         State.save('snowmanCollected', count);
         this.render();
-
         if (count === this.TOTAL_PARTS) {
             UIManager.showPostVoteMessage("⛄ Snowman complete! Keep going...");
         } else if (count === 101) {
@@ -2245,24 +1912,18 @@ const SnowmanBuilder = {
             UIManager.showPostVoteMessage(`⛄ Snowman ${count}% built!`);
         }
     },
-
     render() {
         if (!this.container) this.init();
         if (!this.container) return;
-
         const count = State.data.snowmanCollected || 0;
         const progress = Math.min(count / this.TOTAL_PARTS, 1);
         const logoArea = document.getElementById('logoArea');
-
         if (count === 0) {
             this.container.style.opacity = '0';
             if (logoArea) logoArea.classList.remove('has-snowman', 'has-snowdog');
             return;
         }
-
         this.container.style.opacity = '1';
-
-        // Update logo shift class
         if (logoArea) {
             logoArea.classList.remove('has-snowman', 'has-snowdog');
             if (count > 100) {
@@ -2271,28 +1932,20 @@ const SnowmanBuilder = {
                 logoArea.classList.add('has-snowman');
             }
         }
-
         this.container.style.width = count > 100 ? '115px' : '65px';
         this.container.style.flexDirection = count > 100 ? 'row' : 'column';
         this.container.style.alignItems = 'flex-end';
         this.container.style.gap = '6px';
-
         let html = '';
-
-        // Snow dog (after 100, builds up to 150)
         if (count > 100) {
             const dogProg = Math.min((count - 100) / 50, 1);
             html += '<div style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;margin-left:-5px;">';
             html += '<div style="position:relative;width:44px;height:42px;">';
-
-            // Dog body (bigger, lowered to connect with legs)
             if (dogProg > 0) {
                 const w = Math.round(30 * Math.min(dogProg / 0.3, 1));
                 const h = Math.round(18 * Math.min(dogProg / 0.3, 1));
                 html += `<div style="position:absolute;bottom:6px;left:50%;transform:translateX(-50%);width:${w}px;height:${h}px;background:radial-gradient(ellipse at 30% 30%, #fff, #d0d0d0);border-radius:50%;box-shadow:inset -2px -2px 4px rgba(0,0,0,0.1);z-index:1;"></div>`;
             }
-
-            // Dog head (moved up and to right side of body)
             if (dogProg > 0.3) {
                 const s = Math.round(15 * Math.min((dogProg - 0.3) / 0.25, 1));
                 const hasFace = dogProg > 0.75;
@@ -2302,35 +1955,22 @@ const SnowmanBuilder = {
                     ${hasEars ? `<div style="position:absolute;top:-5px;left:0px;width:5px;height:7px;background:linear-gradient(180deg, #bbb, #ddd);border-radius:50% 50% 40% 40%;border:1px solid rgba(0,0,0,0.2);"></div><div style="position:absolute;top:-5px;right:0px;width:5px;height:7px;background:linear-gradient(180deg, #bbb, #ddd);border-radius:50% 50% 40% 40%;border:1px solid rgba(0,0,0,0.2);"></div>` : ''}
                 </div>`;
             }
-
-            // Dog legs (black stick legs - positioned under body)
             if (dogProg > 0.55) {
                 const lh = Math.round(8 * Math.min((dogProg - 0.55) / 0.2, 1));
-                // Front legs (under right side of body)
                 html += `<div style="position:absolute;bottom:0;right:10px;width:2px;height:${lh}px;background:#2a2a2a;border-radius:1px;"></div>`;
                 html += `<div style="position:absolute;bottom:0;right:16px;width:2px;height:${lh}px;background:#2a2a2a;border-radius:1px;"></div>`;
-                // Back legs (under left side of body)
                 html += `<div style="position:absolute;bottom:0;left:10px;width:2px;height:${lh}px;background:#2a2a2a;border-radius:1px;"></div>`;
                 html += `<div style="position:absolute;bottom:0;left:16px;width:2px;height:${lh}px;background:#2a2a2a;border-radius:1px;"></div>`;
             }
-
-            // Tail (on left side, curved up from body)
             if (dogProg > 0.8) html += `<div style="position:absolute;bottom:12px;left:2px;width:6px;height:8px;background:linear-gradient(to top, #d0d0d0, #e8e8e8);border-radius:40% 40% 50% 50%;transform:rotate(-20deg);box-shadow:inset -1px -1px 2px rgba(0,0,0,0.1);"></div>`;
-
             html += '</div></div>';
         }
-
-        // Snowman (bigger sizes)
         html += '<div style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;">';
-
         const bottomProgress = Math.min(progress / 0.33, 1);
         const middleProgress = progress > 0.33 ? Math.min((progress - 0.33) / 0.33, 1) : 0;
         const topProgress = progress > 0.66 ? Math.min((progress - 0.66) / 0.24, 1) : 0;
         const accessoryProgress = progress > 0.90 ? (progress - 0.90) / 0.10 : 0;
-
         if (accessoryProgress > 0.8) html += `<div style="font-size:16px;margin-bottom:-10px;">🎩</div>`;
-
-        // Head (bigger: 26px max)
         if (topProgress > 0) {
             const size = Math.round(26 * topProgress);
             const hasEyes = accessoryProgress > 0.2, hasNose = accessoryProgress > 0.5;
@@ -2339,8 +1979,6 @@ const SnowmanBuilder = {
                 ${hasNose ? `<div style="position:absolute;top:48%;left:50%;transform:translateX(-50%);border-left:3px solid transparent;border-right:3px solid transparent;border-top:10px solid #ff6b35;"></div>` : ''}
             </div>`;
         }
-
-        // Body with arms (bigger: 36px max)
         if (middleProgress > 0) {
             const size = Math.round(36 * middleProgress);
             const hasArms = accessoryProgress > 0.4;
@@ -2350,16 +1988,11 @@ const SnowmanBuilder = {
                 ${hasArms ? `<div style="position:absolute;left:-16px;top:35%;width:18px;height:3px;background:linear-gradient(90deg, #3e2723, #5d4037);border-radius:2px;transform:rotate(-25deg);box-shadow:0 1px 1px rgba(0,0,0,0.2);"></div><div style="position:absolute;right:-16px;top:35%;width:18px;height:3px;background:linear-gradient(90deg, #5d4037, #3e2723);border-radius:2px;transform:rotate(25deg);box-shadow:0 1px 1px rgba(0,0,0,0.2);"></div>` : ''}
             </div>`;
         }
-
-        // Base (bigger: 46px max)
         if (bottomProgress > 0) {
             const size = Math.round(46 * bottomProgress);
             html += `<div style="width:${size}px;height:${size}px;background:radial-gradient(circle at 30% 30%, #fff, #e8e8e8);border-radius:50%;box-shadow:inset -3px -3px 5px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.15);"></div>`;
         }
-
         html += '</div>';
-
-        // Counter: show X/100 up to 100, then X/100 for 101+
         let counterText;
         if (count <= 100) {
             counterText = `${count}/${this.TOTAL_PARTS}`;
@@ -2367,16 +2000,13 @@ const SnowmanBuilder = {
             counterText = `${count}/100`;
         }
         html += `<div style="position:absolute;bottom:-2px;right:2px;font-size:8px;color:#555;font-weight:bold;">${counterText}</div>`;
-
         this.container.innerHTML = html;
     },
-
     reset() {
         State.save('snowmanCollected', 0);
         this.render();
     }
 };
-
 const Effects = {
     spiderTimeout: null,
     webRaf: null,
@@ -2385,7 +2015,6 @@ const Effects = {
     spaceRareTimeout: null,
     snowmanTimeout: null,
     plymouthShooterTimeout: null,
-
 rain(active) {
         const c = document.getElementById('rain-effect');
         if (!c) return;
@@ -2409,11 +2038,9 @@ rain(active) {
             c.appendChild(drop);
         }
     },
-
 weatherSnow(active) {
         const c = document.getElementById('snow-effect');
         if (!c) return;
-
         if (!active) {
             if (State.runtime.currentTheme !== 'winter') {
                 c.innerHTML = '';
@@ -2422,17 +2049,12 @@ weatherSnow(active) {
             }
             return;
         }
-
-        // Force overlay styles (just like rain)
         c.classList.remove('hidden');
         c.style.display = 'block';
         Object.assign(c.style, {
             position: 'fixed', inset: '0', pointerEvents: 'none', zIndex: '50'
         });
-
         if (c.children.length > 0) return; // Prevent double spawn
-
-        // Create snow particles (simplified from standard snow effect)
         for (let i = 0; i < 60; i++) {
             const f = document.createElement('div');
             f.className = 'snow-particle';
@@ -2447,18 +2069,13 @@ weatherSnow(active) {
             c.appendChild(f);
         }
     },
-
 plymouth(a) {
         const c = DOM.theme.effects.plymouth;
-
         if (this.plymouthShooterTimeout) clearTimeout(this.plymouthShooterTimeout);
         if (this.satelliteTimeout) clearTimeout(this.satelliteTimeout);
         if (this.plymouthStreakTimeout) clearTimeout(this.plymouthStreakTimeout);
-
         if (!a) { c.innerHTML = ''; return; }
-
         c.innerHTML = '';
-
         if (!document.getElementById('plymouth-stars-style')) {
             const style = document.createElement('style');
             style.id = 'plymouth-stars-style';
@@ -2471,12 +2088,10 @@ plymouth(a) {
             `;
             document.head.appendChild(style);
         }
-
         for (let i = 0; i < 60; i++) {
             const s = document.createElement('div');
             s.className = 'star-particle';
             const size = Math.random() * 3 + 1;
-
             Object.assign(s.style, {
                 position: 'absolute',
                 left: Math.random() * 100 + '%',
@@ -2490,10 +2105,8 @@ plymouth(a) {
             });
             c.appendChild(s);
         }
-
         this.spawnPlymouthShooter = () => {
             if (State.runtime.currentTheme !== 'plymouth') return;
-
             const s = document.createElement('div');
             s.textContent = '🌠';
             Object.assign(s.style, {
@@ -2509,27 +2122,20 @@ plymouth(a) {
                 opacity: '0'
             });
             c.appendChild(s);
-
             const travelDist = Math.random() * 300 + 200;
             const duration = Math.random() * 1500 + 2000;
-
             const anim = s.animate([
                 { transform: 'translate(0, 0) rotate(-35deg)', opacity: 0 },
                 { transform: 'translate(0, 0) rotate(-35deg)', opacity: 1, offset: 0.1 },
                 { transform: `translate(-${travelDist}px, ${travelDist/2}px) rotate(-35deg)`, opacity: 0 }
             ], { duration: duration, easing: 'ease-out' });
-
             anim.onfinish = () => s.remove();
-
             this.plymouthShooterTimeout = setTimeout(() => this.spawnPlymouthShooter(), Math.random() * 8000 + 4000);
         };
-
         this.spawnRealStreak = () => {
             if (State.runtime.currentTheme !== 'plymouth') return;
-
             const streak = document.createElement('div');
             const width = Math.random() * 150 + 50;
-
             Object.assign(streak.style, {
                 position: 'absolute',
                 height: (Math.random() * 2 + 1) + 'px',
@@ -2544,10 +2150,8 @@ plymouth(a) {
                 boxShadow: '0 0 4px rgba(255, 255, 255, 0.8)'
             });
             c.appendChild(streak);
-
             const travelX = -200;
             const travelY = 100;
-
             const anim = streak.animate([
                 { transform: 'translate(0, 0) rotate(-35deg)', opacity: 0 },
                 { transform: `translate(${travelX * 0.1}px, ${travelY * 0.1}px) rotate(-35deg)`, opacity: 1, offset: 0.1 },
@@ -2556,18 +2160,14 @@ plymouth(a) {
                 duration: Math.random() * 800 + 600,
                 easing: 'ease-out'
             });
-
             anim.onfinish = () => streak.remove();
             this.plymouthStreakTimeout = setTimeout(() => this.spawnRealStreak(), Math.random() * 3000 + 1000);
         };
-
         this.spawnSatellite = () => {
             if (State.runtime.currentTheme !== 'plymouth') return;
-
             const sat = document.createElement('div');
             sat.textContent = '🛰️';
             const startLeft = Math.random() > 0.5;
-
             Object.assign(sat.style, {
                 position: 'absolute',
                 fontSize: '2.5rem',
@@ -2580,60 +2180,43 @@ plymouth(a) {
                 transform: startLeft ? 'rotate(15deg)' : 'scaleX(-1) rotate(-15deg)',
                 pointerEvents: 'none'
             });
-
             c.appendChild(sat);
-
             requestAnimationFrame(() => {
                 sat.style.left = startLeft ? '110%' : '-10%';
                 sat.style.transform = startLeft ? 'rotate(45deg)' : 'scaleX(-1) rotate(-45deg)';
             });
-
             setTimeout(() => { if(sat.parentNode) sat.remove(); }, 36000);
             this.satelliteTimeout = setTimeout(() => this.spawnSatellite(), Math.random() * 25000 + 20000);
         };
-
         this.spawnPlymouthShooter();
         this.spawnSatellite();
         this.spawnRealStreak();
     },
-
     fire() { const c = DOM.theme.effects.fire; c.innerHTML = ''; for (let i = 0; i < 80; i++) { const p = document.createElement('div'); p.className = 'fire-particle'; p.style.animationDuration = `${Math.random()*1.5+0.5}s`; p.style.animationDelay = `${Math.random()}s`; p.style.left = `calc(10% + (80% * ${Math.random()}))`; const size = Math.random() * 3 + 2; p.style.width = p.style.height = `${size}em`; p.style.setProperty('--sway', `${(Math.random()-.5)*20}px`); c.appendChild(p) } for (let i = 0; i < 15; i++) { const s = document.createElement('div'); s.className = 'smoke-particle'; s.style.animationDelay = `${Math.random()*3}s`; s.style.left = `${Math.random()*90+5}%`; s.style.setProperty('--sway', `${(Math.random()-.5)*150}px`); c.appendChild(s) } },
-
 bubbles(active) {
         const c = DOM.theme.effects.bubble;
         if (this.fishTimeout) clearTimeout(this.fishTimeout);
         if (!active) { c.innerHTML = ''; return; }
         c.innerHTML = '';
-
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         const isLowPower = navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4;
-
         const particleCount = (isMobile || isLowPower) ? 15 : 35;
-
         const cl = [10, 30, 70, 90];
         for (let i = 0; i < particleCount; i++) {
             const p = document.createElement('div');
             p.className = 'bubble-particle';
             const s = Math.random() * 30 + 10;
             p.style.width = p.style.height = `${s}px`;
-
-            // Optimization: Use transform for positioning if possible, but left is okay here
-            // We group them to prevent layout thrashing
             p.style.left = `${cl[Math.floor(Math.random()*cl.length)]+(Math.random()-.5)*20}%`;
-
             p.style.animationDuration = `${Math.random()*10+10}s`;
             p.style.animationDelay = `-${Math.random()*15}s`;
             c.appendChild(p);
         }
-
         this.spawnFish();
     },
-
 spawnFish() {
         const c = DOM.theme.effects.bubble;
         if (!c) return; // Safety check
-
-        // --- OCTOPUS ANIMATION STYLE ---
         if (!document.getElementById('octopus-style')) {
             const style = document.createElement('style');
             style.id = 'octopus-style';
@@ -2649,9 +2232,7 @@ spawnFish() {
             `;
             document.head.appendChild(style);
         }
-
         if (State.runtime.currentTheme !== 'submarine') return;
-
         const fishData = {
             '🐟': { k: 'fish', msg: "Gotcha! 🐟", speed: [12, 18] },
             '🐠': { k: 'tropical', msg: "So colourful! 🐠", speed: [15, 25] },
@@ -2660,7 +2241,6 @@ spawnFish() {
             '🐙': { k: 'octopus', msg: "Wiggle wiggle! 🐙", speed: [18, 25] },
             '🥾': { k: 'prankster', msg: "Keep the ocean clean!", speed: [15, 20] }
         };
-
         const roll = Math.random();
         let fishEmoji = '🐟';
         if (roll < 0.05) fishEmoji = '🥾';
@@ -2669,39 +2249,28 @@ spawnFish() {
         else if (roll < 0.40) fishEmoji = '🐡';
         else if (roll < 0.70) fishEmoji = '🐠';
         else fishEmoji = '🐟';
-
         const config = fishData[fishEmoji] || fishData['🐟'];
-
                 const wrap = document.createElement('div');
         wrap.className = 'submarine-fish-wrap';
         wrap.style.position = 'fixed';
         wrap.style.zIndex = '10';
-
         const inner = document.createElement('div');
-
         inner.className = 'submarine-fish-inner';
         inner.textContent = fishEmoji;
         inner.dataset.clicks = "0";
-
-        // Base styles
         inner.style.display = 'block';
         inner.style.lineHeight = '1';
         inner.style.fontSize = fishEmoji === '🐙' ? '3.5rem' : '3rem';
-
         if (fishEmoji === '🐙') {
             inner.classList.add('octopus-motion');
-            // Randomize bobbing speed (1.5s to 2.5s)
             inner.style.animationDuration = (Math.random() * 1 + 1.5) + 's';
-            // Randomize start offset
             inner.style.animationDelay = '-' + (Math.random() * 2) + 's';
         }
-
         const isBoot = fishEmoji === '🥾';
         const startLeft = Math.random() > 0.5;
         const baseDir = startLeft ? -1 : 1;
         const duration = (Math.random() * (config.speed[1] - config.speed[0]) + config.speed[0]) || 15;
         const isFakeOut = !isBoot && fishEmoji !== '🐙' && Math.random() < 0.10;
-
         if (isBoot) {
             inner.style.animation = 'spin-slow 10s linear infinite';
             inner.style.transition = 'transform 0.5s';
@@ -2712,18 +2281,14 @@ spawnFish() {
             inner.style.transition = 'font-size 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), transform 0.2s';
             wrap.style.top = (Math.random() * 80 + 10) + 'vh';
             wrap.style.left = startLeft ? '-150px' : '110vw';
-
             if (!isBoot) inner.style.transform = `scaleX(${baseDir})`;
         }
         wrap.appendChild(inner);
         c.appendChild(wrap);
-
         void wrap.offsetWidth;
-
         const showBubble = (text) => {
             const old = wrap.querySelector('.fish-bubble');
             if(old) old.remove();
-
             const b = document.createElement('div');
             b.className = 'fish-bubble';
             Object.assign(b.style, {
@@ -2747,11 +2312,9 @@ spawnFish() {
             requestAnimationFrame(() => b.style.opacity = '1');
             setTimeout(() => { if(b.parentNode) { b.style.opacity = '0'; setTimeout(() => b.remove(), 300); } }, 2000);
         };
-
         const handleEscape = (e) => {
             const prop = isBoot ? 'top' : 'left';
             if (e.propertyName !== prop) return;
-
             if (wrap.parentNode) {
                 if (!isBoot) {
                     State.data.fishStats.spared = (State.data.fishStats.spared || 0) + 1;
@@ -2762,17 +2325,13 @@ spawnFish() {
             }
         };
         wrap.addEventListener('transitionend', handleEscape);
-
         wrap.onclick = (e) => {
             e.stopPropagation();
-
-            // Pufferfish
             if (fishEmoji === '🐡') {
                 let clicks = parseInt(inner.dataset.clicks) || 0;
                 const canGrow = clicks < 5;
                 const roll = Math.random();
                 const shouldCatch = !canGrow || (roll < 0.25);
-
                 if (!shouldCatch) {
                     clicks++;
                     inner.dataset.clicks = clicks;
@@ -2785,9 +2344,7 @@ spawnFish() {
                     return;
                 }
             }
-
             const data = fishData[fishEmoji];
-
             if (fishEmoji === '🐙') {
                 e.stopPropagation();
                 if (data.k) State.unlockBadge(data.k);
@@ -2795,11 +2352,9 @@ spawnFish() {
                 State.save('fishStats', State.data.fishStats);
                 UIManager.showPostVoteMessage("Inked!");
                 SoundManager.playWhoosh();
-
                 const rect = wrap.getBoundingClientRect();
                 const centerX = rect.left + rect.width / 2;
                 const centerY = rect.top + rect.height / 2;
-
                 for (let i = 0; i < 12; i++) {
                     const ink = document.createElement('div');
                     const ox = (Math.random() - 0.5) * 40;
@@ -2818,57 +2373,39 @@ spawnFish() {
                     });
                     setTimeout(() => ink.remove(), 1000);
                 }
-
                 const jetSpeed = Math.random() * 0.8 + 1.2;
                 wrap.style.transition = `left ${jetSpeed}s cubic-bezier(0.25, 1, 0.5, 1), top ${jetSpeed}s ease-out`;
-
                 wrap.style.left = (110 + Math.random() * 30) + 'vw';
                 wrap.style.top = (-20 - Math.random() * 30) + 'vh';
-
                 setTimeout(() => { if(wrap.parentNode) wrap.remove(); }, jetSpeed * 1000 + 200);
                 return;
             }
-
             if (isFakeOut) {
                  showBubble('hey!');
                  SoundManager.playPop();
-
-                 // 1. Stop current movement
                  const currentLeft = getComputedStyle(wrap).left;
                  wrap.style.transition = 'none';
                  wrap.style.left = currentLeft;
-
-                 // 2. Wait, then Flip & Swim Back
                  setTimeout(() => {
                      if(!wrap.parentNode) return;
-
-                     // INSTANTLY FLIP (Remove transition to make it snappy)
                      inner.style.transition = 'none';
                      inner.style.transform = `scaleX(${-baseDir})`;
-
-                     // Swim back to start
                      wrap.style.transition = `left ${duration * 0.5}s linear`;
                      wrap.style.left = startLeft ? '-150px' : '110vw';
-
                      setTimeout(() => {
                          if(wrap.parentNode) wrap.remove();
                      }, duration * 500 + 100);
-
                  }, 600);
-
                  return;
             }
-
             if (data.k) State.unlockBadge(data.k);
             if (!isBoot) {
                 State.data.fishStats.caught++;
                 State.save('fishStats', State.data.fishStats);
                 if (State.data.fishStats.caught >= 250) State.unlockBadge('angler');
             }
-
             if (fishEmoji === '🐡') UIManager.showPostVoteMessage("Popped!");
             SoundManager.playPop();
-
             const rect = wrap.getBoundingClientRect();
             const centerX = rect.left + rect.width / 2;
             const centerY = rect.top + rect.height / 2;
@@ -2884,13 +2421,11 @@ spawnFish() {
                     { transform: `translate(${Math.cos(angle)*velocity}px, ${Math.sin(angle)*velocity}px) scale(0)`, opacity: 0 }
                 ], { duration: 400, easing: 'ease-out' }).onfinish = () => p.remove();
             }
-
             wrap.style.transition = 'opacity 0.1s, transform 0.1s';
             wrap.style.opacity = '0';
             wrap.style.transform = 'scale(0)';
             setTimeout(() => wrap.remove(), 100);
         };
-
         requestAnimationFrame(() => {
             if (isBoot) {
                 wrap.style.top = '-20%';
@@ -2900,14 +2435,11 @@ spawnFish() {
                 wrap.style.transition = `left ${duration}s linear`;
             }
         });
-
         setTimeout(() => {
             if (wrap.parentNode) wrap.remove();
         }, duration * 1000 + 3000);
-
         this.fishTimeout = setTimeout(() => this.spawnFish(), Math.random() * 4000 + 1000);
     },
-
     snow() {
         const c = DOM.theme.effects.snow;
         c.innerHTML = '';
@@ -2959,17 +2491,12 @@ spawnFish() {
         };
         this.snowmanTimeout = setTimeout(spawnSnowman, Math.random() * 5000 + 5000);
     },
-
     summer() { const c = DOM.theme.effects.summer; c.innerHTML = ''; const g = document.createElement('div'); g.className = 'summer-grass'; c.appendChild(g); for (let i = 0; i < 8; i++) { const d = document.createElement('div'); d.className = `summer-cloud v${Math.floor(Math.random()*3)+1}`; const w = Math.random() * 100 + 100; d.style.width = `${w}px`; d.style.height = `${w*.35}px`; d.style.top = `${Math.random()*60}%`; d.style.animationDuration = `${Math.random()*60+60}s`; d.style.animationDelay = `-${Math.random()*100}s`; c.appendChild(d) } },
-
 halloween(active) {
         if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
         if (this.webRaf) cancelAnimationFrame(this.webRaf);
         if (this.batTimeout) clearTimeout(this.batTimeout);
-
-        // Arachnophobia Check
         const isSafeMode = State.data.settings.arachnophobiaMode;
-
         if (!active || isSafeMode) {
             const old = document.getElementById('spider-wrap');
             if (old) old.remove();
@@ -2981,22 +2508,14 @@ halloween(active) {
             if (oldBat) oldBat.remove();
             return;
         }
-        
-        // Spawn flying bat that approaches the player
         const spawnBat = () => {
             if (!active) return;
-            
-            // Remove old bat if exists
             const oldBat = document.getElementById('halloween-bat');
             if (oldBat) oldBat.remove();
-            
             const bat = document.createElement('div');
             bat.id = 'halloween-bat';
-            
-            // Random start position (edges of screen)
             const side = Math.floor(Math.random() * 4);
             let startX, startY, endX, endY;
-            
             switch(side) {
                 case 0: // top
                     startX = 20 + Math.random() * 60;
@@ -3022,15 +2541,12 @@ halloween(active) {
                     endX = 110;
                     endY = 30 + Math.random() * 40;
             }
-            
             const duration = 4 + Math.random() * 3;
-            
             bat.innerHTML = `
                 <div class="bat-body" style="font-size: 5rem; filter: drop-shadow(0 0 15px rgba(0,0,0,0.6));">
                     <span class="bat-wing-left" style="display: inline-block; transform-origin: right center;">🦇</span>
                 </div>
             `;
-            
             bat.style.cssText = `
                 position: fixed;
                 left: ${startX}%;
@@ -3039,8 +2555,6 @@ halloween(active) {
                 pointer-events: none;
                 animation: bat-fly-${Date.now()} ${duration}s ease-in-out forwards;
             `;
-            
-            // Create dynamic keyframes for this bat's path
             const styleEl = document.createElement('style');
             styleEl.textContent = `
                 @keyframes bat-fly-${Date.now()} {
@@ -3067,22 +2581,14 @@ halloween(active) {
                 }
             `;
             document.head.appendChild(styleEl);
-            
             document.body.appendChild(bat);
-            
-            // Cleanup after animation
             setTimeout(() => {
                 bat.remove();
                 styleEl.remove();
             }, duration * 1000);
-            
-            // Schedule next bat
             this.batTimeout = setTimeout(spawnBat, 8000 + Math.random() * 12000);
         };
-        
-        // Start bat spawning after a delay
         this.batTimeout = setTimeout(spawnBat, 3000 + Math.random() * 5000);
-
         if (!document.getElementById('spider-motion-style')) {
             const s = document.createElement('style');
             s.id = 'spider-motion-style';
@@ -3117,43 +2623,32 @@ halloween(active) {
             `;
             document.head.appendChild(s);
         }
-
-        // Spider movement system - smooth CSS transitions
         const spiderScuttle = {
             active: false,
             targetX: 50,
             currentX: 50,
-
             start(wrap, body, targetPercent, onComplete) {
                 this.active = true;
                 this.targetX = targetPercent;
                 this.currentX = parseFloat(wrap.style.left) || 50;
-
                 body.classList.add('scuttling-motion');
-
-                // Use CSS transition for smooth movement
                 wrap.style.transition = 'left 2s ease-in-out';
                 wrap.style.left = targetPercent + '%';
-
-                // Complete after transition
                 setTimeout(() => {
                     this.currentX = targetPercent;
                     this.stop(body, onComplete);
                 }, 2000);
             },
-
             stop(body, onComplete) {
                 this.active = false;
                 body.classList.remove('scuttling-motion', 'spider-paused');
                 if (onComplete) onComplete();
             },
-
             cancel(body) {
                 this.active = false;
                 body.classList.remove('scuttling-motion', 'spider-paused');
             }
         };
-
         let wrap = document.getElementById('spider-wrap');
         if (!wrap) {
             wrap = document.createElement('div');
@@ -3163,17 +2658,13 @@ halloween(active) {
                 position: 'fixed', left: '50%', top: '-15vh', zIndex: '102',
                 pointerEvents: 'none'
             });
-
-            // Spider size based on bugs eaten in last hour (not lifetime)
             const now = Date.now();
             const oneHourAgo = now - (60 * 60 * 1000);
             if (!State.data.spiderEatLog) State.data.spiderEatLog = [];
-            // Filter to bugs eaten in last hour
             const recentBugs = State.data.spiderEatLog.filter(t => t > oneHourAgo).length;
             const maxBugs = 5;
             const cappedEaten = Math.min(recentBugs, maxBugs);
             const fontSize = (3 + (cappedEaten * 0.6)).toFixed(2); // 3rem -> 6rem over 5 bugs
-
             wrap.innerHTML = `
                 <div id="spider-anchor" style="transform-origin: top center;">
                     <div id="spider-thread" style="width: 2px; background: rgba(255,255,255,0.6); margin: 0 auto; height: 0; transition: height 4s ease-in-out;"></div>
@@ -3182,18 +2673,14 @@ halloween(active) {
                     </div>
                 </div>`;
             document.body.appendChild(wrap);
-
             const body = wrap.querySelector('#spider-body');
             const thread = wrap.querySelector('#spider-thread');
-
     const showSpiderBubble = (text) => {
-                // 1. Cleanup old bubble
                 const old = document.getElementById('spider-bubble-dynamic');
                 if (old) {
                     if (old.rafId) cancelAnimationFrame(old.rafId);
                     old.remove();
                 }
-
                 const b = document.createElement('div');
                 b.id = 'spider-bubble-dynamic';
                 Object.assign(b.style, {
@@ -3207,7 +2694,6 @@ halloween(active) {
                     willChange: 'top, left'
                 });
                 b.textContent = text;
-
                 const arrow = document.createElement('div');
                 Object.assign(arrow.style, {
                     position: 'absolute', width: '0', height: '0',
@@ -3215,26 +2701,20 @@ halloween(active) {
                 });
                 b.appendChild(arrow);
                 document.body.appendChild(b);
-
                 const updatePosition = () => {
                     if (!b.parentNode) return; // Stop if removed
-
                     const spiderRect = body.getBoundingClientRect();
                     const bubRect = b.getBoundingClientRect();
                     const currentTransform = body.style.transform || '';
                     const gap = 15;
-
                     let rotation = 0;
                     if (currentTransform.includes('180deg')) rotation = 180;
                     else if (currentTransform.includes('90deg') && !currentTransform.includes('-90deg')) rotation = 90;
                     else if (currentTransform.includes('-90deg')) rotation = -90;
-
                     let top, left;
-
                     if (rotation === 0) {
                         top = spiderRect.top - bubRect.height - gap;
                         left = spiderRect.left + (spiderRect.width / 2) - (bubRect.width / 2);
-
                         Object.assign(arrow.style, {
                             bottom: '-8px', left: '50%', right: 'auto', top: 'auto',
                             transform: 'translateX(-50%) translateY(0)',
@@ -3243,10 +2723,8 @@ halloween(active) {
                         });
                     }
                     else if (rotation === 180) {
-                        // Upside Down: Bubble BELOW
                         top = spiderRect.bottom + gap;
                         left = spiderRect.left + (spiderRect.width / 2) - (bubRect.width / 2);
-
                         Object.assign(arrow.style, {
                             top: '-8px', left: '50%', right: 'auto', bottom: 'auto',
                             transform: 'translateX(-50%) translateY(0)',
@@ -3255,10 +2733,8 @@ halloween(active) {
                         });
                     }
                     else if (rotation === 90) {
-                        // Climbing Right Wall: Bubble LEFT
                         top = spiderRect.top + (spiderRect.height / 2) - (bubRect.height / 2);
                         left = spiderRect.left - bubRect.width - gap;
-
                         Object.assign(arrow.style, {
                             right: '-8px', top: '50%', left: 'auto', bottom: 'auto',
                             transform: 'translateY(-50%) translateX(0)',
@@ -3267,10 +2743,8 @@ halloween(active) {
                         });
                     }
                     else if (rotation === -90) {
-                        // Climbing Left Wall: Bubble RIGHT
                         top = spiderRect.top + (spiderRect.height / 2) - (bubRect.height / 2);
                         left = spiderRect.right + gap;
-
                         Object.assign(arrow.style, {
                             left: '-8px', top: '50%', right: 'auto', bottom: 'auto',
                             transform: 'translateY(-50%) translateX(0)',
@@ -3278,23 +2752,18 @@ halloween(active) {
                             borderColor: 'transparent #1f2937 transparent transparent'
                         });
                     }
-
                     if (left < 10) left = 10;
                     if (left + bubRect.width > window.innerWidth - 10) left = window.innerWidth - bubRect.width - 10;
                     if (top < 10) top = 10;
                     if (top + bubRect.height > window.innerHeight - 10) top = window.innerHeight - bubRect.height - 10;
-
                     b.style.top = `${top}px`;
                     b.style.left = `${left}px`;
-
                     b.rafId = requestAnimationFrame(updatePosition);
                 };
-
                 requestAnimationFrame(() => {
                     b.style.opacity = '1';
                     updatePosition();
                 });
-
                 setTimeout(() => {
                     if (b.parentNode) {
                         b.style.opacity = '0';
@@ -3304,22 +2773,17 @@ halloween(active) {
                         }, 300);
                     }
                 }, 2000);
-
                 return b;
             };
-
             wrap.showBubble = showSpiderBubble;
-
             body.onclick = (e) => {
                 e.stopPropagation();
                 State.unlockBadge('spider');
                 const willFall = Math.random() < 0.2;
                 const lines = willFall ? GAME_DIALOGUE.spider.pokeGrumpy : GAME_DIALOGUE.spider.pokeHappy;
                 const text = lines[Math.floor(Math.random() * lines.length)];
-
                 showSpiderBubble(text);
                 body.style.animation = 'shake 0.3s ease-in-out';
-
                 if (willFall) {
                     if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
                     setTimeout(() => { this.spiderFall(wrap, thread, body); }, 400);
@@ -3328,47 +2792,35 @@ halloween(active) {
                 }
             };
         }
-
         const body = wrap.querySelector('#spider-body');
         const thread = wrap.querySelector('#spider-thread');
         const scuttle = wrap.spiderScuttle;
-
 const anchor = wrap.querySelector('#spider-anchor');
         const currentBody = wrap.querySelector('#spider-body'); // Ensure we have the body
-
         if (anchor && currentBody) {
             const eaten = State.data.insectStats.eaten || 0;
-            // Base size with growth per bug eaten lifetime
             let scale = Math.min(0.7 + (eaten * 0.05), 2.0);
-
             const isFull = Date.now() < (State.data.spiderFullUntil || 0);
-
             if (isFull) {
                 scale = scale * 1.6; // Max fatness (60% bigger)
                 currentBody.classList.add('spider-fat');
             } else {
-                // Incremental growth: 20% bigger per bug in recent stomach
                 const recentBugs = State.data.spiderEatLog ? State.data.spiderEatLog.length : 0;
                 scale = scale * (1 + (recentBugs * 0.20));
                 currentBody.classList.remove('spider-fat');
             }
             anchor.style.transform = `scale(${scale.toFixed(2)})`;
         }
-
         const runDrop = () => {
             if (!document.body.contains(wrap)) return;
             if (wrap.classList.contains('hunting')) return;
             if (scuttle) scuttle.cancel(body);
-
             const actionRoll = Math.random();
             body.style.transform = 'rotate(0deg)';
             body.classList.remove('scuttling-motion', 'spider-paused', 'spider-idle');
             thread.style.opacity = '1';
-
             if (actionRoll < 0.7) {
                 const safeLeft = Math.random() * 60 + 20;
-
-                // Use new scuttle system for realistic movement
                 if (scuttle) {
                     scuttle.start(wrap, body, safeLeft, () => {
                         if (wrap.classList.contains('hunting')) return;
@@ -3376,10 +2828,8 @@ const anchor = wrap.querySelector('#spider-anchor');
                         body.classList.add('spider-idle');
                         thread.style.transition = 'height 2.5s ease-in-out';
                         thread.style.height = '18vh';
-
                         setTimeout(() => {
                              if (wrap.classList.contains('hunting')) return;
-                             // Use time-based idle phrase
                              let text = 'Boo!';
                              if (typeof GAME_DIALOGUE !== 'undefined' && GAME_DIALOGUE.spider) {
                                  if (typeof GAME_DIALOGUE.spider.getIdlePhrase === 'function') {
@@ -3389,9 +2839,7 @@ const anchor = wrap.querySelector('#spider-anchor');
                                      text = phrases[Math.floor(Math.random() * phrases.length)];
                                  }
                              }
-
                              if(wrap.showBubble) wrap.showBubble(text, 'upside-down');
-
                              setTimeout(() => {
                                  if (wrap.classList.contains('hunting')) return;
                                  body.classList.remove('spider-idle');
@@ -3403,23 +2851,17 @@ const anchor = wrap.querySelector('#spider-anchor');
                 }
                 return;
             }
-
             if (actionRoll < 0.9) {
                 const isLeft = Math.random() > 0.5;
                 const wallX = isLeft ? 5 : 85;
-
-                // Use new scuttle system
                 if (scuttle) {
                     scuttle.start(wrap, body, wallX, () => {
                         if (wrap.classList.contains('hunting')) return;
-
                         thread.style.opacity = '0';
                         body.style.transform = `rotate(${isLeft ? 90 : -90}deg)`;
-
                         const climbDepth = Math.random() * 40 + 30;
                         thread.style.transition = 'height 4s ease-in-out';
                         thread.style.height = climbDepth + 'vh';
-
                         setTimeout(() => {
                              if (wrap.classList.contains('hunting')) return;
                              thread.style.height = '0';
@@ -3433,7 +2875,6 @@ const anchor = wrap.querySelector('#spider-anchor');
                 }
                 return;
             }
-
             const safeLeft = Math.random() * 60 + 20;
             if (scuttle) {
                 scuttle.start(wrap, body, safeLeft, () => {
@@ -3441,15 +2882,12 @@ const anchor = wrap.querySelector('#spider-anchor');
                 });
             }
         };
-
         this.spiderTimeout = setTimeout(runDrop, 1000);
-
         if (!document.getElementById('spider-web-corner')) {
             const web = document.createElement('div');
             web.id = 'spider-web-corner';
             web.innerHTML = `<svg id="web-svg" viewBox="0 0 300 300" style="width:300px;height:300px;position:fixed;top:0;right:0;z-index:55;pointer-events:auto;cursor:pointer;opacity:0.7;filter:drop-shadow(1px 1px 2px rgba(0,0,0,0.5))"></svg>`;
             document.body.appendChild(web);
-
             web.onclick = () => {
                 if (MosquitoManager.state === 'stuck') {
                     this.spiderHunt(MosquitoManager.x, MosquitoManager.y, true);
@@ -3460,11 +2898,9 @@ const anchor = wrap.querySelector('#spider-anchor');
                     this.spiderHunt(88, 20, false);
                 }
             };
-
             const svg = document.getElementById('web-svg');
             const cx = 300, cy = 0;
             const baseAnchors = [{ x: 0, y: 0 }, { x: 60, y: 100 }, { x: 140, y: 200 }, { x: 220, y: 270 }, { x: 300, y: 300 }];
-
             const animateWeb = () => {
                 const time = Date.now();
                 let pathStr = '';
@@ -3508,153 +2944,101 @@ const anchor = wrap.querySelector('#spider-anchor');
             animateWeb()
         }
     },
-
 spiderHunt(targetXPercent, targetYPercent, isFood) {
         const wrap = document.getElementById('spider-wrap');
         if (!wrap) return;
-
 if (Date.now() < (State.data.spiderFullUntil || 0)) {
             const body = wrap.querySelector('#spider-body');
             const thread = wrap.querySelector('#spider-thread');
             const lines = GAME_DIALOGUE.spider.full || ["I'm stuffed."];
             const text = lines[Math.floor(Math.random() * lines.length)];
-
-            // 1. Drop down slightly so he is visible
             thread.style.transition = 'height 1s ease-out';
             thread.style.height = '20vh';
-
             setTimeout(() => {
-                // 2. Complain & Shake
                 if(wrap.showBubble) wrap.showBubble(text);
                 if(body) body.style.animation = 'shake 1s ease-in-out';
-
-                // 3. Retreat after 1.5s
                 setTimeout(() => {
                     if(body) body.style.animation = '';
                     thread.style.height = '0';
                 }, 1500);
             }, 1000); // Wait for drop
-
             return; // Stop here, don't hunt normally
         }
-
         const thread = wrap.querySelector('#spider-thread');
         const body = wrap.querySelector('#spider-body');
         const scuttle = wrap.spiderScuttle;
-
         const anchor = wrap.querySelector('#spider-anchor');
         if (anchor && body) {
             const eaten = State.data.insectStats.eaten || 0;
             let scale = Math.min(0.7 + (eaten * 0.05), 2.0); // Base size
-
             const isFull = Date.now() < (State.data.spiderFullUntil || 0);
-
             if (isFull) {
                 scale = scale * 1.6; // Max fatness (60% bigger)
                 body.classList.add('spider-fat');
             } else {
-                // Incremental growth: 20% bigger per bug currently in stomach
                 const recentBugs = State.data.spiderEatLog ? State.data.spiderEatLog.length : 0;
                 scale = scale * (1 + (recentBugs * 0.20));
                 body.classList.remove('spider-fat');
             }
             anchor.style.transform = `scale(${scale.toFixed(2)})`;
         }
-
-        // Cancel any existing scuttle
         if (scuttle) scuttle.cancel(body);
         body.classList.remove('scuttling-motion', 'spider-paused', 'spider-idle');
         body.classList.add('hunting-scuttle');
-
         if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
         wrap.classList.add('hunting');
-
         let phrases = isFood ? GAME_DIALOGUE.spider.hunting : GAME_DIALOGUE.spider.trickedStart;
         const text = phrases[Math.floor(Math.random() * phrases.length)];
         const bub = wrap.showBubble ? wrap.showBubble(text) : null;
-
         const destX = isFood ? targetXPercent : 88;
         const destY = isFood ? targetYPercent : 20;
-
-        // Smooth hunt movement using CSS transition
         const currentX = parseFloat(wrap.style.left) || 50;
         wrap.style.transition = 'left 1s ease-in-out';
         wrap.style.left = destX + '%';
-
-        // After horizontal movement, drop down
         setTimeout(() => {
             body.classList.remove('hunting-scuttle');
-
             const anchor = document.getElementById('spider-anchor');
             let scale = 1;
             if (anchor && anchor.style.transform) {
                 const match = anchor.style.transform.match(/scale\(([^)]+)\)/);
                 if (match) scale = parseFloat(match[1]);
             }
-            
-            // Calculate drop distance - need to account for wrap being at -15vh
-            // To reach destY (e.g. 20vh from top), thread needs to be destY + 15 (the offset)
             const dropVH = destY + 15 + 10; // +15 to compensate for -15vh top, +10 for margin
-            
-            // Force the transition to work
             thread.style.transition = 'none';
             thread.style.height = '0';
             void thread.offsetWidth; // Force reflow
             thread.style.transition = 'height 2s cubic-bezier(0.45, 0, 0.55, 1)';
             thread.style.height = dropVH + 'vh';
-
-            // Wait for drop, then handle result
             setTimeout(() => {
                     if (isFood && MosquitoManager.state === 'stuck') {
-                        // Scenario 1: Caught the bug
                         MosquitoManager.eat();
                         if(wrap.showBubble) wrap.showBubble("YUM!");
-
-                        // --- PUFF UP ANIMATION (like pufferfish) ---
                         const anchor = wrap.querySelector('#spider-anchor');
-
                         if (anchor) {
-                            // Size based on bugs eaten in last hour
                             const now = Date.now();
                             const oneHourAgo = now - (60 * 60 * 1000);
                             const recentBugs = (State.data.spiderEatLog || []).filter(t => t > oneHourAgo).length;
                             const maxBugs = 5;
                             const cappedBugs = Math.min(recentBugs, maxBugs);
-
-                            // Show visible feedback
                             UIManager.showPostVoteMessage(`🕷️ ${recentBugs} bug${recentBugs !== 1 ? 's' : ''} in belly!`);
-
-                            // Change the actual font-size for visible growth
-                            // 5 stages: 0 bugs = 3rem, 5 bugs = 6rem (max)
                             const baseFontSize = 3; // rem
                             const newFontSize = baseFontSize + (cappedBugs * 0.6); // 3rem -> 6rem over 5 bugs
                             const bulgeFontSize = newFontSize * 1.2;
-
                             body.style.transition = 'font-size 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
                             body.style.fontSize = bulgeFontSize.toFixed(2) + 'rem';
-
-                            // Then settle to actual new size
                             setTimeout(() => {
                                 if (body) {
                                     body.style.fontSize = newFontSize.toFixed(2) + 'rem';
                                 }
                             }, 300);
-
-                            // Add fat class if at max
                             if (cappedBugs >= maxBugs) {
                                 body.classList.add('spider-fat');
                             }
                         }
-                        // --- END PUFF UP ---
-
                         if (body) body.style.animation = 'shake 0.2s ease-in-out';
-
-                        // Stay visible briefly
                         setTimeout(() => {
                             if (body) body.style.animation = '';
                         }, 500);
-
-                        // Then retreat after 5 seconds
                         setTimeout(() => {
                             this.retreatSpider(thread, wrap, bub, '2s');
                         }, 5000);
@@ -3663,7 +3047,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                         const missedPhrases = GAME_DIALOGUE.spider.missed || ["Too slow!", "My lunch!"];
                         const missedText = missedPhrases[Math.floor(Math.random() * missedPhrases.length)];
                         if(wrap.showBubble) wrap.showBubble(missedText);
-
                         body.style.animation = 'shake 0.5s ease-in-out';
                         setTimeout(() => {
                             body.style.animation = '';
@@ -3671,11 +3054,9 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                         }, 1500);
                     }
                     else {
-                        // Scenario 3: Tricked (Empty Web clicked)
                         const angryPhrases = GAME_DIALOGUE.spider.trickedEnd;
                         const angryText = angryPhrases[Math.floor(Math.random() * angryPhrases.length)];
                         if(wrap.showBubble) wrap.showBubble(angryText);
-
                         body.style.animation = 'shake 0.3s ease-in-out';
                         setTimeout(() => {
                             body.style.animation = '';
@@ -3685,7 +3066,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 }, 2000); // Wait for drop animation
             }, 1000); // Wait for horizontal movement
     },
-
     spiderFall(wrap, thread, body, bub) {
         if(bub) {
             bub.style.opacity = '0';
@@ -3693,9 +3073,7 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         }
         thread.style.transition = 'height 0.8s cubic-bezier(0.55, 0.085, 0.68, 0.53), opacity 0s linear';
         thread.style.opacity = '0';
-
         requestAnimationFrame(() => { thread.style.height = '120vh'; });
-
         setTimeout(() => {
             thread.style.transition = 'none';
             wrap.style.transition = 'none';
@@ -3703,7 +3081,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             thread.style.height = '120vh';
             void wrap.offsetWidth;
             thread.style.opacity = '1';
-
             requestAnimationFrame(() => {
                 thread.style.transition = 'height 5s ease-in-out';
                 thread.style.height = '0';
@@ -3712,7 +3089,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             setTimeout(() => this.halloween(true), 6000);
         }, 1500);
     },
-
     retreatSpider(thread, wrap, bub, duration) {
         thread.style.transition = `height ${duration} ease-in-out`;
         requestAnimationFrame(() => { thread.style.height = '0'; });
@@ -3722,7 +3098,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             this.halloween(true);
         }, parseFloat(duration) * 1000);
     },
-
     ballpit(active) {
         const c = DOM.theme.effects.ballpit;
         if (this.ballLoop) cancelAnimationFrame(this.ballLoop);
@@ -3801,12 +3176,10 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 }
             };
         };
-        // Reduced ball count for better performance (50 instead of 80)
         for (let i = 0; i < 50; i++) addBall(Math.random() < 0.008 ? 'rare' : 'normal');
         for (let i = 0; i < 4; i++) addBall('germ');
         Physics.run()
     },
-
     space(active) {
         const c = DOM.theme.effects.space;
         if (this.spaceRareTimeout) clearTimeout(this.spaceRareTimeout);
@@ -3874,26 +3247,19 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         };
         this.spaceRareTimeout = setTimeout(spawnRock, 3000);
     },
-
     woodlandTimeout: null,
     woodlandCreatureTimeout: null,
-
     woodland(active) {
         const c = DOM.theme.effects.woodland;
         if (this.woodlandTimeout) clearTimeout(this.woodlandTimeout);
         if (this.woodlandCreatureTimeout) clearTimeout(this.woodlandCreatureTimeout);
-
         if (!active) {
             c.innerHTML = '';
             return;
         }
-
         c.innerHTML = '';
-
-        // Determine time of day (4 modes: dawn, day, dusk, night)
         const hour = new Date().getHours();
         let timeOfDay, lightColor, lightOpacity, bgGradient;
-
         if (hour >= 5 && hour < 8) {
             timeOfDay = 'dawn';
             lightColor = 'rgba(255, 200, 150, 0.3)';
@@ -3915,8 +3281,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             lightOpacity = 0.15;
             bgGradient = 'linear-gradient(180deg, #1a1a2e 0%, #16213e 30%, #1f3a28 100%)';
         }
-
-        // Set container style
         c.style.cssText = `
             position: fixed;
             inset: 0;
@@ -3925,8 +3289,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             overflow: hidden;
             background: ${bgGradient};
         `;
-
-        // Create forest floor
         const floor = document.createElement('div');
         floor.style.cssText = `
             position: absolute;
@@ -3937,8 +3299,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             background: linear-gradient(180deg, transparent 0%, #3d2914 30%, #2a1f0f 100%);
         `;
         c.appendChild(floor);
-
-        // Add fallen leaves on floor
         for (let i = 0; i < 20; i++) {
             const leaf = document.createElement('div');
             const leafEmojis = ['🍂', '🍁', '🍃'];
@@ -3953,8 +3313,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             `;
             c.appendChild(leaf);
         }
-
-        // Create trees (realistic organic shapes on sides)
         const createTree = (left, size, zIndex) => {
             const tree = document.createElement('div');
             const xOffset = Math.random() * 10 - 5;
@@ -3966,8 +3324,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 height: ${size * 3}px;
                 z-index: ${zIndex};
             `;
-
-            // Trunk with bark texture
             const trunk = document.createElement('div');
             const trunkW = size * 0.18;
             trunk.style.cssText = `
@@ -3987,8 +3343,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 border-radius: 3px 3px 8px 8px;
                 box-shadow: inset -3px 0 8px rgba(0,0,0,0.4), inset 3px 0 8px rgba(0,0,0,0.2);
             `;
-
-            // Add bark lines
             for (let b = 0; b < 6; b++) {
                 const line = document.createElement('div');
                 line.style.cssText = `
@@ -4003,12 +3357,9 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 trunk.appendChild(line);
             }
             tree.appendChild(trunk);
-
-            // Create organic foliage clusters
             const foliageColors = timeOfDay === 'night'
                 ? ['#0d1f0d', '#152515', '#1a2f1a', '#0f1a0f']
                 : ['#1e4d1e', '#2d5a2d', '#3a6b3a', '#275227', '#1f4a1f'];
-
             const clusters = 8 + Math.floor(Math.random() * 5);
             for (let i = 0; i < clusters; i++) {
                 const cluster = document.createElement('div');
@@ -4018,7 +3369,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 const cx = Math.cos(angle) * radius;
                 const cy = Math.sin(angle) * radius * 0.6;
                 const baseY = size * 1.4;
-
                 cluster.style.cssText = `
                     position: absolute;
                     bottom: ${baseY + cy}px;
@@ -4035,8 +3385,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 `;
                 tree.appendChild(cluster);
             }
-
-            // Add a central dense cluster
             const centerCluster = document.createElement('div');
             centerCluster.style.cssText = `
                 position: absolute;
@@ -4052,8 +3400,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 border-radius: 50%;
             `;
             tree.appendChild(centerCluster);
-
-            // Top cluster
             const topCluster = document.createElement('div');
             topCluster.style.cssText = `
                 position: absolute;
@@ -4069,26 +3415,20 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 border-radius: 45% 55% 50% 50% / 60% 60% 40% 40%;
             `;
             tree.appendChild(topCluster);
-
             return tree;
         };
-
-        // Add trees on both sides (more trees, varied sizes)
         c.appendChild(createTree(true, 130, 3));
         c.appendChild(createTree(true, 90, 2));
         c.appendChild(createTree(true, 60, 1));
         c.appendChild(createTree(false, 110, 3));
         c.appendChild(createTree(false, 75, 2));
         c.appendChild(createTree(false, 50, 1));
-
-        // Create hiding spots (bushes, logs, rocks)
         const hidingSpots = [];
         const spotTypes = [
             { emoji: '🪨', name: 'rock', width: 60, height: 40 },
             { emoji: '🪵', name: 'log', width: 80, height: 35 },
             { emoji: '🌳', name: 'bush', width: 50, height: 50 }
         ];
-
         for (let i = 0; i < 5; i++) {
             const spotType = spotTypes[Math.floor(Math.random() * spotTypes.length)];
             const spot = document.createElement('div');
@@ -4108,8 +3448,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             c.appendChild(spot);
             hidingSpots.push({ el: spot, left: leftPos, creature: null });
         }
-
-        // Create light rays through trees
         const lightOverlay = document.createElement('div');
         lightOverlay.style.cssText = `
             position: absolute;
@@ -4117,8 +3455,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             pointer-events: none;
             z-index: 5;
         `;
-
-        // Add light beams
         for (let i = 0; i < 6; i++) {
             const beam = document.createElement('div');
             const leftPos = 10 + i * 15 + Math.random() * 10;
@@ -4136,8 +3472,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             lightOverlay.appendChild(beam);
         }
         c.appendChild(lightOverlay);
-
-        // Add CSS animation for light sway
         if (!document.getElementById('woodland-styles')) {
             const style = document.createElement('style');
             style.id = 'woodland-styles';
@@ -4163,8 +3497,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             `;
             document.head.appendChild(style);
         }
-
-        // Woodland creatures that peek out from hiding spots
         const creatures = ['🐿️', '🦊', '🐺', '🦉', '🦔', '🐁'];
         const creatureMessages = {
             '🐿️': 'A curious squirrel watches you!',
@@ -4174,26 +3506,19 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             '🦔': 'A hedgehog snuffles about!',
             '🐁': 'A tiny mouse scurries by!'
         };
-
         const spawnCreature = () => {
             if (State.runtime.currentTheme !== 'woodland') return;
-
-            // Find an empty hiding spot
             const emptySpots = hidingSpots.filter(s => !s.creature);
             if (emptySpots.length === 0) {
                 this.woodlandCreatureTimeout = setTimeout(spawnCreature, 5000);
                 return;
             }
-
             const spot = emptySpots[Math.floor(Math.random() * emptySpots.length)];
             const creature = creatures[Math.floor(Math.random() * creatures.length)];
-
-            // Night mode: only owls and wolves are active
             const nightCreatures = ['🦉', '🐺'];
             const activeCreature = timeOfDay === 'night'
                 ? nightCreatures[Math.floor(Math.random() * nightCreatures.length)]
                 : creature;
-
             const critterEl = document.createElement('div');
             critterEl.className = 'woodland-creature';
             critterEl.textContent = activeCreature;
@@ -4207,8 +3532,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 cursor: pointer;
                 filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.4));
             `;
-
-            // Night mode: add glowing eyes effect for some creatures
             if (timeOfDay === 'night' && (activeCreature === '🦉' || activeCreature === '🐺')) {
                 const eyes = document.createElement('div');
                 eyes.style.cssText = `
@@ -4228,11 +3551,8 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 `;
                 critterEl.appendChild(eyes);
             }
-
             spot.creature = critterEl;
             c.appendChild(critterEl);
-
-            // Click to interact
             critterEl.onclick = (e) => {
                 e.stopPropagation();
                 UIManager.showPostVoteMessage(creatureMessages[activeCreature] || 'A woodland creature!');
@@ -4244,24 +3564,16 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                     spot.creature = null;
                 }, 300);
             };
-
-            // Auto-hide after animation
             setTimeout(() => {
                 if (critterEl.parentNode) {
                     critterEl.remove();
                     spot.creature = null;
                 }
             }, 6000);
-
-            // Schedule next creature
             const nextDelay = timeOfDay === 'night' ? 15000 : 8000;
             this.woodlandCreatureTimeout = setTimeout(spawnCreature, Math.random() * nextDelay + 5000);
         };
-
-        // Start creature spawning after a short delay
         this.woodlandCreatureTimeout = setTimeout(spawnCreature, 3000);
-
-        // Add floating particles (dust motes in light, fireflies at night)
         for (let i = 0; i < (timeOfDay === 'night' ? 15 : 8); i++) {
             const particle = document.createElement('div');
             const isFirefly = timeOfDay === 'night' || timeOfDay === 'dusk';
@@ -4277,8 +3589,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 animation: float${i} ${10 + Math.random() * 10}s ease-in-out infinite;
                 z-index: 6;
             `;
-
-            // Add keyframes for this particle
             const style = document.createElement('style');
             style.textContent = `
                 @keyframes float${i} {
@@ -4303,8 +3613,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             document.head.appendChild(style);
             c.appendChild(particle);
         }
-
-        // Add some mushrooms at the base
         for (let i = 0; i < 4; i++) {
             const mushroom = document.createElement('div');
             mushroom.textContent = '🍄';
@@ -4320,11 +3628,8 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             c.appendChild(mushroom);
         }
     },
-
-    // Flight theme timeouts
     flightTimeout: null,
     flightObjects: [],
-    
     flight(active) {
         let c = DOM.theme.effects.flight;
         if (!c) {
@@ -4334,7 +3639,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             document.body.appendChild(c);
             DOM.theme.effects.flight = c;
         }
-        
         if (this.flightTimeout) clearTimeout(this.flightTimeout);
         if (this.bankInterval) clearInterval(this.bankInterval);
         if (this.fieldSpawnInterval) clearInterval(this.fieldSpawnInterval);
@@ -4342,8 +3646,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         this.flightObjects = [];
         if (!active) { c.innerHTML = ''; c.style.background = ''; return; }
         c.innerHTML = '';
-        
-        // The entire outside world that rotates during banking
         const worldContainer = document.createElement('div');
         worldContainer.id = 'flight-world';
         worldContainer.style.cssText = `
@@ -4355,8 +3657,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             transition: transform 2s ease-in-out;
             transform-origin: center center;
         `;
-        
-        // Sky
         const sky = document.createElement('div');
         sky.style.cssText = `
             position: absolute;
@@ -4367,8 +3667,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             background: linear-gradient(180deg, #1a5a8a 0%, #4a9ad2 30%, #7ac4f2 60%, #a8e4ff 100%);
         `;
         worldContainer.appendChild(sky);
-        
-        // PARALLAX MOUNTAINS - Back layer (moves slower)
         const mountainsBack = document.createElement('div');
         mountainsBack.id = 'mountains-back';
         mountainsBack.style.cssText = `
@@ -4391,8 +3689,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             </svg>
         `;
         worldContainer.appendChild(mountainsBack);
-        
-        // PARALLAX MOUNTAINS - Front layer (moves faster)
         const mountainsFront = document.createElement('div');
         mountainsFront.id = 'mountains-front';
         mountainsFront.style.cssText = `
@@ -4417,8 +3713,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             </svg>
         `;
         worldContainer.appendChild(mountainsFront);
-        
-        // Ground - MORE VISIBLE (starts higher)
         const ground = document.createElement('div');
         ground.id = 'flight-ground';
         ground.style.cssText = `
@@ -4430,8 +3724,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             background: linear-gradient(180deg, #8aba6a 0%, #6a9a4a 15%, #5a8a3a 35%, #4a7a2a 60%, #3a6a1a 100%);
             overflow: hidden;
         `;
-        
-        // Perspective field lines
         ground.innerHTML = `
             <svg viewBox="0 0 200 100" preserveAspectRatio="none" style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.6;">
                 <defs>
@@ -4459,8 +3751,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             <div style="position: absolute; inset: 0; background: repeating-linear-gradient(0deg, transparent 0px, transparent 8px, rgba(90,130,50,0.3) 8px, rgba(90,130,50,0.3) 10px); animation: ground-scroll 0.8s linear infinite;"></div>
         `;
         worldContainer.appendChild(ground);
-        
-        // Clouds in the sky
         for (let i = 0; i < 5; i++) {
             const cloud = document.createElement('div');
             cloud.style.cssText = `
@@ -4477,52 +3767,44 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             `;
             worldContainer.appendChild(cloud);
         }
-        
         c.appendChild(worldContainer);
-        
-        // Spawn moving field patches on the ground
         const spawnField = () => {
             if (!c.isConnected) return;
             const groundEl = document.getElementById('flight-ground');
             if (!groundEl) return;
-            
             const field = document.createElement('div');
             const fieldTypes = [
-                { bg: '#7aaa4a', border: '#6a9a3a' }, // Light grass
-                { bg: '#5a8a2a', border: '#4a7a1a' }, // Dark grass
-                { bg: '#c4a050', border: '#a48030' }, // Wheat
-                { bg: '#8a7040', border: '#6a5030' }, // Plowed
-                { bg: '#4a6a20', border: '#3a5a10' }, // Forest
-                { bg: '#a09060', border: '#807040' }, // Hay
-                { bg: '#3a7aaa', border: '#2a6a9a' }, // Water/pond
-                { bg: '#8a6a5a', border: '#6a4a3a' }, // Buildings
+                { bg: '#7aaa4a', border: '#5a8a2a' },
+                { bg: '#5a8a2a', border: '#4a7a1a' },
+                { bg: '#c4a050', border: '#a48030' },
+                { bg: '#8a7040', border: '#6a5030' },
+                { bg: '#4a6a20', border: '#3a5a10' },
+                { bg: '#a09060', border: '#807040' },
+                { bg: '#3a7aaa', border: '#2a6a9a' },
+                { bg: '#8a6a5a', border: '#6a4a3a' },
             ];
             const type = fieldTypes[Math.floor(Math.random() * fieldTypes.length)];
-            const startX = 30 + Math.random() * 40; // Wider spread
+            const gridX = Math.floor(Math.random() * 10) * 10 + 5;
             const duration = 2.5 + Math.random() * 2;
-            
+            const width = 15 + Math.random() * 25;
+            const height = 8 + Math.random() * 12;
             field.style.cssText = `
                 position: absolute;
                 top: 0;
-                left: ${startX}%;
-                width: ${15 + Math.random() * 25}px;
-                height: ${8 + Math.random() * 15}px;
+                left: ${gridX}%;
+                width: ${width}px;
+                height: ${height}px;
                 background: ${type.bg};
-                border: 1px solid ${type.border};
-                border-radius: 2px;
-                animation: field-fly ${duration}s linear forwards;
+                border-bottom: 2px solid ${type.border};
+                border-right: 1px solid ${type.border};
+                animation: field-fly-grid ${duration}s linear forwards;
                 z-index: 2;
             `;
-            
             groundEl.appendChild(field);
             this.flightObjects.push(field);
             setTimeout(() => field.remove(), duration * 1000);
         };
-        
-        // Spawn fields regularly - more frequently
         this.fieldSpawnInterval = setInterval(spawnField, 100);
-        
-        // COCKPIT FRAME
         const cockpitFrame = document.createElement('div');
         cockpitFrame.style.cssText = `
             position: absolute;
@@ -4539,30 +3821,25 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 <!-- Inner struts -->
                 <path d="M4,0 Q-2,50 4,100" stroke="#3a5a7a" stroke-width="2" fill="none"/>
                 <path d="M96,0 Q102,50 96,100" stroke="#3a5a7a" stroke-width="2" fill="none"/>
-                <!-- Corner lights -->
-                <circle cx="7" cy="7" r="2.5" fill="#aa3333"/>
-                <circle cx="93" cy="7" r="2.5" fill="#aa3333"/>
+                <!-- Center strut for prop mount -->
+                <line x1="50" y1="0" x2="50" y2="18" stroke="#2a4a6a" stroke-width="3"/>
             </svg>
         `;
         c.appendChild(cockpitFrame);
-        
-        // PROPELLER ASSEMBLY - Lower, bigger, slower
         const propAssembly = document.createElement('div');
         propAssembly.style.cssText = `
             position: absolute;
-            top: 8%;
+            top: 0;
             left: 50%;
             transform: translateX(-50%);
             z-index: 55;
         `;
         propAssembly.innerHTML = `
-            <!-- Mount strut -->
-            <div style="position: absolute; top: 50px; left: 50%; transform: translateX(-50%); width: 12px; height: 50px; background: linear-gradient(90deg, #2a4a6a, #4a6a8a, #2a4a6a); border-radius: 3px;"></div>
-            <!-- Spinner hub -->
-            <div style="position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 45px; height: 55px; background: linear-gradient(180deg, #ddd 0%, #999 40%, #777 70%, #555 100%); border-radius: 50% 50% 40% 40%; z-index: 2;"></div>
-            <!-- Propeller -->
-            <div id="flight-prop" style="position: absolute; top: -60px; left: 50%; transform: translateX(-50%); width: 300px; height: 300px;">
-                <svg viewBox="0 0 300 300" style="width: 100%; height: 100%;">
+            <!-- Spinner hub attached to frame strut -->
+            <div style="position: absolute; top: 12%; left: 50%; transform: translateX(-50%); width: 50px; height: 60px; background: linear-gradient(180deg, #ddd 0%, #999 40%, #777 70%, #555 100%); border-radius: 50% 50% 40% 40%; z-index: 2;"></div>
+            <!-- Propeller - larger and attached -->
+            <div id="flight-prop" style="position: absolute; top: 2%; left: 50%; transform: translateX(-50%); width: 380px; height: 380px;">
+                <svg viewBox="0 0 380 380" style="width: 100%; height: 100%;">
                     <defs>
                         <linearGradient id="propBladeGrad" x1="0%" y1="50%" x2="100%" y2="50%">
                             <stop offset="0%" style="stop-color:#2a2a2a"/>
@@ -4574,17 +3851,13 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                             <stop offset="100%" style="stop-color:#2a2a2a"/>
                         </linearGradient>
                     </defs>
-                    <!-- Two-blade propeller -->
-                    <ellipse cx="150" cy="150" rx="140" ry="14" fill="url(#propBladeGrad)"/>
-                    <!-- Hub cap -->
-                    <circle cx="150" cy="150" r="20" fill="#666"/>
-                    <circle cx="150" cy="150" r="12" fill="#888"/>
+                    <ellipse cx="190" cy="190" rx="180" ry="18" fill="url(#propBladeGrad)"/>
+                    <circle cx="190" cy="190" r="25" fill="#666"/>
+                    <circle cx="190" cy="190" r="15" fill="#888"/>
                 </svg>
             </div>
         `;
         c.appendChild(propAssembly);
-        
-        // INSTRUMENT PANEL
         const panel = document.createElement('div');
         panel.style.cssText = `
             position: absolute;
@@ -4596,7 +3869,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             z-index: 60;
         `;
         panel.innerHTML = `
-            <!-- Panel background -->
             <svg style="position: absolute; inset: 0; width: 100%; height: 100%;" viewBox="0 0 200 110" preserveAspectRatio="none">
                 <defs>
                     <linearGradient id="panelGrad" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -4607,41 +3879,23 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 </defs>
                 <path d="M8,110 L8,45 Q100,15 192,45 L192,110 Z" fill="url(#panelGrad)" stroke="#3a4a5a" stroke-width="1"/>
             </svg>
-            
-            <!-- Warning lights -->
-            <div style="position: absolute; top: 16%; left: 50%; transform: translateX(-50%); display: flex; gap: 6px;">
-                <div style="width: 12px; height: 12px; border-radius: 50%; background: #550000; border: 2px solid #333; animation: blink-red 2s infinite;"></div>
-                <div style="width: 9px; height: 9px; border-radius: 50%; background: #444; border: 2px solid #333;"></div>
-                <div style="width: 12px; height: 12px; border-radius: 50%; background: #554400; border: 2px solid #333; animation: blink-amber 3s infinite;"></div>
-                <div style="width: 18px; height: 18px; border-radius: 50%; background: radial-gradient(circle, #aa3333 30%, #661111 100%); border: 2px solid #222;"></div>
-                <div style="width: 12px; height: 12px; border-radius: 50%; background: #554400; border: 2px solid #333; animation: blink-amber 2.5s infinite; animation-delay: 1s;"></div>
-                <div style="width: 9px; height: 9px; border-radius: 50%; background: #444; border: 2px solid #333;"></div>
-                <div style="width: 12px; height: 12px; border-radius: 50%; background: #550000; border: 2px solid #333; animation: blink-red 2.5s infinite; animation-delay: 0.5s;"></div>
-            </div>
-            
-            <!-- Main gauges -->
-            <div style="position: absolute; top: 30%; left: 50%; transform: translateX(-50%); display: flex; gap: 12px; align-items: center;">
-                <!-- Compass -->
+            <!-- Main gauges row -->
+            <div style="position: absolute; top: 22%; left: 50%; transform: translateX(-50%); display: flex; gap: 12px; align-items: center;">
                 <div style="width: 60px; height: 60px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #1a2a3a, #0a1520); border: 3px solid #2a3a4a; position: relative;">
                     <div style="position: absolute; top: 50%; left: 50%; width: 2px; height: 22px; background: white; transform-origin: bottom center; transform: translate(-50%, -100%); animation: compass-spin 25s linear infinite;"></div>
                 </div>
-                <!-- Small gauges -->
                 <div style="display: flex; gap: 5px;">
                     <div style="width: 24px; height: 24px; border-radius: 50%; background: #0a1520; border: 2px solid #2a3a4a;"></div>
                     <div style="width: 24px; height: 24px; border-radius: 50%; background: #0a1520; border: 2px solid #2a3a4a;"></div>
                     <div style="width: 24px; height: 24px; border-radius: 50%; background: #0a1520; border: 2px solid #2a3a4a;"></div>
                 </div>
-                <!-- RPM -->
                 <div style="width: 60px; height: 60px; border-radius: 50%; background: radial-gradient(circle at 40% 40%, #4a3a1a, #2a2010); border: 3px solid #5a4a2a; position: relative;">
                     <div style="position: absolute; top: 50%; left: 50%; width: 2px; height: 22px; background: #ff3300; transform-origin: bottom center; transform: translate(-50%, -100%) rotate(45deg); animation: rpm-needle 4s ease-in-out infinite;"></div>
                 </div>
             </div>
-            
-            <!-- Bottom row -->
-            <div style="position: absolute; top: 56%; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; align-items: flex-start;">
-                <!-- Blue screen -->
+            <!-- Middle row - screens and speedometer -->
+            <div style="position: absolute; top: 48%; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; align-items: flex-start;">
                 <div style="width: 50px; height: 40px; background: linear-gradient(135deg, #1a3a5a, #0a2040); border: 2px solid #2a4a6a; border-radius: 2px;"></div>
-                <!-- Center displays -->
                 <div style="display: flex; flex-direction: column; gap: 4px;">
                     <div style="display: flex; gap: 3px;">
                         <div style="width: 35px; height: 14px; background: #8a7a2a; border: 1px solid #5a5020;"></div>
@@ -4651,27 +3905,52 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                         <div style="position: absolute; top: 50%; left: 50%; width: 2px; height: 16px; background: #111; transform-origin: bottom center; transform: translate(-50%, -100%) rotate(-30deg); animation: speed-needle 8s ease-in-out infinite;"></div>
                     </div>
                 </div>
-                <!-- Radar screen -->
                 <div style="width: 50px; height: 50px; background: #0a1520; border: 2px solid #2a4a6a; border-radius: 2px; position: relative;">
                     <div style="position: absolute; top: 12px; left: 8px; width: 3px; height: 3px; background: #3a8a5a; border-radius: 50%;"></div>
                     <div style="position: absolute; top: 22px; left: 18px; width: 3px; height: 3px; background: #3a8a5a; border-radius: 50%;"></div>
                     <div style="position: absolute; top: 30px; left: 28px; width: 15px; height: 2px; background: #5aaa7a; transform: rotate(-20deg);"></div>
                 </div>
             </div>
-            
-            <!-- Switches -->
-            <div style="position: absolute; bottom: 10%; left: 50%; transform: translateX(-50%); display: flex; gap: 6px;">
-                <div style="width: 10px; height: 18px; background: linear-gradient(180deg, #ddd, #888); border-radius: 2px;"></div>
-                <div style="width: 10px; height: 18px; background: linear-gradient(180deg, #f55, #a22); border-radius: 2px;"></div>
-                <div style="width: 10px; height: 18px; background: linear-gradient(180deg, #ddd, #888); border-radius: 2px;"></div>
-                <div style="width: 20px; height: 12px; background: #222; border: 1px solid #444;"></div>
-                <div style="width: 10px; height: 18px; background: linear-gradient(180deg, #5d5, #2a2); border-radius: 2px;"></div>
-                <div style="width: 10px; height: 18px; background: linear-gradient(180deg, #ddd, #888); border-radius: 2px;"></div>
+            <!-- Warning lights and indicators row - ON THE PANEL -->
+            <div style="position: absolute; top: 75%; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; align-items: center;">
+                <div style="width: 14px; height: 14px; border-radius: 50%; background: #550000; border: 2px solid #333; animation: blink-red 2s infinite;"></div>
+                <div style="width: 10px; height: 10px; border-radius: 50%; background: #005500; border: 2px solid #333; animation: blink-green 1.5s infinite;"></div>
+                <div style="width: 14px; height: 14px; border-radius: 50%; background: #554400; border: 2px solid #333; animation: blink-amber 3s infinite;"></div>
+                <div style="width: 20px; height: 10px; background: #222; border: 1px solid #444; border-radius: 2px;"></div>
+                <div style="width: 14px; height: 14px; border-radius: 50%; background: #554400; border: 2px solid #333; animation: blink-amber 2.5s infinite; animation-delay: 1s;"></div>
+                <div style="width: 10px; height: 10px; border-radius: 50%; background: #005500; border: 2px solid #333;"></div>
+                <div style="width: 14px; height: 14px; border-radius: 50%; background: #550000; border: 2px solid #333; animation: blink-red 2.5s infinite; animation-delay: 0.5s;"></div>
+            </div>
+            <!-- Switches and buttons row - bottom of panel -->
+            <div style="position: absolute; bottom: 6%; left: 50%; transform: translateX(-50%); display: flex; gap: 5px; align-items: flex-end;">
+                <div style="width: 10px; height: 20px; background: linear-gradient(180deg, #ddd, #888); border-radius: 2px;"></div>
+                <div style="width: 10px; height: 20px; background: linear-gradient(180deg, #f55, #a22); border-radius: 2px;"></div>
+                <div style="width: 10px; height: 20px; background: linear-gradient(180deg, #ddd, #888); border-radius: 2px;"></div>
+                <div style="width: 18px; height: 18px; background: radial-gradient(circle, #333, #111); border: 2px solid #555; border-radius: 50%;"></div>
+                <div style="width: 10px; height: 20px; background: linear-gradient(180deg, #5d5, #2a2); border-radius: 2px;"></div>
+                <div style="width: 10px; height: 20px; background: linear-gradient(180deg, #ddd, #888); border-radius: 2px;"></div>
+                <div style="width: 18px; height: 18px; background: radial-gradient(circle, #333, #111); border: 2px solid #555; border-radius: 50%;"></div>
+                <div style="width: 10px; height: 20px; background: linear-gradient(180deg, #55f, #22a); border-radius: 2px;"></div>
+                <div style="width: 10px; height: 20px; background: linear-gradient(180deg, #ddd, #888); border-radius: 2px;"></div>
+            </div>
+            <!-- Left panel controls -->
+            <div style="position: absolute; top: 35%; left: 8%; display: flex; flex-direction: column; gap: 6px;">
+                <div style="width: 30px; height: 30px; border-radius: 50%; background: #0a1520; border: 2px solid #2a3a4a;"></div>
+                <div style="display: flex; gap: 3px;">
+                    <div style="width: 12px; height: 12px; border-radius: 50%; background: #005500; border: 1px solid #333;"></div>
+                    <div style="width: 12px; height: 12px; border-radius: 50%; background: #550000; border: 1px solid #333; animation: blink-red 3s infinite;"></div>
+                </div>
+            </div>
+            <!-- Right panel controls -->
+            <div style="position: absolute; top: 35%; right: 8%; display: flex; flex-direction: column; gap: 6px;">
+                <div style="width: 30px; height: 30px; border-radius: 50%; background: #0a1520; border: 2px solid #2a3a4a;"></div>
+                <div style="display: flex; gap: 3px;">
+                    <div style="width: 12px; height: 12px; border-radius: 50%; background: #554400; border: 1px solid #333; animation: blink-amber 2s infinite;"></div>
+                    <div style="width: 12px; height: 12px; border-radius: 50%; background: #005500; border: 1px solid #333;"></div>
+                </div>
             </div>
         `;
         c.appendChild(panel);
-        
-        // SEATS
         const leftSeat = document.createElement('div');
         leftSeat.style.cssText = `
             position: absolute; bottom: 4%; left: 2%; width: 16%; height: 42%;
@@ -4680,7 +3959,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         `;
         leftSeat.innerHTML = `<div style="position: absolute; bottom: 0; left: 10%; right: 10%; height: 22%; background: #a05050; border-radius: 4px 4px 2px 2px;"></div>`;
         c.appendChild(leftSeat);
-        
         const rightSeat = document.createElement('div');
         rightSeat.style.cssText = `
             position: absolute; bottom: 4%; right: 2%; width: 16%; height: 42%;
@@ -4689,8 +3967,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         `;
         rightSeat.innerHTML = `<div style="position: absolute; bottom: 0; left: 10%; right: 10%; height: 22%; background: #a05050; border-radius: 4px 4px 2px 2px;"></div>`;
         c.appendChild(rightSeat);
-        
-        // YOKE
         const yoke = document.createElement('div');
         yoke.style.cssText = `position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); z-index: 65;`;
         yoke.innerHTML = `
@@ -4698,11 +3974,8 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             <div style="position: absolute; bottom: 55px; left: 50%; transform: translateX(-50%); width: 60px; height: 12px; background: linear-gradient(180deg, #4a5a6a, #3a4a5a); border-radius: 6px;"></div>
         `;
         c.appendChild(yoke);
-        
-        // Animation styles
         const oldStyle = document.getElementById('flight-style');
         if (oldStyle) oldStyle.remove();
-        
         const style = document.createElement('style');
         style.id = 'flight-style';
         style.textContent = `
@@ -4711,12 +3984,12 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 to { transform: translateX(-50%) rotate(360deg); }
             }
             #flight-prop {
-                animation: prop-spin 0.15s linear infinite;
+                animation: prop-spin 0.25s linear infinite;
             }
-            @keyframes field-fly {
-                0% { transform: translateY(0) scale(0.3); opacity: 0.5; }
-                20% { opacity: 1; }
-                100% { transform: translateY(500px) scale(5); opacity: 0; }
+            @keyframes field-fly-grid {
+                0% { transform: translateY(0) scaleX(0.3) scaleY(0.15); opacity: 0.4; }
+                10% { opacity: 1; }
+                100% { transform: translateY(600px) scaleX(4) scaleY(3); opacity: 0; }
             }
             @keyframes ground-scroll {
                 0% { background-position-y: 0px; }
@@ -4742,6 +4015,10 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 0%, 60%, 100% { background: #554400; box-shadow: none; }
                 65%, 85% { background: #ffaa00; box-shadow: 0 0 6px #ffaa00; }
             }
+            @keyframes blink-green {
+                0%, 50%, 100% { background: #005500; box-shadow: none; }
+                25%, 75% { background: #00ff00; box-shadow: 0 0 6px #00ff00; }
+            }
             @keyframes cloud-approach {
                 0% { transform: translate(-50%, -50%) scale(0.2); opacity: 0; }
                 15% { opacity: 0.9; }
@@ -4756,17 +4033,13 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             }
         `;
         document.head.appendChild(style);
-        
-        // Spawn clouds that fly TOWARDS the player
         const spawnCloud = () => {
             if (!c.isConnected) return;
-            
             const cloud = document.createElement('div');
             const startX = 40 + Math.random() * 20; // Center area
             const startY = 20 + Math.random() * 25; // Upper half of sky
             const size = 50 + Math.random() * 80;
             const duration = 4 + Math.random() * 3;
-            
             cloud.style.cssText = `
                 position: absolute;
                 left: ${startX}%;
@@ -4784,25 +4057,19 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 z-index: 10;
                 pointer-events: none;
             `;
-            
             c.appendChild(cloud);
             this.flightObjects.push(cloud);
             setTimeout(() => cloud.remove(), duration * 1000);
-            
             setTimeout(spawnCloud, 600 + Math.random() * 1000);
         };
-        
-        // Spawn flying objects (birds, balloons, etc) that approach
         const flyingThings = ['🦅', '🦆', '🦢', '🎈', '🪂', '🦋', '🐦', '✈️', '🚁', '🪁'];
         const spawnFlyingThing = () => {
             if (!c.isConnected) return;
-            
             const thing = document.createElement('div');
             const emoji = flyingThings[Math.floor(Math.random() * flyingThings.length)];
             const startX = 35 + Math.random() * 30;
             const startY = 25 + Math.random() * 30;
             const duration = 3 + Math.random() * 2.5;
-            
             thing.textContent = emoji;
             thing.style.cssText = `
                 position: absolute;
@@ -4814,72 +4081,47 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3));
                 pointer-events: none;
             `;
-            
             c.appendChild(thing);
             this.flightObjects.push(thing);
             setTimeout(() => thing.remove(), duration * 1000);
-            
             this.flightTimeout = setTimeout(spawnFlyingThing, 2000 + Math.random() * 4000);
         };
-        
-        // Start spawning clouds and flying things
         setTimeout(spawnCloud, 500);
         this.flightTimeout = setTimeout(spawnFlyingThing, 1500);
-        
-        // BANKING with PARALLAX
         let mountainOffset = 0;
         const performBank = () => {
             if (!c.isConnected) return;
-            
             const world = document.getElementById('flight-world');
             const mtnBack = document.getElementById('mountains-back');
             const mtnFront = document.getElementById('mountains-front');
             if (!world) return;
-            
-            // Random bank
             const bankDir = Math.random() > 0.5 ? 1 : -1;
             const bankAngle = 8 + Math.random() * 7; // 8-15 degrees
-            
-            // Parallax: back mountains move less than front
             const backShift = bankDir * (30 + Math.random() * 40);
             const frontShift = bankDir * (60 + Math.random() * 80);
             mountainOffset += frontShift;
-            
-            // Bank the world
             world.style.transform = `rotate(${bankDir * bankAngle}deg)`;
-            
-            // Shift mountains with parallax
             if (mtnBack) mtnBack.style.transform = `translateX(${mountainOffset * 0.5}px)`;
             if (mtnFront) mtnFront.style.transform = `translateX(${mountainOffset}px)`;
-            
-            // Level out after delay
             setTimeout(() => {
                 if (world) world.style.transform = 'rotate(0deg)';
             }, 2500);
-            
             this.bankInterval = setTimeout(performBank, 7000 + Math.random() * 6000);
         };
-        
         this.bankInterval = setTimeout(performBank, 4000);
     },
-
-    // Ocean theme timeouts
     oceanTimeout: null,
     oceanObjects: [],
-    
-    // Calculate moon phase (0-7: new, waxing crescent, first quarter, waxing gibbous, full, waning gibbous, last quarter, waning crescent)
     getMoonPhase() {
         const date = new Date();
         let year = date.getFullYear();
         let month = date.getMonth() + 1;
         const day = date.getDate();
-        
         if (month < 3) {
             year--;
             month += 12;
         }
         month++;
-        
         const c = 365.25 * year;
         const e = 30.6 * month;
         let jd = c + e + day - 694039.09;
@@ -4889,7 +4131,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         const phase = Math.round(jd * 8);
         return phase >= 8 ? 0 : phase;
     },
-    
     ocean(active) {
         let c = DOM.theme.effects.ocean;
         if (!c) {
@@ -4899,33 +4140,23 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             document.body.appendChild(c);
             DOM.theme.effects.ocean = c;
         }
-        
         if (this.oceanTimeout) clearTimeout(this.oceanTimeout);
         this.oceanObjects.forEach(obj => obj.remove());
         this.oceanObjects = [];
         if (!active) { c.innerHTML = ''; c.style.background = ''; return; }
         c.innerHTML = '';
-        
-        // Time-based calculations
         const hour = new Date().getHours();
         const minutes = new Date().getMinutes();
         const timeDecimal = hour + minutes / 60;
         const isNight = hour >= 20 || hour < 6;
         const isEvening = (hour >= 17 && hour < 20) || (hour >= 6 && hour < 8);
-        
-        // Get moon phase for realistic moon appearance
         const moonPhase = this.getMoonPhase();
-        // Phase names: 0=new, 1=waxing crescent, 2=first quarter, 3=waxing gibbous, 4=full, 5=waning gibbous, 6=last quarter, 7=waning crescent
-        
-        // Calculate celestial body position
         let bodyX, bodyY;
         if (isNight) {
-            // Moon position (rises east, sets west through night)
             const nightProgress = hour >= 20 ? (hour - 20 + minutes/60) / 10 : (hour + 4 + minutes/60) / 10;
             bodyX = 15 + nightProgress * 70;
             bodyY = 15 + Math.sin(nightProgress * Math.PI) * -10;
         } else {
-            // Sun position
             if (timeDecimal < 6) {
                 bodyX = 10; bodyY = 38;
             } else if (timeDecimal > 18) {
@@ -4937,8 +4168,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 bodyY = 10 + (distFromNoon / 6) * 28;
             }
         }
-        
-        // Sky gradient based on time
         let skyGradient;
         if (isNight) {
             skyGradient = 'linear-gradient(180deg, #0a0a1a 0%, #1a1a3a 20%, #2a3a5a 40%, #1a3050 48%, #0f2840 55%, #0a1828 75%, #051018 100%)';
@@ -4948,10 +4177,7 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             skyGradient = 'linear-gradient(180deg, #4a90c2 0%, #87CEEB 20%, #a8d4ea 40%, #87CEEB 47%, #2a6a9a 50%, #1a5080 60%, #0f3a60 80%, #0a2840 100%)';
         }
         c.style.background = skyGradient;
-        
-        // Add sun or moon
         if (isNight) {
-            // Moon with phase-accurate appearance
             const moon = document.createElement('div');
             moon.style.cssText = `
                 position: absolute;
@@ -4965,29 +4191,20 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 z-index: 2;
                 overflow: hidden;
             `;
-            
-            // Create moon with phase shadow
-            // Phase 0=new (dark), 4=full (bright), others partial
             let moonGradient;
             if (moonPhase === 0) {
-                // New moon - barely visible
                 moonGradient = 'radial-gradient(circle at 50% 50%, #3a3a3a 0%, #2a2a2a 100%)';
             } else if (moonPhase === 4) {
-                // Full moon - fully lit
                 moonGradient = 'radial-gradient(circle at 35% 35%, #fffef0 0%, #f0f0e0 50%, #d8d8c8 100%)';
             } else if (moonPhase < 4) {
-                // Waxing (right side lit in northern hemisphere)
                 const litPercent = moonPhase * 25;
                 moonGradient = `linear-gradient(90deg, #2a2a2a 0%, #2a2a2a ${50 - litPercent}%, #d8d8c8 ${50 - litPercent + 10}%, #fffef0 100%)`;
             } else {
-                // Waning (left side lit)
                 const litPercent = (8 - moonPhase) * 25;
                 moonGradient = `linear-gradient(90deg, #fffef0 0%, #d8d8c8 ${litPercent - 10}%, #2a2a2a ${litPercent}%, #2a2a2a 100%)`;
             }
             moon.style.background = moonGradient;
             c.appendChild(moon);
-            
-            // Moon reflection - broken up by waves, widens towards viewer
             const reflectionContainer = document.createElement('div');
             reflectionContainer.className = 'ocean-reflection-container';
             reflectionContainer.style.cssText = `
@@ -5000,11 +4217,9 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 z-index: 9;
                 overflow: visible;
             `;
-            // Create multiple reflection segments that widen as they get closer
             for (let r = 0; r < 18; r++) {
                 const segment = document.createElement('div');
                 const yOffset = r * 5.5;
-                // Width increases with distance (closer = wider)
                 const baseWidth = 4 + r * 3;
                 const width = baseWidth + Math.random() * (r * 2);
                 const xOffset = (Math.random() - 0.5) * (10 + r * 3);
@@ -5023,8 +4238,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 reflectionContainer.appendChild(segment);
             }
             c.appendChild(reflectionContainer);
-            
-            // Add stars
             for (let i = 0; i < 50; i++) {
                 const star = document.createElement('div');
                 star.style.cssText = `
@@ -5042,7 +4255,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 c.appendChild(star);
             }
         } else {
-            // Sun
             const sun = document.createElement('div');
             const sunColor = isEvening ? '#ff6b35' : '#FFD700';
             sun.style.cssText = `
@@ -5058,8 +4270,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 z-index: 2;
             `;
             c.appendChild(sun);
-            
-            // Sun reflection - broken up golden shimmer, widens towards viewer
             const reflectionContainer = document.createElement('div');
             reflectionContainer.className = 'ocean-reflection-container';
             reflectionContainer.style.cssText = `
@@ -5072,12 +4282,10 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 z-index: 9;
                 overflow: visible;
             `;
-            // Create multiple reflection segments that widen as they get closer
             const golden = isEvening ? [255, 150, 50] : [255, 215, 0];
             for (let r = 0; r < 20; r++) {
                 const segment = document.createElement('div');
                 const yOffset = r * 5;
-                // Width increases with distance (closer = wider)
                 const baseWidth = 5 + r * 4;
                 const width = baseWidth + Math.random() * (r * 2.5);
                 const xOffset = (Math.random() - 0.5) * (12 + r * 4);
@@ -5097,14 +4305,10 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             }
             c.appendChild(reflectionContainer);
         }
-        
-        // Ocean waves - use simple gradient divs that tile seamlessly
         const waveColors = isNight 
             ? ['#0a1e3a', '#0c2444', '#0e2a4e', '#102f55']
             : ['#1a5a8a', '#2a6a9a', '#3a7aaa', '#4a8aba'];
-        
         for (let i = 0; i < 4; i++) {
-            // Create a wrapper that clips the wave
             const waveWrapper = document.createElement('div');
             waveWrapper.style.cssText = `
                 position: absolute;
@@ -5115,8 +4319,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 z-index: ${4 + i};
                 overflow: hidden;
             `;
-            
-            // The wave container is 200% wide and animates 50% to create seamless loop
             const waveContainer = document.createElement('div');
             const waveAmplitude = 2 + i * 6;
             waveContainer.style.cssText = `
@@ -5127,8 +4329,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 height: 100%;
                 animation: wave-seamless-${i} ${20 - i * 3}s linear infinite;
             `;
-            
-            // Create SVG that tiles perfectly - starts and ends at same Y position
             const baseY = 25;
             waveContainer.innerHTML = `
                 <svg viewBox="0 0 2000 200" preserveAspectRatio="none" style="width: 100%; height: 100%;">
@@ -5159,8 +4359,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             waveWrapper.appendChild(waveContainer);
             c.appendChild(waveWrapper);
         }
-        
-        // Add foam/whitecaps on front waves only
         for (let f = 0; f < 10; f++) {
             const foam = document.createElement('div');
             foam.style.cssText = `
@@ -5178,11 +4376,8 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             `;
             c.appendChild(foam);
         }
-        
-        // Ocean animation styles
         const oldStyle = document.getElementById('ocean-style');
         if (oldStyle) oldStyle.remove();
-        
         const style = document.createElement('style');
         style.id = 'ocean-style';
         style.textContent = `
@@ -5268,20 +4463,14 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             }
         `;
         document.head.appendChild(style);
-        
-        // Boats
         const boats = ['⛵', '🚤', '🛥️', '🚢', '⛴️', '🛶'];
-        
         const spawnBoat = () => {
             if (!c.isConnected) return;
-            
             const boat = document.createElement('div');
             const boatEmoji = boats[Math.floor(Math.random() * boats.length)];
             const goingRight = Math.random() > 0.5;
-            
             const depthRoll = Math.random();
             let yPos, size, duration, zIndex, bobAnimation;
-            
             if (depthRoll < 0.35) {
                 yPos = 47 + Math.random() * 2;
                 size = 8 + Math.random() * 5;
@@ -5301,7 +4490,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 zIndex = 25;
                 bobAnimation = 'boat-bob-large 2s ease-in-out infinite';
             }
-            
             boat.textContent = boatEmoji;
             boat.style.cssText = `
                 position: absolute;
@@ -5315,25 +4503,19 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 filter: drop-shadow(2px 3px ${Math.floor(size/10) + 2}px rgba(0,0,0,0.4));
                 ${goingRight ? 'transform: scaleX(-1);' : ''}
             `;
-            
             c.appendChild(boat);
             this.oceanObjects.push(boat);
             setTimeout(() => boat.remove(), duration * 1000);
-            
             this.oceanTimeout = setTimeout(spawnBoat, 2500 + Math.random() * 5000);
         };
-        
-        // Seagulls (only during day) - fly in front of game cards
         const spawnSeagull = () => {
             if (!c.isConnected || isNight) return;
-            
             const bird = document.createElement('div');
             bird.textContent = '🕊️';
             const yPos = 15 + Math.random() * 50; // More vertical range
             const duration = 8 + Math.random() * 8;
             const goingRight = Math.random() > 0.5;
             const size = 28 + Math.random() * 32; // Much larger: 28-60px
-            
             bird.style.cssText = `
                 position: absolute;
                 top: ${yPos}%;
@@ -5346,14 +4528,11 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 filter: drop-shadow(3px 5px 8px rgba(0,0,0,0.4));
                 ${goingRight ? 'transform: scaleX(-1);' : ''}
             `;
-            
             c.appendChild(bird);
             this.oceanObjects.push(bird);
             setTimeout(() => bird.remove(), duration * 1000);
-            
             setTimeout(spawnSeagull, 5000 + Math.random() * 8000);
         };
-        
         this.oceanTimeout = setTimeout(spawnBoat, 1000);
         if (!isNight) setTimeout(spawnSeagull, 3000);
     }
@@ -5362,7 +4541,6 @@ const ShareManager = {
     async shareQR(type) {
         const word = State.runtime.allWords[State.runtime.currentWordIndex].text.toUpperCase();
         UIManager.showPostVoteMessage("Generating QR Code... 📷");
-
         const messages = [
             `Scan to vote on "${word}"!`,
             `I need your help with "${word}"`,
@@ -5371,47 +4549,30 @@ const ShareManager = {
             `Quick vote needed on "${word}"`
         ];
         const randomMsg = messages[Math.floor(Math.random() * messages.length)];
-
         const targetUrl = `${window.location.origin}/?word=${encodeURIComponent(word)}`;
         const colorHex = type === 'good' ? '16a34a' : 'dc2626';
         const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&color=${colorHex}&margin=20&data=${encodeURIComponent(targetUrl)}`;
-
         try {
             const response = await fetch(apiUrl);
             const qrBlob = await response.blob();
             const qrImg = await createImageBitmap(qrBlob);
-
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
-
-            // Increased height slightly to fit new labels
             const width = 400;
             const height = 580;
             canvas.width = width;
             canvas.height = height;
-
-            // Background
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, width, height);
-
-            // 1. Header: "GOOD WORD!" or "BAD WORD!"
             ctx.textAlign = 'center';
             ctx.font = '900 36px Inter, system-ui, sans-serif';
             ctx.fillStyle = type === 'good' ? '#16a34a' : '#dc2626';
             ctx.fillText(type === 'good' ? "GOOD WORD!" : "BAD WORD!", width / 2, 50);
-
-            // 2. QR Code
             ctx.drawImage(qrImg, 0, 60, 400, 400);
-
-            // 3. Label: "Word:"
             ctx.font = 'bold 16px sans-serif';
             ctx.fillStyle = '#9ca3af'; // Light grey
             ctx.fillText('Word:', width / 2, 485);
-
-            // 4. The Word (Extra Bold)
             ctx.fillStyle = '#1f2937'; // Dark Grey
-
-            // Scale logic for long words
             ctx.font = '900 40px Inter, system-ui, sans-serif';
             const textWidth = ctx.measureText(word).width;
             if (textWidth > 360) {
@@ -5419,21 +4580,16 @@ const ShareManager = {
                 ctx.font = `900 ${Math.floor(40 * scale)}px Inter, system-ui, sans-serif`;
             }
             ctx.fillText(word, width / 2, 530);
-
-            // 5. Footer
             ctx.font = '12px sans-serif';
             ctx.fillStyle = '#d1d5db';
             ctx.fillText('GBword.com', width / 2, 560);
-
             const finalBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
             const file = new File([finalBlob], `${word}_${type}_qr.png`, { type: 'image/png' });
-
             const shareData = {
                 title: `Vote ${type} on ${word}!`,
                 text: randomMsg,
                 files: [file]
             };
-
             if (navigator.canShare && navigator.canShare(shareData)) {
                 await navigator.share(shareData);
             } else {
@@ -5448,70 +4604,49 @@ const ShareManager = {
             UIManager.showPostVoteMessage("Could not generate QR.");
         }
     },
-
     async shareCompatibility(p1, p2, score, matches, totalRounds) {
         UIManager.showPostVoteMessage("Printing coupon... 💘");
-
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         const width = 600;
         const height = 450;
         canvas.width = width;
         canvas.height = height;
-
-        // 1. Pink Gradient Background
         const grd = ctx.createLinearGradient(0, 0, 0, height);
         grd.addColorStop(0, "#fce7f3"); // light pink
         grd.addColorStop(1, "#fbcfe8"); // slightly darker pink
         ctx.fillStyle = grd;
         ctx.fillRect(0, 0, width, height);
-
-        // 2. Decorative Border
         ctx.strokeStyle = "#db2777"; // pink-600
         ctx.lineWidth = 8;
         ctx.strokeRect(10, 10, width-20, height-20);
-
         ctx.strokeStyle = "#fdf2f8"; // white inner line
         ctx.lineWidth = 4;
         ctx.strokeRect(18, 18, width-36, height-36);
-
-        // 3. Title
         ctx.fillStyle = "#be185d"; // pink-700
         ctx.font = "900 24px system-ui, sans-serif";
         ctx.textAlign = "center";
         ctx.fillText("OFFICIAL COMPATIBILITY REPORT", width/2, 60);
-
-        // 4. Names
         ctx.fillStyle = "#1f2937"; // dark gray
         ctx.font = "bold 32px system-ui, sans-serif";
         ctx.fillText(`${p1}  💕  ${p2}`, width/2, 120);
-
-        // 5. The Score
         ctx.fillStyle = "#db2777"; // pink-600
         ctx.font = "900 140px system-ui, sans-serif";
         ctx.fillText(`${score}%`, width/2, 260);
-
-        // 6. Match Details
         ctx.fillStyle = "#6b7280"; // gray-500
         ctx.font = "bold 22px system-ui, sans-serif";
         ctx.fillText(`Matched ${matches || 0} of ${totalRounds || 0} words`, width/2, 310);
-
-        // 7. Footer
         ctx.fillStyle = "#9d174d";
         ctx.font = "bold 18px system-ui, sans-serif";
         ctx.fillText("Certified by OK Stoopid (GBword.com)", width/2, 400);
-
-        // 8. Share Logic
         try {
             const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
             const file = new File([blob], 'compatibility_test.png', { type: 'image/png' });
-
             const shareData = {
                 title: 'Compatibility Result',
                 text: `We are ${score}% compatible! Matched ${matches}/${totalRounds} words 💘 Test your relationship on GBword.com`,
                 files: [file]
             };
-
             if (navigator.canShare && navigator.canShare(shareData)) {
                 await navigator.share(shareData);
             } else {
@@ -5526,33 +4661,22 @@ const ShareManager = {
             UIManager.showPostVoteMessage("Could not share image.");
         }
     },
-
     async generateImage() {
-        // ... (keep existing generateImage logic) ...
-        // If you need the full code for generateImage again, let me know,
-        // otherwise just keep the previous version here.
         const canvas = document.createElement('canvas');
-        // ... rest of generateImage ...
         return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
     },
-
     async share() {
-        // ... (keep existing share logic) ...
         UIManager.showPostVoteMessage("Generating image...");
         try {
             const blob = await this.generateImage();
-            // ... rest of share ...
         } catch (e) {
             console.error(e);
             UIManager.showPostVoteMessage("Could not share image.");
         }
     }
 };
-
 const UIManager = {
     msgTimeout: null,
-
-    // --- ADD THESE MISSING FUNCTIONS ---
     showSplash(text, type = 'neutral') {
         const el = document.createElement('div');
         el.className = `fixed inset-0 z-[100] flex items-center justify-center pointer-events-none animate-fade-out`;
@@ -5560,15 +4684,12 @@ const UIManager = {
         document.body.appendChild(el);
         setTimeout(() => el.remove(), 1000);
     },
-
     triggerConfetti() {
         if (typeof confetti !== 'undefined') {
             confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ['#4f46e5', '#10b981', '#f59e0b'] });
         }
     },
-
     updateStreak(n) {
-        // Updates the header streak (since streakCount was removed from DOM.game)
         if (DOM.header && DOM.header.streak) {
             DOM.header.streak.textContent = n;
             if (n > 0 && n % 10 === 0) {
@@ -5577,12 +4698,9 @@ const UIManager = {
             }
         }
     },
-
     addToHistory(word, vote) {
-        // Safely tries to find the history list (it might be missing in your HTML)
         const list = document.getElementById('history-list');
         if (!list) return;
-
         const item = document.createElement('div');
         item.className = `flex justify-between items-center p-3 mb-2 rounded-lg bg-white border-l-4 shadow-sm animate-slide-in ${vote === 'good' ? 'border-green-500' : 'border-red-500'}`;
         item.innerHTML = `
@@ -5592,12 +4710,10 @@ const UIManager = {
         list.insertBefore(item, list.firstChild);
         if (list.children.length > 50) list.lastChild.remove();
     },
-
     showMessage(t, err = false) {
         const wd = DOM.game.wordDisplay;
         wd.textContent = t;
         wd.className = `font-bold text-center min-h-[72px] ${err?'text-red-500':'text-gray-500'}`;
-        // Smaller font for longer messages
         wd.style.fontSize = t.length > 20 ? '1.25rem' : '2.0rem';
         wd.style.cursor = 'default';
         DOM.game.wordFrame.style.padding = '0';
@@ -5623,48 +4739,33 @@ const UIManager = {
             }, 5000)
         }, 150)
     },
-
 updateStats() {
-        // Use fullWordList for stats (all words), not filtered allWords
         const w = State.runtime.fullWordList.length > 0 ? State.runtime.fullWordList : State.runtime.allWords;
         if (!w.length) return;
-
-        // Always show daily streak in header, ignoring noStreaksMode (which is only for in-game counters)
         DOM.header.streak.textContent = State.data.daily.streak || 0;
-
         DOM.header.userVotes.textContent = State.data.voteCount.toLocaleString();
-
         const totalGood = w.reduce((a, b) => a + (b.goodVotes || 0), 0);
         const totalBad = w.reduce((a, b) => a + (b.badVotes || 0), 0);
         const globalTotal = totalGood + totalBad;
-
         DOM.header.globalVotes.textContent = globalTotal.toLocaleString();
         DOM.header.totalWords.textContent = w.length.toLocaleString();
         DOM.header.good.textContent = totalGood.toLocaleString();
         DOM.header.bad.textContent = totalBad.toLocaleString();
-
-        // --- GRAPH LOGIC ---
         if (globalTotal > 0) {
             const goodPct = (totalGood / globalTotal) * 100;
             const badPct = 100 - goodPct;
-
             DOM.header.barGood.style.width = `${goodPct}%`;
             DOM.header.barBad.style.width = `${badPct}%`;
         } else {
             DOM.header.barGood.style.width = '50%';
             DOM.header.barBad.style.width = '50%';
         }
-
-        // Update community goal bar
         CommunityGoal.update(globalTotal);
-
         this.renderMiniRankings();
     },
-
 showRoleReveal(title, subtitle, type = 'neutral') {
         const colors = { evil: 'bg-red-600', good: 'bg-green-600', neutral: 'bg-indigo-600' };
         const bg = colors[type] || colors.neutral;
-
         const el = document.createElement('div');
         el.className = 'fixed inset-0 z-[10000] flex items-center justify-center bg-black/90 px-4';
         el.innerHTML = `
@@ -5678,15 +4779,12 @@ showRoleReveal(title, subtitle, type = 'neutral') {
         document.body.appendChild(el);
         document.getElementById('closeRoleBtn').onclick = () => el.remove();
     },
-
     updateProfileDisplay() {
         const n = State.data.username;
         const p = State.data.profilePhoto;
-
         DOM.header.profileLabel.textContent = n ? `${n}'s Profile` : 'My Profile';
         DOM.profile.statsTitle.textContent = n ? `${n}'s Stats` : 'Your Stats';
         if (n) DOM.inputs.username.value = n;
-
         if (p) {
             DOM.header.profileEmoji.classList.add('hidden');
             DOM.header.profileImage.src = p;
@@ -5695,7 +4793,6 @@ showRoleReveal(title, subtitle, type = 'neutral') {
             DOM.header.profileEmoji.classList.remove('hidden');
             DOM.header.profileImage.classList.add('hidden');
         }
-
         if (p) {
             DOM.profile.modalEmoji.classList.add('hidden');
             DOM.profile.modalImage.src = p;
@@ -5705,24 +4802,18 @@ showRoleReveal(title, subtitle, type = 'neutral') {
             DOM.profile.modalImage.classList.add('hidden');
         }
     },
-
 openProfile() {
         this.updateProfileDisplay();
         const d = State.data;
-
-        // --- 1. DATA SYNC ---
         const realRecord = Math.max(parseInt(d.longestStreak) || 0, parseInt(d.daily.bestStreak) || 0);
         d.longestStreak = realRecord;
         d.daily.bestStreak = realRecord;
         State.save('longestStreak', realRecord);
-
-        // --- 2. LEFT BOX: DAILY STREAK (Click -> Scroll to Daily Leaderboard) ---
         if (DOM.profile.streak) {
             DOM.profile.streak.textContent = d.daily.streak || 0;
             DOM.profile.streak.style.cursor = 'pointer';
             DOM.profile.streak.style.textDecoration = 'underline';
             DOM.profile.streak.title = "View Daily Leaderboard";
-
             DOM.profile.streak.onclick = () => {
                 ModalManager.toggle('profile', false);
                 const statsBtn = document.getElementById('headerStatsCard');
@@ -5735,14 +4826,10 @@ openProfile() {
                 }
             };
         }
-
-        // --- 3. RIGHT BOX: HIGH SCORE ---
         const streakEl = document.getElementById('streak-display-value');
         if (streakEl) streakEl.textContent = realRecord + " Words";
         const bestEl = document.getElementById('bestDailyStreak');
         if (bestEl) bestEl.textContent = realRecord;
-
-        // --- 4. CENTER: TOTAL VOTES (Click -> Top of Leaderboard) ---
         if (DOM.profile.totalVotes) {
             DOM.profile.totalVotes.textContent = d.voteCount.toLocaleString();
             DOM.profile.totalVotes.style.cursor = 'pointer';
@@ -5753,12 +4840,9 @@ openProfile() {
                 if (statsBtn) statsBtn.click();
             };
         }
-
         if (DOM.profile.contributions) DOM.profile.contributions.textContent = d.contributorCount.toLocaleString();
         const goldenEl = document.getElementById('goldenWordsFound');
         if (goldenEl) goldenEl.textContent = d.daily.goldenWordsFound || 0;
-
-        // --- 5. BADGE LOGIC ---
         if (d.insectStats.saved >= 100 && !d.badges.saint) State.unlockBadge('saint');
         if (d.insectStats.eaten >= 100 && !d.badges.exterminator) State.unlockBadge('exterminator');
         if (d.insectStats.teased >= 50 && !d.badges.prankster) State.unlockBadge('prankster');
@@ -5767,7 +4851,6 @@ openProfile() {
         if ((d.unlockedThemes.length + 1) >= 5 && !d.badges.traveler) State.unlockBadge('traveler');
         if (d.fishStats.caught >= 250 && !d.badges.angler) State.unlockBadge('angler');
         if (d.fishStats.spared >= 250 && !d.badges.shepherd) State.unlockBadge('shepherd');
-
         const saved = d.insectStats.saved;
         const eaten = d.insectStats.eaten;
         let karmaTitle = "Garden Observer";
@@ -5778,23 +4861,18 @@ openProfile() {
         if (saved > 50 && eaten > 50) karmaTitle = "Lord of the Flies 👑";
         if (d.badges.chopper) karmaTitle = "Air Traffic Controller 🚁";
         if (d.badges.angler) karmaTitle = "The Best in Brixham 🎣";
-
         if (DOM.profile.statsTitle) {
             DOM.profile.statsTitle.innerHTML = `${d.username ? d.username + "'s" : "Your"} Stats<br><span class="text-xs text-indigo-500 font-bold uppercase tracking-widest mt-1 block">${karmaTitle}</span>`;
         }
-
         const totalAvailable = Object.keys(CONFIG.THEME_SECRETS).length + 1;
         const userCount = d.unlockedThemes.length + 1;
         if (DOM.profile.themes) DOM.profile.themes.textContent = `${userCount} / ${totalAvailable}`;
-
-        // --- 6. BUILD BADGE GRID (With your specific descriptions) ---
         const row1 = [
             { k: 'cake', i: '🎂', w: 'CAKE' }, { k: 'llama', i: '🦙', w: 'LLAMA' },
             { k: 'potato', i: '🥔', w: 'POTATO' }, { k: 'squirrel', i: '🐿️', w: 'SQUIRREL' },
             { k: 'spider', i: '🕷️', w: 'SPIDER' }, { k: 'germ', i: '🦠', w: 'GERM' },
             { k: 'bone', i: '🦴', w: 'MASON' }
         ];
-
         const row2 = [
             { k: 'poop', i: '💩', d: 'squelch.' },
             { k: 'penguin', i: '🐧', d: 'noot noot!' },
@@ -5806,7 +4884,6 @@ openProfile() {
             { k: 'chopper', i: '🚁', d: 'Get to the choppa!' },
             { k: 'snowman', i: '⛄', d: "# We're walking in the air..." }
         ];
-
         const row_fish = [
             { k: 'fish', i: '🐟', t: 'Blue Fish', d: 'A standard catch.' },
             { k: 'tropical', i: '🐠', t: 'Tropical Fish', d: 'Found in the deep.' },
@@ -5814,7 +4891,6 @@ openProfile() {
             { k: 'shark', i: '🦈', t: 'Shark', d: 'Gonna need a bigger boat.' },
             { k: 'octopus', i: '🐙', t: 'The Kraken', d: 'Ink-credible!' }
         ];
-
         const row3 = [
             { k: 'exterminator', i: '☠️', t: 'The Exterminator', d: 'Fed 100 bugs', val: d.insectStats.eaten, gold: 1000 },
             { k: 'saint', i: '😇', t: 'The Saint', d: 'Saved 100 bugs', val: d.insectStats.saved, gold: 1000 },
@@ -5825,13 +4901,11 @@ openProfile() {
             { k: 'angler', i: '🔱', t: 'The Best in Brixham', d: 'Caught 250 fish', val: d.fishStats.caught, gold: 2500 },
             { k: 'shepherd', i: '🛟', t: 'Sea Shepherd', d: 'Spared 250 fish', val: d.fishStats.spared, gold: 2500 }
         ];
-
         const renderRow = (list) => `<div class="flex flex-wrap justify-center gap-3 text-3xl w-full">` + list.map(x => {
             const un = d.badges[x.k];
             let defTitle = x.k.charAt(0).toUpperCase() + x.k.slice(1);
             let classes = `badge-item relative transition-all duration-300 transform `;
             let style = '';
-
             const isGold = x.gold && x.val >= x.gold;
             if (isGold) {
                 defTitle = `✨ GOLD ${x.t || defTitle} ✨`;
@@ -5842,7 +4916,6 @@ openProfile() {
             } else {
                 classes += `opacity-25 grayscale`;
             }
-
             return `<span class="${classes}"
                     style="${style}"
                     title="${un ? (x.t || defTitle) : 'Locked'}"
@@ -5852,7 +4925,6 @@ openProfile() {
                     data-desc="${un ? (isGold ? `Legendary! You reached ${x.gold}+ (${x.val})` : (x.d || 'Unlocked!')) : 'Keep playing to find this item!'}"
                     >${x.i}</span>`
         }).join('') + `</div>`;
-
         let bugJarHTML = '';
         if (saved > 0) {
              const bugCount = Math.min(saved, 40);
@@ -5860,14 +4932,12 @@ openProfile() {
              for(let i=0; i<bugCount; i++) bugsStr += `<span class="jar-bug" style="cursor: pointer; display: inline-block; padding: 2px;">🦟</span>`;
              bugJarHTML = `<div class="w-full text-center my-4 p-3 bg-green-50 rounded-xl border border-green-100"><div class="text-[10px] font-bold text-green-600 mb-1">THE BUG JAR (${saved})</div><div id="jar-container" class="text-xl">${bugsStr}</div></div>`;
         }
-
         let bugHotelHTML = '';
         const splattedCount = State.data.insectStats.splatted || 0;
         const collection = State.data.insectStats.collection || [];
         const bugTypes = [{ char: '🦟', type: 'house' }, { char: '🐞', type: 'house' }, { char: '🐝', type: 'house' }, { char: '🚁', type: 'hotel' }];
         const requiredChars = bugTypes.map(b => b.char);
         const isComplete = requiredChars.every(c => collection.includes(c));
-
         if (splattedCount > 0 || collection.length > 0) {
             let innerHTML = '';
             if (isComplete) {
@@ -5888,7 +4958,6 @@ openProfile() {
                 bugHotelHTML = `<div class="w-full text-center my-4 p-3 bg-stone-100 rounded-xl border border-stone-200 relative overflow-hidden"><div class="text-[10px] font-bold text-stone-500 mb-2 uppercase tracking-wider">Bug Street (${collection.length}/4)</div>${innerHTML}</div>`;
             }
         }
-
         const b = DOM.profile.badges;
         if (b) {
             b.innerHTML =
@@ -5897,8 +4966,6 @@ openProfile() {
                 `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🌊 Aquarium</div>` + renderRow(row_fish) +
                 bugJarHTML + bugHotelHTML +
                 `<div class="h-px bg-gray-100 w-full my-4"></div><div class="text-xs font-bold text-gray-500 uppercase mb-2">🎖️ Achievements</div>` + renderRow(row3);
-
-            // --- 7. TOOLTIPS & SPIDER LOGIC (RESTORED) ---
             const showTooltip = (targetEl, title, desc) => {
                 document.querySelectorAll('.global-badge-tooltip').forEach(t => t.remove());
                 const tip = document.createElement('div');
@@ -5920,7 +4987,6 @@ openProfile() {
                 setTimeout(() => targetEl.style.transform = "", 200);
                 setTimeout(() => { tip.style.opacity = '0'; setTimeout(() => tip.remove(), 200); }, 3000);
             };
-
             b.querySelectorAll('.badge-item').forEach(el => {
                 el.onclick = (e) => {
                     e.stopPropagation();
@@ -5932,8 +4998,6 @@ openProfile() {
                     }
                 }
             });
-
-            // SPIDER FEEDING LOGIC
             b.querySelectorAll('.jar-bug').forEach(bug => {
                 bug.onclick = (e) => {
                     e.stopPropagation();
@@ -5953,34 +5017,26 @@ openProfile() {
                 };
             });
         }
-
         ModalManager.toggle('profile', true);
     },
-
 displayWord(w) {
         if (!w) {
             this.showMessage("No words available!");
             return
         }
-
-        // Skip offensive words - move to next word
         if (ContentFilter.isOffensive(w.text)) {
             console.warn('Skipping filtered word');
             State.runtime.currentWordIndex++;
             Game.nextWord();
             return;
         }
-
         const wd = DOM.game.wordDisplay,
             txt = w.text.toUpperCase();
         wd.textContent = txt;
-
-        // --- NEW: Floating Controversial Badge Logic ---
         const g = w.goodVotes || 0;
         const b = w.badVotes || 0;
         const total = g + b;
         let isContro = false;
-
         if (total >= 3) {
             const ratio = g / total;
             if (ratio >= 0.40 && ratio <= 0.60) {
@@ -5988,22 +5044,17 @@ displayWord(w) {
             }
         }
         this.updateControversialIndicator(isContro);
-
-        // Check if golden word in daily challenge
         const isGolden = State.runtime.isDailyMode &&
                         State.runtime.dailyChallengeType === 'golden' &&
                         State.runtime.goldenWord &&
                         (w._id === State.runtime.goldenWord._id ||
                          String(w._id) === String(State.runtime.goldenWord._id) ||
                          w.text === State.runtime.goldenWord.text);
-
         wd.className = 'font-extrabold text-gray-900 text-center min-h-[72px]';
         wd.classList.remove('golden-word');
         wd.style.cssText = '';
         wd.style.opacity = '1';
-
         if (isGolden) {
-            // Golden word styling - ALWAYS golden, regardless of theme
             if (!document.getElementById('golden-style')) {
                 const s = document.createElement('style');
                 s.id = 'golden-style';
@@ -6026,7 +5077,6 @@ displayWord(w) {
             wd.style.cursor = 'grab';
             return;
         }
-
         const t = State.runtime.currentTheme;
         if (['dark', 'halloween', 'submarine', 'fire', 'plymouth'].includes(t)) wd.style.color = '#f3f4f6';
         if (t === 'halloween') {
@@ -6078,18 +5128,14 @@ displayWord(w) {
         if (!State.runtime.isCoolingDown) this.disableButtons(false);
         wd.style.cursor = 'grab'
     },
-
     fitText(t) {
         const isLarge = State.data.settings.largeText;
         const baseSize = isLarge ? 140 : 96;
         const minSize = isLarge ? 32 : 24;
-
         const wd = DOM.game.wordDisplay;
         const cW = DOM.game.card.clientWidth - parseFloat(getComputedStyle(DOM.game.card).paddingLeft) * 2;
-
         wd.style.fontSize = `${baseSize}px`;
         wd.style.whiteSpace = 'nowrap';
-
         if (wd.scrollWidth > cW) {
             const s = cW / wd.scrollWidth;
             wd.style.fontSize = Math.max(minSize, Math.floor(baseSize * s)) + 'px';
@@ -6112,7 +5158,6 @@ displayWord(w) {
         })
     },
     getRankedLists(lim) {
-        // Use fullWordList for rankings (not filtered allWords)
         const source = State.runtime.fullWordList.length > 0 ? State.runtime.fullWordList : State.runtime.allWords;
         const r = source.map(w => ({
             text: w.text,
@@ -6158,15 +5203,12 @@ displayWord(w) {
             ind.id = 'offlineIndicator';
             ind.className = 'fixed bottom-4 left-4 text-xs font-bold px-4 py-3 rounded-full shadow-lg z-50 transition-all duration-300 border-2 select-none cursor-pointer hover:scale-105 active:scale-95';
             ind.onclick = () => {
-                // Toggle offline mode
                 const isCurrentlyOffline = OfflineManager.isActive();
                 OfflineManager.toggle(!isCurrentlyOffline);
             };
             document.body.appendChild(ind);
         }
-
         if (OfflineManager.isActive()) {
-            // OFFLINE = RED
             ind.style.opacity = '1';
             ind.style.pointerEvents = 'auto';
             ind.style.backgroundColor = '#fef2f2';
@@ -6177,7 +5219,6 @@ displayWord(w) {
             ind.innerHTML = `<span style="color:#ef4444">●</span> OFFLINE${queueText}`;
             ind.title = 'Click to go online and sync votes';
         } else {
-            // ONLINE = GREEN
             ind.style.opacity = '1';
             ind.style.pointerEvents = 'auto';
             ind.style.backgroundColor = '#dcfce7';
@@ -6192,22 +5233,17 @@ displayWord(w) {
         if (!ind) {
             ind = document.createElement('div');
             ind.id = 'controversialIndicator';
-            // Floating Pill Style (Bottom Right)
             ind.className = 'fixed bottom-4 right-4 bg-orange-100 text-orange-900 text-xs font-bold px-3 py-1 rounded-full shadow-lg z-50 transition-opacity duration-500 pointer-events-none border-2 border-orange-500 flex items-center gap-2';
             ind.innerHTML = '<span class="text-lg">⚔️</span> CONTROVERSIAL';
             document.body.appendChild(ind);
         }
         ind.style.opacity = active ? '1' : '0';
     },
-
    showCountdown(seconds, callback, isTraitor = false, team = null, vipInfo = null) {
         const old = document.getElementById('game-countdown');
         if (old) old.remove();
-
-        // 1. Dynamic Background & Text
         let bgClass = 'bg-indigo-900';
         let roleText = '<div class="text-indigo-300 text-xl font-bold mt-4 tracking-widest opacity-50">GET READY</div>';
-
         if (isTraitor) {
             bgClass = 'bg-red-900';
             roleText = '<div class="text-red-400 text-3xl font-black animate-pulse mt-4 tracking-widest border-2 border-red-500 px-4 py-1 rounded">YOU ARE THE TRAITOR</div>';
@@ -6225,18 +5261,14 @@ displayWord(w) {
                 roleText = `<div class="text-yellow-200 text-2xl font-black mt-4 tracking-widest border-2 border-yellow-400 px-4 py-2 rounded">⭐ The VIP is: ${vipInfo.name}</div>`;
             }
         }
-
         const el = document.createElement('div');
         el.id = 'game-countdown';
         el.className = `fixed inset-0 ${bgClass} z-[99999] flex flex-col items-center justify-center transition-colors duration-500`;
-
-        // 2. HTML Structure
         el.innerHTML = `
             <div id="cd-text" class="text-white font-black text-9xl animate-ping opacity-90">${seconds}</div>
             ${roleText}
         `;
         document.body.appendChild(el);
-
         let count = seconds;
         const tick = () => {
             count--;
@@ -6253,7 +5285,6 @@ displayWord(w) {
                     text.classList.add('animate-bounce');
                 }
                 if (typeof Haptics !== 'undefined') Haptics.heavy();
-
                 setTimeout(() => {
                     el.remove();
                     if (callback) callback();
@@ -6262,29 +5293,24 @@ displayWord(w) {
         };
         const timer = setInterval(tick, 1000);
     },
-
     showDrinkingModal(data) {
         const modalId = 'drinkingModal';
         const old = document.getElementById(modalId);
         if(old) old.remove();
-
         const drinkersHtml = data.drinkers.map(d =>
             `<div class="font-bold text-lg text-yellow-900 border-b border-yellow-200 last:border-0 py-1">
                 ${d.icon || '🍺'} ${d.name} <span class="text-sm font-normal text-yellow-700">- ${d.reason}</span>
             </div>`
         ).join('');
-
         const html = `
         <div id="${modalId}" class="fixed inset-0 bg-yellow-900/95 z-[10000] flex items-center justify-center p-4 animate-fade-in font-sans">
             <div class="bg-yellow-50 rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center border-4 border-yellow-400 transform scale-100">
                 <div class="text-6xl mb-4 animate-bounce">🍻</div>
                 <h2 class="text-3xl font-black text-yellow-900 mb-2">DRINK PENALTY!</h2>
                 <div class="text-yellow-800 font-bold mb-6 text-lg bg-yellow-200 inline-block px-3 py-1 rounded-lg">${data.msg || "Penalty Round"}</div>
-
                 <div class="bg-white rounded-xl p-4 mb-6 border-2 border-yellow-200 shadow-inner max-h-[30vh] overflow-y-auto">
                     ${drinkersHtml || '<div class="text-gray-400 italic">Everyone is safe... for now.</div>'}
                 </div>
-
                 <button id="drink-ready-btn" onclick="RoomManager.confirmReady()" class="w-full py-4 bg-green-600 hover:bg-green-700 text-white font-black rounded-xl text-xl shadow-lg transition transform active:scale-95 flex items-center justify-center gap-2">
                     <span>👍</span> WE ARE READY
                 </button>
@@ -6292,7 +5318,6 @@ displayWord(w) {
         </div>`;
         document.body.insertAdjacentHTML('beforeend', html);
     },
-
     closeDrinkingModal() {
         const el = document.getElementById('drinkingModal');
         if (el) {
@@ -6300,38 +5325,29 @@ displayWord(w) {
             setTimeout(() => el.remove(), 300);
         }
     },
-
     showGameOverModal(data) {
         const modalId = 'gameOverModal';
         const old = document.getElementById(modalId);
         if(old) old.remove();
-
 let restartAction = "window.location.reload()";
-
 if (OfflineManager.isActive() || document.body.classList.contains('listening-mode')) {
     restartAction = "document.getElementById('gameOverModal').remove(); Game.resetGame(); Game.nextWord();";
 }
 else if (window.RoomManager && window.RoomManager.roomCode) {
     restartAction = "RoomManager.rejoin()";
 }
-
         let header = '';
         let body = '';
-
-        // --- 1. OK STOOPID (Couples Mode) ---
         if (data.mode === 'okstoopid') {
-            // Use server-calculated compatibility
             const okData = data.okStoopidResult || {};
             const percent = okData.compatibility || 0;
             const matches = okData.matches || 0;
             const totalRounds = okData.totalRounds || RoomManager.currentWordCount || 10;
-
             let verdict = "AWKWARD...";
             if (percent > 40) verdict = "JUST FRIENDS?";
             if (percent > 60) verdict = "DATING MATERIAL";
             if (percent > 80) verdict = "SOULMATES! 💘";
             if (percent === 100) verdict = "GET A ROOM! 💍";
-
             header = `<h2 class="text-3xl font-black text-center mb-1 text-pink-600">COMPATIBILITY REPORT</h2>`;
             body = `
                 <div class="text-center mb-6">
@@ -6340,8 +5356,6 @@ else if (window.RoomManager && window.RoomManager.roomCode) {
                     <div class="text-sm text-gray-500 mt-3">Matched ${matches} of ${totalRounds} words</div>
                 </div>
             `;
-
-            // Generate Compatibility Image (Optional Share Feature)
             setTimeout(() => {
                 if(ShareManager && ShareManager.shareCompatibility) {
                     const p1 = data.rankings[0]?.name || "P1";
@@ -6351,21 +5365,14 @@ else if (window.RoomManager && window.RoomManager.roomCode) {
                 }
             }, 100);
         }
-
-        // --- 2. TRAITOR MODE ---
         else if (data.mode === 'traitor') {
-            // Added safety checks to prevent crashes if data is missing
             const rankings = data.rankings || [];
             const traitor = rankings.find(p => p.id === data.specialRoleId);
             const traitorName = traitor ? traitor.name : "Unknown";
-
-            // Check message content safely
             const isTraitorWin = data.msg && data.msg.includes("Traitor Wins");
-
             header = `<h2 class="text-3xl font-black text-center mb-2 ${isTraitorWin ? 'text-red-600' : 'text-green-600'}">
                 ${isTraitorWin ? 'TRAITOR WINS!' : 'TEAM WINS!'}
             </h2>`;
-
             body = `
                 <div class="bg-gray-800 text-white p-4 rounded-xl text-center mb-6">
                     <div class="text-xs uppercase tracking-widest text-gray-400 mb-1">THE TRAITOR WAS</div>
@@ -6373,13 +5380,10 @@ else if (window.RoomManager && window.RoomManager.roomCode) {
                 </div>
             `;
         }
-
-        // --- 3. TEAM VERSUS ---
         else if (data.mode === 'versus') {
             const redScore = data.scores.red || 0;
             const blueScore = data.scores.blue || 0;
             let winner = redScore > blueScore ? "🔴 RED TEAM WINS!" : (blueScore > redScore ? "🔵 BLUE TEAM WINS!" : "🤝 IT'S A TIE!");
-
             header = `<h2 class="text-3xl font-black text-center mb-4 text-gray-800">${winner}</h2>`;
             body = `
                 <div class="flex justify-center gap-4 mb-6 w-full">
@@ -6393,24 +5397,18 @@ else if (window.RoomManager && window.RoomManager.roomCode) {
                     </div>
                 </div>`;
         }
-
-        // --- 4. STANDARD / SURVIVAL ---
         else {
             header = `<h2 class="text-3xl font-black text-center mb-4 text-indigo-700">GAME OVER</h2>`;
             if (data.msg) body += `<p class="text-center text-gray-500 font-bold mb-6 bg-gray-100 p-2 rounded-lg">${data.msg}</p>`;
         }
-
-        // --- LEADERBOARD (Shared) ---
         let listHtml = '';
         if (data.rankings) {
             data.rankings.forEach((p, i) => {
                 const isMe = p.id === RoomManager.playerId;
                 const isTraitor = p.id === data.specialRoleId;
-
                 let badge = '';
                 if (data.mode === 'survival' && (p.lives <= 0)) badge = '💀';
                 if (data.mode === 'traitor' && isTraitor) badge = '🕵️';
-
                 listHtml += `
                 <div class="flex justify-between items-center p-2 border-b border-gray-100 last:border-0 ${isMe ? 'bg-indigo-50 rounded' : ''}">
                     <div class="flex items-center gap-2">
@@ -6424,33 +5422,25 @@ else if (window.RoomManager && window.RoomManager.roomCode) {
                 </div>`;
             });
         }
-
         const html = `
         <div id="${modalId}" class="fixed inset-0 bg-black/80 z-[10000] flex items-center justify-center p-4 animate-fade-in font-sans">
             <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 transform scale-100 relative overflow-hidden">
                 <button onclick="window.location.href = window.location.pathname" class="absolute top-3 right-4 text-gray-400 hover:text-gray-600 font-bold text-2xl z-10">&times;</button>
-
                 ${header}
-
                 ${body}
-
                 <div class="bg-white border border-gray-200 rounded-xl mb-6 max-h-[30vh] overflow-y-auto custom-scrollbar">
                     ${listHtml}
                 </div>
-
                 <div class="flex flex-col gap-3">
                     ${data.mode === 'okstoopid' ? `<button id="share-result-btn" class="w-full py-3 bg-pink-100 hover:bg-pink-200 text-pink-600 font-bold rounded-xl transition">📸 Share Coupon</button>` : ''}
-
 <button onclick="${restartAction}" class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-xl shadow-lg transition transform active:scale-95 flex items-center justify-center gap-2">
     <span>🔄</span> PLAY AGAIN
 </button>
                 </div>
             </div>
         </div>`;
-
         document.body.insertAdjacentHTML('beforeend', html);
     },
-
 showKickConfirm(targetId, name) {
         const el = document.createElement('div');
         el.id = 'kickConfirmModal';
@@ -6467,14 +5457,11 @@ showKickConfirm(targetId, name) {
         `;
         document.body.appendChild(el);
     },
-
     showKickedModal() {
-        // Remove existing UI
         document.getElementById('lobbyModal')?.remove();
         document.getElementById('mpMenu')?.remove();
         const banner = document.querySelector('.mp-banner-text');
         if(banner) banner.remove();
-
         const el = document.createElement('div');
         el.className = 'fixed inset-0 z-[20000] flex items-center justify-center bg-red-900/95 p-4 animate-fade-in font-sans';
         el.innerHTML = `
@@ -6489,21 +5476,17 @@ showKickConfirm(targetId, name) {
         `;
         document.body.appendChild(el);
     },
-
 showProfile() {
         const modalId = 'profileModal';
         document.getElementById(modalId)?.remove();
-
         const streak = State.data.daily?.streak || 0;
         const total = State.data.voteCount || 0;
         const name = State.data.username || "Guest";
-
         const html = `
         <div id="${modalId}" class="fixed inset-0 bg-black/80 z-[10000] flex items-center justify-center p-4 animate-fade-in font-sans">
             <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 transform scale-100 relative overflow-hidden text-center">
                 <button onclick="document.getElementById('${modalId}').remove()" class="absolute top-3 right-4 text-gray-400 text-2xl">&times;</button>
                 <h2 class="text-3xl font-black text-gray-800 mb-6">PROFILE</h2>
-
                 <div class="grid grid-cols-2 gap-4 mb-6">
                     <div class="bg-orange-50 p-4 rounded-xl border border-orange-100">
                         <div class="text-3xl mb-1">🔥</div>
@@ -6516,7 +5499,6 @@ showProfile() {
                         <div class="text-xs font-bold text-blue-400">TOTAL VOTES</div>
                     </div>
                 </div>
-
                 <div class="bg-gray-50 p-3 rounded-lg text-sm text-gray-500 font-bold mb-4">
                     Playing as: <span class="text-indigo-600">${name}</span>
                 </div>
@@ -6524,7 +5506,6 @@ showProfile() {
         </div>`;
         document.body.insertAdjacentHTML('beforeend', html);
     },
-
 expandQR(src) {
         const el = document.createElement('div');
         el.className = 'fixed inset-0 z-[10000] flex items-center justify-center bg-black/90 p-4 animate-fade-in cursor-pointer';
@@ -6537,37 +5518,29 @@ expandQR(src) {
         `;
         document.body.appendChild(el);
     }
-
 };
-
 const PinPad = {
     input: '',
     mode: 'set', // 'set' or 'verify'
     onSuccess: null,
     onCancel: null,
-
-    // Security Constants
     MAX_ATTEMPTS: 3,
     LOCKOUT_MS: 60000,
-
     init() {
         if (document.getElementById('pinPadModal')) return;
         const el = document.createElement('div');
         el.id = 'pinPadModal';
         el.className = 'fixed inset-0 bg-gray-900 bg-opacity-95 z-[200] hidden flex items-center justify-center';
-
         el.innerHTML = `
             <div class="bg-white rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl transform transition-all scale-100">
                 <h3 id="pinTitle" class="text-2xl font-bold text-center mb-2 text-gray-800">Parent Lock</h3>
                 <p id="pinSubtitle" class="text-gray-500 text-center mb-6 text-sm transition-colors duration-200">Enter PIN</p>
-
                 <div id="pinDots" class="flex justify-center gap-4 mb-8">
                     <div class="w-4 h-4 rounded-full bg-gray-200 border-2 border-gray-100"></div>
                     <div class="w-4 h-4 rounded-full bg-gray-200 border-2 border-gray-100"></div>
                     <div class="w-4 h-4 rounded-full bg-gray-200 border-2 border-gray-100"></div>
                     <div class="w-4 h-4 rounded-full bg-gray-200 border-2 border-gray-100"></div>
                 </div>
-
                 <div class="grid grid-cols-3 gap-4 mb-6">
                     ${[1,2,3,4,5,6,7,8,9].map(n =>
                         `<button onclick="PinPad.handleInput('${n}')" class="h-16 w-16 rounded-full bg-gray-100 text-2xl font-bold text-gray-700 active:bg-gray-200 active:scale-95 transition-all mx-auto flex items-center justify-center">${n}</button>`
@@ -6578,32 +5551,26 @@ const PinPad = {
                         <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M3 12l6.414 6.414a2 2 0 001.414.586H19a2 2 0 002-2V7a2 2 0 00-2-2h-8.172a2 2 0 00-1.414.586L3 12z"></path></svg>
                     </button>
                 </div>
-
                 <button onclick="PinPad.close()" class="w-full py-3 text-gray-500 font-semibold active:text-gray-700">Cancel</button>
             </div>
         `;
         document.body.appendChild(el);
     },
-
     open(mode, onSuccess, onCancel) {
         this.init();
         if (mode === 'verify' && this.isLocked()) {
              const remaining = Math.ceil((this.getLockoutTime() - Date.now()) / 1000);
-             // Ensure the user sees this
              alert(`System is locked for ${remaining} more seconds.`);
              return;
         }
-
         this.mode = mode || 'verify';
         this.onSuccess = onSuccess;
         this.onCancel = onCancel;
         this.input = '';
         this.updateDisplay();
-
         const m = document.getElementById('pinPadModal');
         const t = document.getElementById('pinTitle');
         const s = document.getElementById('pinSubtitle');
-
         if (this.mode === 'set') {
             t.textContent = "Create PIN";
             s.textContent = "Set a 4-digit code for parents";
@@ -6615,13 +5582,11 @@ const PinPad = {
         }
         m.classList.remove('hidden');
     },
-
     close(success = false) {
         const el = document.getElementById('pinPadModal');
         if (el) el.classList.add('hidden');
         if (!success && this.onCancel) this.onCancel();
     },
-
     handleInput(val) {
         Haptics.light();
         if (val === 'back') {
@@ -6634,7 +5599,6 @@ const PinPad = {
             setTimeout(() => this.submit(), 300);
         }
     },
-
     updateDisplay() {
         const dots = document.querySelectorAll('#pinDots div');
         dots.forEach((d, i) => {
@@ -6645,10 +5609,8 @@ const PinPad = {
             }
         });
     },
-
     submit() {
         const s = document.getElementById('pinSubtitle');
-
         if (this.mode === 'set') {
             if (this.onSuccess) this.onSuccess(this.input);
             this.close(true);
@@ -6659,9 +5621,7 @@ const PinPad = {
                 this.close(false);
                 return;
             }
-
             const savedPin = State.data.settings.kidsModePin;
-
             if (this.input === savedPin) {
                 Haptics.medium();
                 this.resetSecurity();
@@ -6670,23 +5630,18 @@ const PinPad = {
             } else {
                 Haptics.heavy();
                 this.shakeBox();
-
                 const attempts = this.recordFailure();
                 if (attempts >= this.MAX_ATTEMPTS) {
                      s.textContent = "LOCKED FOR 60 SECONDS!";
                      s.className = "text-red-600 font-bold text-center mb-6 text-sm animate-pulse";
-
-                     // Force an alert so they definitely see it
                      setTimeout(() => {
                         alert("Too many failed attempts. Parental controls locked for 60 seconds.");
                         this.close(false);
                      }, 500);
-
                 } else {
                      const left = this.MAX_ATTEMPTS - attempts;
                      s.textContent = `Wrong PIN! ${left} attempts remaining`;
                      s.className = "text-red-500 font-semibold text-center mb-6 text-sm";
-
                      setTimeout(() => {
                          this.input = '';
                          this.updateDisplay();
@@ -6695,7 +5650,6 @@ const PinPad = {
             }
         }
     },
-
     shakeBox() {
         const box = document.querySelector('#pinPadModal > div');
         if (box) {
@@ -6704,16 +5658,12 @@ const PinPad = {
             box.classList.add('animate-shake');
         }
     },
-
-    // --- SECURITY HELPERS ---
     getAttempts() {
         return parseInt(localStorage.getItem('pin_attempts') || 0);
     },
-
     getLockoutTime() {
         return parseInt(localStorage.getItem('pin_lockout_until') || 0);
     },
-
     isLocked() {
         const lockout = this.getLockoutTime();
         if (lockout > Date.now()) return true;
@@ -6722,25 +5672,20 @@ const PinPad = {
         }
         return false;
     },
-
     recordFailure() {
         const newAttempts = this.getAttempts() + 1;
         localStorage.setItem('pin_attempts', newAttempts);
-
         if (newAttempts >= this.MAX_ATTEMPTS) {
             localStorage.setItem('pin_lockout_until', Date.now() + this.LOCKOUT_MS);
         }
         return newAttempts;
     },
-
     resetSecurity() {
         localStorage.removeItem('pin_attempts');
         localStorage.removeItem('pin_lockout_until');
     }
 };
-
 window.PinPad = PinPad;
-
 const ModalManager = {
     toggle(id, show) {
         const e = DOM.modals[id];
@@ -6751,20 +5696,15 @@ init() {
         document.getElementById('showSettingsButton').onclick = () => {
             const s = State.data.settings;
             const container = document.getElementById('settingsModalContainer').querySelector('.space-y-4');
-
             if (container) {
                 container.classList.add('max-h-[60vh]', 'overflow-y-auto', 'pr-2');
-
                 const mkTog = (id, label, checked, color = 'text-indigo-600') => `
                     <div class="flex items-center justify-between">
                         <label for="${id}" class="text-lg font-medium text-gray-700">${label}</label>
                         <input type="checkbox" id="${id}" ${checked ? 'checked' : ''}
                                class="h-6 w-6 ${color} border-gray-300 rounded focus:ring-indigo-500">
                     </div>`;
-
                 let html = '';
-
-                // 1. NETWORK
                 const isOffline = s.offlineMode || false;
                 html += `<div class="mb-6">
                     <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 border-b border-gray-100 pb-1">Network</h3>
@@ -6772,13 +5712,9 @@ init() {
                 html += mkTog('toggleOffline', '🚇 Offline Mode', isOffline, 'text-gray-800');
                 html += `<p class="text-xs text-gray-400 mt-1">Saves words locally. Votes sync when you reconnect.</p>`;
                 html += `</div></div>`;
-
-                // 2. SETTINGS
                 html += `<div class="mb-6"><h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 border-b border-gray-100 pb-1">Settings</h3><div class="space-y-4">`;
-
                 html += mkTog('toggleNoStreaks', '🧘 No Streaks, please!', s.noStreaksMode);
                 html += `<p class="text-xs text-gray-400 mt-1 mb-2">Hides timers and streak counters for a relaxed game.</p>`;
-
                 if (State.data.unlockedThemes.length > 0) {
                      html += mkTog('toggleRandomTheme', '🔀 Randomise Theme on Load', s.randomizeTheme);
                 }
@@ -6788,8 +5724,6 @@ init() {
                 html += mkTog('toggleZeroVotes', 'Show Only New Words (0/0)', s.zeroVotesOnly);
                 html += mkTog('toggleControversial', 'Show Only Controversial Words', s.controversialOnly, 'text-orange-600');
                 html += `</div></div>`;
-
-                // 3. ACCESSIBILITY
                 html += `<div class="mb-6"><h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 border-b border-gray-100 pb-1">Accessibility</h3><div class="space-y-4">`;
                 html += mkTog('toggleColorblind', 'Colourblind Mode', s.colorblindMode);
                 html += mkTog('toggleLargeText', 'Increase Text Size', s.largeText);
@@ -6799,30 +5733,22 @@ init() {
                 }
                 html += mkTog('toggleKidsMode', '🧸 Kids Mode', s.kidsMode, 'text-pink-600');
                 html += `</div></div>`;
-
-                // 4. FUN
                 html += `<div><h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 border-b border-gray-100 pb-1">Fun</h3><div class="space-y-4">`;
                 html += mkTog('toggleTilt', 'Gravity Tilt (Default Theme)', s.enableTilt);
                 html += mkTog('toggleMirror', 'Mirror Mode', s.mirrorMode);
                 html += mkTog('toggleLights', '🎄 Christmas Lights', s.showLights, 'text-green-600');
                 html += mkTog('toggleWeather', '🌧️ Real-time Weather', s.enableWeather, 'text-blue-500');
                 html += `<p class="text-xs text-gray-400 mt-1 mb-2">Requires location. ...only happens if it's raining (or snowing)!</p>`;
-
                 html += `</div></div>`;
-
-                // 5. INTERFACE
                 html += `<div><h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 border-b border-gray-100 pb-1">Interface</h3><div class="space-y-4">`;
                 html += mkTog('toggleHideMultiplayer', 'Hide Multiplayer Button', s.hideMultiplayer);
                 html += mkTog('toggleHideCards', '🎨 Hide Cards (Theme Mode)', s.hideCards);
                 html += `<p class="text-xs text-gray-400 mt-1 mb-2">Hides the game cards to just enjoy the theme background.</p>`;
                 html += `</div></div>`;
-
-                // Hide Data Management in Kids Mode to prevent children from deleting progress
                 if (!s.kidsMode) {
                 html += `<div class="mt-8 pt-4 border-t-2 border-gray-100">
                     <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">Data Management</h3>
                     <p class="text-xs text-gray-500 mb-4">Please clear local data or back up your game statistics and achievements here.</p>
-
                     <div class="grid grid-cols-2 gap-3 mb-3">
                         <button id="exportSaveBtn" class="py-2 bg-blue-50 text-blue-600 font-bold rounded-lg border border-blue-100 hover:bg-blue-100 transition flex items-center justify-center gap-2">
                             💾 Back Up!
@@ -6832,20 +5758,13 @@ init() {
                         </button>
                     </div>
                     <input type="file" id="importFileInput" accept=".json" class="hidden">
-
                     <button id="clearAllDataButton" class="w-full py-2 bg-red-50 text-red-600 font-bold rounded-lg border border-red-100 hover:bg-red-100 transition flex items-center justify-center gap-2">
                         🗑️ Clear All Data
                     </button>
                 </div>`;
                 }
-
-                // INJECT HTML
                 container.innerHTML = html;
-
-                // Network
                 document.getElementById('toggleOffline').onchange = e => OfflineManager.toggle(e.target.checked);
-
-                // Settings
                 document.getElementById('togglePercentages').onchange = e =>
                     State.save('settings', { ...State.data.settings, showPercentages: e.target.checked });
                 document.getElementById('toggleTips').onchange = e =>
@@ -6856,7 +5775,6 @@ init() {
                 }
                 document.getElementById('toggleZeroVotes').onchange = e => {
                     const isChecked = e.target.checked;
-                    // If turning ON, turn OFF controversial
                     const newSettings = { ...State.data.settings, zeroVotesOnly: isChecked };
                     if (isChecked) {
                         newSettings.controversialOnly = false;
@@ -6865,12 +5783,9 @@ init() {
                     }
                     State.save('settings', newSettings);
                     Game.refreshData(true);
-
                 };
-
                 document.getElementById('toggleControversial').onchange = e => {
                     const isChecked = e.target.checked;
-                    // If turning ON, turn OFF zero votes
                     const newSettings = { ...State.data.settings, controversialOnly: isChecked };
                     if (isChecked) {
                         newSettings.zeroVotesOnly = false;
@@ -6880,17 +5795,12 @@ init() {
                     State.save('settings', newSettings);
                     Game.refreshData(true);
                 };
-
                 document.getElementById('toggleNoStreaks').onchange = e => {
                     State.save('settings', { ...State.data.settings, noStreaksMode: e.target.checked });
                     UIManager.updateStats();
-
-                    // Remove floating counter if it exists
                     const floatEl = document.getElementById('streak-floating-counter');
                     if (floatEl) floatEl.remove();
                 };
-
-                // Accessibility
                 document.getElementById('toggleColorblind').onchange = e => {
                     State.save('settings', { ...State.data.settings, colorblindMode: e.target.checked });
                     Accessibility.apply();
@@ -6899,22 +5809,17 @@ init() {
                     State.save('settings', { ...State.data.settings, largeText: e.target.checked });
                     Accessibility.apply();
                 };
-
-                // Hide Multiplayer toggle
                 const hideMultiplayerToggle = document.getElementById('toggleHideMultiplayer');
                 if (hideMultiplayerToggle) {
                     hideMultiplayerToggle.onchange = e => {
                         State.save('settings', { ...State.data.settings, hideMultiplayer: e.target.checked });
                         const roomBtn = document.getElementById('roomBtn');
-                        // Only show button if BOTH hideMultiplayer is off AND kidsMode is off
                         if (roomBtn) {
                             const shouldHide = e.target.checked || State.data.settings.kidsMode;
                             roomBtn.style.display = shouldHide ? 'none' : '';
                         }
                     };
                 }
-
-                // Hide Cards toggle (Theme Mode)
                 const hideCardsToggle = document.getElementById('toggleHideCards');
                 if (hideCardsToggle) {
                     hideCardsToggle.onchange = e => {
@@ -6922,46 +5827,36 @@ init() {
                         Game.applyHideCards(e.target.checked);
                     };
                 }
-
                 document.getElementById('toggleMute').onchange = e => {
                     State.save('settings', { ...State.data.settings, muteSounds: e.target.checked });
                     SoundManager.updateMute();
                 };
-
                 const arachBtn = document.getElementById('toggleArachnophobia');
                 if (arachBtn) {
                     arachBtn.onchange = e => {
                         const isSafe = e.target.checked;
                         State.save('settings', { ...State.data.settings, arachnophobiaMode: isSafe });
-
-                        // --- FIX: Refund bug if web disappears ---
                         if (isSafe && typeof MosquitoManager !== 'undefined' && MosquitoManager.state === 'stuck') {
                              State.data.insectStats.saved++;
                              State.save('insectStats', State.data.insectStats);
                              MosquitoManager.remove();
                              UIManager.showPostVoteMessage("Bug returned to jar! 🦟");
                         }
-
                         if (State.data.currentTheme === 'halloween') {
                             Effects.halloween(true);
                         }
                     };
                 }
-
                 document.getElementById('toggleKidsMode').onchange = e => {
                     const turningOn = e.target.checked;
                     const savedPin = State.data.settings.kidsModePin;
                     const roomBtn = document.getElementById('roomBtn');
-
                     e.preventDefault();
-
                     const updateMultiplayerVisibility = (kidsOn) => {
                         if (roomBtn) {
-                            // Hide if kids mode OR manual hide setting
                             roomBtn.style.display = (kidsOn || State.data.settings.hideMultiplayer) ? 'none' : '';
                         }
                     };
-
                     if (turningOn) {
                         if (!savedPin) {
                             e.target.checked = false;
@@ -6972,7 +5867,6 @@ init() {
                                 Game.refreshData(true);
                                 this.toggle('settings', false);
                             }, () => {
-
                                 document.getElementById('toggleKidsMode').checked = false;
                             });
                         } else {
@@ -6989,7 +5883,6 @@ init() {
                             Game.refreshData(true);
                             return;
                         }
-
                         PinPad.open('verify', () => {
                             State.save('settings', { ...State.data.settings, kidsMode: false });
                             updateMultiplayerVisibility(false);
@@ -7001,7 +5894,6 @@ init() {
                         });
                     }
                 };
-
                 document.getElementById('toggleTilt').onchange = e => {
                     State.save('settings', { ...State.data.settings, enableTilt: e.target.checked });
                     TiltManager.refresh();
@@ -7019,15 +5911,11 @@ init() {
                 if (wToggle) {
                     wToggle.onchange = e => WeatherManager.toggle(e.target.checked);
                 }
-
-                // --- Data Management listeners (only exist when not in Kids Mode) ---
                 const exportBtn = document.getElementById('exportSaveBtn');
                 const importInput = document.getElementById('importFileInput');
                 const importBtn = document.getElementById('importSaveBtn');
                 const clearBtn = document.getElementById('clearAllDataButton');
-
                 if (exportBtn) exportBtn.onclick = () => DataManager.exportData();
-
                 if (importBtn && importInput) {
                     importBtn.onclick = () => importInput.click();
                     importInput.onchange = (e) => {
@@ -7041,8 +5929,6 @@ init() {
             }
             this.toggle('settings', true)
         };
-
-        // --- Standard Modal Listeners ---
         document.getElementById('closeSettingsModal').onclick = () => this.toggle('settings', false);
         DOM.game.buttons.custom.onclick = () => {
             DOM.inputs.newWord.value = '';
@@ -7069,7 +5955,6 @@ init() {
                 e.preventDefault();
                 e.stopPropagation();
                 e.stopImmediatePropagation();
-
                 const currentWord = State.runtime.allWords[State.runtime.currentWordIndex];
                 if (currentWord) ShareManager.shareWord(currentWord.text);
             };
@@ -7083,7 +5968,6 @@ init() {
         };
         DOM.header.userStatsBar.onclick = () => UIManager.openProfile();
         document.getElementById('closeProfileModal').onclick = () => this.toggle('profile', false);
-
         document.getElementById('saveUsernameBtn').onclick = async () => {
             const n = DOM.inputs.username.value.trim(),
                 m = DOM.profile.saveMsg;
@@ -7108,7 +5992,6 @@ init() {
             }
             setTimeout(() => m.textContent = '', 2000)
         };
-
         document.getElementById('shareProfileButton').onclick = () => ShareManager.share();
         DOM.daily.closeBtn.onclick = () => {
             this.toggle('dailyResult', false);
@@ -7155,7 +6038,6 @@ init() {
             };
             reader.readAsDataURL(file);
         };
-
         const btnGood = document.getElementById('btnOpenGoodRankings');
         if (btnGood) btnGood.onclick = () => {
             UIManager.renderFullRankings();
@@ -7165,7 +6047,6 @@ init() {
                 if(header) header.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }, 100);
         };
-
         const btnBad = document.getElementById('btnOpenBadRankings');
         if (btnBad) btnBad.onclick = () => {
              UIManager.renderFullRankings();
@@ -7175,14 +6056,12 @@ init() {
                  if(header) header.scrollIntoView({ behavior: 'smooth', block: 'start' });
              }, 100);
         };
-
         const headerStats = document.getElementById('headerStatsCard');
         if (headerStats) {
             headerStats.onclick = (e) => {
                 e.preventDefault();
                 Game.renderGraphs();
                 Game.renderLeaderboardTable();
-
                 const gm = document.getElementById('graphModalContainer');
                 if (gm) {
                     gm.classList.remove('hidden');
@@ -7190,7 +6069,6 @@ init() {
                 }
             };
         }
-
         const closeGraph = document.getElementById('closeGraphModal');
         if (closeGraph) {
             closeGraph.onclick = () => {
@@ -7201,7 +6079,6 @@ init() {
                 }
             };
         }
-
         Object.keys(DOM.modals).forEach(k => {
             DOM.modals[k].style.zIndex = '150';
             DOM.modals[k].addEventListener('click', e => {
@@ -7210,16 +6087,12 @@ init() {
         });
     }
 };
-
-// --- TIP SUBMISSION MANAGER ---
 const TipManager = {
     serviceID: 'service_b6d75wi',
     templateID: 'template_qody7q7',
     COOLDOWN_MINS: 10, // <--- CONFIG: Minutes between messages
-
     init() {
         if (document.getElementById('tipModal')) return;
-        // ... (Keep existing innerHTML creation code exactly as is) ...
         const el = document.createElement('div');
         el.id = 'tipModal';
         el.className = 'fixed inset-0 bg-gray-900 bg-opacity-95 z-[200] hidden flex items-center justify-center';
@@ -7235,7 +6108,6 @@ const TipManager = {
             </div>`;
         document.body.appendChild(el);
     },
-
     open() {
         this.init();
         document.getElementById('tipModal').classList.remove('hidden');
@@ -7246,37 +6118,26 @@ const TipManager = {
         const el = document.getElementById('tipModal');
         if (el) el.classList.add('hidden');
     },
-
 send() {
-        // 1. CHECK COOLDOWN
         const lastSent = parseInt(localStorage.getItem('lastTipSent') || 0);
         const now = Date.now();
         const diff = now - lastSent;
         const cooldownMs = this.COOLDOWN_MINS * 60 * 1000;
-
         if (diff < cooldownMs) {
             const minLeft = Math.ceil((cooldownMs - diff) / 60000);
             UIManager.showPostVoteMessage(`Please wait ${minLeft} min before sending another.`);
             return;
         }
-
         const input = document.getElementById('tipInput');
         const text = input.value.trim();
-
         if (!text) { UIManager.showPostVoteMessage("Please write something first!"); return; }
         if (text.length > 250) { UIManager.showPostVoteMessage("Keep it short! Under 250 chars."); return; }
-
-        // --- NEW: Close Modals & Scroll Up ---
         this.close();
         if (typeof ModalManager !== 'undefined') ModalManager.toggle('settings', false); // Close settings too
         window.scrollTo({ top: 0, behavior: 'smooth' }); // Scroll to top
         --
-
         UIManager.showPostVoteMessage("Tip sent! Thanks! 💌");
-
-        // 2. SET TIMESTAMP
         localStorage.setItem('lastTipSent', now);
-
         emailjs.send(this.serviceID, this.templateID, {
             message: text,
             username: State.data.username || "Anonymous"
@@ -7284,29 +6145,21 @@ send() {
     }
 };
 window.TipManager = TipManager;
-
 const ContactManager = {
     serviceID: 'service_b6d75wi',
     templateID: 'template_qody7q7',
     COOLDOWN_MINS: 10,
-
     init() {
         if (document.getElementById('contactModal')) return;
-
         const el = document.createElement('div');
         el.id = 'contactModal';
-        // Use items-start with padding-top to position modal higher, avoiding keyboard overlap
         el.className = 'fixed inset-0 bg-gray-900 bg-opacity-95 z-[200] hidden flex items-start justify-center pt-16 overflow-y-auto';
-
         el.innerHTML = `
             <div class="bg-white rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl mb-8">
                 <h3 class="text-2xl font-bold text-center mb-2 text-gray-800">Contact Developer</h3>
                 <p class="text-gray-500 text-center mb-4 text-sm">Found a bug or have a question?</p>
-
                 <textarea id="contactInput" rows="5" class="w-full p-3 border border-gray-300 rounded-lg mb-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none" placeholder="Write your message here..."></textarea>
-
                 <div id="contactError" class="text-red-500 text-sm font-bold text-center h-5 mb-2"></div>
-
                 <div class="flex gap-3">
                     <button onclick="ContactManager.close()" class="flex-1 py-3 text-gray-500 font-semibold hover:bg-gray-100 rounded-lg transition-colors">Cancel</button>
                     <button onclick="ContactManager.send()" class="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition-colors shadow-lg">Send</button>
@@ -7314,7 +6167,6 @@ const ContactManager = {
             </div>`;
         document.body.appendChild(el);
     },
-
     open() {
         this.init();
         document.getElementById('contactModal').classList.remove('hidden');
@@ -7322,45 +6174,32 @@ const ContactManager = {
         document.getElementById('contactError').textContent = ''; // Clear errors
         document.getElementById('contactInput').focus();
     },
-
     close() {
         const el = document.getElementById('contactModal');
         if (el) el.classList.add('hidden');
     },
-
     send() {
         const errDiv = document.getElementById('contactError');
-
-        // 1. CHECK COOLDOWN
         const lastSent = parseInt(localStorage.getItem('lastContactSent') || 0);
         const now = Date.now();
         const diff = now - lastSent;
         const cooldownMs = this.COOLDOWN_MINS * 60 * 1000;
-
         if (diff < cooldownMs) {
             const minLeft = Math.ceil((cooldownMs - diff) / 60000);
             errDiv.textContent = `⏳ Wait ${minLeft}m before sending again.`;
             return;
         }
-
         const input = document.getElementById('contactInput');
         const text = input.value.trim();
-
         if (!text) {
             errDiv.textContent = "Please write a message first!";
             return;
         }
-
-        // --- NEW: Close Modal & Scroll Up ---
         this.close();
         window.scrollTo({ top: 0, behavior: 'smooth' }); // Scroll to top
         -
-
         UIManager.showPostVoteMessage("Message sent! I'll read it soon. 📨");
-
-        // 2. SET TIMESTAMP
         localStorage.setItem('lastContactSent', now);
-
         emailjs.send(this.serviceID, this.templateID, {
             message: "CONTACT: " + text,
             username: State.data.username || "Anonymous"
@@ -7368,20 +6207,16 @@ const ContactManager = {
     }
 };
 window.ContactManager = ContactManager;
-
-// --- INPUT HANDLER (Swipe & Drag) ---
 const InputHandler = {
     sX: 0, sY: 0, drag: false, scroll: false, raf: null,
     init() {
         if (!DOM.game.card || !DOM.game.wordDisplay) return;
         const c = DOM.game.card, wd = DOM.game.wordDisplay;
-
         const startDrag = (x, y) => {
             if (State.runtime.isCoolingDown || DOM.game.buttons.good.disabled) return;
             this.sX = x; this.sY = y; this.drag = false; this.scroll = false;
             wd.style.transition = 'none'; wd.style.animation = 'none';
         };
-
         const moveDrag = (x, y, e) => {
             if (State.runtime.isCoolingDown || DOM.game.buttons.good.disabled) return;
             const dX = x - this.sX, dY = y - this.sY;
@@ -7408,7 +6243,6 @@ const InputHandler = {
                 });
             }
         };
-
         const endDrag = (x) => {
             if (!this.drag) return;
             const dX = x - this.sX;
@@ -7439,7 +6273,6 @@ const InputHandler = {
             }
             this.drag = false; this.scroll = false;
         };
-
         c.addEventListener('mousedown', e => { if (e.target.closest('button, input, select')) return; if(e.cancelable) e.preventDefault(); startDrag(e.clientX, e.clientY); });
         window.addEventListener('mousemove', e => { if (this.drag) moveDrag(e.clientX, e.clientY, e); });
         window.addEventListener('mouseup', e => { if (this.drag) endDrag(e.clientX); });
@@ -7448,18 +6281,14 @@ const InputHandler = {
         c.addEventListener('touchend', e => { endDrag(e.changedTouches[0].clientX); }, false);
     }
 };
-
 const DiscoveryManager = {
-    // Updated targets: Left of Good, Right of Bad
     targets: [
         { id: 'voteGood', selector: '#goodButton', msg: 'Vote Good', pos: 'left' },
         { id: 'voteBad', selector: '#badButton', msg: 'Vote Bad', pos: 'right' },
         { id: 'stats', selector: '#userStatsBar', msg: 'View Progress', pos: 'bottom' },
         { id: 'rankings', selector: '#headerStatsCard', msg: 'See Graphs', pos: 'bottom' }
     ],
-
     timer: null,
-
     init() {
         if (!document.getElementById('discovery-styles')) {
             const s = document.createElement('style');
@@ -7507,47 +6336,36 @@ const DiscoveryManager = {
         }
         setTimeout(() => this.check(), 3000);
     },
-
     check() {
         if (State.runtime.isMultiplayer) return;
         const nextTarget = this.targets.find(t => !State.data.discovered.includes(t.id));
         if (nextTarget) {
-            // Trigger if new user (no discoveries) or random chance
             if (State.data.discovered.length === 0 || Math.random() > 0.5) {
                 this.highlight(nextTarget);
             }
         }
     },
-
     clear() {
         document.querySelectorAll('.discovery-halo').forEach(el => el.classList.remove('discovery-halo'));
         document.querySelectorAll('.discovery-tooltip').forEach(el => el.remove());
     },
-
     highlight(target) {
         const el = document.querySelector(target.selector);
         if (!el || el.offsetParent === null) return;
-
         const rect = el.getBoundingClientRect();
         if (rect.top < 0 || rect.bottom > window.innerHeight) {
             el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
-
         el.classList.add('discovery-halo');
-
         const tip = document.createElement('div');
         tip.className = 'discovery-tooltip';
         tip.textContent = target.msg;
-
-        // --- NEW: Handle Position Logic (Left/Right/Bottom) ---
         const pos = target.pos || 'bottom';
         const arrow = document.createElement('div'); // Create arrow manually for control
-
         if (pos === 'left') {
             tip.style.right = '110%'; // Push to left
             tip.style.top = '50%';
             tip.style.transform = 'translateY(-50%)';
-            // Arrow pointing Right (from left side)
             tip.classList.add('arrow-right');
             Object.assign(tip.style, { right: 'calc(100% + 10px)', top: '50%', transform: 'translateY(-50%)' });
         }
@@ -7555,21 +6373,16 @@ const DiscoveryManager = {
             tip.style.left = '110%'; // Push to right
             tip.style.top = '50%';
             tip.style.transform = 'translateY(-50%)';
-            // Arrow pointing Left (from right side)
         }
         else {
-            // Default Bottom
             tip.style.top = '115%';
             tip.style.left = '50%';
             tip.style.transform = 'translateX(-50%)';
         }
-
-        // Handle Arrow CSS injection based on position
         const styleId = 'discovery-arrow-' + pos;
         if (!document.getElementById(styleId)) {
             const s = document.createElement('style');
             s.id = styleId;
-            // CSS Arrow Logic
             if (pos === 'left') {
                 s.innerHTML = `.discovery-tooltip.pos-left::after { top: 50%; left: 100%; margin-top: -5px; border-color: transparent transparent transparent #4f46e5; }`;
             } else if (pos === 'right') {
@@ -7580,16 +6393,12 @@ const DiscoveryManager = {
             document.head.appendChild(s);
         }
         tip.classList.add('pos-' + pos);
-
         const originalPos = getComputedStyle(el).position;
         if (originalPos === 'static') el.style.position = 'relative';
-
         el.appendChild(tip);
-
         const onDiscover = (e) => {
             el.classList.remove('discovery-halo');
             if (tip) tip.remove();
-
             if (!State.data.discovered.includes(target.id)) {
                 State.data.discovered.push(target.id);
                 State.save('discovered', State.data.discovered);
@@ -7597,14 +6406,11 @@ const DiscoveryManager = {
             el.removeEventListener('click', onDiscover);
             setTimeout(() => this.check(), 60000);
         };
-
         el.addEventListener('click', onDiscover);
     }
 };
-
 const SeededShuffle = {
     create(seedStr) {
-        // Ensure seed is a string and has content
         const str = String(seedStr || Date.now());
         let h = 0x811c9dc5;
         for (let i = 0; i < str.length; i++) {
@@ -7630,8 +6436,6 @@ const SeededShuffle = {
         return array;
     }
 };
-
-// ============ WebRTC Local Multiplayer Manager ============
 const LocalPeerManager = {
     socket: null,
     isHost: false,
@@ -7646,27 +6450,20 @@ const LocalPeerManager = {
     votes: {},
     gameMode: 'coop',
     rounds: 10,
-
-    // ICE servers for WebRTC
     iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' }
     ],
-
     initialized: false,
     hostId: null,
-
     init(socket) {
         if (this.initialized && this.socket === socket) return;
         this.socket = socket;
         this.setupSignaling();
         this.initialized = true;
     },
-
     setupSignaling() {
         if (!this.socket) return;
-
-        // Remove old listeners first to prevent duplicates
         this.socket.off('localRoomCreated');
         this.socket.off('localRoomJoined');
         this.socket.off('localPeerJoined');
@@ -7677,8 +6474,6 @@ const LocalPeerManager = {
         this.socket.off('localHostDisconnected');
         this.socket.off('localPeerDisconnected');
         this.socket.off('localWordsRefreshed');
-
-        // Host: room created
         this.socket.on('localRoomCreated', ({ roomCode, words, rounds }) => {
             this.roomCode = roomCode;
             this.words = words;
@@ -7690,23 +6485,16 @@ const LocalPeerManager = {
             this.showLocalLobby();
             UIManager.showPostVoteMessage(`Room: ${roomCode} 📡`);
         });
-
-        // Peer: joined room, wait for host's offer
         this.socket.on('localRoomJoined', async ({ roomCode, hostId, hostName }) => {
             this.roomCode = roomCode;
             this.hostId = hostId;
             this.isHost = false;
             UIManager.showPostVoteMessage(`Connecting to ${hostName}... 🔗`);
-            // Now wait for rtcOffer from host
         });
-
-        // Host: new peer wants to connect - create offer
         this.socket.on('localPeerJoined', async ({ peerId, peerName }) => {
             if (!this.isHost) return;
             await this.connectToPeer(peerId, peerName);
         });
-
-        // Peer receives offer from host
         this.socket.on('rtcOffer', async ({ from, offer, roomCode }) => {
             if (this.isHost) return;
             try {
@@ -7716,8 +6504,6 @@ const LocalPeerManager = {
                 UIManager.showPostVoteMessage("Connection failed ❌");
             }
         });
-
-        // Host receives answer from peer
         this.socket.on('rtcAnswer', async ({ from, answer }) => {
             if (!this.isHost) return;
             const peer = this.peers.get(from);
@@ -7729,8 +6515,6 @@ const LocalPeerManager = {
                 }
             }
         });
-
-        // ICE candidate exchange
         this.socket.on('rtcIceCandidate', async ({ from, candidate }) => {
             if (!candidate) return;
             try {
@@ -7746,22 +6530,16 @@ const LocalPeerManager = {
                 console.error('[LocalPeer] ICE candidate error:', e);
             }
         });
-
-        // Error handling
         this.socket.on('localRoomError', ({ message }) => {
             console.error('[LocalPeer] Error:', message);
             UIManager.showPostVoteMessage(message);
             this.closeLocalUI();
         });
-
-        // Host disconnected
         this.socket.on('localHostDisconnected', () => {
             UIManager.showPostVoteMessage("Host disconnected 😢");
             this.cleanup();
             this.closeLocalUI();
         });
-
-        // Peer disconnected
         this.socket.on('localPeerDisconnected', ({ peerId }) => {
             const peer = this.peers.get(peerId);
             if (peer) {
@@ -7771,16 +6549,12 @@ const LocalPeerManager = {
                 this.updateLobbyUI();
             }
         });
-
-        // Host: words refreshed
         this.socket.on('localWordsRefreshed', ({ words }) => {
             this.words = words;
             UIManager.showPostVoteMessage(`Got ${words.length} new words! 📝`);
             this.showLocalLobby();
         });
     },
-
-    // Host: create a local room
     async createRoom(rounds = 10) {
         if (!this.socket) {
             this.socket = RoomManager.socket; // Reuse existing socket
@@ -7789,14 +6563,11 @@ const LocalPeerManager = {
             UIManager.showPostVoteMessage("Need brief connection to create room");
             return;
         }
-
         this.socket.emit('createLocalRoom', {
             username: State.data.username || 'Host',
             rounds: rounds
         });
     },
-
-    // Peer: join a local room
     async joinRoom(roomCode) {
         if (!this.socket) {
             this.socket = RoomManager.socket;
@@ -7805,39 +6576,27 @@ const LocalPeerManager = {
             UIManager.showPostVoteMessage("Need brief connection to join");
             return;
         }
-
         this.socket.emit('joinLocalRoom', {
             roomCode: roomCode.toUpperCase(),
             username: State.data.username || 'Player'
         });
     },
-
-    // Host: create connection to a new peer
     async connectToPeer(peerId, peerName) {
-
         const connection = new RTCPeerConnection({ iceServers: this.iceServers });
         const dataChannel = connection.createDataChannel('gameData', { ordered: true });
-
         this.peers.set(peerId, {
             connection,
             dataChannel,
             name: peerName,
             ready: false
         });
-
-        // Add player to list
         this.players.push({ id: peerId, name: peerName, vote: null, connected: false });
         this.updateLobbyUI();
-
         dataChannel.onopen = () => {
             const peer = this.peers.get(peerId);
             if (peer) peer.ready = true;
-
-            // Update player as connected
             const player = this.players.find(p => p.id === peerId);
             if (player) player.connected = true;
-
-            // Send current state to new peer
             this.sendToPeer(peerId, {
                 type: 'init',
                 words: this.words,
@@ -7847,24 +6606,18 @@ const LocalPeerManager = {
                 gameMode: this.gameMode || 'coop',
                 rounds: this.rounds || 10
             });
-
             this.updateLobbyUI();
             UIManager.showPostVoteMessage(`${peerName} connected! 🎉`);
         };
-
         dataChannel.onmessage = (e) => this.handlePeerMessage(peerId, JSON.parse(e.data));
         dataChannel.onclose = () => this.handlePeerDisconnect(peerId);
-
         connection.onicecandidate = (e) => {
             if (e.candidate) {
                 this.socket.emit('rtcIceCandidate', { targetId: peerId, candidate: e.candidate });
             }
         };
-
         connection.onconnectionstatechange = () => {
         };
-
-        // Create and send offer
         try {
             const offer = await connection.createOffer();
             await connection.setLocalDescription(offer);
@@ -7873,58 +6626,42 @@ const LocalPeerManager = {
             console.error('[LocalPeer] Error creating offer:', e);
         }
     },
-
-    // Peer: handle offer from host
     async handleOffer(hostId, offer) {
-
         try {
             this.hostConnection = new RTCPeerConnection({ iceServers: this.iceServers });
-
             this.hostConnection.ondatachannel = (e) => {
                 this.hostDataChannel = e.channel;
-
                 this.hostDataChannel.onopen = () => {
                     UIManager.showPostVoteMessage("Connected! 🎉");
                 };
-
                 this.hostDataChannel.onmessage = (e) => this.handleHostMessage(JSON.parse(e.data));
                 this.hostDataChannel.onclose = () => {
                     UIManager.showPostVoteMessage("Disconnected from host");
                     this.cleanup();
                 };
             };
-
             this.hostConnection.onicecandidate = (e) => {
                 if (e.candidate) {
                     this.socket.emit('rtcIceCandidate', { targetId: hostId, candidate: e.candidate });
                 }
             };
-
             this.hostConnection.onconnectionstatechange = () => {
             };
-
             await this.hostConnection.setRemoteDescription(new RTCSessionDescription(offer));
-
             const answer = await this.hostConnection.createAnswer();
-
             await this.hostConnection.setLocalDescription(answer);
-
             this.socket.emit('rtcAnswer', { targetId: hostId, answer: answer });
         } catch (e) {
             console.error('[LocalPeer] Error in handleOffer:', e);
             UIManager.showPostVoteMessage("Connection error ❌");
         }
     },
-
-    // Host: send message to specific peer
     sendToPeer(peerId, data) {
         const peer = this.peers.get(peerId);
         if (peer?.dataChannel?.readyState === 'open') {
             peer.dataChannel.send(JSON.stringify(data));
         }
     },
-
-    // Host: broadcast to all peers
     broadcast(data) {
         const msg = JSON.stringify(data);
         this.peers.forEach((peer) => {
@@ -7933,30 +6670,20 @@ const LocalPeerManager = {
             }
         });
     },
-
-    // Peer: send to host
     sendToHost(data) {
         if (this.hostDataChannel?.readyState === 'open') {
             this.hostDataChannel.send(JSON.stringify(data));
         }
     },
-
-    // Host: handle message from peer
     handlePeerMessage(peerId, data) {
         if (data.type === 'vote') {
             this.votes[peerId] = data.vote;
             const player = this.players.find(p => p.id === peerId);
             if (player) player.vote = data.vote;
-
-            // Broadcast that player voted
             this.broadcast({ type: 'playerVoted', playerId: peerId });
-
-            // Check if all voted
             this.checkAllVoted();
         }
     },
-
-    // Peer: handle message from host
     handleHostMessage(data) {
         switch (data.type) {
             case 'init':
@@ -7972,13 +6699,11 @@ const LocalPeerManager = {
                     this.showWord();
                 }
                 break;
-
             case 'modeChange':
                 this.gameMode = data.mode;
                 this.rounds = data.rounds;
                 this.showLocalLobby(); // Re-render lobby
                 break;
-
             case 'gameStart':
                 this.words = data.words;
                 this.gameMode = data.mode || 'coop';
@@ -7987,37 +6712,29 @@ const LocalPeerManager = {
                 this.closeLocalUI();
                 this.showWord();
                 break;
-
             case 'nextWord':
                 this.currentWordIndex = data.wordIndex;
                 this.showWord();
                 break;
-
             case 'playerVoted':
-                // Show that a player voted (visual feedback)
                 UIManager.showPostVoteMessage("Vote received! 📩");
                 break;
-
             case 'roundResult':
                 this.showRoundResult(data);
                 break;
-
             case 'gameEnd':
                 this.showGameEnd(data);
                 break;
-
             case 'playerJoined':
                 this.players = data.players;
                 this.updateLobbyUI();
                 break;
-
             case 'playerLeft':
                 this.players = data.players;
                 this.updateLobbyUI();
                 break;
         }
     },
-
     handlePeerDisconnect(peerId) {
         const peer = this.peers.get(peerId);
         if (peer) {
@@ -8027,105 +6744,72 @@ const LocalPeerManager = {
             this.updateLobbyUI();
         }
     },
-
-    // Host: start the game
     startGame() {
         if (!this.isHost) return;
-
-        // Check minimum players
         const modeConfig = {
             'coop': 2, 'versus': 4, 'vip': 3, 'hipster': 3, 'survival': 2
         };
         const minPlayers = modeConfig[this.gameMode] || 2;
         const connectedCount = this.players.filter(p => p.connected || p.id === 'host').length;
-
         if (connectedCount < minPlayers) {
             UIManager.showPostVoteMessage(`Need ${minPlayers}+ players for ${this.gameMode}`);
             return;
         }
-
         this.gameState = 'playing';
         this.currentWordIndex = 0;
         this.votes = {};
-
-        // Limit words to selected rounds
         if (this.words.length > this.rounds) {
             this.words = this.words.slice(0, this.rounds);
         }
-
-        // Reset player votes and scores
         this.players.forEach(p => {
             p.vote = null;
             p.score = 0;
             p.lives = 3; // For survival mode
         });
-
-        // Close lobby UI
         this.closeLocalUI();
-
-        // Broadcast game start with mode
         this.broadcast({
             type: 'gameStart',
             words: this.words,
             mode: this.gameMode
         });
-
         this.showWord();
     },
-
-    // Host: advance to next word
     nextWord() {
         if (!this.isHost) return;
-
         this.currentWordIndex++;
         this.votes = {};
         this.players.forEach(p => p.vote = null);
-
         if (this.currentWordIndex >= this.words.length) {
             this.endGame();
             return;
         }
-
         this.broadcast({
             type: 'nextWord',
             wordIndex: this.currentWordIndex
         });
-
         this.showWord();
     },
-
-    // Submit vote (both host and peer)
     submitVote(vote) {
         if (this.isHost) {
-            // Host votes locally
             const hostPlayer = this.players.find(p => p.id === 'host');
             if (hostPlayer) hostPlayer.vote = vote;
             this.votes['host'] = vote;
             this.checkAllVoted();
         } else {
-            // Peer sends to host
             this.sendToHost({ type: 'vote', vote });
         }
-
-        // Visual feedback
         UIManager.disableButtons(true);
         document.body.classList.add(vote === 'good' ? 'vote-good-mode' : 'vote-bad-mode');
         SoundManager.playGood();
     },
-
-    // Host: check if all players voted
     checkAllVoted() {
         if (!this.isHost) return;
-
         const connectedPlayers = this.players.filter(p => p.connected || p.id === 'host');
         const allVoted = connectedPlayers.every(p => this.votes[p.id] != null);
-
         if (allVoted) {
             this.processRound();
         }
     },
-
-    // Host: process round results
     processRound() {
         const votes = this.votes;
         const voteValues = Object.values(votes);
@@ -8133,7 +6817,6 @@ const LocalPeerManager = {
         const badCount = voteValues.filter(v => v === 'bad').length;
         const majority = goodCount > badCount ? 'good' : (badCount > goodCount ? 'bad' : 'tie');
         const sync = Math.round((Math.max(goodCount, badCount) / voteValues.length) * 100);
-
         const result = {
             type: 'roundResult',
             word: this.words[this.currentWordIndex]?.text,
@@ -8143,34 +6826,25 @@ const LocalPeerManager = {
             goodCount,
             badCount
         };
-
         this.broadcast(result);
         this.showRoundResult(result);
-
-        // Auto advance after delay
         setTimeout(() => {
             document.body.classList.remove('vote-good-mode', 'vote-bad-mode');
             UIManager.disableButtons(false);
             this.nextWord();
         }, 3000);
     },
-
     endGame() {
         this.gameState = 'lobby';
         this.broadcast({ type: 'gameEnd', message: 'Game Over!' });
         this.showGameEnd({ message: 'Game Over!' });
     },
-
-    // UI Methods
     showLocalLobby() {
         this.closeLocalUI();
-
         const code = this.roomCode;
         const isHost = this.isHost;
         const playerCount = this.players.length;
         const connectedCount = this.players.filter(p => p.connected || p.id === 'host').length;
-
-        // Mode config (same as RoomManager)
         const modeConfig = {
             'coop': { label: '🤝 Co-op', desc: 'Match the majority together!', min: 2 },
             'versus': { label: '⚔️ Versus', desc: 'Red vs Blue teams', min: 4 },
@@ -8178,13 +6852,10 @@ const LocalPeerManager = {
             'hipster': { label: '🕶️ Hipster', desc: 'Vote with the minority', min: 3 },
             'survival': { label: '💀 Survival', desc: '3 lives - match or die!', min: 2 }
         };
-
         const currentMode = this.gameMode || 'coop';
         const currentRounds = this.rounds || 10;
         const modeInfo = modeConfig[currentMode];
         const hasEnoughPlayers = connectedCount >= (modeInfo?.min || 2);
-
-        // Generate mode buttons (host only can click)
         const modesHtml = Object.entries(modeConfig).map(([key, conf]) => {
             const isSelected = currentMode === key;
             const canSelect = isHost;
@@ -8199,8 +6870,6 @@ const LocalPeerManager = {
                 </button>
             `;
         }).join('');
-
-        // Generate player list
         const playersHtml = this.players.map(p => {
             const isConnected = p.connected || p.id === 'host';
             const isHostPlayer = p.id === 'host';
@@ -8214,7 +6883,6 @@ const LocalPeerManager = {
                 </div>
             `;
         }).join('');
-
         const html = `
         <div id="localLobby" class="fixed inset-0 bg-gradient-to-br from-green-900 via-emerald-900 to-teal-900 z-[9999] flex items-center justify-center p-4 overflow-y-auto">
             <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6">
@@ -8224,7 +6892,6 @@ const LocalPeerManager = {
                     <h2 class="text-2xl font-black text-gray-800 mt-2">Room: <span class="text-green-600 font-mono">${code}</span></h2>
                     <p class="text-sm text-gray-500">Share this code with nearby players</p>
                 </div>
-
                 <!-- Players -->
                 <div class="bg-gray-50 rounded-xl p-4 mb-4">
                     <h3 class="font-bold text-gray-700 mb-2 flex items-center justify-between">
@@ -8235,7 +6902,6 @@ const LocalPeerManager = {
                         ${playersHtml}
                     </div>
                 </div>
-
                 <!-- Game Mode (Host controls) -->
                 <div class="mb-4">
                     <h3 class="font-bold text-gray-700 mb-2">${isHost ? 'Select Mode' : 'Game Mode'}</h3>
@@ -8243,7 +6909,6 @@ const LocalPeerManager = {
                         ${modesHtml}
                     </div>
                 </div>
-
                 <!-- Rounds Slider (Host only) -->
                 ${isHost ? `
                 <div class="mb-4">
@@ -8260,7 +6925,6 @@ const LocalPeerManager = {
                     <span class="font-bold">${currentRounds} Rounds</span> · <span>${modeInfo?.label || 'Co-op'}</span>
                 </div>
                 `}
-
                 <!-- Action Buttons -->
                 <div class="space-y-2">
                     ${isHost ? `
@@ -8286,80 +6950,56 @@ const LocalPeerManager = {
                 </div>
             </div>
         </div>`;
-
         document.body.insertAdjacentHTML('beforeend', html);
     },
-
     setMode(mode) {
         if (!this.isHost) return;
         this.gameMode = mode;
-        // Broadcast to peers
         this.broadcast({ type: 'modeChange', mode: mode, rounds: this.rounds || 10 });
         this.showLocalLobby(); // Re-render
     },
-
     setRounds(rounds) {
         if (!this.isHost) return;
         this.rounds = parseInt(rounds);
-        // Broadcast to peers
         this.broadcast({ type: 'modeChange', mode: this.gameMode || 'coop', rounds: this.rounds });
     },
-
     async refreshWords() {
         if (!this.isHost || !this.socket?.connected) return;
         UIManager.showMessage('Fetching new words... 📥');
         this.socket.emit('refreshLocalWords', { roomCode: this.roomCode, rounds: this.rounds || 10 });
     },
-
     updateLobbyUI() {
         const lobby = document.getElementById('localLobby');
         if (lobby) {
-            // Re-render the whole lobby to update player list and button states
             this.showLocalLobby();
         }
     },
-
     showWord() {
         this.closeLocalUI();
-
         const word = this.words[this.currentWordIndex];
         if (!word) return;
-
-        // Use existing game UI
         State.runtime.isMultiplayer = true; // Prevent normal voting
         UIManager.displayWord(word);
         UIManager.disableButtons(false);
-
-        // Override vote buttons for local mode
         DOM.game.buttons.good.onclick = () => this.submitVote('good');
         DOM.game.buttons.bad.onclick = () => this.submitVote('bad');
-
-        // Show word counter
         UIManager.showPostVoteMessage(`Word ${this.currentWordIndex + 1}/${this.words.length}`);
     },
-
     showRoundResult(data) {
         const msg = `${data.sync}% sync! ${data.majority === 'tie' ? "It's a tie!" : data.majority.toUpperCase() + ' wins'}`;
         UIManager.showPostVoteMessage(msg);
     },
-
     showGameEnd(data) {
         State.runtime.isMultiplayer = false;
         UIManager.showPostVoteMessage(data.message || 'Game Over!');
-
-        // Restore normal vote handlers
         DOM.game.buttons.good.onclick = () => Game.vote('good');
         DOM.game.buttons.bad.onclick = () => Game.vote('bad');
-
-        // Return to lobby after delay
         setTimeout(() => this.showLocalLobby(), 2000);
     },
-
     closeLocalUI() {
         const lobby = document.getElementById('localLobby');
         if (lobby) lobby.remove();
     },
-
     leaveRoom() {
         if (this.socket?.connected) {
             this.socket.emit('leaveLocalRoom', { roomCode: this.roomCode });
@@ -8367,19 +7007,15 @@ const LocalPeerManager = {
         this.cleanup();
         this.closeLocalUI();
     },
-
     cleanup() {
-        // Close all peer connections
         this.peers.forEach(peer => {
             if (peer.connection) peer.connection.close();
         });
         this.peers.clear();
-
         if (this.hostConnection) {
             this.hostConnection.close();
             this.hostConnection = null;
         }
-
         this.hostDataChannel = null;
         this.isHost = false;
         this.roomCode = '';
@@ -8388,47 +7024,34 @@ const LocalPeerManager = {
         this.votes = {};
         this.gameState = 'lobby';
         State.runtime.isMultiplayer = false;
-
-        // Restore normal vote handlers
         if (DOM.game?.buttons) {
             DOM.game.buttons.good.onclick = () => Game.vote('good');
             DOM.game.buttons.bad.onclick = () => Game.vote('bad');
         }
     }
 };
-
 const RoomManager = {
     socket: null,
     active: false,
     roomCode: '',
     playerId: null,
     isHost: false,
-
-    // STATE
     currentMode: 'coop',
     currentWordCount: 10,
     drinkingMode: false,
     extremeDrinkingMode: false,
     players: [],
-
-    // ROLE STATE
     amITraitor: false,
     myTeam: null,
     vipId: null,
     vipName: null,
     amIVip: false,
-
-    // PUBLIC GAMES
     isPublic: false,
     maxPlayers: 8,
     publicGames: [],
-
-    // THEME SYNC STATE
     originalTheme: 'default',
     hostTheme: null,
-
     listenersAttached: false,
-
     modeConfig: {
         'coop': { label: '🤝 Co-op Sync', desc: 'Vote together! Match with the Global Majority.', min: 2 },
         'okstoopid': { label: '💘 OK Stoopid', desc: 'Couples Mode. Match each other quickly for the highest score!', min: 2, max: 2 },
@@ -8440,11 +7063,8 @@ const RoomManager = {
         'traitor': { label: '🕵️ The Traitor', desc: 'One Traitor tries to ruin everything!', min: 3 },
         'kids': { label: '👶 Kids Mode', desc: 'Simple words. Family friendly!', min: 2 }
     },
-
     init() {
         window.RoomManager = this;
-
-        // Add required CSS for circular text
         if (!document.getElementById('mp-circular-css')) {
             const style = document.createElement('style');
             style.id = 'mp-circular-css';
@@ -8467,22 +7087,18 @@ const RoomManager = {
             `;
             document.head.appendChild(style);
         }
-
         let btn = document.getElementById('roomBtn');
         if (btn) btn.remove();
         btn = document.createElement('button');
         btn.id = 'roomBtn';
         btn.className = 'fixed top-3 left-3 z-[60] bg-white rounded-full shadow-lg hover:bg-gray-50 transition border-2 border-indigo-100';
         btn.style.cssText = 'width: 68px; height: 68px; padding: 0;';
-
-        // Generate circular text using individual rotated characters
         const text = 'MULTIPLAYER · ';
         let chars = '';
         for (let i = 0; i < text.length; i++) {
             const rotation = (i * 360 / text.length);
             chars += `<span style="transform: rotate(${rotation}deg)">${text[i]}</span>`;
         }
-
         btn.innerHTML = `
             <div style="position: relative; width: 100%; height: 100%;">
                 <div class="mp-circular-text">${chars}</div>
@@ -8490,7 +7106,6 @@ const RoomManager = {
             </div>`;
         btn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); this.openMenu(); };
         document.body.appendChild(btn);
-
         if (!window.io) {
             const sc = document.createElement('script');
             sc.src = "/socket.io/socket.io.js";
@@ -8499,14 +7114,12 @@ const RoomManager = {
         } else {
             this.connect();
         }
-
         const params = new URLSearchParams(window.location.search);
         const urlRoom = params.get('room');
         if (urlRoom) {
             setTimeout(() => { this.attemptJoinOrCreate(urlRoom.trim().toUpperCase()); }, 500);
         }
     },
-
     getUsername() {
         if (DOM.inputs && DOM.inputs.username && DOM.inputs.username.value) return DOM.inputs.username.value.trim();
         if (State.data.username && State.data.username !== 'Unknown') return State.data.username;
@@ -8514,76 +7127,53 @@ const RoomManager = {
         if (lsName) return lsName;
         return `Guest_${Math.floor(Math.random()*1000)}`;
     },
-
     rejoin() {
     document.getElementById('gameOverModal')?.remove();
     this.active = false;
     State.runtime.isMultiplayer = true; // Keep MP flag true
-
-    // Reset UI
     const banner = document.querySelector('.mp-banner-text');
     if(banner) banner.remove();
     const ui = document.getElementById('mp-mode-ui');
     if(ui) ui.remove();
-
-    // Re-render lobby and ensure socket is clean
     this.renderLobby();
-
-    // Emit join event again to ensure server knows we are back in lobby state
     this.socket.emit('joinRoom', {
         roomCode: this.roomCode,
         username: this.getUsername(),
         theme: State.data.currentTheme
     });
 },
-
     connect() {
         if (typeof io === 'undefined') return;
         if (!this.socket) this.socket = io({ transports: ['websocket'], upgrade: false });
-
         if (this.socket.connected) this.playerId = this.socket.id;
         if (this.listenersAttached) return;
         this.listenersAttached = true;
-
         this.socket.on('connect', () => { this.playerId = this.socket.id; });
-
-        // PUBLIC GAMES LIST
         this.socket.on('publicGamesList', (games) => {
             this.publicGames = games || [];
             this.renderPublicGames();
         });
-
-        // Room full error
         this.socket.on('roomFull', ({ message }) => {
             alert(message || 'This room is full!');
         });
-
         this.socket.on('roleAlert', (msg) => {
              this.amITraitor = true;
         });
-
-        // Team assignment notification for versus mode
         this.socket.on('teamAssigned', ({ team }) => {
             this.myTeam = team;
         });
-
-        // VIP assignment notification - everyone knows who the VIP is
         this.socket.on('vipAssigned', ({ vipId, vipName }) => {
             this.vipId = vipId;
             this.vipName = vipName;
             this.amIVip = (vipId === this.playerId);
         });
-
         this.socket.on('gameStarted', (data) => {
             this.closeLobby();
             this.active = true;
-
-            // Build VIP info if applicable
             const vipInfo = this.vipId ? {
                 isMe: this.amIVip,
                 name: this.vipName
             } : null;
-
             UIManager.showCountdown(3, () => {
                 if (Game && Game.startMultiplayer) {
                     Game.startMultiplayer(data);
@@ -8595,16 +7185,11 @@ const RoomManager = {
             this.vipName = null;
             this.amIVip = false;
         });
-
-        // Not enough players to start
         this.socket.on('startError', ({ message }) => {
             alert(message || 'Cannot start game');
         });
-
         this.socket.on('roomUpdate', (data) => {
-            // --- FIX: THEME SYNC LOGIC ---
             if (data.theme && !this.isHost) {
-                // Only guests sync to the host
                 if (data.theme !== this.hostTheme) {
                     if (!this.hostTheme) {
                         this.originalTheme = State.data.currentTheme || 'default';
@@ -8614,7 +7199,6 @@ const RoomManager = {
                     document.documentElement.setAttribute('data-theme', this.hostTheme);
                 }
             }
-
             this.roomCode = this.roomCode || data.roomCode;
             this.currentMode = data.mode || 'coop';
             this.currentWordCount = parseInt(data.maxWords || 10);
@@ -8623,37 +7207,25 @@ const RoomManager = {
             this.players = data.players || [];
             this.isPublic = data.isPublic || false;
             this.maxPlayers = data.maxPlayers || 8;
-
             this.isHost = (data.host === this.playerId);
             if(this.players.length > 0 && this.players[0].id === this.playerId) this.isHost = true;
-
             document.getElementById('mpMenu')?.remove();
-
             if (!this.active) this.renderLobby();
         });
-
 this.socket.on('nextWord', (data) => {
-            // Reset data for the new round
             State.runtime.allWords = [data.word];
             State.runtime.currentWordIndex = 0;
-
-            // Hard reset the UI to ensure the new word is visible and clickable
             const wd = DOM.game.wordDisplay;
             wd.className = ''; // Remove 'fly-left' animations from previous round
             wd.style.transform = 'none';
             wd.style.opacity = '1';
             wd.style.filter = 'none';
             wd.style.color = '';
-
             UIManager.displayWord(data.word);
-
-            // Check if player is dead (survival) or spectator
             const me = this.players.find(p => p.id === this.playerId);
             const isDead = this.currentMode === 'survival' && me && me.lives <= 0;
             const isSpectator = me && me.isSpectator;
-
             if (isDead || isSpectator) {
-                // Disable voting buttons for dead/spectating players
                 UIManager.disableButtons(true);
                 DOM.game.buttons.good.style.opacity = '0.5';
                 DOM.game.buttons.bad.style.opacity = '0.5';
@@ -8662,12 +7234,9 @@ this.socket.on('nextWord', (data) => {
                 DOM.game.buttons.good.style.opacity = '1';
                 DOM.game.buttons.bad.style.opacity = '1';
             }
-
             const banner = document.querySelector('.mp-banner-text');
             if (banner) {
                 let label = `${RoomManager.modeConfig[this.currentMode]?.label} (${data.wordCurrent}/${data.wordTotal})`;
-
-                // --- ADDED: Lives Indicator for Survival Mode ---
                 if (this.currentMode === 'survival') {
                     if (me && typeof me.lives === 'number') {
                         if (me.lives > 0) {
@@ -8677,23 +7246,15 @@ this.socket.on('nextWord', (data) => {
                         }
                     }
                 }
-
-                // Spectator indicator
                 if (isSpectator && !isDead) {
                     label = `👁️ Spectating (${data.wordCurrent}/${data.wordTotal})`;
                 }
-
                 banner.textContent = label;
             }
         });
-
         this.socket.on('playerVoted', () => { Haptics.light(); });
-
 this.socket.on('roundResult', (data) => {
-    // Update local player state immediately to show heart loss
     if (data.players) this.players = data.players;
-
-    // Refresh the banner immediately
     const banner = document.querySelector('.mp-banner-text');
     if (banner && this.currentMode === 'survival') {
         const me = this.players.find(p => p.id === this.playerId);
@@ -8702,33 +7263,27 @@ this.socket.on('roundResult', (data) => {
             banner.textContent = `${wordInfo} ${'❤️'.repeat(Math.max(0, me.lives))}`;
         }
     }
-
     let msg = data.data.msg || "Round Complete";
     if (data.data.sync) msg = `${data.data.sync}% Sync!`;
     UIManager.showPostVoteMessage(msg);
 });
-
         this.socket.on('drinkPenalty', (data) => {
             UIManager.showDrinkingModal(data);
             if (typeof Haptics !== 'undefined') Haptics.heavy();
         });
-
         this.socket.on('drinkingComplete', () => {
             UIManager.closeDrinkingModal();
         });
-
         this.socket.on('gameOver', (data) => {
             this.cleanupMultiplayer();
             const banner = document.querySelector('.mp-banner-text');
             if(banner) banner.remove();
             const ui = document.getElementById('mp-mode-ui');
             if(ui) ui.remove();
-
             this.active = false;
             State.runtime.isMultiplayer = false;
             UIManager.showGameOverModal(data);
         });
-
         this.socket.on('kicked', () => {
             this.cleanupMultiplayer();
             this.active = false;
@@ -8737,14 +7292,12 @@ this.socket.on('roundResult', (data) => {
             this.socket.disconnect();
         });
     },
-
 cleanupMultiplayer() {
         if (this.originalTheme) {
             ThemeManager.apply(this.originalTheme);
             this.hostTheme = null;
         }
     },
-
     emitUpdate() {
         const payload = {
             roomCode: this.roomCode,
@@ -8756,69 +7309,57 @@ cleanupMultiplayer() {
         };
         this.socket.emit('updateSettings', payload);
     },
-
     reannounce() {
         if (!this.isPublic || !this.isHost) return;
         this.socket.emit('keepAlive', { roomCode: this.roomCode });
         UIManager.showPostVoteMessage('📢 Room reannounced!');
     },
-
     updateMode(newMode) {
         if (!this.isHost) return;
         this.currentMode = newMode;
         this.renderLobby();
         this.emitUpdate();
     },
-
     updateWordCount(count) {
         if (!this.isHost) return;
         this.currentWordCount = parseInt(count);
         this.emitUpdate();
     },
-
     toggleDrinking(isChecked) {
         if (!this.isHost) return;
         this.drinkingMode = isChecked;
-        // Reset extreme mode if drinking is turned off
         if (!isChecked) {
             this.extremeDrinkingMode = false;
         }
         this.renderLobby();
         this.emitUpdate();
     },
-
     toggleExtremeDrinking(isChecked) {
         if (!this.isHost) return;
         this.extremeDrinkingMode = isChecked;
         this.renderLobby();
         this.emitUpdate();
     },
-
     kickPlayer(targetId) {
         if (!this.isHost) return;
         const p = this.players.find(x => x.id === targetId);
         const name = p ? (p.name || 'Guest') : 'Player';
         UIManager.showKickConfirm(targetId, name);
     },
-
     emitKick(targetId) {
         this.socket.emit('kickPlayer', { roomCode: this.roomCode, targetId });
     },
-
 startGame() {
         const count = this.players.length;
-
         if (this.currentMode === 'okstoopid' && count !== 2) return StreakManager.showNotification("⚠️ OK Stoopid requires exactly 2 players!", "neutral");
         if (this.currentMode === 'traitor' && count < 3) return StreakManager.showNotification("⚠️ Traitor Mode requires 3+ players!", "neutral");
         if (this.currentMode === 'coop' && count < 3) return StreakManager.showNotification("⚠️ Co-op requires 3+ players!", "neutral");
         if (this.currentMode === 'versus' && count < 4) return StreakManager.showNotification("⚠️ Team Versus requires 4+ players!", "neutral");
-
         this.socket.emit('startGame', { roomCode: this.roomCode });
     },
     submitVote(voteType) {
         this.socket.emit('submitVote', { roomCode: this.roomCode, vote: voteType });
     },
-
     confirmReady() {
         this.socket.emit('confirmReady', { roomCode: this.roomCode });
         const btn = document.getElementById('drink-ready-btn');
@@ -8828,29 +7369,22 @@ startGame() {
             btn.disabled = true;
         }
     },
-
 renderLobby() {
-        // 1. Save scroll positions of the two lists before removing
         const existingModal = document.getElementById('lobbyModal');
         let scrollPlayers = 0;
         let scrollSettings = 0;
-
         if (existingModal) {
             const scrolls = existingModal.querySelectorAll('.custom-scrollbar');
             if (scrolls[0]) scrollPlayers = scrolls[0].scrollTop;
             if (scrolls[1]) scrollSettings = scrolls[1].scrollTop;
             existingModal.remove();
         }
-
-        // 2. Setup Variables
         const activeMode = this.currentMode;
         const activeWordCount = this.currentWordCount;
         const activeDrinking = this.drinkingMode;
         const safeCode = this.roomCode || '...';
         const roomIsPublic = this.isPublic;
         const roomMaxPlayers = this.maxPlayers || 8;
-
-        // Check minimum and maximum players for current mode
         const modeSettings = this.modeConfig[activeMode] || {};
         const minPlayers = modeSettings.min || 2;
         const maxPlayers = modeSettings.max || null; // null means no max
@@ -8859,31 +7393,24 @@ renderLobby() {
         const playerCountIssue = playersList.length < minPlayers
             ? `Need ${minPlayers} players`
             : (maxPlayers && playersList.length > maxPlayers ? `Max ${maxPlayers} players` : null);
-
         if (this.roomCode) {
             const newUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?room=${this.roomCode}`;
             window.history.replaceState({path: newUrl}, '', newUrl);
         }
-
         const joinUrl = `${window.location.origin}?room=${safeCode}`;
         const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(joinUrl)}`;
-
-        // Public/Private badge with reannounce button for host
         const reannounceBtn = (roomIsPublic && this.isHost)
             ? `<button onclick="RoomManager.reannounce()" class="ml-2 bg-green-500 hover:bg-green-600 text-white text-xs font-bold px-2 py-1 rounded-full transition">📢 Reannounce</button>`
             : '';
         const privacyBadge = roomIsPublic
             ? `<div class="inline-flex items-center gap-1 bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-full mt-1"><span>🌍</span> Public (${playersList.length}/${roomMaxPlayers})${reannounceBtn}</div>`
             : `<div class="inline-flex items-center gap-1 bg-gray-100 text-gray-600 text-xs font-bold px-2 py-1 rounded-full mt-1"><span>🔒</span> Private</div>`;
-
-        // 3. Generate HTML
         const playersHtml = playersList.map(p => {
             let displayName = p.name || 'Guest';
             const isMe = p.id === this.playerId;
             const kickBtn = (this.isHost && !isMe)
                 ? `<button onclick="RoomManager.kickPlayer('${p.id}')" class="text-red-400 hover:text-red-600 font-bold px-3 py-1 ml-2 rounded hover:bg-red-50" title="Kick Player">✕</button>`
                 : '';
-
             return `<div class="flex items-center space-x-3 bg-white border border-gray-100 p-3 rounded-lg mb-2 shadow-sm">
                 <div class="w-3 h-3 rounded-full ${p.ready !== false ? 'bg-green-500' : 'bg-gray-300'}"></div>
                 <span class="font-bold text-gray-700 truncate flex-1">${displayName}</span>
@@ -8891,17 +7418,14 @@ renderLobby() {
                 ${(p.id === this.players[0]?.id) ? '<span class="text-xs bg-indigo-100 text-indigo-700 px-2 rounded-full">HOST</span>' : kickBtn}
             </div>`;
         }).join('');
-
         let modesHtml = '';
         Object.entries(this.modeConfig).forEach(([key, conf]) => {
             const isSelected = (activeMode === key);
             if (!this.isHost && !isSelected) return;
-
             const clickAttr = this.isHost ? `onclick="window.RoomManager.updateMode('${key}')"` : '';
             let styleClass = isSelected
                 ? 'bg-indigo-100 border-[3px] border-indigo-500 shadow-inner'
                 : 'bg-white border border-gray-200 hover:bg-gray-50 cursor-pointer';
-
             modesHtml += `
                 <div ${clickAttr} class="flex flex-col p-3 rounded-xl transition-all duration-200 ${styleClass} min-h-[80px]">
                     <div class="flex justify-between items-center mb-1">
@@ -8911,11 +7435,8 @@ renderLobby() {
                     <span class="text-xs text-gray-500 leading-tight">${conf.desc}</span>
                 </div>`;
         });
-
         const sliderDisabled = !this.isHost ? 'disabled' : '';
         const sliderOpacity = !this.isHost ? 'opacity-70' : '';
-
-        // Hide drinking mode for kids mode
         let drinkingHtml = '';
         if (activeMode !== 'kids') {
             const extremeMode = this.extremeDrinkingMode || false;
@@ -8940,37 +7461,29 @@ renderLobby() {
                 `;
             }
         }
-
         const html = `
         <div id="lobbyModal" class="fixed inset-0 bg-gray-900 z-[9999] flex flex-col md:flex-row font-sans h-full">
             <div class="w-full md:w-1/3 bg-white p-4 md:p-6 flex flex-col border-b md:border-b-0 md:border-r border-gray-200 z-10 shadow-md md:shadow-none shrink-0 h-[40%] md:h-full overflow-hidden">
-
 <div class="flex justify-between md:flex-col md:items-center mb-4 md:mb-6 shrink-0 w-full">
                     <div class="text-left md:text-center w-full">
                         <div class="text-xs text-gray-400 font-bold">ROOM CODE</div>
                         <div class="text-4xl md:text-6xl font-black text-indigo-600 font-mono tracking-widest leading-none">${safeCode}</div>
                         ${privacyBadge}
                     </div>
-
                     <div class="md:mt-6 w-auto md:w-full flex justify-end md:justify-center">
                         <img src="${qrSrc}" onclick="UIManager.expandQR('${qrSrc}')" class="rounded-lg w-20 h-20 md:w-32 md:h-32 border shadow-inner cursor-pointer hover:opacity-80 transition bg-white block">
                     </div>
                 </div>
-
                 <div class="text-xs font-bold text-gray-400 uppercase mb-2 shrink-0">Players</div>
-
                 <div class="flex-1 overflow-y-auto custom-scrollbar p-1 border rounded-lg md:border-0 min-h-0 bg-gray-50 md:bg-white">
                     ${playersHtml}
                 </div>
-
                 <div class="shrink-0 mt-2 md:mt-4 pt-2 border-t md:border-0 border-gray-100">
                     <button onclick="window.location.href = window.location.pathname" class="w-full py-2 md:py-3 text-red-500 font-bold bg-red-50 hover:bg-red-100 rounded-xl transition text-sm">Leave Room</button>
                 </div>
             </div>
-
             <div class="w-full md:w-2/3 bg-gray-50 p-4 md:p-6 flex flex-col relative h-[60%] md:h-full overflow-hidden">
                 <h2 class="text-xl md:text-2xl font-black text-gray-800 mb-2 md:mb-4 shrink-0">Game Settings</h2>
-
                 <div class="flex-1 overflow-y-auto custom-scrollbar min-h-0 pb-20">
                     <div class="bg-white p-3 md:p-4 rounded-xl shadow-sm border border-gray-200 mb-3 md:mb-6 ${sliderOpacity}">
                         <div class="flex justify-between items-center mb-2">
@@ -8982,14 +7495,11 @@ renderLobby() {
                             class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
                         ${drinkingHtml}
                     </div>
-
                     <div class="font-bold text-gray-700 mb-2 text-sm md:text-base">${this.isHost ? 'Select Mode' : 'Current Mode'}</div>
-
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3">
                         ${modesHtml}
                     </div>
                 </div>
-
                 <div class="absolute bottom-0 left-0 right-0 p-4 md:p-6 bg-white border-t flex items-center justify-between shadow-[0_-5px_15px_rgba(0,0,0,0.05)] z-20 shrink-0">
                     <div class="text-xs md:text-sm text-gray-500 hidden sm:block">
                         ${this.isHost
@@ -9006,8 +7516,6 @@ renderLobby() {
             </div>
         </div>`;
         document.body.insertAdjacentHTML('beforeend', html);
-
-        // 4. Restore Scroll Positions
         if (scrollPlayers > 0 || scrollSettings > 0) {
             const newModal = document.getElementById('lobbyModal');
             if (newModal) {
@@ -9017,7 +7525,6 @@ renderLobby() {
             }
         }
     },
-
 generateRandomCode() {
         const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // Removed I, O, 0, 1 to avoid confusion
         let result = "";
@@ -9030,82 +7537,55 @@ generateRandomCode() {
             input.focus();
         }
     },
-
-    // P2P Local Multiplayer - Host
     async startP2PHost() {
-        // Save username if entered
         const nameInput = document.getElementById('menuUsernameInput');
         if (nameInput?.value?.trim()) {
             State.data.username = nameInput.value.trim();
             State.save('username', State.data.username);
         }
-
-        // Initialize LocalPeerManager with socket
         LocalPeerManager.init(this.socket);
-
-        // Close menu
         const menu = document.getElementById('mpMenu');
         if (menu) menu.remove();
-
-        // Start hosting
         UIManager.showMessage('Creating local room... 📡');
         await LocalPeerManager.createRoom(10);
     },
-
-    // P2P Local Multiplayer - Join
     async joinP2P() {
         const codeInput = document.getElementById('menuRoomCodeInput');
         const roomCode = codeInput?.value?.trim().toUpperCase();
-
         if (!roomCode || roomCode.length < 3) {
             UIManager.showPostVoteMessage('Enter a room code! 📝');
             if (codeInput) codeInput.focus();
             return;
         }
-
-        // Save username if entered
         const nameInput = document.getElementById('menuUsernameInput');
         if (nameInput?.value?.trim()) {
             State.data.username = nameInput.value.trim();
             State.save('username', State.data.username);
         }
-
-        // Initialize LocalPeerManager with socket
         LocalPeerManager.init(this.socket);
-
-        // Close menu
         const menu = document.getElementById('mpMenu');
         if (menu) menu.remove();
-
-        // Join room
         UIManager.showMessage('Joining local room... 🔗');
         await LocalPeerManager.joinRoom(roomCode);
     },
-
     openMenu() {
         const existing = document.getElementById('mpMenu');
         if (existing) existing.remove();
         const currentName = State.data.username || '';
-
-        // Request public games list from server
         if (this.socket && this.socket.connected) {
             this.socket.emit('getPublicGames');
         }
-
 const html = `
         <div id="mpMenu" class="fixed inset-0 bg-black/80 z-[9999] flex items-start justify-center pt-8 md:items-center md:pt-0 backdrop-blur-sm p-4 overflow-y-auto">
             <div class="flex flex-col md:flex-row gap-4 w-full max-w-4xl">
-
                 <div class="bg-white p-6 rounded-2xl shadow-2xl text-center flex-1 animate-pop relative border-t-4 border-indigo-500">
                     <button onclick="document.getElementById('mpMenu').remove()" class="absolute top-3 right-4 text-gray-400 text-xl hover:text-gray-600">&times;</button>
                     <h2 class="text-2xl font-black mb-4 text-gray-800">MULTIPLAYER MODE</h2>
-
                     <div class="flex flex-col gap-3">
                         <div>
                             <label class="text-xs font-bold text-gray-400 uppercase text-left block mb-1">Your Name</label>
                             <input type="text" id="menuUsernameInput" placeholder="NAME" value="${currentName}" maxlength="16" class="w-full p-3 border-2 border-gray-200 rounded-xl font-bold text-center focus:border-indigo-500 outline-none">
                         </div>
-
                         <div class="mb-2">
                             <label class="text-xs font-bold text-gray-400 uppercase text-left block mb-1">Room Code</label>
                             <div class="flex gap-2 items-stretch">
@@ -9116,7 +7596,6 @@ const html = `
                                 </button>
                             </div>
                         </div>
-
                         <div class="bg-gray-50 p-3 rounded-xl border border-gray-200">
                             <div class="flex items-center justify-between mb-2">
                                 <label class="text-sm font-bold text-gray-700 flex items-center gap-2">
@@ -9127,7 +7606,6 @@ const html = `
                                     <div id="privacyKnob" class="absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200"></div>
                                 </button>
                             </div>
-
                             <div id="maxPlayersSection" class="hidden mt-3 pt-3 border-t border-gray-200">
                                 <div class="flex items-center justify-between">
                                     <label class="text-sm font-bold text-gray-600">Max Players</label>
@@ -9140,9 +7618,7 @@ const html = `
                                 <p class="text-xs text-gray-400 mt-1">Public games are visible to everyone</p>
                             </div>
                         </div>
-
                         <button onclick="RoomManager.submitEntry()" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 shadow-lg mt-2 transition transform active:scale-95 w-full">JOIN / CREATE ONLINE</button>
-
                         <div class="mt-4 pt-4 border-t border-gray-200">
                             <div class="p-3 bg-green-50 border border-green-200 rounded-xl">
                                 <h3 class="font-bold text-green-900 text-sm mb-2 text-left flex items-center gap-2">📡 LOCAL MODE <span class="text-xs font-normal text-green-600">(No WiFi needed!)</span></h3>
@@ -9159,7 +7635,6 @@ const html = `
                         </div>
                     </div>
                 </div>
-
                 <div class="bg-white p-6 rounded-2xl shadow-2xl flex-1 animate-pop relative border-t-4 border-green-500" style="animation-delay: 0.1s">
                     <div class="flex items-center justify-between mb-4">
                         <h2 class="text-2xl font-black text-gray-800 flex items-center gap-2">
@@ -9170,14 +7645,12 @@ const html = `
                             <span class="hidden sm:inline">Group</span>
                         </a>
                     </div>
-
                     <div id="publicGamesList" class="space-y-2 max-h-80 overflow-y-auto custom-scrollbar">
                         <div class="text-center py-8 text-gray-400">
                             <div class="text-3xl mb-2">📡</div>
                             <p class="text-sm">Searching for games...</p>
                         </div>
                     </div>
-
                     <button onclick="RoomManager.refreshPublicGames()" class="w-full mt-4 py-2 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition flex items-center justify-center gap-2">
                         <span>🔄</span> Refresh List
                     </button>
@@ -9186,11 +7659,8 @@ const html = `
         </div>`;
         document.body.insertAdjacentHTML('beforeend', html);
         setTimeout(() => document.getElementById('menuRoomCodeInput')?.focus(), 100);
-
-        // Render any cached public games
         this.renderPublicGames();
     },
-
     togglePrivacy() {
         this.isPublic = !this.isPublic;
         const toggle = document.getElementById('privacyToggle');
@@ -9198,7 +7668,6 @@ const html = `
         const icon = document.getElementById('privacyIcon');
         const label = document.getElementById('privacyLabel');
         const maxSection = document.getElementById('maxPlayersSection');
-
         if (this.isPublic) {
             toggle.classList.remove('bg-gray-300');
             toggle.classList.add('bg-indigo-500');
@@ -9215,13 +7684,11 @@ const html = `
             maxSection.classList.add('hidden');
         }
     },
-
     adjustMaxPlayers(delta) {
         this.maxPlayers = Math.min(20, Math.max(2, this.maxPlayers + delta));
         const display = document.getElementById('maxPlayersDisplay');
         if (display) display.textContent = this.maxPlayers;
     },
-
     refreshPublicGames() {
         if (this.socket && this.socket.connected) {
             this.socket.emit('getPublicGames');
@@ -9235,11 +7702,9 @@ const html = `
             }
         }
     },
-
     renderPublicGames() {
         const list = document.getElementById('publicGamesList');
         if (!list) return;
-
         if (!this.publicGames || this.publicGames.length === 0) {
             list.innerHTML = `
                 <div class="text-center py-8 text-gray-400">
@@ -9249,12 +7714,10 @@ const html = `
                 </div>`;
             return;
         }
-
         list.innerHTML = this.publicGames.map(game => {
             const isFull = game.players >= game.maxPlayers;
             const spotsLeft = game.maxPlayers - game.players;
             const modeLabel = this.modeConfig[game.mode]?.label || game.mode;
-
             return `
                 <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-200 ${isFull ? 'opacity-50' : 'hover:bg-gray-100'} transition">
                     <div class="flex-1 min-w-0">
@@ -9276,7 +7739,6 @@ const html = `
                 </div>`;
         }).join('');
     },
-
     joinPublicGame(roomCode) {
         const nameInput = document.getElementById('menuUsernameInput');
         const nameToUse = nameInput ? nameInput.value.trim() : '';
@@ -9286,7 +7748,6 @@ const html = `
         }
         this.attemptJoinOrCreate(roomCode, nameToUse);
     },
-
     submitEntry() {
         const codeInput = document.getElementById('menuRoomCodeInput');
         const nameInput = document.getElementById('menuUsernameInput');
@@ -9299,7 +7760,6 @@ const html = `
         }
         if (code.length > 0) this.attemptJoinOrCreate(code, nameToUse);
     },
-
     attemptJoinOrCreate(code, nameOverride = null) {
         this.roomCode = code;
         this.socket.emit('joinRoom', {
@@ -9310,17 +7770,13 @@ const html = `
             maxPlayers: this.maxPlayers
         });
     },
-
     closeLobby() { document.getElementById('lobbyModal')?.remove(); document.getElementById('mpMenu')?.remove(); }
 };
-
 const Game = {
     async init() {
         this.setRandomFavicon();
         DOM = loadDOM();
         try {
-            // Logo click-to-refresh is handled in HTML
-
             const vEl = document.querySelector('.version-indicator');
             if (vEl) {
                 vEl.textContent = `v${CONFIG.APP_VERSION} | Made by Gilxs in 12,025`;
@@ -9333,24 +7789,20 @@ const Game = {
                     textShadow: 'none', opacity: '1', mixBlendMode: 'normal'
                 });
             }
-
             Accessibility.apply();
             try { SoundManager.init(); } catch(e) { console.warn("Audio init deferred"); }
             if (typeof this.updateLights === 'function') this.updateLights();
             UIManager.updateOfflineIndicator();
-
             window.StreakManager = StreakManager;
             window.ContactManager = ContactManager;
             window.PinPad = PinPad;
             window.TipManager = TipManager;
             window.RoomManager = RoomManager;
             window.UIManager = UIManager;
-
             if (DOM.game.buttons.good) DOM.game.buttons.good.onclick = () => this.vote('good');
             if (DOM.game.buttons.bad) DOM.game.buttons.bad.onclick = () => this.vote('bad');
             if (DOM.game.buttons.notWord) DOM.game.buttons.notWord.onclick = () => this.vote('notWord');
             if (DOM.game.dailyBanner) DOM.game.dailyBanner.onclick = () => this.activateDailyMode();
-
             document.addEventListener('keydown', (e) => {
                 if (e.target.matches('input, textarea')) return;
                 if (DOM.game.buttons.good.disabled) return;
@@ -9361,7 +7813,6 @@ const Game = {
                 if (document.getElementById('pinPadModal') && !document.getElementById('pinPadModal').classList.contains('hidden')) return;
                 if (document.getElementById('mpMenu')) return;
                 if (document.getElementById('lobbyModal')) return;
-
                 switch(e.code) {
                     case 'ArrowLeft':
                         this.vote('good');
@@ -9375,15 +7826,12 @@ const Game = {
                         break;
                 }
             });
-
             const qrGood = document.getElementById('qrGoodBtn');
             const qrBad = document.getElementById('qrBadBtn');
             if (qrGood) qrGood.onclick = (e) => { if (!DOM.game.buttons.good.disabled && !State.runtime.isCoolingDown) { e.stopPropagation(); ShareManager.shareQR('good'); }};
             if (qrBad) qrBad.onclick = (e) => { if (!DOM.game.buttons.good.disabled && !State.runtime.isCoolingDown) { e.stopPropagation(); ShareManager.shareQR('bad'); }};
-
             document.getElementById('showHelpButton').onclick = () => { window.scrollTo({ top: 0, behavior: 'smooth' }); UIManager.showPostVoteMessage("What's going on? There aren't really any rules, but if you're really confused then drop me a message and I'll see if I can help!"); };
             document.getElementById('showDonateButton').onclick = () => { window.scrollTo({ top: 0, behavior: 'smooth' }); UIManager.showPostVoteMessage("That's very kind, but I'm not accepting any donations at the moment. Have fun!"); };
-
             document.getElementById('submitWordButton').onclick = async () => {
                 const t = DOM.inputs.newWord.value.trim();
                 if (!t || t.includes(' ') || t.length > 45) { DOM.inputs.modalMsg.textContent = "Invalid word."; return }
@@ -9391,7 +7839,6 @@ const Game = {
                 try { const r = await API.submitWord(t); if (r.status === 201) { State.incrementContributor(); DOM.inputs.modalMsg.textContent = "Success! Your new word has been added!"; setTimeout(() => { ModalManager.toggle('submission', false); this.refreshData() }, 1000) } else { const d = await r.json(); DOM.inputs.modalMsg.textContent = d.message || "Word already exists in dictionary!" } } catch (e) { DOM.inputs.modalMsg.textContent = "Network Error" }
                 btn.disabled = false
             };
-
             document.getElementById('runComparisonButton').onclick = async () => {
                 const w1 = DOM.inputs.wordOne.value.trim(), w2 = DOM.inputs.wordTwo.value.trim();
                 if (!w1 && !w2) { DOM.inputs.compareResults.innerHTML = '<span class="text-red-500">Please enter at least one word.</span>'; return }
@@ -9408,14 +7855,10 @@ const Game = {
                 } else { const s = st[0]; h = `<div class="p-4 rounded-xl border border-gray-200 bg-white flex flex-col items-center w-full max-w-xs mx-auto"><h3 class="text-xl font-black text-gray-800 mb-2">${s.text}</h3>${s.isNew?'<span class="bg-purple-100 text-purple-600 text-xs px-2 py-1 rounded mb-2">Newly Added!</span>':''}<div class="text-4xl font-bold ${s.score>=0?'text-green-600':'text-red-600'} mb-4">${s.score}</div><div class="w-full space-y-2"><div class="flex justify-between text-xs text-gray-500"><span>Approval Rating</span><span>${s.approval}%</span></div><div class="w-full bg-gray-200 rounded-full h-2.5"><div class="bg-blue-500 h-2.5 rounded-full" style="width: ${s.approval}%"></div></div><div class="flex justify-between text-xs pt-1"><span class="text-green-600 font-bold">+${s.good} Votes</span><span class="text-red-600 font-bold">-${s.bad} Votes</span></div></div></div>` }
                 DOM.inputs.compareResults.innerHTML = h
             };
-
             if (DOM.theme.chooser) {
-                // Replace select element with a clickable button
                 const chooser = DOM.theme.chooser;
                 const currentTheme = State.data.currentTheme || 'default';
                 const themeName = currentTheme === 'ballpit' ? 'Ball Pit' : currentTheme.charAt(0).toUpperCase() + currentTheme.slice(1);
-                
-                // Create a button to replace the select
                 const btn = document.createElement('button');
                 btn.id = 'themeChooserBtn';
                 btn.className = chooser.className;
@@ -9425,30 +7868,20 @@ const Game = {
                     e.preventDefault();
                     ThemeManager.showGallery();
                 };
-                
-                // Hide the original select and add button after it
                 chooser.style.display = 'none';
                 chooser.parentNode.insertBefore(btn, chooser.nextSibling);
-                
-                // Store reference to button for updates
                 DOM.theme.chooserBtn = btn;
             }
-
             State.init();
             RoomManager.init();
-
-            // Apply hide multiplayer setting on load (also hide in Kids Mode for child safety)
             if (State.data.settings.hideMultiplayer || State.data.settings.kidsMode) {
                 const roomBtn = document.getElementById('roomBtn');
                 if (roomBtn) roomBtn.style.display = 'none';
             }
-
             DOM.inputs.username.value = State.data.username === 'Unknown' ? '' : State.data.username;
             DOM.inputs.username.addEventListener('change', (e) => State.save('username', e.target.value.trim() || 'Guest'));
-
             UIManager.updateStreak(State.data.streak);
             State.runtime.history.forEach(h => UIManager.addToHistory(h.word, h.vote));
-
             InputHandler.init();
             ThemeManager.init();
             WeatherManager.init();
@@ -9456,36 +7889,26 @@ const Game = {
             UIManager.updateProfileDisplay();
             MosquitoManager.startMonitoring();
             this.checkDailyStatus();
-
-            // Apply hide cards setting on load
             if (State.data.settings.hideCards) {
                 this.applyHideCards(true);
             }
-
             await this.refreshData();
             DiscoveryManager.init();
-
             setTimeout(() => {
                 if (DOM.screens && DOM.screens.loading) {
                     DOM.screens.loading.classList.add('opacity-0', 'pointer-events-none');
                     setTimeout(() => DOM.screens.loading?.remove(), 500);
                 }
-                // Word already displayed by refreshData(), no need to call nextWord()
             }, 1500);
-
             setInterval(() => this.checkCooldown(), 100);
-
         } catch(e) {
             console.error("Critical Init Error:", e);
             const vEl = document.querySelector('.version-indicator');
             if(vEl) vEl.textContent = "Error: " + e.message;
         }
     },
-
     async nextWord() {
         if (State.runtime.isMultiplayer) return;
-
-        // --- RANDOM FETCH LOGIC RESTORED ---
         if (State.runtime.allWords.length <= State.runtime.currentWordIndex) {
             try {
                 const res = await fetch(`${CONFIG.API_BASE_URL}?t=${Date.now()}`); // Fetches 1 random word
@@ -9494,8 +7917,6 @@ const Game = {
                 else State.runtime.allWords.push({ text: 'RETRY', _id: null });
             } catch(e) { State.runtime.allWords.push({ text: 'OFFLINE', _id: null }); }
         }
-
-        // Smart Filtering - filter from fullWordList to preserve all data
         if (!State.runtime.isMultiplayer) {
             const sourceList = State.runtime.fullWordList.length > 0 ? State.runtime.fullWordList : State.runtime.allWords;
             if (State.data.settings.zeroVotesOnly) {
@@ -9511,31 +7932,21 @@ const Game = {
                 else UIManager.showPostVoteMessage("No controversial words found! Showing random.");
             }
         }
-
         const w = State.runtime.allWords[State.runtime.currentWordIndex];
         UIManager.displayWord(w);
     },
-
 async vote(t, s = false) {
         if (State.runtime.isCoolingDown) return;
-
         const n = Date.now();
-        
-        // Minimum delay between processed votes (400ms) - prevents double-clicks
         if (State.runtime.lastVoteTime > 0 && (n - State.runtime.lastVoteTime) < 400) {
             return;
         }
-
-        // Multiplayer mode - send to room
         if (State.runtime.isMultiplayer && typeof RoomManager !== 'undefined' && RoomManager.active) {
              RoomManager.submitVote(t);
              UIManager.disableButtons(true);
              DOM.game.wordDisplay.style.opacity = '0.5';
              return;
         }
-
-        // === ANTI-CHEAT: Consecutive same votes ===
-        // Track if voting same direction repeatedly (not reading words)
         State.runtime.sameVoteMessage = null; // Reset
         if (t === 'good' || t === 'bad') {
             if (State.runtime.lastVoteType === t) {
@@ -9544,9 +7955,6 @@ async vote(t, s = false) {
                 State.runtime.sameVoteStreak = 1;
             }
             State.runtime.lastVoteType = t;
-            
-            // 6+ consecutive same votes = show message but ALLOW the vote
-            // 10+ consecutive = cooldown (definite spam)
             if (State.runtime.sameVoteStreak === 6) {
                 State.runtime.sameVoteMessage = t === 'good' ? "Every word is GOOD today? 🤔" : "Having a BAD day? 😤";
             } else if (State.runtime.sameVoteStreak >= 10) {
@@ -9558,16 +7966,9 @@ async vote(t, s = false) {
                 return;
             }
         }
-
-        // === ANTI-CHEAT: Speed detection ===
-        // Track vote timestamps - 6+ votes in 11 seconds = mashing
         if (!State.runtime.voteTimestamps) State.runtime.voteTimestamps = [];
         State.runtime.voteTimestamps.push(n);
-        
-        // Keep only votes from last 11 seconds
         State.runtime.voteTimestamps = State.runtime.voteTimestamps.filter(t => n - t < 11000);
-        
-        // 6+ votes in 11 seconds = too fast
         if (State.runtime.voteTimestamps.length >= 6) {
             State.runtime.voteTimestamps = [];
             UIManager.showMessage("Slow down! Read the words.", true);
@@ -9575,10 +7976,7 @@ async vote(t, s = false) {
             this.handleCooldown();
             return;
         }
-        
         State.runtime.lastVoteTime = n;
-        // === END ANTI-CHEAT ===
-        
         if (!s) {
             if (t === 'notWord') Haptics.heavy();
             else Haptics.medium();
@@ -9586,11 +7984,9 @@ async vote(t, s = false) {
         const w = State.runtime.allWords[State.runtime.currentWordIndex],
             up = w.text.toUpperCase(),
             { CAKE, LLAMA, POTATO, SQUIRREL, MASON } = CONFIG.SPECIAL;
-
         UIManager.disableButtons(true);
         const wd = DOM.game.wordDisplay;
         const colors = Accessibility.getColors();
-
         if (!s && (t === 'good' || t === 'bad')) {
             Game.cleanStyles(wd);
             wd.style.setProperty('--dynamic-swipe-color', t === 'good' ? colors.good : colors.bad);
@@ -9599,15 +7995,12 @@ async vote(t, s = false) {
             await new Promise(r => setTimeout(r, 50));
             wd.classList.remove('color-fade');
             wd.classList.add(t === 'good' ? 'animate-fly-left' : 'animate-fly-right');
-
             if (t === 'good') SoundManager.playGood();
             else SoundManager.playBad();
         }
-
         const hSpec = (c, k) => {
             if (window.StreakManager) window.StreakManager.extend(c.fade + c.dur);
             State.unlockBadge(k);
-            // Track in seen history
             if (w._id && w._id !== 'temp' && w._id !== 'err') {
                 const seen = State.data.seenHistory || [];
                 if (!seen.includes(w._id)) {
@@ -9635,50 +8028,37 @@ async vote(t, s = false) {
                 }, c.dur)
             }, c.fade)
         };
-
         if (up === CAKE.text) { hSpec(CAKE, 'cake'); return }
         if (up === LLAMA.text) { hSpec(LLAMA, 'llama'); return }
         if (up === POTATO.text) { hSpec(POTATO, 'potato'); return }
         if (up === SQUIRREL.text) { hSpec(SQUIRREL, 'squirrel'); return }
         if (up === MASON.text) { hSpec(MASON, 'bone'); return }
-
         try {
             const un = ThemeManager.checkUnlock(up);
             if (un) SoundManager.playUnlock();
-
-            // OFFLINE MODE: Queue vote for later sync
             if (OfflineManager.isActive()) {
                 OfflineManager.queueVote(w._id, t);
-                // queueVote updates the word object which is shared across all arrays
                 State.incrementVote();
                 StreakManager.handleSuccess();
             } else {
-                // ONLINE MODE: Submit immediately
                 const res = await API.vote(w._id, t);
                 if (res.status !== 403 && !res.ok) throw 0;
                 w[`${t}Votes`] = (w[`${t}Votes`] || 0) + 1;
-                // Also update in fullWordList if it's a different object
                 const fullWord = State.runtime.fullWordList.find(fw => fw._id === w._id);
                 if (fullWord && fullWord !== w) fullWord[`${t}Votes`] = w[`${t}Votes`];
                 State.incrementVote();
                 await API.submitUserVotes(State.data.userId, State.data.username, State.data.voteCount);
-
                 StreakManager.handleSuccess();
             }
-
             if (State.runtime.isDailyMode) {
                 const tod = new Date(), dStr = tod.toISOString().split('T')[0];
-
-                // Golden word challenge
                 if (State.runtime.dailyChallengeType === 'golden') {
                     State.runtime.dailyVotesCount = (State.runtime.dailyVotesCount || 0) + 1;
                     const isGolden = (State.runtime.goldenWord && w._id === State.runtime.goldenWord._id) ||
                                     (Math.random() < 0.1 && State.runtime.dailyVotesCount >= 3);
-
                     if (isGolden && !State.runtime.goldenWordFound) {
                         State.runtime.goldenWordFound = true;
                         UIManager.showPostVoteMessage("🌟 GOLDEN WORD! 🌟");
-
                         const last = State.data.daily.lastDate;
                         let s = State.data.daily.streak;
                         if (last) {
@@ -9689,7 +8069,6 @@ async vote(t, s = false) {
                         const golden = (State.data.daily.goldenWordsFound || 0) + 1;
                         State.save('daily', { streak: s, lastDate: dStr, bestStreak: best, goldenWordsFound: golden });
                         DOM.daily.streakResult.textContent = '🔥 ' + s + ' 🌟';
-
                         setTimeout(() => this.finishDailyChallenge(), 1500);
                         return;
                     } else {
@@ -9698,8 +8077,6 @@ async vote(t, s = false) {
                         return;
                     }
                 }
-
-                // Single word challenge
                 const last = State.data.daily.lastDate;
                 let s = State.data.daily.streak;
                 if (last) {
@@ -9709,27 +8086,22 @@ async vote(t, s = false) {
                 const best = Math.max(s, State.data.daily.bestStreak || 0);
                 State.save('daily', { streak: s, lastDate: dStr, bestStreak: best });
                 DOM.daily.streakResult.textContent = '🔥 ' + s;
-
                 this.finishDailyChallenge();
                 return;
             }
-
             let m = '';
             if (un) m = "🎉 New Theme Unlocked!";
             else if (State.data.settings.showPercentages && (t === 'good' || t === 'bad')) {
                 const tot = (w.goodVotes || 0) + (w.badVotes || 0);
                 const p = Math.round((w[`${t}Votes`] / tot) * 100);
-
                 if (State.runtime.isDrinkingMode && p < 50) {
                     m = `🍺 DRINK! (You are in the minority: ${p}%)`;
                 } else {
                     m = `${t==='good'?'Good':'Bad'} vote! ${p}% agree.`;
                 }
             }
-
             if (State.data.settings.showTips && !State.runtime.isMultiplayer) {
                 State.save('voteCounterForTips', State.data.voteCounterForTips + 1);
-                // Random tip interval: show tip when counter reaches nextTipAt
                 if (!State.runtime.nextTipAt) State.runtime.nextTipAt = Math.floor(Math.random() * 11) + 5; // 5-15
                 if (State.data.voteCounterForTips >= State.runtime.nextTipAt) {
                     if (typeof GAME_TIPS !== 'undefined') {
@@ -9739,16 +8111,13 @@ async vote(t, s = false) {
                     State.runtime.nextTipAt = Math.floor(Math.random() * 11) + 5; // Reset to new random 5-15
                 }
             }
-            // Use same-vote warning message if triggered, otherwise normal message
             const finalMessage = State.runtime.sameVoteMessage || m;
             UIManager.showPostVoteMessage(finalMessage);
             if (t === 'good' || t === 'bad') Haptics.medium();
             UIManager.updateStats();
-
             UIManager.addToHistory(w.text, t);
             State.runtime.history.unshift({ word: w.text, vote: t });
             if(State.runtime.history.length > 50) State.runtime.history.pop();
-
             setTimeout(() => {
                 wd.classList.remove('animate-fly-left', 'animate-fly-right', 'swipe-good-color', 'swipe-bad-color', 'override-theme-color');
                 wd.style.transform = '';
@@ -9757,17 +8126,14 @@ async vote(t, s = false) {
                 if (!State.runtime.isDailyMode) {
                     State.runtime.currentWordIndex++;
                     this.nextWord();
-                    // this.refreshData(false);  <-- REMOVE THIS LINE
                 }
             }, (t === 'good' || t === 'bad') ? 600 : 0);
-
         } catch (e) {
             UIManager.showMessage("Vote Failed", true);
             wd.classList.remove('animate-fly-left', 'animate-fly-right', 'swipe-good-color', 'swipe-bad-color', 'override-theme-color');
             UIManager.disableButtons(false);
         }
     },
-
     checkCooldown() {
         const now = Date.now();
         if (State.runtime.mashCount > CONFIG.VOTE.MASH_LIMIT) {
@@ -9777,14 +8143,11 @@ async vote(t, s = false) {
         }
         if (now > State.runtime.lastVoteTime + 1000) State.runtime.mashCount = Math.max(0, State.runtime.mashCount - 1);
     },
-
     startMultiplayer(data) {
         State.runtime.isMultiplayer = true;
         const banner = document.createElement('div');
-        // Fixed positioning
         banner.className = 'mp-banner-text fixed top-48 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-md px-6 py-2 rounded-full text-center font-black text-indigo-100 text-sm uppercase tracking-widest z-50 animate-fade-in pointer-events-none shadow-lg whitespace-nowrap';
         document.body.appendChild(banner);
-
         const ui = document.createElement('div');
         ui.id = 'mp-mode-ui';
         ui.className = 'fixed top-4 right-4 z-50 flex gap-2 items-center';
@@ -9793,9 +8156,7 @@ async vote(t, s = false) {
             <button onclick="window.location.href = window.location.pathname" class="bg-red-500 text-white px-3 py-1 rounded-full font-bold text-xs shadow-lg hover:bg-red-600 transition cursor-pointer pointer-events-auto">EXIT</button>
         `;
         document.body.appendChild(ui);
-
         this.resetGame();
-
         if (data.words && data.words.length > 0) {
             State.runtime.allWords = data.words;
             this.nextWord();
@@ -9804,20 +8165,17 @@ async vote(t, s = false) {
             UIManager.showMessage("Get Ready...");
         }
     },
-
     resetGame() {
         State.runtime.currentWordIndex = 0;
         DOM.game.historyList.innerHTML = '';
         UIManager.updateStreak(0);
     },
-
     handleCooldown() {
         State.runtime.isCoolingDown = true;
         const t = CONFIG.VOTE.COOLDOWN_TIERS;
         let r = t[Math.min(State.runtime.mashLevel, t.length - 1)];
         UIManager.showMessage(`Mashing detected. Wait ${r}s...`, true);
         Haptics.heavy();
-
         State.runtime.cooldownTimer = setInterval(() => {
             r--;
             if (r > 0) UIManager.showMessage(`Wait ${r}s...`, true);
@@ -9830,7 +8188,6 @@ async vote(t, s = false) {
             }
         }, 1000);
     },
-
     async showDefinition() {
         const w = State.runtime.allWords[State.runtime.currentWordIndex];
         if (!w) return;
@@ -9856,7 +8213,6 @@ async vote(t, s = false) {
             d.innerHTML = '<p class="text-red-500">Definition not found.</p>';
         }
     },
-
     loadSpecial(t) {
         const i = State.runtime.allWords.findIndex(w => w.text.toUpperCase() === t);
         if (i !== -1) {
@@ -9864,58 +8220,38 @@ async vote(t, s = false) {
             UIManager.displayWord(State.runtime.allWords[i]);
         }
     },
-
  async refreshData(u = true) {
         if (State.runtime.isMultiplayer) return;
-
         if (u) UIManager.showMessage(State.data.settings.kidsMode ? "Loading Kids Mode..." : "Loading...");
-
-        // Toggle buttons visibility
         const isKids = State.data.settings.kidsMode;
         DOM.game.buttons.custom.style.display = isKids ? 'none' : 'block';
         DOM.game.buttons.notWord.style.display = isKids ? 'none' : 'block';
-
-        // --- FIX: REMOVED THE LINE THAT FORCED THE BANNER TO SHOW ---
-        // DOM.game.dailyBanner.style.display = isKids ? 'none' : 'block'; <--- DELETED
-
-        // --- ADDED: CHECK STATUS INSTEAD ---
         this.checkDailyStatus();
-
         ['compareWordsButton','qrGoodBtn','qrBadBtn'].forEach(id => {
             const el = document.getElementById(id);
             if(el) el.style.display = isKids ? 'none' : 'block';
         });
-
         let d = [];
         if (isKids) {
             d = await API.fetchKidsWords();
         } else {
-            // Fetch ALL words (restores Global Stats)
             d = await API.getAllWords();
         }
-
         if (d && d.length > 0) {
-            // Offline single-player uses cached words
             if (OfflineManager.isActive()) {
-                // Use the cached words from fillCache()
                 d = State.data.offlineCache || d;
-                // Shuffle randomly
                 for (let i = d.length - 1; i > 0; i--) {
                     const j = Math.floor(Math.random() * (i + 1));
                     [d[i], d[j]] = [d[j], d[i]];
                 }
             } else {
-                // Normal random shuffle for online single player
                 for (let i = d.length - 1; i > 0; i--) {
                     const j = Math.floor(Math.random() * (i + 1));
                     [d[i], d[j]] = [d[j], d[i]];
                 }
             }
-
             State.runtime.allWords = d;
             State.runtime.fullWordList = d; // Store full list for stats
-
-            // Filter logic
             if (!isKids) {
                  State.runtime.allWords = d.filter(w => (w.notWordVotes || 0) < 3);
                  State.runtime.fullWordList = State.runtime.allWords; // Update full list too
@@ -9924,13 +8260,10 @@ async vote(t, s = false) {
             State.runtime.allWords = [{ text: 'OFFLINE', _id: 'err' }];
             State.runtime.fullWordList = [];
         }
-
         UIManager.updateStats(); // Now shows correct numbers
-
         if (u && !State.runtime.isDailyMode) {
             const params = new URLSearchParams(window.location.search);
             const sharedWord = params.get('word');
-
             if (sharedWord) {
                 const idx = State.runtime.allWords.findIndex(w => w.text.toUpperCase() === sharedWord.toUpperCase());
                 if (idx !== -1) {
@@ -9943,23 +8276,17 @@ async vote(t, s = false) {
                     UIManager.displayWord(State.runtime.allWords[0]);
                 }
             } else {
-                // Show first word of the shuffled list
                 State.runtime.currentWordIndex = 0;
                 UIManager.displayWord(State.runtime.allWords[0]);
             }
-
             const today = new Date().toISOString().split('T')[0];
             let history = State.data.wordHistory;
-            // Use fullWordList for accurate count (not filtered allWords)
             const currentCount = State.runtime.fullWordList.length > 0 ? State.runtime.fullWordList.length : State.runtime.allWords.length;
-
-            // Clean up bad data: remove any entries where count dropped by more than 20%
             if (history.length > 1) {
                 const cleaned = [history[0]];
                 for (let i = 1; i < history.length; i++) {
                     const prev = cleaned[cleaned.length - 1];
                     const curr = history[i];
-                    // Only keep if count didn't drop more than 20% (bad data from filtered lists)
                     if (curr.count >= prev.count * 0.8) {
                         cleaned.push(curr);
                     }
@@ -9970,9 +8297,7 @@ async vote(t, s = false) {
                     State.save('wordHistory', history);
                 }
             }
-
             if (history.length === 0 || history[history.length - 1].date !== today) {
-                // Only add if count is reasonable (not less than last recorded)
                 const lastCount = history.length > 0 ? history[history.length - 1].count : 0;
                 if (currentCount >= lastCount) {
                     history.push({ date: today, count: currentCount });
@@ -9980,7 +8305,6 @@ async vote(t, s = false) {
                     State.save('wordHistory', history);
                 }
             } else {
-                // Update today's count if it's higher (dictionary can only grow)
                 const todayEntry = history[history.length - 1];
                 if (currentCount > todayEntry.count) {
                     todayEntry.count = currentCount;
@@ -9989,13 +8313,11 @@ async vote(t, s = false) {
             }
         }
     },
-
     applyHideCards(hide) {
         const gameCard = DOM.game.card;
         const header = document.querySelector('header');
         const themesPanel = document.querySelector('.mt-6.p-4.bg-white\\/70'); // Themes panel
         const rankingsSection = document.getElementById('rankingsSection'); // Top good/bad words
-
         if (hide) {
             if (gameCard) gameCard.style.opacity = '0';
             if (gameCard) gameCard.style.pointerEvents = 'none';
@@ -10010,7 +8332,6 @@ async vote(t, s = false) {
             if (rankingsSection) rankingsSection.style.opacity = '1';
         }
     },
-
     disableDailyMode() {
         State.runtime.isDailyMode = false;
         DOM.game.dailyBanner.classList.remove('daily-locked-mode');
@@ -10018,13 +8339,10 @@ async vote(t, s = false) {
         DOM.game.buttons.custom.style.visibility = 'visible';
         this.nextWord()
     },
-
     async finishDailyChallenge() {
         const d = State.data;
         const totalVotesEl = document.getElementById('dailyTotalVotes');
         if (totalVotesEl) totalVotesEl.textContent = d.voteCount.toLocaleString();
-
-        // Submit streak to server
         await API.submitUserVotes(
             d.userId,
             d.username,
@@ -10032,17 +8350,13 @@ async vote(t, s = false) {
             d.daily.streak,
             d.daily.bestStreak
         );
-
-        // Update total votes and golden count in modal
         const dailyVotesEl = document.getElementById('dailyTotalVotes');
         if (dailyVotesEl) dailyVotesEl.textContent = d.voteCount.toLocaleString();
         const goldenCountEl = document.getElementById('dailyGoldenCount');
         if (goldenCountEl) goldenCountEl.textContent = '🌟 ' + (d.daily.goldenWordsFound || 0);
-
         const leaderboard = await API.fetchLeaderboard();
         const userRankIndex = leaderboard.findIndex(u => u.userId === d.userId);
         const totalUsers = leaderboard.length;
-
         if (userRankIndex >= 0) {
             const rank = userRankIndex + 1;
             DOM.daily.worldRank.textContent = '#' + rank;
@@ -10057,41 +8371,32 @@ async vote(t, s = false) {
             const ctx = document.getElementById('dailyRankContext');
             if (ctx) ctx.textContent = 'Keep voting to climb!';
         }
-
         State.runtime.isDailyMode = false;
         State.runtime.dailyChallengeType = null;
         State.runtime.goldenWord = null;
         DOM.game.dailyBanner.classList.remove('daily-locked-mode');
         DOM.game.buttons.notWord.style.visibility = '';
         DOM.game.buttons.custom.style.visibility = '';
-
         this.checkDailyStatus();
         setTimeout(() => ModalManager.toggle('dailyResult', true), 600);
         this.refreshData(true);
     },
-
     activateDailyMode() {
         if (State.runtime.isDailyMode) return;
         const t = new Date().toISOString().split('T')[0];
-
         if (t === State.data.daily.lastDate) return;
         State.runtime.isDailyMode = true;
         DOM.game.dailyBanner.classList.add('daily-locked-mode');
         DOM.game.buttons.notWord.style.visibility = 'hidden';
         DOM.game.buttons.custom.style.visibility = 'hidden';
-
-        // Calculate date seed
         let seed = 0;
         for (let i = 0; i < t.length; i++) {
             seed = ((seed << 5) - seed) + t.charCodeAt(i);
             seed |= 0;
         }
         seed = Math.abs(seed);
-
-        // 50% golden, 50% single
         const isGolden = (seed % 2) === 0;
         State.runtime.dailyChallengeType = isGolden ? 'golden' : 'single';
-
         if (isGolden) {
             UIManager.showMessage('🌟 Find the Golden Word!');
             State.runtime.goldenWordFound = false;
@@ -10099,27 +8404,17 @@ async vote(t, s = false) {
         } else {
             UIManager.showMessage('Loading Daily Word...');
         }
-
         API.getAllWords().then(words => {
-            // Use date seed for deterministic daily selection
             const sortedWords = words.sort((a, b) => a.text.localeCompare(b.text));
-
             if (isGolden) {
-                // Pick golden word deterministically based on date
                 const goldenIdx = (seed * 7) % sortedWords.length;
                 State.runtime.goldenWord = sortedWords[goldenIdx];
-
-                // Proper Fisher-Yates shuffle for random word order
                 const shuffled = [...words];
                 for (let i = shuffled.length - 1; i > 0; i--) {
                     const j = Math.floor(Math.random() * (i + 1));
                     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
                 }
-
-                // Golden word appears randomly between position 10-25
                 const goldenPosition = 10 + Math.floor(Math.random() * 16);
-
-                // Remove golden word from its current position and insert at target
                 const goldenWordIdx = shuffled.findIndex(w =>
                     w._id === State.runtime.goldenWord._id ||
                     w.text === State.runtime.goldenWord.text
@@ -10128,7 +8423,6 @@ async vote(t, s = false) {
                     shuffled.splice(goldenWordIdx, 1);
                 }
                 shuffled.splice(goldenPosition, 0, State.runtime.goldenWord);
-
                 State.runtime.allWords = shuffled;
                 State.runtime.currentWordIndex = 0;
                 UIManager.displayWord(shuffled[0]);
@@ -10145,7 +8439,6 @@ async vote(t, s = false) {
             }
         });
     },
-
     updateLights() {
         const existing = document.querySelector('christmas-lights');
         if (State.data.settings.showLights) {
@@ -10157,16 +8450,12 @@ async vote(t, s = false) {
             if (existing) existing.remove();
         }
     },
-
 checkDailyStatus() {
         const t = new Date().toISOString().split('T')[0];
         const l = State.data.daily.lastDate;
-
-        // If Kids Mode OR Challenge Done Today -> HIDE COMPLETELY
         if (State.data.settings.kidsMode || t === l) {
              DOM.game.dailyBanner.style.display = 'none';
         } else {
-             // Else -> SHOW
              DOM.game.dailyStatus.textContent = "Vote Now!";
              DOM.game.dailyBanner.style.display = 'block';
              DOM.game.dailyBanner.style.opacity = '1';
@@ -10174,7 +8463,6 @@ checkDailyStatus() {
              DOM.game.dailyBanner.style.filter = 'none';
         }
     },
-
     setRandomFavicon() {
         const options = ['👍', '👎', '🗳️'];
         const choice = options[Math.floor(Math.random() * options.length)];
@@ -10187,7 +8475,6 @@ checkDailyStatus() {
         }
         link.href = `data:image/svg+xml,${svg}`;
     },
-
     cleanStyles(e) {
         e.style.animation = 'none';
         e.style.background = 'none';
@@ -10197,17 +8484,13 @@ checkDailyStatus() {
         e.style.filter = 'none';
         e.style.color = ''
     },
-
 async renderLeaderboardTable() {
         const lbContainer = DOM.general.voteLeaderboardTable;
         if (!lbContainer) return;
         lbContainer.innerHTML = '<div class="text-center text-gray-500 p-4">Loading...</div>';
         const allUsers = await API.fetchLeaderboard();
-
-        // GLOBAL LIST
         const topUsers = allUsers.slice(0, 5);
         let html = '<h3 class="text-lg font-bold text-gray-800 mb-3 mt-4">Top Voters (Global)</h3>';
-
         if (topUsers.length === 0) {
             html += '<div class="text-center text-gray-500 text-sm">Unavailable</div>';
         } else {
@@ -10217,12 +8500,7 @@ async renderLeaderboardTable() {
                 html += `<div class="flex justify-between items-center py-2 px-3 rounded ${rowClass} text-sm mb-1"><span class="w-6 text-center">#${i + 1}</span><span class="truncate flex-1">${user.username || 'Anonymous'}</span><span class="text-right">${(user.voteCount || 0).toLocaleString()}</span></div>`;
             });
         }
-
-        // --- CHANGE: ADDED ID HERE ---
         html += '<h3 id="dailyStreaksHeader" class="text-lg font-bold text-gray-800 mb-3 mt-6 pt-2 border-t border-gray-100">🔥 Top Daily Streaks</h3>';
-        // -----------------------------
-
-        // STREAK LIST
         const streakUsers = allUsers.filter(u => u.dailyStreak > 0).sort((a, b) => b.dailyStreak - a.dailyStreak).slice(0, 5);
         if (streakUsers.length > 0) {
             streakUsers.forEach((user, i) => {
@@ -10233,10 +8511,8 @@ async renderLeaderboardTable() {
         } else {
             html += `<div class="text-center text-gray-400 text-xs my-2">No streaks yet!</div>`;
         }
-
         lbContainer.innerHTML = html;
     },
-
     async renderGraphs() {
         const w = State.runtime.allWords;
         if (!w || w.length === 0) return;
@@ -10246,21 +8522,16 @@ async renderLeaderboardTable() {
             ctx.textAlign = "center";
             ctx.fillText(text, x, y);
         };
-
-        // Fetch global stats history for both charts
         let globalHistory = [];
         try {
             globalHistory = await API.fetchGlobalStatsHistory();
         } catch (e) {
             console.warn("Could not fetch global stats history:", e);
         }
-
-        // Also submit current snapshot to server
         const totalGood = w.reduce((a, b) => a + (b.goodVotes || 0), 0);
         const totalBad = w.reduce((a, b) => a + (b.badVotes || 0), 0);
         const totalVotes = totalGood + totalBad;
         API.submitGlobalSnapshot(w.length, totalVotes, totalGood, totalBad);
-
         const cvsScatter = document.getElementById('scatterChartCanvas');
         if (cvsScatter) {
             const ctx = cvsScatter.getContext('2d');
@@ -10314,8 +8585,6 @@ async renderLeaderboardTable() {
                 ctx.fill();
             });
         }
-
-        // VOTE HISTORY CHART - Total votes over time (from global stats)
         const cvsVoteHistory = document.getElementById('voteHistoryCanvas');
         if (cvsVoteHistory) {
             const ctx = cvsVoteHistory.getContext('2d');
@@ -10326,15 +8595,11 @@ async renderLeaderboardTable() {
             const Y_PLOT_MAX = P;
             const Y_PLOT_MIN = H - P;
             ctx.clearRect(0, 0, W, H);
-
-            // Use global history or fall back to computed value
             let voteHistory = globalHistory.filter(h => h.totalVotes > 0);
             if (voteHistory.length === 0) {
                 const today = new Date().toISOString().split('T')[0];
                 voteHistory = [{ date: today, totalVotes: totalVotes }];
             }
-
-            // Format and display tracking start date
             const formatTrackingDate = (dateStr) => {
                 const date = new Date(dateStr + 'T00:00:00');
                 const now = new Date();
@@ -10349,32 +8614,25 @@ async renderLeaderboardTable() {
                 if (diffDays < 30) return `(Since ${month} ${day})`;
                 return `(Since ${month} ${day}, ${year})`;
             };
-
             const startDate = voteHistory[0]?.date;
             const voteTrackingEl = document.getElementById('voteTrackingStart');
             if (voteTrackingEl && startDate) {
                 voteTrackingEl.textContent = formatTrackingDate(startDate);
             }
-
             const maxVotes = Math.max(...voteHistory.map(h => h.totalVotes || 0), 1000);
             const Y_MIN_VALUE = 0;
             const Y_MAX_VALUE = Math.ceil(maxVotes / 10000) * 10000 || 100000;
             const VALUE_RANGE = Y_MAX_VALUE - Y_MIN_VALUE;
-
-            // Axes
             ctx.beginPath();
             ctx.strokeStyle = "#ccc";
             ctx.lineWidth = 1;
             ctx.moveTo(P, Y_PLOT_MAX); ctx.lineTo(P, Y_PLOT_MIN); ctx.lineTo(W - P, Y_PLOT_MIN);
             ctx.stroke();
-
             const getYVotes = (count) => {
                 if (count <= Y_MIN_VALUE) return Y_PLOT_MIN;
                 const plotRatio = count / VALUE_RANGE;
                 return Y_PLOT_MIN - plotRatio * GRAPH_H;
             };
-
-            // Y-axis labels
             ctx.textAlign = "right";
             for (let i = 0; i <= 4; i++) {
                 const val = Math.round(Y_MAX_VALUE * i / 4);
@@ -10385,8 +8643,6 @@ async renderLeaderboardTable() {
                 ctx.stroke();
                 drawText(ctx, val.toLocaleString(), P - 5, y + 5, "#666", 9);
             }
-
-            // Draw line
             if (voteHistory.length > 0) {
                 const xDivisor = voteHistory.length > 1 ? voteHistory.length - 1 : 1;
                 ctx.beginPath();
@@ -10399,8 +8655,6 @@ async renderLeaderboardTable() {
                     else ctx.lineTo(x, y);
                 });
                 ctx.stroke();
-
-                // Draw points
                 voteHistory.forEach((h, i) => {
                     const x = P + (i / xDivisor) * (W - 2 * P);
                     const y = getYVotes(h.totalVotes || 0);
@@ -10417,8 +8671,6 @@ async renderLeaderboardTable() {
                     }
                 });
             }
-
-            // X-axis date labels (start and end)
             if (voteHistory.length > 0) {
                 const formatShortDate = (dateStr) => {
                     const d = new Date(dateStr + 'T00:00:00');
@@ -10432,7 +8684,6 @@ async renderLeaderboardTable() {
                     drawText(ctx, formatShortDate(voteHistory[voteHistory.length - 1].date), W - P, H - P + 15, "#999", 9);
                 }
             }
-
             ctx.textAlign = "center";
             drawText(ctx, "Time →", W / 2, H - 5, "#999", 10);
             ctx.save();
@@ -10441,8 +8692,6 @@ async renderLeaderboardTable() {
             drawText(ctx, "Total Votes →", 0, 0, "#999", 10);
             ctx.restore();
         }
-
-        // DICTIONARY LINE CHART - Uses global history for all users
         const cvsLine = document.getElementById('lineChartCanvas');
         if (cvsLine) {
             const ctx = cvsLine.getContext('2d');
@@ -10453,8 +8702,6 @@ async renderLeaderboardTable() {
             const Y_PLOT_MAX = P;
             const Y_PLOT_MIN = H - P;
             ctx.clearRect(0, 0, W, H);
-
-            // Use global history if available, otherwise fall back to local
             let history = globalHistory.filter(h => h.totalWords > 0);
             if (history.length === 0) {
                 history = State.data.wordHistory || [];
@@ -10463,24 +8710,18 @@ async renderLeaderboardTable() {
                 const today = new Date().toISOString().split('T')[0];
                 history = [{ date: today, totalWords: w.length, count: w.length }];
             }
-            // Normalize to have count property
             history = history.map(h => ({ ...h, count: h.totalWords || h.count || 0 }));
-            
-            // Clean up bad data: remove entries where count drops more than 20% (bad data from filtered lists)
             if (history.length > 1) {
                 const cleaned = [history[0]];
                 for (let i = 1; i < history.length; i++) {
                     const prev = cleaned[cleaned.length - 1];
                     const curr = history[i];
-                    // Only keep if count didn't drop more than 20%
                     if (curr.count >= prev.count * 0.8) {
                         cleaned.push(curr);
                     }
                 }
                 history = cleaned;
             }
-
-            // Display tracking start date for dictionary chart
             const formatTrackingDate = (dateStr) => {
                 const date = new Date(dateStr + 'T00:00:00');
                 const now = new Date();
@@ -10495,13 +8736,11 @@ async renderLeaderboardTable() {
                 if (diffDays < 30) return `(Since ${month} ${day})`;
                 return `(Since ${month} ${day}, ${year})`;
             };
-
             const dictStartDate = history[0]?.date;
             const dictTrackingEl = document.getElementById('dictTrackingStart');
             if (dictTrackingEl && dictStartDate) {
                 dictTrackingEl.textContent = formatTrackingDate(dictStartDate);
             }
-
             const currentMaxData = Math.max(...history.map(h => h.count), w.length);
             const Y_MIN_VALUE = 3000;
             const SOFT_MAX = 6000;
@@ -10569,8 +8808,6 @@ async renderLeaderboardTable() {
                     }
                 });
             }
-
-            // X-axis date labels (start and end)
             if (history.length > 0 && history[0].date) {
                 const formatShortDate = (dateStr) => {
                     const d = new Date(dateStr + 'T00:00:00');
@@ -10584,7 +8821,6 @@ async renderLeaderboardTable() {
                     drawText(ctx, formatShortDate(history[history.length - 1].date), W - P, H - P + 15, "#999", 9);
                 }
             }
-
             ctx.textAlign = "center";
             drawText(ctx, "Time →", W / 2, H - 5, "#999", 10);
             ctx.save();
@@ -10651,20 +8887,16 @@ async renderLeaderboardTable() {
         }
     }
 };
-
 const StreakManager = {
     timer: null,
     loopTimer: null,
     LIMIT: 6500,
-
     extend(ms) {
         if (this.timer) clearTimeout(this.timer);
         this.timer = setTimeout(() => this.endStreak(), this.LIMIT + ms);
     },
-
     handleSuccess() {
         if (State.data.settings.noStreaksMode) return;
-
         const now = Date.now();
         if (State.runtime.streak > 0 && (now - State.runtime.lastStreakTime) > this.LIMIT) {
             this.endStreak();
@@ -10672,16 +8904,13 @@ const StreakManager = {
         } else {
             State.runtime.streak++;
         }
-
         State.runtime.lastStreakTime = now;
         const currentStreak = State.runtime.streak;
-
         if (currentStreak > State.data.longestStreak) {
             State.save('longestStreak', currentStreak);
             const el = document.getElementById('streak-display-value');
             if(el) el.textContent = currentStreak + " Words";
         }
-
         if (currentStreak >= 5) {
             if (currentStreak === 5) this.showNotification("🔥 STREAK STARTED!", "success");
             this.updateScreenCounter(true);
@@ -10689,11 +8918,9 @@ const StreakManager = {
              const counter = document.getElementById('streak-floating-counter');
              if(counter) counter.style.opacity = '0';
         }
-
         if (this.timer) clearTimeout(this.timer);
         this.timer = setTimeout(() => this.endStreak(), this.LIMIT);
     },
-
     endStreak() {
         const current = State.runtime.streak;
         if (current > (parseInt(State.data.longestStreak) || 0)) {
@@ -10702,12 +8929,10 @@ const StreakManager = {
         }
         if (this.timer) clearTimeout(this.timer);
         const finalScore = State.runtime.streak;
-
         if (finalScore >= 5) {
             this.showNotification(`Streak Ended: ${finalScore} Words`, "neutral");
             this.checkHighScore(finalScore);
         }
-
         const counter = document.getElementById('streak-floating-counter');
         if (counter) {
             counter.style.opacity = '0';
@@ -10715,7 +8940,6 @@ const StreakManager = {
         }
         State.runtime.streak = 0;
     },
-
     updateScreenCounter(pulse) {
         let el = document.getElementById('streak-floating-counter');
         if (!el) {
@@ -10733,7 +8957,6 @@ const StreakManager = {
             });
         }
     },
-
     showNotification(msg, type) {
         const notif = document.createElement('div');
         notif.textContent = msg;
@@ -10747,17 +8970,14 @@ const StreakManager = {
         document.body.appendChild(notif);
         setTimeout(() => notif.remove(), 2500);
     },
-
     checkHighScore(score) {
         if (!State.data.highScores) State.data.highScores = [];
         const scores = State.data.highScores;
         const minScore = scores.length < 8 ? 0 : scores[scores.length - 1].score;
-
         if (score > minScore || scores.length < 8) {
             setTimeout(() => this.promptName(score), 500);
         }
     },
-
     promptName(score) {
         if(document.getElementById('nameEntryModal')) return;
         const html = `
@@ -10773,7 +8993,6 @@ const StreakManager = {
         const div = document.createElement('div');
         div.innerHTML = html;
         document.body.appendChild(div.firstElementChild);
-
         const saveFn = async () => {
             const name = (document.getElementById('hsNameInput').value || "AAA").toUpperCase();
             const scores = State.data.highScores || [];
@@ -10787,14 +9006,12 @@ const StreakManager = {
         };
         document.getElementById('hsSaveBtn').onclick = saveFn;
     },
-
     async shareScores() {
         const scores = State.data.highScores || [];
         const best = scores.length ? scores[0].score : 0;
         const name = State.data.username || "I";
         const text = `${name} just hit a streak of ${best} on Good Word / Bad Word! 🏆 Can you beat the high scores?`;
         const url = window.location.origin;
-
         if (navigator.share) {
             try {
                 await navigator.share({ title: 'High Scores', text: text, url: url });
@@ -10808,7 +9025,6 @@ const StreakManager = {
             }
         }
     },
-
     async showLeaderboard() {
         if (!document.getElementById('crt-styles')) {
             const s = document.createElement('style');
@@ -10838,7 +9054,6 @@ const StreakManager = {
             `;
             document.head.appendChild(s);
         }
-
         const html = `
             <div id="highScoreModal" class="fixed inset-0 bg-black/90 z-[200] flex items-center justify-center p-4 backdrop-blur-md" onclick="StreakManager.closeLeaderboard()">
                 <div class="crt-monitor w-full max-w-md transform transition-all scale-100" onclick="event.stopPropagation()">
@@ -10851,7 +9066,6 @@ const StreakManager = {
                         <div id="hs-display-area" class="min-h-[340px]">
                             <div class="text-center mt-20 text-cyan-400 crt-text animate-pulse">CONNECTING...</div>
                         </div>
-
                         <div class="mt-4 flex justify-between items-center crt-text text-xs text-gray-400 font-bold">
                              <span id="hs-page-indicator">LOADING</span>
                              <div class="flex gap-2">
@@ -10862,16 +9076,13 @@ const StreakManager = {
                     </div>
                 </div>
             </div>`;
-
         const div = document.createElement('div');
         div.innerHTML = html;
         document.body.appendChild(div.firstElementChild);
-
         const globalScores = await API.getGlobalScores();
         const topGlobal = (globalScores && globalScores.length) ? globalScores.slice(0, 8) : [];
         const localScores = (State.data.highScores || []).slice(0, 8);
         const username = State.data.username || "PLAYER";
-
         const renderRow = (s, i, color) => `
             <div class="flex justify-between items-center crt-text text-sm py-2 crt-row">
                 <div class="flex gap-3 items-center">
@@ -10880,17 +9091,13 @@ const StreakManager = {
                 </div>
                 <span class="text-white tracking-widest text-xl font-bold">${s.score.toString().padStart(4,'0')}</span>
             </div>`;
-
         const area = document.getElementById('hs-display-area');
         const indicator = document.getElementById('hs-page-indicator');
-
         let showingGlobal = true;
         let touchStartX = 0;
         let touchEndX = 0;
-
         const renderPage = () => {
             if(!document.getElementById('highScoreModal')) return;
-
             area.style.opacity = '0';
             setTimeout(() => {
                 if (showingGlobal) {
@@ -10912,27 +9119,21 @@ const StreakManager = {
                 area.style.opacity = '1';
             }, 200);
         };
-
         const switchPage = () => {
             showingGlobal = !showingGlobal;
             renderPage();
-            // Reset auto-switch timer
             if (this.loopTimer) clearTimeout(this.loopTimer);
             this.loopTimer = setTimeout(autoSwitch, 5000);
         };
-
         const autoSwitch = () => {
             if(!document.getElementById('highScoreModal')) return;
             showingGlobal = !showingGlobal;
             renderPage();
             this.loopTimer = setTimeout(autoSwitch, 5000);
         };
-
-        // Swipe support
         area.addEventListener('touchstart', (e) => {
             touchStartX = e.changedTouches[0].screenX;
         }, { passive: true });
-
         area.addEventListener('touchend', (e) => {
             touchEndX = e.changedTouches[0].screenX;
             const diff = touchStartX - touchEndX;
@@ -10940,29 +9141,22 @@ const StreakManager = {
                 switchPage();
             }
         }, { passive: true });
-
-        // Click to switch page
         area.style.cursor = 'pointer';
         area.onclick = switchPage;
-
         renderPage();
         this.loopTimer = setTimeout(autoSwitch, 5000);
     },
-
     closeLeaderboard() {
         const el = document.getElementById('highScoreModal');
         if(el) el.remove();
         if (this.loopTimer) clearTimeout(this.loopTimer);
     }
 };
-
     window.onload = Game.init.bind(Game);
     window.RoomManager = RoomManager;
     window.UIManager = UIManager;
     window.WeatherManager = WeatherManager;
     window.LocalPeerManager = LocalPeerManager;
-
     console.log("%c Good Word / Bad Word ", "background: #4f46e5; color: #bada55; padding: 4px; border-radius: 4px;");
     console.log("Play fair! ️😇");
-
 })();
