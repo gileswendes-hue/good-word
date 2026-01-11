@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.45',
+    APP_VERSION: '6.2.46',
     KIDS_LIST_FILE: 'kids_words.txt',
 
     SPECIAL: {
@@ -1671,13 +1671,12 @@ rs.innerHTML = `
         DOM.theme.chooser.value = currentThemeToApply;
     },
     populateChooser() {
-        // Just display current theme - clicking opens gallery instead
-        const c = DOM.theme.chooser;
-        if (!c) return;
+        // Update the button text if it exists
         const current = State.data.currentTheme || 'default';
         const name = current === 'ballpit' ? 'Ball Pit' : current.charAt(0).toUpperCase() + current.slice(1);
-        c.innerHTML = `<option value="${current}">${name}</option>`;
-        c.value = current;
+        if (DOM.theme.chooserBtn) {
+            DOM.theme.chooserBtn.innerHTML = `${name} ▼`;
+        }
     },
     
     showGallery() {
@@ -4196,61 +4195,69 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         const cowling = document.createElement('div');
         cowling.style.cssText = `
             position: absolute;
-            bottom: 15%;
+            bottom: 12%;
             left: 50%;
             transform: translateX(-50%);
-            width: 120px;
-            height: 80px;
-            background: linear-gradient(0deg, #4a4a4a 0%, #5a5a5a 30%, #6a6a6a 50%, #5a5a5a 70%, #3a3a3a 100%);
-            border-radius: 50% 50% 60% 60%;
+            width: 100px;
+            height: 70px;
+            background: linear-gradient(0deg, #3a3a3a 0%, #5a5a5a 30%, #6a6a6a 50%, #5a5a5a 70%, #3a3a3a 100%);
+            border-radius: 50% 50% 55% 55%;
             z-index: 45;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.4), inset 0 -10px 20px rgba(0,0,0,0.3);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.4), inset 0 -8px 15px rgba(0,0,0,0.3);
         `;
         c.appendChild(cowling);
         
-        // Spinner (propeller hub) - sits on cowling
+        // Spinner cone (propeller hub) - sits on cowling
         const spinner = document.createElement('div');
         spinner.style.cssText = `
             position: absolute;
-            bottom: calc(15% + 60px);
+            bottom: calc(12% + 55px);
             left: 50%;
             transform: translateX(-50%);
-            width: 40px;
-            height: 50px;
-            background: linear-gradient(180deg, #666 0%, #888 20%, #777 50%, #555 100%);
-            border-radius: 50% 50% 40% 40%;
-            z-index: 55;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            width: 35px;
+            height: 40px;
+            background: linear-gradient(180deg, #888 0%, #aaa 30%, #999 50%, #666 100%);
+            border-radius: 50% 50% 45% 45%;
+            z-index: 60;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
         `;
         c.appendChild(spinner);
         
-        // Propeller disc (motion blur effect - like a spinning disc)
-        const propDisc = document.createElement('div');
-        propDisc.className = 'flight-propeller';
-        propDisc.style.cssText = `
+        // Propeller with actual blade shapes - creates motion blur disc effect
+        const propeller = document.createElement('div');
+        propeller.className = 'flight-propeller';
+        propeller.style.cssText = `
             position: absolute;
-            bottom: calc(15% + 85px);
+            bottom: calc(12% + 75px);
             left: 50%;
             transform: translateX(-50%);
-            width: 280px;
-            height: 280px;
-            z-index: 52;
+            width: 300px;
+            height: 300px;
+            z-index: 58;
         `;
-        // Create realistic blade shapes
-        propDisc.innerHTML = `
-            <!-- Blade 1 -->
-            <div style="position: absolute; top: 50%; left: 50%; width: 130px; height: 18px; 
-                background: linear-gradient(180deg, #5a5a5a 0%, #3a3a3a 40%, #2a2a2a 100%);
-                transform-origin: left center; transform: translateY(-50%) rotate(0deg);
-                border-radius: 2px 8px 8px 2px;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>
-            <div style="position: absolute; top: 50%; right: 50%; width: 130px; height: 18px; 
-                background: linear-gradient(180deg, #5a5a5a 0%, #3a3a3a 40%, #2a2a2a 100%);
-                transform-origin: right center; transform: translateY(-50%) rotate(0deg);
-                border-radius: 8px 2px 2px 8px;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>
+        
+        // Create SVG propeller with realistic blade shapes
+        propeller.innerHTML = `
+            <svg viewBox="0 0 300 300" style="width: 100%; height: 100%;">
+                <defs>
+                    <linearGradient id="bladeGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" style="stop-color:#707070"/>
+                        <stop offset="30%" style="stop-color:#505050"/>
+                        <stop offset="70%" style="stop-color:#303030"/>
+                        <stop offset="100%" style="stop-color:#202020"/>
+                    </linearGradient>
+                </defs>
+                <!-- Blade 1 - pointing up-right -->
+                <path d="M150,150 Q155,100 160,60 Q165,40 150,35 Q135,40 140,60 Q145,100 150,150" 
+                      fill="url(#bladeGrad)" transform="rotate(0, 150, 150)"/>
+                <!-- Blade 2 - pointing down-left -->
+                <path d="M150,150 Q155,100 160,60 Q165,40 150,35 Q135,40 140,60 Q145,100 150,150" 
+                      fill="url(#bladeGrad)" transform="rotate(180, 150, 150)"/>
+                <!-- Hub -->
+                <circle cx="150" cy="150" r="15" fill="#555"/>
+            </svg>
         `;
-        c.appendChild(propDisc);
+        c.appendChild(propeller);
         
         // Add horizon line (distant)
         const horizon = document.createElement('div');
@@ -4296,16 +4303,20 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                     opacity: 0;
                 }
             }
-            @keyframes prop-jello {
-                0% { transform: translateX(-50%) skewY(0deg) scaleY(1); opacity: 0.35; }
-                25% { transform: translateX(-50%) skewY(3deg) scaleY(0.95); opacity: 0.25; }
-                50% { transform: translateX(-50%) skewY(-2deg) scaleY(1.02); opacity: 0.4; }
-                75% { transform: translateX(-50%) skewY(2deg) scaleY(0.98); opacity: 0.3; }
-                100% { transform: translateX(-50%) skewY(0deg) scaleY(1); opacity: 0.35; }
+            @keyframes prop-spin-jello {
+                0% { transform: translateX(-50%) rotate(0deg) skewY(0deg); opacity: 0.5; }
+                12.5% { transform: translateX(-50%) rotate(45deg) skewY(2deg); opacity: 0.35; }
+                25% { transform: translateX(-50%) rotate(90deg) skewY(0deg); opacity: 0.5; }
+                37.5% { transform: translateX(-50%) rotate(135deg) skewY(-2deg); opacity: 0.35; }
+                50% { transform: translateX(-50%) rotate(180deg) skewY(0deg); opacity: 0.5; }
+                62.5% { transform: translateX(-50%) rotate(225deg) skewY(2deg); opacity: 0.35; }
+                75% { transform: translateX(-50%) rotate(270deg) skewY(0deg); opacity: 0.5; }
+                87.5% { transform: translateX(-50%) rotate(315deg) skewY(-2deg); opacity: 0.35; }
+                100% { transform: translateX(-50%) rotate(360deg) skewY(0deg); opacity: 0.5; }
             }
             .flight-propeller {
-                animation: prop-jello 0.06s linear infinite;
-                filter: blur(1px);
+                animation: prop-spin-jello 0.15s linear infinite;
+                filter: blur(0.5px);
             }
         `;
         document.head.appendChild(style);
@@ -4454,25 +4465,40 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             `;
             c.appendChild(moon);
             
-            // Moon reflection - white/silver shimmer
-            const moonReflection = document.createElement('div');
-            moonReflection.className = 'ocean-reflection';
-            moonReflection.style.cssText = `
+            // Moon reflection - broken up by waves like real water
+            const reflectionContainer = document.createElement('div');
+            reflectionContainer.className = 'ocean-reflection-container';
+            reflectionContainer.style.cssText = `
                 position: absolute;
                 top: 49%;
                 left: ${bodyX}%;
                 transform: translateX(-50%);
-                width: 4px;
+                width: 40px;
                 height: 50%;
-                background: linear-gradient(180deg, 
-                    rgba(255,255,250,0.7) 0%, 
-                    rgba(255,255,250,0.4) 15%,
-                    rgba(255,255,250,0.2) 40%,
-                    rgba(255,255,250,0.05) 70%,
-                    transparent 100%);
                 z-index: 9;
+                overflow: hidden;
             `;
-            c.appendChild(moonReflection);
+            // Create multiple reflection segments that shimmer independently
+            for (let r = 0; r < 12; r++) {
+                const segment = document.createElement('div');
+                const yOffset = r * 4;
+                const width = 3 + Math.random() * 6;
+                const xOffset = (Math.random() - 0.5) * 20;
+                segment.style.cssText = `
+                    position: absolute;
+                    top: ${yOffset}%;
+                    left: 50%;
+                    transform: translateX(calc(-50% + ${xOffset}px));
+                    width: ${width}px;
+                    height: ${3 + Math.random() * 3}%;
+                    background: rgba(255,255,250,${0.8 - r * 0.06});
+                    border-radius: 50%;
+                    animation: reflection-segment ${0.8 + Math.random() * 0.8}s ease-in-out infinite;
+                    animation-delay: ${Math.random() * 0.5}s;
+                `;
+                reflectionContainer.appendChild(segment);
+            }
+            c.appendChild(reflectionContainer);
             
             // Add stars
             for (let i = 0; i < 50; i++) {
@@ -4509,25 +4535,41 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             `;
             c.appendChild(sun);
             
-            // Sun reflection - thin golden/yellow shimmer
-            const sunReflection = document.createElement('div');
-            sunReflection.className = 'ocean-reflection';
-            sunReflection.style.cssText = `
+            // Sun reflection - broken up golden shimmer on waves
+            const reflectionContainer = document.createElement('div');
+            reflectionContainer.className = 'ocean-reflection-container';
+            reflectionContainer.style.cssText = `
                 position: absolute;
                 top: 49%;
                 left: ${bodyX}%;
                 transform: translateX(-50%);
-                width: 3px;
+                width: 50px;
                 height: 50%;
-                background: linear-gradient(180deg, 
-                    rgba(255,215,0,0.8) 0%, 
-                    rgba(255,200,0,0.5) 15%,
-                    rgba(255,180,0,0.25) 40%,
-                    rgba(255,150,0,0.1) 70%,
-                    transparent 100%);
                 z-index: 9;
+                overflow: hidden;
             `;
-            c.appendChild(sunReflection);
+            // Create multiple reflection segments that shimmer independently
+            for (let r = 0; r < 15; r++) {
+                const segment = document.createElement('div');
+                const yOffset = r * 3.5;
+                const width = 2 + Math.random() * 8;
+                const xOffset = (Math.random() - 0.5) * 30;
+                const golden = isEvening ? [255, 150, 50] : [255, 215, 0];
+                segment.style.cssText = `
+                    position: absolute;
+                    top: ${yOffset}%;
+                    left: 50%;
+                    transform: translateX(calc(-50% + ${xOffset}px));
+                    width: ${width}px;
+                    height: ${2 + Math.random() * 3}%;
+                    background: rgba(${golden[0]},${golden[1]},${golden[2]},${0.9 - r * 0.05});
+                    border-radius: 50%;
+                    animation: reflection-segment ${0.6 + Math.random() * 0.8}s ease-in-out infinite;
+                    animation-delay: ${Math.random() * 0.5}s;
+                `;
+                reflectionContainer.appendChild(segment);
+            }
+            c.appendChild(reflectionContainer);
         }
         
         // Ocean waves - BLUE, not green!
@@ -4590,6 +4632,16 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 75% { 
                     opacity: 0.7; 
                     transform: translateX(-50%) scaleX(1.5) scaleY(0.98);
+                }
+            }
+            @keyframes reflection-segment {
+                0%, 100% { 
+                    opacity: 0.3;
+                    transform: translateX(calc(-50% + var(--x-off, 0px))) scaleX(0.8);
+                }
+                50% { 
+                    opacity: 1;
+                    transform: translateX(calc(-50% + var(--x-off, 0px))) scaleX(1.5);
                 }
             }
             .ocean-reflection {
@@ -4670,7 +4722,7 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                     ${goingRight ? 'boat-drift' : 'boat-drift-reverse'} ${duration}s linear forwards,
                     ${bobAnimation};
                 filter: drop-shadow(2px 3px ${Math.floor(size/10) + 2}px rgba(0,0,0,0.4));
-                ${!goingRight ? 'transform: scaleX(-1);' : ''}
+                ${goingRight ? 'transform: scaleX(-1);' : ''}
             `;
             
             c.appendChild(boat);
@@ -4700,7 +4752,7 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 animation: 
                     ${goingRight ? 'boat-drift' : 'boat-drift-reverse'} ${duration}s linear forwards,
                     seagull-fly 0.6s ease-in-out infinite;
-                ${!goingRight ? 'transform: scaleX(-1);' : ''}
+                ${goingRight ? 'transform: scaleX(-1);' : ''}
             `;
             
             c.appendChild(bird);
@@ -8766,17 +8818,28 @@ const Game = {
             };
 
             if (DOM.theme.chooser) {
-                // Open theme gallery popup instead of dropdown
-                DOM.theme.chooser.onclick = (e) => {
+                // Replace select element with a clickable button
+                const chooser = DOM.theme.chooser;
+                const currentTheme = State.data.currentTheme || 'default';
+                const themeName = currentTheme === 'ballpit' ? 'Ball Pit' : currentTheme.charAt(0).toUpperCase() + currentTheme.slice(1);
+                
+                // Create a button to replace the select
+                const btn = document.createElement('button');
+                btn.id = 'themeChooserBtn';
+                btn.className = chooser.className;
+                btn.innerHTML = `${themeName} ▼`;
+                btn.style.cssText = chooser.style.cssText + 'cursor: pointer;';
+                btn.onclick = (e) => {
                     e.preventDefault();
                     ThemeManager.showGallery();
                 };
-                // Also handle if it's a select element
-                DOM.theme.chooser.onfocus = (e) => {
-                    e.preventDefault();
-                    e.target.blur();
-                    ThemeManager.showGallery();
-                };
+                
+                // Hide the original select and add button after it
+                chooser.style.display = 'none';
+                chooser.parentNode.insertBefore(btn, chooser.nextSibling);
+                
+                // Store reference to button for updates
+                DOM.theme.chooserBtn = btn;
             }
 
             State.init();
