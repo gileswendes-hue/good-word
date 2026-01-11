@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.36',
+    APP_VERSION: '6.2.37',
     KIDS_LIST_FILE: 'kids_words.txt',
 
     SPECIAL: {
@@ -8223,10 +8223,10 @@ async vote(t, s = false) {
         }
 
         // === ANTI-CHEAT: Speed detection ===
-        // Track voting speed - if voting faster than 1.2 seconds consistently, suspicious
+        // Track voting speed - if voting faster than 1.4 seconds consistently, suspicious
         if (State.runtime.lastVoteTime > 0) {
             const timeSinceLastVote = n - State.runtime.lastVoteTime;
-            if (timeSinceLastVote < 1200) {
+            if (timeSinceLastVote < 1400) {
                 State.runtime.fastVoteCount = (State.runtime.fastVoteCount || 0) + 1;
             } else {
                 // Decay fast vote count if they slow down
