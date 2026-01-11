@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.28',
+    APP_VERSION: '6.2.29',
     KIDS_LIST_FILE: 'kids_words.txt',
 
     SPECIAL: {
@@ -565,19 +565,12 @@ const OfflineManager = {
         });
         State.save('voteQueue', State.data.voteQueue);
 
-        // Update local cache counts (for persistence)
-        const cacheWord = State.data.offlineCache?.find(w => w._id === wordId);
-        if (cacheWord) {
-            if (voteType === 'good') cacheWord.goodVotes = (cacheWord.goodVotes || 0) + 1;
-            else if (voteType === 'bad') cacheWord.badVotes = (cacheWord.badVotes || 0) + 1;
+        // Update the word in offlineCache (which is same objects as allWords/fullWordList)
+        const word = State.data.offlineCache?.find(w => w._id === wordId);
+        if (word) {
+            if (voteType === 'good') word.goodVotes = (word.goodVotes || 0) + 1;
+            else if (voteType === 'bad') word.badVotes = (word.badVotes || 0) + 1;
             State.save('offlineCache', State.data.offlineCache);
-        }
-
-        // Also update runtime words (for display)
-        const runtimeWord = State.runtime.allWords?.find(w => w._id === wordId);
-        if (runtimeWord) {
-            if (voteType === 'good') runtimeWord.goodVotes = (runtimeWord.goodVotes || 0) + 1;
-            else if (voteType === 'bad') runtimeWord.badVotes = (runtimeWord.badVotes || 0) + 1;
         }
 
         // Update the offline indicator to show queue count
@@ -626,12 +619,11 @@ const OfflineManager = {
                 State.data.settings.offlineMode = true;
                 State.save('settings', State.data.settings);
 
-                // Load cached words into game (make a copy to avoid mutating cache)
+                // Load cached words into game - use same objects as cache for consistent updates
                 // Filter out words marked as "not a word" (same as online mode)
                 State.runtime.allWords = State.data.offlineCache
-                    .filter(w => (w.notWordVotes || 0) < 3)
-                    .map(w => ({...w}));
-                State.runtime.fullWordList = State.runtime.allWords; // Store for stats
+                    .filter(w => (w.notWordVotes || 0) < 3);
+                State.runtime.fullWordList = State.runtime.allWords; // Same reference
 
                 // Shuffle them
                 for (let i = State.runtime.allWords.length - 1; i > 0; i--) {
@@ -8282,10 +8274,7 @@ async vote(t, s = false) {
             // OFFLINE MODE: Queue vote for later sync
             if (OfflineManager.isActive()) {
                 OfflineManager.queueVote(w._id, t);
-                w[`${t}Votes`] = (w[`${t}Votes`] || 0) + 1;
-                // Also update in fullWordList if it's a different object
-                const fullWord = State.runtime.fullWordList.find(fw => fw._id === w._id);
-                if (fullWord && fullWord !== w) fullWord[`${t}Votes`] = w[`${t}Votes`];
+                // queueVote updates the word object which is shared across all arrays
                 State.incrementVote();
                 StreakManager.handleSuccess();
             } else {
