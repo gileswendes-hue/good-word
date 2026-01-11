@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.47',
+    APP_VERSION: '6.2.48',
     KIDS_LIST_FILE: 'kids_words.txt',
 
     SPECIAL: {
@@ -1740,7 +1740,7 @@ rs.innerHTML = `
                 `;
                 tile.onclick = () => {
                     ThemeManager.apply(key, true);
-                    DOM.theme.chooser.value = key;
+                    ThemeManager.populateChooser(); // Update button text
                     document.querySelectorAll('.theme-tile').forEach(t => t.classList.remove('ring-3', 'ring-indigo-500', 'ring-offset-2'));
                     tile.classList.add('ring-3', 'ring-indigo-500', 'ring-offset-2');
                     setTimeout(() => document.getElementById('theme-gallery-popup')?.remove(), 300);
@@ -4234,122 +4234,123 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         // Sky gradient - looking forward from cockpit
         c.style.background = 'linear-gradient(180deg, #1a3a5c 0%, #4a90c2 30%, #87CEEB 60%, #B0E0E6 100%)';
         
-        // Subtle cockpit frame - thin, unobtrusive
-        const cockpit = document.createElement('div');
-        cockpit.style.cssText = `
+        // Add horizon line first (behind everything)
+        const horizon = document.createElement('div');
+        horizon.style.cssText = `
+            position: absolute;
+            top: 60%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: rgba(255,255,255,0.2);
+            z-index: 1;
+        `;
+        c.appendChild(horizon);
+        
+        // Engine cowling (nose of plane) - the body that hides where prop meets plane
+        const cowling = document.createElement('div');
+        cowling.style.cssText = `
+            position: absolute;
+            bottom: -5%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 180px;
+            height: 200px;
+            background: linear-gradient(0deg, #1a1a1a 0%, #3a3a3a 30%, #4a4a4a 50%, #3a3a3a 70%, #2a2a2a 100%);
+            border-radius: 50% 50% 50% 50%;
+            z-index: 50;
+            box-shadow: 0 -10px 40px rgba(0,0,0,0.6);
+        `;
+        c.appendChild(cowling);
+        
+        // Propeller disc behind the cowling view - large spinning prop
+        const propeller = document.createElement('div');
+        propeller.className = 'flight-propeller';
+        propeller.style.cssText = `
+            position: absolute;
+            bottom: 25%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 400px;
+            height: 400px;
+            z-index: 48;
+        `;
+        
+        // SVG propeller with realistic blades
+        propeller.innerHTML = `
+            <svg viewBox="0 0 400 400" style="width: 100%; height: 100%;">
+                <defs>
+                    <linearGradient id="bladeGradA" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color:#505050"/>
+                        <stop offset="50%" style="stop-color:#707070"/>
+                        <stop offset="100%" style="stop-color:#454545"/>
+                    </linearGradient>
+                </defs>
+                <!-- Two-blade propeller -->
+                <ellipse cx="200" cy="200" rx="180" ry="22" fill="url(#bladeGradA)" opacity="0.7"/>
+                <!-- Hub -->
+                <circle cx="200" cy="200" r="20" fill="#3a3a3a"/>
+            </svg>
+        `;
+        c.appendChild(propeller);
+        
+        // Spinner cone that connects prop to cowling
+        const spinner = document.createElement('div');
+        spinner.style.cssText = `
+            position: absolute;
+            bottom: calc(-5% + 180px);
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 70px;
+            background: linear-gradient(180deg, #666 0%, #888 30%, #777 60%, #555 100%);
+            border-radius: 50% 50% 40% 40%;
+            z-index: 55;
+            box-shadow: 0 -5px 15px rgba(0,0,0,0.4);
+        `;
+        c.appendChild(spinner);
+        
+        // Windscreen frame - the cockpit glass frame
+        const windscreen = document.createElement('div');
+        windscreen.style.cssText = `
             position: absolute;
             inset: 0;
             pointer-events: none;
             z-index: 100;
         `;
-        cockpit.innerHTML = `
-            <!-- Thin windscreen frame -->
-            <div style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 4px; height: 30%; background: linear-gradient(180deg, #3a3a3a 0%, #2a2a2a 100%); border-radius: 2px;"></div>
-            <!-- Corner shadows for depth -->
-            <div style="position: absolute; top: 0; left: 0; width: 60px; height: 60px; background: radial-gradient(ellipse at top left, rgba(0,0,0,0.3) 0%, transparent 70%);"></div>
-            <div style="position: absolute; top: 0; right: 0; width: 60px; height: 60px; background: radial-gradient(ellipse at top right, rgba(0,0,0,0.3) 0%, transparent 70%);"></div>
-            <!-- Dashboard - subtle curve at bottom -->
-            <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 50px; background: linear-gradient(0deg, #2a2a2a 0%, #3a3a3a 60%, transparent 100%); border-radius: 100% 100% 0 0;"></div>
-            <!-- Small gauges -->
-            <div style="position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px;">
-                <div style="width: 28px; height: 28px; border-radius: 50%; background: #111; border: 1px solid #444; box-shadow: inset 0 0 8px rgba(0,255,0,0.2);"></div>
-                <div style="width: 32px; height: 32px; border-radius: 50%; background: #111; border: 1px solid #444; box-shadow: inset 0 0 8px rgba(255,100,0,0.2);"></div>
-                <div style="width: 28px; height: 28px; border-radius: 50%; background: #111; border: 1px solid #444; box-shadow: inset 0 0 8px rgba(0,150,255,0.2);"></div>
+        windscreen.innerHTML = `
+            <!-- Windscreen glass tint -->
+            <div style="position: absolute; inset: 0; background: linear-gradient(180deg, rgba(200,220,255,0.08) 0%, transparent 50%); pointer-events: none;"></div>
+            
+            <!-- Top windscreen frame -->
+            <div style="position: absolute; top: 0; left: 0; right: 0; height: 25px; background: linear-gradient(180deg, #1a1a1a 0%, #2a2a2a 80%, transparent 100%);"></div>
+            
+            <!-- Center windscreen divider -->
+            <div style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 6px; height: 45%; background: linear-gradient(180deg, #2a2a2a 0%, #3a3a3a 50%, #2a2a2a 100%); border-radius: 3px;"></div>
+            
+            <!-- Left windscreen pillar -->
+            <div style="position: absolute; top: 0; left: 0; width: 35px; height: 100%; background: linear-gradient(90deg, #1a1a1a 0%, #2a2a2a 70%, transparent 100%);"></div>
+            
+            <!-- Right windscreen pillar -->
+            <div style="position: absolute; top: 0; right: 0; width: 35px; height: 100%; background: linear-gradient(90deg, transparent 0%, #2a2a2a 30%, #1a1a1a 100%);"></div>
+            
+            <!-- Dashboard panel -->
+            <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 90px; background: linear-gradient(0deg, #1a1a1a 0%, #2a2a2a 70%, #3a3a3a 90%, transparent 100%);"></div>
+            
+            <!-- Dashboard top edge / glareshield -->
+            <div style="position: absolute; bottom: 75px; left: 30px; right: 30px; height: 20px; background: linear-gradient(0deg, #2a2a2a, #3a3a3a); border-radius: 10px 10px 0 0;"></div>
+            
+            <!-- Instrument panel gauges -->
+            <div style="position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 12px; align-items: flex-end;">
+                <div style="width: 35px; height: 35px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #222, #111); border: 2px solid #444; box-shadow: inset 0 0 10px rgba(0,200,0,0.15);"></div>
+                <div style="width: 45px; height: 45px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #222, #111); border: 2px solid #444; box-shadow: inset 0 0 12px rgba(255,150,0,0.2);"></div>
+                <div style="width: 35px; height: 35px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #222, #111); border: 2px solid #444; box-shadow: inset 0 0 10px rgba(0,150,255,0.15);"></div>
             </div>
+            
+            <!-- Yoke/control column hint -->
+            <div style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 30px; height: 40px; background: linear-gradient(90deg, #1a1a1a, #2a2a2a, #1a1a1a); border-radius: 5px 5px 0 0;"></div>
         `;
-        c.appendChild(cockpit);
-        
-        // Engine cowling (nose of plane) - larger, connects propeller to aircraft
-        const cowling = document.createElement('div');
-        cowling.style.cssText = `
-            position: absolute;
-            bottom: 5%;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 140px;
-            height: 120px;
-            background: linear-gradient(0deg, #2a2a2a 0%, #4a4a4a 20%, #5a5a5a 40%, #4a4a4a 60%, #3a3a3a 80%, #2a2a2a 100%);
-            border-radius: 50% 50% 50% 50%;
-            z-index: 45;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.5), inset 0 -15px 30px rgba(0,0,0,0.4);
-        `;
-        c.appendChild(cowling);
-        
-        // Spinner cone (propeller hub) - sits on top of cowling
-        const spinner = document.createElement('div');
-        spinner.style.cssText = `
-            position: absolute;
-            bottom: calc(5% + 100px);
-            left: 50%;
-            transform: translateX(-50%);
-            width: 50px;
-            height: 60px;
-            background: linear-gradient(180deg, #777 0%, #999 20%, #888 50%, #666 80%, #555 100%);
-            border-radius: 50% 50% 45% 45%;
-            z-index: 65;
-            box-shadow: 0 3px 12px rgba(0,0,0,0.5);
-        `;
-        c.appendChild(spinner);
-        
-        // Large propeller with proper blades - positioned to connect to spinner
-        const propeller = document.createElement('div');
-        propeller.className = 'flight-propeller';
-        propeller.style.cssText = `
-            position: absolute;
-            bottom: calc(5% + 40px);
-            left: 50%;
-            transform: translateX(-50%);
-            width: 500px;
-            height: 500px;
-            z-index: 62;
-        `;
-        
-        // Create SVG propeller with realistic wide blade shapes
-        propeller.innerHTML = `
-            <svg viewBox="0 0 500 500" style="width: 100%; height: 100%;">
-                <defs>
-                    <linearGradient id="bladeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" style="stop-color:#505050"/>
-                        <stop offset="30%" style="stop-color:#707070"/>
-                        <stop offset="50%" style="stop-color:#606060"/>
-                        <stop offset="70%" style="stop-color:#505050"/>
-                        <stop offset="100%" style="stop-color:#404040"/>
-                    </linearGradient>
-                    <linearGradient id="bladeGrad2" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" style="stop-color:#404040"/>
-                        <stop offset="30%" style="stop-color:#606060"/>
-                        <stop offset="50%" style="stop-color:#555555"/>
-                        <stop offset="70%" style="stop-color:#454545"/>
-                        <stop offset="100%" style="stop-color:#353535"/>
-                    </linearGradient>
-                </defs>
-                <!-- Blade 1 - wider, more realistic shape -->
-                <path d="M250,250 
-                    L240,220 Q230,150 235,80 Q240,40 250,30 Q260,40 265,80 Q270,150 260,220 Z" 
-                    fill="url(#bladeGrad)" stroke="#333" stroke-width="1"/>
-                <!-- Blade 2 -->
-                <path d="M250,250 
-                    L240,220 Q230,150 235,80 Q240,40 250,30 Q260,40 265,80 Q270,150 260,220 Z" 
-                    fill="url(#bladeGrad2)" stroke="#333" stroke-width="1" transform="rotate(180, 250, 250)"/>
-                <!-- Central hub -->
-                <circle cx="250" cy="250" r="25" fill="#444" stroke="#333" stroke-width="2"/>
-                <circle cx="250" cy="250" r="15" fill="#555"/>
-            </svg>
-        `;
-        c.appendChild(propeller);
-        
-        // Add horizon line (distant)
-        const horizon = document.createElement('div');
-        horizon.style.cssText = `
-            position: absolute;
-            top: 65%;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background: rgba(255,255,255,0.15);
-            z-index: 1;
-        `;
-        c.appendChild(horizon);
+        c.appendChild(windscreen);
         
         // Add flight animation styles
         const oldStyle = document.getElementById('flight-style');
@@ -4383,19 +4384,19 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 }
             }
             @keyframes prop-spin-jello {
-                0% { transform: translateX(-50%) rotate(0deg) skewY(0deg); opacity: 0.5; }
-                12.5% { transform: translateX(-50%) rotate(45deg) skewY(2deg); opacity: 0.35; }
-                25% { transform: translateX(-50%) rotate(90deg) skewY(0deg); opacity: 0.5; }
-                37.5% { transform: translateX(-50%) rotate(135deg) skewY(-2deg); opacity: 0.35; }
-                50% { transform: translateX(-50%) rotate(180deg) skewY(0deg); opacity: 0.5; }
-                62.5% { transform: translateX(-50%) rotate(225deg) skewY(2deg); opacity: 0.35; }
-                75% { transform: translateX(-50%) rotate(270deg) skewY(0deg); opacity: 0.5; }
-                87.5% { transform: translateX(-50%) rotate(315deg) skewY(-2deg); opacity: 0.35; }
-                100% { transform: translateX(-50%) rotate(360deg) skewY(0deg); opacity: 0.5; }
+                0% { transform: translateX(-50%) rotate(0deg) scaleY(1); opacity: 0.6; }
+                12.5% { transform: translateX(-50%) rotate(45deg) scaleY(0.85); opacity: 0.4; }
+                25% { transform: translateX(-50%) rotate(90deg) scaleY(1); opacity: 0.6; }
+                37.5% { transform: translateX(-50%) rotate(135deg) scaleY(0.85); opacity: 0.4; }
+                50% { transform: translateX(-50%) rotate(180deg) scaleY(1); opacity: 0.6; }
+                62.5% { transform: translateX(-50%) rotate(225deg) scaleY(0.85); opacity: 0.4; }
+                75% { transform: translateX(-50%) rotate(270deg) scaleY(1); opacity: 0.6; }
+                87.5% { transform: translateX(-50%) rotate(315deg) scaleY(0.85); opacity: 0.4; }
+                100% { transform: translateX(-50%) rotate(360deg) scaleY(1); opacity: 0.6; }
             }
             .flight-propeller {
-                animation: prop-spin-jello 0.15s linear infinite;
-                filter: blur(0.5px);
+                animation: prop-spin-jello 0.12s linear infinite;
+                filter: blur(1px);
             }
         `;
         document.head.appendChild(style);
@@ -4655,7 +4656,7 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             c.appendChild(reflectionContainer);
         }
         
-        // Ocean waves with SVG wave shapes
+        // Ocean waves with SVG wave shapes - flatter in distance, larger closer
         const waveColors = isNight 
             ? ['#0a1e3a', '#0c2444', '#0e2a4e', '#102f55']
             : ['#1a5a8a', '#2a6a9a', '#3a7aaa', '#4a8aba'];
@@ -4663,56 +4664,57 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         for (let i = 0; i < 4; i++) {
             const waveContainer = document.createElement('div');
             waveContainer.className = 'ocean-wave-container';
+            // Waves closer have more height variation
+            const waveAmplitude = 2 + i * 6; // 2px for distant, up to 20px for close
             waveContainer.style.cssText = `
                 position: absolute;
-                top: ${46 + i * 6}%;
-                left: 0;
-                width: 200%;
-                height: ${56 - i * 8}%;
+                top: ${46 + i * 8}%;
+                left: -50%;
+                width: 300%;
+                height: ${58 - i * 10}%;
                 z-index: ${4 + i};
-                animation: wave-scroll-${i} ${12 - i * 2}s linear infinite;
+                animation: wave-scroll-${i} ${18 - i * 3}s linear infinite;
             `;
             
-            // Create SVG wave
-            const waveHeight = 15 + i * 5;
+            // Create SVG wave - amplitude increases with i (closer waves are bigger)
+            const baseY = 30;
             waveContainer.innerHTML = `
-                <svg viewBox="0 0 1200 ${waveHeight + 200}" preserveAspectRatio="none" style="width: 100%; height: 100%;">
+                <svg viewBox="0 0 1800 250" preserveAspectRatio="none" style="width: 100%; height: 100%;">
                     <defs>
                         <linearGradient id="waveGrad${i}" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" style="stop-color:${waveColors[i]};stop-opacity:0.95"/>
+                            <stop offset="0%" style="stop-color:${waveColors[i]};stop-opacity:0.98"/>
                             <stop offset="100%" style="stop-color:${isNight ? '#050d18' : '#0a2840'};stop-opacity:1"/>
                         </linearGradient>
                     </defs>
-                    <path d="M0,${waveHeight} 
-                        Q75,${waveHeight - 12} 150,${waveHeight}
-                        Q225,${waveHeight + 12} 300,${waveHeight}
-                        Q375,${waveHeight - 10} 450,${waveHeight}
-                        Q525,${waveHeight + 14} 600,${waveHeight}
-                        Q675,${waveHeight - 8} 750,${waveHeight}
-                        Q825,${waveHeight + 10} 900,${waveHeight}
-                        Q975,${waveHeight - 12} 1050,${waveHeight}
-                        Q1125,${waveHeight + 8} 1200,${waveHeight}
-                        L1200,${waveHeight + 200} L0,${waveHeight + 200} Z" 
+                    <path d="M0,${baseY} 
+                        C100,${baseY - waveAmplitude} 200,${baseY + waveAmplitude} 300,${baseY}
+                        C400,${baseY - waveAmplitude * 0.8} 500,${baseY + waveAmplitude * 1.1} 600,${baseY}
+                        C700,${baseY - waveAmplitude * 0.9} 800,${baseY + waveAmplitude} 900,${baseY}
+                        C1000,${baseY - waveAmplitude * 1.1} 1100,${baseY + waveAmplitude * 0.8} 1200,${baseY}
+                        C1300,${baseY - waveAmplitude} 1400,${baseY + waveAmplitude * 0.9} 1500,${baseY}
+                        C1600,${baseY - waveAmplitude * 0.8} 1700,${baseY + waveAmplitude} 1800,${baseY}
+                        L1800,250 L0,250 Z" 
                         fill="url(#waveGrad${i})"/>
                 </svg>
             `;
             c.appendChild(waveContainer);
         }
         
-        // Add foam/whitecaps on front waves
-        for (let f = 0; f < 8; f++) {
+        // Add foam/whitecaps on front waves only
+        for (let f = 0; f < 10; f++) {
             const foam = document.createElement('div');
             foam.style.cssText = `
                 position: absolute;
-                top: ${70 + Math.random() * 20}%;
+                top: ${72 + Math.random() * 22}%;
                 left: ${Math.random() * 100}%;
-                width: ${30 + Math.random() * 50}px;
-                height: ${4 + Math.random() * 4}px;
-                background: rgba(255,255,255,${0.3 + Math.random() * 0.3});
+                width: ${20 + Math.random() * 60}px;
+                height: ${3 + Math.random() * 4}px;
+                background: rgba(255,255,255,${0.25 + Math.random() * 0.35});
                 border-radius: 50%;
-                filter: blur(2px);
-                animation: foam-drift ${8 + Math.random() * 6}s linear infinite;
-                z-index: 15;
+                filter: blur(1px);
+                animation: foam-drift ${6 + Math.random() * 8}s linear infinite;
+                animation-delay: ${Math.random() * 4}s;
+                z-index: 18;
             `;
             c.appendChild(foam);
         }
@@ -4725,19 +4727,19 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         style.id = 'ocean-style';
         style.textContent = `
             @keyframes wave-scroll-0 {
-                0% { transform: translateX(0); }
+                0% { transform: translateX(-16.67%); }
                 100% { transform: translateX(-50%); }
             }
             @keyframes wave-scroll-1 {
                 0% { transform: translateX(-50%); }
-                100% { transform: translateX(0); }
+                100% { transform: translateX(-16.67%); }
             }
             @keyframes wave-scroll-2 {
                 0% { transform: translateX(-25%); }
-                100% { transform: translateX(-75%); }
+                100% { transform: translateX(-58.33%); }
             }
             @keyframes wave-scroll-3 {
-                0% { transform: translateX(-75%); }
+                0% { transform: translateX(-58.33%); }
                 100% { transform: translateX(-25%); }
             }
             @keyframes foam-drift {
