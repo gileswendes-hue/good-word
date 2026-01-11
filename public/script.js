@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.53',
+    APP_VERSION: '6.2.54',
     KIDS_LIST_FILE: 'kids_words.txt',
 
     SPECIAL: {
@@ -3026,7 +3026,7 @@ halloween(active) {
             const duration = 4 + Math.random() * 3;
             
             bat.innerHTML = `
-                <div class="bat-body" style="font-size: 2rem; filter: drop-shadow(0 0 10px rgba(0,0,0,0.5));">
+                <div class="bat-body" style="font-size: 5rem; filter: drop-shadow(0 0 15px rgba(0,0,0,0.6));">
                     <span class="bat-wing-left" style="display: inline-block; transform-origin: right center;">🦇</span>
                 </div>
             `;
@@ -4342,122 +4342,45 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         if (!active) { c.innerHTML = ''; c.style.background = ''; return; }
         c.innerHTML = '';
         
-        // Create a container for the whole scene that can bank
-        const sceneContainer = document.createElement('div');
-        sceneContainer.id = 'flight-scene';
-        sceneContainer.style.cssText = `
+        // Sky background (fixed, doesn't move)
+        c.style.background = 'linear-gradient(180deg, #0a1a3a 0%, #1a4a7a 25%, #4a90c2 50%, #87CEEB 70%, #a8d4ea 85%, #c5e5f5 100%)';
+        
+        // Horizon/mountains container - this slides during banking
+        const horizonContainer = document.createElement('div');
+        horizonContainer.id = 'flight-horizon';
+        horizonContainer.style.cssText = `
             position: absolute;
-            inset: -20%;
-            transition: transform 3s ease-in-out;
-            transform-origin: center center;
+            top: 0;
+            left: -50%;
+            width: 200%;
+            height: 55%;
+            transition: transform 2s ease-out;
         `;
         
-        // Sky gradient
-        sceneContainer.style.background = 'linear-gradient(180deg, #0a1a3a 0%, #1a4a7a 20%, #4a90c2 40%, #87CEEB 60%, #a8d4ea 80%, #c5e5f5 100%)';
-        
-        // Mountains on horizon
-        const mountains = document.createElement('div');
-        mountains.style.cssText = `
-            position: absolute;
-            top: 48%;
-            left: -10%;
-            width: 120%;
-            height: 20%;
-            z-index: 2;
-        `;
-        mountains.innerHTML = `
-            <svg viewBox="0 0 1200 200" preserveAspectRatio="none" style="width: 100%; height: 100%;">
+        // Mountains SVG - very wide for sliding
+        horizonContainer.innerHTML = `
+            <svg viewBox="0 0 2400 300" preserveAspectRatio="none" style="position: absolute; bottom: 0; left: 0; width: 100%; height: 60%;">
                 <defs>
-                    <linearGradient id="mountain1" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" style="stop-color:#4a5568"/>
-                        <stop offset="100%" style="stop-color:#2d3748"/>
-                    </linearGradient>
-                    <linearGradient id="mountain2" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <linearGradient id="mtnBack" x1="0%" y1="0%" x2="0%" y2="100%">
                         <stop offset="0%" style="stop-color:#5a6578"/>
                         <stop offset="100%" style="stop-color:#3d4758"/>
                     </linearGradient>
+                    <linearGradient id="mtnFront" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" style="stop-color:#6a7588"/>
+                        <stop offset="100%" style="stop-color:#4d5768"/>
+                    </linearGradient>
                 </defs>
                 <!-- Back mountains -->
-                <path d="M0,200 L0,120 L100,60 L200,100 L300,40 L400,90 L500,30 L600,80 L700,50 L800,100 L900,45 L1000,85 L1100,55 L1200,90 L1200,200 Z" fill="url(#mountain1)" opacity="0.6"/>
+                <path d="M0,300 L0,180 L100,100 L200,150 L350,60 L500,120 L650,40 L800,100 L950,55 L1100,130 L1250,45 L1400,110 L1550,35 L1700,90 L1850,65 L2000,140 L2150,50 L2300,100 L2400,120 L2400,300 Z" fill="url(#mtnBack)" opacity="0.5"/>
                 <!-- Front mountains -->
-                <path d="M0,200 L0,140 L150,80 L250,120 L400,60 L550,110 L650,70 L800,130 L950,75 L1100,115 L1200,85 L1200,200 Z" fill="url(#mountain2)" opacity="0.8"/>
+                <path d="M0,300 L0,200 L150,120 L300,170 L450,80 L600,150 L750,60 L900,140 L1050,75 L1200,160 L1350,55 L1500,130 L1650,70 L1800,155 L1950,85 L2100,145 L2250,95 L2400,150 L2400,300 Z" fill="url(#mtnFront)" opacity="0.7"/>
                 <!-- Snow caps -->
-                <path d="M300,40 L280,60 L320,60 Z M500,30 L475,55 L525,55 Z M700,50 L680,70 L720,70 Z M900,45 L875,70 L925,70 Z" fill="rgba(255,255,255,0.7)"/>
+                <path d="M350,60 L320,90 L380,90 Z M650,40 L615,75 L685,75 Z M950,55 L920,85 L980,85 Z M1250,45 L1215,80 L1285,80 Z M1550,35 L1510,75 L1590,75 Z M1850,65 L1820,95 L1880,95 Z M2150,50 L2115,85 L2185,85 Z" fill="rgba(255,255,255,0.8)"/>
             </svg>
         `;
-        sceneContainer.appendChild(mountains);
+        c.appendChild(horizonContainer);
         
-        // Ground wrapper
-        const groundWrapper = document.createElement('div');
-        groundWrapper.id = 'flight-ground';
-        groundWrapper.style.cssText = `
-            position: absolute;
-            top: 55%;
-            left: -10%;
-            width: 120%;
-            height: 60%;
-            overflow: hidden;
-            z-index: 3;
-        `;
-        
-        // Base ground with realistic gradient
-        const groundBase = document.createElement('div');
-        groundBase.style.cssText = `
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(180deg, 
-                #8a9a6a 0%, 
-                #7a8a5a 10%,
-                #6a7a4a 25%, 
-                #5a6a3a 50%, 
-                #4a5a2a 75%,
-                #3a4a1a 100%);
-        `;
-        groundWrapper.appendChild(groundBase);
-        sceneContainer.appendChild(groundWrapper);
-        c.appendChild(sceneContainer);
-        
-        // Spawn realistic fields that approach
-        const spawnField = () => {
-            if (!c.isConnected) return;
-            
-            const field = document.createElement('div');
-            // More varied field colors - wheat, grass, plowed, crops
-            const fieldTypes = [
-                { color: '#7a9a4a', border: '#6a8a3a' }, // grass
-                { color: '#c4a04a', border: '#b4903a' }, // wheat
-                { color: '#5a4a2a', border: '#4a3a1a' }, // plowed
-                { color: '#8aaa5a', border: '#7a9a4a' }, // crops
-                { color: '#6a8a3a', border: '#5a7a2a' }, // pasture
-                { color: '#9a8a5a', border: '#8a7a4a' }, // hay
-            ];
-            const fieldType = fieldTypes[Math.floor(Math.random() * fieldTypes.length)];
-            const startX = 15 + Math.random() * 70;
-            const duration = 5 + Math.random() * 3;
-            const width = 30 + Math.random() * 80;
-            const height = 15 + Math.random() * 40;
-            
-            field.style.cssText = `
-                position: absolute;
-                top: 0;
-                left: ${startX}%;
-                width: ${width}px;
-                height: ${height}px;
-                background: ${fieldType.color};
-                border: 1px solid ${fieldType.border};
-                transform-origin: center top;
-                animation: field-approach ${duration}s linear forwards;
-                z-index: 4;
-            `;
-            
-            groundWrapper.appendChild(field);
-            this.flightObjects.push(field);
-            setTimeout(() => field.remove(), duration * 1000);
-            
-            setTimeout(spawnField, 150 + Math.random() * 300);
-        };
-        
-        // Cockpit frame (stays fixed, doesn't bank)
+        // Full cockpit that covers bottom of screen
         const cockpit = document.createElement('div');
         cockpit.style.cssText = `
             position: absolute;
@@ -4466,66 +4389,111 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             z-index: 100;
         `;
         
-        // Engine with propeller - positioned higher
         cockpit.innerHTML = `
-            <!-- Canopy frame -->
+            <!-- Canopy frame - curved dome -->
             <svg style="position: absolute; inset: 0; width: 100%; height: 100%;" viewBox="0 0 100 100" preserveAspectRatio="none">
-                <path d="M0,0 Q-10,50 0,100 L4,100 Q-4,50 4,0 Z" fill="#1a1a1a"/>
-                <path d="M100,0 Q110,50 100,100 L96,100 Q104,50 96,0 Z" fill="#1a1a1a"/>
-                <path d="M0,0 L100,0 L100,3 Q50,-6 0,3 Z" fill="#1a1a1a"/>
+                <path d="M0,0 Q-12,50 0,100 L3,100 Q-6,50 3,0 Z" fill="#1a1a1a"/>
+                <path d="M100,0 Q112,50 100,100 L97,100 Q106,50 97,0 Z" fill="#1a1a1a"/>
+                <path d="M0,0 L100,0 L100,2.5 Q50,-5 0,2.5 Z" fill="#1a1a1a"/>
             </svg>
             
-            <!-- Glass reflection -->
-            <div style="position: absolute; top: 5%; left: 10%; width: 20%; height: 30%; background: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 60%); border-radius: 50%;"></div>
+            <!-- Glass reflections -->
+            <div style="position: absolute; top: 4%; left: 8%; width: 18%; height: 25%; background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, transparent 70%); border-radius: 50%;"></div>
+            <div style="position: absolute; top: 15%; right: 15%; width: 10%; height: 15%; background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, transparent 60%); border-radius: 50%;"></div>
             
-            <!-- Dashboard - higher up -->
-            <div style="position: absolute; bottom: 15%; left: 0; right: 0; height: 20%; background: linear-gradient(0deg, #1a1a1a 0%, #252525 70%, transparent 100%); border-radius: 30% 30% 0 0 / 40% 40% 0 0;"></div>
+            <!-- FULL DASHBOARD - covers entire bottom, no ground visible -->
+            <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 45%; background: linear-gradient(0deg, #0d0d0d 0%, #1a1a1a 40%, #252525 70%, #2a2a2a 85%, transparent 100%); border-radius: 40% 40% 0 0 / 60% 60% 0 0;"></div>
             
-            <!-- Instruments -->
-            <div style="position: absolute; bottom: 18%; left: 50%; transform: translateX(-50%); display: flex; gap: 8px;">
-                <div style="width: 28px; height: 28px; border-radius: 50%; background: #0a0a0a; border: 2px solid #333; box-shadow: inset 0 0 8px rgba(0,255,100,0.15);"></div>
-                <div style="width: 36px; height: 36px; border-radius: 50%; background: #0a0a0a; border: 2px solid #333; box-shadow: inset 0 0 10px rgba(255,180,50,0.2);"></div>
-                <div style="width: 28px; height: 28px; border-radius: 50%; background: #0a0a0a; border: 2px solid #333; box-shadow: inset 0 0 8px rgba(50,150,255,0.15);"></div>
+            <!-- Glareshield -->
+            <div style="position: absolute; bottom: 38%; left: 5%; right: 5%; height: 12px; background: linear-gradient(0deg, #333 0%, #444 50%, #333 100%); border-radius: 8px;"></div>
+            
+            <!-- Main Instrument Panel -->
+            <div style="position: absolute; bottom: 8%; left: 50%; transform: translateX(-50%); display: flex; gap: 12px; align-items: flex-end;">
+                <!-- Airspeed -->
+                <div class="flight-gauge" style="width: 50px; height: 50px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #1a1a1a, #0a0a0a); border: 3px solid #444; box-shadow: inset 0 0 15px rgba(0,255,100,0.2), 0 2px 8px rgba(0,0,0,0.5);">
+                    <div class="gauge-needle" style="position: absolute; top: 50%; left: 50%; width: 2px; height: 18px; background: #ff6600; transform-origin: bottom center; transform: translateX(-50%) rotate(0deg); animation: needle-airspeed 8s ease-in-out infinite;"></div>
+                </div>
+                <!-- Attitude Indicator (large, center) -->
+                <div class="flight-gauge" style="width: 70px; height: 70px; border-radius: 50%; background: linear-gradient(180deg, #1a4a8a 0%, #1a4a8a 48%, #6a4a1a 52%, #6a4a1a 100%); border: 3px solid #444; box-shadow: inset 0 0 20px rgba(255,180,50,0.15), 0 2px 8px rgba(0,0,0,0.5); overflow: hidden;">
+                    <div style="position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: #fff;"></div>
+                    <div style="position: absolute; top: 50%; left: 50%; width: 30px; height: 3px; background: #ff8800; transform: translate(-50%, -50%);"></div>
+                </div>
+                <!-- Altimeter -->
+                <div class="flight-gauge" style="width: 50px; height: 50px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #1a1a1a, #0a0a0a); border: 3px solid #444; box-shadow: inset 0 0 15px rgba(50,150,255,0.2), 0 2px 8px rgba(0,0,0,0.5);">
+                    <div class="gauge-needle" style="position: absolute; top: 50%; left: 50%; width: 2px; height: 18px; background: #00aaff; transform-origin: bottom center; transform: translateX(-50%) rotate(45deg); animation: needle-alt 12s ease-in-out infinite;"></div>
+                </div>
             </div>
             
-            <!-- Control stick -->
-            <div style="position: absolute; bottom: 15%; left: 50%; transform: translateX(-50%); width: 14px; height: 35px; background: linear-gradient(90deg, #1a1a1a, #2a2a2a, #1a1a1a); border-radius: 4px 4px 0 0;"></div>
+            <!-- Secondary instruments row -->
+            <div style="position: absolute; bottom: 22%; left: 50%; transform: translateX(-50%); display: flex; gap: 8px;">
+                <!-- Heading indicator -->
+                <div style="width: 40px; height: 40px; border-radius: 50%; background: #0a0a0a; border: 2px solid #333;">
+                    <div style="position: absolute; top: 50%; left: 50%; width: 1px; height: 14px; background: #fff; transform-origin: bottom center; transform: translateX(-50%); animation: needle-heading 20s linear infinite;"></div>
+                </div>
+                <!-- VSI -->
+                <div style="width: 40px; height: 40px; border-radius: 50%; background: #0a0a0a; border: 2px solid #333;">
+                    <div style="position: absolute; top: 50%; left: 50%; width: 1px; height: 14px; background: #0f0; transform-origin: bottom center; transform: translateX(-50%) rotate(10deg); animation: needle-vsi 6s ease-in-out infinite;"></div>
+                </div>
+                <!-- Turn coordinator -->
+                <div style="width: 40px; height: 40px; border-radius: 50%; background: #0a0a0a; border: 2px solid #333;">
+                    <div style="position: absolute; top: 50%; left: 50%; width: 20px; height: 2px; background: #ff0; transform: translate(-50%, -50%); animation: needle-turn 5s ease-in-out infinite;"></div>
+                </div>
+            </div>
             
-            <!-- Engine cowling - higher -->
-            <div style="position: absolute; bottom: 28%; left: 50%; transform: translateX(-50%); width: 140px; height: 120px; background: linear-gradient(0deg, #2a2a2a 0%, #4a4a4a 40%, #3a3a3a 70%, #2a2a2a 100%); border-radius: 50% 50% 40% 40%; box-shadow: inset 0 20px 30px rgba(255,255,255,0.08);"></div>
+            <!-- Warning lights panel -->
+            <div style="position: absolute; bottom: 32%; left: 15%; display: flex; gap: 6px;">
+                <div class="warning-light" style="width: 12px; height: 12px; border-radius: 50%; background: #300; border: 1px solid #500; animation: light-blink-red 3s ease-in-out infinite;"></div>
+                <div style="width: 12px; height: 12px; border-radius: 50%; background: #030; border: 1px solid #050;"></div>
+                <div class="warning-light" style="width: 12px; height: 12px; border-radius: 50%; background: #330; border: 1px solid #550; animation: light-blink-amber 2s ease-in-out infinite; animation-delay: 0.5s;"></div>
+            </div>
             
-            <!-- Spinner -->
-            <div style="position: absolute; bottom: 43%; left: 50%; transform: translateX(-50%); width: 40px; height: 50px; background: linear-gradient(180deg, #555 0%, #777 40%, #555 100%); border-radius: 50% 50% 40% 40%;"></div>
+            <!-- Radio stack (right side) -->
+            <div style="position: absolute; bottom: 28%; right: 12%; width: 50px; height: 35px; background: #111; border: 1px solid #333; border-radius: 3px;">
+                <div style="color: #0f0; font-size: 8px; font-family: monospace; padding: 2px; animation: radio-freq 4s steps(1) infinite;">118.50</div>
+                <div style="color: #0a0; font-size: 7px; font-family: monospace; padding: 0 2px;">121.90</div>
+            </div>
+            
+            <!-- Control yoke -->
+            <div style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);">
+                <div style="width: 8px; height: 60px; background: linear-gradient(90deg, #1a1a1a, #2a2a2a, #1a1a1a); border-radius: 4px 4px 0 0;"></div>
+                <div style="position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%); width: 60px; height: 12px; background: linear-gradient(180deg, #2a2a2a, #1a1a1a); border-radius: 6px;"></div>
+            </div>
+            
+            <!-- Engine cowling -->
+            <div id="engine-cowling" style="position: absolute; bottom: 40%; left: 50%; transform: translateX(-50%); width: 120px; height: 100px; background: linear-gradient(0deg, #1a1a1a 0%, #3a3a3a 30%, #4a4a4a 50%, #3a3a3a 70%, #2a2a2a 100%); border-radius: 50% 50% 45% 45%; box-shadow: inset 0 15px 25px rgba(255,255,255,0.08), inset 0 -10px 20px rgba(0,0,0,0.3); z-index: 102;"></div>
+            
+            <!-- Spinner (prop hub) - attached to cowling -->
+            <div id="prop-spinner" style="position: absolute; bottom: 52%; left: 50%; transform: translateX(-50%); width: 35px; height: 45px; background: linear-gradient(180deg, #555 0%, #777 30%, #666 60%, #444 100%); border-radius: 50% 50% 35% 35%; z-index: 103;"></div>
         `;
         c.appendChild(cockpit);
         
-        // Propeller - realistic airplane blades
+        // Propeller - positioned to align with spinner
         const propeller = document.createElement('div');
         propeller.className = 'flight-propeller';
         propeller.style.cssText = `
             position: absolute;
-            bottom: 47%;
+            bottom: calc(52% + 20px);
             left: 50%;
             transform: translateX(-50%);
-            width: 280px;
-            height: 280px;
-            z-index: 99;
+            width: 260px;
+            height: 260px;
+            z-index: 101;
         `;
         propeller.innerHTML = `
-            <svg viewBox="0 0 280 280" style="width: 100%; height: 100%;">
+            <svg viewBox="0 0 260 260" style="width: 100%; height: 100%;">
                 <defs>
-                    <linearGradient id="blade1Grad" x1="0%" y1="50%" x2="100%" y2="50%">
+                    <linearGradient id="propBlade" x1="0%" y1="50%" x2="100%" y2="50%">
                         <stop offset="0%" style="stop-color:#1a1a1a"/>
-                        <stop offset="20%" style="stop-color:#4a4a4a"/>
+                        <stop offset="15%" style="stop-color:#3a3a3a"/>
+                        <stop offset="30%" style="stop-color:#4a4a4a"/>
                         <stop offset="50%" style="stop-color:#3a3a3a"/>
-                        <stop offset="80%" style="stop-color:#4a4a4a"/>
+                        <stop offset="70%" style="stop-color:#4a4a4a"/>
+                        <stop offset="85%" style="stop-color:#3a3a3a"/>
                         <stop offset="100%" style="stop-color:#1a1a1a"/>
                     </linearGradient>
                 </defs>
-                <!-- Two-blade propeller with realistic shape -->
-                <ellipse cx="140" cy="140" rx="130" ry="12" fill="url(#blade1Grad)"/>
-                <!-- Hub -->
-                <circle cx="140" cy="140" r="15" fill="#3a3a3a"/>
+                <!-- Two-blade propeller -->
+                <ellipse cx="130" cy="130" rx="120" ry="10" fill="url(#propBlade)"/>
             </svg>
         `;
         c.appendChild(propeller);
@@ -4537,66 +4505,97 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         const style = document.createElement('style');
         style.id = 'flight-style';
         style.textContent = `
-            @keyframes field-approach {
-                0% { 
-                    transform: translateY(0) scale(0.2);
-                    opacity: 0.3;
-                }
-                30% {
-                    opacity: 0.9;
-                }
-                100% { 
-                    transform: translateY(400px) scale(4);
-                    opacity: 0;
-                }
-            }
-            @keyframes cloud-towards {
-                0% { transform: translate(-50%, -50%) scale(0.2); opacity: 0; }
-                20% { opacity: 0.7; }
-                80% { opacity: 0.5; }
-                100% { transform: translate(-50%, -50%) scale(4); opacity: 0; }
-            }
             @keyframes prop-spin {
                 from { transform: translateX(-50%) rotate(0deg); }
                 to { transform: translateX(-50%) rotate(360deg); }
             }
             .flight-propeller {
-                animation: prop-spin 0.5s linear infinite;
+                animation: prop-spin 0.6s linear infinite;
+            }
+            @keyframes needle-airspeed {
+                0%, 100% { transform: translateX(-50%) rotate(-30deg); }
+                50% { transform: translateX(-50%) rotate(60deg); }
+            }
+            @keyframes needle-alt {
+                0%, 100% { transform: translateX(-50%) rotate(45deg); }
+                50% { transform: translateX(-50%) rotate(90deg); }
+            }
+            @keyframes needle-heading {
+                from { transform: translateX(-50%) rotate(0deg); }
+                to { transform: translateX(-50%) rotate(360deg); }
+            }
+            @keyframes needle-vsi {
+                0%, 100% { transform: translateX(-50%) rotate(10deg); }
+                25% { transform: translateX(-50%) rotate(40deg); }
+                75% { transform: translateX(-50%) rotate(-20deg); }
+            }
+            @keyframes needle-turn {
+                0%, 100% { transform: translate(-50%, -50%) rotate(0deg); }
+                30% { transform: translate(-50%, -50%) rotate(15deg); }
+                70% { transform: translate(-50%, -50%) rotate(-15deg); }
+            }
+            @keyframes light-blink-red {
+                0%, 40%, 100% { background: #300; box-shadow: none; }
+                45%, 55% { background: #f00; box-shadow: 0 0 8px #f00; }
+            }
+            @keyframes light-blink-amber {
+                0%, 70%, 100% { background: #330; box-shadow: none; }
+                75%, 95% { background: #fa0; box-shadow: 0 0 6px #fa0; }
+            }
+            @keyframes radio-freq {
+                0%, 50% { content: "118.50"; }
+                50%, 100% { content: "118.55"; }
+            }
+            @keyframes cloud-towards {
+                0% { transform: translate(-50%, -50%) scale(0.2); opacity: 0; }
+                20% { opacity: 0.6; }
+                80% { opacity: 0.4; }
+                100% { transform: translate(-50%, -50%) scale(3); opacity: 0; }
             }
         `;
         document.head.appendChild(style);
         
-        // Start spawning fields
-        setTimeout(spawnField, 100);
-        
-        // Banking effect - occasionally tilt the scene
-        let bankAngle = 0;
-        const bankPlane = () => {
+        // Banking system - bank, slide mountains, level out
+        let currentBearing = 0;
+        const performBank = () => {
             if (!c.isConnected) return;
             
-            // Random bank direction and amount
-            const newBank = (Math.random() - 0.5) * 16; // -8 to +8 degrees
-            bankAngle = newBank;
+            const horizon = document.getElementById('flight-horizon');
+            if (!horizon) return;
             
-            const scene = document.getElementById('flight-scene');
-            if (scene) {
-                scene.style.transform = `rotate(${bankAngle}deg)`;
-            }
+            // Decide bank direction and amount
+            const bankDirection = Math.random() > 0.5 ? 1 : -1;
+            const bankAmount = 6 + Math.random() * 6; // 6-12 degrees
+            const slideAmount = bankDirection * (80 + Math.random() * 120); // How far mountains slide
+            
+            currentBearing += slideAmount;
+            
+            // Phase 1: Bank the plane (rotate horizon slightly for effect)
+            horizon.style.transition = 'transform 1.5s ease-in';
+            horizon.style.transform = `translateX(${currentBearing}px) rotate(${bankDirection * 2}deg)`;
+            
+            // Phase 2: Slide mountains while banked
+            setTimeout(() => {
+                horizon.style.transition = 'transform 3s ease-out';
+                horizon.style.transform = `translateX(${currentBearing}px) rotate(0deg)`;
+            }, 1500);
+            
+            // Schedule next bank
+            this.bankInterval = setTimeout(performBank, 6000 + Math.random() * 8000);
         };
         
-        // Bank every 4-8 seconds
-        this.bankInterval = setInterval(bankPlane, 4000 + Math.random() * 4000);
-        setTimeout(bankPlane, 2000); // Initial bank after 2s
+        // Start banking after delay
+        this.bankInterval = setTimeout(performBank, 4000);
         
-        // Spawn clouds coming towards viewer
+        // Spawn clouds
         const spawnCloud = () => {
             if (!c.isConnected) return;
             
             const cloud = document.createElement('div');
-            const startX = 40 + Math.random() * 20;
-            const startY = 25 + Math.random() * 35;
-            const size = 60 + Math.random() * 80;
-            const duration = 4 + Math.random() * 3;
+            const startX = 35 + Math.random() * 30;
+            const startY = 15 + Math.random() * 25;
+            const size = 50 + Math.random() * 70;
+            const duration = 5 + Math.random() * 4;
             
             cloud.style.cssText = `
                 position: absolute;
@@ -4606,11 +4605,10 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 height: ${size * 0.5}px;
                 background: white;
                 border-radius: 50%;
-                filter: blur(3px);
+                filter: blur(2px);
                 box-shadow: 
-                    ${size * 0.3}px ${size * 0.1}px 0 white,
-                    ${size * 0.5}px 0 0 white,
-                    ${size * 0.15}px ${-size * 0.1}px 0 white;
+                    ${size * 0.25}px ${size * 0.08}px 0 white,
+                    ${size * 0.4}px 0 0 white;
                 animation: cloud-towards ${duration}s ease-in forwards;
                 z-index: 5;
             `;
@@ -4619,40 +4617,10 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             this.flightObjects.push(cloud);
             setTimeout(() => cloud.remove(), duration * 1000);
             
-            setTimeout(spawnCloud, 600 + Math.random() * 1000);
-        };
-        
-        // Spawn flying objects coming towards viewer
-        const flyingThings = ['🦅', '🦆', '🦢', '🛸', '🎈', '🪂', '🦋', '🐦'];
-        const spawnFlyingThing = () => {
-            if (!c.isConnected) return;
-            
-            const thing = document.createElement('div');
-            const emoji = flyingThings[Math.floor(Math.random() * flyingThings.length)];
-            const startX = 35 + Math.random() * 30;
-            const startY = 30 + Math.random() * 30;
-            const duration = 3 + Math.random() * 2;
-            
-            thing.textContent = emoji;
-            thing.style.cssText = `
-                position: absolute;
-                left: ${startX}%;
-                top: ${startY}%;
-                font-size: 16px;
-                animation: fly-towards ${duration}s ease-in forwards;
-                z-index: 10;
-                filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3));
-            `;
-            
-            c.appendChild(thing);
-            this.flightObjects.push(thing);
-            setTimeout(() => thing.remove(), duration * 1000);
-            
-            this.flightTimeout = setTimeout(spawnFlyingThing, 3000 + Math.random() * 5000);
+            setTimeout(spawnCloud, 800 + Math.random() * 1200);
         };
         
         setTimeout(spawnCloud, 500);
-        this.flightTimeout = setTimeout(spawnFlyingThing, 2000);
     },
 
     // Ocean theme timeouts
@@ -5115,26 +5083,27 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             this.oceanTimeout = setTimeout(spawnBoat, 2500 + Math.random() * 5000);
         };
         
-        // Seagulls (only during day)
+        // Seagulls (only during day) - fly in front of game cards
         const spawnSeagull = () => {
             if (!c.isConnected || isNight) return;
             
             const bird = document.createElement('div');
             bird.textContent = '🕊️';
-            const yPos = 5 + Math.random() * 35;
-            const duration = 12 + Math.random() * 10;
+            const yPos = 15 + Math.random() * 50; // More vertical range
+            const duration = 8 + Math.random() * 8;
             const goingRight = Math.random() > 0.5;
-            const size = 12 + Math.random() * 12;
+            const size = 28 + Math.random() * 32; // Much larger: 28-60px
             
             bird.style.cssText = `
                 position: absolute;
                 top: ${yPos}%;
-                left: ${goingRight ? '-50px' : 'calc(100% + 50px)'};
+                left: ${goingRight ? '-80px' : 'calc(100% + 80px)'};
                 font-size: ${size}px;
-                z-index: 20;
+                z-index: 150;
                 animation: 
                     ${goingRight ? 'boat-drift' : 'boat-drift-reverse'} ${duration}s linear forwards,
-                    seagull-fly 0.6s ease-in-out infinite;
+                    seagull-fly 0.4s ease-in-out infinite;
+                filter: drop-shadow(3px 5px 8px rgba(0,0,0,0.4));
                 ${goingRight ? 'transform: scaleX(-1);' : ''}
             `;
             
@@ -5142,7 +5111,7 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             this.oceanObjects.push(bird);
             setTimeout(() => bird.remove(), duration * 1000);
             
-            setTimeout(spawnSeagull, 8000 + Math.random() * 12000);
+            setTimeout(spawnSeagull, 5000 + Math.random() * 8000);
         };
         
         this.oceanTimeout = setTimeout(spawnBoat, 1000);
