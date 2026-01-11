@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.49',
+    APP_VERSION: '6.2.51',
     KIDS_LIST_FILE: 'kids_words.txt',
 
     SPECIAL: {
@@ -17,9 +17,9 @@ const CONFIG = {
     TIP_COOLDOWN: 4,
     HISTORY_SIZE: 500,
     VOTE: {
-        MASH_LIMIT: 4,           // Trigger after 4 fast votes (was 5)
-        COOLDOWN_TIERS: [5, 10, 20],  // Shorter cooldowns
-        STREAK_WINDOW: 800,      // 800ms between votes counts as mashing (was 2000)
+        MASH_LIMIT: 4,         
+        COOLDOWN_TIERS: [5, 10, 20],  
+        STREAK_WINDOW: 800,
         SWIPE_THRESHOLD: 100
     },
 
@@ -41,11 +41,9 @@ const CONFIG = {
     },
 };
 
-// P2P Channel colors for visual identification
 const P2P_COLORS = ['#3b82f6', '#ef4444', '#22c55e', '#eab308', '#8b5cf6', '#ec4899'];
 
 const ContentFilter = {
-    // Base64 encoded to avoid raw slurs in source code
     // Includes racial slurs, homophobic/transphobic terms, and severe profanity
     _encoded: 'bmlnZ2VyfG5pZ2dhfGZhZ2dvdHxmYWd8ZHlrZXx0cmFubnl8cmV0YXJkfHNwYXN0aWN8Y2hpbmt8Z29va3xzcGljfGtpa2V8d2V0YmFja3xiZWFuZXJ8Y29vbnxyYWdoZWFkfHRvd2VsaGVhZHxjYW1lbGpvY2tleXxwYWtpfHdvcHxqYXB8Y3JhY2tlcnxob25reXxncmluZ298bmVncm98Y29sb3JlZHxuZWdyZXNzfG11bGF0dG98aGFsZmJyZWVkfHF1ZWVyfHF1ZWVyc3xob21vfGhvbW9zfGxlc2JvfHNoZW1hbGV8aGVzaGV8dHJhbnN2ZXN0aXRlfGhlcm1hcGhyb2RpdGV8c29kb21pdGV8YnVnZ2VyfG5vbmNlfHBlZG98cGFlZG98cGVkb3BoaWxlfHBlcnZlcnR8cmFwaXN0fG1vbGVzdGVyfG5henl8bmF6aXN8aGl0bGVyfGhvbG9jYXVzdHxqaWhhZHxqaWhhZGl8dGVycm9yaXN0',
     _patterns: null,
@@ -54,9 +52,7 @@ const ContentFilter = {
         try {
             const decoded = atob(this._encoded);
             const terms = decoded.split('|');
-            // Create pattern that matches whole words and common evasions
             this._patterns = terms.map(term => {
-                // Match the term with common character substitutions
                 const escaped = term
                     .replace(/a/g, '[a@4]')
                     .replace(/e/g, '[e3]')
@@ -89,7 +85,6 @@ const ContentFilter = {
     }
 };
 
-// Initialize filter
 ContentFilter.init();
 
 let DOM = {}; // Changed to let
@@ -1668,15 +1663,21 @@ rs.innerHTML = `
             this.apply(State.data.currentTheme);
         }
 
-        DOM.theme.chooser.value = currentThemeToApply;
+        // Update chooser button with the actually applied theme
+        this.updateChooserButton(currentThemeToApply);
     },
-    populateChooser() {
-        // Update the button text if it exists
-        const current = State.data.currentTheme || 'default';
-        const name = current === 'ballpit' ? 'Ball Pit' : current.charAt(0).toUpperCase() + current.slice(1);
+    
+    updateChooserButton(theme) {
+        const name = theme === 'ballpit' ? 'Ball Pit' : theme.charAt(0).toUpperCase() + theme.slice(1);
         if (DOM.theme.chooserBtn) {
             DOM.theme.chooserBtn.innerHTML = `${name} ▼`;
         }
+    },
+    
+    populateChooser() {
+        // Update the button text if it exists
+        const current = State.data.currentTheme || 'default';
+        this.updateChooserButton(current);
     },
     
     showGallery() {
@@ -4231,93 +4232,113 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         if (!active) { c.innerHTML = ''; c.style.background = ''; return; }
         c.innerHTML = '';
         
-        // Sky gradient - looking forward from cockpit
+        // Sky gradient
         c.style.background = 'linear-gradient(180deg, #1a3a5c 0%, #4a90c2 30%, #87CEEB 55%, #a8d4ea 75%, #c5e5f5 100%)';
         
-        // Ground/landscape visible below horizon
-        const ground = document.createElement('div');
-        ground.style.cssText = `
+        // Moving ground - scrolling terrain below
+        const groundWrapper = document.createElement('div');
+        groundWrapper.style.cssText = `
             position: absolute;
-            top: 58%;
+            top: 55%;
             left: 0;
             right: 0;
             bottom: 0;
-            background: linear-gradient(180deg, 
-                #7a9a5a 0%, 
-                #5a7a4a 20%, 
-                #4a6a3a 50%, 
-                #3a5a2a 100%);
+            overflow: hidden;
             z-index: 1;
         `;
-        c.appendChild(ground);
         
-        // Patchwork fields pattern
-        for (let i = 0; i < 8; i++) {
+        // Ground strip that scrolls - 200% wide for seamless loop
+        const groundStrip = document.createElement('div');
+        groundStrip.style.cssText = `
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 200%;
+            height: 100%;
+            background: linear-gradient(180deg, #7a9a5a 0%, #5a7a4a 30%, #4a6a3a 60%, #3a5a2a 100%);
+            animation: ground-scroll 8s linear infinite;
+        `;
+        
+        // Add field patterns to the ground strip
+        const fieldColors = ['#6a8a4a', '#8aaa6a', '#5a7a3a', '#7a9a5a', '#9aba7a', '#4a6a2a'];
+        for (let i = 0; i < 20; i++) {
             const field = document.createElement('div');
-            const colors = ['#6a8a4a', '#8aaa6a', '#5a7a3a', '#7a9a5a', '#9aba7a'];
             field.style.cssText = `
                 position: absolute;
-                top: ${58 + Math.random() * 15}%;
-                left: ${Math.random() * 100}%;
-                width: ${50 + Math.random() * 100}px;
-                height: ${20 + Math.random() * 40}px;
-                background: ${colors[Math.floor(Math.random() * colors.length)]};
-                transform: perspective(500px) rotateX(60deg) skewX(${-20 + Math.random() * 40}deg);
-                opacity: 0.6;
-                z-index: 2;
+                top: ${5 + Math.random() * 60}%;
+                left: ${i * 10 + Math.random() * 5}%;
+                width: ${30 + Math.random() * 60}px;
+                height: ${15 + Math.random() * 30}px;
+                background: ${fieldColors[Math.floor(Math.random() * fieldColors.length)]};
+                transform: skewX(${-15 + Math.random() * 30}deg);
+                opacity: 0.7;
             `;
-            c.appendChild(field);
+            groundStrip.appendChild(field);
         }
+        groundWrapper.appendChild(groundStrip);
+        c.appendChild(groundWrapper);
         
-        // Engine cowling - visible nose of the aircraft
-        const cowling = document.createElement('div');
-        cowling.style.cssText = `
+        // Engine cowling with integrated spinner - one solid piece
+        const engineAssembly = document.createElement('div');
+        engineAssembly.style.cssText = `
             position: absolute;
             bottom: 0;
             left: 50%;
             transform: translateX(-50%);
-            width: 200px;
-            height: 180px;
-            background: linear-gradient(0deg, #2a2a2a 0%, #4a4a4a 40%, #3a3a3a 70%, #2a2a2a 100%);
-            border-radius: 50% 50% 0 0;
             z-index: 50;
-            box-shadow: inset 0 20px 40px rgba(255,255,255,0.1), inset 0 -20px 40px rgba(0,0,0,0.3);
         `;
-        c.appendChild(cowling);
+        engineAssembly.innerHTML = `
+            <!-- Main cowling body -->
+            <div style="
+                width: 180px;
+                height: 200px;
+                background: linear-gradient(0deg, #1a1a1a 0%, #3a3a3a 30%, #4a4a4a 50%, #3a3a3a 70%, #2a2a2a 100%);
+                border-radius: 50% 50% 0 0;
+                box-shadow: inset 0 30px 50px rgba(255,255,255,0.1), inset 0 -30px 50px rgba(0,0,0,0.4);
+            "></div>
+            <!-- Spinner cone on top of cowling -->
+            <div style="
+                position: absolute;
+                top: -40px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 50px;
+                height: 60px;
+                background: linear-gradient(180deg, #555 0%, #777 30%, #666 60%, #444 100%);
+                border-radius: 50% 50% 40% 40%;
+                box-shadow: 0 -3px 10px rgba(0,0,0,0.3);
+            "></div>
+        `;
+        c.appendChild(engineAssembly);
         
-        // Propeller - visible above the cowling, spinning
+        // Propeller blades - positioned to appear attached to spinner
         const propeller = document.createElement('div');
         propeller.className = 'flight-propeller';
         propeller.style.cssText = `
             position: absolute;
-            bottom: 140px;
+            bottom: 175px;
             left: 50%;
             transform: translateX(-50%);
-            width: 350px;
-            height: 350px;
-            z-index: 48;
+            width: 320px;
+            height: 320px;
+            z-index: 49;
         `;
-        
-        // SVG propeller - two visible blades
         propeller.innerHTML = `
-            <svg viewBox="0 0 350 350" style="width: 100%; height: 100%;">
+            <svg viewBox="0 0 320 320" style="width: 100%; height: 100%;">
                 <defs>
                     <linearGradient id="bladeFill" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" style="stop-color:#3a3a3a"/>
-                        <stop offset="50%" style="stop-color:#5a5a5a"/>
-                        <stop offset="100%" style="stop-color:#3a3a3a"/>
+                        <stop offset="0%" style="stop-color:#2a2a2a"/>
+                        <stop offset="50%" style="stop-color:#4a4a4a"/>
+                        <stop offset="100%" style="stop-color:#2a2a2a"/>
                     </linearGradient>
                 </defs>
-                <!-- Two-blade prop as elongated ellipse -->
-                <ellipse cx="175" cy="175" rx="160" ry="18" fill="url(#bladeFill)" opacity="0.8"/>
-                <!-- Spinner/hub -->
-                <circle cx="175" cy="175" r="22" fill="#3a3a3a"/>
-                <circle cx="175" cy="175" r="14" fill="#4a4a4a"/>
+                <!-- Two-blade propeller -->
+                <ellipse cx="160" cy="160" rx="150" ry="16" fill="url(#bladeFill)" opacity="0.75"/>
             </svg>
         `;
         c.appendChild(propeller);
         
-        // Bubble canopy - curved dome frame around the view
+        // Bubble canopy - curved dome
         const canopy = document.createElement('div');
         canopy.style.cssText = `
             position: absolute;
@@ -4326,71 +4347,56 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             z-index: 100;
         `;
         canopy.innerHTML = `
-            <!-- Curved canopy frame using SVG -->
+            <!-- Curved canopy frame -->
             <svg style="position: absolute; inset: 0; width: 100%; height: 100%;" viewBox="0 0 100 100" preserveAspectRatio="none">
-                <defs>
-                    <linearGradient id="frameGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" style="stop-color:#1a1a1a"/>
-                        <stop offset="50%" style="stop-color:#3a3a3a"/>
-                        <stop offset="100%" style="stop-color:#1a1a1a"/>
-                    </linearGradient>
-                </defs>
                 <!-- Left curved frame -->
-                <path d="M0,0 Q-5,50 0,100 L8,100 Q5,50 8,0 Z" fill="#1a1a1a"/>
+                <path d="M0,0 Q-8,50 0,100 L6,100 Q0,50 6,0 Z" fill="#1a1a1a"/>
                 <!-- Right curved frame -->
-                <path d="M100,0 Q105,50 100,100 L92,100 Q95,50 92,0 Z" fill="#1a1a1a"/>
+                <path d="M100,0 Q108,50 100,100 L94,100 Q100,50 94,0 Z" fill="#1a1a1a"/>
                 <!-- Top curved frame -->
-                <path d="M0,0 L100,0 L100,6 Q50,-8 0,6 Z" fill="#1a1a1a"/>
+                <path d="M0,0 L100,0 L100,5 Q50,-10 0,5 Z" fill="#1a1a1a"/>
             </svg>
             
-            <!-- Canopy glass reflection -->
-            <div style="position: absolute; top: 5%; left: 10%; width: 30%; height: 40%; background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 50%); border-radius: 50%; pointer-events: none;"></div>
+            <!-- Glass reflection -->
+            <div style="position: absolute; top: 8%; left: 12%; width: 25%; height: 35%; background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 60%); border-radius: 50%;"></div>
             
             <!-- Dashboard -->
-            <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 100px; background: linear-gradient(0deg, #1a1a1a 0%, #2a2a2a 60%, transparent 100%); border-radius: 50% 50% 0 0 / 20% 20% 0 0;"></div>
+            <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 90px; background: linear-gradient(0deg, #1a1a1a 0%, #252525 50%, transparent 100%); border-radius: 40% 40% 0 0 / 30% 30% 0 0;"></div>
             
-            <!-- Instrument panel -->
-            <div style="position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; align-items: flex-end;">
-                <div style="width: 40px; height: 40px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #1a1a1a, #0a0a0a); border: 2px solid #444; box-shadow: inset 0 0 15px rgba(0,255,100,0.2);"></div>
-                <div style="width: 55px; height: 55px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #1a1a1a, #0a0a0a); border: 2px solid #444; box-shadow: inset 0 0 20px rgba(255,200,50,0.25);"></div>
-                <div style="width: 40px; height: 40px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #1a1a1a, #0a0a0a); border: 2px solid #444; box-shadow: inset 0 0 15px rgba(50,150,255,0.2);"></div>
+            <!-- Instruments -->
+            <div style="position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 12px;">
+                <div style="width: 36px; height: 36px; border-radius: 50%; background: #0a0a0a; border: 2px solid #333; box-shadow: inset 0 0 12px rgba(0,255,100,0.15);"></div>
+                <div style="width: 48px; height: 48px; border-radius: 50%; background: #0a0a0a; border: 2px solid #333; box-shadow: inset 0 0 15px rgba(255,180,50,0.2);"></div>
+                <div style="width: 36px; height: 36px; border-radius: 50%; background: #0a0a0a; border: 2px solid #333; box-shadow: inset 0 0 12px rgba(50,150,255,0.15);"></div>
             </div>
             
             <!-- Control stick -->
-            <div style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 20px; height: 50px; background: linear-gradient(90deg, #2a2a2a, #3a3a3a, #2a2a2a); border-radius: 8px 8px 0 0;"></div>
+            <div style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 18px; height: 45px; background: linear-gradient(90deg, #1a1a1a, #2a2a2a, #1a1a1a); border-radius: 6px 6px 0 0;"></div>
         `;
         c.appendChild(canopy);
         
-        // Add flight animation styles
+        // Animation styles
         const oldStyle = document.getElementById('flight-style');
         if (oldStyle) oldStyle.remove();
         
         const style = document.createElement('style');
         style.id = 'flight-style';
         style.textContent = `
+            @keyframes ground-scroll {
+                0% { transform: translateX(0); }
+                100% { transform: translateX(-50%); }
+            }
             @keyframes fly-towards {
-                0% { 
-                    transform: translate(-50%, -50%) scale(0.1);
-                    opacity: 0;
-                }
+                0% { transform: translate(-50%, -50%) scale(0.1); opacity: 0; }
                 10% { opacity: 1; }
                 90% { opacity: 1; }
-                100% { 
-                    transform: translate(-50%, -50%) scale(3);
-                    opacity: 0;
-                }
+                100% { transform: translate(-50%, -50%) scale(3); opacity: 0; }
             }
             @keyframes cloud-towards {
-                0% { 
-                    transform: translate(-50%, -50%) scale(0.2);
-                    opacity: 0;
-                }
+                0% { transform: translate(-50%, -50%) scale(0.2); opacity: 0; }
                 20% { opacity: 0.8; }
                 80% { opacity: 0.6; }
-                100% { 
-                    transform: translate(-50%, -50%) scale(4);
-                    opacity: 0;
-                }
+                100% { transform: translate(-50%, -50%) scale(4); opacity: 0; }
             }
             @keyframes prop-spin {
                 0% { transform: translateX(-50%) rotate(0deg); opacity: 0.7; }
@@ -4400,7 +4406,7 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 100% { transform: translateX(-50%) rotate(360deg); opacity: 0.7; }
             }
             .flight-propeller {
-                animation: prop-spin 0.25s linear infinite;
+                animation: prop-spin 0.3s linear infinite;
                 filter: blur(1px);
             }
         `;
@@ -4661,31 +4667,40 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             c.appendChild(reflectionContainer);
         }
         
-        // Ocean waves with SVG wave shapes - flatter in distance, larger closer
+        // Ocean waves - use simple gradient divs that tile seamlessly
         const waveColors = isNight 
             ? ['#0a1e3a', '#0c2444', '#0e2a4e', '#102f55']
             : ['#1a5a8a', '#2a6a9a', '#3a7aaa', '#4a8aba'];
         
         for (let i = 0; i < 4; i++) {
-            const waveContainer = document.createElement('div');
-            waveContainer.className = 'ocean-wave-container';
-            // Waves closer have more height variation
-            const waveAmplitude = 2 + i * 6; // 2px for distant, up to 20px for close
-            waveContainer.style.cssText = `
+            // Create a wrapper that clips the wave
+            const waveWrapper = document.createElement('div');
+            waveWrapper.style.cssText = `
                 position: absolute;
                 top: ${46 + i * 8}%;
-                left: -200%;
-                width: 600%;
+                left: 0;
+                right: 0;
                 height: ${58 - i * 10}%;
                 z-index: ${4 + i};
-                animation: wave-scroll-${i} ${25 - i * 4}s linear infinite;
+                overflow: hidden;
             `;
             
-            // Create SVG wave - amplitude increases with i (closer waves are bigger)
-            // Much longer wave pattern to avoid visible repeats
-            const baseY = 30;
+            // The wave container is 200% wide and animates 50% to create seamless loop
+            const waveContainer = document.createElement('div');
+            const waveAmplitude = 2 + i * 6;
+            waveContainer.style.cssText = `
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 200%;
+                height: 100%;
+                animation: wave-seamless-${i} ${20 - i * 3}s linear infinite;
+            `;
+            
+            // Create SVG that tiles perfectly - starts and ends at same Y position
+            const baseY = 25;
             waveContainer.innerHTML = `
-                <svg viewBox="0 0 6000 250" preserveAspectRatio="none" style="width: 100%; height: 100%;">
+                <svg viewBox="0 0 2000 200" preserveAspectRatio="none" style="width: 100%; height: 100%;">
                     <defs>
                         <linearGradient id="waveGrad${i}" x1="0%" y1="0%" x2="0%" y2="100%">
                             <stop offset="0%" style="stop-color:${waveColors[i]};stop-opacity:0.98"/>
@@ -4693,24 +4708,25 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                         </linearGradient>
                     </defs>
                     <path d="M0,${baseY} 
-                        C150,${baseY - waveAmplitude} 300,${baseY + waveAmplitude} 450,${baseY}
-                        C600,${baseY - waveAmplitude * 0.8} 750,${baseY + waveAmplitude * 1.1} 900,${baseY}
-                        C1050,${baseY - waveAmplitude * 0.9} 1200,${baseY + waveAmplitude} 1350,${baseY}
-                        C1500,${baseY - waveAmplitude * 1.1} 1650,${baseY + waveAmplitude * 0.8} 1800,${baseY}
-                        C1950,${baseY - waveAmplitude} 2100,${baseY + waveAmplitude * 0.9} 2250,${baseY}
-                        C2400,${baseY - waveAmplitude * 0.8} 2550,${baseY + waveAmplitude} 2700,${baseY}
-                        C2850,${baseY - waveAmplitude * 1.1} 3000,${baseY + waveAmplitude * 0.9} 3150,${baseY}
-                        C3300,${baseY - waveAmplitude * 0.7} 3450,${baseY + waveAmplitude * 1.2} 3600,${baseY}
-                        C3750,${baseY - waveAmplitude} 3900,${baseY + waveAmplitude * 0.8} 4050,${baseY}
-                        C4200,${baseY - waveAmplitude * 0.9} 4350,${baseY + waveAmplitude} 4500,${baseY}
-                        C4650,${baseY - waveAmplitude * 0.8} 4800,${baseY + waveAmplitude * 1.1} 4950,${baseY}
-                        C5100,${baseY - waveAmplitude * 1.1} 5250,${baseY + waveAmplitude * 0.7} 5400,${baseY}
-                        C5550,${baseY - waveAmplitude * 0.9} 5700,${baseY + waveAmplitude} 5850,${baseY}
-                        L6000,${baseY} L6000,250 L0,250 Z" 
+                        C50,${baseY - waveAmplitude} 100,${baseY + waveAmplitude} 150,${baseY}
+                        C200,${baseY - waveAmplitude * 0.8} 250,${baseY + waveAmplitude} 300,${baseY}
+                        C350,${baseY - waveAmplitude * 1.1} 400,${baseY + waveAmplitude * 0.9} 450,${baseY}
+                        C500,${baseY - waveAmplitude} 550,${baseY + waveAmplitude * 1.1} 600,${baseY}
+                        C650,${baseY - waveAmplitude * 0.9} 700,${baseY + waveAmplitude} 750,${baseY}
+                        C800,${baseY - waveAmplitude * 1.1} 850,${baseY + waveAmplitude * 0.8} 900,${baseY}
+                        C950,${baseY - waveAmplitude} 1000,${baseY + waveAmplitude} 1050,${baseY}
+                        C1100,${baseY - waveAmplitude * 0.8} 1150,${baseY + waveAmplitude} 1200,${baseY}
+                        C1250,${baseY - waveAmplitude * 1.1} 1300,${baseY + waveAmplitude * 0.9} 1350,${baseY}
+                        C1400,${baseY - waveAmplitude} 1450,${baseY + waveAmplitude * 1.1} 1500,${baseY}
+                        C1550,${baseY - waveAmplitude * 0.9} 1600,${baseY + waveAmplitude} 1650,${baseY}
+                        C1700,${baseY - waveAmplitude * 1.1} 1750,${baseY + waveAmplitude * 0.8} 1800,${baseY}
+                        C1850,${baseY - waveAmplitude} 1900,${baseY + waveAmplitude} 1950,${baseY}
+                        L2000,${baseY} L2000,200 L0,200 Z" 
                         fill="url(#waveGrad${i})"/>
                 </svg>
             `;
-            c.appendChild(waveContainer);
+            waveWrapper.appendChild(waveContainer);
+            c.appendChild(waveWrapper);
         }
         
         // Add foam/whitecaps on front waves only
@@ -4739,21 +4755,21 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         const style = document.createElement('style');
         style.id = 'ocean-style';
         style.textContent = `
-            @keyframes wave-scroll-0 {
+            @keyframes wave-seamless-0 {
                 0% { transform: translateX(0); }
                 100% { transform: translateX(-50%); }
             }
-            @keyframes wave-scroll-1 {
+            @keyframes wave-seamless-1 {
                 0% { transform: translateX(-50%); }
                 100% { transform: translateX(0); }
             }
-            @keyframes wave-scroll-2 {
-                0% { transform: translateX(-25%); }
-                100% { transform: translateX(-75%); }
+            @keyframes wave-seamless-2 {
+                0% { transform: translateX(0); }
+                100% { transform: translateX(-50%); }
             }
-            @keyframes wave-scroll-3 {
-                0% { transform: translateX(-75%); }
-                100% { transform: translateX(-25%); }
+            @keyframes wave-seamless-3 {
+                0% { transform: translateX(-50%); }
+                100% { transform: translateX(0); }
             }
             @keyframes foam-drift {
                 0% { transform: translateX(0) scale(1); opacity: 0.5; }
