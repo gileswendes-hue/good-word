@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.51',
+    APP_VERSION: '6.2.52',
     KIDS_LIST_FILE: 'kids_words.txt',
 
     SPECIAL: {
@@ -17,9 +17,9 @@ const CONFIG = {
     TIP_COOLDOWN: 4,
     HISTORY_SIZE: 500,
     VOTE: {
-        MASH_LIMIT: 4,         
-        COOLDOWN_TIERS: [5, 10, 20],  
-        STREAK_WINDOW: 800,
+        MASH_LIMIT: 4,           // Trigger after 4 fast votes (was 5)
+        COOLDOWN_TIERS: [5, 10, 20],  // Shorter cooldowns
+        STREAK_WINDOW: 800,      // 800ms between votes counts as mashing (was 2000)
         SWIPE_THRESHOLD: 100
     },
 
@@ -41,9 +41,11 @@ const CONFIG = {
     },
 };
 
+// P2P Channel colors for visual identification
 const P2P_COLORS = ['#3b82f6', '#ef4444', '#22c55e', '#eab308', '#8b5cf6', '#ec4899'];
 
 const ContentFilter = {
+    // Base64 encoded to avoid raw slurs in source code
     // Includes racial slurs, homophobic/transphobic terms, and severe profanity
     _encoded: 'bmlnZ2VyfG5pZ2dhfGZhZ2dvdHxmYWd8ZHlrZXx0cmFubnl8cmV0YXJkfHNwYXN0aWN8Y2hpbmt8Z29va3xzcGljfGtpa2V8d2V0YmFja3xiZWFuZXJ8Y29vbnxyYWdoZWFkfHRvd2VsaGVhZHxjYW1lbGpvY2tleXxwYWtpfHdvcHxqYXB8Y3JhY2tlcnxob25reXxncmluZ298bmVncm98Y29sb3JlZHxuZWdyZXNzfG11bGF0dG98aGFsZmJyZWVkfHF1ZWVyfHF1ZWVyc3xob21vfGhvbW9zfGxlc2JvfHNoZW1hbGV8aGVzaGV8dHJhbnN2ZXN0aXRlfGhlcm1hcGhyb2RpdGV8c29kb21pdGV8YnVnZ2VyfG5vbmNlfHBlZG98cGFlZG98cGVkb3BoaWxlfHBlcnZlcnR8cmFwaXN0fG1vbGVzdGVyfG5henl8bmF6aXN8aGl0bGVyfGhvbG9jYXVzdHxqaWhhZHxqaWhhZGl8dGVycm9yaXN0',
     _patterns: null,
@@ -52,7 +54,9 @@ const ContentFilter = {
         try {
             const decoded = atob(this._encoded);
             const terms = decoded.split('|');
+            // Create pattern that matches whole words and common evasions
             this._patterns = terms.map(term => {
+                // Match the term with common character substitutions
                 const escaped = term
                     .replace(/a/g, '[a@4]')
                     .replace(/e/g, '[e3]')
@@ -85,6 +89,7 @@ const ContentFilter = {
     }
 };
 
+// Initialize filter
 ContentFilter.init();
 
 let DOM = {}; // Changed to let
@@ -4235,110 +4240,125 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         // Sky gradient
         c.style.background = 'linear-gradient(180deg, #1a3a5c 0%, #4a90c2 30%, #87CEEB 55%, #a8d4ea 75%, #c5e5f5 100%)';
         
-        // Moving ground - scrolling terrain below
+        // Ground that moves TOWARDS the viewer (scaling up from horizon)
         const groundWrapper = document.createElement('div');
         groundWrapper.style.cssText = `
             position: absolute;
-            top: 55%;
+            top: 52%;
             left: 0;
             right: 0;
             bottom: 0;
             overflow: hidden;
             z-index: 1;
+            perspective: 500px;
         `;
         
-        // Ground strip that scrolls - 200% wide for seamless loop
-        const groundStrip = document.createElement('div');
-        groundStrip.style.cssText = `
+        // Base ground color
+        const groundBase = document.createElement('div');
+        groundBase.style.cssText = `
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 200%;
-            height: 100%;
-            background: linear-gradient(180deg, #7a9a5a 0%, #5a7a4a 30%, #4a6a3a 60%, #3a5a2a 100%);
-            animation: ground-scroll 8s linear infinite;
+            inset: 0;
+            background: linear-gradient(180deg, #6a8a5a 0%, #5a7a4a 20%, #4a6a3a 50%, #3a5a2a 100%);
         `;
-        
-        // Add field patterns to the ground strip
-        const fieldColors = ['#6a8a4a', '#8aaa6a', '#5a7a3a', '#7a9a5a', '#9aba7a', '#4a6a2a'];
-        for (let i = 0; i < 20; i++) {
-            const field = document.createElement('div');
-            field.style.cssText = `
-                position: absolute;
-                top: ${5 + Math.random() * 60}%;
-                left: ${i * 10 + Math.random() * 5}%;
-                width: ${30 + Math.random() * 60}px;
-                height: ${15 + Math.random() * 30}px;
-                background: ${fieldColors[Math.floor(Math.random() * fieldColors.length)]};
-                transform: skewX(${-15 + Math.random() * 30}deg);
-                opacity: 0.7;
-            `;
-            groundStrip.appendChild(field);
-        }
-        groundWrapper.appendChild(groundStrip);
+        groundWrapper.appendChild(groundBase);
         c.appendChild(groundWrapper);
         
-        // Engine cowling with integrated spinner - one solid piece
-        const engineAssembly = document.createElement('div');
-        engineAssembly.style.cssText = `
+        // Spawn fields that fly towards the viewer
+        const spawnField = () => {
+            if (!c.isConnected) return;
+            
+            const field = document.createElement('div');
+            const colors = ['#5a7a3a', '#6a8a4a', '#4a6a2a', '#7a9a5a', '#8aaa6a', '#3a5a2a'];
+            const startX = 20 + Math.random() * 60;
+            const duration = 4 + Math.random() * 3;
+            
+            field.style.cssText = `
+                position: absolute;
+                top: 0;
+                left: ${startX}%;
+                width: ${20 + Math.random() * 40}px;
+                height: ${10 + Math.random() * 20}px;
+                background: ${colors[Math.floor(Math.random() * colors.length)]};
+                border-radius: 2px;
+                animation: field-approach ${duration}s linear forwards;
+                z-index: 3;
+            `;
+            
+            groundWrapper.appendChild(field);
+            this.flightObjects.push(field);
+            setTimeout(() => field.remove(), duration * 1000);
+            
+            setTimeout(spawnField, 200 + Math.random() * 400);
+        };
+        
+        // Engine and propeller as ONE connected unit
+        const engineUnit = document.createElement('div');
+        engineUnit.style.cssText = `
             position: absolute;
             bottom: 0;
             left: 50%;
             transform: translateX(-50%);
             z-index: 50;
         `;
-        engineAssembly.innerHTML = `
-            <!-- Main cowling body -->
-            <div style="
-                width: 180px;
-                height: 200px;
-                background: linear-gradient(0deg, #1a1a1a 0%, #3a3a3a 30%, #4a4a4a 50%, #3a3a3a 70%, #2a2a2a 100%);
-                border-radius: 50% 50% 0 0;
-                box-shadow: inset 0 30px 50px rgba(255,255,255,0.1), inset 0 -30px 50px rgba(0,0,0,0.4);
-            "></div>
-            <!-- Spinner cone on top of cowling -->
-            <div style="
-                position: absolute;
-                top: -40px;
-                left: 50%;
-                transform: translateX(-50%);
-                width: 50px;
-                height: 60px;
-                background: linear-gradient(180deg, #555 0%, #777 30%, #666 60%, #444 100%);
-                border-radius: 50% 50% 40% 40%;
-                box-shadow: 0 -3px 10px rgba(0,0,0,0.3);
-            "></div>
-        `;
-        c.appendChild(engineAssembly);
         
-        // Propeller blades - positioned to appear attached to spinner
+        // SVG for the entire engine/prop assembly - all one piece
+        engineUnit.innerHTML = `
+            <svg width="280" height="320" viewBox="0 0 280 320" style="display: block;">
+                <defs>
+                    <linearGradient id="cowlingGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color:#2a2a2a"/>
+                        <stop offset="30%" style="stop-color:#4a4a4a"/>
+                        <stop offset="50%" style="stop-color:#5a5a5a"/>
+                        <stop offset="70%" style="stop-color:#4a4a4a"/>
+                        <stop offset="100%" style="stop-color:#2a2a2a"/>
+                    </linearGradient>
+                    <linearGradient id="spinnerGrad" x1="0%" y1="100%" x2="0%" y2="0%">
+                        <stop offset="0%" style="stop-color:#3a3a3a"/>
+                        <stop offset="40%" style="stop-color:#6a6a6a"/>
+                        <stop offset="60%" style="stop-color:#5a5a5a"/>
+                        <stop offset="100%" style="stop-color:#4a4a4a"/>
+                    </linearGradient>
+                </defs>
+                <!-- Engine cowling (nose) -->
+                <ellipse cx="140" cy="280" rx="90" ry="100" fill="url(#cowlingGrad)"/>
+                <!-- Spinner cone - directly on top of cowling -->
+                <ellipse cx="140" cy="160" rx="28" ry="35" fill="url(#spinnerGrad)"/>
+                <!-- Prop hub - connects spinner to blades -->
+                <circle cx="140" cy="125" r="18" fill="#4a4a4a" stroke="#333" stroke-width="2"/>
+            </svg>
+        `;
+        c.appendChild(engineUnit);
+        
+        // Propeller blades - separate so they can spin, but positioned to connect to hub
         const propeller = document.createElement('div');
         propeller.className = 'flight-propeller';
         propeller.style.cssText = `
             position: absolute;
-            bottom: 175px;
+            bottom: 177px;
             left: 50%;
             transform: translateX(-50%);
-            width: 320px;
-            height: 320px;
+            width: 300px;
+            height: 40px;
             z-index: 49;
         `;
         propeller.innerHTML = `
-            <svg viewBox="0 0 320 320" style="width: 100%; height: 100%;">
+            <svg viewBox="0 0 300 40" style="width: 100%; height: 100%;">
                 <defs>
                     <linearGradient id="bladeFill" x1="0%" y1="0%" x2="100%" y2="0%">
                         <stop offset="0%" style="stop-color:#2a2a2a"/>
-                        <stop offset="50%" style="stop-color:#4a4a4a"/>
+                        <stop offset="15%" style="stop-color:#4a4a4a"/>
+                        <stop offset="50%" style="stop-color:#3a3a3a"/>
+                        <stop offset="85%" style="stop-color:#4a4a4a"/>
                         <stop offset="100%" style="stop-color:#2a2a2a"/>
                     </linearGradient>
                 </defs>
-                <!-- Two-blade propeller -->
-                <ellipse cx="160" cy="160" rx="150" ry="16" fill="url(#bladeFill)" opacity="0.75"/>
+                <!-- Propeller blade - horizontal bar that spins -->
+                <rect x="5" y="12" width="290" height="16" rx="8" fill="url(#bladeFill)" opacity="0.8"/>
             </svg>
         `;
         c.appendChild(propeller);
         
-        // Bubble canopy - curved dome
+        // Bubble canopy
         const canopy = document.createElement('div');
         canopy.style.cssText = `
             position: absolute;
@@ -4347,31 +4367,19 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             z-index: 100;
         `;
         canopy.innerHTML = `
-            <!-- Curved canopy frame -->
             <svg style="position: absolute; inset: 0; width: 100%; height: 100%;" viewBox="0 0 100 100" preserveAspectRatio="none">
-                <!-- Left curved frame -->
-                <path d="M0,0 Q-8,50 0,100 L6,100 Q0,50 6,0 Z" fill="#1a1a1a"/>
-                <!-- Right curved frame -->
-                <path d="M100,0 Q108,50 100,100 L94,100 Q100,50 94,0 Z" fill="#1a1a1a"/>
-                <!-- Top curved frame -->
-                <path d="M0,0 L100,0 L100,5 Q50,-10 0,5 Z" fill="#1a1a1a"/>
+                <path d="M0,0 Q-8,50 0,100 L5,100 Q-2,50 5,0 Z" fill="#1a1a1a"/>
+                <path d="M100,0 Q108,50 100,100 L95,100 Q102,50 95,0 Z" fill="#1a1a1a"/>
+                <path d="M0,0 L100,0 L100,4 Q50,-8 0,4 Z" fill="#1a1a1a"/>
             </svg>
-            
-            <!-- Glass reflection -->
             <div style="position: absolute; top: 8%; left: 12%; width: 25%; height: 35%; background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 60%); border-radius: 50%;"></div>
-            
-            <!-- Dashboard -->
-            <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 90px; background: linear-gradient(0deg, #1a1a1a 0%, #252525 50%, transparent 100%); border-radius: 40% 40% 0 0 / 30% 30% 0 0;"></div>
-            
-            <!-- Instruments -->
-            <div style="position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 12px;">
-                <div style="width: 36px; height: 36px; border-radius: 50%; background: #0a0a0a; border: 2px solid #333; box-shadow: inset 0 0 12px rgba(0,255,100,0.15);"></div>
-                <div style="width: 48px; height: 48px; border-radius: 50%; background: #0a0a0a; border: 2px solid #333; box-shadow: inset 0 0 15px rgba(255,180,50,0.2);"></div>
-                <div style="width: 36px; height: 36px; border-radius: 50%; background: #0a0a0a; border: 2px solid #333; box-shadow: inset 0 0 12px rgba(50,150,255,0.15);"></div>
+            <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 85px; background: linear-gradient(0deg, #1a1a1a 0%, #252525 50%, transparent 100%); border-radius: 40% 40% 0 0 / 25% 25% 0 0;"></div>
+            <div style="position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px;">
+                <div style="width: 34px; height: 34px; border-radius: 50%; background: #0a0a0a; border: 2px solid #333; box-shadow: inset 0 0 10px rgba(0,255,100,0.15);"></div>
+                <div style="width: 44px; height: 44px; border-radius: 50%; background: #0a0a0a; border: 2px solid #333; box-shadow: inset 0 0 12px rgba(255,180,50,0.2);"></div>
+                <div style="width: 34px; height: 34px; border-radius: 50%; background: #0a0a0a; border: 2px solid #333; box-shadow: inset 0 0 10px rgba(50,150,255,0.15);"></div>
             </div>
-            
-            <!-- Control stick -->
-            <div style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 18px; height: 45px; background: linear-gradient(90deg, #1a1a1a, #2a2a2a, #1a1a1a); border-radius: 6px 6px 0 0;"></div>
+            <div style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 16px; height: 40px; background: linear-gradient(90deg, #1a1a1a, #2a2a2a, #1a1a1a); border-radius: 5px 5px 0 0;"></div>
         `;
         c.appendChild(canopy);
         
@@ -4382,9 +4390,18 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         const style = document.createElement('style');
         style.id = 'flight-style';
         style.textContent = `
-            @keyframes ground-scroll {
-                0% { transform: translateX(0); }
-                100% { transform: translateX(-50%); }
+            @keyframes field-approach {
+                0% { 
+                    transform: translateY(0) scale(0.3);
+                    opacity: 0.4;
+                }
+                50% {
+                    opacity: 0.8;
+                }
+                100% { 
+                    transform: translateY(300px) scale(3);
+                    opacity: 0;
+                }
             }
             @keyframes fly-towards {
                 0% { transform: translate(-50%, -50%) scale(0.1); opacity: 0; }
@@ -4399,18 +4416,19 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 100% { transform: translate(-50%, -50%) scale(4); opacity: 0; }
             }
             @keyframes prop-spin {
-                0% { transform: translateX(-50%) rotate(0deg); opacity: 0.7; }
-                25% { transform: translateX(-50%) rotate(90deg); opacity: 0.5; }
-                50% { transform: translateX(-50%) rotate(180deg); opacity: 0.7; }
-                75% { transform: translateX(-50%) rotate(270deg); opacity: 0.5; }
-                100% { transform: translateX(-50%) rotate(360deg); opacity: 0.7; }
+                from { transform: translateX(-50%) rotate(0deg); }
+                to { transform: translateX(-50%) rotate(360deg); }
             }
             .flight-propeller {
-                animation: prop-spin 0.3s linear infinite;
+                animation: prop-spin 0.35s linear infinite;
+                opacity: 0.7;
                 filter: blur(1px);
             }
         `;
         document.head.appendChild(style);
+        
+        // Start spawning fields
+        setTimeout(spawnField, 100);
         
         // Spawn clouds coming towards viewer
         const spawnCloud = () => {
@@ -4483,6 +4501,29 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
     oceanTimeout: null,
     oceanObjects: [],
     
+    // Calculate moon phase (0-7: new, waxing crescent, first quarter, waxing gibbous, full, waning gibbous, last quarter, waning crescent)
+    getMoonPhase() {
+        const date = new Date();
+        let year = date.getFullYear();
+        let month = date.getMonth() + 1;
+        const day = date.getDate();
+        
+        if (month < 3) {
+            year--;
+            month += 12;
+        }
+        month++;
+        
+        const c = 365.25 * year;
+        const e = 30.6 * month;
+        let jd = c + e + day - 694039.09;
+        jd /= 29.5305882;
+        const b = Math.floor(jd);
+        jd -= b;
+        const phase = Math.round(jd * 8);
+        return phase >= 8 ? 0 : phase;
+    },
+    
     ocean(active) {
         let c = DOM.theme.effects.ocean;
         if (!c) {
@@ -4505,6 +4546,10 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         const timeDecimal = hour + minutes / 60;
         const isNight = hour >= 20 || hour < 6;
         const isEvening = (hour >= 17 && hour < 20) || (hour >= 6 && hour < 8);
+        
+        // Get moon phase for realistic moon appearance
+        const moonPhase = this.getMoonPhase();
+        // Phase names: 0=new, 1=waxing crescent, 2=first quarter, 3=waxing gibbous, 4=full, 5=waning gibbous, 6=last quarter, 7=waning crescent
         
         // Calculate celestial body position
         let bodyX, bodyY;
@@ -4540,7 +4585,7 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         
         // Add sun or moon
         if (isNight) {
-            // Moon
+            // Moon with phase-accurate appearance
             const moon = document.createElement('div');
             moon.style.cssText = `
                 position: absolute;
@@ -4549,11 +4594,31 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 transform: translate(-50%, -50%);
                 width: 45px;
                 height: 45px;
-                background: radial-gradient(circle at 35% 35%, #fffef0 0%, #f0f0e0 50%, #d8d8c8 100%);
                 border-radius: 50%;
                 box-shadow: 0 0 30px rgba(255,255,240,0.5), 0 0 60px rgba(255,255,240,0.3);
                 z-index: 2;
+                overflow: hidden;
             `;
+            
+            // Create moon with phase shadow
+            // Phase 0=new (dark), 4=full (bright), others partial
+            let moonGradient;
+            if (moonPhase === 0) {
+                // New moon - barely visible
+                moonGradient = 'radial-gradient(circle at 50% 50%, #3a3a3a 0%, #2a2a2a 100%)';
+            } else if (moonPhase === 4) {
+                // Full moon - fully lit
+                moonGradient = 'radial-gradient(circle at 35% 35%, #fffef0 0%, #f0f0e0 50%, #d8d8c8 100%)';
+            } else if (moonPhase < 4) {
+                // Waxing (right side lit in northern hemisphere)
+                const litPercent = moonPhase * 25;
+                moonGradient = `linear-gradient(90deg, #2a2a2a 0%, #2a2a2a ${50 - litPercent}%, #d8d8c8 ${50 - litPercent + 10}%, #fffef0 100%)`;
+            } else {
+                // Waning (left side lit)
+                const litPercent = (8 - moonPhase) * 25;
+                moonGradient = `linear-gradient(90deg, #fffef0 0%, #d8d8c8 ${litPercent - 10}%, #2a2a2a ${litPercent}%, #2a2a2a 100%)`;
+            }
+            moon.style.background = moonGradient;
             c.appendChild(moon);
             
             // Moon reflection - broken up by waves, widens towards viewer
