@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.44',
+    APP_VERSION: '6.2.45',
     KIDS_LIST_FILE: 'kids_words.txt',
 
     SPECIAL: {
@@ -1671,17 +1671,13 @@ rs.innerHTML = `
         DOM.theme.chooser.value = currentThemeToApply;
     },
     populateChooser() {
-        const u = State.data.unlockedThemes,
-            a = [...new Set(u)].sort(),
-            c = DOM.theme.chooser;
-        c.innerHTML = '<option value="default">Default</option>';
-        a.forEach(t => {
-            const o = document.createElement('option');
-            o.value = t;
-            o.textContent = t === 'ballpit' ? 'Ball Pit' : t.charAt(0).toUpperCase() + t.slice(1);
-            c.appendChild(o)
-        });
-        c.value = State.data.currentTheme
+        // Just display current theme - clicking opens gallery instead
+        const c = DOM.theme.chooser;
+        if (!c) return;
+        const current = State.data.currentTheme || 'default';
+        const name = current === 'ballpit' ? 'Ball Pit' : current.charAt(0).toUpperCase() + current.slice(1);
+        c.innerHTML = `<option value="${current}">${name}</option>`;
+        c.value = current;
     },
     
     showGallery() {
@@ -4171,7 +4167,7 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         // Sky gradient - looking forward from cockpit
         c.style.background = 'linear-gradient(180deg, #1a3a5c 0%, #4a90c2 30%, #87CEEB 60%, #B0E0E6 100%)';
         
-        // Cockpit frame - more realistic with instruments
+        // Subtle cockpit frame - thin, unobtrusive
         const cockpit = document.createElement('div');
         cockpit.style.cssText = `
             position: absolute;
@@ -4180,42 +4176,81 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             z-index: 100;
         `;
         cockpit.innerHTML = `
-            <!-- Top frame -->
-            <div style="position: absolute; top: 0; left: 0; right: 0; height: 60px; background: linear-gradient(180deg, #1a1a1a 0%, #2d2d2d 100%); border-radius: 0 0 50% 50%;"></div>
-            <!-- Left pillar -->
-            <div style="position: absolute; top: 0; left: 0; width: 40px; height: 100%; background: linear-gradient(90deg, #1a1a1a 0%, #2d2d2d 100%);"></div>
-            <!-- Right pillar -->
-            <div style="position: absolute; top: 0; right: 0; width: 40px; height: 100%; background: linear-gradient(90deg, #2d2d2d 0%, #1a1a1a 100%);"></div>
-            <!-- Dashboard -->
-            <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 80px; background: linear-gradient(0deg, #1a1a1a 0%, #2d2d2d 80%, #3d3d3d 100%); border-radius: 50% 50% 0 0;"></div>
-            <!-- Gauges -->
-            <div style="position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px;">
-                <div style="width: 40px; height: 40px; border-radius: 50%; background: #111; border: 2px solid #444; box-shadow: inset 0 0 10px rgba(0,255,0,0.3);"></div>
-                <div style="width: 50px; height: 50px; border-radius: 50%; background: #111; border: 2px solid #444; box-shadow: inset 0 0 10px rgba(255,100,0,0.3);"></div>
-                <div style="width: 40px; height: 40px; border-radius: 50%; background: #111; border: 2px solid #444; box-shadow: inset 0 0 10px rgba(0,150,255,0.3);"></div>
+            <!-- Thin windscreen frame -->
+            <div style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 4px; height: 30%; background: linear-gradient(180deg, #3a3a3a 0%, #2a2a2a 100%); border-radius: 2px;"></div>
+            <!-- Corner shadows for depth -->
+            <div style="position: absolute; top: 0; left: 0; width: 60px; height: 60px; background: radial-gradient(ellipse at top left, rgba(0,0,0,0.3) 0%, transparent 70%);"></div>
+            <div style="position: absolute; top: 0; right: 0; width: 60px; height: 60px; background: radial-gradient(ellipse at top right, rgba(0,0,0,0.3) 0%, transparent 70%);"></div>
+            <!-- Dashboard - subtle curve at bottom -->
+            <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 50px; background: linear-gradient(0deg, #2a2a2a 0%, #3a3a3a 60%, transparent 100%); border-radius: 100% 100% 0 0;"></div>
+            <!-- Small gauges -->
+            <div style="position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px;">
+                <div style="width: 28px; height: 28px; border-radius: 50%; background: #111; border: 1px solid #444; box-shadow: inset 0 0 8px rgba(0,255,0,0.2);"></div>
+                <div style="width: 32px; height: 32px; border-radius: 50%; background: #111; border: 1px solid #444; box-shadow: inset 0 0 8px rgba(255,100,0,0.2);"></div>
+                <div style="width: 28px; height: 28px; border-radius: 50%; background: #111; border: 1px solid #444; box-shadow: inset 0 0 8px rgba(0,150,255,0.2);"></div>
             </div>
         `;
         c.appendChild(cockpit);
         
-        // Propeller with rolling shutter/jello effect
-        const propeller = document.createElement('div');
-        propeller.className = 'flight-propeller';
-        propeller.style.cssText = `
+        // Engine cowling (nose of plane) - connects propeller to aircraft
+        const cowling = document.createElement('div');
+        cowling.style.cssText = `
             position: absolute;
-            top: 55%;
+            bottom: 15%;
             left: 50%;
-            transform: translate(-50%, -50%);
-            width: 200px;
-            height: 200px;
-            z-index: 50;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 80px;
+            background: linear-gradient(0deg, #4a4a4a 0%, #5a5a5a 30%, #6a6a6a 50%, #5a5a5a 70%, #3a3a3a 100%);
+            border-radius: 50% 50% 60% 60%;
+            z-index: 45;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.4), inset 0 -10px 20px rgba(0,0,0,0.3);
         `;
-        propeller.innerHTML = `
-            <div class="prop-blade" style="position: absolute; top: 50%; left: 50%; width: 180px; height: 12px; background: linear-gradient(90deg, #2a2a2a 0%, #4a4a4a 50%, #2a2a2a 100%); transform-origin: center; border-radius: 6px; margin-left: -90px; margin-top: -6px;"></div>
-            <div class="prop-blade" style="position: absolute; top: 50%; left: 50%; width: 180px; height: 12px; background: linear-gradient(90deg, #2a2a2a 0%, #4a4a4a 50%, #2a2a2a 100%); transform-origin: center; border-radius: 6px; margin-left: -90px; margin-top: -6px; transform: rotate(120deg);"></div>
-            <div class="prop-blade" style="position: absolute; top: 50%; left: 50%; width: 180px; height: 12px; background: linear-gradient(90deg, #2a2a2a 0%, #4a4a4a 50%, #2a2a2a 100%); transform-origin: center; border-radius: 6px; margin-left: -90px; margin-top: -6px; transform: rotate(240deg);"></div>
-            <div style="position: absolute; top: 50%; left: 50%; width: 30px; height: 30px; background: radial-gradient(circle, #555 0%, #222 100%); border-radius: 50%; transform: translate(-50%, -50%); border: 3px solid #333;"></div>
+        c.appendChild(cowling);
+        
+        // Spinner (propeller hub) - sits on cowling
+        const spinner = document.createElement('div');
+        spinner.style.cssText = `
+            position: absolute;
+            bottom: calc(15% + 60px);
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 50px;
+            background: linear-gradient(180deg, #666 0%, #888 20%, #777 50%, #555 100%);
+            border-radius: 50% 50% 40% 40%;
+            z-index: 55;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
         `;
-        c.appendChild(propeller);
+        c.appendChild(spinner);
+        
+        // Propeller disc (motion blur effect - like a spinning disc)
+        const propDisc = document.createElement('div');
+        propDisc.className = 'flight-propeller';
+        propDisc.style.cssText = `
+            position: absolute;
+            bottom: calc(15% + 85px);
+            left: 50%;
+            transform: translateX(-50%);
+            width: 280px;
+            height: 280px;
+            z-index: 52;
+        `;
+        // Create realistic blade shapes
+        propDisc.innerHTML = `
+            <!-- Blade 1 -->
+            <div style="position: absolute; top: 50%; left: 50%; width: 130px; height: 18px; 
+                background: linear-gradient(180deg, #5a5a5a 0%, #3a3a3a 40%, #2a2a2a 100%);
+                transform-origin: left center; transform: translateY(-50%) rotate(0deg);
+                border-radius: 2px 8px 8px 2px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>
+            <div style="position: absolute; top: 50%; right: 50%; width: 130px; height: 18px; 
+                background: linear-gradient(180deg, #5a5a5a 0%, #3a3a3a 40%, #2a2a2a 100%);
+                transform-origin: right center; transform: translateY(-50%) rotate(0deg);
+                border-radius: 8px 2px 2px 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>
+        `;
+        c.appendChild(propDisc);
         
         // Add horizon line (distant)
         const horizon = document.createElement('div');
@@ -4225,57 +4260,55 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             left: 0;
             right: 0;
             height: 1px;
-            background: rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.15);
             z-index: 1;
         `;
         c.appendChild(horizon);
         
         // Add flight animation styles
-        if (!document.getElementById('flight-style')) {
-            const style = document.createElement('style');
-            style.id = 'flight-style';
-            style.textContent = `
-                @keyframes fly-towards {
-                    0% { 
-                        transform: translate(-50%, -50%) scale(0.1);
-                        opacity: 0;
-                    }
-                    10% { opacity: 1; }
-                    90% { opacity: 1; }
-                    100% { 
-                        transform: translate(-50%, -50%) scale(3);
-                        opacity: 0;
-                    }
+        const oldStyle = document.getElementById('flight-style');
+        if (oldStyle) oldStyle.remove();
+        
+        const style = document.createElement('style');
+        style.id = 'flight-style';
+        style.textContent = `
+            @keyframes fly-towards {
+                0% { 
+                    transform: translate(-50%, -50%) scale(0.1);
+                    opacity: 0;
                 }
-                @keyframes cloud-towards {
-                    0% { 
-                        transform: translate(-50%, -50%) scale(0.2);
-                        opacity: 0;
-                    }
-                    20% { opacity: 0.8; }
-                    80% { opacity: 0.6; }
-                    100% { 
-                        transform: translate(-50%, -50%) scale(4);
-                        opacity: 0;
-                    }
+                10% { opacity: 1; }
+                90% { opacity: 1; }
+                100% { 
+                    transform: translate(-50%, -50%) scale(3);
+                    opacity: 0;
                 }
-                @keyframes propeller-spin {
-                    from { transform: translate(-50%, -50%) rotate(0deg); }
-                    to { transform: translate(-50%, -50%) rotate(360deg); }
+            }
+            @keyframes cloud-towards {
+                0% { 
+                    transform: translate(-50%, -50%) scale(0.2);
+                    opacity: 0;
                 }
-                @keyframes jello-warp {
-                    0%, 100% { filter: blur(0px); transform: translate(-50%, -50%) skewX(0deg) rotate(0deg); }
-                    25% { filter: blur(1px); transform: translate(-50%, -50%) skewX(2deg) rotate(90deg); }
-                    50% { filter: blur(0.5px); transform: translate(-50%, -50%) skewX(-1deg) rotate(180deg); }
-                    75% { filter: blur(1px); transform: translate(-50%, -50%) skewX(1.5deg) rotate(270deg); }
+                20% { opacity: 0.8; }
+                80% { opacity: 0.6; }
+                100% { 
+                    transform: translate(-50%, -50%) scale(4);
+                    opacity: 0;
                 }
-                .flight-propeller {
-                    animation: jello-warp 0.08s linear infinite;
-                    opacity: 0.4;
-                }
-            `;
-            document.head.appendChild(style);
-        }
+            }
+            @keyframes prop-jello {
+                0% { transform: translateX(-50%) skewY(0deg) scaleY(1); opacity: 0.35; }
+                25% { transform: translateX(-50%) skewY(3deg) scaleY(0.95); opacity: 0.25; }
+                50% { transform: translateX(-50%) skewY(-2deg) scaleY(1.02); opacity: 0.4; }
+                75% { transform: translateX(-50%) skewY(2deg) scaleY(0.98); opacity: 0.3; }
+                100% { transform: translateX(-50%) skewY(0deg) scaleY(1); opacity: 0.35; }
+            }
+            .flight-propeller {
+                animation: prop-jello 0.06s linear infinite;
+                filter: blur(1px);
+            }
+        `;
+        document.head.appendChild(style);
         
         // Spawn clouds coming towards viewer
         const spawnCloud = () => {
@@ -4364,92 +4397,161 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         if (!active) { c.innerHTML = ''; c.style.background = ''; return; }
         c.innerHTML = '';
         
-        // Calculate sun position based on time (6am = left/low, 12pm = center/high, 6pm = right/low)
+        // Time-based calculations
         const hour = new Date().getHours();
         const minutes = new Date().getMinutes();
         const timeDecimal = hour + minutes / 60;
-        // Map 6-18 to 10%-90% horizontal, outside hours = edges
-        let sunX, sunY;
-        if (timeDecimal < 6) {
-            sunX = 5; sunY = 40;
-        } else if (timeDecimal > 18) {
-            sunX = 95; sunY = 40;
+        const isNight = hour >= 20 || hour < 6;
+        const isEvening = (hour >= 17 && hour < 20) || (hour >= 6 && hour < 8);
+        
+        // Calculate celestial body position
+        let bodyX, bodyY;
+        if (isNight) {
+            // Moon position (rises east, sets west through night)
+            const nightProgress = hour >= 20 ? (hour - 20 + minutes/60) / 10 : (hour + 4 + minutes/60) / 10;
+            bodyX = 15 + nightProgress * 70;
+            bodyY = 15 + Math.sin(nightProgress * Math.PI) * -10;
         } else {
-            // 6am = 10%, 12pm = 50%, 6pm = 90%
-            sunX = 10 + ((timeDecimal - 6) / 12) * 80;
-            // Arc: highest at noon (10%), lowest at 6am/6pm (35%)
-            const noon = 12;
-            const distFromNoon = Math.abs(timeDecimal - noon);
-            sunY = 8 + (distFromNoon / 6) * 30;
+            // Sun position
+            if (timeDecimal < 6) {
+                bodyX = 10; bodyY = 38;
+            } else if (timeDecimal > 18) {
+                bodyX = 90; bodyY = 38;
+            } else {
+                bodyX = 10 + ((timeDecimal - 6) / 12) * 80;
+                const noon = 12;
+                const distFromNoon = Math.abs(timeDecimal - noon);
+                bodyY = 10 + (distFromNoon / 6) * 28;
+            }
         }
         
-        // Sky gradient - changes slightly with time
-        const isEvening = hour >= 17 || hour < 7;
-        const skyGradient = isEvening 
-            ? 'linear-gradient(180deg, #2c1810 0%, #c44536 20%, #f7b267 40%, #3d5a80 50%, #1b3a4b 70%, #0d1b2a 100%)'
-            : 'linear-gradient(180deg, #5BA3D0 0%, #87CEEB 25%, #B0D4E8 44%, #3d6a8a 48%, #2E6B9E 55%, #1B4F72 75%, #0D3B5C 100%)';
+        // Sky gradient based on time
+        let skyGradient;
+        if (isNight) {
+            skyGradient = 'linear-gradient(180deg, #0a0a1a 0%, #1a1a3a 20%, #2a3a5a 40%, #1a3050 48%, #0f2840 55%, #0a1828 75%, #051018 100%)';
+        } else if (isEvening) {
+            skyGradient = 'linear-gradient(180deg, #1a2a4a 0%, #c44536 15%, #f7b267 35%, #87CEEB 45%, #2a5a8a 50%, #1a4a7a 65%, #0f3050 85%, #0a2030 100%)';
+        } else {
+            skyGradient = 'linear-gradient(180deg, #4a90c2 0%, #87CEEB 20%, #a8d4ea 40%, #87CEEB 47%, #2a6a9a 50%, #1a5080 60%, #0f3a60 80%, #0a2840 100%)';
+        }
         c.style.background = skyGradient;
         
-        // Add sun
-        const sun = document.createElement('div');
-        const sunColor = isEvening ? '#ff6b35' : '#FFD700';
-        sun.id = 'ocean-sun';
-        sun.style.cssText = `
-            position: absolute;
-            top: ${sunY}%;
-            left: ${sunX}%;
-            transform: translate(-50%, -50%);
-            width: 50px;
-            height: 50px;
-            background: radial-gradient(circle, #FFE87C 0%, ${sunColor} 50%, ${isEvening ? '#c44536' : '#FFA500'} 100%);
-            border-radius: 50%;
-            box-shadow: 0 0 60px ${sunColor}, 0 0 120px ${sunColor}80;
-            z-index: 2;
-        `;
-        c.appendChild(sun);
+        // Add sun or moon
+        if (isNight) {
+            // Moon
+            const moon = document.createElement('div');
+            moon.style.cssText = `
+                position: absolute;
+                top: ${bodyY}%;
+                left: ${bodyX}%;
+                transform: translate(-50%, -50%);
+                width: 45px;
+                height: 45px;
+                background: radial-gradient(circle at 35% 35%, #fffef0 0%, #f0f0e0 50%, #d8d8c8 100%);
+                border-radius: 50%;
+                box-shadow: 0 0 30px rgba(255,255,240,0.5), 0 0 60px rgba(255,255,240,0.3);
+                z-index: 2;
+            `;
+            c.appendChild(moon);
+            
+            // Moon reflection - white/silver shimmer
+            const moonReflection = document.createElement('div');
+            moonReflection.className = 'ocean-reflection';
+            moonReflection.style.cssText = `
+                position: absolute;
+                top: 49%;
+                left: ${bodyX}%;
+                transform: translateX(-50%);
+                width: 4px;
+                height: 50%;
+                background: linear-gradient(180deg, 
+                    rgba(255,255,250,0.7) 0%, 
+                    rgba(255,255,250,0.4) 15%,
+                    rgba(255,255,250,0.2) 40%,
+                    rgba(255,255,250,0.05) 70%,
+                    transparent 100%);
+                z-index: 9;
+            `;
+            c.appendChild(moonReflection);
+            
+            // Add stars
+            for (let i = 0; i < 50; i++) {
+                const star = document.createElement('div');
+                star.style.cssText = `
+                    position: absolute;
+                    top: ${Math.random() * 45}%;
+                    left: ${Math.random() * 100}%;
+                    width: ${1 + Math.random() * 2}px;
+                    height: ${1 + Math.random() * 2}px;
+                    background: white;
+                    border-radius: 50%;
+                    opacity: ${0.3 + Math.random() * 0.7};
+                    animation: star-twinkle ${2 + Math.random() * 3}s ease-in-out infinite;
+                    animation-delay: ${Math.random() * 2}s;
+                `;
+                c.appendChild(star);
+            }
+        } else {
+            // Sun
+            const sun = document.createElement('div');
+            const sunColor = isEvening ? '#ff6b35' : '#FFD700';
+            sun.style.cssText = `
+                position: absolute;
+                top: ${bodyY}%;
+                left: ${bodyX}%;
+                transform: translate(-50%, -50%);
+                width: 50px;
+                height: 50px;
+                background: radial-gradient(circle, #fff8e0 0%, ${sunColor} 50%, ${isEvening ? '#c44536' : '#FFA500'} 100%);
+                border-radius: 50%;
+                box-shadow: 0 0 60px ${sunColor}, 0 0 100px ${sunColor}80;
+                z-index: 2;
+            `;
+            c.appendChild(sun);
+            
+            // Sun reflection - thin golden/yellow shimmer
+            const sunReflection = document.createElement('div');
+            sunReflection.className = 'ocean-reflection';
+            sunReflection.style.cssText = `
+                position: absolute;
+                top: 49%;
+                left: ${bodyX}%;
+                transform: translateX(-50%);
+                width: 3px;
+                height: 50%;
+                background: linear-gradient(180deg, 
+                    rgba(255,215,0,0.8) 0%, 
+                    rgba(255,200,0,0.5) 15%,
+                    rgba(255,180,0,0.25) 40%,
+                    rgba(255,150,0,0.1) 70%,
+                    transparent 100%);
+                z-index: 9;
+            `;
+            c.appendChild(sunReflection);
+        }
         
-        // Sun reflection on water
-        const reflection = document.createElement('div');
-        reflection.style.cssText = `
-            position: absolute;
-            top: 48%;
-            left: ${sunX}%;
-            transform: translateX(-50%);
-            width: 8px;
-            height: 52%;
-            background: linear-gradient(180deg, 
-                ${sunColor}90 0%, 
-                ${sunColor}60 10%,
-                ${sunColor}30 30%,
-                ${sunColor}10 60%,
-                transparent 100%);
-            filter: blur(3px);
-            z-index: 3;
-            animation: reflection-shimmer 2s ease-in-out infinite;
-        `;
-        c.appendChild(reflection);
-        
-        // Multiple wave layers for more motion
+        // Ocean waves - BLUE, not green!
         for (let i = 0; i < 4; i++) {
             const wave = document.createElement('div');
             wave.className = 'ocean-wave';
+            const blueBase = isNight ? [10, 30, 60] : [30, 90, 160];
             wave.style.cssText = `
                 position: absolute;
-                top: ${47 + i * 0.8}%;
+                top: ${48 + i * 1.5}%;
                 left: -10%;
                 width: 120%;
-                height: ${55 - i * 5}%;
+                height: ${54 - i * 6}%;
                 background: linear-gradient(180deg,
-                    rgba(${30 + i * 15}, ${100 + i * 20}, ${180 - i * 20}, ${0.9 - i * 0.15}) 0%,
-                    rgba(${20 + i * 10}, ${80 + i * 15}, ${150 - i * 15}, ${0.95 - i * 0.1}) 50%,
-                    rgba(13, 59, 92, 1) 100%);
-                animation: wave-roll-${i} ${4 + i}s ease-in-out infinite;
+                    rgba(${blueBase[0] + i*5}, ${blueBase[1] + i*10}, ${blueBase[2] + i*15}, 0.95) 0%,
+                    rgba(${blueBase[0]}, ${blueBase[1] - 10}, ${blueBase[2] - 20}, 0.98) 50%,
+                    rgba(${Math.floor(blueBase[0]*0.5)}, ${Math.floor(blueBase[1]*0.6)}, ${Math.floor(blueBase[2]*0.7)}, 1) 100%);
+                animation: wave-roll-${i} ${3.5 + i * 0.8}s ease-in-out infinite;
                 z-index: ${4 + i};
             `;
             c.appendChild(wave);
         }
         
-        // Add ocean animation styles
+        // Ocean animation styles
         const oldStyle = document.getElementById('ocean-style');
         if (oldStyle) oldStyle.remove();
         
@@ -4458,41 +4560,44 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         style.textContent = `
             @keyframes wave-roll-0 {
                 0%, 100% { transform: translateX(0) translateY(0); }
-                50% { transform: translateX(2%) translateY(-3px); }
+                50% { transform: translateX(1.5%) translateY(-4px); }
             }
             @keyframes wave-roll-1 {
                 0%, 100% { transform: translateX(0) translateY(0); }
-                50% { transform: translateX(-1.5%) translateY(-5px); }
+                50% { transform: translateX(-1%) translateY(-6px); }
             }
             @keyframes wave-roll-2 {
                 0%, 100% { transform: translateX(0) translateY(0); }
-                50% { transform: translateX(1%) translateY(-8px); }
+                50% { transform: translateX(0.8%) translateY(-9px); }
             }
             @keyframes wave-roll-3 {
                 0%, 100% { transform: translateX(0) translateY(0); }
-                50% { transform: translateX(-2%) translateY(-12px); }
+                50% { transform: translateX(-1.2%) translateY(-14px); }
             }
             @keyframes reflection-shimmer {
                 0%, 100% { 
-                    opacity: 0.8; 
-                    transform: translateX(-50%) scaleX(1);
-                    filter: blur(3px);
+                    opacity: 1; 
+                    transform: translateX(-50%) scaleX(1) scaleY(1);
                 }
                 25% { 
-                    opacity: 0.5; 
-                    transform: translateX(-50%) scaleX(1.5);
-                    filter: blur(5px);
+                    opacity: 0.6; 
+                    transform: translateX(-50%) scaleX(2) scaleY(0.95);
                 }
                 50% { 
                     opacity: 0.9; 
-                    transform: translateX(-50%) scaleX(0.8);
-                    filter: blur(2px);
+                    transform: translateX(-50%) scaleX(0.5) scaleY(1.02);
                 }
                 75% { 
-                    opacity: 0.6; 
-                    transform: translateX(-50%) scaleX(1.3);
-                    filter: blur(4px);
+                    opacity: 0.7; 
+                    transform: translateX(-50%) scaleX(1.5) scaleY(0.98);
                 }
+            }
+            .ocean-reflection {
+                animation: reflection-shimmer 2.5s ease-in-out infinite;
+            }
+            @keyframes star-twinkle {
+                0%, 100% { opacity: 0.3; }
+                50% { opacity: 1; }
             }
             @keyframes boat-bob {
                 0%, 100% { transform: translateY(0) rotate(-1deg); }
@@ -4521,7 +4626,7 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         `;
         document.head.appendChild(style);
         
-        // Boat configurations with depth layers
+        // Boats
         const boats = ['⛵', '🚤', '🛥️', '🚢', '⛴️', '🛶'];
         
         const spawnBoat = () => {
@@ -4531,27 +4636,23 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             const boatEmoji = boats[Math.floor(Math.random() * boats.length)];
             const goingRight = Math.random() > 0.5;
             
-            // Depth layers with more dramatic size differences
             const depthRoll = Math.random();
             let yPos, size, duration, zIndex, bobAnimation;
             
             if (depthRoll < 0.35) {
-                // Far - tiny boats on horizon
-                yPos = 46 + Math.random() * 2;
+                yPos = 47 + Math.random() * 2;
                 size = 8 + Math.random() * 5;
                 duration = 90 + Math.random() * 50;
                 zIndex = 8;
                 bobAnimation = 'boat-bob 5s ease-in-out infinite';
             } else if (depthRoll < 0.7) {
-                // Mid distance
-                yPos = 52 + Math.random() * 10;
+                yPos = 54 + Math.random() * 10;
                 size = 20 + Math.random() * 18;
                 duration = 55 + Math.random() * 35;
                 zIndex = 12;
                 bobAnimation = 'boat-bob 3.5s ease-in-out infinite';
             } else {
-                // Close - LARGE boats in foreground
-                yPos = 68 + Math.random() * 18;
+                yPos = 70 + Math.random() * 18;
                 size = 55 + Math.random() * 40;
                 duration = 20 + Math.random() * 15;
                 zIndex = 25;
@@ -4579,9 +4680,9 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             this.oceanTimeout = setTimeout(spawnBoat, 2500 + Math.random() * 5000);
         };
         
-        // Spawn seagulls
+        // Seagulls (only during day)
         const spawnSeagull = () => {
-            if (!c.isConnected) return;
+            if (!c.isConnected || isNight) return;
             
             const bird = document.createElement('div');
             bird.textContent = '🕊️';
@@ -4610,10 +4711,9 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         };
         
         this.oceanTimeout = setTimeout(spawnBoat, 1000);
-        setTimeout(spawnSeagull, 3000);
+        if (!isNight) setTimeout(spawnSeagull, 3000);
     }
 };
-
 const ShareManager = {
     async shareQR(type) {
         const word = State.runtime.allWords[State.runtime.currentWordIndex].text.toUpperCase();
