@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.34',
+    APP_VERSION: '6.2.35',
     KIDS_LIST_FILE: 'kids_words.txt',
 
     SPECIAL: {
@@ -8182,28 +8182,12 @@ const Game = {
 async vote(t, s = false) {
         if (State.runtime.isCoolingDown) return;
 
-        // === ANTI-CHEAT SYSTEM ===
         const n = Date.now();
         
-        // Track button clicks (to detect mashing during animation)
-        if (!State.runtime.clicksSinceLastVote) State.runtime.clicksSinceLastVote = 0;
-        State.runtime.clicksSinceLastVote++;
-        
-        // If they clicked 5+ times since last successful vote, they're mashing
-        if (State.runtime.clicksSinceLastVote >= 5) {
-            State.runtime.clicksSinceLastVote = 0;
-            UIManager.showMessage("Slow down! Wait for the word.", true);
-            Haptics.heavy();
+        // Minimum delay between processed votes (400ms) - prevents double-clicks
+        if (State.runtime.lastVoteTime > 0 && (n - State.runtime.lastVoteTime) < 400) {
             return;
         }
-        
-        // Minimum delay between processed votes (400ms)
-        if (State.runtime.lastVoteTime > 0 && (n - State.runtime.lastVoteTime) < 400) {
-            return; // Too fast, ignore (but click was counted above)
-        }
-        
-        // Reset click counter on successful vote
-        State.runtime.clicksSinceLastVote = 0;
 
         // Multiplayer mode - send to room
         if (State.runtime.isMultiplayer && typeof RoomManager !== 'undefined' && RoomManager.active) {
@@ -8213,7 +8197,8 @@ async vote(t, s = false) {
              return;
         }
 
-        // Track consecutive same-direction votes (spam detection)
+        // === ANTI-CHEAT: Consecutive same votes ===
+        // Track if voting same direction repeatedly (not reading words)
         if (t === 'good' || t === 'bad') {
             if (State.runtime.lastVoteType === t) {
                 State.runtime.sameVoteStreak++;
@@ -8222,10 +8207,14 @@ async vote(t, s = false) {
             }
             State.runtime.lastVoteType = t;
             
-            // 8+ consecutive same votes = suspicious
-            if (State.runtime.sameVoteStreak >= 8) {
-                State.runtime.sameVoteStreak = 0;
+            // 8+ consecutive same votes = show message but ALLOW the vote
+            // 12+ consecutive = cooldown (definite spam)
+            if (State.runtime.sameVoteStreak === 8) {
                 const msg = t === 'good' ? "Every word is GOOD today?" : "Having a BAD day?";
+                UIManager.showPostVoteMessage(msg);
+            } else if (State.runtime.sameVoteStreak >= 12) {
+                State.runtime.sameVoteStreak = 0;
+                const msg = t === 'good' ? "Too positive! Take a break." : "Too negative! Take a break.";
                 UIManager.showMessage(msg, true);
                 Haptics.heavy();
                 this.handleCooldown();
@@ -8233,18 +8222,28 @@ async vote(t, s = false) {
             }
         }
 
-        // Track fast voting pattern
-        if (State.runtime.lastVoteTime > 0 && (n - State.runtime.lastVoteTime) < CONFIG.VOTE.STREAK_WINDOW) {
-            State.runtime.mashCount++;
-        } else {
-            State.runtime.mashCount = Math.max(0, State.runtime.mashCount - 1);
+        // === ANTI-CHEAT: Speed detection ===
+        // Track voting speed - if voting faster than 1 second consistently, suspicious
+        if (State.runtime.lastVoteTime > 0) {
+            const timeSinceLastVote = n - State.runtime.lastVoteTime;
+            if (timeSinceLastVote < 1000) {
+                State.runtime.fastVoteCount = (State.runtime.fastVoteCount || 0) + 1;
+            } else {
+                // Decay fast vote count if they slow down
+                State.runtime.fastVoteCount = Math.max(0, (State.runtime.fastVoteCount || 0) - 1);
+            }
+            
+            // 6+ fast votes in a row = cooldown
+            if (State.runtime.fastVoteCount >= 6) {
+                State.runtime.fastVoteCount = 0;
+                UIManager.showMessage("Slow down! Read the words.", true);
+                Haptics.heavy();
+                this.handleCooldown();
+                return;
+            }
         }
+        
         State.runtime.lastVoteTime = n;
-
-        if (State.runtime.mashCount > CONFIG.VOTE.MASH_LIMIT) {
-            this.handleCooldown();
-            return;
-        }
         // === END ANTI-CHEAT ===
         
         if (!s) {
