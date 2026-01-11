@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.29',
+    APP_VERSION: '6.2.32',
     KIDS_LIST_FILE: 'kids_words.txt',
 
     SPECIAL: {
@@ -341,7 +341,11 @@ const State = {
         isCoolingDown: false,
         cooldownTimer: null,
         mashLevel: 0,
-        isDailyMode: false
+        isDailyMode: false,
+        // Anti-cheat tracking
+        lastVoteType: null,
+        sameVoteStreak: 0,
+        buttonPresses: [], // Track timestamps of button presses
     },
 
     init() {
@@ -8129,7 +8133,7 @@ const Game = {
                     DOM.screens.loading.classList.add('opacity-0', 'pointer-events-none');
                     setTimeout(() => DOM.screens.loading?.remove(), 500);
                 }
-                this.nextWord();
+                // Word already displayed by refreshData(), no need to call nextWord()
             }, 1500);
 
             setInterval(() => this.checkCooldown(), 100);
@@ -8178,8 +8182,23 @@ const Game = {
 async vote(t, s = false) {
         if (State.runtime.isCoolingDown) return;
 
-        // Minimum delay between votes (300ms)
+        // === ANTI-CHEAT SYSTEM ===
         const n = Date.now();
+        
+        // Track all button presses (even during animations)
+        State.runtime.buttonPresses.push(n);
+        // Keep only last 10 presses
+        if (State.runtime.buttonPresses.length > 10) State.runtime.buttonPresses.shift();
+        
+        // Check for rapid button mashing (5+ presses in 3 seconds)
+        const recentPresses = State.runtime.buttonPresses.filter(t => n - t < 3000);
+        if (recentPresses.length >= 6) {
+            State.runtime.buttonPresses = [];
+            this.handleCooldown();
+            return;
+        }
+        
+        // Minimum delay between processed votes (300ms)
         if (State.runtime.lastVoteTime > 0 && (n - State.runtime.lastVoteTime) < 300) {
             return; // Too fast, ignore
         }
@@ -8192,11 +8211,31 @@ async vote(t, s = false) {
              return;
         }
 
-        // Track mashing - if voting faster than STREAK_WINDOW, increment count
+        // Track consecutive same-direction votes (spam detection)
+        if (t === 'good' || t === 'bad') {
+            if (State.runtime.lastVoteType === t) {
+                State.runtime.sameVoteStreak++;
+            } else {
+                State.runtime.sameVoteStreak = 1;
+            }
+            State.runtime.lastVoteType = t;
+            
+            // 8+ consecutive same votes = suspicious
+            if (State.runtime.sameVoteStreak >= 8) {
+                State.runtime.sameVoteStreak = 0;
+                const msg = t === 'good' ? "Every word is GOOD today?" : "Having a BAD day?";
+                UIManager.showMessage(msg, true);
+                Haptics.heavy();
+                this.handleCooldown();
+                return;
+            }
+        }
+
+        // Track fast voting pattern
         if (State.runtime.lastVoteTime > 0 && (n - State.runtime.lastVoteTime) < CONFIG.VOTE.STREAK_WINDOW) {
             State.runtime.mashCount++;
         } else {
-            State.runtime.mashCount = 1;
+            State.runtime.mashCount = Math.max(0, State.runtime.mashCount - 1);
         }
         State.runtime.lastVoteTime = n;
 
@@ -8204,6 +8243,8 @@ async vote(t, s = false) {
             this.handleCooldown();
             return;
         }
+        // === END ANTI-CHEAT ===
+        
         if (!s) {
             if (t === 'notWord') Haptics.heavy();
             else Haptics.medium();
