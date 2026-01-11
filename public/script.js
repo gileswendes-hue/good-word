@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.32',
+    APP_VERSION: '6.2.34',
     KIDS_LIST_FILE: 'kids_words.txt',
 
     SPECIAL: {
@@ -8185,23 +8185,25 @@ async vote(t, s = false) {
         // === ANTI-CHEAT SYSTEM ===
         const n = Date.now();
         
-        // Track all button presses (even during animations)
-        State.runtime.buttonPresses.push(n);
-        // Keep only last 10 presses
-        if (State.runtime.buttonPresses.length > 10) State.runtime.buttonPresses.shift();
+        // Track button clicks (to detect mashing during animation)
+        if (!State.runtime.clicksSinceLastVote) State.runtime.clicksSinceLastVote = 0;
+        State.runtime.clicksSinceLastVote++;
         
-        // Check for rapid button mashing (5+ presses in 3 seconds)
-        const recentPresses = State.runtime.buttonPresses.filter(t => n - t < 3000);
-        if (recentPresses.length >= 6) {
-            State.runtime.buttonPresses = [];
-            this.handleCooldown();
+        // If they clicked 5+ times since last successful vote, they're mashing
+        if (State.runtime.clicksSinceLastVote >= 5) {
+            State.runtime.clicksSinceLastVote = 0;
+            UIManager.showMessage("Slow down! Wait for the word.", true);
+            Haptics.heavy();
             return;
         }
         
-        // Minimum delay between processed votes (300ms)
-        if (State.runtime.lastVoteTime > 0 && (n - State.runtime.lastVoteTime) < 300) {
-            return; // Too fast, ignore
+        // Minimum delay between processed votes (400ms)
+        if (State.runtime.lastVoteTime > 0 && (n - State.runtime.lastVoteTime) < 400) {
+            return; // Too fast, ignore (but click was counted above)
         }
+        
+        // Reset click counter on successful vote
+        State.runtime.clicksSinceLastVote = 0;
 
         // Multiplayer mode - send to room
         if (State.runtime.isMultiplayer && typeof RoomManager !== 'undefined' && RoomManager.active) {
