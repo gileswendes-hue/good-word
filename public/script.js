@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.38',
+    APP_VERSION: '6.2.39',
     KIDS_LIST_FILE: 'kids_words.txt',
 
     SPECIAL: {
@@ -8201,6 +8201,7 @@ async vote(t, s = false) {
 
         // === ANTI-CHEAT: Consecutive same votes ===
         // Track if voting same direction repeatedly (not reading words)
+        State.runtime.sameVoteMessage = null; // Reset
         if (t === 'good' || t === 'bad') {
             if (State.runtime.lastVoteType === t) {
                 State.runtime.sameVoteStreak++;
@@ -8212,8 +8213,7 @@ async vote(t, s = false) {
             // 6+ consecutive same votes = show message but ALLOW the vote
             // 10+ consecutive = cooldown (definite spam)
             if (State.runtime.sameVoteStreak === 6) {
-                const msg = t === 'good' ? "Every word is GOOD today?" : "Having a BAD day?";
-                UIManager.showPostVoteMessage(msg);
+                State.runtime.sameVoteMessage = t === 'good' ? "Every word is GOOD today? 🤔" : "Having a BAD day? 😤";
             } else if (State.runtime.sameVoteStreak >= 10) {
                 State.runtime.sameVoteStreak = 0;
                 const msg = t === 'good' ? "Too positive! Take a break." : "Too negative! Take a break.";
@@ -8404,7 +8404,9 @@ async vote(t, s = false) {
                     State.runtime.nextTipAt = Math.floor(Math.random() * 11) + 5; // Reset to new random 5-15
                 }
             }
-            UIManager.showPostVoteMessage(m);
+            // Use same-vote warning message if triggered, otherwise normal message
+            const finalMessage = State.runtime.sameVoteMessage || m;
+            UIManager.showPostVoteMessage(finalMessage);
             if (t === 'good' || t === 'bad') Haptics.medium();
             UIManager.updateStats();
 
@@ -8612,14 +8614,43 @@ async vote(t, s = false) {
             }
 
             const today = new Date().toISOString().split('T')[0];
-            const history = State.data.wordHistory;
+            let history = State.data.wordHistory;
             // Use fullWordList for accurate count (not filtered allWords)
             const currentCount = State.runtime.fullWordList.length > 0 ? State.runtime.fullWordList.length : State.runtime.allWords.length;
 
+            // Clean up bad data: remove any entries where count dropped by more than 20%
+            if (history.length > 1) {
+                const cleaned = [history[0]];
+                for (let i = 1; i < history.length; i++) {
+                    const prev = cleaned[cleaned.length - 1];
+                    const curr = history[i];
+                    // Only keep if count didn't drop more than 20% (bad data from filtered lists)
+                    if (curr.count >= prev.count * 0.8) {
+                        cleaned.push(curr);
+                    }
+                }
+                if (cleaned.length !== history.length) {
+                    history = cleaned;
+                    State.data.wordHistory = history;
+                    State.save('wordHistory', history);
+                }
+            }
+
             if (history.length === 0 || history[history.length - 1].date !== today) {
-                history.push({ date: today, count: currentCount });
-                if (history.length > 365) history.shift();
-                State.save('wordHistory', history);
+                // Only add if count is reasonable (not less than last recorded)
+                const lastCount = history.length > 0 ? history[history.length - 1].count : 0;
+                if (currentCount >= lastCount) {
+                    history.push({ date: today, count: currentCount });
+                    if (history.length > 365) history.shift();
+                    State.save('wordHistory', history);
+                }
+            } else {
+                // Update today's count if it's higher (dictionary can only grow)
+                const todayEntry = history[history.length - 1];
+                if (currentCount > todayEntry.count) {
+                    todayEntry.count = currentCount;
+                    State.save('wordHistory', history);
+                }
             }
         }
     },
