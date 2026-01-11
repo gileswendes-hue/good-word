@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.46',
+    APP_VERSION: '6.2.47',
     KIDS_LIST_FILE: 'kids_words.txt',
 
     SPECIAL: {
@@ -1909,6 +1909,74 @@ rs.innerHTML = `
             }
         } else {
             const old = document.getElementById('woodland-theme-style');
+            if (old) old.remove();
+        }
+
+        // Ocean theme styles - transparent cards
+        if (t === 'ocean') {
+            if (!document.getElementById('ocean-theme-style')) {
+                const s = document.createElement('style');
+                s.id = 'ocean-theme-style';
+                s.innerHTML = `
+                    body.theme-ocean {
+                        background: transparent !important;
+                    }
+                    body.theme-ocean .card,
+                    body.theme-ocean .bg-white {
+                        background: rgba(255, 255, 255, 0.75) !important;
+                        backdrop-filter: blur(8px);
+                        -webkit-backdrop-filter: blur(8px);
+                    }
+                    body.theme-ocean #wordDisplay {
+                        color: #1a4a6e !important;
+                        text-shadow: 1px 1px 0px rgba(255,255,255,0.5);
+                    }
+                    body.theme-ocean .bg-indigo-600,
+                    body.theme-ocean .bg-indigo-500 {
+                        background: linear-gradient(135deg, #2a6a9a, #1a5080) !important;
+                    }
+                    body.theme-ocean .text-indigo-600 {
+                        color: #1a5080 !important;
+                    }
+                `;
+                document.head.appendChild(s);
+            }
+        } else {
+            const old = document.getElementById('ocean-theme-style');
+            if (old) old.remove();
+        }
+
+        // Flight theme styles - transparent cards
+        if (t === 'flight') {
+            if (!document.getElementById('flight-theme-style')) {
+                const s = document.createElement('style');
+                s.id = 'flight-theme-style';
+                s.innerHTML = `
+                    body.theme-flight {
+                        background: transparent !important;
+                    }
+                    body.theme-flight .card,
+                    body.theme-flight .bg-white {
+                        background: rgba(255, 255, 255, 0.7) !important;
+                        backdrop-filter: blur(8px);
+                        -webkit-backdrop-filter: blur(8px);
+                    }
+                    body.theme-flight #wordDisplay {
+                        color: #1a3a5c !important;
+                        text-shadow: 1px 1px 0px rgba(255,255,255,0.5);
+                    }
+                    body.theme-flight .bg-indigo-600,
+                    body.theme-flight .bg-indigo-500 {
+                        background: linear-gradient(135deg, #4a90c2, #2a6090) !important;
+                    }
+                    body.theme-flight .text-indigo-600 {
+                        color: #2a6090 !important;
+                    }
+                `;
+                document.head.appendChild(s);
+            }
+        } else {
+            const old = document.getElementById('flight-theme-style');
             if (old) old.remove();
         }
 
@@ -4191,70 +4259,81 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         `;
         c.appendChild(cockpit);
         
-        // Engine cowling (nose of plane) - connects propeller to aircraft
+        // Engine cowling (nose of plane) - larger, connects propeller to aircraft
         const cowling = document.createElement('div');
         cowling.style.cssText = `
             position: absolute;
-            bottom: 12%;
+            bottom: 5%;
             left: 50%;
             transform: translateX(-50%);
-            width: 100px;
-            height: 70px;
-            background: linear-gradient(0deg, #3a3a3a 0%, #5a5a5a 30%, #6a6a6a 50%, #5a5a5a 70%, #3a3a3a 100%);
-            border-radius: 50% 50% 55% 55%;
+            width: 140px;
+            height: 120px;
+            background: linear-gradient(0deg, #2a2a2a 0%, #4a4a4a 20%, #5a5a5a 40%, #4a4a4a 60%, #3a3a3a 80%, #2a2a2a 100%);
+            border-radius: 50% 50% 50% 50%;
             z-index: 45;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.4), inset 0 -8px 15px rgba(0,0,0,0.3);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.5), inset 0 -15px 30px rgba(0,0,0,0.4);
         `;
         c.appendChild(cowling);
         
-        // Spinner cone (propeller hub) - sits on cowling
+        // Spinner cone (propeller hub) - sits on top of cowling
         const spinner = document.createElement('div');
         spinner.style.cssText = `
             position: absolute;
-            bottom: calc(12% + 55px);
+            bottom: calc(5% + 100px);
             left: 50%;
             transform: translateX(-50%);
-            width: 35px;
-            height: 40px;
-            background: linear-gradient(180deg, #888 0%, #aaa 30%, #999 50%, #666 100%);
+            width: 50px;
+            height: 60px;
+            background: linear-gradient(180deg, #777 0%, #999 20%, #888 50%, #666 80%, #555 100%);
             border-radius: 50% 50% 45% 45%;
-            z-index: 60;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+            z-index: 65;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.5);
         `;
         c.appendChild(spinner);
         
-        // Propeller with actual blade shapes - creates motion blur disc effect
+        // Large propeller with proper blades - positioned to connect to spinner
         const propeller = document.createElement('div');
         propeller.className = 'flight-propeller';
         propeller.style.cssText = `
             position: absolute;
-            bottom: calc(12% + 75px);
+            bottom: calc(5% + 40px);
             left: 50%;
             transform: translateX(-50%);
-            width: 300px;
-            height: 300px;
-            z-index: 58;
+            width: 500px;
+            height: 500px;
+            z-index: 62;
         `;
         
-        // Create SVG propeller with realistic blade shapes
+        // Create SVG propeller with realistic wide blade shapes
         propeller.innerHTML = `
-            <svg viewBox="0 0 300 300" style="width: 100%; height: 100%;">
+            <svg viewBox="0 0 500 500" style="width: 100%; height: 100%;">
                 <defs>
-                    <linearGradient id="bladeGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" style="stop-color:#707070"/>
-                        <stop offset="30%" style="stop-color:#505050"/>
-                        <stop offset="70%" style="stop-color:#303030"/>
-                        <stop offset="100%" style="stop-color:#202020"/>
+                    <linearGradient id="bladeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color:#505050"/>
+                        <stop offset="30%" style="stop-color:#707070"/>
+                        <stop offset="50%" style="stop-color:#606060"/>
+                        <stop offset="70%" style="stop-color:#505050"/>
+                        <stop offset="100%" style="stop-color:#404040"/>
+                    </linearGradient>
+                    <linearGradient id="bladeGrad2" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color:#404040"/>
+                        <stop offset="30%" style="stop-color:#606060"/>
+                        <stop offset="50%" style="stop-color:#555555"/>
+                        <stop offset="70%" style="stop-color:#454545"/>
+                        <stop offset="100%" style="stop-color:#353535"/>
                     </linearGradient>
                 </defs>
-                <!-- Blade 1 - pointing up-right -->
-                <path d="M150,150 Q155,100 160,60 Q165,40 150,35 Q135,40 140,60 Q145,100 150,150" 
-                      fill="url(#bladeGrad)" transform="rotate(0, 150, 150)"/>
-                <!-- Blade 2 - pointing down-left -->
-                <path d="M150,150 Q155,100 160,60 Q165,40 150,35 Q135,40 140,60 Q145,100 150,150" 
-                      fill="url(#bladeGrad)" transform="rotate(180, 150, 150)"/>
-                <!-- Hub -->
-                <circle cx="150" cy="150" r="15" fill="#555"/>
+                <!-- Blade 1 - wider, more realistic shape -->
+                <path d="M250,250 
+                    L240,220 Q230,150 235,80 Q240,40 250,30 Q260,40 265,80 Q270,150 260,220 Z" 
+                    fill="url(#bladeGrad)" stroke="#333" stroke-width="1"/>
+                <!-- Blade 2 -->
+                <path d="M250,250 
+                    L240,220 Q230,150 235,80 Q240,40 250,30 Q260,40 265,80 Q270,150 260,220 Z" 
+                    fill="url(#bladeGrad2)" stroke="#333" stroke-width="1" transform="rotate(180, 250, 250)"/>
+                <!-- Central hub -->
+                <circle cx="250" cy="250" r="25" fill="#444" stroke="#333" stroke-width="2"/>
+                <circle cx="250" cy="250" r="15" fill="#555"/>
             </svg>
         `;
         c.appendChild(propeller);
@@ -4465,7 +4544,7 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             `;
             c.appendChild(moon);
             
-            // Moon reflection - broken up by waves like real water
+            // Moon reflection - broken up by waves, widens towards viewer
             const reflectionContainer = document.createElement('div');
             reflectionContainer.className = 'ocean-reflection-container';
             reflectionContainer.style.cssText = `
@@ -4473,27 +4552,29 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 top: 49%;
                 left: ${bodyX}%;
                 transform: translateX(-50%);
-                width: 40px;
+                width: 100px;
                 height: 50%;
                 z-index: 9;
-                overflow: hidden;
+                overflow: visible;
             `;
-            // Create multiple reflection segments that shimmer independently
-            for (let r = 0; r < 12; r++) {
+            // Create multiple reflection segments that widen as they get closer
+            for (let r = 0; r < 18; r++) {
                 const segment = document.createElement('div');
-                const yOffset = r * 4;
-                const width = 3 + Math.random() * 6;
-                const xOffset = (Math.random() - 0.5) * 20;
+                const yOffset = r * 5.5;
+                // Width increases with distance (closer = wider)
+                const baseWidth = 4 + r * 3;
+                const width = baseWidth + Math.random() * (r * 2);
+                const xOffset = (Math.random() - 0.5) * (10 + r * 3);
                 segment.style.cssText = `
                     position: absolute;
                     top: ${yOffset}%;
                     left: 50%;
                     transform: translateX(calc(-50% + ${xOffset}px));
                     width: ${width}px;
-                    height: ${3 + Math.random() * 3}%;
-                    background: rgba(255,255,250,${0.8 - r * 0.06});
+                    height: ${2 + Math.random() * 2}%;
+                    background: rgba(255,255,250,${0.9 - r * 0.04});
                     border-radius: 50%;
-                    animation: reflection-segment ${0.8 + Math.random() * 0.8}s ease-in-out infinite;
+                    animation: reflection-segment ${0.6 + Math.random() * 0.6}s ease-in-out infinite;
                     animation-delay: ${Math.random() * 0.5}s;
                 `;
                 reflectionContainer.appendChild(segment);
@@ -4535,7 +4616,7 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             `;
             c.appendChild(sun);
             
-            // Sun reflection - broken up golden shimmer on waves
+            // Sun reflection - broken up golden shimmer, widens towards viewer
             const reflectionContainer = document.createElement('div');
             reflectionContainer.className = 'ocean-reflection-container';
             reflectionContainer.style.cssText = `
@@ -4543,54 +4624,97 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 top: 49%;
                 left: ${bodyX}%;
                 transform: translateX(-50%);
-                width: 50px;
+                width: 120px;
                 height: 50%;
                 z-index: 9;
-                overflow: hidden;
+                overflow: visible;
             `;
-            // Create multiple reflection segments that shimmer independently
-            for (let r = 0; r < 15; r++) {
+            // Create multiple reflection segments that widen as they get closer
+            const golden = isEvening ? [255, 150, 50] : [255, 215, 0];
+            for (let r = 0; r < 20; r++) {
                 const segment = document.createElement('div');
-                const yOffset = r * 3.5;
-                const width = 2 + Math.random() * 8;
-                const xOffset = (Math.random() - 0.5) * 30;
-                const golden = isEvening ? [255, 150, 50] : [255, 215, 0];
+                const yOffset = r * 5;
+                // Width increases with distance (closer = wider)
+                const baseWidth = 5 + r * 4;
+                const width = baseWidth + Math.random() * (r * 2.5);
+                const xOffset = (Math.random() - 0.5) * (12 + r * 4);
                 segment.style.cssText = `
                     position: absolute;
                     top: ${yOffset}%;
                     left: 50%;
                     transform: translateX(calc(-50% + ${xOffset}px));
                     width: ${width}px;
-                    height: ${2 + Math.random() * 3}%;
-                    background: rgba(${golden[0]},${golden[1]},${golden[2]},${0.9 - r * 0.05});
+                    height: ${2 + Math.random() * 2}%;
+                    background: rgba(${golden[0]},${golden[1]},${golden[2]},${0.95 - r * 0.04});
                     border-radius: 50%;
-                    animation: reflection-segment ${0.6 + Math.random() * 0.8}s ease-in-out infinite;
-                    animation-delay: ${Math.random() * 0.5}s;
+                    animation: reflection-segment ${0.5 + Math.random() * 0.5}s ease-in-out infinite;
+                    animation-delay: ${Math.random() * 0.4}s;
                 `;
                 reflectionContainer.appendChild(segment);
             }
             c.appendChild(reflectionContainer);
         }
         
-        // Ocean waves - BLUE, not green!
+        // Ocean waves with SVG wave shapes
+        const waveColors = isNight 
+            ? ['#0a1e3a', '#0c2444', '#0e2a4e', '#102f55']
+            : ['#1a5a8a', '#2a6a9a', '#3a7aaa', '#4a8aba'];
+        
         for (let i = 0; i < 4; i++) {
-            const wave = document.createElement('div');
-            wave.className = 'ocean-wave';
-            const blueBase = isNight ? [10, 30, 60] : [30, 90, 160];
-            wave.style.cssText = `
+            const waveContainer = document.createElement('div');
+            waveContainer.className = 'ocean-wave-container';
+            waveContainer.style.cssText = `
                 position: absolute;
-                top: ${48 + i * 1.5}%;
-                left: -10%;
-                width: 120%;
-                height: ${54 - i * 6}%;
-                background: linear-gradient(180deg,
-                    rgba(${blueBase[0] + i*5}, ${blueBase[1] + i*10}, ${blueBase[2] + i*15}, 0.95) 0%,
-                    rgba(${blueBase[0]}, ${blueBase[1] - 10}, ${blueBase[2] - 20}, 0.98) 50%,
-                    rgba(${Math.floor(blueBase[0]*0.5)}, ${Math.floor(blueBase[1]*0.6)}, ${Math.floor(blueBase[2]*0.7)}, 1) 100%);
-                animation: wave-roll-${i} ${3.5 + i * 0.8}s ease-in-out infinite;
+                top: ${46 + i * 6}%;
+                left: 0;
+                width: 200%;
+                height: ${56 - i * 8}%;
                 z-index: ${4 + i};
+                animation: wave-scroll-${i} ${12 - i * 2}s linear infinite;
             `;
-            c.appendChild(wave);
+            
+            // Create SVG wave
+            const waveHeight = 15 + i * 5;
+            waveContainer.innerHTML = `
+                <svg viewBox="0 0 1200 ${waveHeight + 200}" preserveAspectRatio="none" style="width: 100%; height: 100%;">
+                    <defs>
+                        <linearGradient id="waveGrad${i}" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" style="stop-color:${waveColors[i]};stop-opacity:0.95"/>
+                            <stop offset="100%" style="stop-color:${isNight ? '#050d18' : '#0a2840'};stop-opacity:1"/>
+                        </linearGradient>
+                    </defs>
+                    <path d="M0,${waveHeight} 
+                        Q75,${waveHeight - 12} 150,${waveHeight}
+                        Q225,${waveHeight + 12} 300,${waveHeight}
+                        Q375,${waveHeight - 10} 450,${waveHeight}
+                        Q525,${waveHeight + 14} 600,${waveHeight}
+                        Q675,${waveHeight - 8} 750,${waveHeight}
+                        Q825,${waveHeight + 10} 900,${waveHeight}
+                        Q975,${waveHeight - 12} 1050,${waveHeight}
+                        Q1125,${waveHeight + 8} 1200,${waveHeight}
+                        L1200,${waveHeight + 200} L0,${waveHeight + 200} Z" 
+                        fill="url(#waveGrad${i})"/>
+                </svg>
+            `;
+            c.appendChild(waveContainer);
+        }
+        
+        // Add foam/whitecaps on front waves
+        for (let f = 0; f < 8; f++) {
+            const foam = document.createElement('div');
+            foam.style.cssText = `
+                position: absolute;
+                top: ${70 + Math.random() * 20}%;
+                left: ${Math.random() * 100}%;
+                width: ${30 + Math.random() * 50}px;
+                height: ${4 + Math.random() * 4}px;
+                background: rgba(255,255,255,${0.3 + Math.random() * 0.3});
+                border-radius: 50%;
+                filter: blur(2px);
+                animation: foam-drift ${8 + Math.random() * 6}s linear infinite;
+                z-index: 15;
+            `;
+            c.appendChild(foam);
         }
         
         // Ocean animation styles
@@ -4600,21 +4724,26 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         const style = document.createElement('style');
         style.id = 'ocean-style';
         style.textContent = `
-            @keyframes wave-roll-0 {
-                0%, 100% { transform: translateX(0) translateY(0); }
-                50% { transform: translateX(1.5%) translateY(-4px); }
+            @keyframes wave-scroll-0 {
+                0% { transform: translateX(0); }
+                100% { transform: translateX(-50%); }
             }
-            @keyframes wave-roll-1 {
-                0%, 100% { transform: translateX(0) translateY(0); }
-                50% { transform: translateX(-1%) translateY(-6px); }
+            @keyframes wave-scroll-1 {
+                0% { transform: translateX(-50%); }
+                100% { transform: translateX(0); }
             }
-            @keyframes wave-roll-2 {
-                0%, 100% { transform: translateX(0) translateY(0); }
-                50% { transform: translateX(0.8%) translateY(-9px); }
+            @keyframes wave-scroll-2 {
+                0% { transform: translateX(-25%); }
+                100% { transform: translateX(-75%); }
             }
-            @keyframes wave-roll-3 {
-                0%, 100% { transform: translateX(0) translateY(0); }
-                50% { transform: translateX(-1.2%) translateY(-14px); }
+            @keyframes wave-scroll-3 {
+                0% { transform: translateX(-75%); }
+                100% { transform: translateX(-25%); }
+            }
+            @keyframes foam-drift {
+                0% { transform: translateX(0) scale(1); opacity: 0.5; }
+                50% { transform: translateX(-30px) scale(1.2); opacity: 0.8; }
+                100% { transform: translateX(-60px) scale(0.8); opacity: 0; }
             }
             @keyframes reflection-shimmer {
                 0%, 100% { 
