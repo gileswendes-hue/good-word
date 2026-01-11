@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.39',
+    APP_VERSION: '6.2.40',
     KIDS_LIST_FILE: 'kids_words.txt',
 
     SPECIAL: {
@@ -9130,6 +9130,20 @@ async renderLeaderboardTable() {
             }
             // Normalize to have count property
             history = history.map(h => ({ ...h, count: h.totalWords || h.count || 0 }));
+            
+            // Clean up bad data: remove entries where count drops more than 20% (bad data from filtered lists)
+            if (history.length > 1) {
+                const cleaned = [history[0]];
+                for (let i = 1; i < history.length; i++) {
+                    const prev = cleaned[cleaned.length - 1];
+                    const curr = history[i];
+                    // Only keep if count didn't drop more than 20%
+                    if (curr.count >= prev.count * 0.8) {
+                        cleaned.push(curr);
+                    }
+                }
+                history = cleaned;
+            }
 
             // Display tracking start date for dictionary chart
             const formatTrackingDate = (dateStr) => {
