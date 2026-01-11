@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.37',
+    APP_VERSION: '6.2.38',
     KIDS_LIST_FILE: 'kids_words.txt',
 
     SPECIAL: {
@@ -4800,7 +4800,9 @@ displayWord(w) {
         })
     },
     getRankedLists(lim) {
-        const r = State.runtime.allWords.map(w => ({
+        // Use fullWordList for rankings (not filtered allWords)
+        const source = State.runtime.fullWordList.length > 0 ? State.runtime.fullWordList : State.runtime.allWords;
+        const r = source.map(w => ({
             text: w.text,
             good: w.goodVotes || 0,
             bad: w.badVotes || 0,
@@ -8223,24 +8225,20 @@ async vote(t, s = false) {
         }
 
         // === ANTI-CHEAT: Speed detection ===
-        // Track voting speed - if voting faster than 1.4 seconds consistently, suspicious
-        if (State.runtime.lastVoteTime > 0) {
-            const timeSinceLastVote = n - State.runtime.lastVoteTime;
-            if (timeSinceLastVote < 1400) {
-                State.runtime.fastVoteCount = (State.runtime.fastVoteCount || 0) + 1;
-            } else {
-                // Decay fast vote count if they slow down
-                State.runtime.fastVoteCount = Math.max(0, (State.runtime.fastVoteCount || 0) - 1);
-            }
-            
-            // 4+ fast votes in a row = cooldown
-            if (State.runtime.fastVoteCount >= 4) {
-                State.runtime.fastVoteCount = 0;
-                UIManager.showMessage("Slow down! Read the words.", true);
-                Haptics.heavy();
-                this.handleCooldown();
-                return;
-            }
+        // Track vote timestamps - 6+ votes in 11 seconds = mashing
+        if (!State.runtime.voteTimestamps) State.runtime.voteTimestamps = [];
+        State.runtime.voteTimestamps.push(n);
+        
+        // Keep only votes from last 11 seconds
+        State.runtime.voteTimestamps = State.runtime.voteTimestamps.filter(t => n - t < 11000);
+        
+        // 6+ votes in 11 seconds = too fast
+        if (State.runtime.voteTimestamps.length >= 6) {
+            State.runtime.voteTimestamps = [];
+            UIManager.showMessage("Slow down! Read the words.", true);
+            Haptics.heavy();
+            this.handleCooldown();
+            return;
         }
         
         State.runtime.lastVoteTime = n;
@@ -8615,7 +8613,8 @@ async vote(t, s = false) {
 
             const today = new Date().toISOString().split('T')[0];
             const history = State.data.wordHistory;
-            const currentCount = State.runtime.allWords.length;
+            // Use fullWordList for accurate count (not filtered allWords)
+            const currentCount = State.runtime.fullWordList.length > 0 ? State.runtime.fullWordList.length : State.runtime.allWords.length;
 
             if (history.length === 0 || history[history.length - 1].date !== today) {
                 history.push({ date: today, count: currentCount });
