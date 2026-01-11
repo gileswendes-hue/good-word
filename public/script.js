@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.40',
+    APP_VERSION: '6.2.41',
     KIDS_LIST_FILE: 'kids_words.txt',
 
     SPECIAL: {
@@ -35,7 +35,9 @@ const CONFIG = {
         plymouth: 'UExZTU9VVEh8REVWT058SkFOTkVSU3xHSU4=',
         ballpit: 'QkFMTHxQSVR8UExBWXxKVU1QfEJPVU5DRXxDT0xPUnxCQUxMUElUfEJBTExSfENPTE9VUg==',
         space: 'U1BBQ0V8R0FMQVhZfFBMQU5FVHxTVEFSfE9SQklU',
-        woodland: 'V09PRExBTkR8Rk9SRVNUfFRSRUVTfEZPWEVTfEJBREdFUnxERUVSfFJBQkJJVHxBQ09STnxNVVNIUk9PTXxGRVJOfFVOREVSR1JPV1RIfENBTk9QWXxUSElDS0VUfEdMQURF'
+        woodland: 'V09PRExBTkR8Rk9SRVNUfFRSRUVTfEZPWEVTfEJBREdFUnxERUVSfFJBQkJJVHxBQ09STnxNVVNIUk9PTXxGRVJOfFVOREVSR1JPV1RIfENBTk9QWXxUSElDS0VUfEdMQURF',
+        flight: 'RkxJR0hUfEFJUlBMQU5FfFBJTE9UfEFJUlBPUlR8Qk9FSU5HfEpFVHxGTFl8U0tZfENMT1VEU3xBSVJCVVM=',
+        ocean: 'T0NFQU58U0VBfFdBVkVTfEJPQVR8U0hJUHxTQUlMfE5BVlZ8WUFDSHR8RklTSHxXSEFMRXxET0xQSElO'
     },
 };
 
@@ -154,7 +156,9 @@ const loadDOM = () => ({
             plymouth: document.getElementById('plymouth-effect'),
             ballpit: document.getElementById('ballpit-effect'),
             space: document.getElementById('space-effect'),
-            woodland: document.getElementById('woodland-effect')
+            woodland: document.getElementById('woodland-effect'),
+            flight: document.getElementById('flight-effect'),
+            ocean: document.getElementById('ocean-effect')
         }
     },
     modals: {
@@ -1829,6 +1833,8 @@ rs.innerHTML = `
         e.ballpit.classList.toggle('hidden', t !== 'ballpit');
         e.space.classList.toggle('hidden', t !== 'space');
         e.woodland.classList.toggle('hidden', t !== 'woodland');
+        if (e.flight) e.flight.classList.toggle('hidden', t !== 'flight');
+        if (e.ocean) e.ocean.classList.toggle('hidden', t !== 'ocean');
 
         if (t === 'winter') {
             Effects.snow();
@@ -1859,6 +1865,10 @@ rs.innerHTML = `
         else Effects.space(false);
         if (t === 'woodland') Effects.woodland(true);
         else Effects.woodland(false);
+        if (t === 'flight') Effects.flight(true);
+        else Effects.flight(false);
+        if (t === 'ocean') Effects.ocean(true);
+        else Effects.ocean(false);
         Effects.halloween(t === 'halloween');
         if (t !== 'halloween') MosquitoManager.remove();
 
@@ -4043,6 +4053,277 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             `;
             c.appendChild(mushroom);
         }
+    },
+
+    // Flight theme timeouts
+    flightTimeout: null,
+    
+    flight(active) {
+        let c = DOM.theme.effects.flight;
+        if (!c) {
+            c = document.createElement('div');
+            c.id = 'flight-effect';
+            c.className = 'fixed inset-0 pointer-events-none overflow-hidden z-0';
+            document.body.appendChild(c);
+            DOM.theme.effects.flight = c;
+        }
+        
+        if (this.flightTimeout) clearTimeout(this.flightTimeout);
+        if (!active) { c.innerHTML = ''; return; }
+        c.innerHTML = '';
+        
+        // Sky gradient background
+        c.style.background = 'linear-gradient(180deg, #87CEEB 0%, #B0E0E6 50%, #E0F6FF 100%)';
+        
+        // Add clouds
+        for (let i = 0; i < 8; i++) {
+            const cloud = document.createElement('div');
+            cloud.className = 'flight-cloud';
+            const size = 80 + Math.random() * 120;
+            const yPos = Math.random() * 60;
+            const duration = 30 + Math.random() * 40;
+            const delay = Math.random() * -30;
+            cloud.style.cssText = `
+                position: absolute;
+                top: ${yPos}%;
+                left: -200px;
+                width: ${size}px;
+                height: ${size * 0.5}px;
+                background: white;
+                border-radius: 50%;
+                opacity: ${0.7 + Math.random() * 0.3};
+                filter: blur(2px);
+                box-shadow: 
+                    ${size * 0.3}px ${size * 0.1}px 0 white,
+                    ${size * 0.6}px ${size * 0.05}px 0 white,
+                    ${size * 0.15}px ${-size * 0.15}px 0 white,
+                    ${size * 0.45}px ${-size * 0.1}px 0 white;
+                animation: cloud-drift ${duration}s linear ${delay}s infinite;
+            `;
+            c.appendChild(cloud);
+        }
+        
+        // Add cloud animation style
+        if (!document.getElementById('flight-style')) {
+            const style = document.createElement('style');
+            style.id = 'flight-style';
+            style.textContent = `
+                @keyframes cloud-drift {
+                    from { transform: translateX(0); }
+                    to { transform: translateX(calc(100vw + 400px)); }
+                }
+                @keyframes plane-fly {
+                    from { transform: translateX(-150px) rotate(0deg); }
+                    to { transform: translateX(calc(100vw + 150px)) rotate(0deg); }
+                }
+                @keyframes plane-fly-reverse {
+                    from { transform: translateX(calc(100vw + 150px)) scaleX(-1); }
+                    to { transform: translateX(-150px) scaleX(-1); }
+                }
+                @keyframes plane-bob {
+                    0%, 100% { margin-top: 0; }
+                    50% { margin-top: 10px; }
+                }
+                @keyframes contrail-fade {
+                    from { opacity: 0.6; width: 0; }
+                    to { opacity: 0; width: 200px; }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        // Spawn planes periodically
+        const planes = ['✈️', '🛩️', '🛫', '🛬'];
+        const spawnPlane = () => {
+            if (!c.isConnected) return;
+            
+            const plane = document.createElement('div');
+            const planeEmoji = planes[Math.floor(Math.random() * planes.length)];
+            const goingRight = Math.random() > 0.5;
+            const yPos = 10 + Math.random() * 40;
+            const duration = 15 + Math.random() * 20;
+            const size = 24 + Math.random() * 24;
+            
+            plane.innerHTML = `<span style="font-size: ${size}px">${planeEmoji}</span>`;
+            plane.style.cssText = `
+                position: absolute;
+                top: ${yPos}%;
+                left: ${goingRight ? '-150px' : 'calc(100vw + 150px)'};
+                z-index: 10;
+                animation: ${goingRight ? 'plane-fly' : 'plane-fly-reverse'} ${duration}s linear forwards,
+                           plane-bob 2s ease-in-out infinite;
+                filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3));
+            `;
+            
+            // Add contrail
+            const contrail = document.createElement('div');
+            contrail.style.cssText = `
+                position: absolute;
+                top: 50%;
+                ${goingRight ? 'right' : 'left'}: ${size}px;
+                height: 2px;
+                background: linear-gradient(${goingRight ? 'to left' : 'to right'}, rgba(255,255,255,0.8), transparent);
+                animation: contrail-fade 3s linear infinite;
+            `;
+            plane.appendChild(contrail);
+            
+            c.appendChild(plane);
+            setTimeout(() => plane.remove(), duration * 1000);
+            
+            this.flightTimeout = setTimeout(spawnPlane, 4000 + Math.random() * 8000);
+        };
+        
+        this.flightTimeout = setTimeout(spawnPlane, 1000);
+    },
+
+    // Ocean theme timeouts
+    oceanTimeout: null,
+    
+    ocean(active) {
+        let c = DOM.theme.effects.ocean;
+        if (!c) {
+            c = document.createElement('div');
+            c.id = 'ocean-effect';
+            c.className = 'fixed inset-0 pointer-events-none overflow-hidden z-0';
+            document.body.appendChild(c);
+            DOM.theme.effects.ocean = c;
+        }
+        
+        if (this.oceanTimeout) clearTimeout(this.oceanTimeout);
+        if (!active) { c.innerHTML = ''; return; }
+        c.innerHTML = '';
+        
+        // Ocean/sky gradient
+        c.style.background = 'linear-gradient(180deg, #87CEEB 0%, #B0C4DE 30%, #1E90FF 50%, #0066CC 70%, #004080 100%)';
+        
+        // Add wave layers
+        for (let layer = 0; layer < 3; layer++) {
+            const wave = document.createElement('div');
+            const yPos = 48 + layer * 4;
+            const opacity = 0.6 - layer * 0.15;
+            const duration = 8 + layer * 4;
+            wave.style.cssText = `
+                position: absolute;
+                top: ${yPos}%;
+                left: -100%;
+                width: 300%;
+                height: ${60 - layer * 5}%;
+                background: linear-gradient(180deg, 
+                    rgba(30, 144, 255, ${opacity}) 0%,
+                    rgba(0, 102, 204, ${opacity + 0.2}) 30%,
+                    rgba(0, 64, 128, ${opacity + 0.3}) 100%);
+                border-radius: 100% 100% 0 0;
+                animation: wave-motion ${duration}s ease-in-out infinite;
+                animation-delay: ${layer * -2}s;
+            `;
+            c.appendChild(wave);
+        }
+        
+        // Add sun
+        const sun = document.createElement('div');
+        sun.style.cssText = `
+            position: absolute;
+            top: 8%;
+            right: 15%;
+            width: 60px;
+            height: 60px;
+            background: radial-gradient(circle, #FFD700 0%, #FFA500 70%, transparent 100%);
+            border-radius: 50%;
+            box-shadow: 0 0 40px #FFD700, 0 0 80px #FFA50080;
+        `;
+        c.appendChild(sun);
+        
+        // Add ocean animation style
+        if (!document.getElementById('ocean-style')) {
+            const style = document.createElement('style');
+            style.id = 'ocean-style';
+            style.textContent = `
+                @keyframes wave-motion {
+                    0%, 100% { transform: translateX(0) translateY(0); }
+                    50% { transform: translateX(3%) translateY(-8px); }
+                }
+                @keyframes boat-bob {
+                    0%, 100% { transform: translateY(0) rotate(-2deg); }
+                    25% { transform: translateY(-8px) rotate(2deg); }
+                    50% { transform: translateY(-4px) rotate(-1deg); }
+                    75% { transform: translateY(-12px) rotate(3deg); }
+                }
+                @keyframes boat-drift {
+                    from { left: -100px; }
+                    to { left: calc(100vw + 100px); }
+                }
+                @keyframes boat-drift-reverse {
+                    from { left: calc(100vw + 100px); transform: scaleX(-1); }
+                    to { left: -100px; transform: scaleX(-1); }
+                }
+                @keyframes seagull-fly {
+                    0%, 100% { transform: translateY(0) rotate(0deg); }
+                    25% { transform: translateY(-15px) rotate(-5deg); }
+                    75% { transform: translateY(5px) rotate(5deg); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        // Spawn boats periodically
+        const boats = ['⛵', '🚤', '🛥️', '🚢', '⛴️', '🛶'];
+        const spawnBoat = () => {
+            if (!c.isConnected) return;
+            
+            const boat = document.createElement('div');
+            const boatEmoji = boats[Math.floor(Math.random() * boats.length)];
+            const goingRight = Math.random() > 0.5;
+            const yPos = 44 + Math.random() * 8;
+            const duration = 40 + Math.random() * 30;
+            const size = 28 + Math.random() * 20;
+            
+            boat.textContent = boatEmoji;
+            boat.style.cssText = `
+                position: absolute;
+                top: ${yPos}%;
+                font-size: ${size}px;
+                z-index: 5;
+                animation: 
+                    ${goingRight ? 'boat-drift' : 'boat-drift-reverse'} ${duration}s linear forwards,
+                    boat-bob 3s ease-in-out infinite;
+                filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.4));
+            `;
+            
+            c.appendChild(boat);
+            setTimeout(() => boat.remove(), duration * 1000);
+            
+            this.oceanTimeout = setTimeout(spawnBoat, 6000 + Math.random() * 10000);
+        };
+        
+        // Spawn a seagull occasionally
+        const spawnSeagull = () => {
+            if (!c.isConnected) return;
+            
+            const bird = document.createElement('div');
+            bird.textContent = '🕊️';
+            const yPos = 5 + Math.random() * 25;
+            const duration = 12 + Math.random() * 10;
+            const goingRight = Math.random() > 0.5;
+            
+            bird.style.cssText = `
+                position: absolute;
+                top: ${yPos}%;
+                left: ${goingRight ? '-50px' : 'calc(100vw + 50px)'};
+                font-size: 20px;
+                z-index: 8;
+                animation: 
+                    ${goingRight ? 'boat-drift' : 'boat-drift-reverse'} ${duration}s linear forwards,
+                    seagull-fly 1s ease-in-out infinite;
+            `;
+            
+            c.appendChild(bird);
+            setTimeout(() => bird.remove(), duration * 1000);
+            
+            setTimeout(spawnSeagull, 8000 + Math.random() * 15000);
+        };
+        
+        this.oceanTimeout = setTimeout(spawnBoat, 2000);
+        setTimeout(spawnSeagull, 5000);
     }
 };
 
