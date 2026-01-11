@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.52',
+    APP_VERSION: '6.2.53',
     KIDS_LIST_FILE: 'kids_words.txt',
 
     SPECIAL: {
@@ -2965,6 +2965,7 @@ spawnFish() {
 halloween(active) {
         if (this.spiderTimeout) clearTimeout(this.spiderTimeout);
         if (this.webRaf) cancelAnimationFrame(this.webRaf);
+        if (this.batTimeout) clearTimeout(this.batTimeout);
 
         // Arachnophobia Check
         const isSafeMode = State.data.settings.arachnophobiaMode;
@@ -2976,8 +2977,111 @@ halloween(active) {
             if (oldWeb) oldWeb.remove();
             const style = document.getElementById('spider-motion-style');
             if (style) style.remove();
+            const oldBat = document.getElementById('halloween-bat');
+            if (oldBat) oldBat.remove();
             return;
         }
+        
+        // Spawn flying bat that approaches the player
+        const spawnBat = () => {
+            if (!active) return;
+            
+            // Remove old bat if exists
+            const oldBat = document.getElementById('halloween-bat');
+            if (oldBat) oldBat.remove();
+            
+            const bat = document.createElement('div');
+            bat.id = 'halloween-bat';
+            
+            // Random start position (edges of screen)
+            const side = Math.floor(Math.random() * 4);
+            let startX, startY, endX, endY;
+            
+            switch(side) {
+                case 0: // top
+                    startX = 20 + Math.random() * 60;
+                    startY = -10;
+                    endX = 30 + Math.random() * 40;
+                    endY = 110;
+                    break;
+                case 1: // right
+                    startX = 110;
+                    startY = 20 + Math.random() * 60;
+                    endX = -10;
+                    endY = 30 + Math.random() * 40;
+                    break;
+                case 2: // bottom
+                    startX = 20 + Math.random() * 60;
+                    startY = 110;
+                    endX = 30 + Math.random() * 40;
+                    endY = -10;
+                    break;
+                default: // left
+                    startX = -10;
+                    startY = 20 + Math.random() * 60;
+                    endX = 110;
+                    endY = 30 + Math.random() * 40;
+            }
+            
+            const duration = 4 + Math.random() * 3;
+            
+            bat.innerHTML = `
+                <div class="bat-body" style="font-size: 2rem; filter: drop-shadow(0 0 10px rgba(0,0,0,0.5));">
+                    <span class="bat-wing-left" style="display: inline-block; transform-origin: right center;">🦇</span>
+                </div>
+            `;
+            
+            bat.style.cssText = `
+                position: fixed;
+                left: ${startX}%;
+                top: ${startY}%;
+                z-index: 101;
+                pointer-events: none;
+                animation: bat-fly-${Date.now()} ${duration}s ease-in-out forwards;
+            `;
+            
+            // Create dynamic keyframes for this bat's path
+            const styleEl = document.createElement('style');
+            styleEl.textContent = `
+                @keyframes bat-fly-${Date.now()} {
+                    0% {
+                        left: ${startX}%;
+                        top: ${startY}%;
+                        transform: scale(0.3);
+                    }
+                    50% {
+                        transform: scale(1.5);
+                    }
+                    100% {
+                        left: ${endX}%;
+                        top: ${endY}%;
+                        transform: scale(0.5);
+                    }
+                }
+                @keyframes bat-flap {
+                    0%, 100% { transform: scaleX(1) scaleY(1); }
+                    50% { transform: scaleX(0.6) scaleY(0.8); }
+                }
+                .bat-body {
+                    animation: bat-flap 0.15s ease-in-out infinite;
+                }
+            `;
+            document.head.appendChild(styleEl);
+            
+            document.body.appendChild(bat);
+            
+            // Cleanup after animation
+            setTimeout(() => {
+                bat.remove();
+                styleEl.remove();
+            }, duration * 1000);
+            
+            // Schedule next bat
+            this.batTimeout = setTimeout(spawnBat, 8000 + Math.random() * 12000);
+        };
+        
+        // Start bat spawning after a delay
+        this.batTimeout = setTimeout(spawnBat, 3000 + Math.random() * 5000);
 
         if (!document.getElementById('spider-motion-style')) {
             const s = document.createElement('style');
@@ -4232,156 +4336,199 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         }
         
         if (this.flightTimeout) clearTimeout(this.flightTimeout);
+        if (this.bankInterval) clearInterval(this.bankInterval);
         this.flightObjects.forEach(obj => obj.remove());
         this.flightObjects = [];
         if (!active) { c.innerHTML = ''; c.style.background = ''; return; }
         c.innerHTML = '';
         
-        // Sky gradient
-        c.style.background = 'linear-gradient(180deg, #1a3a5c 0%, #4a90c2 30%, #87CEEB 55%, #a8d4ea 75%, #c5e5f5 100%)';
-        
-        // Ground that moves TOWARDS the viewer (scaling up from horizon)
-        const groundWrapper = document.createElement('div');
-        groundWrapper.style.cssText = `
+        // Create a container for the whole scene that can bank
+        const sceneContainer = document.createElement('div');
+        sceneContainer.id = 'flight-scene';
+        sceneContainer.style.cssText = `
             position: absolute;
-            top: 52%;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            overflow: hidden;
-            z-index: 1;
-            perspective: 500px;
+            inset: -20%;
+            transition: transform 3s ease-in-out;
+            transform-origin: center center;
         `;
         
-        // Base ground color
+        // Sky gradient
+        sceneContainer.style.background = 'linear-gradient(180deg, #0a1a3a 0%, #1a4a7a 20%, #4a90c2 40%, #87CEEB 60%, #a8d4ea 80%, #c5e5f5 100%)';
+        
+        // Mountains on horizon
+        const mountains = document.createElement('div');
+        mountains.style.cssText = `
+            position: absolute;
+            top: 48%;
+            left: -10%;
+            width: 120%;
+            height: 20%;
+            z-index: 2;
+        `;
+        mountains.innerHTML = `
+            <svg viewBox="0 0 1200 200" preserveAspectRatio="none" style="width: 100%; height: 100%;">
+                <defs>
+                    <linearGradient id="mountain1" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" style="stop-color:#4a5568"/>
+                        <stop offset="100%" style="stop-color:#2d3748"/>
+                    </linearGradient>
+                    <linearGradient id="mountain2" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" style="stop-color:#5a6578"/>
+                        <stop offset="100%" style="stop-color:#3d4758"/>
+                    </linearGradient>
+                </defs>
+                <!-- Back mountains -->
+                <path d="M0,200 L0,120 L100,60 L200,100 L300,40 L400,90 L500,30 L600,80 L700,50 L800,100 L900,45 L1000,85 L1100,55 L1200,90 L1200,200 Z" fill="url(#mountain1)" opacity="0.6"/>
+                <!-- Front mountains -->
+                <path d="M0,200 L0,140 L150,80 L250,120 L400,60 L550,110 L650,70 L800,130 L950,75 L1100,115 L1200,85 L1200,200 Z" fill="url(#mountain2)" opacity="0.8"/>
+                <!-- Snow caps -->
+                <path d="M300,40 L280,60 L320,60 Z M500,30 L475,55 L525,55 Z M700,50 L680,70 L720,70 Z M900,45 L875,70 L925,70 Z" fill="rgba(255,255,255,0.7)"/>
+            </svg>
+        `;
+        sceneContainer.appendChild(mountains);
+        
+        // Ground wrapper
+        const groundWrapper = document.createElement('div');
+        groundWrapper.id = 'flight-ground';
+        groundWrapper.style.cssText = `
+            position: absolute;
+            top: 55%;
+            left: -10%;
+            width: 120%;
+            height: 60%;
+            overflow: hidden;
+            z-index: 3;
+        `;
+        
+        // Base ground with realistic gradient
         const groundBase = document.createElement('div');
         groundBase.style.cssText = `
             position: absolute;
             inset: 0;
-            background: linear-gradient(180deg, #6a8a5a 0%, #5a7a4a 20%, #4a6a3a 50%, #3a5a2a 100%);
+            background: linear-gradient(180deg, 
+                #8a9a6a 0%, 
+                #7a8a5a 10%,
+                #6a7a4a 25%, 
+                #5a6a3a 50%, 
+                #4a5a2a 75%,
+                #3a4a1a 100%);
         `;
         groundWrapper.appendChild(groundBase);
-        c.appendChild(groundWrapper);
+        sceneContainer.appendChild(groundWrapper);
+        c.appendChild(sceneContainer);
         
-        // Spawn fields that fly towards the viewer
+        // Spawn realistic fields that approach
         const spawnField = () => {
             if (!c.isConnected) return;
             
             const field = document.createElement('div');
-            const colors = ['#5a7a3a', '#6a8a4a', '#4a6a2a', '#7a9a5a', '#8aaa6a', '#3a5a2a'];
-            const startX = 20 + Math.random() * 60;
-            const duration = 4 + Math.random() * 3;
+            // More varied field colors - wheat, grass, plowed, crops
+            const fieldTypes = [
+                { color: '#7a9a4a', border: '#6a8a3a' }, // grass
+                { color: '#c4a04a', border: '#b4903a' }, // wheat
+                { color: '#5a4a2a', border: '#4a3a1a' }, // plowed
+                { color: '#8aaa5a', border: '#7a9a4a' }, // crops
+                { color: '#6a8a3a', border: '#5a7a2a' }, // pasture
+                { color: '#9a8a5a', border: '#8a7a4a' }, // hay
+            ];
+            const fieldType = fieldTypes[Math.floor(Math.random() * fieldTypes.length)];
+            const startX = 15 + Math.random() * 70;
+            const duration = 5 + Math.random() * 3;
+            const width = 30 + Math.random() * 80;
+            const height = 15 + Math.random() * 40;
             
             field.style.cssText = `
                 position: absolute;
                 top: 0;
                 left: ${startX}%;
-                width: ${20 + Math.random() * 40}px;
-                height: ${10 + Math.random() * 20}px;
-                background: ${colors[Math.floor(Math.random() * colors.length)]};
-                border-radius: 2px;
+                width: ${width}px;
+                height: ${height}px;
+                background: ${fieldType.color};
+                border: 1px solid ${fieldType.border};
+                transform-origin: center top;
                 animation: field-approach ${duration}s linear forwards;
-                z-index: 3;
+                z-index: 4;
             `;
             
             groundWrapper.appendChild(field);
             this.flightObjects.push(field);
             setTimeout(() => field.remove(), duration * 1000);
             
-            setTimeout(spawnField, 200 + Math.random() * 400);
+            setTimeout(spawnField, 150 + Math.random() * 300);
         };
         
-        // Engine and propeller as ONE connected unit
-        const engineUnit = document.createElement('div');
-        engineUnit.style.cssText = `
-            position: absolute;
-            bottom: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 50;
-        `;
-        
-        // SVG for the entire engine/prop assembly - all one piece
-        engineUnit.innerHTML = `
-            <svg width="280" height="320" viewBox="0 0 280 320" style="display: block;">
-                <defs>
-                    <linearGradient id="cowlingGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" style="stop-color:#2a2a2a"/>
-                        <stop offset="30%" style="stop-color:#4a4a4a"/>
-                        <stop offset="50%" style="stop-color:#5a5a5a"/>
-                        <stop offset="70%" style="stop-color:#4a4a4a"/>
-                        <stop offset="100%" style="stop-color:#2a2a2a"/>
-                    </linearGradient>
-                    <linearGradient id="spinnerGrad" x1="0%" y1="100%" x2="0%" y2="0%">
-                        <stop offset="0%" style="stop-color:#3a3a3a"/>
-                        <stop offset="40%" style="stop-color:#6a6a6a"/>
-                        <stop offset="60%" style="stop-color:#5a5a5a"/>
-                        <stop offset="100%" style="stop-color:#4a4a4a"/>
-                    </linearGradient>
-                </defs>
-                <!-- Engine cowling (nose) -->
-                <ellipse cx="140" cy="280" rx="90" ry="100" fill="url(#cowlingGrad)"/>
-                <!-- Spinner cone - directly on top of cowling -->
-                <ellipse cx="140" cy="160" rx="28" ry="35" fill="url(#spinnerGrad)"/>
-                <!-- Prop hub - connects spinner to blades -->
-                <circle cx="140" cy="125" r="18" fill="#4a4a4a" stroke="#333" stroke-width="2"/>
-            </svg>
-        `;
-        c.appendChild(engineUnit);
-        
-        // Propeller blades - separate so they can spin, but positioned to connect to hub
-        const propeller = document.createElement('div');
-        propeller.className = 'flight-propeller';
-        propeller.style.cssText = `
-            position: absolute;
-            bottom: 177px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 300px;
-            height: 40px;
-            z-index: 49;
-        `;
-        propeller.innerHTML = `
-            <svg viewBox="0 0 300 40" style="width: 100%; height: 100%;">
-                <defs>
-                    <linearGradient id="bladeFill" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" style="stop-color:#2a2a2a"/>
-                        <stop offset="15%" style="stop-color:#4a4a4a"/>
-                        <stop offset="50%" style="stop-color:#3a3a3a"/>
-                        <stop offset="85%" style="stop-color:#4a4a4a"/>
-                        <stop offset="100%" style="stop-color:#2a2a2a"/>
-                    </linearGradient>
-                </defs>
-                <!-- Propeller blade - horizontal bar that spins -->
-                <rect x="5" y="12" width="290" height="16" rx="8" fill="url(#bladeFill)" opacity="0.8"/>
-            </svg>
-        `;
-        c.appendChild(propeller);
-        
-        // Bubble canopy
-        const canopy = document.createElement('div');
-        canopy.style.cssText = `
+        // Cockpit frame (stays fixed, doesn't bank)
+        const cockpit = document.createElement('div');
+        cockpit.style.cssText = `
             position: absolute;
             inset: 0;
             pointer-events: none;
             z-index: 100;
         `;
-        canopy.innerHTML = `
+        
+        // Engine with propeller - positioned higher
+        cockpit.innerHTML = `
+            <!-- Canopy frame -->
             <svg style="position: absolute; inset: 0; width: 100%; height: 100%;" viewBox="0 0 100 100" preserveAspectRatio="none">
-                <path d="M0,0 Q-8,50 0,100 L5,100 Q-2,50 5,0 Z" fill="#1a1a1a"/>
-                <path d="M100,0 Q108,50 100,100 L95,100 Q102,50 95,0 Z" fill="#1a1a1a"/>
-                <path d="M0,0 L100,0 L100,4 Q50,-8 0,4 Z" fill="#1a1a1a"/>
+                <path d="M0,0 Q-10,50 0,100 L4,100 Q-4,50 4,0 Z" fill="#1a1a1a"/>
+                <path d="M100,0 Q110,50 100,100 L96,100 Q104,50 96,0 Z" fill="#1a1a1a"/>
+                <path d="M0,0 L100,0 L100,3 Q50,-6 0,3 Z" fill="#1a1a1a"/>
             </svg>
-            <div style="position: absolute; top: 8%; left: 12%; width: 25%; height: 35%; background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 60%); border-radius: 50%;"></div>
-            <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 85px; background: linear-gradient(0deg, #1a1a1a 0%, #252525 50%, transparent 100%); border-radius: 40% 40% 0 0 / 25% 25% 0 0;"></div>
-            <div style="position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px;">
-                <div style="width: 34px; height: 34px; border-radius: 50%; background: #0a0a0a; border: 2px solid #333; box-shadow: inset 0 0 10px rgba(0,255,100,0.15);"></div>
-                <div style="width: 44px; height: 44px; border-radius: 50%; background: #0a0a0a; border: 2px solid #333; box-shadow: inset 0 0 12px rgba(255,180,50,0.2);"></div>
-                <div style="width: 34px; height: 34px; border-radius: 50%; background: #0a0a0a; border: 2px solid #333; box-shadow: inset 0 0 10px rgba(50,150,255,0.15);"></div>
+            
+            <!-- Glass reflection -->
+            <div style="position: absolute; top: 5%; left: 10%; width: 20%; height: 30%; background: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 60%); border-radius: 50%;"></div>
+            
+            <!-- Dashboard - higher up -->
+            <div style="position: absolute; bottom: 15%; left: 0; right: 0; height: 20%; background: linear-gradient(0deg, #1a1a1a 0%, #252525 70%, transparent 100%); border-radius: 30% 30% 0 0 / 40% 40% 0 0;"></div>
+            
+            <!-- Instruments -->
+            <div style="position: absolute; bottom: 18%; left: 50%; transform: translateX(-50%); display: flex; gap: 8px;">
+                <div style="width: 28px; height: 28px; border-radius: 50%; background: #0a0a0a; border: 2px solid #333; box-shadow: inset 0 0 8px rgba(0,255,100,0.15);"></div>
+                <div style="width: 36px; height: 36px; border-radius: 50%; background: #0a0a0a; border: 2px solid #333; box-shadow: inset 0 0 10px rgba(255,180,50,0.2);"></div>
+                <div style="width: 28px; height: 28px; border-radius: 50%; background: #0a0a0a; border: 2px solid #333; box-shadow: inset 0 0 8px rgba(50,150,255,0.15);"></div>
             </div>
-            <div style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 16px; height: 40px; background: linear-gradient(90deg, #1a1a1a, #2a2a2a, #1a1a1a); border-radius: 5px 5px 0 0;"></div>
+            
+            <!-- Control stick -->
+            <div style="position: absolute; bottom: 15%; left: 50%; transform: translateX(-50%); width: 14px; height: 35px; background: linear-gradient(90deg, #1a1a1a, #2a2a2a, #1a1a1a); border-radius: 4px 4px 0 0;"></div>
+            
+            <!-- Engine cowling - higher -->
+            <div style="position: absolute; bottom: 28%; left: 50%; transform: translateX(-50%); width: 140px; height: 120px; background: linear-gradient(0deg, #2a2a2a 0%, #4a4a4a 40%, #3a3a3a 70%, #2a2a2a 100%); border-radius: 50% 50% 40% 40%; box-shadow: inset 0 20px 30px rgba(255,255,255,0.08);"></div>
+            
+            <!-- Spinner -->
+            <div style="position: absolute; bottom: 43%; left: 50%; transform: translateX(-50%); width: 40px; height: 50px; background: linear-gradient(180deg, #555 0%, #777 40%, #555 100%); border-radius: 50% 50% 40% 40%;"></div>
         `;
-        c.appendChild(canopy);
+        c.appendChild(cockpit);
+        
+        // Propeller - realistic airplane blades
+        const propeller = document.createElement('div');
+        propeller.className = 'flight-propeller';
+        propeller.style.cssText = `
+            position: absolute;
+            bottom: 47%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 280px;
+            height: 280px;
+            z-index: 99;
+        `;
+        propeller.innerHTML = `
+            <svg viewBox="0 0 280 280" style="width: 100%; height: 100%;">
+                <defs>
+                    <linearGradient id="blade1Grad" x1="0%" y1="50%" x2="100%" y2="50%">
+                        <stop offset="0%" style="stop-color:#1a1a1a"/>
+                        <stop offset="20%" style="stop-color:#4a4a4a"/>
+                        <stop offset="50%" style="stop-color:#3a3a3a"/>
+                        <stop offset="80%" style="stop-color:#4a4a4a"/>
+                        <stop offset="100%" style="stop-color:#1a1a1a"/>
+                    </linearGradient>
+                </defs>
+                <!-- Two-blade propeller with realistic shape -->
+                <ellipse cx="140" cy="140" rx="130" ry="12" fill="url(#blade1Grad)"/>
+                <!-- Hub -->
+                <circle cx="140" cy="140" r="15" fill="#3a3a3a"/>
+            </svg>
+        `;
+        c.appendChild(propeller);
         
         // Animation styles
         const oldStyle = document.getElementById('flight-style');
@@ -4392,27 +4539,21 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         style.textContent = `
             @keyframes field-approach {
                 0% { 
-                    transform: translateY(0) scale(0.3);
-                    opacity: 0.4;
+                    transform: translateY(0) scale(0.2);
+                    opacity: 0.3;
                 }
-                50% {
-                    opacity: 0.8;
+                30% {
+                    opacity: 0.9;
                 }
                 100% { 
-                    transform: translateY(300px) scale(3);
+                    transform: translateY(400px) scale(4);
                     opacity: 0;
                 }
             }
-            @keyframes fly-towards {
-                0% { transform: translate(-50%, -50%) scale(0.1); opacity: 0; }
-                10% { opacity: 1; }
-                90% { opacity: 1; }
-                100% { transform: translate(-50%, -50%) scale(3); opacity: 0; }
-            }
             @keyframes cloud-towards {
                 0% { transform: translate(-50%, -50%) scale(0.2); opacity: 0; }
-                20% { opacity: 0.8; }
-                80% { opacity: 0.6; }
+                20% { opacity: 0.7; }
+                80% { opacity: 0.5; }
                 100% { transform: translate(-50%, -50%) scale(4); opacity: 0; }
             }
             @keyframes prop-spin {
@@ -4420,15 +4561,32 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 to { transform: translateX(-50%) rotate(360deg); }
             }
             .flight-propeller {
-                animation: prop-spin 0.35s linear infinite;
-                opacity: 0.7;
-                filter: blur(1px);
+                animation: prop-spin 0.5s linear infinite;
             }
         `;
         document.head.appendChild(style);
         
         // Start spawning fields
         setTimeout(spawnField, 100);
+        
+        // Banking effect - occasionally tilt the scene
+        let bankAngle = 0;
+        const bankPlane = () => {
+            if (!c.isConnected) return;
+            
+            // Random bank direction and amount
+            const newBank = (Math.random() - 0.5) * 16; // -8 to +8 degrees
+            bankAngle = newBank;
+            
+            const scene = document.getElementById('flight-scene');
+            if (scene) {
+                scene.style.transform = `rotate(${bankAngle}deg)`;
+            }
+        };
+        
+        // Bank every 4-8 seconds
+        this.bankInterval = setInterval(bankPlane, 4000 + Math.random() * 4000);
+        setTimeout(bankPlane, 2000); // Initial bank after 2s
         
         // Spawn clouds coming towards viewer
         const spawnCloud = () => {
