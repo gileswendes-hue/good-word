@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.55',
+    APP_VERSION: '6.2.57',
     KIDS_LIST_FILE: 'kids_words.txt',
 
     SPECIAL: {
@@ -4337,6 +4337,7 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         
         if (this.flightTimeout) clearTimeout(this.flightTimeout);
         if (this.bankInterval) clearInterval(this.bankInterval);
+        if (this.fieldSpawnInterval) clearInterval(this.fieldSpawnInterval);
         this.flightObjects.forEach(obj => obj.remove());
         this.flightObjects = [];
         if (!active) { c.innerHTML = ''; c.style.background = ''; return; }
@@ -4362,77 +4363,166 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             top: 0;
             left: 0;
             right: 0;
-            height: 55%;
+            height: 52%;
             background: linear-gradient(180deg, #1a5a8a 0%, #4a9ad2 30%, #7ac4f2 60%, #a8e4ff 100%);
         `;
         worldContainer.appendChild(sky);
         
-        // Ground with perspective lines like the reference
+        // PARALLAX MOUNTAINS - Back layer (moves slower)
+        const mountainsBack = document.createElement('div');
+        mountainsBack.id = 'mountains-back';
+        mountainsBack.style.cssText = `
+            position: absolute;
+            top: 44%;
+            left: -25%;
+            width: 150%;
+            height: 15%;
+            transition: transform 3s ease-out;
+        `;
+        mountainsBack.innerHTML = `
+            <svg viewBox="0 0 1500 150" preserveAspectRatio="none" style="width: 100%; height: 100%;">
+                <defs>
+                    <linearGradient id="mtnBackGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" style="stop-color:#7a8a9a"/>
+                        <stop offset="100%" style="stop-color:#5a6a7a"/>
+                    </linearGradient>
+                </defs>
+                <path d="M0,150 L0,100 L80,50 L160,80 L280,30 L400,70 L520,20 L640,60 L760,35 L880,75 L1000,25 L1120,65 L1240,40 L1360,80 L1500,50 L1500,150 Z" fill="url(#mtnBackGrad)" opacity="0.5"/>
+            </svg>
+        `;
+        worldContainer.appendChild(mountainsBack);
+        
+        // PARALLAX MOUNTAINS - Front layer (moves faster)
+        const mountainsFront = document.createElement('div');
+        mountainsFront.id = 'mountains-front';
+        mountainsFront.style.cssText = `
+            position: absolute;
+            top: 46%;
+            left: -25%;
+            width: 150%;
+            height: 12%;
+            transition: transform 2s ease-out;
+        `;
+        mountainsFront.innerHTML = `
+            <svg viewBox="0 0 1500 120" preserveAspectRatio="none" style="width: 100%; height: 100%;">
+                <defs>
+                    <linearGradient id="mtnFrontGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" style="stop-color:#5a6a7a"/>
+                        <stop offset="100%" style="stop-color:#3a4a5a"/>
+                    </linearGradient>
+                </defs>
+                <path d="M0,120 L0,80 L100,40 L200,70 L350,20 L500,55 L650,15 L800,50 L950,25 L1100,60 L1250,30 L1400,65 L1500,45 L1500,120 Z" fill="url(#mtnFrontGrad)" opacity="0.7"/>
+                <!-- Snow caps -->
+                <path d="M350,20 L320,45 L380,45 Z M650,15 L615,45 L685,45 Z M950,25 L920,50 L980,50 Z M1250,30 L1215,55 L1285,55 Z" fill="rgba(255,255,255,0.8)"/>
+            </svg>
+        `;
+        worldContainer.appendChild(mountainsFront);
+        
+        // Ground - MORE VISIBLE (starts higher)
         const ground = document.createElement('div');
         ground.id = 'flight-ground';
         ground.style.cssText = `
             position: absolute;
-            top: 50%;
+            top: 48%;
             left: 0;
             right: 0;
             bottom: 0;
-            background: linear-gradient(180deg, #7aaa5a 0%, #5a8a3a 30%, #4a7a2a 60%, #3a6a1a 100%);
+            background: linear-gradient(180deg, #8aba6a 0%, #6a9a4a 15%, #5a8a3a 35%, #4a7a2a 60%, #3a6a1a 100%);
             overflow: hidden;
         `;
         
-        // Add perspective field lines
-        const fieldLines = document.createElement('div');
-        fieldLines.innerHTML = `
-            <svg viewBox="0 0 200 100" preserveAspectRatio="none" style="position: absolute; inset: 0; width: 100%; height: 100%;">
+        // Perspective field lines
+        ground.innerHTML = `
+            <svg viewBox="0 0 200 100" preserveAspectRatio="none" style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.6;">
                 <defs>
                     <linearGradient id="fieldLine" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" style="stop-color:#6a9a4a;stop-opacity:0.8"/>
-                        <stop offset="100%" style="stop-color:#4a7a2a;stop-opacity:0.3"/>
+                        <stop offset="0%" style="stop-color:#5a8a3a;stop-opacity:0.8"/>
+                        <stop offset="100%" style="stop-color:#3a6a1a;stop-opacity:0.2"/>
                     </linearGradient>
                 </defs>
-                <!-- Converging lines for perspective -->
-                <line x1="100" y1="0" x2="0" y2="100" stroke="url(#fieldLine)" stroke-width="0.5"/>
-                <line x1="100" y1="0" x2="20" y2="100" stroke="url(#fieldLine)" stroke-width="0.5"/>
-                <line x1="100" y1="0" x2="40" y2="100" stroke="url(#fieldLine)" stroke-width="0.5"/>
-                <line x1="100" y1="0" x2="60" y2="100" stroke="url(#fieldLine)" stroke-width="0.5"/>
-                <line x1="100" y1="0" x2="80" y2="100" stroke="url(#fieldLine)" stroke-width="0.5"/>
-                <line x1="100" y1="0" x2="100" y2="100" stroke="url(#fieldLine)" stroke-width="0.5"/>
-                <line x1="100" y1="0" x2="120" y2="100" stroke="url(#fieldLine)" stroke-width="0.5"/>
-                <line x1="100" y1="0" x2="140" y2="100" stroke="url(#fieldLine)" stroke-width="0.5"/>
-                <line x1="100" y1="0" x2="160" y2="100" stroke="url(#fieldLine)" stroke-width="0.5"/>
-                <line x1="100" y1="0" x2="180" y2="100" stroke="url(#fieldLine)" stroke-width="0.5"/>
-                <line x1="100" y1="0" x2="200" y2="100" stroke="url(#fieldLine)" stroke-width="0.5"/>
-                <!-- Horizontal lines for depth -->
-                <line x1="0" y1="10" x2="200" y2="10" stroke="#5a8a3a" stroke-width="0.3" opacity="0.4"/>
-                <line x1="0" y1="25" x2="200" y2="25" stroke="#5a8a3a" stroke-width="0.4" opacity="0.5"/>
-                <line x1="0" y1="45" x2="200" y2="45" stroke="#5a8a3a" stroke-width="0.6" opacity="0.6"/>
-                <line x1="0" y1="70" x2="200" y2="70" stroke="#5a8a3a" stroke-width="0.8" opacity="0.7"/>
+                <!-- Converging lines -->
+                <line x1="100" y1="0" x2="-50" y2="100" stroke="url(#fieldLine)" stroke-width="0.4"/>
+                <line x1="100" y1="0" x2="0" y2="100" stroke="url(#fieldLine)" stroke-width="0.4"/>
+                <line x1="100" y1="0" x2="30" y2="100" stroke="url(#fieldLine)" stroke-width="0.4"/>
+                <line x1="100" y1="0" x2="50" y2="100" stroke="url(#fieldLine)" stroke-width="0.4"/>
+                <line x1="100" y1="0" x2="70" y2="100" stroke="url(#fieldLine)" stroke-width="0.4"/>
+                <line x1="100" y1="0" x2="85" y2="100" stroke="url(#fieldLine)" stroke-width="0.4"/>
+                <line x1="100" y1="0" x2="100" y2="100" stroke="url(#fieldLine)" stroke-width="0.4"/>
+                <line x1="100" y1="0" x2="115" y2="100" stroke="url(#fieldLine)" stroke-width="0.4"/>
+                <line x1="100" y1="0" x2="130" y2="100" stroke="url(#fieldLine)" stroke-width="0.4"/>
+                <line x1="100" y1="0" x2="150" y2="100" stroke="url(#fieldLine)" stroke-width="0.4"/>
+                <line x1="100" y1="0" x2="170" y2="100" stroke="url(#fieldLine)" stroke-width="0.4"/>
+                <line x1="100" y1="0" x2="200" y2="100" stroke="url(#fieldLine)" stroke-width="0.4"/>
+                <line x1="100" y1="0" x2="250" y2="100" stroke="url(#fieldLine)" stroke-width="0.4"/>
             </svg>
+            <!-- Scrolling horizontal stripes for motion -->
+            <div style="position: absolute; inset: 0; background: repeating-linear-gradient(0deg, transparent 0px, transparent 8px, rgba(90,130,50,0.3) 8px, rgba(90,130,50,0.3) 10px); animation: ground-scroll 0.8s linear infinite;"></div>
         `;
-        ground.appendChild(fieldLines);
         worldContainer.appendChild(ground);
         
         // Clouds in the sky
-        for (let i = 0; i < 6; i++) {
+        for (let i = 0; i < 5; i++) {
             const cloud = document.createElement('div');
             cloud.style.cssText = `
                 position: absolute;
-                top: ${10 + Math.random() * 30}%;
-                left: ${25 + i * 10 + Math.random() * 5}%;
-                width: ${40 + Math.random() * 60}px;
-                height: ${20 + Math.random() * 25}px;
+                top: ${8 + Math.random() * 28}%;
+                left: ${30 + i * 8 + Math.random() * 5}%;
+                width: ${35 + Math.random() * 50}px;
+                height: ${18 + Math.random() * 22}px;
                 background: white;
                 border-radius: 50%;
-                filter: blur(2px);
-                opacity: 0.9;
-                box-shadow: ${15 + Math.random() * 20}px 5px 0 white, ${30 + Math.random() * 15}px -5px 0 white;
+                filter: blur(1px);
+                opacity: 0.85;
+                box-shadow: ${12 + Math.random() * 18}px 4px 0 white, ${25 + Math.random() * 12}px -4px 0 white;
             `;
             worldContainer.appendChild(cloud);
         }
         
         c.appendChild(worldContainer);
         
-        // COCKPIT FRAME - Curved struts like reference image
+        // Spawn moving field patches on the ground
+        const spawnField = () => {
+            if (!c.isConnected) return;
+            const groundEl = document.getElementById('flight-ground');
+            if (!groundEl) return;
+            
+            const field = document.createElement('div');
+            const fieldTypes = [
+                { bg: '#7aaa4a', border: '#6a9a3a' }, // Light grass
+                { bg: '#5a8a2a', border: '#4a7a1a' }, // Dark grass
+                { bg: '#c4a050', border: '#a48030' }, // Wheat
+                { bg: '#8a7040', border: '#6a5030' }, // Plowed
+                { bg: '#4a6a20', border: '#3a5a10' }, // Forest
+                { bg: '#a09060', border: '#807040' }, // Hay
+                { bg: '#3a7aaa', border: '#2a6a9a' }, // Water/pond
+                { bg: '#8a6a5a', border: '#6a4a3a' }, // Buildings
+            ];
+            const type = fieldTypes[Math.floor(Math.random() * fieldTypes.length)];
+            const startX = 30 + Math.random() * 40; // Wider spread
+            const duration = 2.5 + Math.random() * 2;
+            
+            field.style.cssText = `
+                position: absolute;
+                top: 0;
+                left: ${startX}%;
+                width: ${15 + Math.random() * 25}px;
+                height: ${8 + Math.random() * 15}px;
+                background: ${type.bg};
+                border: 1px solid ${type.border};
+                border-radius: 2px;
+                animation: field-fly ${duration}s linear forwards;
+                z-index: 2;
+            `;
+            
+            groundEl.appendChild(field);
+            this.flightObjects.push(field);
+            setTimeout(() => field.remove(), duration * 1000);
+        };
+        
+        // Spawn fields regularly - more frequently
+        this.fieldSpawnInterval = setInterval(spawnField, 100);
+        
+        // COCKPIT FRAME
         const cockpitFrame = document.createElement('div');
         cockpitFrame.style.cssText = `
             position: absolute;
@@ -4442,69 +4532,59 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         `;
         cockpitFrame.innerHTML = `
             <svg style="position: absolute; inset: 0; width: 100%; height: 100%;" viewBox="0 0 100 100" preserveAspectRatio="none">
-                <!-- Outer curved frame - like bubble canopy -->
-                <path d="M0,0 Q-15,50 0,100" stroke="#2a4a6a" stroke-width="6" fill="none"/>
-                <path d="M100,0 Q115,50 100,100" stroke="#2a4a6a" stroke-width="6" fill="none"/>
-                <path d="M0,0 Q50,-15 100,0" stroke="#2a4a6a" stroke-width="4" fill="none"/>
-                
-                <!-- Inner frame struts -->
-                <path d="M5,0 Q0,50 5,100" stroke="#3a5a7a" stroke-width="3" fill="none"/>
-                <path d="M95,0 Q100,50 95,100" stroke="#3a5a7a" stroke-width="3" fill="none"/>
-                
-                <!-- Center vertical strut -->
-                <line x1="50" y1="0" x2="50" y2="45" stroke="#3a5a7a" stroke-width="2.5"/>
-                
-                <!-- Corner warning lights -->
-                <circle cx="8" cy="8" r="3" fill="#aa3333"/>
-                <circle cx="92" cy="8" r="3" fill="#aa3333"/>
-                
-                <!-- Frame rivets -->
-                <circle cx="3" cy="20" r="0.8" fill="#1a3a5a"/>
-                <circle cx="3" cy="40" r="0.8" fill="#1a3a5a"/>
-                <circle cx="3" cy="60" r="0.8" fill="#1a3a5a"/>
-                <circle cx="3" cy="80" r="0.8" fill="#1a3a5a"/>
-                <circle cx="97" cy="20" r="0.8" fill="#1a3a5a"/>
-                <circle cx="97" cy="40" r="0.8" fill="#1a3a5a"/>
-                <circle cx="97" cy="60" r="0.8" fill="#1a3a5a"/>
-                <circle cx="97" cy="80" r="0.8" fill="#1a3a5a"/>
+                <!-- Outer curved frame -->
+                <path d="M0,0 Q-12,50 0,100" stroke="#2a4a6a" stroke-width="5" fill="none"/>
+                <path d="M100,0 Q112,50 100,100" stroke="#2a4a6a" stroke-width="5" fill="none"/>
+                <path d="M0,0 Q50,-12 100,0" stroke="#2a4a6a" stroke-width="3.5" fill="none"/>
+                <!-- Inner struts -->
+                <path d="M4,0 Q-2,50 4,100" stroke="#3a5a7a" stroke-width="2" fill="none"/>
+                <path d="M96,0 Q102,50 96,100" stroke="#3a5a7a" stroke-width="2" fill="none"/>
+                <!-- Corner lights -->
+                <circle cx="7" cy="7" r="2.5" fill="#aa3333"/>
+                <circle cx="93" cy="7" r="2.5" fill="#aa3333"/>
             </svg>
         `;
         c.appendChild(cockpitFrame);
         
-        // PROPELLER at top center - attached to frame
+        // PROPELLER ASSEMBLY - Lower, bigger, slower
         const propAssembly = document.createElement('div');
         propAssembly.style.cssText = `
             position: absolute;
-            top: 2%;
+            top: 8%;
             left: 50%;
             transform: translateX(-50%);
             z-index: 55;
         `;
         propAssembly.innerHTML = `
-            <!-- Prop mount/strut connecting to frame -->
-            <div style="position: absolute; top: 30px; left: 50%; transform: translateX(-50%); width: 8px; height: 40px; background: linear-gradient(90deg, #2a4a6a, #4a6a8a, #2a4a6a);"></div>
-            <!-- Spinner/hub -->
-            <div style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 30px; height: 35px; background: linear-gradient(180deg, #ccc 0%, #888 50%, #666 100%); border-radius: 50% 50% 40% 40%;"></div>
-            <!-- Propeller disc -->
-            <div id="flight-prop" style="position: absolute; top: 5px; left: 50%; transform: translateX(-50%); width: 180px; height: 180px;">
-                <svg viewBox="0 0 180 180" style="width: 100%; height: 100%;">
+            <!-- Mount strut -->
+            <div style="position: absolute; top: 50px; left: 50%; transform: translateX(-50%); width: 12px; height: 50px; background: linear-gradient(90deg, #2a4a6a, #4a6a8a, #2a4a6a); border-radius: 3px;"></div>
+            <!-- Spinner hub -->
+            <div style="position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 45px; height: 55px; background: linear-gradient(180deg, #ddd 0%, #999 40%, #777 70%, #555 100%); border-radius: 50% 50% 40% 40%; z-index: 2;"></div>
+            <!-- Propeller -->
+            <div id="flight-prop" style="position: absolute; top: -60px; left: 50%; transform: translateX(-50%); width: 300px; height: 300px;">
+                <svg viewBox="0 0 300 300" style="width: 100%; height: 100%;">
                     <defs>
                         <linearGradient id="propBladeGrad" x1="0%" y1="50%" x2="100%" y2="50%">
-                            <stop offset="0%" style="stop-color:#1a1a1a"/>
-                            <stop offset="20%" style="stop-color:#4a4a4a"/>
+                            <stop offset="0%" style="stop-color:#2a2a2a"/>
+                            <stop offset="15%" style="stop-color:#5a5a5a"/>
+                            <stop offset="30%" style="stop-color:#4a4a4a"/>
                             <stop offset="50%" style="stop-color:#3a3a3a"/>
-                            <stop offset="80%" style="stop-color:#4a4a4a"/>
-                            <stop offset="100%" style="stop-color:#1a1a1a"/>
+                            <stop offset="70%" style="stop-color:#4a4a4a"/>
+                            <stop offset="85%" style="stop-color:#5a5a5a"/>
+                            <stop offset="100%" style="stop-color:#2a2a2a"/>
                         </linearGradient>
                     </defs>
-                    <ellipse cx="90" cy="90" rx="85" ry="8" fill="url(#propBladeGrad)"/>
-                    <circle cx="90" cy="90" r="12" fill="#555"/>
+                    <!-- Two-blade propeller -->
+                    <ellipse cx="150" cy="150" rx="140" ry="14" fill="url(#propBladeGrad)"/>
+                    <!-- Hub cap -->
+                    <circle cx="150" cy="150" r="20" fill="#666"/>
+                    <circle cx="150" cy="150" r="12" fill="#888"/>
                 </svg>
             </div>
         `;
         c.appendChild(propAssembly);
         
-        // INSTRUMENT PANEL - Based on reference with gray panel
+        // INSTRUMENT PANEL
         const panel = document.createElement('div');
         panel.style.cssText = `
             position: absolute;
@@ -4512,12 +4592,12 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             left: 50%;
             transform: translateX(-50%);
             width: 85%;
-            height: 52%;
+            height: 48%;
             z-index: 60;
         `;
         panel.innerHTML = `
-            <!-- Main panel background - curved top like reference -->
-            <svg style="position: absolute; inset: 0; width: 100%; height: 100%;" viewBox="0 0 200 120" preserveAspectRatio="none">
+            <!-- Panel background -->
+            <svg style="position: absolute; inset: 0; width: 100%; height: 100%;" viewBox="0 0 200 110" preserveAspectRatio="none">
                 <defs>
                     <linearGradient id="panelGrad" x1="0%" y1="0%" x2="0%" y2="100%">
                         <stop offset="0%" style="stop-color:#6a7a8a"/>
@@ -4525,139 +4605,97 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                         <stop offset="100%" style="stop-color:#4a5a6a"/>
                     </linearGradient>
                 </defs>
-                <!-- Panel shape with curved top -->
-                <path d="M10,120 L10,50 Q100,20 190,50 L190,120 Z" fill="url(#panelGrad)" stroke="#3a4a5a" stroke-width="1"/>
+                <path d="M8,110 L8,45 Q100,15 192,45 L192,110 Z" fill="url(#panelGrad)" stroke="#3a4a5a" stroke-width="1"/>
             </svg>
             
-            <!-- Warning lights row at top -->
-            <div style="position: absolute; top: 18%; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; align-items: center;">
-                <div class="warn-light-red" style="width: 14px; height: 14px; border-radius: 50%; background: #550000; border: 2px solid #333; animation: blink-red 2s infinite;"></div>
-                <div style="width: 10px; height: 10px; border-radius: 50%; background: #444; border: 2px solid #333;"></div>
-                <div class="warn-light-amber" style="width: 14px; height: 14px; border-radius: 50%; background: #554400; border: 2px solid #333; animation: blink-amber 3s infinite;"></div>
-                <div style="width: 20px; height: 20px; border-radius: 50%; background: radial-gradient(circle, #aa3333 30%, #661111 100%); border: 2px solid #222;"></div>
-                <div class="warn-light-amber" style="width: 14px; height: 14px; border-radius: 50%; background: #554400; border: 2px solid #333; animation: blink-amber 2.5s infinite; animation-delay: 1s;"></div>
-                <div style="width: 10px; height: 10px; border-radius: 50%; background: #444; border: 2px solid #333;"></div>
-                <div class="warn-light-red" style="width: 14px; height: 14px; border-radius: 50%; background: #550000; border: 2px solid #333; animation: blink-red 2.5s infinite; animation-delay: 0.5s;"></div>
+            <!-- Warning lights -->
+            <div style="position: absolute; top: 16%; left: 50%; transform: translateX(-50%); display: flex; gap: 6px;">
+                <div style="width: 12px; height: 12px; border-radius: 50%; background: #550000; border: 2px solid #333; animation: blink-red 2s infinite;"></div>
+                <div style="width: 9px; height: 9px; border-radius: 50%; background: #444; border: 2px solid #333;"></div>
+                <div style="width: 12px; height: 12px; border-radius: 50%; background: #554400; border: 2px solid #333; animation: blink-amber 3s infinite;"></div>
+                <div style="width: 18px; height: 18px; border-radius: 50%; background: radial-gradient(circle, #aa3333 30%, #661111 100%); border: 2px solid #222;"></div>
+                <div style="width: 12px; height: 12px; border-radius: 50%; background: #554400; border: 2px solid #333; animation: blink-amber 2.5s infinite; animation-delay: 1s;"></div>
+                <div style="width: 9px; height: 9px; border-radius: 50%; background: #444; border: 2px solid #333;"></div>
+                <div style="width: 12px; height: 12px; border-radius: 50%; background: #550000; border: 2px solid #333; animation: blink-red 2.5s infinite; animation-delay: 0.5s;"></div>
             </div>
             
-            <!-- Main instruments row -->
-            <div style="position: absolute; top: 32%; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; align-items: center;">
-                <!-- Left gauge - Compass/Heading -->
-                <div style="width: 70px; height: 70px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #1a2a3a, #0a1520); border: 4px solid #2a3a4a; box-shadow: inset 0 0 20px rgba(0,100,200,0.2), 0 4px 8px rgba(0,0,0,0.5);">
-                    <div style="position: absolute; top: 50%; left: 50%; width: 2px; height: 25px; background: white; transform-origin: bottom center; transform: translate(-50%, -100%); animation: compass-spin 20s linear infinite;"></div>
-                    <div style="position: absolute; top: 8px; left: 50%; transform: translateX(-50%); font-size: 6px; color: white;">N</div>
+            <!-- Main gauges -->
+            <div style="position: absolute; top: 30%; left: 50%; transform: translateX(-50%); display: flex; gap: 12px; align-items: center;">
+                <!-- Compass -->
+                <div style="width: 60px; height: 60px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #1a2a3a, #0a1520); border: 3px solid #2a3a4a; position: relative;">
+                    <div style="position: absolute; top: 50%; left: 50%; width: 2px; height: 22px; background: white; transform-origin: bottom center; transform: translate(-50%, -100%); animation: compass-spin 25s linear infinite;"></div>
                 </div>
-                
-                <!-- Center small gauges stack -->
-                <div style="display: flex; flex-direction: column; gap: 6px;">
-                    <div style="display: flex; gap: 6px;">
-                        <div style="width: 28px; height: 28px; border-radius: 50%; background: #0a1520; border: 2px solid #2a3a4a;"></div>
-                        <div style="width: 28px; height: 28px; border-radius: 50%; background: #0a1520; border: 2px solid #2a3a4a;"></div>
-                        <div style="width: 28px; height: 28px; border-radius: 50%; background: #0a1520; border: 2px solid #2a3a4a;"></div>
-                    </div>
+                <!-- Small gauges -->
+                <div style="display: flex; gap: 5px;">
+                    <div style="width: 24px; height: 24px; border-radius: 50%; background: #0a1520; border: 2px solid #2a3a4a;"></div>
+                    <div style="width: 24px; height: 24px; border-radius: 50%; background: #0a1520; border: 2px solid #2a3a4a;"></div>
+                    <div style="width: 24px; height: 24px; border-radius: 50%; background: #0a1520; border: 2px solid #2a3a4a;"></div>
                 </div>
-                
-                <!-- Right gauge - RPM/Tachometer (orange like reference) -->
-                <div style="width: 70px; height: 70px; border-radius: 50%; background: radial-gradient(circle at 40% 40%, #4a3a1a, #2a2010); border: 4px solid #5a4a2a; box-shadow: inset 0 0 20px rgba(255,150,0,0.3), 0 4px 8px rgba(0,0,0,0.5);">
-                    <div style="position: absolute; top: 50%; left: 50%; width: 2px; height: 25px; background: #ff3300; transform-origin: bottom center; transform: translate(-50%, -100%) rotate(45deg); animation: rpm-needle 4s ease-in-out infinite;"></div>
+                <!-- RPM -->
+                <div style="width: 60px; height: 60px; border-radius: 50%; background: radial-gradient(circle at 40% 40%, #4a3a1a, #2a2010); border: 3px solid #5a4a2a; position: relative;">
+                    <div style="position: absolute; top: 50%; left: 50%; width: 2px; height: 22px; background: #ff3300; transform-origin: bottom center; transform: translate(-50%, -100%) rotate(45deg); animation: rpm-needle 4s ease-in-out infinite;"></div>
                 </div>
             </div>
             
-            <!-- Bottom controls row -->
-            <div style="position: absolute; top: 58%; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; align-items: flex-start;">
-                <!-- Left screen (blue like reference) -->
-                <div style="width: 55px; height: 45px; background: linear-gradient(135deg, #1a3a5a 0%, #0a2040 100%); border: 2px solid #2a4a6a; border-radius: 3px; box-shadow: inset 0 0 15px rgba(0,150,255,0.2);">
-                    <div style="border-top: 1px solid rgba(100,200,255,0.3); margin: 8px 5px;"></div>
-                    <div style="border-top: 1px solid rgba(100,200,255,0.2); margin: 6px 5px;"></div>
-                </div>
-                
-                <!-- Center buttons/switches area -->
-                <div style="display: flex; flex-direction: column; gap: 5px;">
-                    <!-- Yellow displays like reference -->
-                    <div style="display: flex; gap: 4px;">
-                        <div style="width: 40px; height: 18px; background: #8a7a2a; border: 1px solid #5a5020; border-radius: 2px;"></div>
-                        <div style="width: 30px; height: 18px; background: #8a7a2a; border: 1px solid #5a5020; border-radius: 2px;"></div>
+            <!-- Bottom row -->
+            <div style="position: absolute; top: 56%; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; align-items: flex-start;">
+                <!-- Blue screen -->
+                <div style="width: 50px; height: 40px; background: linear-gradient(135deg, #1a3a5a, #0a2040); border: 2px solid #2a4a6a; border-radius: 2px;"></div>
+                <!-- Center displays -->
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <div style="display: flex; gap: 3px;">
+                        <div style="width: 35px; height: 14px; background: #8a7a2a; border: 1px solid #5a5020;"></div>
+                        <div style="width: 25px; height: 14px; background: #8a7a2a; border: 1px solid #5a5020;"></div>
                     </div>
-                    <!-- Green/yellow indicators -->
-                    <div style="display: flex; gap: 4px;">
-                        <div style="width: 8px; height: 8px; background: #33aa33; border-radius: 2px; animation: blink-green 1.5s infinite;"></div>
-                        <div style="width: 8px; height: 8px; background: #aaaa33; border-radius: 2px;"></div>
-                        <div style="width: 20px; height: 8px; background: #2a3a2a; border-radius: 2px;"></div>
-                    </div>
-                    <!-- Speedometer -->
-                    <div style="width: 50px; height: 50px; border-radius: 50%; background: radial-gradient(circle, #f5f5f0 0%, #d5d5d0 100%); border: 3px solid #3a4a5a; margin-top: 5px;">
-                        <div style="position: absolute; top: 50%; left: 50%; width: 2px; height: 18px; background: #111; transform-origin: bottom center; transform: translate(-50%, -100%) rotate(-30deg); animation: speed-needle 8s ease-in-out infinite;"></div>
+                    <div style="width: 45px; height: 45px; border-radius: 50%; background: radial-gradient(circle, #f5f5f0, #d5d5d0); border: 3px solid #3a4a5a; position: relative;">
+                        <div style="position: absolute; top: 50%; left: 50%; width: 2px; height: 16px; background: #111; transform-origin: bottom center; transform: translate(-50%, -100%) rotate(-30deg); animation: speed-needle 8s ease-in-out infinite;"></div>
                     </div>
                 </div>
-                
-                <!-- Right screen (dark with dots like reference) -->
-                <div style="width: 55px; height: 55px; background: #0a1520; border: 2px solid #2a4a6a; border-radius: 3px;">
-                    <div style="position: absolute; top: 15px; left: 10px; width: 3px; height: 3px; background: #3a8a5a; border-radius: 50%;"></div>
-                    <div style="position: absolute; top: 25px; left: 20px; width: 3px; height: 3px; background: #3a8a5a; border-radius: 50%;"></div>
-                    <div style="position: absolute; top: 20px; left: 35px; width: 3px; height: 3px; background: #3a8a5a; border-radius: 50%;"></div>
-                    <div style="position: absolute; top: 35px; left: 25px; width: 20px; height: 2px; background: #5aaa7a; transform: rotate(-20deg);"></div>
+                <!-- Radar screen -->
+                <div style="width: 50px; height: 50px; background: #0a1520; border: 2px solid #2a4a6a; border-radius: 2px; position: relative;">
+                    <div style="position: absolute; top: 12px; left: 8px; width: 3px; height: 3px; background: #3a8a5a; border-radius: 50%;"></div>
+                    <div style="position: absolute; top: 22px; left: 18px; width: 3px; height: 3px; background: #3a8a5a; border-radius: 50%;"></div>
+                    <div style="position: absolute; top: 30px; left: 28px; width: 15px; height: 2px; background: #5aaa7a; transform: rotate(-20deg);"></div>
                 </div>
             </div>
             
-            <!-- Bottom row - toggle switches -->
-            <div style="position: absolute; bottom: 12%; left: 50%; transform: translateX(-50%); display: flex; gap: 8px;">
-                <div style="width: 12px; height: 20px; background: linear-gradient(180deg, #ddd 0%, #888 100%); border-radius: 3px; border: 1px solid #555;"></div>
-                <div style="width: 12px; height: 20px; background: linear-gradient(180deg, #f55 0%, #a22 100%); border-radius: 3px; border: 1px solid #555;"></div>
-                <div style="width: 12px; height: 20px; background: linear-gradient(180deg, #ddd 0%, #888 100%); border-radius: 3px; border: 1px solid #555;"></div>
-                <div style="width: 25px; height: 15px; background: #222; border: 1px solid #444; border-radius: 2px;"></div>
-                <div style="width: 12px; height: 20px; background: linear-gradient(180deg, #5d5 0%, #2a2 100%); border-radius: 3px; border: 1px solid #555;"></div>
-                <div style="width: 12px; height: 20px; background: linear-gradient(180deg, #ddd 0%, #888 100%); border-radius: 3px; border: 1px solid #555;"></div>
+            <!-- Switches -->
+            <div style="position: absolute; bottom: 10%; left: 50%; transform: translateX(-50%); display: flex; gap: 6px;">
+                <div style="width: 10px; height: 18px; background: linear-gradient(180deg, #ddd, #888); border-radius: 2px;"></div>
+                <div style="width: 10px; height: 18px; background: linear-gradient(180deg, #f55, #a22); border-radius: 2px;"></div>
+                <div style="width: 10px; height: 18px; background: linear-gradient(180deg, #ddd, #888); border-radius: 2px;"></div>
+                <div style="width: 20px; height: 12px; background: #222; border: 1px solid #444;"></div>
+                <div style="width: 10px; height: 18px; background: linear-gradient(180deg, #5d5, #2a2); border-radius: 2px;"></div>
+                <div style="width: 10px; height: 18px; background: linear-gradient(180deg, #ddd, #888); border-radius: 2px;"></div>
             </div>
         `;
         c.appendChild(panel);
         
-        // SEATS on sides (like reference)
+        // SEATS
         const leftSeat = document.createElement('div');
         leftSeat.style.cssText = `
-            position: absolute;
-            bottom: 5%;
-            left: 2%;
-            width: 18%;
-            height: 45%;
-            background: linear-gradient(90deg, #5a9a8a 0%, #7abaa9 50%, #5a9a8a 100%);
-            border-radius: 10px 10px 5px 5px;
-            z-index: 55;
-            box-shadow: 5px 0 15px rgba(0,0,0,0.3);
+            position: absolute; bottom: 4%; left: 2%; width: 16%; height: 42%;
+            background: linear-gradient(90deg, #5a9a8a, #7abaa9, #5a9a8a);
+            border-radius: 8px 8px 4px 4px; z-index: 55;
         `;
-        leftSeat.innerHTML = `<div style="position: absolute; bottom: 0; left: 10%; right: 10%; height: 25%; background: #a05050; border-radius: 5px 5px 3px 3px;"></div>`;
+        leftSeat.innerHTML = `<div style="position: absolute; bottom: 0; left: 10%; right: 10%; height: 22%; background: #a05050; border-radius: 4px 4px 2px 2px;"></div>`;
         c.appendChild(leftSeat);
         
         const rightSeat = document.createElement('div');
         rightSeat.style.cssText = `
-            position: absolute;
-            bottom: 5%;
-            right: 2%;
-            width: 18%;
-            height: 45%;
-            background: linear-gradient(90deg, #5a9a8a 0%, #7abaa9 50%, #5a9a8a 100%);
-            border-radius: 10px 10px 5px 5px;
-            z-index: 55;
-            box-shadow: -5px 0 15px rgba(0,0,0,0.3);
+            position: absolute; bottom: 4%; right: 2%; width: 16%; height: 42%;
+            background: linear-gradient(90deg, #5a9a8a, #7abaa9, #5a9a8a);
+            border-radius: 8px 8px 4px 4px; z-index: 55;
         `;
-        rightSeat.innerHTML = `<div style="position: absolute; bottom: 0; left: 10%; right: 10%; height: 25%; background: #a05050; border-radius: 5px 5px 3px 3px;"></div>`;
+        rightSeat.innerHTML = `<div style="position: absolute; bottom: 0; left: 10%; right: 10%; height: 22%; background: #a05050; border-radius: 4px 4px 2px 2px;"></div>`;
         c.appendChild(rightSeat);
         
-        // CENTER YOKE/CONTROL COLUMN
+        // YOKE
         const yoke = document.createElement('div');
-        yoke.style.cssText = `
-            position: absolute;
-            bottom: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 65;
-        `;
+        yoke.style.cssText = `position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); z-index: 65;`;
         yoke.innerHTML = `
-            <!-- Column base -->
-            <div style="width: 25px; height: 80px; background: linear-gradient(90deg, #3a4a5a 0%, #5a6a7a 50%, #3a4a5a 100%); border-radius: 5px;"></div>
-            <!-- Yoke handles -->
-            <div style="position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%); width: 70px; height: 15px; background: linear-gradient(180deg, #4a5a6a 0%, #3a4a5a 100%); border-radius: 8px;"></div>
-            <!-- Throttle quadrant -->
-            <div style="position: absolute; bottom: 30px; left: -30px; width: 15px; height: 40px; background: linear-gradient(90deg, #2a3a4a, #4a5a6a, #2a3a4a); border-radius: 3px;"></div>
+            <div style="width: 20px; height: 70px; background: linear-gradient(90deg, #3a4a5a, #5a6a7a, #3a4a5a); border-radius: 4px;"></div>
+            <div style="position: absolute; bottom: 55px; left: 50%; transform: translateX(-50%); width: 60px; height: 12px; background: linear-gradient(180deg, #4a5a6a, #3a4a5a); border-radius: 6px;"></div>
         `;
         c.appendChild(yoke);
         
@@ -4673,8 +4711,16 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 to { transform: translateX(-50%) rotate(360deg); }
             }
             #flight-prop {
-                animation: prop-spin 0.08s linear infinite;
-                opacity: 0.6;
+                animation: prop-spin 0.15s linear infinite;
+            }
+            @keyframes field-fly {
+                0% { transform: translateY(0) scale(0.3); opacity: 0.5; }
+                20% { opacity: 1; }
+                100% { transform: translateY(500px) scale(5); opacity: 0; }
+            }
+            @keyframes ground-scroll {
+                0% { background-position-y: 0px; }
+                100% { background-position-y: 20px; }
             }
             @keyframes compass-spin {
                 from { transform: translate(-50%, -100%) rotate(0deg); }
@@ -4690,47 +4736,131 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             }
             @keyframes blink-red {
                 0%, 40%, 100% { background: #550000; box-shadow: none; }
-                45%, 55% { background: #ff3333; box-shadow: 0 0 10px #ff3333; }
+                45%, 55% { background: #ff3333; box-shadow: 0 0 8px #ff3333; }
             }
             @keyframes blink-amber {
                 0%, 60%, 100% { background: #554400; box-shadow: none; }
-                65%, 85% { background: #ffaa00; box-shadow: 0 0 8px #ffaa00; }
+                65%, 85% { background: #ffaa00; box-shadow: 0 0 6px #ffaa00; }
             }
-            @keyframes blink-green {
-                0%, 50% { background: #33aa33; box-shadow: 0 0 5px #33aa33; }
-                51%, 100% { background: #227722; box-shadow: none; }
+            @keyframes cloud-approach {
+                0% { transform: translate(-50%, -50%) scale(0.2); opacity: 0; }
+                15% { opacity: 0.9; }
+                85% { opacity: 0.7; }
+                100% { transform: translate(-50%, -50%) scale(4); opacity: 0; }
+            }
+            @keyframes flying-approach {
+                0% { transform: translate(-50%, -50%) scale(0.15); opacity: 0; }
+                10% { opacity: 1; }
+                90% { opacity: 1; }
+                100% { transform: translate(-50%, -50%) scale(3.5); opacity: 0; }
             }
         `;
         document.head.appendChild(style);
         
-        // BANKING - rotate the entire world view
-        let currentBank = 0;
+        // Spawn clouds that fly TOWARDS the player
+        const spawnCloud = () => {
+            if (!c.isConnected) return;
+            
+            const cloud = document.createElement('div');
+            const startX = 40 + Math.random() * 20; // Center area
+            const startY = 20 + Math.random() * 25; // Upper half of sky
+            const size = 50 + Math.random() * 80;
+            const duration = 4 + Math.random() * 3;
+            
+            cloud.style.cssText = `
+                position: absolute;
+                left: ${startX}%;
+                top: ${startY}%;
+                width: ${size}px;
+                height: ${size * 0.5}px;
+                background: white;
+                border-radius: 50%;
+                filter: blur(2px);
+                box-shadow: 
+                    ${size * 0.3}px ${size * 0.1}px 0 white,
+                    ${size * 0.5}px 0 0 white,
+                    ${size * 0.15}px ${-size * 0.1}px 0 white;
+                animation: cloud-approach ${duration}s ease-in forwards;
+                z-index: 10;
+                pointer-events: none;
+            `;
+            
+            c.appendChild(cloud);
+            this.flightObjects.push(cloud);
+            setTimeout(() => cloud.remove(), duration * 1000);
+            
+            setTimeout(spawnCloud, 600 + Math.random() * 1000);
+        };
+        
+        // Spawn flying objects (birds, balloons, etc) that approach
+        const flyingThings = ['🦅', '🦆', '🦢', '🎈', '🪂', '🦋', '🐦', '✈️', '🚁', '🪁'];
+        const spawnFlyingThing = () => {
+            if (!c.isConnected) return;
+            
+            const thing = document.createElement('div');
+            const emoji = flyingThings[Math.floor(Math.random() * flyingThings.length)];
+            const startX = 35 + Math.random() * 30;
+            const startY = 25 + Math.random() * 30;
+            const duration = 3 + Math.random() * 2.5;
+            
+            thing.textContent = emoji;
+            thing.style.cssText = `
+                position: absolute;
+                left: ${startX}%;
+                top: ${startY}%;
+                font-size: 24px;
+                animation: flying-approach ${duration}s ease-in forwards;
+                z-index: 15;
+                filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3));
+                pointer-events: none;
+            `;
+            
+            c.appendChild(thing);
+            this.flightObjects.push(thing);
+            setTimeout(() => thing.remove(), duration * 1000);
+            
+            this.flightTimeout = setTimeout(spawnFlyingThing, 2000 + Math.random() * 4000);
+        };
+        
+        // Start spawning clouds and flying things
+        setTimeout(spawnCloud, 500);
+        this.flightTimeout = setTimeout(spawnFlyingThing, 1500);
+        
+        // BANKING with PARALLAX
+        let mountainOffset = 0;
         const performBank = () => {
             if (!c.isConnected) return;
             
             const world = document.getElementById('flight-world');
+            const mtnBack = document.getElementById('mountains-back');
+            const mtnFront = document.getElementById('mountains-front');
             if (!world) return;
             
-            // Random bank direction and amount
-            const targetBank = (Math.random() - 0.5) * 20; // -10 to +10 degrees
-            currentBank = targetBank;
+            // Random bank
+            const bankDir = Math.random() > 0.5 ? 1 : -1;
+            const bankAngle = 8 + Math.random() * 7; // 8-15 degrees
             
-            world.style.transform = `rotate(${currentBank}deg)`;
+            // Parallax: back mountains move less than front
+            const backShift = bankDir * (30 + Math.random() * 40);
+            const frontShift = bankDir * (60 + Math.random() * 80);
+            mountainOffset += frontShift;
             
-            // Level out after 3 seconds
+            // Bank the world
+            world.style.transform = `rotate(${bankDir * bankAngle}deg)`;
+            
+            // Shift mountains with parallax
+            if (mtnBack) mtnBack.style.transform = `translateX(${mountainOffset * 0.5}px)`;
+            if (mtnFront) mtnFront.style.transform = `translateX(${mountainOffset}px)`;
+            
+            // Level out after delay
             setTimeout(() => {
-                if (world) {
-                    world.style.transform = 'rotate(0deg)';
-                    currentBank = 0;
-                }
-            }, 3000);
+                if (world) world.style.transform = 'rotate(0deg)';
+            }, 2500);
             
-            // Schedule next bank
-            this.bankInterval = setTimeout(performBank, 8000 + Math.random() * 6000);
+            this.bankInterval = setTimeout(performBank, 7000 + Math.random() * 6000);
         };
         
-        // Start banking
-        this.bankInterval = setTimeout(performBank, 5000);
+        this.bankInterval = setTimeout(performBank, 4000);
     },
 
     // Ocean theme timeouts
