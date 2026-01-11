@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.26',
+    APP_VERSION: '6.2.28',
     KIDS_LIST_FILE: 'kids_words.txt',
 
     SPECIAL: {
@@ -17,9 +17,9 @@ const CONFIG = {
     TIP_COOLDOWN: 4,
     HISTORY_SIZE: 500,
     VOTE: {
-        MASH_LIMIT: 5,
-        COOLDOWN_TIERS: [10, 20, 30],
-        STREAK_WINDOW: 2000,
+        MASH_LIMIT: 4,           // Trigger after 4 fast votes (was 5)
+        COOLDOWN_TIERS: [5, 10, 20],  // Shorter cooldowns
+        STREAK_WINDOW: 800,      // 800ms between votes counts as mashing (was 2000)
         SWIPE_THRESHOLD: 100
     },
 
@@ -331,6 +331,7 @@ const State = {
         currentTheme: 'default',
         offlineChannel: 1,
         allWords: [],
+        fullWordList: [], // All words for stats calculation (before filtering)
         history: [],
         currentWordIndex: 0,
         streak: 0,
@@ -630,6 +631,7 @@ const OfflineManager = {
                 State.runtime.allWords = State.data.offlineCache
                     .filter(w => (w.notWordVotes || 0) < 3)
                     .map(w => ({...w}));
+                State.runtime.fullWordList = State.runtime.allWords; // Store for stats
 
                 // Shuffle them
                 for (let i = State.runtime.allWords.length - 1; i > 0; i--) {
@@ -4315,7 +4317,8 @@ const UIManager = {
     },
 
 updateStats() {
-        const w = State.runtime.allWords;
+        // Use fullWordList for stats (all words), not filtered allWords
+        const w = State.runtime.fullWordList.length > 0 ? State.runtime.fullWordList : State.runtime.allWords;
         if (!w.length) return;
 
         // Always show daily streak in header, ignoring noStreaksMode (which is only for in-game counters)
@@ -8159,14 +8162,15 @@ const Game = {
             } catch(e) { State.runtime.allWords.push({ text: 'OFFLINE', _id: null }); }
         }
 
-        // Smart Filtering
+        // Smart Filtering - filter from fullWordList to preserve all data
         if (!State.runtime.isMultiplayer) {
+            const sourceList = State.runtime.fullWordList.length > 0 ? State.runtime.fullWordList : State.runtime.allWords;
             if (State.data.settings.zeroVotesOnly) {
-                const unvoted = State.runtime.allWords.filter(w => (w.goodVotes || 0) === 0 && (w.badVotes || 0) === 0);
+                const unvoted = sourceList.filter(w => (w.goodVotes || 0) === 0 && (w.badVotes || 0) === 0);
                 if (unvoted.length > 0) State.runtime.allWords = unvoted;
                 else UIManager.showPostVoteMessage("No more new words! Showing random.");
             } else if (State.data.settings.controversialOnly) {
-                const contro = State.runtime.allWords.filter(w => {
+                const contro = sourceList.filter(w => {
                     const g = w.goodVotes || 0, b = w.badVotes || 0, t = g + b;
                     return t >= 3 && (g/t >= 0.4 && g/t <= 0.6);
                 });
@@ -8279,6 +8283,9 @@ async vote(t, s = false) {
             if (OfflineManager.isActive()) {
                 OfflineManager.queueVote(w._id, t);
                 w[`${t}Votes`] = (w[`${t}Votes`] || 0) + 1;
+                // Also update in fullWordList if it's a different object
+                const fullWord = State.runtime.fullWordList.find(fw => fw._id === w._id);
+                if (fullWord && fullWord !== w) fullWord[`${t}Votes`] = w[`${t}Votes`];
                 State.incrementVote();
                 StreakManager.handleSuccess();
             } else {
@@ -8286,6 +8293,9 @@ async vote(t, s = false) {
                 const res = await API.vote(w._id, t);
                 if (res.status !== 403 && !res.ok) throw 0;
                 w[`${t}Votes`] = (w[`${t}Votes`] || 0) + 1;
+                // Also update in fullWordList if it's a different object
+                const fullWord = State.runtime.fullWordList.find(fw => fw._id === w._id);
+                if (fullWord && fullWord !== w) fullWord[`${t}Votes`] = w[`${t}Votes`];
                 State.incrementVote();
                 await API.submitUserVotes(State.data.userId, State.data.username, State.data.voteCount);
 
@@ -8537,13 +8547,16 @@ async vote(t, s = false) {
             }
 
             State.runtime.allWords = d;
+            State.runtime.fullWordList = d; // Store full list for stats
 
             // Filter logic
             if (!isKids) {
                  State.runtime.allWords = d.filter(w => (w.notWordVotes || 0) < 3);
+                 State.runtime.fullWordList = State.runtime.allWords; // Update full list too
             }
         } else {
             State.runtime.allWords = [{ text: 'OFFLINE', _id: 'err' }];
+            State.runtime.fullWordList = [];
         }
 
         UIManager.updateStats(); // Now shows correct numbers
