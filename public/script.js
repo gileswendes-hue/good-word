@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.35',
+    APP_VERSION: '6.2.36',
     KIDS_LIST_FILE: 'kids_words.txt',
 
     SPECIAL: {
@@ -8207,12 +8207,12 @@ async vote(t, s = false) {
             }
             State.runtime.lastVoteType = t;
             
-            // 8+ consecutive same votes = show message but ALLOW the vote
-            // 12+ consecutive = cooldown (definite spam)
-            if (State.runtime.sameVoteStreak === 8) {
+            // 6+ consecutive same votes = show message but ALLOW the vote
+            // 10+ consecutive = cooldown (definite spam)
+            if (State.runtime.sameVoteStreak === 6) {
                 const msg = t === 'good' ? "Every word is GOOD today?" : "Having a BAD day?";
                 UIManager.showPostVoteMessage(msg);
-            } else if (State.runtime.sameVoteStreak >= 12) {
+            } else if (State.runtime.sameVoteStreak >= 10) {
                 State.runtime.sameVoteStreak = 0;
                 const msg = t === 'good' ? "Too positive! Take a break." : "Too negative! Take a break.";
                 UIManager.showMessage(msg, true);
@@ -8223,18 +8223,18 @@ async vote(t, s = false) {
         }
 
         // === ANTI-CHEAT: Speed detection ===
-        // Track voting speed - if voting faster than 1 second consistently, suspicious
+        // Track voting speed - if voting faster than 1.2 seconds consistently, suspicious
         if (State.runtime.lastVoteTime > 0) {
             const timeSinceLastVote = n - State.runtime.lastVoteTime;
-            if (timeSinceLastVote < 1000) {
+            if (timeSinceLastVote < 1200) {
                 State.runtime.fastVoteCount = (State.runtime.fastVoteCount || 0) + 1;
             } else {
                 // Decay fast vote count if they slow down
                 State.runtime.fastVoteCount = Math.max(0, (State.runtime.fastVoteCount || 0) - 1);
             }
             
-            // 6+ fast votes in a row = cooldown
-            if (State.runtime.fastVoteCount >= 6) {
+            // 4+ fast votes in a row = cooldown
+            if (State.runtime.fastVoteCount >= 4) {
                 State.runtime.fastVoteCount = 0;
                 UIManager.showMessage("Slow down! Read the words.", true);
                 Haptics.heavy();
