@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.42',
+    APP_VERSION: '6.2.44',
     KIDS_LIST_FILE: 'kids_words.txt',
 
     SPECIAL: {
@@ -1683,6 +1683,99 @@ rs.innerHTML = `
         });
         c.value = State.data.currentTheme
     },
+    
+    showGallery() {
+        // Remove existing gallery if open
+        const existing = document.getElementById('theme-gallery-popup');
+        if (existing) { existing.remove(); return; }
+        
+        const themeInfo = {
+            default: { icon: '🎨', name: 'Default', color: 'bg-gray-100' },
+            rainbow: { icon: '🌈', name: 'Rainbow', color: 'bg-gradient-to-r from-red-400 via-yellow-400 to-blue-400' },
+            dark: { icon: '🌙', name: 'Dark', color: 'bg-gray-800', dark: true },
+            banana: { icon: '🍌', name: 'Banana', color: 'bg-yellow-300' },
+            winter: { icon: '❄️', name: 'Winter', color: 'bg-blue-100' },
+            summer: { icon: '☀️', name: 'Summer', color: 'bg-orange-300' },
+            halloween: { icon: '🎃', name: 'Halloween', color: 'bg-orange-600' },
+            submarine: { icon: '🐠', name: 'Submarine', color: 'bg-cyan-600' },
+            fire: { icon: '🔥', name: 'Fire', color: 'bg-red-500' },
+            plymouth: { icon: '⚓', name: 'Plymouth', color: 'bg-blue-800', dark: true },
+            ballpit: { icon: '🎾', name: 'Ballpit', color: 'bg-pink-400' },
+            space: { icon: '🚀', name: 'Space', color: 'bg-indigo-900', dark: true },
+            woodland: { icon: '🌲', name: 'Woodland', color: 'bg-green-700', dark: true },
+            flight: { icon: '✈️', name: 'Flight', color: 'bg-sky-400' },
+            ocean: { icon: '🌊', name: 'Ocean', color: 'bg-blue-500' }
+        };
+        
+        const unlockedThemes = ['default', ...State.data.unlockedThemes];
+        const allThemeKeys = Object.keys(themeInfo);
+        const currentTheme = State.runtime.currentTheme || 'default';
+        
+        const popup = document.createElement('div');
+        popup.id = 'theme-gallery-popup';
+        popup.className = 'fixed inset-0 z-[9999] flex items-end justify-center';
+        popup.innerHTML = `
+            <div class="absolute inset-0 bg-black/30 backdrop-blur-sm" onclick="document.getElementById('theme-gallery-popup').remove()"></div>
+            <div class="relative bg-white rounded-t-3xl shadow-2xl p-4 pb-8 w-full max-w-md animate-slide-up">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-black text-gray-800">🎨 Themes <span class="text-sm font-normal text-gray-400">(${unlockedThemes.length}/${allThemeKeys.length})</span></h3>
+                    <button onclick="document.getElementById('theme-gallery-popup').remove()" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+                </div>
+                <div class="grid grid-cols-3 gap-3" id="theme-grid"></div>
+                <p class="text-xs text-gray-400 mt-4 text-center">Vote on secret words to unlock themes!</p>
+            </div>
+        `;
+        
+        document.body.appendChild(popup);
+        
+        const grid = document.getElementById('theme-grid');
+        
+        allThemeKeys.forEach(key => {
+            const info = themeInfo[key];
+            const unlocked = unlockedThemes.includes(key);
+            const isActive = currentTheme === key;
+            
+            const tile = document.createElement('div');
+            
+            if (unlocked) {
+                tile.className = `theme-tile p-3 rounded-xl ${info.color} ${isActive ? 'ring-3 ring-indigo-500 ring-offset-2' : ''} hover:scale-105 transition-all cursor-pointer flex flex-col items-center justify-center aspect-square shadow-md`;
+                tile.innerHTML = `
+                    <span class="text-3xl mb-1">${info.icon}</span>
+                    <span class="text-xs font-bold ${info.dark ? 'text-white' : 'text-gray-700'}">${info.name}</span>
+                `;
+                tile.onclick = () => {
+                    ThemeManager.apply(key, true);
+                    DOM.theme.chooser.value = key;
+                    document.querySelectorAll('.theme-tile').forEach(t => t.classList.remove('ring-3', 'ring-indigo-500', 'ring-offset-2'));
+                    tile.classList.add('ring-3', 'ring-indigo-500', 'ring-offset-2');
+                    setTimeout(() => document.getElementById('theme-gallery-popup')?.remove(), 300);
+                };
+            } else {
+                tile.className = 'p-3 rounded-xl bg-gray-200 flex flex-col items-center justify-center aspect-square opacity-60';
+                tile.innerHTML = `
+                    <span class="text-2xl mb-1">🔒</span>
+                    <span class="text-xs font-bold text-gray-400">???</span>
+                `;
+            }
+            
+            grid.appendChild(tile);
+        });
+        
+        // Add slide-up animation
+        if (!document.getElementById('gallery-animation-style')) {
+            const style = document.createElement('style');
+            style.id = 'gallery-animation-style';
+            style.textContent = `
+                @keyframes slide-up {
+                    from { transform: translateY(100%); opacity: 0; }
+                    to { transform: translateY(0); opacity: 1; }
+                }
+                .animate-slide-up { animation: slide-up 0.3s ease-out forwards; }
+            `;
+            document.head.appendChild(style);
+        }
+    },
+    
     apply(t, m = false) {
         State.runtime.currentTheme = t;
         if (m !== 'temp') {
@@ -4078,28 +4171,62 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         // Sky gradient - looking forward from cockpit
         c.style.background = 'linear-gradient(180deg, #1a3a5c 0%, #4a90c2 30%, #87CEEB 60%, #B0E0E6 100%)';
         
-        // Add cockpit frame overlay
+        // Cockpit frame - more realistic with instruments
         const cockpit = document.createElement('div');
         cockpit.style.cssText = `
             position: absolute;
             inset: 0;
-            border: 20px solid #1a1a1a;
-            border-radius: 30% 30% 0 0;
-            box-shadow: inset 0 0 50px rgba(0,0,0,0.5);
             pointer-events: none;
             z-index: 100;
         `;
+        cockpit.innerHTML = `
+            <!-- Top frame -->
+            <div style="position: absolute; top: 0; left: 0; right: 0; height: 60px; background: linear-gradient(180deg, #1a1a1a 0%, #2d2d2d 100%); border-radius: 0 0 50% 50%;"></div>
+            <!-- Left pillar -->
+            <div style="position: absolute; top: 0; left: 0; width: 40px; height: 100%; background: linear-gradient(90deg, #1a1a1a 0%, #2d2d2d 100%);"></div>
+            <!-- Right pillar -->
+            <div style="position: absolute; top: 0; right: 0; width: 40px; height: 100%; background: linear-gradient(90deg, #2d2d2d 0%, #1a1a1a 100%);"></div>
+            <!-- Dashboard -->
+            <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 80px; background: linear-gradient(0deg, #1a1a1a 0%, #2d2d2d 80%, #3d3d3d 100%); border-radius: 50% 50% 0 0;"></div>
+            <!-- Gauges -->
+            <div style="position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px;">
+                <div style="width: 40px; height: 40px; border-radius: 50%; background: #111; border: 2px solid #444; box-shadow: inset 0 0 10px rgba(0,255,0,0.3);"></div>
+                <div style="width: 50px; height: 50px; border-radius: 50%; background: #111; border: 2px solid #444; box-shadow: inset 0 0 10px rgba(255,100,0,0.3);"></div>
+                <div style="width: 40px; height: 40px; border-radius: 50%; background: #111; border: 2px solid #444; box-shadow: inset 0 0 10px rgba(0,150,255,0.3);"></div>
+            </div>
+        `;
         c.appendChild(cockpit);
         
-        // Add horizon line
+        // Propeller with rolling shutter/jello effect
+        const propeller = document.createElement('div');
+        propeller.className = 'flight-propeller';
+        propeller.style.cssText = `
+            position: absolute;
+            top: 55%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 200px;
+            z-index: 50;
+        `;
+        propeller.innerHTML = `
+            <div class="prop-blade" style="position: absolute; top: 50%; left: 50%; width: 180px; height: 12px; background: linear-gradient(90deg, #2a2a2a 0%, #4a4a4a 50%, #2a2a2a 100%); transform-origin: center; border-radius: 6px; margin-left: -90px; margin-top: -6px;"></div>
+            <div class="prop-blade" style="position: absolute; top: 50%; left: 50%; width: 180px; height: 12px; background: linear-gradient(90deg, #2a2a2a 0%, #4a4a4a 50%, #2a2a2a 100%); transform-origin: center; border-radius: 6px; margin-left: -90px; margin-top: -6px; transform: rotate(120deg);"></div>
+            <div class="prop-blade" style="position: absolute; top: 50%; left: 50%; width: 180px; height: 12px; background: linear-gradient(90deg, #2a2a2a 0%, #4a4a4a 50%, #2a2a2a 100%); transform-origin: center; border-radius: 6px; margin-left: -90px; margin-top: -6px; transform: rotate(240deg);"></div>
+            <div style="position: absolute; top: 50%; left: 50%; width: 30px; height: 30px; background: radial-gradient(circle, #555 0%, #222 100%); border-radius: 50%; transform: translate(-50%, -50%); border: 3px solid #333;"></div>
+        `;
+        c.appendChild(propeller);
+        
+        // Add horizon line (distant)
         const horizon = document.createElement('div');
         horizon.style.cssText = `
             position: absolute;
             top: 65%;
             left: 0;
             right: 0;
-            height: 2px;
-            background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 20%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0.3) 80%, transparent 100%);
+            height: 1px;
+            background: rgba(255,255,255,0.2);
+            z-index: 1;
         `;
         c.appendChild(horizon);
         
@@ -4113,12 +4240,8 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                         transform: translate(-50%, -50%) scale(0.1);
                         opacity: 0;
                     }
-                    10% {
-                        opacity: 1;
-                    }
-                    90% {
-                        opacity: 1;
-                    }
+                    10% { opacity: 1; }
+                    90% { opacity: 1; }
                     100% { 
                         transform: translate(-50%, -50%) scale(3);
                         opacity: 0;
@@ -4129,16 +4252,26 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                         transform: translate(-50%, -50%) scale(0.2);
                         opacity: 0;
                     }
-                    20% {
-                        opacity: 0.8;
-                    }
-                    80% {
-                        opacity: 0.6;
-                    }
+                    20% { opacity: 0.8; }
+                    80% { opacity: 0.6; }
                     100% { 
                         transform: translate(-50%, -50%) scale(4);
                         opacity: 0;
                     }
+                }
+                @keyframes propeller-spin {
+                    from { transform: translate(-50%, -50%) rotate(0deg); }
+                    to { transform: translate(-50%, -50%) rotate(360deg); }
+                }
+                @keyframes jello-warp {
+                    0%, 100% { filter: blur(0px); transform: translate(-50%, -50%) skewX(0deg) rotate(0deg); }
+                    25% { filter: blur(1px); transform: translate(-50%, -50%) skewX(2deg) rotate(90deg); }
+                    50% { filter: blur(0.5px); transform: translate(-50%, -50%) skewX(-1deg) rotate(180deg); }
+                    75% { filter: blur(1px); transform: translate(-50%, -50%) skewX(1.5deg) rotate(270deg); }
+                }
+                .flight-propeller {
+                    animation: jello-warp 0.08s linear infinite;
+                    opacity: 0.4;
                 }
             `;
             document.head.appendChild(style);
@@ -4149,9 +4282,8 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             if (!c.isConnected) return;
             
             const cloud = document.createElement('div');
-            // Start near center (vanishing point) and grow
             const startX = 40 + Math.random() * 20;
-            const startY = 30 + Math.random() * 30;
+            const startY = 25 + Math.random() * 35;
             const size = 60 + Math.random() * 80;
             const duration = 4 + Math.random() * 3;
             
@@ -4176,19 +4308,18 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             this.flightObjects.push(cloud);
             setTimeout(() => cloud.remove(), duration * 1000);
             
-            setTimeout(spawnCloud, 800 + Math.random() * 1200);
+            setTimeout(spawnCloud, 600 + Math.random() * 1000);
         };
         
-        // Spawn flying objects (birds, planes, UFOs) coming towards viewer
+        // Spawn flying objects coming towards viewer
         const flyingThings = ['🦅', '🦆', '🦢', '🛸', '🎈', '🪂', '🦋', '🐦'];
         const spawnFlyingThing = () => {
             if (!c.isConnected) return;
             
             const thing = document.createElement('div');
             const emoji = flyingThings[Math.floor(Math.random() * flyingThings.length)];
-            // Start near center horizon
             const startX = 35 + Math.random() * 30;
-            const startY = 35 + Math.random() * 25;
+            const startY = 30 + Math.random() * 30;
             const duration = 3 + Math.random() * 2;
             
             thing.textContent = emoji;
@@ -4209,7 +4340,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             this.flightTimeout = setTimeout(spawnFlyingThing, 3000 + Math.random() * 5000);
         };
         
-        // Start spawning
         setTimeout(spawnCloud, 500);
         this.flightTimeout = setTimeout(spawnFlyingThing, 2000);
     },
@@ -4234,100 +4364,164 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         if (!active) { c.innerHTML = ''; c.style.background = ''; return; }
         c.innerHTML = '';
         
-        // Sky gradient - clear sky meeting ocean at horizon
-        c.style.background = 'linear-gradient(180deg, #5BA3D0 0%, #87CEEB 25%, #B0D4E8 45%, #4A90C2 50%, #2E6B9E 60%, #1B4F72 80%, #0D3B5C 100%)';
+        // Calculate sun position based on time (6am = left/low, 12pm = center/high, 6pm = right/low)
+        const hour = new Date().getHours();
+        const minutes = new Date().getMinutes();
+        const timeDecimal = hour + minutes / 60;
+        // Map 6-18 to 10%-90% horizontal, outside hours = edges
+        let sunX, sunY;
+        if (timeDecimal < 6) {
+            sunX = 5; sunY = 40;
+        } else if (timeDecimal > 18) {
+            sunX = 95; sunY = 40;
+        } else {
+            // 6am = 10%, 12pm = 50%, 6pm = 90%
+            sunX = 10 + ((timeDecimal - 6) / 12) * 80;
+            // Arc: highest at noon (10%), lowest at 6am/6pm (35%)
+            const noon = 12;
+            const distFromNoon = Math.abs(timeDecimal - noon);
+            sunY = 8 + (distFromNoon / 6) * 30;
+        }
+        
+        // Sky gradient - changes slightly with time
+        const isEvening = hour >= 17 || hour < 7;
+        const skyGradient = isEvening 
+            ? 'linear-gradient(180deg, #2c1810 0%, #c44536 20%, #f7b267 40%, #3d5a80 50%, #1b3a4b 70%, #0d1b2a 100%)'
+            : 'linear-gradient(180deg, #5BA3D0 0%, #87CEEB 25%, #B0D4E8 44%, #3d6a8a 48%, #2E6B9E 55%, #1B4F72 75%, #0D3B5C 100%)';
+        c.style.background = skyGradient;
         
         // Add sun
         const sun = document.createElement('div');
+        const sunColor = isEvening ? '#ff6b35' : '#FFD700';
+        sun.id = 'ocean-sun';
         sun.style.cssText = `
             position: absolute;
-            top: 12%;
-            right: 20%;
+            top: ${sunY}%;
+            left: ${sunX}%;
+            transform: translate(-50%, -50%);
             width: 50px;
             height: 50px;
-            background: radial-gradient(circle, #FFE87C 0%, #FFD700 50%, #FFA500 100%);
+            background: radial-gradient(circle, #FFE87C 0%, ${sunColor} 50%, ${isEvening ? '#c44536' : '#FFA500'} 100%);
             border-radius: 50%;
-            box-shadow: 0 0 60px #FFD700, 0 0 120px rgba(255,165,0,0.5);
+            box-shadow: 0 0 60px ${sunColor}, 0 0 120px ${sunColor}80;
             z-index: 2;
         `;
         c.appendChild(sun);
         
-        // Add clear horizon line
-        const horizon = document.createElement('div');
-        horizon.style.cssText = `
+        // Sun reflection on water
+        const reflection = document.createElement('div');
+        reflection.style.cssText = `
             position: absolute;
             top: 48%;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, 
-                rgba(135,206,235,0.3) 0%, 
-                rgba(255,255,255,0.6) 30%,
-                rgba(255,255,255,0.8) 50%,
-                rgba(255,255,255,0.6) 70%,
-                rgba(135,206,235,0.3) 100%);
+            left: ${sunX}%;
+            transform: translateX(-50%);
+            width: 8px;
+            height: 52%;
+            background: linear-gradient(180deg, 
+                ${sunColor}90 0%, 
+                ${sunColor}60 10%,
+                ${sunColor}30 30%,
+                ${sunColor}10 60%,
+                transparent 100%);
+            filter: blur(3px);
             z-index: 3;
+            animation: reflection-shimmer 2s ease-in-out infinite;
         `;
-        c.appendChild(horizon);
+        c.appendChild(reflection);
         
-        // Add gentle wave overlay on water
-        const waveOverlay = document.createElement('div');
-        waveOverlay.style.cssText = `
-            position: absolute;
-            top: 48%;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: repeating-linear-gradient(
-                0deg,
-                transparent 0px,
-                rgba(255,255,255,0.03) 2px,
-                transparent 4px
-            );
-            animation: wave-shimmer 3s ease-in-out infinite;
-            z-index: 4;
-        `;
-        c.appendChild(waveOverlay);
-        
-        // Add ocean animation styles
-        if (!document.getElementById('ocean-style')) {
-            const style = document.createElement('style');
-            style.id = 'ocean-style';
-            style.textContent = `
-                @keyframes wave-shimmer {
-                    0%, 100% { opacity: 0.5; }
-                    50% { opacity: 0.8; }
-                }
-                @keyframes boat-bob {
-                    0%, 100% { transform: translateY(0) rotate(-1deg); }
-                    25% { transform: translateY(-3px) rotate(1deg); }
-                    50% { transform: translateY(-1px) rotate(0deg); }
-                    75% { transform: translateY(-4px) rotate(1.5deg); }
-                }
-                @keyframes boat-bob-large {
-                    0%, 100% { transform: translateY(0) rotate(-2deg); }
-                    25% { transform: translateY(-8px) rotate(3deg); }
-                    50% { transform: translateY(-4px) rotate(-1deg); }
-                    75% { transform: translateY(-12px) rotate(4deg); }
-                }
-                @keyframes boat-drift {
-                    from { left: -80px; }
-                    to { left: calc(100% + 80px); }
-                }
-                @keyframes boat-drift-reverse {
-                    from { left: calc(100% + 80px); }
-                    to { left: -80px; }
-                }
-                @keyframes seagull-fly {
-                    0%, 100% { transform: translateY(0) scaleX(1); }
-                    50% { transform: translateY(-8px) scaleX(1.1); }
-                }
+        // Multiple wave layers for more motion
+        for (let i = 0; i < 4; i++) {
+            const wave = document.createElement('div');
+            wave.className = 'ocean-wave';
+            wave.style.cssText = `
+                position: absolute;
+                top: ${47 + i * 0.8}%;
+                left: -10%;
+                width: 120%;
+                height: ${55 - i * 5}%;
+                background: linear-gradient(180deg,
+                    rgba(${30 + i * 15}, ${100 + i * 20}, ${180 - i * 20}, ${0.9 - i * 0.15}) 0%,
+                    rgba(${20 + i * 10}, ${80 + i * 15}, ${150 - i * 15}, ${0.95 - i * 0.1}) 50%,
+                    rgba(13, 59, 92, 1) 100%);
+                animation: wave-roll-${i} ${4 + i}s ease-in-out infinite;
+                z-index: ${4 + i};
             `;
-            document.head.appendChild(style);
+            c.appendChild(wave);
         }
         
+        // Add ocean animation styles
+        const oldStyle = document.getElementById('ocean-style');
+        if (oldStyle) oldStyle.remove();
+        
+        const style = document.createElement('style');
+        style.id = 'ocean-style';
+        style.textContent = `
+            @keyframes wave-roll-0 {
+                0%, 100% { transform: translateX(0) translateY(0); }
+                50% { transform: translateX(2%) translateY(-3px); }
+            }
+            @keyframes wave-roll-1 {
+                0%, 100% { transform: translateX(0) translateY(0); }
+                50% { transform: translateX(-1.5%) translateY(-5px); }
+            }
+            @keyframes wave-roll-2 {
+                0%, 100% { transform: translateX(0) translateY(0); }
+                50% { transform: translateX(1%) translateY(-8px); }
+            }
+            @keyframes wave-roll-3 {
+                0%, 100% { transform: translateX(0) translateY(0); }
+                50% { transform: translateX(-2%) translateY(-12px); }
+            }
+            @keyframes reflection-shimmer {
+                0%, 100% { 
+                    opacity: 0.8; 
+                    transform: translateX(-50%) scaleX(1);
+                    filter: blur(3px);
+                }
+                25% { 
+                    opacity: 0.5; 
+                    transform: translateX(-50%) scaleX(1.5);
+                    filter: blur(5px);
+                }
+                50% { 
+                    opacity: 0.9; 
+                    transform: translateX(-50%) scaleX(0.8);
+                    filter: blur(2px);
+                }
+                75% { 
+                    opacity: 0.6; 
+                    transform: translateX(-50%) scaleX(1.3);
+                    filter: blur(4px);
+                }
+            }
+            @keyframes boat-bob {
+                0%, 100% { transform: translateY(0) rotate(-1deg); }
+                25% { transform: translateY(-4px) rotate(1.5deg); }
+                50% { transform: translateY(-2px) rotate(-0.5deg); }
+                75% { transform: translateY(-6px) rotate(2deg); }
+            }
+            @keyframes boat-bob-large {
+                0%, 100% { transform: translateY(0) rotate(-3deg); }
+                25% { transform: translateY(-10px) rotate(4deg); }
+                50% { transform: translateY(-5px) rotate(-2deg); }
+                75% { transform: translateY(-15px) rotate(5deg); }
+            }
+            @keyframes boat-drift {
+                from { left: -100px; }
+                to { left: calc(100% + 100px); }
+            }
+            @keyframes boat-drift-reverse {
+                from { left: calc(100% + 100px); }
+                to { left: -100px; }
+            }
+            @keyframes seagull-fly {
+                0%, 100% { transform: translateY(0); }
+                50% { transform: translateY(-10px); }
+            }
+        `;
+        document.head.appendChild(style);
+        
         // Boat configurations with depth layers
-        // Far boats (near horizon) are tiny, close boats are huge
         const boats = ['⛵', '🚤', '🛥️', '🚢', '⛴️', '🛶'];
         
         const spawnBoat = () => {
@@ -4337,34 +4531,31 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             const boatEmoji = boats[Math.floor(Math.random() * boats.length)];
             const goingRight = Math.random() > 0.5;
             
-            // Determine depth layer (0 = far/horizon, 1 = mid, 2 = close/foreground)
+            // Depth layers with more dramatic size differences
             const depthRoll = Math.random();
-            let depth, yPos, size, duration, zIndex, bobAnimation;
+            let yPos, size, duration, zIndex, bobAnimation;
             
-            if (depthRoll < 0.4) {
+            if (depthRoll < 0.35) {
                 // Far - tiny boats on horizon
-                depth = 0;
-                yPos = 46 + Math.random() * 3;
-                size = 10 + Math.random() * 6;
-                duration = 80 + Math.random() * 40;
-                zIndex = 5;
-                bobAnimation = 'boat-bob 4s ease-in-out infinite';
-            } else if (depthRoll < 0.75) {
+                yPos = 46 + Math.random() * 2;
+                size = 8 + Math.random() * 5;
+                duration = 90 + Math.random() * 50;
+                zIndex = 8;
+                bobAnimation = 'boat-bob 5s ease-in-out infinite';
+            } else if (depthRoll < 0.7) {
                 // Mid distance
-                depth = 1;
-                yPos = 52 + Math.random() * 8;
-                size = 24 + Math.random() * 16;
-                duration = 50 + Math.random() * 30;
-                zIndex = 10;
-                bobAnimation = 'boat-bob 3s ease-in-out infinite';
+                yPos = 52 + Math.random() * 10;
+                size = 20 + Math.random() * 18;
+                duration = 55 + Math.random() * 35;
+                zIndex = 12;
+                bobAnimation = 'boat-bob 3.5s ease-in-out infinite';
             } else {
-                // Close - large boats in foreground
-                depth = 2;
-                yPos = 65 + Math.random() * 15;
-                size = 50 + Math.random() * 30;
-                duration = 25 + Math.random() * 15;
-                zIndex = 20;
-                bobAnimation = 'boat-bob-large 2.5s ease-in-out infinite';
+                // Close - LARGE boats in foreground
+                yPos = 68 + Math.random() * 18;
+                size = 55 + Math.random() * 40;
+                duration = 20 + Math.random() * 15;
+                zIndex = 25;
+                bobAnimation = 'boat-bob-large 2s ease-in-out infinite';
             }
             
             boat.textContent = boatEmoji;
@@ -4373,11 +4564,11 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 top: ${yPos}%;
                 font-size: ${size}px;
                 z-index: ${zIndex};
-                opacity: ${depth === 0 ? 0.7 : 1};
+                opacity: ${size < 15 ? 0.6 : 1};
                 animation: 
                     ${goingRight ? 'boat-drift' : 'boat-drift-reverse'} ${duration}s linear forwards,
                     ${bobAnimation};
-                filter: drop-shadow(${depth}px ${depth + 1}px ${depth * 2 + 2}px rgba(0,0,0,${0.2 + depth * 0.1}));
+                filter: drop-shadow(2px 3px ${Math.floor(size/10) + 2}px rgba(0,0,0,0.4));
                 ${!goingRight ? 'transform: scaleX(-1);' : ''}
             `;
             
@@ -4385,29 +4576,29 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             this.oceanObjects.push(boat);
             setTimeout(() => boat.remove(), duration * 1000);
             
-            this.oceanTimeout = setTimeout(spawnBoat, 3000 + Math.random() * 6000);
+            this.oceanTimeout = setTimeout(spawnBoat, 2500 + Math.random() * 5000);
         };
         
-        // Spawn seagulls in the sky
+        // Spawn seagulls
         const spawnSeagull = () => {
             if (!c.isConnected) return;
             
             const bird = document.createElement('div');
             bird.textContent = '🕊️';
-            const yPos = 8 + Math.random() * 30;
-            const duration = 15 + Math.random() * 10;
+            const yPos = 5 + Math.random() * 35;
+            const duration = 12 + Math.random() * 10;
             const goingRight = Math.random() > 0.5;
-            const size = 14 + Math.random() * 10;
+            const size = 12 + Math.random() * 12;
             
             bird.style.cssText = `
                 position: absolute;
                 top: ${yPos}%;
-                left: ${goingRight ? '-40px' : 'calc(100% + 40px)'};
+                left: ${goingRight ? '-50px' : 'calc(100% + 50px)'};
                 font-size: ${size}px;
-                z-index: 15;
+                z-index: 20;
                 animation: 
                     ${goingRight ? 'boat-drift' : 'boat-drift-reverse'} ${duration}s linear forwards,
-                    seagull-fly 0.8s ease-in-out infinite;
+                    seagull-fly 0.6s ease-in-out infinite;
                 ${!goingRight ? 'transform: scaleX(-1);' : ''}
             `;
             
@@ -4415,10 +4606,9 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             this.oceanObjects.push(bird);
             setTimeout(() => bird.remove(), duration * 1000);
             
-            setTimeout(spawnSeagull, 10000 + Math.random() * 15000);
+            setTimeout(spawnSeagull, 8000 + Math.random() * 12000);
         };
         
-        // Spawn initial boats at different depths
         this.oceanTimeout = setTimeout(spawnBoat, 1000);
         setTimeout(spawnSeagull, 3000);
     }
@@ -5876,57 +6066,7 @@ init() {
 
                 html += `</div></div>`;
 
-                // 5. THEMES GALLERY
-                const themeInfo = {
-                    default: { icon: '🎨', name: 'Default', color: 'bg-gray-100' },
-                    rainbow: { icon: '🌈', name: 'Rainbow', color: 'bg-gradient-to-r from-red-400 via-yellow-400 to-blue-400' },
-                    dark: { icon: '🌙', name: 'Dark', color: 'bg-gray-800' },
-                    banana: { icon: '🍌', name: 'Banana', color: 'bg-yellow-300' },
-                    winter: { icon: '❄️', name: 'Winter', color: 'bg-blue-100' },
-                    summer: { icon: '☀️', name: 'Summer', color: 'bg-orange-300' },
-                    halloween: { icon: '🎃', name: 'Halloween', color: 'bg-orange-600' },
-                    submarine: { icon: '🐠', name: 'Submarine', color: 'bg-cyan-600' },
-                    fire: { icon: '🔥', name: 'Fire', color: 'bg-red-500' },
-                    plymouth: { icon: '⚓', name: 'Plymouth', color: 'bg-blue-800' },
-                    ballpit: { icon: '🎾', name: 'Ballpit', color: 'bg-pink-400' },
-                    space: { icon: '🚀', name: 'Space', color: 'bg-indigo-900' },
-                    woodland: { icon: '🌲', name: 'Woodland', color: 'bg-green-700' },
-                    flight: { icon: '✈️', name: 'Flight', color: 'bg-sky-400' },
-                    ocean: { icon: '🌊', name: 'Ocean', color: 'bg-blue-500' }
-                };
-                
-                const unlockedThemes = ['default', ...State.data.unlockedThemes];
-                const allThemeKeys = Object.keys(themeInfo);
-                const currentTheme = State.runtime.currentTheme || 'default';
-                
-                html += `<div class="mb-6">
-                    <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 border-b border-gray-100 pb-1">🎨 Themes (${unlockedThemes.length}/${allThemeKeys.length})</h3>
-                    <div class="grid grid-cols-4 gap-2">`;
-                
-                allThemeKeys.forEach(key => {
-                    const info = themeInfo[key];
-                    const unlocked = unlockedThemes.includes(key);
-                    const isActive = currentTheme === key;
-                    
-                    if (unlocked) {
-                        html += `<button onclick="ThemeManager.apply('${key}', true); document.querySelectorAll('.theme-btn').forEach(b=>b.classList.remove('ring-2','ring-indigo-500')); this.classList.add('ring-2','ring-indigo-500');" 
-                            class="theme-btn p-2 rounded-lg ${info.color} ${isActive ? 'ring-2 ring-indigo-500' : ''} hover:scale-105 transition-transform flex flex-col items-center justify-center aspect-square shadow-sm">
-                            <span class="text-xl">${info.icon}</span>
-                            <span class="text-[9px] font-bold mt-1 ${key === 'dark' || key === 'space' || key === 'plymouth' || key === 'woodland' ? 'text-white' : 'text-gray-700'}">${info.name}</span>
-                        </button>`;
-                    } else {
-                        html += `<div class="p-2 rounded-lg bg-gray-200 flex flex-col items-center justify-center aspect-square opacity-50">
-                            <span class="text-xl">🔒</span>
-                            <span class="text-[9px] font-bold mt-1 text-gray-500">???</span>
-                        </div>`;
-                    }
-                });
-                
-                html += `</div>
-                    <p class="text-xs text-gray-400 mt-2 text-center">Vote on secret words to unlock themes!</p>
-                </div>`;
-
-                // 6. INTERFACE
+                // 5. INTERFACE
                 html += `<div><h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 border-b border-gray-100 pb-1">Interface</h3><div class="space-y-4">`;
                 html += mkTog('toggleHideMultiplayer', 'Hide Multiplayer Button', s.hideMultiplayer);
                 html += mkTog('toggleHideCards', '🎨 Hide Cards (Theme Mode)', s.hideCards);
@@ -8525,7 +8665,19 @@ const Game = {
                 DOM.inputs.compareResults.innerHTML = h
             };
 
-            if (DOM.theme.chooser) DOM.theme.chooser.onchange = e => ThemeManager.apply(e.target.value, true);
+            if (DOM.theme.chooser) {
+                // Open theme gallery popup instead of dropdown
+                DOM.theme.chooser.onclick = (e) => {
+                    e.preventDefault();
+                    ThemeManager.showGallery();
+                };
+                // Also handle if it's a select element
+                DOM.theme.chooser.onfocus = (e) => {
+                    e.preventDefault();
+                    e.target.blur();
+                    ThemeManager.showGallery();
+                };
+            }
 
             State.init();
             RoomManager.init();
