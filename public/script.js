@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.3.0',
+    APP_VERSION: '6.3.1',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -3743,28 +3743,28 @@ flight(active) {
 
         // LAYER 1: BACK MOUNTAINS (Grey, Distant, Jagged Snow)
         // I have manually plotted "zig-zag" points for the bottom of the snow to create the jagged effect.
-        const svgBack = `
+const svgBack = `
         <svg viewBox="0 0 1200 100" preserveAspectRatio="none" style="width:100%; height:100%;">
             <path d="M0,100 L0,70 L200,45 L400,80 L600,40 L800,75 L1000,45 L1200,70 L1200,100 Z" fill="#546e7a"/>
             
-            <path d="M200,45 L180,60 L188,55 L195,62 L200,58 L205,62 L212,55 L220,60 Z" fill="white" opacity="0.9"/>
+            <path d="M200,45 L257,55 L240,52 L220,58 L200,53 L180,58 L160,52 L120,55 Z" fill="white" opacity="0.9"/>
             
-            <path d="M600,40 L580,55 L590,50 L595,58 L600,52 L605,58 L610,50 L620,55 Z" fill="white" opacity="0.9"/>
+            <path d="M600,40 L685,55 L660,50 L640,58 L620,52 L600,58 L580,50 L525,55 Z" fill="white" opacity="0.9"/>
             
-            <path d="M1000,45 L980,60 L988,55 L995,62 L1000,58 L1005,62 L1012,55 L1020,60 Z" fill="white" opacity="0.9"/>
+            <path d="M1000,45 L1080,55 L1060,50 L1040,58 L1020,52 L1000,58 L980,50 L933,55 Z" fill="white" opacity="0.9"/>
         </svg>`;
         const mtnBack = createMountainLayer(svgBack, 40, 20, 1, 1.0);
         worldContainer.appendChild(mtnBack.cont);
 
         // LAYER 2: FRONT MOUNTAINS (Brown, Closer, Jagged Snow)
         // Peaks offset from back layer for 3D effect.
-        const svgFront = `
+const svgFront = `
         <svg viewBox="0 0 1200 100" preserveAspectRatio="none" style="width:100%; height:100%;">
             <path d="M0,100 L0,85 L300,55 L500,90 L800,60 L1100,90 L1200,80 L1200,100 Z" fill="#5d4037"/>
             
-            <path d="M300,55 L280,70 L290,65 L295,72 L300,68 L305,72 L310,65 L320,70 Z" fill="white" opacity="0.8"/>
+            <path d="M300,55 L357,65 L340,62 L320,68 L300,63 L280,68 L260,62 L200,65 Z" fill="white" opacity="0.8"/>
             
-            <path d="M800,60 L780,75 L790,70 L795,77 L800,72 L805,77 L810,70 L820,75 Z" fill="white" opacity="0.8"/>
+            <path d="M800,60 L900,70 L880,66 L850,74 L820,68 L790,74 L750,66 L700,70 Z" fill="white" opacity="0.8"/>
         </svg>`;
         const mtnFront = createMountainLayer(svgFront, 50, 15, 2, 1.0);
         worldContainer.appendChild(mtnFront.cont);
