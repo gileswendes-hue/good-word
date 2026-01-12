@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.85',
+    APP_VERSION: '6.2.86',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -3745,43 +3745,136 @@ flight(active) {
             return { cont, p1, p2 };
         };
 
-        // LAYER 1: BACK MOUNTAINS (Varied Height, Integrated Snow Caps)
-        // Note: The white paths ('snow') are drawn exactly over the peaks of the grey paths.
+        // LAYER 1: BACK MOUNTAINS - cartoon brown style with snow caps
         const svgBack = `
-        <svg viewBox="0 0 1200 100" preserveAspectRatio="none" style="width:100%; height:100%;">
-            <path d="M0,100 L0,70 L150,15 L300,80 L450,10 L550,60 L650,20 L800,75 L950,25 L1050,60 L1200,30 L1200,100 Z" fill="#546e7a"/>
-            <path d="M150,15 L130,35 L170,35 Z  M450,10 L430,30 L470,30 Z  M650,20 L630,40 L670,40 Z  M950,25 L930,45 L970,45 Z  M1200,30 L1180,50 L1200,50 Z" fill="white" opacity="0.8"/>
+        <svg viewBox="0 0 1200 120" preserveAspectRatio="none" style="width:100%; height:100%;">
+            <defs>
+                <linearGradient id="mtnBack1" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#9a7a5a"/>
+                    <stop offset="100%" stop-color="#7a5a3a"/>
+                </linearGradient>
+            </defs>
+            <!-- Individual mountains with varied peaks -->
+            <path d="M0,120 L60,45 L90,70 L120,40 L160,120 Z" fill="url(#mtnBack1)"/>
+            <path d="M120,40 L90,60 L150,60 Z" fill="#e8e8e8"/>
+            <path d="M140,120 L220,30 L260,55 L300,25 L340,120 Z" fill="url(#mtnBack1)"/>
+            <path d="M300,25 L265,50 L335,50 Z" fill="#fff"/>
+            <path d="M320,120 L400,50 L440,75 L480,45 L520,120 Z" fill="url(#mtnBack1)"/>
+            <path d="M480,45 L450,68 L510,68 Z" fill="#e8e8e8"/>
+            <path d="M500,120 L590,35 L630,60 L670,30 L710,120 Z" fill="url(#mtnBack1)"/>
+            <path d="M670,30 L635,55 L705,55 Z" fill="#fff"/>
+            <path d="M690,120 L770,55 L810,80 L850,50 L890,120 Z" fill="url(#mtnBack1)"/>
+            <path d="M850,50 L820,72 L880,72 Z" fill="#e8e8e8"/>
+            <path d="M870,120 L960,25 L1000,50 L1040,20 L1080,120 Z" fill="url(#mtnBack1)"/>
+            <path d="M1040,20 L1005,48 L1075,48 Z" fill="#fff"/>
+            <path d="M1060,120 L1130,55 L1200,70 L1200,120 Z" fill="url(#mtnBack1)"/>
         </svg>`;
-        const mtnBack = createMountainLayer(svgBack, 42, 18, 1, 0.9); // Z-Index 1
+        const mtnBack = createMountainLayer(svgBack, 40, 20, 1, 0.85);
         worldContainer.appendChild(mtnBack.cont);
 
-        // LAYER 2: FRONT HILLS (Low, Rolling, In Front)
+        // LAYER 2: FRONT MOUNTAINS - larger, more detailed cartoon style  
         const svgFront = `
-        <svg viewBox="0 0 1200 100" preserveAspectRatio="none" style="width:100%; height:100%;">
-            <path d="M0,100 L0,80 Q200,50 400,80 T800,70 T1200,80 L1200,100 Z" fill="#37474f"/>
+        <svg viewBox="0 0 1200 140" preserveAspectRatio="none" style="width:100%; height:100%;">
+            <defs>
+                <linearGradient id="mtnFront1" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#c4a080"/>
+                    <stop offset="40%" stop-color="#a08060"/>
+                    <stop offset="100%" stop-color="#806040"/>
+                </linearGradient>
+                <linearGradient id="mtnFront2" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#b89068"/>
+                    <stop offset="40%" stop-color="#987048"/>
+                    <stop offset="100%" stop-color="#785028"/>
+                </linearGradient>
+            </defs>
+            <!-- Large foreground mountains -->
+            <path d="M-40,140 L80,35 L120,65 L160,30 L200,140 Z" fill="url(#mtnFront1)"/>
+            <path d="M160,30 L125,58 L195,58 Z" fill="#fff"/>
+            <path d="M80,35 L50,70 M160,30 L190,68" stroke="#8a6040" stroke-width="2" opacity="0.3" fill="none"/>
+            
+            <path d="M180,140 L300,50 L350,85 L400,45 L450,140 Z" fill="url(#mtnFront2)"/>
+            <path d="M400,45 L360,78 L440,78 Z" fill="#f0f0f0"/>
+            
+            <path d="M420,140 L540,25 L590,60 L640,20 L690,140 Z" fill="url(#mtnFront1)"/>
+            <path d="M640,20 L598,55 L682,55 Z" fill="#fff"/>
+            <path d="M540,25 L500,68 M640,20 L680,62" stroke="#8a6040" stroke-width="2" opacity="0.3" fill="none"/>
+            
+            <path d="M660,140 L760,55 L800,80 L840,50 L880,140 Z" fill="url(#mtnFront2)"/>
+            <path d="M840,50 L808,75 L872,75 Z" fill="#f0f0f0"/>
+            
+            <path d="M850,140 L970,30 L1020,65 L1070,25 L1120,140 Z" fill="url(#mtnFront1)"/>
+            <path d="M1070,25 L1028,58 L1112,58 Z" fill="#fff"/>
+            <path d="M970,30 L940,68 M1070,25 L1100,62" stroke="#8a6040" stroke-width="2" opacity="0.3" fill="none"/>
+            
+            <path d="M1100,140 L1160,60 L1200,85 L1200,140 Z" fill="url(#mtnFront2)"/>
         </svg>`;
-        const mtnFront = createMountainLayer(svgFront, 54, 8, 2, 1.0); // Z-Index 2 (Higher than back)
+        const mtnFront = createMountainLayer(svgFront, 46, 16, 2, 1.0);
         worldContainer.appendChild(mtnFront.cont);
 
-        // GROUND
+        // LAYER 3: ROLLING HILLS - green for parallax depth
+        const svgHills = `
+        <svg viewBox="0 0 1200 80" preserveAspectRatio="none" style="width:100%; height:100%;">
+            <defs>
+                <linearGradient id="hillGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#4a8a4a"/>
+                    <stop offset="100%" stop-color="#2a6a2a"/>
+                </linearGradient>
+            </defs>
+            <path d="M0,80 Q100,40 200,70 T400,50 T600,65 T800,45 T1000,60 T1200,50 L1200,80 Z" fill="url(#hillGrad)"/>
+        </svg>`;
+        const hills = createMountainLayer(svgHills, 54, 10, 3, 1.0);
+        worldContainer.appendChild(hills.cont);
+
+        // GROUND - with forward motion gradient stripes
         const ground = document.createElement('div');
         ground.style.cssText = `
-            position: absolute; top: 56%; left: -50%; width: 200%; height: 100%;
-            background: linear-gradient(180deg, #2e7d32 0%, #1b5e20 100%);
-            perspective: 1000px; z-index: 3;
+            position: absolute; top: 58%; left: -50%; width: 200%; height: 100%;
+            background: linear-gradient(180deg, #3a8a3a 0%, #2e7d32 20%, #1b5e20 50%, #145214 100%);
+            perspective: 1000px; z-index: 4;
+            overflow: hidden;
         `;
+        // Perspective grid for forward motion illusion
         const grid = document.createElement('div');
         grid.style.cssText = `
             position: absolute; inset: -100%;
             background-image: 
-                repeating-linear-gradient(90deg, transparent 0, transparent 48px, rgba(255,255,255,0.05) 50px, transparent 52px),
-                linear-gradient(0deg, transparent 24%, rgba(255,255,255,0.1) 25%, rgba(255,255,255,0.1) 26%, transparent 27%);
-            background-size: 200px 150px;
+                repeating-linear-gradient(90deg, transparent 0, transparent 95px, rgba(0,0,0,0.1) 98px, transparent 100px),
+                repeating-linear-gradient(0deg, transparent 0, transparent 48px, rgba(255,255,255,0.15) 50px, transparent 52px);
+            background-size: 100px 50px;
             transform: rotateX(85deg);
+            animation: ground-forward 0.5s linear infinite;
         `;
         ground.appendChild(grid);
+        
+        // Field patches that fly toward camera
+        const fieldContainer = document.createElement('div');
+        fieldContainer.style.cssText = `position: absolute; inset: 0; overflow: hidden;`;
+        ground.appendChild(fieldContainer);
+        
         worldContainer.appendChild(ground);
         c.appendChild(worldContainer);
+
+        // Field spawning for forward motion
+        const spawnField = () => {
+            if(!document.body.contains(c)) return;
+            const field = document.createElement('div');
+            const colors = ['#4a9a4a', '#5aaa5a', '#3a7a3a', '#6aba4a', '#2a6a2a', '#8aca6a'];
+            field.style.cssText = `
+                position: absolute;
+                top: ${Math.random() * 30}%;
+                left: ${30 + Math.random() * 40}%;
+                width: ${10 + Math.random() * 20}px;
+                height: ${5 + Math.random() * 10}px;
+                background: ${colors[Math.floor(Math.random() * colors.length)]};
+                border-radius: 2px;
+                transform-origin: center center;
+                animation: field-approach 3s linear forwards;
+                opacity: 0.8;
+            `;
+            fieldContainer.appendChild(field);
+            setTimeout(() => field.remove(), 3000);
+        };
+        setInterval(spawnField, 200);
 
         // =========================================
         // LAYER 2: EXTERNAL RAIN STREAKS (Z: 5)
@@ -3904,12 +3997,32 @@ flight(active) {
             s.innerHTML = `
                 @keyframes flight-prop-spin { 0% { transform: translate(-50%, 50%) rotate(0deg); } 100% { transform: translate(-50%, 50%) rotate(360deg); } }
                 @keyframes flight-wiper-move { 0%, 100% { transform: rotate(-50deg); } 50% { transform: rotate(50deg); } }
-                @keyframes flight-streak-fall { 0% { transform: translateY(-100px); opacity: 0; } 50% { opacity: 1; } 100% { transform: translateY(120vh); opacity: 0; } }
-                @keyframes flight-drop-hit { 0% { opacity: 0; transform: scale(0.5); } 100% { opacity: 1; transform: scale(1); } }
+                @keyframes flight-streak-fall { 
+                    0% { transform: translateY(-100px); opacity: 0; } 
+                    20% { opacity: 0.8; } 
+                    100% { transform: translateY(120vh); opacity: 0; } 
+                }
+                @keyframes flight-drop-appear { 
+                    0% { opacity: 0; transform: scale(0.3); } 
+                    100% { opacity: 0.8; transform: scale(1); } 
+                }
+                @keyframes flight-drop-streak { 
+                    0% { opacity: 0.8; transform: scaleX(1) scaleY(1); } 
+                    100% { opacity: 0; transform: scaleX(4) scaleY(0.5) translateX(50px); } 
+                }
                 @keyframes fly-approach {
                     0% { transform: translate(-50%, -50%) scale(0.01); opacity: 0; }
                     10% { opacity: 1; }
                     100% { transform: translate(var(--dx), var(--dy)) scale(6); opacity: 1; }
+                }
+                @keyframes ground-forward {
+                    0% { background-position-y: 0; }
+                    100% { background-position-y: 50px; }
+                }
+                @keyframes field-approach {
+                    0% { transform: scale(0.1) translateY(0); opacity: 0; }
+                    10% { opacity: 0.8; }
+                    100% { transform: scale(8) translateY(200px); opacity: 0; }
                 }
             `;
             document.head.appendChild(s);
@@ -3935,14 +4048,19 @@ flight(active) {
             // Ground
             grid.style.backgroundPositionY = `${flightTime * 600}px`;
 
-            // Scroll Mountains (Parallax)
+            // Scroll Mountains (Parallax) - 3 layers
             const farScroll = (headingOffset * -10) % 2000; 
             mtnBack.p1.style.transform = `translateX(${farScroll}px)`;
             mtnBack.p2.style.transform = `translateX(${farScroll + 2000}px)`;
             
-            const nearScroll = (headingOffset * -20) % 2000;
-            mtnFront.p1.style.transform = `translateX(${nearScroll}px)`;
-            mtnFront.p2.style.transform = `translateX(${nearScroll + 2000}px)`;
+            const midScroll = (headingOffset * -20) % 2000;
+            mtnFront.p1.style.transform = `translateX(${midScroll}px)`;
+            mtnFront.p2.style.transform = `translateX(${midScroll + 2000}px)`;
+            
+            // Hills scroll fastest (closest)
+            const nearScroll = (headingOffset * -35) % 2000;
+            hills.p1.style.transform = `translateX(${nearScroll}px)`;
+            hills.p2.style.transform = `translateX(${nearScroll + 2000}px)`;
 
             // Clouds
             Array.from(distantSky.children).forEach(cloud => {
@@ -3997,6 +4115,9 @@ flight(active) {
         this.objectSpawnInterval = setInterval(spawnObject, 2500);
 
         // --- RAIN & WIPER LOGIC ---
+        let wiperAngle = -50;
+        let wiperDir = 1;
+        
         this.wiperInterval = setInterval(() => {
             if (!document.body.contains(c)) return;
 
@@ -4009,50 +4130,81 @@ flight(active) {
             lightBox.style.boxShadow = isRaining ? '0 0 8px #00e676' : '0 0 2px #000';
 
             if (isRaining) {
-                // Activate Wiper
-                if(wiper.style.animation === '') {
-                    wiper.style.animation = 'flight-wiper-move 1.4s ease-in-out infinite';
-                }
+                // Animate Wiper manually for precise control
+                wiperAngle += wiperDir * 4;
+                if (wiperAngle >= 50) wiperDir = -1;
+                if (wiperAngle <= -50) wiperDir = 1;
+                wiper.style.transform = `rotate(${wiperAngle}deg)`;
 
-                // 1. External Rain Streaks
+                // 1. External Rain Streaks - blue like other themes
                 if (Math.random() > 0.3) {
                     const streak = document.createElement('div');
                     streak.style.cssText = `
-                        position: absolute; left: ${Math.random() * 100}%; top: -20px;
-                        width: 1px; height: 50px; background: rgba(255,255,255,0.4);
-                        animation: flight-streak-fall 0.4s linear forwards;
+                        position: absolute; left: ${Math.random() * 100}%; top: -30px;
+                        width: 2px; height: ${40 + Math.random() * 30}px; 
+                        background: linear-gradient(180deg, transparent, rgba(59, 130, 246, 0.8), rgba(59, 130, 246, 0.4));
+                        border-radius: 1px;
+                        animation: flight-streak-fall ${0.3 + Math.random() * 0.3}s linear forwards;
                     `;
                     externalRainContainer.appendChild(streak);
-                    setTimeout(() => streak.remove(), 400);
+                    setTimeout(() => streak.remove(), 600);
                 }
 
-                // 2. Windscreen Drops (Stick to glass)
-                if (Math.random() > 0.4) {
+                // 2. Windscreen Drops - blue, appear and sit on glass
+                if (Math.random() > 0.5) {
                     const drop = document.createElement('div');
-                    drop.className = 'rain-drop-glass'; // Marked for clearing
+                    drop.className = 'rain-drop-glass';
+                    const size = 3 + Math.random() * 5;
                     drop.style.cssText = `
-                        position: absolute; left: ${5 + Math.random() * 90}%; top: ${5 + Math.random() * 50}%;
-                        width: 5px; height: 5px; background: rgba(255,255,255,0.7);
-                        border-radius: 50%; box-shadow: 1px 1px 2px rgba(0,0,0,0.5);
-                        animation: flight-drop-hit 0.2s ease-out forwards;
+                        position: absolute; 
+                        left: ${5 + Math.random() * 90}%; 
+                        top: ${5 + Math.random() * 55}%;
+                        width: ${size}px; height: ${size}px; 
+                        background: rgba(59, 130, 246, 0.7);
+                        border-radius: 50%; 
+                        box-shadow: 0 0 3px rgba(59, 130, 246, 0.5), inset 1px 1px 2px rgba(255,255,255,0.3);
+                        animation: flight-drop-appear 0.3s ease-out forwards;
                     `;
+                    drop.dataset.x = parseFloat(drop.style.left);
+                    drop.dataset.age = 0;
                     windscreenRain.appendChild(drop);
                 }
 
-                // 3. Wiping Logic: Clear drops periodically to simulate wiper passing
-                const drops = windscreenRain.querySelectorAll('.rain-drop-glass');
-                if (drops.length > 0 && Math.random() > 0.1) {
-                    // "Smear" effect before removing
-                    const victim = drops[Math.floor(Math.random() * drops.length)];
-                    victim.style.transition = 'all 0.2s';
-                    victim.style.transform = 'scaleX(3) skewX(20deg)';
-                    victim.style.opacity = '0';
-                    setTimeout(() => victim.remove(), 200);
+                // 3. Wiper clearing - streak and fade drops when wiper passes
+                const drops = windscreenRain.querySelectorAll('.rain-drop-glass:not(.clearing)');
+                drops.forEach(drop => {
+                    const dropX = parseFloat(drop.dataset.x);
+                    const dropAge = parseInt(drop.dataset.age) || 0;
+                    drop.dataset.age = dropAge + 1;
+                    
+                    // Check if wiper is passing this drop's position
+                    // Wiper sweeps from center, so drops near center get cleared more
+                    const wiperReach = Math.abs(wiperAngle) / 50; // 0-1 range
+                    const dropFromCenter = Math.abs(dropX - 50) / 50; // 0-1 range
+                    
+                    // Clear if wiper is sweeping near this drop, or if drop is old
+                    if ((dropFromCenter < wiperReach + 0.2 && Math.random() > 0.7) || dropAge > 80) {
+                        drop.classList.add('clearing');
+                        drop.style.animation = 'flight-drop-streak 0.3s ease-out forwards';
+                        setTimeout(() => drop.remove(), 300);
+                    }
+                });
+
+                // Limit total drops
+                if (windscreenRain.children.length > 40) {
+                    const oldest = windscreenRain.querySelector('.rain-drop-glass:not(.clearing)');
+                    if (oldest) oldest.remove();
                 }
 
             } else {
-                wiper.style.animation = '';
-                windscreenRain.innerHTML = ''; // Clear all drops
+                wiper.style.transform = 'rotate(-50deg)';
+                // Fade out remaining drops
+                const drops = windscreenRain.querySelectorAll('.rain-drop-glass');
+                drops.forEach(drop => {
+                    drop.style.transition = 'opacity 0.5s';
+                    drop.style.opacity = '0';
+                    setTimeout(() => drop.remove(), 500);
+                });
             }
         }, 50);
     },
