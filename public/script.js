@@ -3003,7 +3003,9 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 const match = anchor.style.transform.match(/scale\(([^)]+)\)/);
                 if (match) scale = parseFloat(match[1]);
             }
-            const dropVH = destY + 15 + 10; // +15 to compensate for -15vh top, +10 for margin
+            // Spider wrap is at top: -15vh, so thread must drop (15 + destY) vh to reach destY vh
+            // The spider body has margin-top: -10px, so add ~1vh to compensate
+            const dropVH = 15 + destY + 1;
             thread.style.transition = 'none';
             thread.style.height = '0';
             void thread.offsetWidth; // Force reflow
