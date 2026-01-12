@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.78',
+    APP_VERSION: '6.2.79',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -3646,7 +3646,6 @@ flight(active) {
         if (this.bankInterval) clearInterval(this.bankInterval);
         if (this.objectSpawnInterval) clearInterval(this.objectSpawnInterval);
         if (this.wiperInterval) clearInterval(this.wiperInterval);
-        if (this.cloudDriftInterval) clearInterval(this.cloudDriftInterval); // New timer
         this.flightObjects.forEach(obj => obj.remove());
         this.flightObjects = [];
 
@@ -3668,10 +3667,10 @@ flight(active) {
                 const lfoGain = audioCtx.createGain();
                 
                 oscillator.type = 'sawtooth';
-                oscillator.frequency.setValueAtTime(60, audioCtx.currentTime);
+                oscillator.frequency.setValueAtTime(55, audioCtx.currentTime); // Deep drone
                 lfo.type = 'sine';
-                lfo.frequency.setValueAtTime(10, audioCtx.currentTime);
-                lfoGain.gain.setValueAtTime(20, audioCtx.currentTime);
+                lfo.frequency.setValueAtTime(8, audioCtx.currentTime);
+                lfoGain.gain.setValueAtTime(15, audioCtx.currentTime);
                 lfo.connect(lfoGain);
                 lfoGain.connect(oscillator.frequency);
                 gainNode.gain.setValueAtTime(0.04, audioCtx.currentTime);
@@ -3686,7 +3685,7 @@ flight(active) {
         c.innerHTML = '';
 
         // =========================================
-        // LAYER 1: WORLD (Sky, Sun, Distant Clouds, Mountains)
+        // LAYER 1: WORLD (Sky, Mountains, Ground)
         // =========================================
         const worldContainer = document.createElement('div');
         worldContainer.style.cssText = `
@@ -3697,44 +3696,43 @@ flight(active) {
 
         // SKY
         const sky = document.createElement('div');
-        sky.style.cssText = `position: absolute; inset: 0; background: linear-gradient(to bottom, #1976d2 0%, #64b5f6 50%, #bbdefb 100%);`;
+        sky.style.cssText = `position: absolute; inset: 0; background: linear-gradient(to bottom, #1565c0 0%, #42a5f5 50%, #90caf9 100%);`;
         worldContainer.appendChild(sky);
 
         // SUN
         const sun = document.createElement('div');
         sun.style.cssText = `
-            position: absolute; top: 20%; left: 70%; width: 80px; height: 80px;
+            position: absolute; top: 20%; left: 70%; width: 60px; height: 60px;
             background: #fff; border-radius: 50%;
-            box-shadow: 0 0 60px rgba(255,255,255,0.9);
+            box-shadow: 0 0 50px rgba(255,255,255,0.8);
         `;
         worldContainer.appendChild(sun);
 
-        // DISTANT EMOJI CLOUDS (Floating in distance)
+        // DISTANT CLOUDS (Horizon Layer)
         const distantSky = document.createElement('div');
         distantSky.style.cssText = `position: absolute; top: 0; left: 0; width: 100%; height: 50%; overflow: hidden;`;
-        // Add a few static drifting clouds
-        for(let i=0; i<5; i++) {
+        // Drifting emojis in distance
+        for(let i=0; i<6; i++) {
             const cloud = document.createElement('div');
             cloud.innerText = Math.random() > 0.5 ? '☁️' : '🌥️';
             cloud.style.cssText = `
-                position: absolute; top: ${15 + Math.random() * 20}%; left: ${Math.random() * 100}%;
-                font-size: ${40 + Math.random() * 40}px; opacity: 0.8;
+                position: absolute; top: ${35 + Math.random() * 10}%; left: ${Math.random() * 100}%;
+                font-size: ${20 + Math.random() * 30}px; opacity: 0.6;
                 filter: blur(1px); transition: left 1s linear;
             `;
-            // Custom drift property
-            cloud.dataset.speed = 0.02 + Math.random() * 0.03;
+            cloud.dataset.speed = 0.01 + Math.random() * 0.02;
             cloud.dataset.pos = parseFloat(cloud.style.left);
             distantSky.appendChild(cloud);
         }
         worldContainer.appendChild(distantSky);
 
-        // MOUNTAINS
+        // MOUNTAINS (Small & Distant)
         const mountains = document.createElement('div');
-        mountains.style.cssText = `position: absolute; top: 45%; left: -25%; width: 150%; height: 15%; transition: transform 0.1s linear;`;
+        mountains.style.cssText = `position: absolute; top: 48%; left: -25%; width: 150%; height: 8%; transition: transform 0.1s linear;`;
         mountains.innerHTML = `
             <svg viewBox="0 0 1200 100" preserveAspectRatio="none" style="width: 100%; height: 100%;">
-                <defs><linearGradient id="mtnGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#546e7a"/><stop offset="100%" stop-color="#263238"/></linearGradient></defs>
-                <path d="M0,100 L0,60 L100,30 L200,80 L300,20 L400,70 L500,40 L600,80 L700,30 L800,75 L900,25 L1000,80 L1100,50 L1200,70 L1200,100 Z" fill="url(#mtnGrad)"/>
+                <defs><linearGradient id="mtnGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#455a64"/><stop offset="100%" stop-color="#263238"/></linearGradient></defs>
+                <path d="M0,100 L0,80 L100,50 L200,90 L300,40 L400,85 L500,50 L600,90 L700,40 L800,85 L900,50 L1000,90 L1100,60 L1200,80 L1200,100 Z" fill="url(#mtnGrad)"/>
             </svg>
         `;
         worldContainer.appendChild(mountains);
@@ -3742,66 +3740,75 @@ flight(active) {
         // GROUND
         const ground = document.createElement('div');
         ground.style.cssText = `
-            position: absolute; top: 55%; left: -50%; width: 200%; height: 100%;
-            background: linear-gradient(180deg, #388e3c 0%, #1b5e20 100%);
-            perspective: 800px;
+            position: absolute; top: 56%; left: -50%; width: 200%; height: 100%;
+            background: linear-gradient(180deg, #2e7d32 0%, #1b5e20 100%);
+            perspective: 1000px;
         `;
         const grid = document.createElement('div');
         grid.style.cssText = `
             position: absolute; inset: -100%;
             background: 
-                linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px),
-                linear-gradient(0deg, rgba(255,255,255,0.1) 1px, transparent 1px);
-            background-size: 150px 150px;
-            transform: rotateX(80deg);
+                linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px),
+                linear-gradient(0deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+            background-size: 100px 100px;
+            transform: rotateX(85deg);
         `;
         ground.appendChild(grid);
         worldContainer.appendChild(ground);
         c.appendChild(worldContainer);
 
         // =========================================
-        // LAYER 2: FLYING OBJECTS (Blobs & Emojis)
+        // LAYER 2: FLYING OBJECTS (Mid-Air)
         // =========================================
         const objectContainer = document.createElement('div');
         objectContainer.style.cssText = `position: absolute; inset: 0; pointer-events: none; z-index: 5; overflow: hidden;`;
         c.appendChild(objectContainer);
 
         // =========================================
-        // LAYER 3: COCKPIT & PROPELLER
+        // LAYER 3: PROPELLER (Z-Index 15)
+        // *Placed BEHIND the Dashboard (Z-Index 20)*
+        // =========================================
+        const prop = document.createElement('div');
+        prop.style.cssText = `
+            position: absolute; bottom: 40%; left: 50%; transform: translate(-50%, 50%);
+            width: 70vh; height: 70vh; 
+            animation: flight-prop-spin 0.15s linear infinite;
+            z-index: 15; /* BEHIND DASHBOARD */
+        `;
+        // SVG Propeller Shape (Black with Yellow Tips)
+        prop.innerHTML = `
+            <svg viewBox="0 0 200 200" style="width: 100%; height: 100%; overflow: visible;">
+                <circle cx="100" cy="100" r="90" fill="url(#propBlur)" opacity="0.2"/>
+                <defs>
+                    <radialGradient id="propBlur"><stop offset="0%" stop-color="transparent"/><stop offset="100%" stop-color="white"/></radialGradient>
+                </defs>
+                <path d="M95,100 L92,20 L92,10 L108,10 L108,20 L105,100 Z" fill="#111" />
+                <rect x="92" y="10" width="16" height="15" fill="#ffeb3b" /> <path d="M95,100 L92,180 L92,190 L108,190 L108,180 L105,100 Z" fill="#111" />
+                <rect x="92" y="175" width="16" height="15" fill="#ffeb3b" /> </svg>
+        `;
+        c.appendChild(prop);
+
+        // =========================================
+        // LAYER 4: COCKPIT DASHBOARD (Z-Index 20)
         // =========================================
         const cockpit = document.createElement('div');
         cockpit.style.cssText = `position: absolute; inset: 0; pointer-events: none; z-index: 20;`;
 
-        // PROPELLER
-        const prop = document.createElement('div');
-        prop.style.cssText = `
-            position: absolute; bottom: 35%; left: 50%; transform: translateX(-50%);
-            width: 60vh; height: 60vh; 
-            animation: flight-prop-spin 0.3s linear infinite; /* Slow cruise spin */
-            z-index: 15;
-        `;
-        prop.innerHTML = `
-            <div style="position: absolute; top: 0; left: 48%; width: 4%; height: 100%; background: rgba(20,20,20,0.9); border-radius: 5px;"></div>
-            <div style="position: absolute; top: 48%; left: 0; width: 100%; height: 4%; background: rgba(20,20,20,0.9); border-radius: 5px;"></div>
-            <div style="position: absolute; inset: 10%; border-radius: 50%; background: radial-gradient(circle, transparent 40%, rgba(255,255,255,0.05) 70%);"></div>
-        `;
-        cockpit.appendChild(prop);
-
-        // DASHBOARD
+        // DASHBOARD SVG (Bottom 40%)
+        // The path creates the "hump" in the middle that hides the bottom prop
         const dash = document.createElement('div');
-        dash.style.cssText = `position: absolute; bottom: 0; left: 0; width: 100%; height: 40%; z-index: 20;`;
+        dash.style.cssText = `position: absolute; bottom: 0; left: 0; width: 100%; height: 40%;`;
         dash.innerHTML = `
             <svg viewBox="0 0 1000 400" preserveAspectRatio="none" style="width: 100%; height: 100%;">
                 <defs><linearGradient id="dashMetal" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#37474f"/><stop offset="100%" stop-color="#263238"/></linearGradient></defs>
-                <path d="M0,400 L0,100 C200,90 800,90 1000,100 L1000,400 Z" fill="url(#dashMetal)" stroke="#102027" stroke-width="4"/>
-                <path d="M450,100 C450,60 550,60 550,100 Z" fill="#212121"/>
+                <path d="M0,400 L0,100 C100,90 350,90 400,60 C450,40 550,40 600,60 C650,90 900,90 1000,100 L1000,400 Z" fill="url(#dashMetal)" stroke="#102027" stroke-width="4"/>
             </svg>
         `;
         cockpit.appendChild(dash);
 
         // GAUGES
         const gauges = document.createElement('div');
-        gauges.style.cssText = `position: absolute; bottom: 20px; left: 0; right: 0; height: 140px; display: flex; justify-content: center; align-items: center; gap: 40px; z-index: 21;`;
+        gauges.style.cssText = `position: absolute; bottom: 20px; left: 0; right: 0; height: 140px; display: flex; justify-content: center; align-items: center; gap: 40px;`;
         
         const createGauge = (label, color, type) => {
             const g = document.createElement('div');
@@ -3848,7 +3855,7 @@ flight(active) {
             const s = document.createElement('style');
             s.id = 'flight-anims';
             s.innerHTML = `
-                @keyframes flight-prop-spin { 0% { transform: translateX(-50%) rotate(0deg); } 100% { transform: translateX(-50%) rotate(360deg); } }
+                @keyframes flight-prop-spin { 0% { transform: translate(-50%, 50%) rotate(0deg); } 100% { transform: translate(-50%, 50%) rotate(360deg); } }
                 @keyframes flight-wiper-move { 0%, 100% { transform: rotate(-50deg); } 50% { transform: rotate(50deg); } }
                 @keyframes flight-rain-drop { 0% { transform: translateY(-20px); opacity: 0; } 20% { opacity: 1; } 100% { transform: translateY(60vh); opacity: 0; } }
             `;
@@ -3864,26 +3871,32 @@ flight(active) {
             if(!document.body.contains(c)) return;
             flightTime += 0.01;
             
-            const bank = (Math.sin(flightTime) * 3) + (Math.sin(flightTime * 0.3) * 2);
+            // VARIABLE PHYSICS: Combine sine waves for randomness
+            // Bank (Roll)
+            const bank = (Math.sin(flightTime * 0.8) * 4) + (Math.sin(flightTime * 0.3) * 3) + (Math.cos(flightTime * 1.5) * 1);
+            // Pitch (Up/Down)
+            const pitch = (Math.sin(flightTime * 0.5) * 2) + (Math.cos(flightTime * 1.1) * 1);
+            
             headingOffset += bank * 0.1;
 
-            worldContainer.style.transform = `rotate(${bank}deg)`;
+            // Apply to World
+            worldContainer.style.transform = `rotate(${bank}deg) translateY(${pitch}%)`;
+            
             grid.style.backgroundPositionY = `${flightTime * 250}px`;
 
             const mtnX = (headingOffset * -10) % 1200;
             mountains.style.transform = `translateX(${mtnX}px)`;
 
-            // Move distant emoji clouds
+            // Drift Background Clouds
             Array.from(distantSky.children).forEach(cloud => {
                 let pos = parseFloat(cloud.dataset.pos);
-                pos += parseFloat(cloud.dataset.speed) + (bank * 0.01); // Drift + Bank effect
+                pos += parseFloat(cloud.dataset.speed);
                 if(pos > 110) pos = -10;
-                if(pos < -10) pos = 110;
                 cloud.dataset.pos = pos;
                 cloud.style.left = pos + '%';
             });
 
-            if (horizonBall) horizonBall.style.transform = `rotate(${-bank}deg)`;
+            if (horizonBall) horizonBall.style.transform = `rotate(${-bank}deg) translateY(${pitch * 2}px)`; // Horizon moves opposite
             if (spd.needle) spd.needle.style.transform = `rotate(${-45 + Math.random() * 2}deg)`;
             if (alt.needle) alt.needle.style.transform = `rotate(${-90 + Math.sin(flightTime)*2}deg)`;
 
@@ -3891,39 +3904,38 @@ flight(active) {
         };
         logicLoop();
 
-        // --- SPAWN OBJECTS (Fly-by) ---
+        // --- SPAWN OBJECTS (Slow Scaling) ---
         const spawnObject = () => {
             if(!document.body.contains(c)) return;
             
             const el = document.createElement('div');
             const isCloud = Math.random() > 0.4;
-            
-            // Random Emoji Selection for NON-clouds
             const skyEmojis = ['🦅', '🦆', '✈️', '🛸', '🎈'];
             
-            // Position
+            // Start at vanishing point (Horizon center-ish)
             const startX = 48 + (Math.random() - 0.5) * 5; 
-            const startY = 30 + (Math.random() - 0.5) * 5;
-            const destX = (Math.random() - 0.5) * 150;
-            const destY = (Math.random() - 0.2) * 80;
+            const startY = 48 + (Math.random() - 0.5) * 2; // Closer to horizon line
+            
+            // End point (Off screen)
+            const destX = (Math.random() - 0.5) * 250;
+            const destY = (Math.random() - 0.2) * 100;
 
             if(isCloud) {
-                // FLUFFY BLOB CLOUD (CSS Shape)
+                // FLUFFY BLOB CLOUD (CSS)
                 el.style.cssText = `
                     position: absolute; top: ${startY}%; left: ${startX}%; 
-                    width: 80px; height: 50px; background: #fff;
+                    width: 60px; height: 40px; background: #fff;
                     border-radius: 50px; opacity: 0; filter: blur(5px);
-                    box-shadow: 20px -10px 0 5px #fff, -20px 5px 0 5px #fff;
-                    will-change: transform; transition: transform 3s ease-in, opacity 0.5s;
+                    box-shadow: 15px -8px 0 5px #fff, -15px 5px 0 5px #fff;
+                    will-change: transform; transition: transform 6s linear, opacity 1s;
                 `;
             } else {
-                // EMOJI (Eagle, Plane, etc)
-                const content = skyEmojis[Math.floor(Math.random() * skyEmojis.length)];
-                el.innerHTML = content;
+                // EMOJI
+                el.innerHTML = skyEmojis[Math.floor(Math.random() * skyEmojis.length)];
                 el.style.cssText = `
                     position: absolute; top: ${startY}%; left: ${startX}%; 
-                    font-size: 20px; opacity: 0; will-change: transform;
-                    transition: transform 3s ease-in, opacity 0.5s;
+                    font-size: 10px; opacity: 0; will-change: transform;
+                    transition: transform 6s linear, opacity 1s;
                     text-shadow: 0 0 2px rgba(255,255,255,0.5);
                 `;
             }
@@ -3932,13 +3944,13 @@ flight(active) {
 
             requestAnimationFrame(() => {
                 el.style.opacity = isCloud ? '0.7' : '1';
-                // Clouds scale up MASSIVELY to simulate flying through mist
-                const scale = isCloud ? 20 : 8; 
+                // Scale from 0.1 -> 4 over 6 seconds (Slow approach)
+                const scale = isCloud ? 25 : 10; 
                 el.style.transform = `translate(${destX}vw, ${destY}vh) scale(${scale})`;
             });
-            setTimeout(() => el.remove(), 3500);
+            setTimeout(() => el.remove(), 6000);
         };
-        this.objectSpawnInterval = setInterval(spawnObject, 1500);
+        this.objectSpawnInterval = setInterval(spawnObject, 1200);
 
         // --- RAIN / WIPER LOGIC ---
         this.wiperInterval = setInterval(() => {
