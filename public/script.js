@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.71',
+    APP_VERSION: '6.2.72',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -3630,6 +3630,7 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
     },
     flightTimeout: null,
     flightObjects: [],
+
 flight(active) {
         let c = DOM.theme.effects.flight;
         if (!c) {
@@ -3640,7 +3641,7 @@ flight(active) {
             DOM.theme.effects.flight = c;
         }
 
-        // Cleanup
+        // --- CLEANUP PREVIOUS RUNS ---
         if (this.flightTimeout) clearTimeout(this.flightTimeout);
         if (this.bankInterval) clearInterval(this.bankInterval);
         if (this.fieldSpawnInterval) clearInterval(this.fieldSpawnInterval);
@@ -3657,7 +3658,7 @@ flight(active) {
 
         if (!active) { c.innerHTML = ''; c.style.background = ''; return; }
 
-        // --- AUDIO (Engine Rumble) ---
+        // --- AUDIO START ---
         if (!State.data.settings.muteSounds) {
              try {
                 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -3667,7 +3668,7 @@ flight(active) {
                 const lfoGain = audioCtx.createGain();
                 
                 oscillator.type = 'sawtooth';
-                oscillator.frequency.setValueAtTime(80, audioCtx.currentTime); // Lower pitch
+                oscillator.frequency.setValueAtTime(80, audioCtx.currentTime);
                 lfo.type = 'sine';
                 lfo.frequency.setValueAtTime(6, audioCtx.currentTime);
                 lfoGain.gain.setValueAtTime(10, audioCtx.currentTime);
@@ -3684,75 +3685,100 @@ flight(active) {
 
         c.innerHTML = '';
 
-        // --- WORLD CONTAINER (Sky/Mountains/Ground) ---
+        // --- 1. WORLD WRAPPER (Sky, Ground, Mountains) ---
+        // We use a wrapper to tilt the world without tilting the cockpit
         const worldContainer = document.createElement('div');
         worldContainer.id = 'flight-world';
         worldContainer.style.cssText = `
             position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
-            transition: transform 0.1s linear; /* Faster update for smooth banking */
+            transition: transform 0.1s linear;
             transform-origin: center center; will-change: transform;
+            z-index: 1;
         `;
 
-        // 1. Sky
+        // SKY
         const sky = document.createElement('div');
         sky.style.cssText = `position: absolute; top: 0; left: 0; right: 0; height: 60%; background: linear-gradient(180deg, #1e5799 0%, #2989d8 50%, #7db9e8 100%);`;
         worldContainer.appendChild(sky);
 
-        // 2. Sun
+        // SUN
         const sun = document.createElement('div');
         sun.style.cssText = `position: absolute; top: 20%; left: 75%; width: 100px; height: 100px; background: radial-gradient(circle, rgba(255,255,240,0.9) 0%, rgba(255,255,255,0) 70%); mix-blend-mode: screen;`;
         worldContainer.appendChild(sun);
 
-        // 3. Clouds Layer (Behind mountains)
-        const cloudLayer = document.createElement('div');
-        cloudLayer.style.cssText = `position: absolute; top: 0; left: 0; width: 100%; height: 60%; overflow: hidden;`;
-        worldContainer.appendChild(cloudLayer);
-
-        // 4. Mountains (Back) - Flattened & Wider for sliding
+        // MOUNTAINS (Back Layer)
         const mountainsBack = document.createElement('div');
-        mountainsBack.style.cssText = `position: absolute; top: 45%; left: -50%; width: 200%; height: 20%; will-change: transform;`;
-        mountainsBack.innerHTML = `<svg viewBox="0 0 2400 100" preserveAspectRatio="none" style="width: 100%; height: 100%; opacity: 0.7; filter: blur(2px);"><path d="M0,100 L0,60 L200,80 L400,50 L600,85 L800,55 L1000,90 L1200,60 L1400,85 L1600,50 L1800,80 L2000,60 L2200,90 L2400,55 L2400,100 Z" fill="#607d8b"/></svg>`;
+        // Ensure width is wide enough for sliding
+        mountainsBack.style.cssText = `position: absolute; top: 40%; left: -50%; width: 200%; height: 30%; z-index: 2; opacity: 0.7;`;
+        mountainsBack.innerHTML = `
+            <svg viewBox="0 0 1000 100" preserveAspectRatio="none" style="width: 100%; height: 100%;">
+                <path d="M0,100 L0,40 L100,80 L200,30 L300,90 L400,20 L500,80 L600,40 L700,90 L800,30 L900,80 L1000,50 L1000,100 Z" fill="#546e7a"/>
+            </svg>
+        `;
         worldContainer.appendChild(mountainsBack);
 
-        // 5. Mountains (Front) - Flattened
+        // MOUNTAINS (Front Layer)
         const mountainsFront = document.createElement('div');
-        mountainsFront.style.cssText = `position: absolute; top: 50%; left: -50%; width: 200%; height: 15%; will-change: transform;`;
+        mountainsFront.style.cssText = `position: absolute; top: 50%; left: -50%; width: 200%; height: 20%; z-index: 3;`;
         mountainsFront.innerHTML = `
-            <svg viewBox="0 0 2400 100" preserveAspectRatio="none" style="width: 100%; height: 100%;">
-                <defs><linearGradient id="mtnFrontGrad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#5d4037"/><stop offset="100%" style="stop-color:#3e2723"/></linearGradient></defs>
-                <path d="M0,100 L0,80 L150,50 L300,90 L450,40 L600,85 L750,45 L900,90 L1050,50 L1200,80 L1350,45 L1500,90 L1650,50 L1800,85 L1950,40 L2100,90 L2250,55 L2400,80 L2400,100 Z" fill="url(#mtnFrontGrad)"/>
-            </svg>`;
+            <svg viewBox="0 0 1000 100" preserveAspectRatio="none" style="width: 100%; height: 100%;">
+                <defs>
+                    <linearGradient id="mtnGrad" x1="0" x2="0" y1="0" y2="1">
+                        <stop offset="0%" stop-color="#3e2723"/>
+                        <stop offset="100%" stop-color="#1b0000"/>
+                    </linearGradient>
+                </defs>
+                <path d="M0,100 L0,70 L50,40 L100,80 L150,30 L200,90 L250,50 L300,80 L350,20 L400,90 L450,40 L500,80 L550,30 L600,80 L650,40 L700,90 L750,50 L800,80 L850,20 L900,90 L950,50 L1000,80 L1000,100 Z" fill="url(#mtnGrad)"/>
+            </svg>
+        `;
         worldContainer.appendChild(mountainsFront);
 
-        // 6. Ground
+        // GROUND
         const ground = document.createElement('div');
-        ground.style.cssText = `position: absolute; top: 55%; left: 0; right: 0; bottom: 0; background: linear-gradient(180deg, #558b2f 0%, #33691e 100%); overflow: hidden; perspective: 400px;`;
+        ground.style.cssText = `
+            position: absolute; top: 55%; left: 0; right: 0; bottom: 0; 
+            background: linear-gradient(180deg, #558b2f 0%, #33691e 100%); 
+            overflow: hidden; perspective: 400px; z-index: 4;
+        `;
+        // Ground Grid Texture
         const texture = document.createElement('div');
-        texture.style.cssText = `position: absolute; inset: -100%; background: repeating-linear-gradient(90deg, transparent 0px, transparent 40px, rgba(0,0,0,0.05) 40px, rgba(0,0,0,0.05) 42px); transform: rotateX(70deg) scale(2); transform-origin: center top; opacity: 0.3;`;
+        texture.style.cssText = `
+            position: absolute; inset: -100%; 
+            background: repeating-linear-gradient(90deg, transparent 0px, transparent 40px, rgba(0,0,0,0.1) 40px, rgba(0,0,0,0.1) 42px);
+            transform: rotateX(70deg) scale(2); transform-origin: center top; opacity: 0.3;
+        `;
         ground.appendChild(texture);
         worldContainer.appendChild(ground);
-        
-        // 7. Object Container (Clouds/Birds flying AT camera)
-        const objectContainer = document.createElement('div');
-        objectContainer.style.cssText = `position: absolute; inset: 0; pointer-events: none; perspective: 600px; transform-style: preserve-3d;`;
-        c.appendChild(objectContainer);
 
         c.appendChild(worldContainer);
 
-        // --- COCKPIT LAYER ---
+        // --- 2. FLYING OBJECTS CONTAINER ---
+        // This sits ABOVE the world but BELOW the cockpit
+        const objectContainer = document.createElement('div');
+        objectContainer.style.cssText = `position: absolute; inset: 0; pointer-events: none; z-index: 10; perspective: 600px; overflow: hidden;`;
+        c.appendChild(objectContainer);
+
+        // --- 3. COCKPIT LAYER ---
         const cockpitFrame = document.createElement('div');
         cockpitFrame.style.cssText = `position: absolute; inset: 0; pointer-events: none; z-index: 50;`;
 
-        // Wiper
+        // WIPER (This was missing for you)
+        // Hidden by default, toggled by the loop
         const wiper = document.createElement('div');
         wiper.id = 'flight-wiper';
-        wiper.style.cssText = `position: absolute; top: 20%; left: 50%; width: 6px; height: 35vh; background: #222; transform-origin: top center; transform: translateX(-50%) rotate(0deg); border-radius: 3px; z-index: 52; display: none;`;
+        wiper.style.cssText = `
+            position: absolute; top: 10%; left: 50%; width: 8px; height: 40vh;
+            background: #111; transform-origin: top center; transform: translateX(-50%) rotate(0deg);
+            border-radius: 4px; z-index: 52; display: none;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.5);
+        `;
+        // Wiper Blade
         const wiperBlade = document.createElement('div');
-        wiperBlade.style.cssText = `position: absolute; bottom: 0; left: -2px; width: 10px; height: 15vh; background: #111; border-radius: 2px;`;
+        wiperBlade.style.cssText = `position: absolute; bottom: 0; left: -2px; width: 12px; height: 18vh; background: #000; border-radius: 2px;`;
         wiper.appendChild(wiperBlade);
         c.appendChild(wiper);
 
-        // Propeller (Slower)
+        // PROPELLER
         const prop = document.createElement('div');
         prop.style.cssText = `
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -3765,7 +3791,7 @@ flight(active) {
         prop.appendChild(blade);
         cockpitFrame.appendChild(prop);
 
-        // Dashboard
+        // DASHBOARD
         const dashboard = document.createElement('div');
         dashboard.style.cssText = `
             position: absolute; bottom: 0; left: 0; right: 0; height: 140px;
@@ -3793,15 +3819,15 @@ flight(active) {
             return g;
         };
 
-        const speedGauge = createGauge("SPEED", "#fdd835");
-        const horizonGauge = createGauge("ATTITUDE", "", 'horizon');
+        const speedGauge = createGauge("SPD", "#fdd835");
+        const horizonGauge = createGauge("ATT", "", 'horizon');
         const altGauge = createGauge("ALT", "#ef5350");
         dashboard.appendChild(speedGauge);
         dashboard.appendChild(horizonGauge);
         dashboard.appendChild(altGauge);
         cockpitFrame.appendChild(dashboard);
 
-        // Frame
+        // Frame Struts
         const strutStyle = `position: absolute; top: 0; width: 50px; height: 100%; background: linear-gradient(90deg, #263238, #102027); border: 1px solid #000;`;
         const sL = document.createElement('div'); sL.style.cssText = `${strutStyle} left: 0; transform: skewX(8deg) translateX(-25px);`;
         const sR = document.createElement('div'); sR.style.cssText = `${strutStyle} right: 0; transform: skewX(-8deg) translateX(25px);`;
@@ -3809,7 +3835,7 @@ flight(active) {
         cockpitFrame.appendChild(sR);
         c.appendChild(cockpitFrame);
 
-        // --- ANIMATION LOOP ---
+        // --- ANIMATIONS & LOGIC ---
         if(!document.getElementById('flight-anims')) {
             const s = document.createElement('style');
             s.id = 'flight-anims';
@@ -3821,110 +3847,100 @@ flight(active) {
         }
 
         const horizonInner = document.getElementById('gauge-horizon-inner');
-        let heading = 0; // Tracks simulated heading for parallax
+        let heading = 0;
 
+        // SPAWN FUNCTIONS
+        // 1. Flying Objects (Clouds/Birds)
+        const spawnObject = () => {
+             if(!document.body.contains(c)) return;
+             const obj = document.createElement('div');
+             const isCloud = Math.random() > 0.5;
+             const startX = 40 + Math.random() * 20; // Center screen start
+             const startY = 30 + Math.random() * 20;
+             const destX = (Math.random() - 0.5) * 200; // Fly out to edges
+             const destY = (Math.random() - 0.2) * 50;
+             
+             if (isCloud) {
+                 obj.style.cssText = `
+                    position: absolute; top: ${startY}%; left: ${startX}%; 
+                    width: 60px; height: 30px; background: rgba(255,255,255,0.8);
+                    border-radius: 20px; filter: blur(8px); opacity: 0;
+                    transition: transform 4s ease-in, opacity 0.5s;
+                 `;
+             } else {
+                 // Bird
+                 obj.style.cssText = `
+                    position: absolute; top: ${startY}%; left: ${startX}%; 
+                    width: 5px; height: 2px; background: #222; opacity: 0;
+                    transition: transform 3s ease-in, opacity 0.5s;
+                 `;
+             }
+             objectContainer.appendChild(obj);
+
+             // Animate
+             requestAnimationFrame(() => {
+                 obj.style.opacity = isCloud ? '0.6' : '0.9';
+                 obj.style.transform = `translate(${destX}vw, ${destY}vh) scale(${isCloud? 8 : 4})`;
+             });
+             setTimeout(() => obj.remove(), 4000);
+        };
+        this.objectSpawnInterval = setInterval(spawnObject, 2000);
+
+        // 2. Ground Fields
+        const spawnField = () => {
+            if(!document.body.contains(c)) return;
+            const f = document.createElement('div');
+            const w = 10 + Math.random() * 20;
+            const l = Math.random() * 100;
+            f.style.cssText = `
+                position: absolute; top: 0; left: ${l}%; width: ${w}%; height: 2px;
+                background: rgba(0,0,0,0.15); transform-origin: 50% 0; opacity: 0;
+                transition: top 4s linear, height 4s linear, transform 4s linear, opacity 1s;
+            `;
+            ground.appendChild(f);
+            requestAnimationFrame(() => {
+                f.style.top = '120%';
+                f.style.height = '100px';
+                f.style.transform = 'scaleX(4)';
+                f.style.opacity = '0.6';
+            });
+            setTimeout(() => f.remove(), 4000);
+        };
+        setInterval(spawnField, 500);
+
+        // MAIN LOOP
         const logicLoop = () => {
             if(!document.body.contains(c)) return;
-
-            // 1. Bank & Heading Logic
-            const time = Date.now();
-            // Gentle bank sine wave
-            const bank = Math.sin(time / 3000) * 8; 
             
-            // Accumulate heading based on bank (Bank Right -> Heading increases -> Scenery moves Left)
-            heading += bank * 0.05; 
+            const time = Date.now();
+            const bank = Math.sin(time / 3000) * 8; 
+            heading += bank * 0.05;
 
-            // Rotate World (Physical sensation of roll)
+            // Tilt World
             worldContainer.style.transform = `rotate(${bank}deg)`;
+            
+            // Slide Mountains (Parallax)
+            const bgPos = (heading * -5) % 1000; 
+            mountainsBack.style.transform = `translateX(${bgPos * 0.5}px)`;
+            mountainsFront.style.transform = `translateX(${bgPos}px)`;
 
-            // Parallax: Slide mountains horizontally based on heading
-            // Wrap the value so texture loops
-            const bgPos = (heading * -2) % 2400; 
-            mountainsBack.style.transform = `translateX(${bgPos * 0.5}px)`; // Distant moves slower
-            mountainsFront.style.transform = `translateX(${bgPos}px)`;      // Closer moves faster
+            // Artificial Horizon (Counter-rotate)
+            if(horizonInner) horizonInner.style.transform = `rotate(${bank}deg)`;
 
-            // Update Horizon Gauge (Matches World Rotation = Real Horizon stays level)
-            if(horizonInner) {
-                // To keep the bar horizontal while the plane (frame) tilts, 
-                // we rotate the bar WITH the world (which is effectively counter-rotating relative to the cockpit frame)
-                horizonInner.style.transform = `rotate(${bank}deg)`;
-            }
-
-            // Needles
+            // Gauges Random Movement
             if(speedGauge.needle) speedGauge.needle.style.transform = `rotate(${-45 + Math.random() * 5}deg)`;
             if(altGauge.needle) altGauge.needle.style.transform = `rotate(${-90 + Math.sin(time/5000)*10}deg)`;
 
-            this.fieldSpawnInterval = setTimeout(logicLoop, 50); // High FPS loop
+            this.fieldSpawnInterval = setTimeout(logicLoop, 50);
         };
         logicLoop();
 
-        // --- SPAWNERS ---
-
-        // 1. Ground Fields (Slower, perspective based)
-        const spawnField = () => {
-             if(!document.body.contains(c)) return;
-             const f = document.createElement('div');
-             const w = 10 + Math.random() * 20; 
-             const l = Math.random() * 100;
-             f.style.cssText = `
-                position: absolute; top: 0; left: ${l}%; width: ${w}%; height: 2px;
-                background: rgba(0,0,0,0.1); transform-origin: 50% 0; opacity: 0;
-                transition: top 4s linear, height 4s linear, transform 4s linear, opacity 1s;
-             `;
-             ground.appendChild(f);
-             requestAnimationFrame(() => {
-                 f.style.top = '120%';
-                 f.style.height = '100px';
-                 f.style.transform = 'scaleX(4)';
-                 f.style.opacity = '0.6';
-             });
-             setTimeout(() => f.remove(), 4000);
-        };
-        setInterval(spawnField, 300);
-
-        // 2. Flying Objects (Clouds/Birds Zooming IN)
-        const spawnObject = () => {
-            if(!document.body.contains(c)) return;
-            const obj = document.createElement('div');
-            // Random start position near center (vanishing point)
-            const startX = 45 + Math.random() * 10;
-            const startY = 20 + Math.random() * 20;
-            // Direction of travel (outwards from center)
-            const dirX = (Math.random() - 0.5) * 200;
-            const dirY = (Math.random() - 0.2) * 50; 
-            
-            const isCloud = Math.random() > 0.3;
-            
-            if (isCloud) {
-                obj.style.cssText = `
-                    position: absolute; top: ${startY}%; left: ${startX}%; width: 40px; height: 20px;
-                    background: #fff; border-radius: 20px; filter: blur(5px); opacity: 0;
-                    transition: all 4s ease-in;
-                `;
-            } else {
-                // Distant bird/speck
-                obj.style.cssText = `
-                    position: absolute; top: ${startY}%; left: ${startX}%; width: 4px; height: 1px;
-                    background: #222; opacity: 0; transition: all 3s ease-in;
-                `;
-            }
-
-            objectContainer.appendChild(obj);
-
-            requestAnimationFrame(() => {
-                obj.style.opacity = isCloud ? '0.4' : '0.8';
-                // Move element "forward" (Scale up) and sideways (Parallax)
-                obj.style.transform = `translate(${dirX}vw, ${dirY}vh) scale(${isCloud ? 6 : 2})`;
-            });
-            
-            setTimeout(() => obj.remove(), 4000);
-        };
-        this.objectSpawnInterval = setInterval(spawnObject, 1500);
-
-        // Weather Wiper
+        // 3. WIPER CHECK (Runs every 1s)
         this.wiperInterval = setInterval(() => {
             if (!document.body.contains(c)) return;
-            const isRaining = typeof WeatherManager !== 'undefined' && (WeatherManager.isRaining || WeatherManager.isSnowing);
+            // Check global WeatherManager
+            const isRaining = (window.WeatherManager && (window.WeatherManager.isRaining || window.WeatherManager.isSnowing));
+            
             if (isRaining) {
                 wiper.style.display = 'block';
                 wiper.style.animation = 'flight-wiper-move 1.5s ease-in-out infinite';
@@ -3933,7 +3949,42 @@ flight(active) {
                 wiper.style.animation = '';
             }
         }, 1000);
+    }, // END FLIGHT
+
+    // --- VARIABLES RESTORED FOR OCEAN ---
+    oceanTimeout: null,
+    oceanObjects: [],
+
+    getMoonPhase() {
+        const date = new Date();
+        let year = date.getFullYear();
+        let month = date.getMonth() + 1;
+        const day = date.getDate();
+        if (month < 3) { year--; month += 12; }
+        month++;
+        const c = 365.25 * year;
+        const e = 30.6 * month;
+        let jd = c + e + day - 694039.09;
+        jd /= 29.5305882;
+        const b = Math.floor(jd);
+        jd -= b;
+        const phase = Math.round(jd * 8);
+        return phase >= 8 ? 0 : phase;
     },
+
+    ocean(active) {
+        let c = DOM.theme.effects.ocean;
+        if (!c) {
+            c = document.createElement('div');
+            c.id = 'ocean-effect';
+            c.className = 'fixed inset-0 pointer-events-none overflow-hidden z-0';
+            document.body.appendChild(c);
+            DOM.theme.effects.ocean = c;
+        }
+        if (this.oceanTimeout) clearTimeout(this.oceanTimeout);
+        this.oceanObjects.forEach(obj => obj.remove());
+        this.oceanObjects = [];
+        if (!active) { c.innerHTML = ''; c.style.background = ''; return; }
 	
     oceanTimeout: null,
     oceanObjects: [],
