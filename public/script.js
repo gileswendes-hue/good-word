@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.81',
+    APP_VERSION: '6.2.82',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -3646,6 +3646,7 @@ flight(active) {
         if (this.bankInterval) clearInterval(this.bankInterval);
         if (this.objectSpawnInterval) clearInterval(this.objectSpawnInterval);
         if (this.wiperInterval) clearInterval(this.wiperInterval);
+        if (this.rainInterval) clearInterval(this.rainInterval); // New rain timer
         this.flightObjects.forEach(obj => obj.remove());
         this.flightObjects = [];
 
@@ -3725,32 +3726,37 @@ flight(active) {
         }
         worldContainer.appendChild(distantSky);
 
-        // --- BACK MOUNTAINS (Snow, Less Pointy) ---
-        const mtnBack = document.createElement('div');
-        mtnBack.style.cssText = `
-            position: absolute; top: 46%; left: -50%; width: 200%; height: 12%;
-            background-repeat: repeat-x; background-size: 50% 100%; background-position: 0px 0px;
-            z-index: 1; opacity: 0.9;
-        `;
-        // Smoother peaks using curves (Q) instead of sharp lines (L)
-        const svgBack = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 100' preserveAspectRatio='none'%3E%3Cpath d='M0,100 L0,70 Q50,50 100,60 T200,50 T300,60 T400,40 T500,70 T600,30 T700,60 T800,40 T900,70 T1000,50 L1000,100 Z' fill='%23546e7a'/%3E%3Cpath d='M180,50 Q200,40 220,50 L200,65 Z M380,40 Q400,30 420,40 L400,55 Z M580,30 Q600,20 620,30 L600,45 Z M780,40 Q800,30 820,40 L800,55 Z' fill='white' opacity='0.7'/%3E%3C/svg%3E`;
-        mtnBack.style.backgroundImage = `url("${svgBack}")`;
-        worldContainer.appendChild(mtnBack);
+        // --- HELPER: Seamless Mountain Layer ---
+        const createMountainLayer = (svg, top, height, z, opacity) => {
+            const cont = document.createElement('div');
+            cont.style.cssText = `position: absolute; top: ${top}%; left: 0; width: 100%; height: ${height}%; z-index: ${z}; opacity: ${opacity}; pointer-events: none;`;
+            
+            // Pane 1
+            const p1 = document.createElement('div');
+            p1.style.cssText = `position: absolute; top: 0; left: 0; width: 100%; height: 100%; will-change: transform;`;
+            p1.innerHTML = svg;
+            
+            // Pane 2 (Immediate neighbor for looping)
+            const p2 = document.createElement('div');
+            p2.style.cssText = `position: absolute; top: 0; left: 100%; width: 100%; height: 100%; will-change: transform;`;
+            p2.innerHTML = svg;
 
-        // --- FRONT HILLS (Flatter, Low) ---
-        const mtnFront = document.createElement('div');
-        mtnFront.style.cssText = `
-            position: absolute; top: 52%; left: -50%; width: 200%; height: 8%; /* Reduced height */
-            background-repeat: repeat-x; background-size: 50% 100%; background-position: 0px 0px;
-            z-index: 2;
-        `;
-        // Very gentle rolling waves
-        const svgFront = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 100' preserveAspectRatio='none'%3E%3Cpath d='M0,100 L0,80 Q250,60 500,80 T1000,80 L1000,100 Z' fill='%2337474f'/%3E%3C/svg%3E`;
-        mtnFront.style.backgroundImage = `url("${svgFront}")`;
-        worldContainer.appendChild(mtnFront);
+            cont.appendChild(p1);
+            cont.appendChild(p2);
+            return { cont, p1, p2 };
+        };
 
+        // BACK MOUNTAINS (Snowy, Pointy)
+        const svgBack = `<svg viewBox="0 0 1200 100" preserveAspectRatio="none" style="width:100%; height:100%;"><path d="M0,100 L0,60 L150,20 L300,70 L450,15 L600,65 L750,20 L900,70 L1050,25 L1200,60 L1200,100 Z" fill="#546e7a"/><path d="M150,20 L130,40 L170,40 Z M450,15 L430,35 L470,35 Z M750,20 L730,40 L770,40 Z M1050,25 L1030,45 L1070,45 Z" fill="white" opacity="0.7"/></svg>`;
+        const mtnBack = createMountainLayer(svgBack, 42, 18, 1, 0.9);
+        worldContainer.appendChild(mtnBack.cont);
 
-        // GROUND (Speed Effect)
+        // FRONT HILLS (Rounded, Low)
+        const svgFront = `<svg viewBox="0 0 1200 100" preserveAspectRatio="none" style="width:100%; height:100%;"><path d="M0,100 L0,80 Q200,60 400,80 T800,80 T1200,80 L1200,100 Z" fill="#37474f"/></svg>`;
+        const mtnFront = createMountainLayer(svgFront, 52, 10, 2, 1.0);
+        worldContainer.appendChild(mtnFront.cont);
+
+        // GROUND
         const ground = document.createElement('div');
         ground.style.cssText = `
             position: absolute; top: 56%; left: -50%; width: 200%; height: 100%;
@@ -3758,7 +3764,6 @@ flight(active) {
             perspective: 1000px; z-index: 3;
         `;
         const grid = document.createElement('div');
-        // Added vertical repeating gradients to simulate "speed streaks"
         grid.style.cssText = `
             position: absolute; inset: -100%;
             background-image: 
@@ -3772,14 +3777,21 @@ flight(active) {
         c.appendChild(worldContainer);
 
         // =========================================
-        // LAYER 2: FLYING OBJECTS (Z: 5)
+        // LAYER 2: FALLING RAIN STREAKS (Z: 5)
+        // =========================================
+        const externalRainContainer = document.createElement('div');
+        externalRainContainer.style.cssText = `position: absolute; inset: 0; pointer-events: none; z-index: 5; overflow: hidden;`;
+        c.appendChild(externalRainContainer);
+
+        // =========================================
+        // LAYER 3: OBJECTS
         // =========================================
         const objectContainer = document.createElement('div');
-        objectContainer.style.cssText = `position: absolute; inset: 0; pointer-events: none; z-index: 5; overflow: hidden;`;
+        objectContainer.style.cssText = `position: absolute; inset: 0; pointer-events: none; z-index: 6; overflow: hidden;`;
         c.appendChild(objectContainer);
 
         // =========================================
-        // LAYER 3: PROPELLER (Z: 15)
+        // LAYER 4: PROPELLER
         // =========================================
         const prop = document.createElement('div');
         prop.style.cssText = `
@@ -3801,7 +3813,7 @@ flight(active) {
         c.appendChild(prop);
 
         // =========================================
-        // LAYER 4: COCKPIT (Z: 20)
+        // LAYER 5: COCKPIT
         // =========================================
         const cockpit = document.createElement('div');
         cockpit.style.cssText = `position: absolute; inset: 0; pointer-events: none; z-index: 20;`;
@@ -3860,19 +3872,22 @@ flight(active) {
         c.appendChild(cockpit);
 
         // =========================================
-        // LAYER 5: RAIN & WIPER (Z: 90/100)
+        // LAYER 6: WINDSCREEN RAIN (Z: 95)
         // =========================================
-        const rainContainer = document.createElement('div');
-        rainContainer.style.cssText = `position: absolute; inset: 0; pointer-events: none; z-index: 90; overflow: hidden; display: none;`;
-        c.appendChild(rainContainer);
+        const windscreenRain = document.createElement('div');
+        windscreenRain.style.cssText = `position: absolute; inset: 0; pointer-events: none; z-index: 95; overflow: hidden; display: block;`;
+        c.appendChild(windscreenRain);
 
+        // =========================================
+        // LAYER 7: WIPER (Z: 100)
+        // =========================================
         const wiper = document.createElement('div');
         wiper.style.cssText = `
-            position: absolute; bottom: 40%; left: 50%; width: 8px; height: 45vh; /* Longer wiper */
+            position: absolute; bottom: 40%; left: 50%; width: 8px; height: 45vh;
             background: #111; transform-origin: bottom center; transform: rotate(-50deg);
             z-index: 100; display: block;
         `;
-        wiper.innerHTML = `<div style="position: absolute; top: 0; left: -2px; width: 12px; height: 40vh; background: #000; border-radius: 2px;"></div>`;
+        wiper.innerHTML = `<div style="position: absolute; top: 0; left: -2px; width: 12px; height: 45vh; background: #000; border-radius: 2px;"></div>`;
         c.appendChild(wiper);
 
         // --- ANIMATIONS ---
@@ -3882,7 +3897,7 @@ flight(active) {
             s.innerHTML = `
                 @keyframes flight-prop-spin { 0% { transform: translate(-50%, 50%) rotate(0deg); } 100% { transform: translate(-50%, 50%) rotate(360deg); } }
                 @keyframes flight-wiper-move { 0%, 100% { transform: rotate(-50deg); } 50% { transform: rotate(50deg); } }
-                @keyframes flight-rain-drop { 0% { opacity: 0; transform: translateY(0); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateY(150px); } }
+                @keyframes flight-streak-fall { 0% { transform: translateY(-100px); } 100% { transform: translateY(120vh); } }
                 @keyframes fly-approach {
                     0% { transform: translate(-50%, -50%) scale(0.01); opacity: 0; }
                     10% { opacity: 1; }
@@ -3906,18 +3921,20 @@ flight(active) {
             const pitch = (Math.sin(flightTime * 0.5) * 2) + (Math.cos(flightTime * 1.1) * 1);
             headingOffset += bank * 0.05;
 
-            // Tilt
+            // Update World Tilt
             worldContainer.style.transform = `rotate(${bank}deg) translateY(${pitch}%)`;
             
-            // Speed Ground
+            // Scroll Ground
             grid.style.backgroundPositionY = `${flightTime * 600}px`;
 
-            // Parallax Mountains
+            // Scroll Mountains (Parallax + Seamless)
             const farScroll = (headingOffset * -10) % 2000; 
-            mtnBack.style.backgroundPositionX = `${farScroll}px`;
+            mtnBack.p1.style.transform = `translateX(${farScroll}px)`;
+            mtnBack.p2.style.transform = `translateX(${farScroll + 2000}px)`; // Fix offset math
             
             const nearScroll = (headingOffset * -20) % 2000;
-            mtnFront.style.backgroundPositionX = `${nearScroll}px`;
+            mtnFront.p1.style.transform = `translateX(${nearScroll}px)`;
+            mtnFront.p2.style.transform = `translateX(${nearScroll + 2000}px)`;
 
             // Clouds
             Array.from(distantSky.children).forEach(cloud => {
@@ -3971,40 +3988,69 @@ flight(active) {
         };
         this.objectSpawnInterval = setInterval(spawnObject, 2500);
 
-        // --- WIPER / RAIN LOGIC ---
-        this.wiperInterval = setInterval(() => {
+        // --- RAIN & WIPER LOGIC ---
+        this.rainInterval = setInterval(() => {
             if (!document.body.contains(c)) return;
-            
+
             const isRaining = (typeof window.WeatherManager !== 'undefined' && 
                               (window.WeatherManager.isRaining || window.WeatherManager.isSnowing)) || 
                               (window.TEST_RAIN === true);
 
-            // Light Indicator
-            lightBox.style.background = isRaining ? '#00e676' : '#222';
-            lightBox.style.boxShadow = isRaining ? '0 0 8px #00e676' : '0 0 2px #000';
-
+            // 1. Handle Wiper State
             if (isRaining) {
-                wiper.style.animation = 'flight-wiper-move 1.4s ease-in-out infinite';
-                rainContainer.style.display = 'block';
-
-                // Spawn Drop
-                if (Math.random() > 0.4) {
-                    const drop = document.createElement('div');
-                    drop.style.cssText = `
-                        position: absolute; left: ${Math.random() * 100}%; top: ${Math.random() * 50}%;
-                        width: 3px; height: 3px; background: rgba(255,255,255,0.9);
-                        border-radius: 50%; box-shadow: 1px 1px 2px rgba(0,0,0,0.5);
-                        animation: flight-rain-drop 1s ease-in forwards;
-                    `;
-                    rainContainer.appendChild(drop);
-                    setTimeout(() => drop.remove(), 1000);
+                if (wiper.style.animation === '') {
+                    wiper.style.animation = 'flight-wiper-move 1.4s ease-in-out infinite';
+                    lightBox.style.background = '#00e676'; // Light On
+                    lightBox.style.boxShadow = '0 0 8px #00e676';
                 }
             } else {
                 wiper.style.animation = '';
-                rainContainer.style.display = 'none';
-                rainContainer.innerHTML = '';
+                lightBox.style.background = '#222'; // Light Off
+                lightBox.style.boxShadow = '0 0 2px #000';
             }
-        }, 50);
+
+            // 2. Spawn Rain (Only if raining)
+            if (isRaining) {
+                // A. Windscreen Drop (Static, stick to glass)
+                if (Math.random() > 0.3) {
+                    const drop = document.createElement('div');
+                    drop.className = 'rain-drop-glass'; // Tag for clearing later
+                    drop.style.cssText = `
+                        position: absolute; left: ${10 + Math.random() * 80}%; top: ${10 + Math.random() * 50}%;
+                        width: 4px; height: 4px; background: rgba(255,255,255,0.7);
+                        border-radius: 50%; box-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+                        transition: opacity 0.2s;
+                    `;
+                    windscreenRain.appendChild(drop);
+                }
+
+                // B. Falling Streak (Background, fast)
+                if (Math.random() > 0.2) {
+                    const streak = document.createElement('div');
+                    streak.style.cssText = `
+                        position: absolute; left: ${Math.random() * 100}%; top: -20px;
+                        width: 1px; height: 40px; background: rgba(255,255,255,0.3);
+                        animation: flight-streak-fall 0.4s linear forwards;
+                    `;
+                    externalRainContainer.appendChild(streak);
+                    setTimeout(() => streak.remove(), 400);
+                }
+
+                // 3. CLEANING LOGIC (Wiper clears drops)
+                // If wiper is moving, clear drops.
+                // Simple logic: If animation is running, delete all drops periodically.
+                const drops = windscreenRain.querySelectorAll('.rain-drop-glass');
+                if (drops.length > 50) { // Keep count reasonable
+                    drops.forEach((d, i) => {
+                       if (i % 2 === 0) d.remove(); // Random clearing
+                    });
+                }
+            } else {
+                // Not raining? Clear everything immediately
+                windscreenRain.innerHTML = '';
+            }
+
+        }, 50); // Fast check loop
     },
 
     // --- VARIABLES RESTORED FOR OCEAN ---
