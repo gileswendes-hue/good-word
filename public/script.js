@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.3.20',
+    APP_VERSION: '6.4.1',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -5100,10 +5100,15 @@ displayWord(w) {
                         0%, 100% { text-shadow: 0 0 10px #fbbf24, 0 0 20px #f59e0b, 0 0 5px #fde68a; }
                         50% { text-shadow: 0 0 20px #fbbf24, 0 0 40px #f59e0b, 0 0 60px #d97706; }
                     }
-                    .golden-word {
+                    #wordDisplay.golden-word,
+                    body #wordDisplay.golden-word,
+                    body[class*="theme-"] #wordDisplay.golden-word {
                         color: #f59e0b !important;
                         text-shadow: 0 0 10px #fbbf24, 0 0 20px #f59e0b !important;
                         animation: golden-glow 1.5s ease-in-out infinite !important;
+                        background: none !important;
+                        -webkit-background-clip: unset !important;
+                        -webkit-text-fill-color: #f59e0b !important;
                     }
                 `;
                 document.head.appendChild(s);
