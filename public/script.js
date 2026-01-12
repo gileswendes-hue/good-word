@@ -3725,39 +3725,19 @@ flight(active) {
         }
         worldContainer.appendChild(distantSky);
 
-        // --- PARALLAX MOUNTAINS ---
-        
-        // Helper to create a scrolling layer
-        const createSeamlessLayer = (svgContent, topPercent, heightPercent, z) => {
-            const cont = document.createElement('div');
-            cont.style.cssText = `position: absolute; top: ${topPercent}%; left: 0; width: 100%; height: ${heightPercent}%; z-index: ${z};`;
-            const p1 = document.createElement('div');
-            p1.style.cssText = `position: absolute; top:0; left: 0; width: 100%; height: 100%; will-change: transform;`;
-            p1.innerHTML = svgContent;
-            const p2 = document.createElement('div');
-            p2.style.cssText = `position: absolute; top:0; left: 100%; width: 100%; height: 100%; will-change: transform;`;
-            p2.innerHTML = svgContent;
-            cont.appendChild(p1);
-            cont.appendChild(p2);
-            return { container: cont, p1, p2 };
-        };
-
-        // 1. FAR MOUNTAINS (Slower, Lighter, Higher)
-        const mtnFarSVG = `
-            <svg viewBox="0 0 1000 100" preserveAspectRatio="none" style="width: 100%; height: 100%;">
-                <path d="M0,100 L0,50 L150,20 L300,60 L450,10 L600,50 L750,20 L900,60 L1000,30 L1000,100 Z" fill="#546e7a" opacity="0.8"/>
-            </svg>`;
-        const mtnFar = createSeamlessLayer(mtnFarSVG, 42, 12, 1);
-        worldContainer.appendChild(mtnFar.container);
-
-        // 2. NEAR MOUNTAINS (Faster, Darker, Lower)
-        const mtnNearSVG = `
-            <svg viewBox="0 0 1000 100" preserveAspectRatio="none" style="width: 100%; height: 100%;">
-                <defs><linearGradient id="mtnGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#455a64"/><stop offset="100%" stop-color="#263238"/></linearGradient></defs>
-                <path d="M0,100 L0,80 L100,50 L200,90 L300,40 L400,85 L500,50 L600,90 L700,40 L800,85 L900,50 L1000,90 L1100,60 L1200,80 L1200,100 Z" fill="url(#mtnGrad)"/>
-            </svg>`;
-        const mtnNear = createSeamlessLayer(mtnNearSVG, 48, 10, 2);
-        worldContainer.appendChild(mtnNear.container);
+        // --- MOUNTAINS (Seamless Background) ---
+        const mtnContainer = document.createElement('div');
+        mtnContainer.style.cssText = `
+            position: absolute; top: 48%; left: -50%; width: 200%; height: 12%;
+            background-repeat: repeat-x;
+            background-size: 50% 100%; 
+            background-position: 0px 0px;
+            z-index: 2;
+        `;
+        // This SVG is encoded directly so it repeats infinitely without javascript jumping
+        const mtnSVGData = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 100' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0%25' stop-color='%23455a64'/%3E%3Cstop offset='100%25' stop-color='%23263238'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M0,100 L0,80 L100,50 L200,90 L300,40 L400,85 L500,50 L600,90 L700,40 L800,85 L900,50 L1000,90 L1100,60 L1200,80 L1200,100 Z' fill='url(%23g)'/%3E%3C/svg%3E";
+        mtnContainer.style.backgroundImage = `url("${mtnSVGData}")`;
+        worldContainer.appendChild(mtnContainer);
 
         // GROUND
         const ground = document.createElement('div');
@@ -3780,21 +3760,21 @@ flight(active) {
         c.appendChild(worldContainer);
 
         // =========================================
-        // LAYER 2: FLYING OBJECTS
+        // LAYER 2: FLYING OBJECTS (Z: 5)
         // =========================================
         const objectContainer = document.createElement('div');
         objectContainer.style.cssText = `position: absolute; inset: 0; pointer-events: none; z-index: 5; overflow: hidden;`;
         c.appendChild(objectContainer);
 
         // =========================================
-        // LAYER 3: PROPELLER
+        // LAYER 3: PROPELLER (Z: 15)
         // =========================================
         const prop = document.createElement('div');
         prop.style.cssText = `
-            position: absolute; bottom: 40%; left: 50%; transform: translate(-50%, 50%);
+            position: absolute; bottom: 35%; left: 50%; transform: translate(-50%, 50%);
             width: 70vh; height: 70vh; 
             animation: flight-prop-spin 0.15s linear infinite;
-            z-index: 15;
+            z-index: 15; /* BEHIND DASHBOARD */
         `;
         prop.innerHTML = `
             <svg viewBox="0 0 200 200" style="width: 100%; height: 100%; overflow: visible;">
@@ -3809,7 +3789,7 @@ flight(active) {
         c.appendChild(prop);
 
         // =========================================
-        // LAYER 4: COCKPIT
+        // LAYER 4: COCKPIT (Z: 20)
         // =========================================
         const cockpit = document.createElement('div');
         cockpit.style.cssText = `position: absolute; inset: 0; pointer-events: none; z-index: 20;`;
@@ -3858,16 +3838,18 @@ flight(active) {
 
         c.appendChild(cockpit);
 
-        // WIPER & RAIN
+        // =========================================
+        // LAYER 5: WIPER & RAIN (Z: 100 - TOP)
+        // =========================================
         const rainContainer = document.createElement('div');
-        rainContainer.style.cssText = `position: absolute; inset: 0; pointer-events: none; z-index: 25; overflow: hidden; display: none;`;
+        rainContainer.style.cssText = `position: absolute; inset: 0; pointer-events: none; z-index: 90; overflow: hidden; display: none;`;
         c.appendChild(rainContainer);
 
         const wiper = document.createElement('div');
         wiper.style.cssText = `
             position: absolute; bottom: 40%; left: 50%; width: 8px; height: 35vh;
             background: #111; transform-origin: bottom center; transform: rotate(-50deg);
-            z-index: 30; display: block;
+            z-index: 100; display: block;
         `;
         wiper.innerHTML = `<div style="position: absolute; top: 0; left: -2px; width: 12px; height: 30vh; background: #000; border-radius: 2px;"></div>`;
         c.appendChild(wiper);
@@ -3909,16 +3891,9 @@ flight(active) {
             // Scroll Ground
             grid.style.backgroundPositionY = `${flightTime * 400}px`;
 
-            // Scroll Mountains (Parallax + Seamless)
-            // Far mountains move slower (factor 5)
-            const farScroll = (headingOffset * -5) % 100;
-            mtnFar.p1.style.transform = `translateX(${farScroll}%)`;
-            mtnFar.p2.style.transform = `translateX(${farScroll + 100}%)`;
-
-            // Near mountains move faster (factor 10)
-            const nearScroll = (headingOffset * -10) % 100;
-            mtnNear.p1.style.transform = `translateX(${nearScroll}%)`;
-            mtnNear.p2.style.transform = `translateX(${nearScroll + 100}%)`;
+            // Scroll Mountains (Infinite Background)
+            const mtnScroll = (headingOffset * -20) % 5000;
+            mtnContainer.style.backgroundPositionX = `${mtnScroll}px`;
 
             // Clouds
             Array.from(distantSky.children).forEach(cloud => {
@@ -3981,7 +3956,6 @@ flight(active) {
                               (window.TEST_RAIN === true);
 
             if (isRaining) {
-                // Animate if raining
                 wiper.style.animation = 'flight-wiper-move 1.4s ease-in-out infinite';
                 rainContainer.style.display = 'block';
 
@@ -3996,7 +3970,6 @@ flight(active) {
                     setTimeout(() => drop.remove(), 550);
                 }
             } else {
-                // Static stop if not raining
                 wiper.style.animation = '';
                 rainContainer.style.display = 'none';
                 rainContainer.innerHTML = '';
