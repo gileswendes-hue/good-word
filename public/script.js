@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.3.4',
+    APP_VERSION: '6.3.5',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -3913,14 +3913,24 @@ prop.innerHTML = `
 
         cockpit.appendChild(gauges);
 
-        // WIPER INDICATOR
-        const lightBox = document.createElement('div');
+const lightBox = document.createElement('div');
         lightBox.style.cssText = `
-            position: absolute; bottom: 20px; left: 8%; width: 12px; height: 12px;
+            position: absolute; bottom: 120px; left: 65px; transform: translateX(-50%);
+            width: 20px; height: 20px; /* Larger size */
             border-radius: 50%; background: #222; border: 2px solid #555;
-            box-shadow: 0 0 2px #000; transition: all 0.3s;
+            box-shadow: 0 0 2px #000; transition: all 0.3s; z-index: 23;
         `;
         cockpit.appendChild(lightBox);
+
+        // 2. Connection Light (Above ALT)
+        const connLight = document.createElement('div');
+        connLight.style.cssText = `
+            position: absolute; bottom: 120px; right: 65px; transform: translateX(50%);
+            width: 20px; height: 20px; /* Same size */
+            border-radius: 50%; background: #222; border: 2px solid #555;
+            box-shadow: 0 0 2px #000; transition: all 0.3s; z-index: 23;
+        `;
+        cockpit.appendChild(connLight);
 
         c.appendChild(cockpit);
 
@@ -3977,22 +3987,26 @@ const logicLoop = () => {
             if(!document.body.contains(c)) return;
             flightTime += 0.005;
             
-            // SURGICAL FIX: Change target speed every ~30 seconds
-            // flightTime increments ~0.3 per second. 30s is roughly a count of 9.0
+            // SURGICAL FIX: Change target speed every ~30 seconds (flightTime 9.0 ≈ 30s)
             const block = Math.floor(flightTime / 9.0);
-            // Generate a stable target between 70% and 90% power
-            const targetPower = 0.8 + (Math.sin(block * 123.4) * 0.1); 
+            const targetPower = 0.7 + (Math.sin(block * 123.4) * 0.15); // Stable range 0.55 - 0.85
             
             // Smoothly interpolate current power (Store state on prop element)
-            let enginePower = parseFloat(prop.dataset.pwr || 0.8);
-            enginePower += (targetPower - enginePower) * 0.005;
+            let enginePower = parseFloat(prop.dataset.pwr || 0.7);
+            enginePower += (targetPower - enginePower) * 0.01;
             prop.dataset.pwr = enginePower;
 
-            // Apply to Propeller (0.35s is slow, 0.1s is fast)
-            prop.style.animationDuration = `${0.35 - (enginePower * 0.25)}s`;
+            // 1. Propeller Speed (Faster = Lower Duration)
+            prop.style.animationDuration = `${0.4 - (enginePower * 0.25)}s`;
 
+            // 2. SPD Dial (Synchronized with Power)
+            // Range: -135deg (Empty) to +45deg (Full)
             const spdAngle = -135 + (enginePower * 180);
-            if (spd.needle) spd.needle.style.transform = `rotate(${spdAngle}deg)`;
+            // Force direct update without transition lag
+            if (spd.needle) {
+                spd.needle.style.transition = 'none'; 
+                spd.needle.style.transform = `rotate(${spdAngle}deg)`;
+            }
             
             const bankCycle = flightTime * 0.15;
             let bank = 0;
@@ -4111,6 +4125,10 @@ const logicLoop = () => {
 
             lightBox.style.background = isRaining ? '#00e676' : '#222';
             lightBox.style.boxShadow = isRaining ? '0 0 8px #00e676' : '0 0 2px #000';
+
+            const isOnline = navigator.onLine && !State.data.settings.offlineMode;
+            connLight.style.background = isOnline ? '#22c55e' : '#ef4444';
+            connLight.style.boxShadow = isOnline ? '0 0 5px #22c55e' : '0 0 5px #ef4444';
 
             if (isRaining) {
                 prevWiperAngle = wiperAngle;
