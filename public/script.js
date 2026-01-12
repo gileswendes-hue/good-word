@@ -3985,41 +3985,6 @@ this.wiperInterval = setInterval(() => {
         this.oceanObjects.forEach(obj => obj.remove());
         this.oceanObjects = [];
         if (!active) { c.innerHTML = ''; c.style.background = ''; return; }
-	
-    oceanTimeout: null,
-    oceanObjects: [],
-    getMoonPhase() {
-        const date = new Date();
-        let year = date.getFullYear();
-        let month = date.getMonth() + 1;
-        const day = date.getDate();
-        if (month < 3) {
-            year--;
-            month += 12;
-        }
-        month++;
-        const c = 365.25 * year;
-        const e = 30.6 * month;
-        let jd = c + e + day - 694039.09;
-        jd /= 29.5305882;
-        const b = Math.floor(jd);
-        jd -= b;
-        const phase = Math.round(jd * 8);
-        return phase >= 8 ? 0 : phase;
-    },
-    ocean(active) {
-        let c = DOM.theme.effects.ocean;
-        if (!c) {
-            c = document.createElement('div');
-            c.id = 'ocean-effect';
-            c.className = 'fixed inset-0 pointer-events-none overflow-hidden z-0';
-            document.body.appendChild(c);
-            DOM.theme.effects.ocean = c;
-        }
-        if (this.oceanTimeout) clearTimeout(this.oceanTimeout);
-        this.oceanObjects.forEach(obj => obj.remove());
-        this.oceanObjects = [];
-        if (!active) { c.innerHTML = ''; c.style.background = ''; return; }
         c.innerHTML = '';
         const hour = new Date().getHours();
         const minutes = new Date().getMinutes();
