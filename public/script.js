@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.',
+    APP_VERSION: '6.2.73',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -3936,7 +3936,7 @@ flight(active) {
         logicLoop();
 
         // 3. WIPER CHECK (Runs every 1s)
-        this.wiperInterval = setInterval(() => {
+this.wiperInterval = setInterval(() => {
             if (!document.body.contains(c)) return;
             // Check global WeatherManager
             const isRaining = (window.WeatherManager && (window.WeatherManager.isRaining || window.WeatherManager.isSnowing));
@@ -3949,7 +3949,7 @@ flight(active) {
                 wiper.style.animation = '';
             }
         }, 1000);
-    },
+    }, // <--- THIS BRACE AND COMMA WERE MISSING
 
     // --- VARIABLES RESTORED FOR OCEAN ---
     oceanTimeout: null,
