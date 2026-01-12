@@ -3708,7 +3708,7 @@ flight(active) {
         `;
         worldContainer.appendChild(sun);
 
-        // DISTANT CLOUDS (Horizon Layer)
+        // DISTANT CLOUDS
         const distantSky = document.createElement('div');
         distantSky.style.cssText = `position: absolute; top: 0; left: 0; width: 100%; height: 50%; overflow: hidden;`;
         for(let i=0; i<6; i++) {
@@ -3725,19 +3725,30 @@ flight(active) {
         }
         worldContainer.appendChild(distantSky);
 
-        // --- MOUNTAINS (Seamless Background) ---
-        const mtnContainer = document.createElement('div');
-        mtnContainer.style.cssText = `
-            position: absolute; top: 48%; left: -50%; width: 200%; height: 12%;
-            background-repeat: repeat-x;
-            background-size: 50% 100%; 
-            background-position: 0px 0px;
+        // --- LAYER 1: BACK MOUNTAINS (Snow Capped, Sharp) ---
+        const mtnBack = document.createElement('div');
+        mtnBack.style.cssText = `
+            position: absolute; top: 45%; left: -50%; width: 200%; height: 15%;
+            background-repeat: repeat-x; background-size: 50% 100%; background-position: 0px 0px;
+            z-index: 1; opacity: 0.9;
+        `;
+        // Sharp peaks with white caps
+        const svgBack = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 100' preserveAspectRatio='none'%3E%3Cpath d='M0,100 L0,60 L100,20 L200,70 L300,10 L400,60 L500,20 L600,75 L700,15 L800,70 L900,25 L1000,60 L1000,100 Z' fill='%23546e7a'/%3E%3Cpath d='M95,22 L100,20 L105,22 L100,30 Z M295,12 L300,10 L305,12 L300,20 Z M495,22 L500,20 L505,22 L500,30 Z M695,17 L700,15 L705,17 L700,25 Z' fill='white' opacity='0.8'/%3E%3C/svg%3E`;
+        mtnBack.style.backgroundImage = `url("${svgBack}")`;
+        worldContainer.appendChild(mtnBack);
+
+        // --- LAYER 2: FRONT MOUNTAINS (Rounded, Darker) ---
+        const mtnFront = document.createElement('div');
+        mtnFront.style.cssText = `
+            position: absolute; top: 50%; left: -50%; width: 200%; height: 12%;
+            background-repeat: repeat-x; background-size: 50% 100%; background-position: 0px 0px;
             z-index: 2;
         `;
-        // This SVG is encoded directly so it repeats infinitely without javascript jumping
-        const mtnSVGData = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 100' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0%25' stop-color='%23455a64'/%3E%3Cstop offset='100%25' stop-color='%23263238'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M0,100 L0,80 L100,50 L200,90 L300,40 L400,85 L500,50 L600,90 L700,40 L800,85 L900,50 L1000,90 L1100,60 L1200,80 L1200,100 Z' fill='url(%23g)'/%3E%3C/svg%3E";
-        mtnContainer.style.backgroundImage = `url("${mtnSVGData}")`;
-        worldContainer.appendChild(mtnContainer);
+        // Rounded hills
+        const svgFront = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 100' preserveAspectRatio='none'%3E%3Cpath d='M0,100 L0,80 Q50,60 100,80 T200,70 T300,80 T400,60 T500,80 T600,70 T700,80 T800,60 T900,80 T1000,70 L1000,100 Z' fill='%2337474f'/%3E%3C/svg%3E`;
+        mtnFront.style.backgroundImage = `url("${svgFront}")`;
+        worldContainer.appendChild(mtnFront);
+
 
         // GROUND
         const ground = document.createElement('div');
@@ -3771,7 +3782,7 @@ flight(active) {
         // =========================================
         const prop = document.createElement('div');
         prop.style.cssText = `
-            position: absolute; bottom: 35%; left: 50%; transform: translate(-50%, 50%);
+            position: absolute; bottom: 32%; left: 50%; transform: translate(-50%, 50%);
             width: 70vh; height: 70vh; 
             animation: flight-prop-spin 0.15s linear infinite;
             z-index: 15; /* BEHIND DASHBOARD */
@@ -3803,6 +3814,16 @@ flight(active) {
             </svg>
         `;
         cockpit.appendChild(dash);
+
+        // INDICATOR LIGHT (Wiper Status)
+        const lightBox = document.createElement('div');
+        lightBox.id = 'flight-indicator';
+        lightBox.style.cssText = `
+            position: absolute; bottom: 50px; left: 20%; width: 15px; height: 15px;
+            border-radius: 50%; background: #222; border: 2px solid #555;
+            box-shadow: 0 0 2px #000; transition: all 0.3s;
+        `;
+        cockpit.appendChild(lightBox);
 
         // GAUGES
         const gauges = document.createElement('div');
@@ -3846,6 +3867,7 @@ flight(active) {
         c.appendChild(rainContainer);
 
         const wiper = document.createElement('div');
+        wiper.id = 'flight-wiper-blade';
         wiper.style.cssText = `
             position: absolute; bottom: 40%; left: 50%; width: 8px; height: 35vh;
             background: #111; transform-origin: bottom center; transform: rotate(-50deg);
@@ -3861,7 +3883,7 @@ flight(active) {
             s.innerHTML = `
                 @keyframes flight-prop-spin { 0% { transform: translate(-50%, 50%) rotate(0deg); } 100% { transform: translate(-50%, 50%) rotate(360deg); } }
                 @keyframes flight-wiper-move { 0%, 100% { transform: rotate(-50deg); } 50% { transform: rotate(50deg); } }
-                @keyframes flight-rain-drop { 0% { transform: translateY(-20px); opacity: 0; } 20% { opacity: 1; } 100% { transform: translateY(60vh); opacity: 0; } }
+                @keyframes flight-rain-drop { 0% { opacity: 0; transform: translateY(0) scale(1); } 20% { opacity: 1; } 100% { opacity: 0; transform: translateY(200px) scale(0.9); } }
                 @keyframes fly-approach {
                     0% { transform: translate(-50%, -50%) scale(0.01); opacity: 0; }
                     10% { opacity: 1; }
@@ -3891,9 +3913,14 @@ flight(active) {
             // Scroll Ground
             grid.style.backgroundPositionY = `${flightTime * 400}px`;
 
-            // Scroll Mountains (Infinite Background)
-            const mtnScroll = (headingOffset * -20) % 5000;
-            mtnContainer.style.backgroundPositionX = `${mtnScroll}px`;
+            // Scroll Mountains (Parallax + Seamless)
+            // Back (Far)
+            const farScroll = (headingOffset * -10) % 2000; 
+            mtnBack.style.backgroundPositionX = `${farScroll}px`;
+            
+            // Front (Near)
+            const nearScroll = (headingOffset * -20) % 2000;
+            mtnFront.style.backgroundPositionX = `${nearScroll}px`;
 
             // Clouds
             Array.from(distantSky.children).forEach(cloud => {
@@ -3947,7 +3974,7 @@ flight(active) {
         };
         this.objectSpawnInterval = setInterval(spawnObject, 2500);
 
-        // --- WIPER CHECK ---
+        // --- WIPER / RAIN / LIGHT CHECK ---
         this.wiperInterval = setInterval(() => {
             if (!document.body.contains(c)) return;
             
@@ -3955,19 +3982,28 @@ flight(active) {
                               (window.WeatherManager.isRaining || window.WeatherManager.isSnowing)) || 
                               (window.TEST_RAIN === true);
 
+            // Update Light
+            lightBox.style.background = isRaining ? '#00e676' : '#222'; // Bright green if on
+            lightBox.style.boxShadow = isRaining ? '0 0 8px #00e676' : '0 0 2px #000';
+
             if (isRaining) {
                 wiper.style.animation = 'flight-wiper-move 1.4s ease-in-out infinite';
                 rainContainer.style.display = 'block';
 
-                if (Math.random() > 0.6) {
+                // Spawn Drop on Screen (To be wiped)
+                if (Math.random() > 0.5) {
                     const drop = document.createElement('div');
                     drop.style.cssText = `
-                        position: absolute; left: ${Math.random() * 100}%; top: -10px;
-                        width: 2px; height: 15px; background: rgba(255,255,255,0.6);
-                        animation: flight-rain-drop 0.5s linear forwards;
+                        position: absolute; left: ${Math.random() * 100}%; top: ${Math.random() * 60}%;
+                        width: 4px; height: 4px; background: rgba(255,255,255,0.8);
+                        border-radius: 50%; box-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+                        animation: flight-rain-drop 1s ease-in forwards;
                     `;
                     rainContainer.appendChild(drop);
-                    setTimeout(() => drop.remove(), 550);
+                    
+                    // Simple "wiped" simulation: remove drop faster if in wiper range (roughly)
+                    // We just kill them quickly in animation loop to simulate clearing
+                    setTimeout(() => drop.remove(), 1000);
                 }
             } else {
                 wiper.style.animation = '';
