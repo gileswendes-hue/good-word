@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.65',
+    APP_VERSION: '6.2.66',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -3767,10 +3767,16 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                         <stop offset="100%" style="stop-color:#805030"/>
                     </linearGradient>
                 </defs>
-                <!-- Main mountain shapes - jagged peaks -->
+                <!-- Main mountain shapes -->
                 <path d="M0,120 L0,90 L50,70 L80,85 L120,45 L160,75 L200,50 L250,80 L300,30 L350,60 L400,40 L450,70 L500,25 L550,55 L600,35 L650,65 L700,20 L750,50 L800,30 L850,60 L900,40 L950,70 L1000,25 L1050,55 L1100,35 L1150,65 L1200,20 L1250,50 L1300,40 L1350,70 L1400,30 L1450,60 L1500,45 L1500,120 Z" fill="url(#mtnFrontGrad)"/>
-                <!-- Ridge detail lines -->
-                <path d="M120,45 L80,85 M300,30 L250,80 M500,25 L450,70 M700,20 L650,65 M1000,25 L950,70 M1200,20 L1150,65 M1400,30 L1350,70" stroke="#704020" stroke-width="1.5" fill="none" opacity="0.4"/>
+                <!-- Snow caps -->
+                <path d="M300,30 L270,60 L330,60 Z" fill="#fff"/>
+                <path d="M500,25 L465,58 L535,58 Z" fill="#f8f8f8"/>
+                <path d="M700,20 L660,58 L740,58 Z" fill="#fff"/>
+                <path d="M1000,25 L965,58 L1035,58 Z" fill="#f8f8f8"/>
+                <path d="M1200,20 L1160,58 L1240,58 Z" fill="#fff"/>
+                <!-- Ridge lines -->
+                <path d="M300,30 L250,80 M500,25 L450,70 M700,20 L650,65 M1000,25 L950,70 M1200,20 L1150,65" stroke="#704020" stroke-width="1.5" fill="none" opacity="0.4"/>
             </svg>
         `;
         worldContainer.appendChild(mountainsFront);
@@ -3829,21 +3835,63 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             worldContainer.appendChild(cloud);
         }
         c.appendChild(worldContainer);
+        // Terrain biome - changes periodically
+        let currentBiome = 'green';
+        const biomes = {
+            green: [
+                { bg: '#7aaa4a', border: '#5a8a2a' }, // Light grass
+                { bg: '#5a8a2a', border: '#4a7a1a' }, // Dark grass
+                { bg: '#c4a050', border: '#a48030' }, // Wheat field
+                { bg: '#8a7040', border: '#6a5030' }, // Plowed
+                { bg: '#4a6a20', border: '#3a5a10' }, // Forest
+                { bg: '#3a7aaa', border: '#2a6a9a' }, // Lake/pond
+            ],
+            desert: [
+                { bg: '#d4b896', border: '#c4a886' }, // Light sand
+                { bg: '#c4a070', border: '#b49060' }, // Sand
+                { bg: '#e4c8a0', border: '#d4b890' }, // Dunes
+                { bg: '#a08050', border: '#906040' }, // Rocky
+                { bg: '#8a7060', border: '#7a6050' }, // Dark rock
+                { bg: '#3a8aaa', border: '#2a7a9a' }, // Oasis
+            ],
+            snow: [
+                { bg: '#e8e8f0', border: '#d8d8e0' }, // Snow
+                { bg: '#d0d0e0', border: '#c0c0d0' }, // Ice
+                { bg: '#f0f0ff', border: '#e0e0f0' }, // Fresh snow
+                { bg: '#a0a0b0', border: '#909098' }, // Rocky
+                { bg: '#4a6070', border: '#3a5060' }, // Frozen lake
+                { bg: '#2a4a3a', border: '#1a3a2a' }, // Pine forest
+            ],
+            ocean: [
+                { bg: '#2a6a9a', border: '#1a5a8a' }, // Deep water
+                { bg: '#3a7aaa', border: '#2a6a9a' }, // Water
+                { bg: '#4a8aba', border: '#3a7aaa' }, // Shallow
+                { bg: '#5a9aca', border: '#4a8aba' }, // Light water
+                { bg: '#c4a070', border: '#b49060' }, // Island sand
+                { bg: '#5a8a4a', border: '#4a7a3a' }, // Island green
+            ],
+            hills: [
+                { bg: '#6a8a4a', border: '#5a7a3a' }, // Grass
+                { bg: '#8a7a5a', border: '#7a6a4a' }, // Brown hill
+                { bg: '#7a6a50', border: '#6a5a40' }, // Earth
+                { bg: '#5a7a3a', border: '#4a6a2a' }, // Valley
+                { bg: '#9a8a6a', border: '#8a7a5a' }, // Rocky
+                { bg: '#4a5a6a', border: '#3a4a5a' }, // Shadow
+            ]
+        };
+        // Change biome every 20-40 seconds
+        const changeBiome = () => {
+            const biomeNames = Object.keys(biomes);
+            currentBiome = biomeNames[Math.floor(Math.random() * biomeNames.length)];
+            setTimeout(changeBiome, 20000 + Math.random() * 20000);
+        };
+        setTimeout(changeBiome, 15000 + Math.random() * 15000);
         const spawnField = () => {
             if (!c.isConnected) return;
             const groundEl = document.getElementById('flight-ground');
             if (!groundEl) return;
             const field = document.createElement('div');
-            const fieldTypes = [
-                { bg: '#7aaa4a', border: '#5a8a2a' },
-                { bg: '#5a8a2a', border: '#4a7a1a' },
-                { bg: '#c4a050', border: '#a48030' },
-                { bg: '#8a7040', border: '#6a5030' },
-                { bg: '#4a6a20', border: '#3a5a10' },
-                { bg: '#a09060', border: '#807040' },
-                { bg: '#3a7aaa', border: '#2a6a9a' },
-                { bg: '#8a6a5a', border: '#6a4a3a' },
-            ];
+            const fieldTypes = biomes[currentBiome];
             const type = fieldTypes[Math.floor(Math.random() * fieldTypes.length)];
             const gridX = Math.floor(Math.random() * 10) * 10 + 5;
             const duration = 2.5 + Math.random() * 2;
@@ -3893,23 +3941,22 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             overflow: hidden;
         `;
         c.appendChild(windscreen);
-        // SINGLE WINDSCREEN WIPER - center mounted, clears majority of screen
+        // SINGLE WINDSCREEN WIPER - mounted in upper area
         const wiper = document.createElement('div');
         wiper.id = 'flight-wiper';
         wiper.style.cssText = `
             position: absolute;
-            bottom: 50%;
+            top: 52%;
             left: 50%;
             width: 5px;
-            height: 140px;
+            height: 120px;
             background: linear-gradient(180deg, #111 0%, #222 30%, #333 50%, #222 70%, #111 100%);
             border-radius: 3px;
             transform-origin: bottom center;
-            transform: translateX(-50%) rotate(-70deg);
+            transform: translateX(-50%) rotate(-60deg);
             z-index: 51;
             box-shadow: 1px 1px 3px rgba(0,0,0,0.6);
         `;
-        // Wiper blade at end
         const wiperBlade = document.createElement('div');
         wiperBlade.style.cssText = `
             position: absolute;
@@ -3917,55 +3964,116 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             left: 50%;
             transform: translateX(-50%);
             width: 8px;
-            height: 25px;
+            height: 20px;
             background: #222;
             border-radius: 2px;
         `;
         wiper.appendChild(wiperBlade);
         c.appendChild(wiper);
-        // PROP FRAME - attaches from cockpit panel up to prop center
-        const propFrame = document.createElement('div');
-        propFrame.style.cssText = `
+        // INSTRUMENT PANEL - full cockpit with integrated prop mount
+        const panel = document.createElement('div');
+        panel.style.cssText = `
             position: absolute;
-            bottom: 48%;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 120px;
-            height: 180px;
-            z-index: 24;
-            pointer-events: none;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 52%;
+            z-index: 60;
         `;
-        propFrame.innerHTML = `
-            <svg viewBox="0 0 120 180" style="width: 100%; height: 100%;">
-                <!-- Main vertical strut from cockpit to prop -->
-                <path d="M60,180 L60,30" stroke="#3a4a5a" stroke-width="8" fill="none"/>
-                <!-- V-braces from cockpit -->
-                <path d="M20,180 L60,80" stroke="#3a4a5a" stroke-width="5" fill="none"/>
-                <path d="M100,180 L60,80" stroke="#3a4a5a" stroke-width="5" fill="none"/>
-                <!-- Cross brace -->
-                <path d="M30,130 L90,130" stroke="#3a4a5a" stroke-width="4" fill="none"/>
-                <!-- Engine cowling -->
-                <ellipse cx="60" cy="50" rx="35" ry="25" fill="#4a5a6a" stroke="#2a3a4a" stroke-width="2"/>
-                <!-- Prop hub mount -->
-                <circle cx="60" cy="30" r="20" fill="#5a6a7a" stroke="#3a4a5a" stroke-width="3"/>
-                <circle cx="60" cy="30" r="12" fill="#6a7a8a"/>
+        panel.innerHTML = `
+            <svg style="position: absolute; inset: 0; width: 100%; height: 100%;" viewBox="0 0 200 120" preserveAspectRatio="none">
+                <defs>
+                    <linearGradient id="panelGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" style="stop-color:#5a6a7a"/>
+                        <stop offset="50%" style="stop-color:#4a5a6a"/>
+                        <stop offset="100%" style="stop-color:#3a4a5a"/>
+                    </linearGradient>
+                    <linearGradient id="cowlGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" style="stop-color:#6a7a8a"/>
+                        <stop offset="100%" style="stop-color:#4a5a6a"/>
+                    </linearGradient>
+                </defs>
+                <!-- Main panel -->
+                <path d="M0,120 L0,55 Q100,30 200,55 L200,120 Z" fill="url(#panelGrad)"/>
+                <!-- Engine cowling / nose - connects to prop -->
+                <ellipse cx="100" cy="20" rx="25" ry="18" fill="url(#cowlGrad)" stroke="#3a4a5a" stroke-width="1"/>
+                <!-- Prop mount strut -->
+                <rect x="96" y="0" width="8" height="25" fill="#4a5a6a"/>
+                <!-- Prop spinner/hub -->
+                <circle cx="100" cy="5" r="10" fill="#5a6a7a" stroke="#3a4a5a" stroke-width="1"/>
+                <circle cx="100" cy="5" r="6" fill="#6a7a8a"/>
             </svg>
+            <!-- GAUGES ROW 1 - Main instruments on panel face -->
+            <div style="position: absolute; top: 38%; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; align-items: center;">
+                <div style="width: 50px; height: 50px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #1a2a3a, #0a1520); border: 3px solid #2a3a4a; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5); position: relative;">
+                    <div style="position: absolute; top: 50%; left: 50%; width: 2px; height: 18px; background: white; transform-origin: bottom center; transform: translate(-50%, -100%); animation: compass-spin 25s linear infinite;"></div>
+                </div>
+                <div id="flight-attitude" style="width: 58px; height: 58px; border-radius: 50%; border: 3px solid #2a3a4a; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5); position: relative; overflow: hidden;">
+                    <div id="attitude-horizon" style="position: absolute; inset: -15px; background: linear-gradient(180deg, #1a6aaa 0%, #1a6aaa 50%, #8a6a3a 50%, #8a6a3a 100%); transition: transform 0.3s ease-out;">
+                        <div style="position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: white;"></div>
+                    </div>
+                    <div style="position: absolute; top: 50%; left: 50%; width: 26px; height: 3px; background: #ff8800; transform: translate(-50%, -50%); border-radius: 2px; z-index: 2;"></div>
+                    <div style="position: absolute; top: 50%; left: 50%; width: 5px; height: 5px; background: #ff8800; border-radius: 50%; transform: translate(-50%, -50%); z-index: 2;"></div>
+                </div>
+                <div style="width: 50px; height: 50px; border-radius: 50%; background: radial-gradient(circle at 40% 40%, #4a3a1a, #2a2010); border: 3px solid #5a4a2a; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5); position: relative;">
+                    <div style="position: absolute; top: 50%; left: 50%; width: 2px; height: 18px; background: #ff3300; transform-origin: bottom center; transform: translate(-50%, -100%) rotate(45deg); animation: rpm-needle 4s ease-in-out infinite;"></div>
+                </div>
+            </div>
+            <!-- GAUGES ROW 2 - Secondary instruments -->
+            <div style="position: absolute; top: 58%; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; align-items: center;">
+                <div style="width: 30px; height: 30px; border-radius: 50%; background: #0a1520; border: 2px solid #2a3a4a; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5); position: relative;">
+                    <div style="position: absolute; top: 50%; left: 50%; width: 1px; height: 10px; background: #0f0; transform-origin: bottom center; transform: translate(-50%, -100%) rotate(20deg); animation: vsi-needle 5s ease-in-out infinite;"></div>
+                </div>
+                <div style="width: 36px; height: 28px; background: linear-gradient(135deg, #1a3a5a, #0a2040); border: 2px solid #2a4a6a; border-radius: 2px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);"></div>
+                <div style="width: 34px; height: 34px; border-radius: 50%; background: radial-gradient(circle, #f5f5f0, #d5d5d0); border: 2px solid #3a4a5a; box-shadow: inset 0 1px 3px rgba(0,0,0,0.3); position: relative;">
+                    <div style="position: absolute; top: 50%; left: 50%; width: 2px; height: 12px; background: #111; transform-origin: bottom center; transform: translate(-50%, -100%) rotate(-30deg); animation: speed-needle 8s ease-in-out infinite;"></div>
+                </div>
+                <div style="width: 36px; height: 28px; background: #0a1520; border: 2px solid #2a4a6a; border-radius: 2px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5); position: relative;">
+                    <div style="position: absolute; top: 6px; left: 5px; width: 2px; height: 2px; background: #3a8a5a; border-radius: 50%;"></div>
+                    <div style="position: absolute; top: 14px; left: 14px; width: 2px; height: 2px; background: #3a8a5a; border-radius: 50%;"></div>
+                </div>
+                <div style="width: 30px; height: 30px; border-radius: 50%; background: #0a1520; border: 2px solid #2a3a4a; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5); position: relative;">
+                    <div style="position: absolute; top: 50%; left: 50%; width: 10px; height: 2px; background: #ff0; transform: translate(-50%, -50%); animation: turn-needle 4s ease-in-out infinite;"></div>
+                </div>
+            </div>
+            <!-- CONTROLS ROW - Warning lights and switches -->
+            <div style="position: absolute; top: 75%; left: 50%; transform: translateX(-50%); display: flex; gap: 5px; align-items: center;">
+                <div style="width: 10px; height: 10px; border-radius: 50%; background: #550000; border: 2px solid #333; animation: blink-red 2s infinite;"></div>
+                <div style="width: 10px; height: 10px; border-radius: 50%; background: #554400; border: 2px solid #333; animation: blink-amber 3s infinite;"></div>
+                <div style="width: 6px; height: 14px; background: linear-gradient(180deg, #ddd, #888); border-radius: 2px;"></div>
+                <div style="width: 6px; height: 14px; background: linear-gradient(180deg, #f55, #a22); border-radius: 2px;"></div>
+                <div style="width: 11px; height: 11px; background: radial-gradient(circle, #333, #111); border: 2px solid #555; border-radius: 50%;"></div>
+                <div style="width: 6px; height: 14px; background: linear-gradient(180deg, #ddd, #888); border-radius: 2px;"></div>
+                <div style="width: 6px; height: 14px; background: linear-gradient(180deg, #55f, #22a); border-radius: 2px;"></div>
+                <div style="width: 10px; height: 10px; border-radius: 50%; background: #554400; border: 2px solid #333; animation: blink-amber 2.5s infinite;"></div>
+                <div style="width: 10px; height: 10px; border-radius: 50%; background: #550000; border: 2px solid #333; animation: blink-red 2.5s infinite;"></div>
+            </div>
+            <!-- BOTTOM ROW - Digital displays -->
+            <div style="position: absolute; bottom: 8%; left: 50%; transform: translateX(-50%); display: flex; gap: 5px; align-items: flex-end;">
+                <div style="width: 22px; height: 14px; background: #1a1a1a; border: 1px solid #333; color: #0f0; font-size: 5px; font-family: monospace; text-align: center; line-height: 14px;">ALT</div>
+                <div style="width: 5px; height: 12px; background: linear-gradient(180deg, #ddd, #666); border-radius: 1px;"></div>
+                <div style="width: 5px; height: 12px; background: linear-gradient(180deg, #ddd, #666); border-radius: 1px;"></div>
+                <div style="width: 22px; height: 14px; background: #1a1a1a; border: 1px solid #333; color: #f80; font-size: 5px; font-family: monospace; text-align: center; line-height: 14px;">FUEL</div>
+                <div style="width: 5px; height: 12px; background: linear-gradient(180deg, #ddd, #666); border-radius: 1px;"></div>
+                <div style="width: 5px; height: 12px; background: linear-gradient(180deg, #ddd, #666); border-radius: 1px;"></div>
+                <div style="width: 22px; height: 14px; background: #1a1a1a; border: 1px solid #333; color: #0ff; font-size: 5px; font-family: monospace; text-align: center; line-height: 14px;">SPD</div>
+            </div>
         `;
-        c.appendChild(propFrame);
-        // PROPELLER - positioned at top of frame
+        c.appendChild(panel);
+        // PROPELLER - attached to panel's prop mount
         const propeller = document.createElement('div');
         propeller.id = 'flight-prop';
         propeller.style.cssText = `
             position: absolute;
-            bottom: calc(48% + 150px);
+            bottom: calc(52% - 30px);
             left: 50%;
             transform: translateX(-50%);
-            width: 500px;
-            height: 500px;
-            z-index: 25;
+            width: 400px;
+            height: 400px;
+            z-index: 59;
         `;
         propeller.innerHTML = `
-            <svg viewBox="0 0 500 500" style="width: 100%; height: 100%;">
+            <svg viewBox="0 0 400 400" style="width: 100%; height: 100%;">
                 <defs>
                     <linearGradient id="propBladeGrad" x1="0%" y1="50%" x2="100%" y2="50%">
                         <stop offset="0%" style="stop-color:#1a1a1a"/>
@@ -3977,97 +4085,16 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                         <stop offset="100%" style="stop-color:#1a1a1a"/>
                     </linearGradient>
                 </defs>
-                <ellipse cx="250" cy="250" rx="240" ry="24" fill="url(#propBladeGrad)"/>
-                <circle cx="250" cy="250" r="35" fill="#444"/>
-                <circle cx="250" cy="250" r="22" fill="#666"/>
+                <ellipse cx="200" cy="200" rx="190" ry="20" fill="url(#propBladeGrad)"/>
             </svg>
         `;
         c.appendChild(propeller);
-        const panel = document.createElement('div');
-        panel.style.cssText = `
-            position: absolute;
-            bottom: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 90%;
-            height: 48%;
-            z-index: 60;
-        `;
-        panel.innerHTML = `
-            <svg style="position: absolute; inset: 0; width: 100%; height: 100%;" viewBox="0 0 200 110" preserveAspectRatio="none">
-                <defs>
-                    <linearGradient id="panelGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" style="stop-color:#6a7a8a"/>
-                        <stop offset="50%" style="stop-color:#5a6a7a"/>
-                        <stop offset="100%" style="stop-color:#4a5a6a"/>
-                    </linearGradient>
-                </defs>
-                <path d="M5,110 L5,50 Q100,18 195,50 L195,110 Z" fill="url(#panelGrad)" stroke="#3a4a5a" stroke-width="1"/>
-            </svg>
-            <!-- TOP ROW - Main flight instruments -->
-            <div style="position: absolute; top: 18%; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; align-items: center;">
-                <div style="width: 55px; height: 55px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #1a2a3a, #0a1520); border: 3px solid #2a3a4a; position: relative;">
-                    <div style="position: absolute; top: 50%; left: 50%; width: 2px; height: 20px; background: white; transform-origin: bottom center; transform: translate(-50%, -100%); animation: compass-spin 25s linear infinite;"></div>
-                </div>
-                <!-- Attitude Indicator - syncs with horizon -->
-                <div id="flight-attitude" style="width: 65px; height: 65px; border-radius: 50%; border: 3px solid #2a3a4a; position: relative; overflow: hidden;">
-                    <div id="attitude-horizon" style="position: absolute; inset: -20px; background: linear-gradient(180deg, #1a6aaa 0%, #1a6aaa 50%, #8a6a3a 50%, #8a6a3a 100%); transition: transform 0.3s ease-out;">
-                        <div style="position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: white;"></div>
-                    </div>
-                    <div style="position: absolute; top: 50%; left: 50%; width: 30px; height: 4px; background: #ff8800; transform: translate(-50%, -50%); border-radius: 2px; z-index: 2;"></div>
-                    <div style="position: absolute; top: 50%; left: 50%; width: 6px; height: 6px; background: #ff8800; border-radius: 50%; transform: translate(-50%, -50%); z-index: 2;"></div>
-                </div>
-                <div style="width: 55px; height: 55px; border-radius: 50%; background: radial-gradient(circle at 40% 40%, #4a3a1a, #2a2010); border: 3px solid #5a4a2a; position: relative;">
-                    <div style="position: absolute; top: 50%; left: 50%; width: 2px; height: 20px; background: #ff3300; transform-origin: bottom center; transform: translate(-50%, -100%) rotate(45deg); animation: rpm-needle 4s ease-in-out infinite;"></div>
-                </div>
-            </div>
-            <!-- SECOND ROW - Secondary instruments -->
-            <div style="position: absolute; top: 44%; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; align-items: center;">
-                <div style="width: 32px; height: 32px; border-radius: 50%; background: #0a1520; border: 2px solid #2a3a4a; position: relative;">
-                    <div style="position: absolute; top: 50%; left: 50%; width: 1px; height: 11px; background: #0f0; transform-origin: bottom center; transform: translate(-50%, -100%) rotate(20deg); animation: vsi-needle 5s ease-in-out infinite;"></div>
-                </div>
-                <div style="width: 40px; height: 32px; background: linear-gradient(135deg, #1a3a5a, #0a2040); border: 2px solid #2a4a6a; border-radius: 2px;"></div>
-                <div style="width: 38px; height: 38px; border-radius: 50%; background: radial-gradient(circle, #f5f5f0, #d5d5d0); border: 2px solid #3a4a5a; position: relative;">
-                    <div style="position: absolute; top: 50%; left: 50%; width: 2px; height: 14px; background: #111; transform-origin: bottom center; transform: translate(-50%, -100%) rotate(-30deg); animation: speed-needle 8s ease-in-out infinite;"></div>
-                </div>
-                <div style="width: 40px; height: 32px; background: #0a1520; border: 2px solid #2a4a6a; border-radius: 2px; position: relative;">
-                    <div style="position: absolute; top: 8px; left: 6px; width: 2px; height: 2px; background: #3a8a5a; border-radius: 50%;"></div>
-                    <div style="position: absolute; top: 16px; left: 16px; width: 2px; height: 2px; background: #3a8a5a; border-radius: 50%;"></div>
-                </div>
-                <div style="width: 32px; height: 32px; border-radius: 50%; background: #0a1520; border: 2px solid #2a3a4a; position: relative;">
-                    <div style="position: absolute; top: 50%; left: 50%; width: 11px; height: 2px; background: #ff0; transform: translate(-50%, -50%); animation: turn-needle 4s ease-in-out infinite;"></div>
-                </div>
-            </div>
-            <!-- THIRD ROW - Warning lights and switches -->
-            <div style="position: absolute; top: 66%; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; align-items: center;">
-                <div style="width: 11px; height: 11px; border-radius: 50%; background: #550000; border: 2px solid #333; animation: blink-red 2s infinite;"></div>
-                <div style="width: 11px; height: 11px; border-radius: 50%; background: #554400; border: 2px solid #333; animation: blink-amber 3s infinite;"></div>
-                <div style="width: 7px; height: 15px; background: linear-gradient(180deg, #ddd, #888); border-radius: 2px;"></div>
-                <div style="width: 7px; height: 15px; background: linear-gradient(180deg, #f55, #a22); border-radius: 2px;"></div>
-                <div style="width: 13px; height: 13px; background: radial-gradient(circle, #333, #111); border: 2px solid #555; border-radius: 50%;"></div>
-                <div style="width: 7px; height: 15px; background: linear-gradient(180deg, #ddd, #888); border-radius: 2px;"></div>
-                <div style="width: 7px; height: 15px; background: linear-gradient(180deg, #55f, #22a); border-radius: 2px;"></div>
-                <div style="width: 11px; height: 11px; border-radius: 50%; background: #554400; border: 2px solid #333; animation: blink-amber 2.5s infinite;"></div>
-                <div style="width: 11px; height: 11px; border-radius: 50%; background: #550000; border: 2px solid #333; animation: blink-red 2.5s infinite;"></div>
-            </div>
-            <!-- BOTTOM ROW - Displays and more switches -->
-            <div style="position: absolute; bottom: 8%; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; align-items: flex-end;">
-                <div style="width: 24px; height: 16px; background: #1a1a1a; border: 1px solid #333; color: #0f0; font-size: 5px; font-family: monospace; text-align: center; line-height: 16px;">ALT</div>
-                <div style="width: 6px; height: 13px; background: linear-gradient(180deg, #ddd, #666); border-radius: 1px;"></div>
-                <div style="width: 6px; height: 13px; background: linear-gradient(180deg, #ddd, #666); border-radius: 1px;"></div>
-                <div style="width: 24px; height: 16px; background: #1a1a1a; border: 1px solid #333; color: #f80; font-size: 5px; font-family: monospace; text-align: center; line-height: 16px;">FUEL</div>
-                <div style="width: 6px; height: 13px; background: linear-gradient(180deg, #ddd, #666); border-radius: 1px;"></div>
-                <div style="width: 6px; height: 13px; background: linear-gradient(180deg, #ddd, #666); border-radius: 1px;"></div>
-                <div style="width: 24px; height: 16px; background: #1a1a1a; border: 1px solid #333; color: #0ff; font-size: 5px; font-family: monospace; text-align: center; line-height: 16px;">SPD</div>
-            </div>
-        `;
-        c.appendChild(panel);
         // YOKE
         const yoke = document.createElement('div');
         yoke.style.cssText = `position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); z-index: 65;`;
         yoke.innerHTML = `
-            <div style="width: 18px; height: 65px; background: linear-gradient(90deg, #3a4a5a, #5a6a7a, #3a4a5a); border-radius: 4px;"></div>
-            <div style="position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%); width: 55px; height: 10px; background: linear-gradient(180deg, #4a5a6a, #3a4a5a); border-radius: 5px;"></div>
+            <div style="width: 16px; height: 55px; background: linear-gradient(90deg, #3a4a5a, #5a6a7a, #3a4a5a); border-radius: 4px;"></div>
+            <div style="position: absolute; bottom: 42px; left: 50%; transform: translateX(-50%); width: 50px; height: 9px; background: linear-gradient(180deg, #4a5a6a, #3a4a5a); border-radius: 4px;"></div>
         `;
         c.appendChild(yoke);
         const oldStyle = document.getElementById('flight-style');
