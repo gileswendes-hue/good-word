@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.3.18',
+    APP_VERSION: '6.3.19',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -4844,7 +4844,6 @@ openProfile() {
         if (DOM.profile.streak) {
             DOM.profile.streak.textContent = d.daily.streak || 0;
             DOM.profile.streak.style.cursor = 'pointer';
-            DOM.profile.streak.style.textDecoration = 'underline';
             DOM.profile.streak.title = "View Daily Leaderboard";
             DOM.profile.streak.onclick = () => {
                 ModalManager.toggle('profile', false);
@@ -4865,7 +4864,6 @@ openProfile() {
         if (DOM.profile.totalVotes) {
             DOM.profile.totalVotes.textContent = d.voteCount.toLocaleString();
             DOM.profile.totalVotes.style.cursor = 'pointer';
-            DOM.profile.totalVotes.style.textDecoration = 'underline';
             DOM.profile.totalVotes.onclick = () => {
                 ModalManager.toggle('profile', false);
                 const statsBtn = document.getElementById('headerStatsCard');
@@ -4898,7 +4896,14 @@ openProfile() {
         }
         const totalAvailable = Object.keys(CONFIG.THEME_SECRETS).length + 1;
         const userCount = d.unlockedThemes.length + 1;
-        if (DOM.profile.themes) DOM.profile.themes.textContent = `${userCount} / ${totalAvailable}`;
+        if (DOM.profile.themes) {
+            DOM.profile.themes.textContent = `${userCount} / ${totalAvailable}`;
+            DOM.profile.themes.style.cursor = 'pointer';
+            DOM.profile.themes.onclick = () => {
+                ModalManager.toggle('profile', false);
+                ThemeManager.showGallery();
+            };
+        }
         const row1 = [
             { k: 'cake', i: '🎂', w: 'CAKE' }, { k: 'llama', i: '🦙', w: 'LLAMA' },
             { k: 'potato', i: '🥔', w: 'POTATO' }, { k: 'squirrel', i: '🐿️', w: 'SQUIRREL' },
