@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.98',
+    APP_VERSION: '6.2.99',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -3741,22 +3741,32 @@ flight(active) {
             return { cont, p1, p2 };
         };
 
-        // LAYER 1: BACK MOUNTAINS (Grey, Tallest)
-        // Peaks reduced (y=40 instead of y=10) for less extreme height
+        // LAYER 1: BACK MOUNTAINS (Grey, Pointy)
+        // Calculated Points: Peak (200, 20), Left Base (0,100), Right Base (400,100)
+        // Slope = 80y / 200x = 0.4. Snow at y=40 (20px drop) -> x offset = 20/0.4 = 50.
+        // Left Snow Pt: 200-50=150. Right Snow Pt: 200+50=250.
         const svgBack = `
         <svg viewBox="0 0 1200 100" preserveAspectRatio="none" style="width:100%; height:100%;">
-            <path d="M0,100 L0,70 L200,40 L400,80 L600,35 L800,75 L1000,40 L1200,70 L1200,100 Z" fill="#546e7a"/>
-            <path d="M200,40 L180,55 L220,55 Z  M600,35 L580,50 L620,50 Z  M1000,40 L980,55 L1020,55 Z" fill="white" opacity="0.9"/>
+            <path d="M0,100 L200,20 L400,100 L500,100 L700,30 L900,100 L1000,100 L1100,40 L1200,100 Z" fill="#546e7a"/>
+            
+            <path d="M200,20 L150,40 L250,40 Z" fill="white" opacity="0.9"/>
+            
+            <path d="M700,30 L650,50 L750,50 Z" fill="white" opacity="0.9"/>
+            
+            <path d="M1100,40 L1070,60 L1130,60 Z" fill="white" opacity="0.9"/>
         </svg>`;
-        const mtnBack = createMountainLayer(svgBack, 40, 20, 1, 1.0);
+        const mtnBack = createMountainLayer(svgBack, 38, 22, 1, 1.0);
         worldContainer.appendChild(mtnBack.cont);
 
-        // LAYER 2: FRONT MOUNTAINS (Brown, Shorter, Closer)
-        // New layer to create 3D effect. Peaks slightly lower than back layer.
+        // LAYER 2: FRONT MOUNTAINS (Brown, Lower)
+        // Offset peaks to create 3D parallax effect
         const svgFront = `
         <svg viewBox="0 0 1200 100" preserveAspectRatio="none" style="width:100%; height:100%;">
-            <path d="M0,100 L0,90 L300,50 L500,90 L800,55 L1100,90 L1200,100 Z" fill="#5d4037"/>
-            <path d="M300,50 L285,65 L315,65 Z  M800,55 L785,70 L815,70 Z" fill="white" opacity="0.9"/>
+            <path d="M0,100 L0,100 L100,100 L300,40 L500,100 L800,100 L1000,50 L1200,100 Z" fill="#5d4037"/>
+            
+            <path d="M300,40 L260,55 L340,55 Z" fill="white" opacity="0.8"/>
+            
+            <path d="M1000,50 L970,65 L1030,65 Z" fill="white" opacity="0.8"/>
         </svg>`;
         const mtnFront = createMountainLayer(svgFront, 50, 15, 2, 1.0);
         worldContainer.appendChild(mtnFront.cont);
@@ -3771,6 +3781,7 @@ flight(active) {
         const grid = document.createElement('div');
         grid.style.cssText = `
             position: absolute; inset: -100%;
+            /* Vertical streaks for speed - creates movement TOWARDS player */
             background-image: 
                 repeating-linear-gradient(90deg, rgba(255,255,255,0.1) 0px, rgba(255,255,255,0.1) 2px, transparent 2px, transparent 100px),
                 repeating-linear-gradient(0deg, rgba(255,255,255,0.2) 0px, rgba(255,255,255,0.2) 1px, transparent 1px, transparent 50px);
@@ -3778,12 +3789,6 @@ flight(active) {
             transform: rotateX(80deg);
         `;
         ground.appendChild(grid);
-        
-        // GROUND OBJECTS
-        const groundObjContainer = document.createElement('div');
-        groundObjContainer.style.cssText = `position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; perspective: 500px; transform-style: preserve-3d;`;
-        ground.appendChild(groundObjContainer);
-        
         worldContainer.appendChild(ground);
         c.appendChild(worldContainer);
 
@@ -3824,7 +3829,7 @@ flight(active) {
         c.appendChild(prop);
 
         // =========================================
-        // LAYER 5: COCKPIT
+        // LAYER 5: COCKPIT DASHBOARD
         // =========================================
         const cockpit = document.createElement('div');
         cockpit.style.cssText = `position: absolute; inset: 0; pointer-events: none; z-index: 20;`;
@@ -3839,17 +3844,24 @@ flight(active) {
         `;
         cockpit.appendChild(dash);
         
-        // INSTRUMENTS CONTAINER
-        const gauges = document.createElement('div');
-        gauges.style.cssText = `
-            position: absolute; 
-            bottom: 0; left: 0; width: 100%; height: 40%; /* Matches dashboard height */
-            z-index: 22;
+        // --- DASHBOARD LAYOUT (Flexbox Grid) ---
+        const panelContainer = document.createElement('div');
+        panelContainer.style.cssText = `
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 40%; 
+            display: flex; flex-direction: column; z-index: 22;
         `;
+
+        // ROW 1: Horizon (Top Center)
+        const rowTop = document.createElement('div');
+        rowTop.style.cssText = `flex: 1; display: flex; justify-content: center; align-items: center; padding-top: 10px;`;
         
+        // ROW 2: SPD - LOGO - ALT
+        const rowBot = document.createElement('div');
+        rowBot.style.cssText = `flex: 1; display: flex; justify-content: center; align-items: flex-end; gap: 40px; padding-bottom: 30px;`;
+
         const createGauge = (label, color, type) => {
             const g = document.createElement('div');
-            g.style.cssText = `width: 90px; height: 90px; border-radius: 50%; background: #111; border: 4px solid #546e7a; position: absolute; box-shadow: inset 0 0 10px #000; overflow: hidden;`;
+            g.style.cssText = `width: 90px; height: 90px; border-radius: 50%; background: #111; border: 4px solid #546e7a; position: relative; box-shadow: inset 0 0 10px #000; overflow: hidden; flex-shrink: 0;`;
             if (type === 'horizon') {
                 g.innerHTML = `
                     <div id="gauge-horizon-ball" style="position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: linear-gradient(180deg, #29b6f6 50%, #5d4037 50%); transform: rotate(0deg);"></div>
@@ -3867,39 +3879,28 @@ flight(active) {
             return g;
         };
 
-        // 1. HORIZON (Top Center) - Raised to 45% from bottom of container
+        // 1. Horizon (Top)
         const att = createGauge("ATT", "", "horizon");
-        att.style.bottom = "55%"; 
-        att.style.left = "50%";
-        att.style.transform = "translateX(-50%)";
-        gauges.appendChild(att);
+        rowTop.appendChild(att);
 
-        // 2. SPEED (Bottom Left) - Raised to 25%
+        // 2. SPD (Bottom Left)
         const spd = createGauge("SPD", "#ffea00", "std");
-        spd.style.bottom = "25%";
-        spd.style.left = "25%";
-        gauges.appendChild(spd);
-
-        // 3. ALTITUDE (Bottom Right) - Raised to 25%
-        const alt = createGauge("ALT", "#ff1744", "std");
-        alt.style.bottom = "25%";
-        alt.style.right = "25%";
-        gauges.appendChild(alt);
-
-        cockpit.appendChild(gauges);
-
-        // LOGO: MOVED UP (Under instruments, but visible)
+        
+        // 3. LOGO (Bottom Center)
         const logo = document.createElement('div');
-        logo.style.cssText = `
-            position: absolute;
-            bottom: 20px; /* Sits at the bottom of the panel */
-            left: 50%; transform: translateX(-50%);
-            width: 40%; height: 50px;
-            display: flex; align-items: flex-end; justify-content: center;
-            z-index: 21; pointer-events: none;
-        `;
-        logo.innerHTML = `<img src="crying.PNG" alt="Logo" style="max-width: 100%; max-height: 100%; object-fit: contain; opacity: 0.6;" onerror="this.style.display='none'"/>`;
-        cockpit.appendChild(logo);
+        logo.style.cssText = `width: 100px; height: 80px; display: flex; align-items: center; justify-content: center;`;
+        logo.innerHTML = `<img src="crying.PNG" alt="Logo" style="max-width: 100%; max-height: 100%; object-fit: contain; opacity: 0.8;" onerror="this.style.display='none'"/>`;
+
+        // 4. ALT (Bottom Right)
+        const alt = createGauge("ALT", "#ff1744", "std");
+
+        rowBot.appendChild(spd);
+        rowBot.appendChild(logo);
+        rowBot.appendChild(alt);
+
+        panelContainer.appendChild(rowTop);
+        panelContainer.appendChild(rowBot);
+        cockpit.appendChild(panelContainer);
 
         // WIPER INDICATOR
         const lightBox = document.createElement('div');
@@ -3942,8 +3943,11 @@ flight(active) {
                 @keyframes flight-drop-appear { 0% { opacity: 0; transform: scale(0.5); } 100% { opacity: 1; transform: scale(1); } }
                 @keyframes flight-drop-streak-right { 0% { opacity: 1; transform: scaleX(1) translateX(0); } 100% { opacity: 0; transform: scaleX(4) translateX(30px); } }
                 @keyframes flight-drop-streak-left { 0% { opacity: 1; transform: scaleX(1) translateX(0); } 100% { opacity: 0; transform: scaleX(4) translateX(-30px); } }
-                @keyframes fly-approach { 0% { transform: translate(-50%, -50%) scale(0.01); opacity: 0; } 10% { opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)) scale(6); opacity: 1; } }
-                @keyframes ground-obj-pass { 0% { transform: translate(-50%, 0) scale(0.1); opacity: 0; bottom: 100%; } 20% { opacity: 1; } 100% { transform: translate(-50%, 0) scale(4); opacity: 1; bottom: -50px; } }
+                @keyframes fly-approach { 
+                    0% { transform: translate(-50%, -50%) scale(0.01); opacity: 0; } 
+                    10% { opacity: 1; } 
+                    100% { transform: translate(var(--dx), var(--dy)) scale(6); opacity: 1; } 
+                }
             `;
             document.head.appendChild(s);
         }
@@ -3951,38 +3955,39 @@ flight(active) {
         const horizonBall = document.getElementById('gauge-horizon-ball');
         let flightTime = 0;
         let headingOffset = 0;
-        let altitude = 1000; // Simulated altitude
+        let altitude = 1000;
 
         // --- LOGIC LOOP ---
         const logicLoop = () => {
             if(!document.body.contains(c)) return;
             flightTime += 0.005;
             
-            // Banking (Side to side)
             const bankCycle = flightTime * 0.15;
             let bank = 0;
             const cyclePos = bankCycle % 1;
+            
             if (cyclePos < 0.2) bank = 0;
-            else if (cyclePos < 0.4) bank = -Math.sin(((cyclePos - 0.2) / 0.2) * Math.PI) * 6;
-            else if (cyclePos < 0.6) bank = 0;
-            else if (cyclePos < 0.8) bank = Math.sin(((cyclePos - 0.6) / 0.2) * Math.PI) * 6;
+            else if (cyclePos < 0.4) {
+                const t = (cyclePos - 0.2) / 0.2; 
+                bank = -Math.sin(t * Math.PI) * 6;
+            } else if (cyclePos < 0.6) bank = 0;
+            else if (cyclePos < 0.8) {
+                const t = (cyclePos - 0.6) / 0.2; 
+                bank = Math.sin(t * Math.PI) * 6;
+            } else bank = 0;
             
-            // Pitch (Nose Up/Down) - Now controls Altitude
-            const pitch = Math.sin(flightTime * 0.3) * 2; // +/- 2 degrees
-            
-            // Altitude Logic: Pitch up = climb, Pitch down = descend
-            altitude += pitch; 
-            if(altitude < 0) altitude = 0;
-            if(altitude > 2000) altitude = 2000;
-
+            const pitch = Math.sin(flightTime * 0.3) * 1.5;
             if (Math.abs(bank) > 0.5) headingOffset += bank * 0.02;
-
-            worldContainer.style.transform = `rotate(${bank}deg) translateY(${pitch * 2}%)`;
             
-            // Speed up ground
+            altitude += pitch;
+            if (altitude < 0) altitude = 0;
+            if (altitude > 2000) altitude = 2000;
+
+            worldContainer.style.transform = `rotate(${bank}deg) translateY(${pitch}%)`;
+            
+            // Move ground 'towards' player (positive Y)
             grid.style.backgroundPositionY = `${flightTime * 1200}px`;
 
-            // Parallax Mountains
             const farScroll = (headingOffset * -10) % 2000; 
             mtnBack.p1.style.transform = `translateX(${farScroll}px)`;
             mtnBack.p2.style.transform = `translateX(${farScroll + 2000}px)`; 
@@ -3991,7 +3996,6 @@ flight(active) {
             mtnFront.p1.style.transform = `translateX(${nearScroll}px)`;
             mtnFront.p2.style.transform = `translateX(${nearScroll + 2000}px)`;
 
-            // Clouds drift
             Array.from(distantSky.children).forEach(cloud => {
                 let pos = parseFloat(cloud.dataset.pos);
                 pos += parseFloat(cloud.dataset.speed);
@@ -4000,12 +4004,9 @@ flight(active) {
                 cloud.style.left = pos + '%';
             });
 
-            // Update Gauges
-            if (horizonBall) horizonBall.style.transform = `rotate(${-bank}deg) translateY(${pitch * 4}px)`; 
+            if (horizonBall) horizonBall.style.transform = `rotate(${-bank}deg) translateY(${pitch * 2}px)`; 
             if (spd.needle) spd.needle.style.transform = `rotate(${-45 + Math.random() * 2}deg)`;
             
-            // ALT needle responds to simulated altitude
-            // Map 0-2000ft to angle -135 to +135 (270 deg range)
             const altAngle = -135 + (altitude / 2000 * 270);
             if (alt.needle) alt.needle.style.transform = `rotate(${altAngle}deg)`;
 
@@ -4019,6 +4020,8 @@ flight(active) {
             const el = document.createElement('div');
             const isCloud = Math.random() > 0.4;
             const skyEmojis = ['🦅', '🦆', '✈️', '🛸', '🎈'];
+            
+            // Random destination
             const destX = (Math.random() - 0.5) * 200 + "vw";
             const destY = (Math.random() - 0.2) * 100 + "vh";
 
@@ -4044,24 +4047,6 @@ flight(active) {
             setTimeout(() => el.remove(), 6000);
         };
         this.objectSpawnInterval = setInterval(spawnObject, 3000);
-
-        // --- SPAWN GROUND OBJECTS ---
-        const spawnGroundObject = () => {
-            if(!document.body.contains(c)) return;
-            const el = document.createElement('div');
-            const types = ['🌲', '🌲', '🪨', '🌳'];
-            const type = types[Math.floor(Math.random() * types.length)];
-            const leftPos = Math.random() * 100;
-            el.innerHTML = type;
-            el.style.cssText = `
-                position: absolute; left: ${leftPos}%;
-                font-size: 20px; transform-origin: center bottom;
-                animation: ground-obj-pass 2s ease-in forwards;
-            `;
-            groundObjContainer.appendChild(el);
-            setTimeout(() => el.remove(), 2000);
-        };
-        this.groundSpawnInterval = setInterval(spawnGroundObject, 300);
 
         // --- RAIN & WIPER ---
         let wiperAngle = -50;
