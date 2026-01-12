@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.95',
+    APP_VERSION: '6.2.96',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -3709,6 +3709,23 @@ flight(active) {
         `;
         worldContainer.appendChild(sun);
 
+        // DISTANT CLOUDS
+        const distantSky = document.createElement('div');
+        distantSky.style.cssText = `position: absolute; top: 0; left: 0; width: 100%; height: 50%; overflow: hidden;`;
+        for(let i=0; i<6; i++) {
+            const cloud = document.createElement('div');
+            cloud.innerText = Math.random() > 0.5 ? '☁️' : '🌥️';
+            cloud.style.cssText = `
+                position: absolute; top: ${38 + Math.random() * 8}%; left: ${Math.random() * 100}%;
+                font-size: ${20 + Math.random() * 30}px; opacity: 0.6;
+                filter: blur(1px); transition: left 1s linear;
+            `;
+            cloud.dataset.speed = 0.01 + Math.random() * 0.02;
+            cloud.dataset.pos = parseFloat(cloud.style.left);
+            distantSky.appendChild(cloud);
+        }
+        worldContainer.appendChild(distantSky);
+
         // --- HELPER: Seamless Mountain Layer ---
         const createMountainLayer = (svg, top, height, z, opacity) => {
             const cont = document.createElement('div');
@@ -3724,27 +3741,31 @@ flight(active) {
             return { cont, p1, p2 };
         };
 
-        // LAYER 1: BACK MOUNTAINS (Grey)
-        // I have matched the peak coordinates exactly for the snow.
+        // LAYER 1: BACK MOUNTAINS (Grey, High)
+        // I redesigned these paths so the snow "cap" polygon shares the EXACT same side slopes as the mountain base.
         const svgBack = `
         <svg viewBox="0 0 1200 100" preserveAspectRatio="none" style="width:100%; height:100%;">
-            <path d="M0,100 L0,70 L150,10 L300,70 L450,5 L600,65 L750,15 L900,70 L1050,10 L1200,60 L1200,100 Z" fill="#546e7a"/>
-            <path d="M150,10 L135,30 L165,30 Z  M450,5 L435,25 L465,25 Z  M750,15 L735,35 L765,35 Z  M1050,10 L1035,30 L1065,30 Z" fill="white" opacity="0.9"/>
+            <path d="M0,100 L0,60 L200,10 L400,70 L600,15 L800,60 L1000,10 L1200,70 L1200,100 Z" fill="#546e7a"/>
+            
+            <path d="M200,10 L180,25 L190,30 L200,25 L210,30 L220,25 L200,10 Z" fill="white" opacity="0.9"/>
+            <path d="M600,15 L580,30 L590,35 L600,30 L610,35 L620,30 L600,15 Z" fill="white" opacity="0.9"/>
+            <path d="M1000,10 L980,25 L990,30 L1000,25 L1010,30 L1020,25 L1000,10 Z" fill="white" opacity="0.9"/>
         </svg>`;
         const mtnBack = createMountainLayer(svgBack, 40, 20, 1, 1.0);
         worldContainer.appendChild(mtnBack.cont);
 
-        // LAYER 2: FRONT MOUNTAINS (Brown)
-        // Made these MUCH taller (peaks at y=30) and snow fits the tips.
+        // LAYER 2: FRONT MOUNTAINS (Brown, Lower)
         const svgFront = `
         <svg viewBox="0 0 1200 100" preserveAspectRatio="none" style="width:100%; height:100%;">
-            <path d="M0,100 L0,80 L200,30 L400,80 L600,20 L800,75 L1000,25 L1200,80 L1200,100 Z" fill="#5d4037"/>
-            <path d="M200,30 L185,50 L215,50 Z  M600,20 L585,40 L615,40 Z  M1000,25 L985,45 L1015,45 Z" fill="white" opacity="0.9"/>
+            <path d="M0,100 L0,80 L300,30 L500,80 L800,40 L1100,85 L1200,70 L1200,100 Z" fill="#5d4037"/>
+            
+            <path d="M300,30 L285,45 L295,50 L300,45 L305,50 L315,45 L300,30 Z" fill="white" opacity="0.9"/>
+            <path d="M800,40 L785,55 L795,60 L800,55 L805,60 L815,55 L800,40 Z" fill="white" opacity="0.9"/>
         </svg>`;
         const mtnFront = createMountainLayer(svgFront, 52, 15, 2, 1.0);
         worldContainer.appendChild(mtnFront.cont);
 
-        // GROUND (Moving)
+        // GROUND (Moving Texture + Objects)
         const ground = document.createElement('div');
         ground.style.cssText = `
             position: absolute; top: 56%; left: -50%; width: 200%; height: 100%;
@@ -3761,9 +3782,8 @@ flight(active) {
             transform: rotateX(80deg);
         `;
         ground.appendChild(grid);
-        worldContainer.appendChild(ground);
         
-        // GROUND OBJECTS (Trees/Rocks)
+        // GROUND OBJECTS (Zooming past)
         const groundObjContainer = document.createElement('div');
         groundObjContainer.style.cssText = `position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; perspective: 500px; transform-style: preserve-3d;`;
         ground.appendChild(groundObjContainer);
@@ -3813,7 +3833,6 @@ flight(active) {
         const cockpit = document.createElement('div');
         cockpit.style.cssText = `position: absolute; inset: 0; pointer-events: none; z-index: 20;`;
 
-        // Dashboard
         const dash = document.createElement('div');
         dash.style.cssText = `position: absolute; bottom: 0; left: 0; width: 100%; height: 40%;`;
         dash.innerHTML = `
@@ -3824,10 +3843,9 @@ flight(active) {
         `;
         cockpit.appendChild(dash);
         
-        // GAUGES: Moved DOWN/IN so they are ON the panel, not hovering
-        // bottom: 15% puts them solidly in the grey area.
+        // GAUGES: Moved UP (bottom: 35%)
         const gauges = document.createElement('div');
-        gauges.style.cssText = `position: absolute; bottom: 15%; left: 0; right: 0; height: 140px; display: flex; justify-content: center; align-items: center; gap: 40px; z-index: 22;`;
+        gauges.style.cssText = `position: absolute; bottom: 35%; left: 0; right: 0; height: 140px; display: flex; justify-content: center; align-items: center; gap: 40px; z-index: 22;`;
         
         const createGauge = (label, color, type) => {
             const g = document.createElement('div');
@@ -3857,11 +3875,11 @@ flight(active) {
         gauges.appendChild(alt);
         cockpit.appendChild(gauges);
 
-        // LOGO: MOVED UNDER INSTRUMENTS
+        // LOGO: Moved UP, but below gauges (bottom: 22%)
         const logo = document.createElement('div');
         logo.style.cssText = `
             position: absolute;
-            bottom: 15px; /* Way down */
+            bottom: 22%; /* Sits nicely under the instruments which are at 35% */
             left: 50%; transform: translateX(-50%);
             width: 60%;
             height: 60px;
@@ -3945,8 +3963,6 @@ flight(active) {
             if (Math.abs(bank) > 0.5) headingOffset += bank * 0.02;
 
             worldContainer.style.transform = `rotate(${bank}deg) translateY(${pitch}%)`;
-            
-            // Speed up ground
             grid.style.backgroundPositionY = `${flightTime * 800}px`;
 
             const farScroll = (headingOffset * -10) % 2000; 
@@ -3956,6 +3972,14 @@ flight(active) {
             const nearScroll = (headingOffset * -20) % 2000;
             mtnFront.p1.style.transform = `translateX(${nearScroll}px)`;
             mtnFront.p2.style.transform = `translateX(${nearScroll + 2000}px)`;
+
+            Array.from(distantSky.children).forEach(cloud => {
+                let pos = parseFloat(cloud.dataset.pos);
+                pos += parseFloat(cloud.dataset.speed);
+                if(pos > 110) pos = -10;
+                cloud.dataset.pos = pos;
+                cloud.style.left = pos + '%';
+            });
 
             if (horizonBall) horizonBall.style.transform = `rotate(${-bank}deg) translateY(${pitch * 2}px)`; 
             if (spd.needle) spd.needle.style.transform = `rotate(${-45 + Math.random() * 2}deg)`;
@@ -3997,14 +4021,13 @@ flight(active) {
         };
         this.objectSpawnInterval = setInterval(spawnObject, 3000);
 
-        // --- SPAWN GROUND OBJECTS (SPEED) ---
+        // --- SPAWN GROUND OBJECTS ---
         const spawnGroundObject = () => {
             if(!document.body.contains(c)) return;
             const el = document.createElement('div');
             const types = ['🌲', '🌲', '🪨', '🌳'];
             const type = types[Math.floor(Math.random() * types.length)];
             const leftPos = Math.random() * 100;
-            
             el.innerHTML = type;
             el.style.cssText = `
                 position: absolute; left: ${leftPos}%;
