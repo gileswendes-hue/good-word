@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.94',
+    APP_VERSION: '6.2.95',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -3645,7 +3645,7 @@ flight(active) {
         if (this.flightTimeout) clearTimeout(this.flightTimeout);
         if (this.bankInterval) clearInterval(this.bankInterval);
         if (this.objectSpawnInterval) clearInterval(this.objectSpawnInterval);
-        if (this.groundSpawnInterval) clearInterval(this.groundSpawnInterval); // New timer
+        if (this.groundSpawnInterval) clearInterval(this.groundSpawnInterval);
         if (this.wiperInterval) clearInterval(this.wiperInterval);
         this.flightObjects.forEach(obj => obj.remove());
         this.flightObjects = [];
@@ -3724,34 +3724,27 @@ flight(active) {
             return { cont, p1, p2 };
         };
 
-        // LAYER 1: BACK MOUNTAINS (Grey, Pointy, PERFECT Snowcaps)
-        // I rebuilt this path point-by-point to ensure the snow (white path) 
-        // strictly follows the mountain (grey path) slopes.
+        // LAYER 1: BACK MOUNTAINS (Grey)
+        // I have matched the peak coordinates exactly for the snow.
         const svgBack = `
         <svg viewBox="0 0 1200 100" preserveAspectRatio="none" style="width:100%; height:100%;">
-            <path d="M0,100 L0,60 L150,10 L300,70 L450,5 L600,65 L750,15 L900,70 L1050,10 L1200,60 L1200,100 Z" fill="#546e7a"/>
-            
-            <path d="M150,10 L130,22 L140,25 L150,20 L160,25 L170,22 Z" fill="white" opacity="0.9"/>
-            <path d="M450,5 L430,18 L440,22 L450,15 L460,22 L470,18 Z" fill="white" opacity="0.9"/>
-            <path d="M750,15 L730,27 L740,30 L750,25 L760,30 L770,27 Z" fill="white" opacity="0.9"/>
-            <path d="M1050,10 L1030,22 L1040,25 L1050,20 L1060,25 L1070,22 Z" fill="white" opacity="0.9"/>
+            <path d="M0,100 L0,70 L150,10 L300,70 L450,5 L600,65 L750,15 L900,70 L1050,10 L1200,60 L1200,100 Z" fill="#546e7a"/>
+            <path d="M150,10 L135,30 L165,30 Z  M450,5 L435,25 L465,25 Z  M750,15 L735,35 L765,35 Z  M1050,10 L1035,30 L1065,30 Z" fill="white" opacity="0.9"/>
         </svg>`;
         const mtnBack = createMountainLayer(svgBack, 40, 20, 1, 1.0);
         worldContainer.appendChild(mtnBack.cont);
 
-        // LAYER 2: FRONT HILLS (Brown, In Front, Snow Caps)
+        // LAYER 2: FRONT MOUNTAINS (Brown)
+        // Made these MUCH taller (peaks at y=30) and snow fits the tips.
         const svgFront = `
         <svg viewBox="0 0 1200 100" preserveAspectRatio="none" style="width:100%; height:100%;">
-            <path d="M0,100 L0,80 L200,40 L400,80 L600,30 L800,75 L1000,20 L1200,80 L1200,100 Z" fill="#5d4037"/>
-            
-            <path d="M200,40 L185,50 L200,48 L215,50 Z" fill="white" opacity="0.8"/>
-            <path d="M600,30 L585,42 L600,40 L615,42 Z" fill="white" opacity="0.8"/>
-            <path d="M1000,20 L985,32 L1000,30 L1015,32 Z" fill="white" opacity="0.8"/>
+            <path d="M0,100 L0,80 L200,30 L400,80 L600,20 L800,75 L1000,25 L1200,80 L1200,100 Z" fill="#5d4037"/>
+            <path d="M200,30 L185,50 L215,50 Z  M600,20 L585,40 L615,40 Z  M1000,25 L985,45 L1015,45 Z" fill="white" opacity="0.9"/>
         </svg>`;
-        const mtnFront = createMountainLayer(svgFront, 52, 12, 2, 1.0);
+        const mtnFront = createMountainLayer(svgFront, 52, 15, 2, 1.0);
         worldContainer.appendChild(mtnFront.cont);
 
-        // GROUND (Moving Texture)
+        // GROUND (Moving)
         const ground = document.createElement('div');
         ground.style.cssText = `
             position: absolute; top: 56%; left: -50%; width: 200%; height: 100%;
@@ -3761,7 +3754,6 @@ flight(active) {
         const grid = document.createElement('div');
         grid.style.cssText = `
             position: absolute; inset: -100%;
-            /* High contrast speed lines */
             background-image: 
                 repeating-linear-gradient(90deg, rgba(255,255,255,0.1) 0px, rgba(255,255,255,0.1) 2px, transparent 2px, transparent 100px),
                 repeating-linear-gradient(0deg, rgba(255,255,255,0.2) 0px, rgba(255,255,255,0.2) 1px, transparent 1px, transparent 50px);
@@ -3771,7 +3763,7 @@ flight(active) {
         ground.appendChild(grid);
         worldContainer.appendChild(ground);
         
-        // GROUND OBJECTS (Trees/Rocks zooming past)
+        // GROUND OBJECTS (Trees/Rocks)
         const groundObjContainer = document.createElement('div');
         groundObjContainer.style.cssText = `position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; perspective: 500px; transform-style: preserve-3d;`;
         ground.appendChild(groundObjContainer);
@@ -3780,14 +3772,14 @@ flight(active) {
         c.appendChild(worldContainer);
 
         // =========================================
-        // LAYER 2: RAIN STREAKS (Background)
+        // LAYER 2: RAIN STREAKS
         // =========================================
         const externalRainContainer = document.createElement('div');
         externalRainContainer.style.cssText = `position: absolute; inset: 0; pointer-events: none; z-index: 5; overflow: hidden;`;
         c.appendChild(externalRainContainer);
 
         // =========================================
-        // LAYER 3: AIRBORNE OBJECTS
+        // LAYER 3: OBJECTS
         // =========================================
         const objectContainer = document.createElement('div');
         objectContainer.style.cssText = `position: absolute; inset: 0; pointer-events: none; z-index: 6; overflow: hidden;`;
@@ -3821,6 +3813,7 @@ flight(active) {
         const cockpit = document.createElement('div');
         cockpit.style.cssText = `position: absolute; inset: 0; pointer-events: none; z-index: 20;`;
 
+        // Dashboard
         const dash = document.createElement('div');
         dash.style.cssText = `position: absolute; bottom: 0; left: 0; width: 100%; height: 40%;`;
         dash.innerHTML = `
@@ -3831,32 +3824,10 @@ flight(active) {
         `;
         cockpit.appendChild(dash);
         
-        // LOGO: MOVED DOWN (Under instruments)
-        const logo = document.createElement('div');
-        logo.style.cssText = `
-            position: absolute;
-            bottom: 10px; /* Low down */
-            left: 50%; transform: translateX(-50%);
-            width: 60%;
-            height: 60px;
-            display: flex; align-items: center; justify-content: center;
-            z-index: 21; pointer-events: none;
-        `;
-        logo.innerHTML = `<img src="crying.PNG" alt="Logo" style="max-width: 100%; max-height: 100%; object-fit: contain; opacity: 0.6;" onerror="this.style.display='none'"/>`;
-        cockpit.appendChild(logo);
-
-        // WIPER INDICATOR
-        const lightBox = document.createElement('div');
-        lightBox.style.cssText = `
-            position: absolute; bottom: 50px; left: 15%; width: 12px; height: 12px;
-            border-radius: 50%; background: #222; border: 2px solid #555;
-            box-shadow: 0 0 2px #000; transition: all 0.3s;
-        `;
-        cockpit.appendChild(lightBox);
-
-        // GAUGES: MOVED UP
+        // GAUGES: Moved DOWN/IN so they are ON the panel, not hovering
+        // bottom: 15% puts them solidly in the grey area.
         const gauges = document.createElement('div');
-        gauges.style.cssText = `position: absolute; bottom: 35%; left: 0; right: 0; height: 140px; display: flex; justify-content: center; align-items: center; gap: 40px; z-index: 22;`;
+        gauges.style.cssText = `position: absolute; bottom: 15%; left: 0; right: 0; height: 140px; display: flex; justify-content: center; align-items: center; gap: 40px; z-index: 22;`;
         
         const createGauge = (label, color, type) => {
             const g = document.createElement('div');
@@ -3885,6 +3856,29 @@ flight(active) {
         gauges.appendChild(att);
         gauges.appendChild(alt);
         cockpit.appendChild(gauges);
+
+        // LOGO: MOVED UNDER INSTRUMENTS
+        const logo = document.createElement('div');
+        logo.style.cssText = `
+            position: absolute;
+            bottom: 15px; /* Way down */
+            left: 50%; transform: translateX(-50%);
+            width: 60%;
+            height: 60px;
+            display: flex; align-items: center; justify-content: center;
+            z-index: 21; pointer-events: none;
+        `;
+        logo.innerHTML = `<img src="crying.PNG" alt="Logo" style="max-width: 100%; max-height: 100%; object-fit: contain; opacity: 0.6;" onerror="this.style.display='none'"/>`;
+        cockpit.appendChild(logo);
+
+        // WIPER INDICATOR
+        const lightBox = document.createElement('div');
+        lightBox.style.cssText = `
+            position: absolute; bottom: 50px; left: 15%; width: 12px; height: 12px;
+            border-radius: 50%; background: #222; border: 2px solid #555;
+            box-shadow: 0 0 2px #000; transition: all 0.3s;
+        `;
+        cockpit.appendChild(lightBox);
 
         c.appendChild(cockpit);
 
@@ -3952,7 +3946,7 @@ flight(active) {
 
             worldContainer.style.transform = `rotate(${bank}deg) translateY(${pitch}%)`;
             
-            // Speed up the ground grid
+            // Speed up ground
             grid.style.backgroundPositionY = `${flightTime * 800}px`;
 
             const farScroll = (headingOffset * -10) % 2000; 
@@ -3971,13 +3965,12 @@ flight(active) {
         };
         logicLoop();
 
-        // --- SPAWN AIR OBJECTS ---
+        // --- SPAWN OBJECTS ---
         const spawnObject = () => {
             if(!document.body.contains(c)) return;
             const el = document.createElement('div');
             const isCloud = Math.random() > 0.4;
             const skyEmojis = ['🦅', '🦆', '✈️', '🛸', '🎈'];
-            
             const destX = (Math.random() - 0.5) * 200 + "vw";
             const destY = (Math.random() - 0.2) * 100 + "vh";
 
@@ -4004,7 +3997,7 @@ flight(active) {
         };
         this.objectSpawnInterval = setInterval(spawnObject, 3000);
 
-        // --- SPAWN GROUND OBJECTS (SPEED EFFECT) ---
+        // --- SPAWN GROUND OBJECTS (SPEED) ---
         const spawnGroundObject = () => {
             if(!document.body.contains(c)) return;
             const el = document.createElement('div');
@@ -4014,16 +4007,14 @@ flight(active) {
             
             el.innerHTML = type;
             el.style.cssText = `
-                position: absolute;
-                left: ${leftPos}%;
-                font-size: 20px;
-                transform-origin: center bottom;
+                position: absolute; left: ${leftPos}%;
+                font-size: 20px; transform-origin: center bottom;
                 animation: ground-obj-pass 2s ease-in forwards;
             `;
             groundObjContainer.appendChild(el);
             setTimeout(() => el.remove(), 2000);
         };
-        this.groundSpawnInterval = setInterval(spawnGroundObject, 400); // Fast spawn
+        this.groundSpawnInterval = setInterval(spawnGroundObject, 400);
 
         // --- RAIN & WIPER ---
         let wiperAngle = -50;
