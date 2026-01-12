@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.3.15',
+    APP_VERSION: '6.3.16',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -3859,6 +3859,18 @@ flight(active) {
             return g;
         };
 
+const compass = document.createElement('div');
+        compass.style.cssText = `position: absolute; bottom: 230px; left: 50%; transform: translateX(-50%); width: 70px; height: 35px; background: #111; border: 3px solid #546e7a; border-radius: 5px; box-shadow: inset 0 0 8px #000; overflow: hidden; z-index: 24;`;
+        compass.innerHTML = `
+            <div id="compass-tape" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); white-space: nowrap; font-size: 10px; font-weight: bold; color: #b0bec5; font-family: monospace;">
+                <span style="color: #ff5722;">N</span>&nbsp;&nbsp;030&nbsp;&nbsp;060&nbsp;&nbsp;<span style="color: #fff;">E</span>&nbsp;&nbsp;120&nbsp;&nbsp;150&nbsp;&nbsp;<span style="color: #ff5722;">S</span>&nbsp;&nbsp;210&nbsp;&nbsp;240&nbsp;&nbsp;<span style="color: #fff;">W</span>&nbsp;&nbsp;300&nbsp;&nbsp;330&nbsp;&nbsp;<span style="color: #ff5722;">N</span>
+            </div>
+            <div style="position: absolute; top: 0; left: 50%; width: 2px; height: 100%; background: #ffea00; transform: translateX(-50%); box-shadow: 0 0 4px #ffea00;"></div>
+            <div style="position: absolute; bottom: 2px; width: 100%; text-align: center; color: #78909c; font-size: 7px;">HDG</div>
+        `;
+        compass.tape = compass.querySelector('#compass-tape');
+        gauges.appendChild(compass);
+
         // 1. HORIZON (Top Center)
         const att = createGauge("ATT", "", "horizon");
         att.style.bottom = "130px"; 
@@ -4002,6 +4014,12 @@ flight(active) {
                 cloud.dataset.pos = pos;
                 cloud.style.left = pos + '%';
             });
+
+if (compass.tape) {
+                const bearing = ((headingOffset * 0.5) % 360 + 360) % 360;
+                const tapeOffset = (bearing / 360) * 280; // Map 360deg to pixel width of tape
+                compass.tape.style.transform = `translate(calc(-50% - ${tapeOffset}px), -50%)`;
+            }
 
             // 4. GAUGES
             if (horizonBall) horizonBall.style.transform = `rotate(${-bank}deg) translateY(${pitch * 2}px)`; 
@@ -7124,7 +7142,7 @@ const RoomManager = {
         if (btn) btn.remove();
         btn = document.createElement('button');
         btn.id = 'roomBtn';
-        btn.className = 'fixed top-3 left-3 z-[60] bg-white rounded-full shadow-lg hover:bg-gray-50 transition border-2 border-indigo-100';
+        btn.className = 'fixed top-20 left-4 bg-indigo-600 text-white px-4 py-3 rounded-full shadow-lg z-50 font-bold cursor-pointer hover:bg-indigo-700 transition-transform active:scale-95 flex items-center gap-2';
         btn.style.cssText = 'width: 68px; height: 68px; padding: 0;';
         const text = 'MULTIPLAYER · ';
         let chars = '';
