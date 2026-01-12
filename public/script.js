@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.3.1',
+    APP_VERSION: '6.3.2',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -3878,7 +3878,7 @@ const svgFront = `
 
         // 1. HORIZON (Top Center)
         const att = createGauge("ATT", "", "horizon");
-        att.style.top = "10px"; 
+        att.style.top = "30px"; 
         att.style.left = "50%";
         att.style.transform = "translateX(-50%)";
         gauges.appendChild(att);
@@ -3997,7 +3997,7 @@ const svgFront = `
             if (altitude < 0) altitude = 0;
             if (altitude > 2000) altitude = 2000;
 
-            worldContainer.style.transform = `rotate(${bank}deg) translateY(${pitch}%)`;
+            worldContainer.style.transform = `rotate(${-bank}deg) translateY(${pitch}%)`;
             
             // Move ground 'towards' player
             grid.style.backgroundPositionY = `${flightTime * 1200}px`;
