@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.66',
+    APP_VERSION: '6.2.67',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -3737,14 +3737,14 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             transition: transform 3s ease-out;
         `;
         mountainsBack.innerHTML = `
-            <svg viewBox="0 0 1500 150" preserveAspectRatio="none" style="width: 100%; height: 100%;">
+            <svg viewBox="0 0 1800 150" preserveAspectRatio="none" style="width: 100%; height: 100%;">
                 <defs>
                     <linearGradient id="mtnBackGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" style="stop-color:#a08060"/>
-                        <stop offset="100%" style="stop-color:#806040"/>
+                        <stop offset="0%" style="stop-color:#9a7a5a"/>
+                        <stop offset="100%" style="stop-color:#7a5a3a"/>
                     </linearGradient>
                 </defs>
-                <path d="M0,150 L0,100 L80,50 L160,85 L280,30 L400,75 L520,20 L640,65 L760,35 L880,80 L1000,25 L1120,70 L1240,40 L1360,85 L1500,50 L1500,150 Z" fill="url(#mtnBackGrad)" opacity="0.6"/>
+                <path d="M0,150 L0,110 L60,70 L100,95 L160,55 L220,85 L300,40 L380,80 L450,50 L530,90 L600,45 L680,75 L760,35 L840,70 L920,30 L1000,65 L1080,40 L1160,80 L1240,50 L1320,85 L1400,55 L1480,90 L1560,60 L1650,95 L1720,70 L1800,100 L1800,150 Z" fill="url(#mtnBackGrad)" opacity="0.5"/>
             </svg>
         `;
         worldContainer.appendChild(mountainsBack);
@@ -3752,31 +3752,60 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         mountainsFront.id = 'mountains-front';
         mountainsFront.style.cssText = `
             position: absolute;
-            top: 46%;
+            top: 45%;
             left: -25%;
             width: 150%;
-            height: 12%;
+            height: 14%;
             transition: transform 2s ease-out;
         `;
         mountainsFront.innerHTML = `
-            <svg viewBox="0 0 1500 120" preserveAspectRatio="none" style="width: 100%; height: 100%;">
+            <svg viewBox="0 0 1600 140" preserveAspectRatio="none" style="width: 100%; height: 100%;">
                 <defs>
-                    <linearGradient id="mtnFrontGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" style="stop-color:#c09070"/>
-                        <stop offset="40%" style="stop-color:#a07050"/>
-                        <stop offset="100%" style="stop-color:#805030"/>
+                    <linearGradient id="mtnFrontGrad1" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" style="stop-color:#c8a078"/>
+                        <stop offset="30%" style="stop-color:#b08858"/>
+                        <stop offset="100%" style="stop-color:#906838"/>
+                    </linearGradient>
+                    <linearGradient id="mtnFrontGrad2" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" style="stop-color:#b89068"/>
+                        <stop offset="30%" style="stop-color:#a07848"/>
+                        <stop offset="100%" style="stop-color:#805828"/>
                     </linearGradient>
                 </defs>
-                <!-- Main mountain shapes -->
-                <path d="M0,120 L0,90 L50,70 L80,85 L120,45 L160,75 L200,50 L250,80 L300,30 L350,60 L400,40 L450,70 L500,25 L550,55 L600,35 L650,65 L700,20 L750,50 L800,30 L850,60 L900,40 L950,70 L1000,25 L1050,55 L1100,35 L1150,65 L1200,20 L1250,50 L1300,40 L1350,70 L1400,30 L1450,60 L1500,45 L1500,120 Z" fill="url(#mtnFrontGrad)"/>
-                <!-- Snow caps -->
-                <path d="M300,30 L270,60 L330,60 Z" fill="#fff"/>
-                <path d="M500,25 L465,58 L535,58 Z" fill="#f8f8f8"/>
-                <path d="M700,20 L660,58 L740,58 Z" fill="#fff"/>
-                <path d="M1000,25 L965,58 L1035,58 Z" fill="#f8f8f8"/>
-                <path d="M1200,20 L1160,58 L1240,58 Z" fill="#fff"/>
-                <!-- Ridge lines -->
-                <path d="M300,30 L250,80 M500,25 L450,70 M700,20 L650,65 M1000,25 L950,70 M1200,20 L1150,65" stroke="#704020" stroke-width="1.5" fill="none" opacity="0.4"/>
+                <!-- Mountain 1 - large -->
+                <path d="M-20,140 L80,50 L110,70 L140,45 L180,140 Z" fill="url(#mtnFrontGrad1)"/>
+                <path d="M80,50 L110,70 L140,45 L110,50 Z" fill="#fff"/>
+                <path d="M80,50 L60,80 M140,45 L160,80" stroke="#8a6040" stroke-width="1" opacity="0.3"/>
+                <!-- Mountain 2 -->
+                <path d="M140,140 L220,60 L250,80 L280,55 L320,140 Z" fill="url(#mtnFrontGrad2)"/>
+                <path d="M220,60 L250,80 L280,55 L250,62 Z" fill="#f8f8f8"/>
+                <!-- Mountain 3 - tall -->
+                <path d="M280,140 L380,35 L420,60 L460,30 L500,140 Z" fill="url(#mtnFrontGrad1)"/>
+                <path d="M380,35 L420,60 L460,30 L420,42 Z" fill="#fff"/>
+                <path d="M380,35 L350,75 M460,30 L490,75" stroke="#8a6040" stroke-width="1" opacity="0.3"/>
+                <!-- Mountain 4 -->
+                <path d="M460,140 L540,70 L570,85 L600,65 L640,140 Z" fill="url(#mtnFrontGrad2)"/>
+                <path d="M540,70 L570,85 L600,65 L570,72 Z" fill="#f8f8f8"/>
+                <!-- Mountain 5 - tallest -->
+                <path d="M600,140 L720,20 L760,50 L800,25 L840,140 Z" fill="url(#mtnFrontGrad1)"/>
+                <path d="M720,20 L760,50 L800,25 L760,32 Z" fill="#fff"/>
+                <path d="M720,20 L680,70 M800,25 L840,75" stroke="#8a6040" stroke-width="1" opacity="0.3"/>
+                <!-- Mountain 6 -->
+                <path d="M800,140 L880,55 L910,75 L940,50 L980,140 Z" fill="url(#mtnFrontGrad2)"/>
+                <path d="M880,55 L910,75 L940,50 L910,60 Z" fill="#f8f8f8"/>
+                <!-- Mountain 7 - large -->
+                <path d="M940,140 L1040,30 L1080,55 L1120,25 L1160,140 Z" fill="url(#mtnFrontGrad1)"/>
+                <path d="M1040,30 L1080,55 L1120,25 L1080,38 Z" fill="#fff"/>
+                <path d="M1040,30 L1010,70 M1120,25 L1150,70" stroke="#8a6040" stroke-width="1" opacity="0.3"/>
+                <!-- Mountain 8 -->
+                <path d="M1120,140 L1200,60 L1230,80 L1260,55 L1300,140 Z" fill="url(#mtnFrontGrad2)"/>
+                <path d="M1200,60 L1230,80 L1260,55 L1230,65 Z" fill="#f8f8f8"/>
+                <!-- Mountain 9 -->
+                <path d="M1260,140 L1360,40 L1400,65 L1440,35 L1480,140 Z" fill="url(#mtnFrontGrad1)"/>
+                <path d="M1360,40 L1400,65 L1440,35 L1400,48 Z" fill="#fff"/>
+                <!-- Mountain 10 -->
+                <path d="M1440,140 L1520,70 L1550,90 L1580,65 L1620,140 Z" fill="url(#mtnFrontGrad2)"/>
+                <path d="M1520,70 L1550,90 L1580,65 L1550,75 Z" fill="#f8f8f8"/>
             </svg>
         `;
         worldContainer.appendChild(mountainsFront);
@@ -3923,14 +3952,50 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         `;
         cockpitFrame.innerHTML = `
             <svg style="position: absolute; inset: 0; width: 100%; height: 100%;" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <!-- Side struts -->
                 <path d="M0,0 Q-12,50 0,100" stroke="#2a4a6a" stroke-width="5" fill="none"/>
                 <path d="M100,0 Q112,50 100,100" stroke="#2a4a6a" stroke-width="5" fill="none"/>
                 <path d="M0,0 Q50,-12 100,0" stroke="#2a4a6a" stroke-width="3.5" fill="none"/>
                 <path d="M4,0 Q-2,50 4,100" stroke="#3a5a7a" stroke-width="2" fill="none"/>
                 <path d="M96,0 Q102,50 96,100" stroke="#3a5a7a" stroke-width="2" fill="none"/>
+                <!-- HORIZONTAL PROP BRACE - connects across cockpit -->
+                <path d="M0,50 L45,50" stroke="#3a4a5a" stroke-width="4" fill="none"/>
+                <path d="M55,50 L100,50" stroke="#3a4a5a" stroke-width="4" fill="none"/>
+                <!-- Prop hub mount in center -->
+                <circle cx="50" cy="50" r="6" fill="#4a5a6a" stroke="#2a3a4a" stroke-width="1.5"/>
+                <circle cx="50" cy="50" r="3" fill="#5a6a7a"/>
             </svg>
         `;
         c.appendChild(cockpitFrame);
+        // PROPELLER - attached to center hub on horizontal brace
+        const propeller = document.createElement('div');
+        propeller.id = 'flight-prop';
+        propeller.style.cssText = `
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 380px;
+            height: 380px;
+            z-index: 49;
+        `;
+        propeller.innerHTML = `
+            <svg viewBox="0 0 380 380" style="width: 100%; height: 100%;">
+                <defs>
+                    <linearGradient id="propBladeGrad" x1="0%" y1="50%" x2="100%" y2="50%">
+                        <stop offset="0%" style="stop-color:#1a1a1a"/>
+                        <stop offset="15%" style="stop-color:#4a4a4a"/>
+                        <stop offset="30%" style="stop-color:#3a3a3a"/>
+                        <stop offset="50%" style="stop-color:#2a2a2a"/>
+                        <stop offset="70%" style="stop-color:#3a3a3a"/>
+                        <stop offset="85%" style="stop-color:#4a4a4a"/>
+                        <stop offset="100%" style="stop-color:#1a1a1a"/>
+                    </linearGradient>
+                </defs>
+                <ellipse cx="190" cy="190" rx="180" ry="18" fill="url(#propBladeGrad)"/>
+            </svg>
+        `;
+        c.appendChild(propeller);
         const windscreen = document.createElement('div');
         windscreen.id = 'flight-windscreen';
         windscreen.style.cssText = `
@@ -3941,15 +4006,15 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             overflow: hidden;
         `;
         c.appendChild(windscreen);
-        // SINGLE WINDSCREEN WIPER - mounted in upper area
+        // SINGLE WINDSCREEN WIPER - mounted HIGH in upper windscreen
         const wiper = document.createElement('div');
         wiper.id = 'flight-wiper';
         wiper.style.cssText = `
             position: absolute;
-            top: 52%;
+            top: 35%;
             left: 50%;
             width: 5px;
-            height: 120px;
+            height: 100px;
             background: linear-gradient(180deg, #111 0%, #222 30%, #333 50%, #222 70%, #111 100%);
             border-radius: 3px;
             transform-origin: bottom center;
@@ -3964,147 +4029,106 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             left: 50%;
             transform: translateX(-50%);
             width: 8px;
-            height: 20px;
+            height: 18px;
             background: #222;
             border-radius: 2px;
         `;
         wiper.appendChild(wiperBlade);
         c.appendChild(wiper);
-        // INSTRUMENT PANEL - full cockpit with integrated prop mount
+        // INSTRUMENT PANEL - dashboard only (prop is on horizontal brace above)
         const panel = document.createElement('div');
         panel.style.cssText = `
             position: absolute;
             bottom: 0;
             left: 0;
             right: 0;
-            height: 52%;
+            height: 48%;
             z-index: 60;
         `;
         panel.innerHTML = `
-            <svg style="position: absolute; inset: 0; width: 100%; height: 100%;" viewBox="0 0 200 120" preserveAspectRatio="none">
+            <svg style="position: absolute; inset: 0; width: 100%; height: 100%;" viewBox="0 0 200 100" preserveAspectRatio="none">
                 <defs>
                     <linearGradient id="panelGrad" x1="0%" y1="0%" x2="0%" y2="100%">
                         <stop offset="0%" style="stop-color:#5a6a7a"/>
                         <stop offset="50%" style="stop-color:#4a5a6a"/>
                         <stop offset="100%" style="stop-color:#3a4a5a"/>
                     </linearGradient>
-                    <linearGradient id="cowlGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" style="stop-color:#6a7a8a"/>
-                        <stop offset="100%" style="stop-color:#4a5a6a"/>
-                    </linearGradient>
                 </defs>
-                <!-- Main panel -->
-                <path d="M0,120 L0,55 Q100,30 200,55 L200,120 Z" fill="url(#panelGrad)"/>
-                <!-- Engine cowling / nose - connects to prop -->
-                <ellipse cx="100" cy="20" rx="25" ry="18" fill="url(#cowlGrad)" stroke="#3a4a5a" stroke-width="1"/>
-                <!-- Prop mount strut -->
-                <rect x="96" y="0" width="8" height="25" fill="#4a5a6a"/>
-                <!-- Prop spinner/hub -->
-                <circle cx="100" cy="5" r="10" fill="#5a6a7a" stroke="#3a4a5a" stroke-width="1"/>
-                <circle cx="100" cy="5" r="6" fill="#6a7a8a"/>
+                <!-- Main panel with curved top -->
+                <path d="M0,100 L0,40 Q100,15 200,40 L200,100 Z" fill="url(#panelGrad)"/>
+                <path d="M0,40 Q100,15 200,40" stroke="#3a4a5a" stroke-width="1.5" fill="none"/>
             </svg>
-            <!-- GAUGES ROW 1 - Main instruments on panel face -->
-            <div style="position: absolute; top: 38%; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; align-items: center;">
-                <div style="width: 50px; height: 50px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #1a2a3a, #0a1520); border: 3px solid #2a3a4a; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5); position: relative;">
-                    <div style="position: absolute; top: 50%; left: 50%; width: 2px; height: 18px; background: white; transform-origin: bottom center; transform: translate(-50%, -100%); animation: compass-spin 25s linear infinite;"></div>
+            <!-- YOKE - in center/middle of dashboard -->
+            <div style="position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); z-index: 5;">
+                <div style="width: 14px; height: 50px; background: linear-gradient(90deg, #3a4a5a, #5a6a7a, #3a4a5a); border-radius: 3px;"></div>
+                <div style="position: absolute; top: 8px; left: 50%; transform: translateX(-50%); width: 45px; height: 8px; background: linear-gradient(180deg, #4a5a6a, #3a4a5a); border-radius: 4px;"></div>
+            </div>
+            <!-- GAUGES ROW 1 - Main instruments LEFT of yoke -->
+            <div style="position: absolute; top: 32%; left: 18%; display: flex; gap: 6px; align-items: center;">
+                <div style="width: 45px; height: 45px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #1a2a3a, #0a1520); border: 3px solid #2a3a4a; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5); position: relative;">
+                    <div style="position: absolute; top: 50%; left: 50%; width: 2px; height: 16px; background: white; transform-origin: bottom center; transform: translate(-50%, -100%); animation: compass-spin 25s linear infinite;"></div>
                 </div>
-                <div id="flight-attitude" style="width: 58px; height: 58px; border-radius: 50%; border: 3px solid #2a3a4a; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5); position: relative; overflow: hidden;">
-                    <div id="attitude-horizon" style="position: absolute; inset: -15px; background: linear-gradient(180deg, #1a6aaa 0%, #1a6aaa 50%, #8a6a3a 50%, #8a6a3a 100%); transition: transform 0.3s ease-out;">
+                <div id="flight-attitude" style="width: 52px; height: 52px; border-radius: 50%; border: 3px solid #2a3a4a; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5); position: relative; overflow: hidden;">
+                    <div id="attitude-horizon" style="position: absolute; inset: -12px; background: linear-gradient(180deg, #1a6aaa 0%, #1a6aaa 50%, #8a6a3a 50%, #8a6a3a 100%); transition: transform 0.3s ease-out;">
                         <div style="position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: white;"></div>
                     </div>
-                    <div style="position: absolute; top: 50%; left: 50%; width: 26px; height: 3px; background: #ff8800; transform: translate(-50%, -50%); border-radius: 2px; z-index: 2;"></div>
-                    <div style="position: absolute; top: 50%; left: 50%; width: 5px; height: 5px; background: #ff8800; border-radius: 50%; transform: translate(-50%, -50%); z-index: 2;"></div>
+                    <div style="position: absolute; top: 50%; left: 50%; width: 22px; height: 3px; background: #ff8800; transform: translate(-50%, -50%); border-radius: 2px; z-index: 2;"></div>
+                    <div style="position: absolute; top: 50%; left: 50%; width: 4px; height: 4px; background: #ff8800; border-radius: 50%; transform: translate(-50%, -50%); z-index: 2;"></div>
                 </div>
-                <div style="width: 50px; height: 50px; border-radius: 50%; background: radial-gradient(circle at 40% 40%, #4a3a1a, #2a2010); border: 3px solid #5a4a2a; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5); position: relative;">
+            </div>
+            <!-- GAUGES ROW 1 - Main instruments RIGHT of yoke -->
+            <div style="position: absolute; top: 32%; right: 18%; display: flex; gap: 6px; align-items: center;">
+                <div style="width: 52px; height: 52px; border-radius: 50%; background: radial-gradient(circle at 40% 40%, #4a3a1a, #2a2010); border: 3px solid #5a4a2a; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5); position: relative;">
                     <div style="position: absolute; top: 50%; left: 50%; width: 2px; height: 18px; background: #ff3300; transform-origin: bottom center; transform: translate(-50%, -100%) rotate(45deg); animation: rpm-needle 4s ease-in-out infinite;"></div>
+                </div>
+                <div style="width: 45px; height: 45px; border-radius: 50%; background: radial-gradient(circle, #f5f5f0, #d5d5d0); border: 3px solid #3a4a5a; box-shadow: inset 0 2px 4px rgba(0,0,0,0.3); position: relative;">
+                    <div style="position: absolute; top: 50%; left: 50%; width: 2px; height: 16px; background: #111; transform-origin: bottom center; transform: translate(-50%, -100%) rotate(-30deg); animation: speed-needle 8s ease-in-out infinite;"></div>
                 </div>
             </div>
             <!-- GAUGES ROW 2 - Secondary instruments -->
-            <div style="position: absolute; top: 58%; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; align-items: center;">
-                <div style="width: 30px; height: 30px; border-radius: 50%; background: #0a1520; border: 2px solid #2a3a4a; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5); position: relative;">
-                    <div style="position: absolute; top: 50%; left: 50%; width: 1px; height: 10px; background: #0f0; transform-origin: bottom center; transform: translate(-50%, -100%) rotate(20deg); animation: vsi-needle 5s ease-in-out infinite;"></div>
+            <div style="position: absolute; top: 60%; left: 50%; transform: translateX(-50%); display: flex; gap: 5px; align-items: center;">
+                <div style="width: 28px; height: 28px; border-radius: 50%; background: #0a1520; border: 2px solid #2a3a4a; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5); position: relative;">
+                    <div style="position: absolute; top: 50%; left: 50%; width: 1px; height: 9px; background: #0f0; transform-origin: bottom center; transform: translate(-50%, -100%) rotate(20deg); animation: vsi-needle 5s ease-in-out infinite;"></div>
                 </div>
-                <div style="width: 36px; height: 28px; background: linear-gradient(135deg, #1a3a5a, #0a2040); border: 2px solid #2a4a6a; border-radius: 2px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);"></div>
-                <div style="width: 34px; height: 34px; border-radius: 50%; background: radial-gradient(circle, #f5f5f0, #d5d5d0); border: 2px solid #3a4a5a; box-shadow: inset 0 1px 3px rgba(0,0,0,0.3); position: relative;">
-                    <div style="position: absolute; top: 50%; left: 50%; width: 2px; height: 12px; background: #111; transform-origin: bottom center; transform: translate(-50%, -100%) rotate(-30deg); animation: speed-needle 8s ease-in-out infinite;"></div>
+                <div style="width: 32px; height: 24px; background: linear-gradient(135deg, #1a3a5a, #0a2040); border: 2px solid #2a4a6a; border-radius: 2px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);"></div>
+                <div style="width: 32px; height: 24px; background: #0a1520; border: 2px solid #2a4a6a; border-radius: 2px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5); position: relative;">
+                    <div style="position: absolute; top: 5px; left: 4px; width: 2px; height: 2px; background: #3a8a5a; border-radius: 50%;"></div>
+                    <div style="position: absolute; top: 12px; left: 12px; width: 2px; height: 2px; background: #3a8a5a; border-radius: 50%;"></div>
                 </div>
-                <div style="width: 36px; height: 28px; background: #0a1520; border: 2px solid #2a4a6a; border-radius: 2px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5); position: relative;">
-                    <div style="position: absolute; top: 6px; left: 5px; width: 2px; height: 2px; background: #3a8a5a; border-radius: 50%;"></div>
-                    <div style="position: absolute; top: 14px; left: 14px; width: 2px; height: 2px; background: #3a8a5a; border-radius: 50%;"></div>
-                </div>
-                <div style="width: 30px; height: 30px; border-radius: 50%; background: #0a1520; border: 2px solid #2a3a4a; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5); position: relative;">
-                    <div style="position: absolute; top: 50%; left: 50%; width: 10px; height: 2px; background: #ff0; transform: translate(-50%, -50%); animation: turn-needle 4s ease-in-out infinite;"></div>
+                <div style="width: 28px; height: 28px; border-radius: 50%; background: #0a1520; border: 2px solid #2a3a4a; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5); position: relative;">
+                    <div style="position: absolute; top: 50%; left: 50%; width: 9px; height: 2px; background: #ff0; transform: translate(-50%, -50%); animation: turn-needle 4s ease-in-out infinite;"></div>
                 </div>
             </div>
             <!-- CONTROLS ROW - Warning lights and switches -->
-            <div style="position: absolute; top: 75%; left: 50%; transform: translateX(-50%); display: flex; gap: 5px; align-items: center;">
-                <div style="width: 10px; height: 10px; border-radius: 50%; background: #550000; border: 2px solid #333; animation: blink-red 2s infinite;"></div>
-                <div style="width: 10px; height: 10px; border-radius: 50%; background: #554400; border: 2px solid #333; animation: blink-amber 3s infinite;"></div>
-                <div style="width: 6px; height: 14px; background: linear-gradient(180deg, #ddd, #888); border-radius: 2px;"></div>
-                <div style="width: 6px; height: 14px; background: linear-gradient(180deg, #f55, #a22); border-radius: 2px;"></div>
-                <div style="width: 11px; height: 11px; background: radial-gradient(circle, #333, #111); border: 2px solid #555; border-radius: 50%;"></div>
-                <div style="width: 6px; height: 14px; background: linear-gradient(180deg, #ddd, #888); border-radius: 2px;"></div>
-                <div style="width: 6px; height: 14px; background: linear-gradient(180deg, #55f, #22a); border-radius: 2px;"></div>
-                <div style="width: 10px; height: 10px; border-radius: 50%; background: #554400; border: 2px solid #333; animation: blink-amber 2.5s infinite;"></div>
-                <div style="width: 10px; height: 10px; border-radius: 50%; background: #550000; border: 2px solid #333; animation: blink-red 2.5s infinite;"></div>
+            <div style="position: absolute; top: 78%; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; align-items: center;">
+                <div style="width: 9px; height: 9px; border-radius: 50%; background: #550000; border: 2px solid #333; animation: blink-red 2s infinite;"></div>
+                <div style="width: 9px; height: 9px; border-radius: 50%; background: #554400; border: 2px solid #333; animation: blink-amber 3s infinite;"></div>
+                <div style="width: 5px; height: 12px; background: linear-gradient(180deg, #ddd, #888); border-radius: 2px;"></div>
+                <div style="width: 5px; height: 12px; background: linear-gradient(180deg, #f55, #a22); border-radius: 2px;"></div>
+                <div style="width: 10px; height: 10px; background: radial-gradient(circle, #333, #111); border: 2px solid #555; border-radius: 50%;"></div>
+                <div style="width: 5px; height: 12px; background: linear-gradient(180deg, #ddd, #888); border-radius: 2px;"></div>
+                <div style="width: 5px; height: 12px; background: linear-gradient(180deg, #55f, #22a); border-radius: 2px;"></div>
+                <div style="width: 9px; height: 9px; border-radius: 50%; background: #554400; border: 2px solid #333; animation: blink-amber 2.5s infinite;"></div>
+                <div style="width: 9px; height: 9px; border-radius: 50%; background: #550000; border: 2px solid #333; animation: blink-red 2.5s infinite;"></div>
             </div>
             <!-- BOTTOM ROW - Digital displays -->
-            <div style="position: absolute; bottom: 8%; left: 50%; transform: translateX(-50%); display: flex; gap: 5px; align-items: flex-end;">
-                <div style="width: 22px; height: 14px; background: #1a1a1a; border: 1px solid #333; color: #0f0; font-size: 5px; font-family: monospace; text-align: center; line-height: 14px;">ALT</div>
-                <div style="width: 5px; height: 12px; background: linear-gradient(180deg, #ddd, #666); border-radius: 1px;"></div>
-                <div style="width: 5px; height: 12px; background: linear-gradient(180deg, #ddd, #666); border-radius: 1px;"></div>
-                <div style="width: 22px; height: 14px; background: #1a1a1a; border: 1px solid #333; color: #f80; font-size: 5px; font-family: monospace; text-align: center; line-height: 14px;">FUEL</div>
-                <div style="width: 5px; height: 12px; background: linear-gradient(180deg, #ddd, #666); border-radius: 1px;"></div>
-                <div style="width: 5px; height: 12px; background: linear-gradient(180deg, #ddd, #666); border-radius: 1px;"></div>
-                <div style="width: 22px; height: 14px; background: #1a1a1a; border: 1px solid #333; color: #0ff; font-size: 5px; font-family: monospace; text-align: center; line-height: 14px;">SPD</div>
+            <div style="position: absolute; bottom: 6%; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; align-items: flex-end;">
+                <div style="width: 20px; height: 12px; background: #1a1a1a; border: 1px solid #333; color: #0f0; font-size: 4px; font-family: monospace; text-align: center; line-height: 12px;">ALT</div>
+                <div style="width: 4px; height: 10px; background: linear-gradient(180deg, #ddd, #666); border-radius: 1px;"></div>
+                <div style="width: 20px; height: 12px; background: #1a1a1a; border: 1px solid #333; color: #f80; font-size: 4px; font-family: monospace; text-align: center; line-height: 12px;">FUEL</div>
+                <div style="width: 4px; height: 10px; background: linear-gradient(180deg, #ddd, #666); border-radius: 1px;"></div>
+                <div style="width: 20px; height: 12px; background: #1a1a1a; border: 1px solid #333; color: #0ff; font-size: 4px; font-family: monospace; text-align: center; line-height: 12px;">SPD</div>
             </div>
         `;
         c.appendChild(panel);
-        // PROPELLER - attached to panel's prop mount
-        const propeller = document.createElement('div');
-        propeller.id = 'flight-prop';
-        propeller.style.cssText = `
-            position: absolute;
-            bottom: calc(52% - 30px);
-            left: 50%;
-            transform: translateX(-50%);
-            width: 400px;
-            height: 400px;
-            z-index: 59;
-        `;
-        propeller.innerHTML = `
-            <svg viewBox="0 0 400 400" style="width: 100%; height: 100%;">
-                <defs>
-                    <linearGradient id="propBladeGrad" x1="0%" y1="50%" x2="100%" y2="50%">
-                        <stop offset="0%" style="stop-color:#1a1a1a"/>
-                        <stop offset="15%" style="stop-color:#4a4a4a"/>
-                        <stop offset="30%" style="stop-color:#3a3a3a"/>
-                        <stop offset="50%" style="stop-color:#2a2a2a"/>
-                        <stop offset="70%" style="stop-color:#3a3a3a"/>
-                        <stop offset="85%" style="stop-color:#4a4a4a"/>
-                        <stop offset="100%" style="stop-color:#1a1a1a"/>
-                    </linearGradient>
-                </defs>
-                <ellipse cx="200" cy="200" rx="190" ry="20" fill="url(#propBladeGrad)"/>
-            </svg>
-        `;
-        c.appendChild(propeller);
-        // YOKE
-        const yoke = document.createElement('div');
-        yoke.style.cssText = `position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); z-index: 65;`;
-        yoke.innerHTML = `
-            <div style="width: 16px; height: 55px; background: linear-gradient(90deg, #3a4a5a, #5a6a7a, #3a4a5a); border-radius: 4px;"></div>
-            <div style="position: absolute; bottom: 42px; left: 50%; transform: translateX(-50%); width: 50px; height: 9px; background: linear-gradient(180deg, #4a5a6a, #3a4a5a); border-radius: 4px;"></div>
-        `;
-        c.appendChild(yoke);
         const oldStyle = document.getElementById('flight-style');
         if (oldStyle) oldStyle.remove();
         const style = document.createElement('style');
         style.id = 'flight-style';
         style.textContent = `
             @keyframes prop-spin {
-                from { transform: translateX(-50%) rotate(0deg); }
-                to { transform: translateX(-50%) rotate(360deg); }
+                from { transform: translate(-50%, -50%) rotate(0deg); }
+                to { transform: translate(-50%, -50%) rotate(360deg); }
             }
             #flight-prop {
                 animation: prop-spin 0.2s linear infinite;
