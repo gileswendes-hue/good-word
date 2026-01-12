@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.96',
+    APP_VERSION: '6.2.97',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -3741,31 +3741,30 @@ flight(active) {
             return { cont, p1, p2 };
         };
 
-        // LAYER 1: BACK MOUNTAINS (Grey, High)
-        // I redesigned these paths so the snow "cap" polygon shares the EXACT same side slopes as the mountain base.
+        // LAYER 1: BACK MOUNTAINS (Grey, Pointy)
+        // I have geometrically aligned the white paths to the grey paths.
         const svgBack = `
         <svg viewBox="0 0 1200 100" preserveAspectRatio="none" style="width:100%; height:100%;">
-            <path d="M0,100 L0,60 L200,10 L400,70 L600,15 L800,60 L1000,10 L1200,70 L1200,100 Z" fill="#546e7a"/>
-            
-            <path d="M200,10 L180,25 L190,30 L200,25 L210,30 L220,25 L200,10 Z" fill="white" opacity="0.9"/>
-            <path d="M600,15 L580,30 L590,35 L600,30 L610,35 L620,30 L600,15 Z" fill="white" opacity="0.9"/>
-            <path d="M1000,10 L980,25 L990,30 L1000,25 L1010,30 L1020,25 L1000,10 Z" fill="white" opacity="0.9"/>
+            <path d="M0,100 L0,70 L150,10 L300,70 L450,5 L600,65 L750,15 L900,70 L1050,10 L1200,60 L1200,100 Z" fill="#546e7a"/>
+            <path d="M150,10 L115,24 L135,28 L150,22 L165,28 L185,24 Z" fill="white" opacity="0.9"/>
+            <path d="M450,5 L415,20 L435,24 L450,18 L465,24 L485,20 Z" fill="white" opacity="0.9"/>
+            <path d="M750,15 L720,25 L735,29 L750,24 L765,29 L780,25 Z" fill="white" opacity="0.9"/>
+            <path d="M1050,10 L1020,20 L1035,24 L1050,19 L1065,24 L1080,20 Z" fill="white" opacity="0.9"/>
         </svg>`;
         const mtnBack = createMountainLayer(svgBack, 40, 20, 1, 1.0);
         worldContainer.appendChild(mtnBack.cont);
 
-        // LAYER 2: FRONT MOUNTAINS (Brown, Lower)
+        // LAYER 2: FRONT HILLS (Brown, Pointy/Rough)
         const svgFront = `
         <svg viewBox="0 0 1200 100" preserveAspectRatio="none" style="width:100%; height:100%;">
-            <path d="M0,100 L0,80 L300,30 L500,80 L800,40 L1100,85 L1200,70 L1200,100 Z" fill="#5d4037"/>
-            
-            <path d="M300,30 L285,45 L295,50 L300,45 L305,50 L315,45 L300,30 Z" fill="white" opacity="0.9"/>
-            <path d="M800,40 L785,55 L795,60 L800,55 L805,60 L815,55 L800,40 Z" fill="white" opacity="0.9"/>
+            <path d="M0,100 L0,80 L250,30 L500,80 L750,35 L1000,85 L1200,70 L1200,100 Z" fill="#5d4037"/>
+            <path d="M250,30 L210,38 L230,42 L250,38 L270,42 L290,38 Z" fill="white" opacity="0.85"/>
+            <path d="M750,35 L710,42 L730,46 L750,42 L770,46 L790,42 Z" fill="white" opacity="0.85"/>
         </svg>`;
         const mtnFront = createMountainLayer(svgFront, 52, 15, 2, 1.0);
         worldContainer.appendChild(mtnFront.cont);
 
-        // GROUND (Moving Texture + Objects)
+        // GROUND (High Speed Texture)
         const ground = document.createElement('div');
         ground.style.cssText = `
             position: absolute; top: 56%; left: -50%; width: 200%; height: 100%;
@@ -3775,10 +3774,11 @@ flight(active) {
         const grid = document.createElement('div');
         grid.style.cssText = `
             position: absolute; inset: -100%;
+            /* Vertical streaks for speed */
             background-image: 
-                repeating-linear-gradient(90deg, rgba(255,255,255,0.1) 0px, rgba(255,255,255,0.1) 2px, transparent 2px, transparent 100px),
-                repeating-linear-gradient(0deg, rgba(255,255,255,0.2) 0px, rgba(255,255,255,0.2) 1px, transparent 1px, transparent 50px);
-            background-size: 200px 200px;
+                repeating-linear-gradient(90deg, rgba(255,255,255,0.1) 0px, rgba(255,255,255,0.1) 2px, transparent 2px, transparent 50px),
+                linear-gradient(0deg, transparent 20%, rgba(255,255,255,0.2) 21%, rgba(255,255,255,0.2) 22%, transparent 23%);
+            background-size: 100px 100px;
             transform: rotateX(80deg);
         `;
         ground.appendChild(grid);
@@ -3843,13 +3843,18 @@ flight(active) {
         `;
         cockpit.appendChild(dash);
         
-        // GAUGES: Moved UP (bottom: 35%)
+        // --- INSTRUMENTS TRIANGLE LAYOUT ---
+        // Container height is 40% of screen.
         const gauges = document.createElement('div');
-        gauges.style.cssText = `position: absolute; bottom: 35%; left: 0; right: 0; height: 140px; display: flex; justify-content: center; align-items: center; gap: 40px; z-index: 22;`;
+        gauges.style.cssText = `
+            position: absolute; 
+            bottom: 0; left: 0; width: 100%; height: 40%; /* Matches dashboard height */
+            z-index: 22;
+        `;
         
         const createGauge = (label, color, type) => {
             const g = document.createElement('div');
-            g.style.cssText = `width: 90px; height: 90px; border-radius: 50%; background: #111; border: 4px solid #546e7a; position: relative; box-shadow: inset 0 0 10px #000; overflow: hidden;`;
+            g.style.cssText = `width: 90px; height: 90px; border-radius: 50%; background: #111; border: 4px solid #546e7a; position: absolute; box-shadow: inset 0 0 10px #000; overflow: hidden;`;
             if (type === 'horizon') {
                 g.innerHTML = `
                     <div id="gauge-horizon-ball" style="position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: linear-gradient(180deg, #29b6f6 50%, #5d4037 50%); transform: rotate(0deg);"></div>
@@ -3867,22 +3872,34 @@ flight(active) {
             return g;
         };
 
-        const spd = createGauge("SPD", "#ffea00", "std");
+        // 1. HORIZON (Top Center)
         const att = createGauge("ATT", "", "horizon");
-        const alt = createGauge("ALT", "#ff1744", "std");
-        gauges.appendChild(spd);
+        att.style.top = "15%"; 
+        att.style.left = "50%";
+        att.style.transform = "translateX(-50%)";
         gauges.appendChild(att);
+
+        // 2. SPEED (Bottom Left)
+        const spd = createGauge("SPD", "#ffea00", "std");
+        spd.style.bottom = "25%";
+        spd.style.left = "25%";
+        gauges.appendChild(spd);
+
+        // 3. ALTITUDE (Bottom Right)
+        const alt = createGauge("ALT", "#ff1744", "std");
+        alt.style.bottom = "25%";
+        alt.style.right = "25%";
         gauges.appendChild(alt);
+
         cockpit.appendChild(gauges);
 
-        // LOGO: Moved UP, but below gauges (bottom: 22%)
+        // LOGO: MOVED UNDER INSTRUMENTS (Very Bottom)
         const logo = document.createElement('div');
         logo.style.cssText = `
             position: absolute;
-            bottom: 22%; /* Sits nicely under the instruments which are at 35% */
+            bottom: 5px; 
             left: 50%; transform: translateX(-50%);
-            width: 60%;
-            height: 60px;
+            width: 40%; height: 50px;
             display: flex; align-items: center; justify-content: center;
             z-index: 21; pointer-events: none;
         `;
@@ -3892,7 +3909,7 @@ flight(active) {
         // WIPER INDICATOR
         const lightBox = document.createElement('div');
         lightBox.style.cssText = `
-            position: absolute; bottom: 50px; left: 15%; width: 12px; height: 12px;
+            position: absolute; bottom: 20px; left: 10%; width: 12px; height: 12px;
             border-radius: 50%; background: #222; border: 2px solid #555;
             box-shadow: 0 0 2px #000; transition: all 0.3s;
         `;
@@ -3963,7 +3980,9 @@ flight(active) {
             if (Math.abs(bank) > 0.5) headingOffset += bank * 0.02;
 
             worldContainer.style.transform = `rotate(${bank}deg) translateY(${pitch}%)`;
-            grid.style.backgroundPositionY = `${flightTime * 800}px`;
+            
+            // Speed up ground
+            grid.style.backgroundPositionY = `${flightTime * 1200}px`;
 
             const farScroll = (headingOffset * -10) % 2000; 
             mtnBack.p1.style.transform = `translateX(${farScroll}px)`;
@@ -4037,7 +4056,7 @@ flight(active) {
             groundObjContainer.appendChild(el);
             setTimeout(() => el.remove(), 2000);
         };
-        this.groundSpawnInterval = setInterval(spawnGroundObject, 400);
+        this.groundSpawnInterval = setInterval(spawnGroundObject, 300);
 
         // --- RAIN & WIPER ---
         let wiperAngle = -50;
