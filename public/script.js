@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.89',
+    APP_VERSION: '6.2.90',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -3745,41 +3745,42 @@ flight(active) {
             return { cont, p1, p2 };
         };
 
-        // LAYER 1: DISTANT MOUNTAINS - gray/brown silhouettes
+        // LAYER 1: DISTANT MOUNTAINS - gray silhouettes (no snow caps)
         const svgBack = `
         <svg viewBox="0 0 1000 80" preserveAspectRatio="none" style="width:100%;height:100%;">
-            <polygon points="0,80 70,30 140,80" fill="#6b6b6b"/>
-            <polygon points="100,80 200,20 300,80" fill="#5a5a5a"/>
-            <polygon points="260,80 380,25 500,80" fill="#6b6b6b"/>
-            <polygon points="450,80 560,15 670,80" fill="#5a5a5a"/>
-            <polygon points="620,80 750,30 880,80" fill="#6b6b6b"/>
-            <polygon points="830,80 920,20 1000,80" fill="#5a5a5a"/>
+            <polygon points="0,80 70,30 140,80" fill="#7a7a7a"/>
+            <polygon points="100,80 200,15 300,80" fill="#6a6a6a"/>
+            <polygon points="260,80 380,25 500,80" fill="#7a7a7a"/>
+            <polygon points="450,80 560,10 670,80" fill="#6a6a6a"/>
+            <polygon points="620,80 750,30 880,80" fill="#7a7a7a"/>
+            <polygon points="830,80 930,20 1000,80" fill="#6a6a6a"/>
         </svg>`;
         const mtnBack = createMountainLayer(svgBack, 44, 12, 1, 0.5);
         worldContainer.appendChild(mtnBack.cont);
 
-        // LAYER 2: MAIN MOUNTAINS - brown with white snow caps (like reference)
+        // LAYER 2: MAIN MOUNTAINS - brown with conforming snow caps
+        // Snow caps use same peak point but shorter sides that follow the mountain slope
         const svgFront = `
         <svg viewBox="0 0 1000 100" preserveAspectRatio="none" style="width:100%;height:100%;">
-            <!-- Left mountain - brown -->
-            <polygon points="-20,100 90,25 200,100" fill="#8b7355"/>
-            <!-- Snow cap -->
-            <polygon points="90,25 55,55 125,55" fill="#fff"/>
+            <!-- Mountain 1: peak at (90,20), base from -20 to 200 -->
+            <polygon points="-20,100 90,20 200,100" fill="#8b7355"/>
+            <!-- Snow cap: same peak, follows slope down to ~40% height -->
+            <polygon points="90,20 46,52 134,52" fill="#ffffff"/>
             
-            <!-- Large center-left mountain -->
-            <polygon points="140,100 300,8 460,100" fill="#7a6b5a"/>
-            <!-- Large snow cap -->
-            <polygon points="300,8 245,50 355,50" fill="#fff"/>
+            <!-- Mountain 2: peak at (300,5), base from 140 to 460 -->
+            <polygon points="140,100 300,5 460,100" fill="#7a6b5a"/>
+            <!-- Snow cap: follows the exact slope angles -->
+            <polygon points="300,5 236,48 364,48" fill="#ffffff"/>
             
-            <!-- Right mountain -->
-            <polygon points="550,100 700,30 850,100" fill="#8b7355"/>
+            <!-- Mountain 3: peak at (680,25), base from 520 to 840 -->
+            <polygon points="520,100 680,25 840,100" fill="#8b7355"/>
             <!-- Snow cap -->
-            <polygon points="700,30 660,60 740,60" fill="#f5f5f5"/>
+            <polygon points="680,25 624,55 736,55" fill="#f8f8f8"/>
             
-            <!-- Far right mountain -->
-            <polygon points="800,100 920,40 1020,100" fill="#7a6b5a"/>
+            <!-- Mountain 4: peak at (920,35), base from 780 to 1040 -->
+            <polygon points="780,100 920,35 1060,100" fill="#7a6b5a"/>
             <!-- Snow cap -->
-            <polygon points="920,40 890,65 950,65" fill="#fff"/>
+            <polygon points="920,35 871,60 969,60" fill="#ffffff"/>
         </svg>`;
         const mtnFront = createMountainLayer(svgFront, 45, 16, 2, 1.0);
         worldContainer.appendChild(mtnFront.cont);
@@ -3787,7 +3788,7 @@ flight(active) {
         // LAYER 3: GREEN HILLS - foreground rolling hills
         const svgHills = `
         <svg viewBox="0 0 1000 50" preserveAspectRatio="none" style="width:100%;height:100%;">
-            <path d="M0,50 Q80,20 160,40 Q240,60 320,35 Q400,10 480,30 Q560,50 640,25 Q720,0 800,20 Q880,40 960,15 Q1000,30 1000,50 Z" fill="#4a8a3a"/>
+            <path d="M0,50 Q80,20 160,40 Q240,55 320,30 Q400,5 480,25 Q560,45 640,20 Q720,0 800,25 Q880,45 960,20 L1000,35 L1000,50 Z" fill="#4a8a3a"/>
         </svg>`;
         const hills = createMountainLayer(svgHills, 55, 8, 3, 1.0);
         worldContainer.appendChild(hills.cont);
@@ -3853,6 +3854,28 @@ flight(active) {
             </svg>
         `;
         cockpit.appendChild(dash);
+        
+        // LOGO above instrument panel
+        const logo = document.createElement('div');
+        logo.style.cssText = `
+            position: absolute;
+            bottom: 180px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
+            background: #2a3a4a;
+            border: 2px solid #1a2a3a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.3);
+            overflow: hidden;
+        `;
+        // Add the crying logo image
+        logo.innerHTML = `<img src="/public/crying.PNG" alt="Logo" style="width: 90%; height: 90%; object-fit: contain; opacity: 0.9;" onerror="this.style.display='none'"/>`;
+        cockpit.appendChild(logo);
 
         // WIPER INDICATOR
         const lightBox = document.createElement('div');
