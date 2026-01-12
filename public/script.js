@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.3.5',
+    APP_VERSION: '6.3.7',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -3899,16 +3899,36 @@ prop.innerHTML = `
 
         // 4. LOGO (Middle, Bottom)
         // Positioned between SPD and ALT
-        const logo = document.createElement('div');
+const logo = document.createElement('div');
         logo.style.cssText = `
             position: absolute;
             bottom: 15px;
             left: 50%; transform: translateX(-50%);
             width: 120px; height: 80px;
-            display: flex; align-items: flex-end; justify-content: center;
             z-index: 21;
         `;
-        logo.innerHTML = `<img src="crying.PNG" alt="Logo" style="width: 100%; height: 100%; object-fit: contain; opacity: 0.8;" onerror="this.style.display='none'"/>`;
+        logo.innerHTML = `
+            <svg viewBox="0 0 120 80" style="width: 100%; height: 100%; overflow: visible;">
+                <defs>
+                    <linearGradient id="metalFrame" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stop-color="#78909c"/>
+                        <stop offset="50%" stop-color="#eceff1"/>
+                        <stop offset="100%" stop-color="#78909c"/>
+                    </linearGradient>
+                </defs>
+                
+                <rect x="4" y="4" width="112" height="72" rx="4" fill="#263238" opacity="0.6" />
+                
+                <image href="crying.PNG" x="15" y="15" width="90" height="50" preserveAspectRatio="xMidYMid contain" opacity="0.9"/>
+                
+                <rect x="4" y="4" width="112" height="72" rx="4" fill="none" stroke="url(#metalFrame)" stroke-width="5" />
+                
+                <g fill="#cfd8dc" stroke="#455a64" stroke-width="1">
+                    <circle cx="8" cy="8" r="2.5" />   <circle cx="112" cy="8" r="2.5" /> <circle cx="8" cy="72" r="2.5" />  <circle cx="112" cy="72" r="2.5" /></g>
+                <g stroke="#455a64" stroke-width="1">
+                    <path d="M6.5,8 L9.5,8 M8,6.5 L8,9.5" /> <path d="M110.5,8 L113.5,8 M112,6.5 L112,9.5" /> <path d="M6.5,72 L9.5,72 M8,70.5 L8,73.5" /> <path d="M110.5,72 L113.5,72 M112,70.5 L112,73.5" /> </g>
+            </svg>
+        `;
         gauges.appendChild(logo);
 
         cockpit.appendChild(gauges);
@@ -3944,13 +3964,28 @@ const lightBox = document.createElement('div');
         // =========================================
         // LAYER 7: WIPER (Z: 100)
         // =========================================
-        const wiper = document.createElement('div');
+const wiper = document.createElement('div');
         wiper.style.cssText = `
-            position: absolute; bottom: 40%; left: 50%; width: 8px; height: 45vh;
-            background: #111; transform-origin: bottom center; transform: rotate(-50deg);
-            z-index: 100; display: block;
+            position: absolute; bottom: 40%; left: 50%; width: 0; height: 45vh;
+            transform-origin: bottom center; transform: rotate(-50deg);
+            z-index: 100; display: block; pointer-events: none;
         `;
-        wiper.innerHTML = `<div style="position: absolute; top: 0; left: -2px; width: 12px; height: 45vh; background: #000; border-radius: 2px;"></div>`;
+        wiper.innerHTML = `
+            <div style="
+                position: absolute; bottom: 0; left: -6px; width: 12px; height: 100%;
+                background: #111; border-radius: 6px; 
+                box-shadow: 2px 0 4px rgba(0,0,0,0.5);
+                display: flex; justify-content: center; padding-top: 4px; padding-bottom: 4px;
+            ">
+                <div style="width: 2px; height: 100%; background: #666; opacity: 0.8;"></div>
+            </div>
+            
+            <div style="
+                position: absolute; bottom: -6px; left: -9px; width: 18px; height: 18px;
+                background: #222; border-radius: 50%; border: 2px solid #000;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            "></div>
+        `;
         c.appendChild(wiper);
 
         // --- ANIMATIONS ---
@@ -4050,8 +4085,20 @@ const logicLoop = () => {
                 cloud.style.left = pos + '%';
             });
 
-            if (horizonBall) horizonBall.style.transform = `rotate(${-bank}deg) translateY(${pitch * 2}px)`; 
-            if (spd.needle) spd.needle.style.transform = `rotate(${-45 + Math.random() * 2}deg)`;
+if (horizonBall) horizonBall.style.transform = `rotate(${-bank}deg) translateY(${pitch * 2}px)`; 
+            
+            // SPD Logic: Engine Power + Gravity (Pitch) + Vibration
+            // 1. Base engine speed
+            let spdAngle = -135 + (enginePower * 180);
+            // 2. Physics: Pitching down (negative) increases speed, Pitching up decreases it
+            spdAngle -= (pitch * 12); 
+            // 3. Jitter: Constant slight vibration
+            spdAngle += (Math.random() * 3 - 1.5);
+
+            if (spd.needle) {
+                spd.needle.style.transition = 'none'; // Ensure instant movement for jitter
+                spd.needle.style.transform = `rotate(${spdAngle}deg)`;
+            }
             
             const altAngle = -135 + (altitude / 2000 * 270);
             if (alt.needle) alt.needle.style.transform = `rotate(${altAngle}deg)`;
