@@ -16,9 +16,9 @@ const CONFIG = {
     TIP_COOLDOWN: 4,
     HISTORY_SIZE: 500,
     VOTE: {
-        MASH_LIMIT: 4,           
+        MASH_LIMIT: 6,           
         COOLDOWN_TIERS: [5, 10, 20],  
-        STREAK_WINDOW: 800,      
+        STREAK_WINDOW: 1200,      
         SWIPE_THRESHOLD: 100
     },
     THEME_SECRETS: {
