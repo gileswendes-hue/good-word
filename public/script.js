@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.3.3',
+    APP_VERSION: '6.3.4',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -3973,13 +3973,23 @@ prop.innerHTML = `
         let headingOffset = 0;
         let altitude = 1000;
 
-        const logicLoop = () => {
+const logicLoop = () => {
             if(!document.body.contains(c)) return;
             flightTime += 0.005;
             
-            const enginePower = (Math.sin(flightTime * 0.8) + 1) / 2; 
+            // SURGICAL FIX: Change target speed every ~30 seconds
+            // flightTime increments ~0.3 per second. 30s is roughly a count of 9.0
+            const block = Math.floor(flightTime / 9.0);
+            // Generate a stable target between 70% and 90% power
+            const targetPower = 0.8 + (Math.sin(block * 123.4) * 0.1); 
             
-            prop.style.animationDuration = `${0.3 - (enginePower * 0.22)}s`;
+            // Smoothly interpolate current power (Store state on prop element)
+            let enginePower = parseFloat(prop.dataset.pwr || 0.8);
+            enginePower += (targetPower - enginePower) * 0.005;
+            prop.dataset.pwr = enginePower;
+
+            // Apply to Propeller (0.35s is slow, 0.1s is fast)
+            prop.style.animationDuration = `${0.35 - (enginePower * 0.25)}s`;
 
             const spdAngle = -135 + (enginePower * 180);
             if (spd.needle) spd.needle.style.transform = `rotate(${spdAngle}deg)`;
