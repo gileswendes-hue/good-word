@@ -3740,22 +3740,24 @@ flight(active) {
             return { cont, p1, p2 };
         };
 
-        // LAYER 1: BACK MOUNTAINS (Grey, Pointy, Snow Capped)
+        // LAYER 1: BACK MOUNTAINS (Grey, Pointy)
+        // Fixed: Snowcaps share exact peak coordinates
         const svgBack = `
         <svg viewBox="0 0 1200 100" preserveAspectRatio="none" style="width:100%; height:100%;">
-            <path d="M0,100 L0,70 L150,15 L300,80 L450,10 L550,60 L650,20 L800,75 L950,25 L1050,60 L1200,30 L1200,100 Z" fill="#546e7a"/>
-            <path d="M150,15 L135,25 L165,25 Z  M450,10 L435,20 L465,20 Z  M650,20 L635,30 L665,30 Z  M950,25 L935,35 L965,35 Z  M1200,30 L1185,40 L1215,40 Z" fill="white" opacity="0.9"/>
+            <path d="M0,100 L150,20 L300,80 L450,15 L600,60 L750,25 L900,75 L1050,20 L1200,100 Z" fill="#546e7a"/>
+            <path d="M150,20 L135,35 L165,35 Z  M450,15 L435,30 L465,30 Z  M750,25 L735,40 L765,40 Z  M1050,20 L1035,35 L1065,35 Z" fill="white" opacity="0.9"/>
         </svg>`;
         const mtnBack = createMountainLayer(svgBack, 42, 18, 1, 0.9);
         worldContainer.appendChild(mtnBack.cont);
 
-        // LAYER 2: FRONT MOUNTAINS (Brown, Rounded, Snow Capped)
+        // LAYER 2: FRONT HILLS (Brown, Pointy)
+        // Fixed: Snowcaps follow the quadratic curve
         const svgFront = `
         <svg viewBox="0 0 1200 100" preserveAspectRatio="none" style="width:100%; height:100%;">
-            <path d="M0,100 L0,80 Q150,40 300,80 Q450,30 600,80 Q750,40 900,80 Q1050,40 1200,80 L1200,100 Z" fill="#4e342e"/>
-            <path d="M130,55 Q150,40 170,55 Z  M430,45 Q450,30 470,45 Z  M730,55 Q750,40 770,55 Z  M1030,55 Q1050,40 1070,55 Z" fill="white" opacity="0.8"/>
+            <path d="M0,100 L200,50 L400,80 L600,40 L800,70 L1000,30 L1200,100 Z" fill="#4e342e"/>
+            <path d="M200,50 L185,65 L215,65 Z  M600,40 L585,55 L615,55 Z  M1000,30 L985,45 L1015,45 Z" fill="white" opacity="0.8"/>
         </svg>`;
-        const mtnFront = createMountainLayer(svgFront, 54, 10, 2, 1.0); 
+        const mtnFront = createMountainLayer(svgFront, 54, 8, 2, 1.0);
         worldContainer.appendChild(mtnFront.cont);
 
         // GROUND
@@ -3830,18 +3832,18 @@ flight(active) {
         `;
         cockpit.appendChild(dash);
         
-        // LOGO (Re-positioned)
+        // LOGO: Repositioned to BOTTOM of Dashboard (under gauges)
         const logo = document.createElement('div');
         logo.style.cssText = `
             position: absolute;
-            bottom: 22%; /* Sits above gauges, below prop hub */
+            bottom: 5px;
             left: 50%; transform: translateX(-50%);
-            width: 80%; /* Width of main panel area */
+            width: 80%;
             height: 100px;
-            display: flex; align-items: center; justify-content: center;
+            display: flex; align-items: flex-end; justify-content: center;
             z-index: 21; pointer-events: none;
         `;
-        logo.innerHTML = `<img src="crying.PNG" alt="Logo" style="max-width: 100%; max-height: 100%; opacity: 0.8;" onerror="this.style.display='none'"/>`;
+        logo.innerHTML = `<img src="crying.PNG" alt="Logo" style="max-width: 100%; max-height: 100%; object-fit: contain; opacity: 0.8;" onerror="this.style.display='none'"/>`;
         cockpit.appendChild(logo);
 
         // WIPER INDICATOR
@@ -3855,7 +3857,7 @@ flight(active) {
 
         // GAUGES
         const gauges = document.createElement('div');
-        gauges.style.cssText = `position: absolute; bottom: 40px; left: 0; right: 0; height: 140px; display: flex; justify-content: center; align-items: center; gap: 40px; z-index: 22;`;
+        gauges.style.cssText = `position: absolute; bottom: 30px; left: 0; right: 0; height: 140px; display: flex; justify-content: center; align-items: center; gap: 40px; z-index: 22;`;
         
         const createGauge = (label, color, type) => {
             const g = document.createElement('div');
@@ -4039,7 +4041,6 @@ flight(active) {
             if (!document.body.contains(c)) return;
             rainTick++;
 
-            // Use Standard WeatherManager
             const isRaining = (typeof window.WeatherManager !== 'undefined' && 
                               (window.WeatherManager.isRaining || window.WeatherManager.isSnowing));
 
@@ -4047,14 +4048,14 @@ flight(active) {
             lightBox.style.boxShadow = isRaining ? '0 0 8px #00e676' : '0 0 2px #000';
 
             if (isRaining) {
-                // Manually rotate wiper for collision detection
+                // Update wiper
                 prevWiperAngle = wiperAngle;
                 wiperAngle += wiperDir * 4;
                 if (wiperAngle >= 50) wiperDir = -1;
                 if (wiperAngle <= -50) wiperDir = 1;
                 wiper.style.transform = `rotate(${wiperAngle}deg)`;
 
-                // 1. External Rain Streaks
+                // 1. External Rain
                 if (rainTick % 2 === 0) {
                     const streak = document.createElement('div');
                     streak.style.cssText = `
@@ -4088,21 +4089,17 @@ flight(active) {
                     }
                 }
 
-                // 3. Wiper Clearing Logic
+                // 3. Clearing
                 if (rainTick % 2 === 0) {
                     const drops = windscreenRain.querySelectorAll('.rain-drop-glass:not(.clearing)');
                     drops.forEach(drop => {
                         const dropX = parseFloat(drop.dataset.x);
                         const dropY = parseFloat(drop.dataset.y) || 30;
-                        
-                        // Approx collision detection based on angle
                         const dropAngle = (dropX - 50) * 1.4;
-                        
                         const wiperCrossed = (
                             (prevWiperAngle < dropAngle && wiperAngle >= dropAngle) ||
                             (prevWiperAngle > dropAngle && wiperAngle <= dropAngle)
                         );
-                        
                         if (wiperCrossed && dropY < 50) {
                             drop.classList.add('clearing');
                             drop.style.animation = wiperDir > 0 
@@ -4114,9 +4111,8 @@ flight(active) {
                 }
 
             } else {
-                // Park wiper when rain stops
                 if (Math.abs(wiperAngle - -50) > 2) {
-                    wiperAngle -= 2; 
+                    wiperAngle -= 2;
                     wiper.style.transform = `rotate(${wiperAngle}deg)`;
                 } else {
                     wiper.style.transform = 'rotate(-50deg)';
