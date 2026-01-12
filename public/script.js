@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.3.8',
+    APP_VERSION: '6.3.11',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -3880,10 +3880,28 @@ prop.innerHTML = `
 
         // 1. HORIZON (Top Center)
         const att = createGauge("ATT", "", "horizon");
-        att.style.top = "30px"; 
+        att.style.top = "15px"; 
         att.style.left = "50%";
         att.style.transform = "translateX(-50%)";
         gauges.appendChild(att);
+
+        // 1b. COMPASS (Below Horizon)
+        const compass = document.createElement('div');
+        compass.style.cssText = `
+            position: absolute; top: 110px; left: 50%; transform: translateX(-50%);
+            width: 70px; height: 35px; background: #111; border: 3px solid #546e7a;
+            border-radius: 5px; box-shadow: inset 0 0 8px #000; overflow: hidden;
+        `;
+        compass.innerHTML = `
+            <div id="compass-tape" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); white-space: nowrap; font-size: 10px; font-weight: bold; color: #b0bec5; font-family: monospace;">
+                <span style="color: #ff5722;">N</span>&nbsp;&nbsp;030&nbsp;&nbsp;060&nbsp;&nbsp;<span style="color: #fff;">E</span>&nbsp;&nbsp;120&nbsp;&nbsp;150&nbsp;&nbsp;<span style="color: #ff5722;">S</span>&nbsp;&nbsp;210&nbsp;&nbsp;240&nbsp;&nbsp;<span style="color: #fff;">W</span>&nbsp;&nbsp;300&nbsp;&nbsp;330&nbsp;&nbsp;<span style="color: #ff5722;">N</span>
+            </div>
+            <div style="position: absolute; top: 0; left: 50%; width: 2px; height: 100%; background: #ffea00; transform: translateX(-50%); box-shadow: 0 0 4px #ffea00;"></div>
+            <div style="position: absolute; bottom: 2px; width: 100%; text-align: center; color: #78909c; font-size: 7px;">HDG</div>
+        `;
+        const compassTape = compass.querySelector('#compass-tape');
+        compass.tape = compassTape;
+        gauges.appendChild(compass);
 
         // 2. SPD (Far Left, Bottom)
         const spd = createGauge("SPD", "#ffea00", "std");
@@ -3902,13 +3920,13 @@ prop.innerHTML = `
 const logo = document.createElement('div');
         logo.style.cssText = `
             position: absolute;
-            bottom: 15px;
+            bottom: 10px;
             left: 50%; transform: translateX(-50%);
-            width: 120px; height: 80px;
+            width: 180px; height: 120px;
             z-index: 21;
         `;
         logo.innerHTML = `
-            <svg viewBox="0 0 120 80" style="width: 100%; height: 100%; overflow: visible;">
+            <svg viewBox="0 0 180 120" style="width: 100%; height: 100%; overflow: visible;">
                 <defs>
                     <linearGradient id="metalFrame" x1="0" y1="0" x2="1" y2="1">
                         <stop offset="0%" stop-color="#78909c"/>
@@ -3917,16 +3935,16 @@ const logo = document.createElement('div');
                     </linearGradient>
                 </defs>
                 
-                <rect x="4" y="4" width="112" height="72" rx="4" fill="#263238" opacity="0.6" />
+                <rect x="6" y="6" width="168" height="108" rx="6" fill="#263238" opacity="0.6" />
                 
-                <image href="crying.PNG" x="15" y="15" width="90" height="50" preserveAspectRatio="xMidYMid contain" opacity="0.9"/>
+                <image href="crying.PNG" x="22" y="22" width="135" height="75" preserveAspectRatio="xMidYMid contain" opacity="0.9"/>
                 
-                <rect x="4" y="4" width="112" height="72" rx="4" fill="none" stroke="url(#metalFrame)" stroke-width="5" />
+                <rect x="6" y="6" width="168" height="108" rx="6" fill="none" stroke="url(#metalFrame)" stroke-width="7" />
                 
                 <g fill="#cfd8dc" stroke="#455a64" stroke-width="1">
-                    <circle cx="8" cy="8" r="2.5" />   <circle cx="112" cy="8" r="2.5" /> <circle cx="8" cy="72" r="2.5" />  <circle cx="112" cy="72" r="2.5" /></g>
+                    <circle cx="12" cy="12" r="3.5" />   <circle cx="168" cy="12" r="3.5" /> <circle cx="12" cy="108" r="3.5" />  <circle cx="168" cy="108" r="3.5" /></g>
                 <g stroke="#455a64" stroke-width="1">
-                    <path d="M6.5,8 L9.5,8 M8,6.5 L8,9.5" /> <path d="M110.5,8 L113.5,8 M112,6.5 L112,9.5" /> <path d="M6.5,72 L9.5,72 M8,70.5 L8,73.5" /> <path d="M110.5,72 L113.5,72 M112,70.5 L112,73.5" /> </g>
+                    <path d="M9.5,12 L14.5,12 M12,9.5 L12,14.5" /> <path d="M165.5,12 L170.5,12 M168,9.5 L168,14.5" /> <path d="M9.5,108 L14.5,108 M12,105.5 L12,110.5" /> <path d="M165.5,108 L170.5,108 M168,105.5 L168,110.5" /> </g>
             </svg>
         `;
         gauges.appendChild(logo);
@@ -4018,14 +4036,15 @@ const wiper = document.createElement('div');
         let headingOffset = 0;
         let altitude = 1000;
 
-const logicLoop = () => {
+// --- LOGIC LOOP ---
+        const logicLoop = () => {
             if(!document.body.contains(c)) return;
             flightTime += 0.005;
             
             // 1. ENGINE POWER (Stable Cruising)
-            // Change target speed every ~30 seconds (flightTime 9.0 ≈ 30s)
+            // Change target speed every ~30 seconds
             const block = Math.floor(flightTime / 9.0);
-            const targetPower = 0.7 + (Math.sin(block * 123.4) * 0.15); // Stable range 0.55 - 0.85
+            const targetPower = 0.7 + (Math.sin(block * 123.4) * 0.15); 
             
             // Smoothly interpolate current power
             let enginePower = parseFloat(prop.dataset.pwr || 0.7);
@@ -4043,11 +4062,11 @@ const logicLoop = () => {
             if (cyclePos < 0.2) bank = 0;
             else if (cyclePos < 0.4) {
                 const t = (cyclePos - 0.2) / 0.2; 
-                bank = -Math.sin(t * Math.PI) * 6;
+                bank = -Math.sin(t * Math.PI) * 12; // Increased from 6 to 12 for more visible banking
             } else if (cyclePos < 0.6) bank = 0;
             else if (cyclePos < 0.8) {
                 const t = (cyclePos - 0.6) / 0.2; 
-                bank = Math.sin(t * Math.PI) * 6;
+                bank = Math.sin(t * Math.PI) * 12; // Increased from 6 to 12 for more visible banking
             } else bank = 0;
             
             const pitch = Math.sin(flightTime * 0.3) * 1.5;
@@ -4064,15 +4083,14 @@ const logicLoop = () => {
             // Move ground 'towards' player
             grid.style.backgroundPositionY = `${flightTime * 1200}px`;
 
-            // Scroll Mountains (Parallax)
-            let headingOffset = 0;
-            if (Math.abs(bank) > 0.5) headingOffset += bank * 0.02; // Accumulate heading
+            // Scroll Mountains (Parallax) - accumulate heading based on bank
+            if (Math.abs(bank) > 0.5) headingOffset += bank * 0.5;
             
-            const farScroll = (headingOffset * -10) % 2000; 
+            const farScroll = (headingOffset * -0.5) % 2000; 
             mtnBack.p1.style.transform = `translateX(${farScroll}px)`;
             mtnBack.p2.style.transform = `translateX(${farScroll + 2000}px)`; 
             
-            const nearScroll = (headingOffset * -20) % 2000;
+            const nearScroll = (headingOffset * -1) % 2000;
             mtnFront.p1.style.transform = `translateX(${nearScroll}px)`;
             mtnFront.p2.style.transform = `translateX(${nearScroll + 2000}px)`;
 
@@ -4090,10 +4108,20 @@ const logicLoop = () => {
             // Horizon
             if (horizonBall) horizonBall.style.transform = `rotate(${-bank}deg) translateY(${pitch * 2}px)`; 
             
+            // Compass - moves based on accumulated heading
+            if (compass.tape) {
+                // Normalize heading to 0-360 range, use headingOffset to determine bearing
+                const bearing = ((headingOffset * 0.5) % 360 + 360) % 360;
+                // Tape scrolls - each character is roughly 8px, full rotation = 360 degrees
+                const tapeOffset = (bearing / 360) * 280; // 280px is approximate tape width for full rotation
+                compass.tape.style.transform = `translate(calc(-50% - ${tapeOffset}px), -50%)`;
+            }
+            
             // Speed (SPD) - Includes Physics + Jitter
-            let spdAngle = -135 + (enginePower * 180);
-            spdAngle -= (pitch * 12); // Gravity effect
-            spdAngle += (Math.random() * 3 - 1.5); // Jitter
+            // Declared ONCE here to prevent syntax error
+            let spdAngle = -135 + (enginePower * 220);
+            spdAngle -= (pitch * 25); // Increased gravity effect
+            spdAngle += (Math.random() * 8 - 4); // Increased jitter
             
             if (spd.needle) {
                 spd.needle.style.transition = 'none'; 
@@ -5882,6 +5910,9 @@ init() {
                 html += mkTog('toggleHideMultiplayer', 'Hide Multiplayer Button', s.hideMultiplayer);
                 html += mkTog('toggleHideCards', '🎨 Hide Cards (Theme Mode)', s.hideCards);
                 html += `<p class="text-xs text-gray-400 mt-1 mb-2">Hides the game cards to just enjoy the theme background.</p>`;
+                html += mkTog('toggleHideProfile', '👤 Hide Profile Card', s.hideProfile);
+                html += mkTog('toggleHideVotesBar', '📊 Hide Votes Bar', s.hideVotesBar);
+                html += mkTog('toggleHideTopWords', '📝 Hide Top Good/Bad Words', s.hideTopWords);
                 html += `</div></div>`;
                 if (!s.kidsMode) {
                 html += `<div class="mt-8 pt-4 border-t-2 border-gray-100">
@@ -5963,6 +5994,27 @@ init() {
                     hideCardsToggle.onchange = e => {
                         State.save('settings', { ...State.data.settings, hideCards: e.target.checked });
                         Game.applyHideCards(e.target.checked);
+                    };
+                }
+                const hideProfileToggle = document.getElementById('toggleHideProfile');
+                if (hideProfileToggle) {
+                    hideProfileToggle.onchange = e => {
+                        State.save('settings', { ...State.data.settings, hideProfile: e.target.checked });
+                        Game.applyUIVisibility();
+                    };
+                }
+                const hideVotesBarToggle = document.getElementById('toggleHideVotesBar');
+                if (hideVotesBarToggle) {
+                    hideVotesBarToggle.onchange = e => {
+                        State.save('settings', { ...State.data.settings, hideVotesBar: e.target.checked });
+                        Game.applyUIVisibility();
+                    };
+                }
+                const hideTopWordsToggle = document.getElementById('toggleHideTopWords');
+                if (hideTopWordsToggle) {
+                    hideTopWordsToggle.onchange = e => {
+                        State.save('settings', { ...State.data.settings, hideTopWords: e.target.checked });
+                        Game.applyUIVisibility();
                     };
                 }
                 document.getElementById('toggleMute').onchange = e => {
@@ -8030,6 +8082,7 @@ const Game = {
             if (State.data.settings.hideCards) {
                 this.applyHideCards(true);
             }
+            this.applyUIVisibility();
             await this.refreshData();
             DiscoveryManager.init();
             setTimeout(() => {
@@ -8468,6 +8521,24 @@ async vote(t, s = false) {
             if (header) header.style.opacity = '1';
             if (themesPanel) themesPanel.style.opacity = '1';
             if (rankingsSection) rankingsSection.style.opacity = '1';
+        }
+    },
+    applyUIVisibility() {
+        const s = State.data.settings;
+        // Profile card (userStatsBar in header)
+        const profileSection = DOM.header.userStatsBar;
+        if (profileSection) {
+            profileSection.style.display = s.hideProfile ? 'none' : '';
+        }
+        // Votes bar (good/bad vote counts and bar)
+        const votesContainer = document.querySelector('.flex.items-center.gap-1.text-xs');
+        const voteBarContainer = document.getElementById('headerBarGood')?.parentElement?.parentElement;
+        if (votesContainer) votesContainer.style.display = s.hideVotesBar ? 'none' : '';
+        if (voteBarContainer) voteBarContainer.style.display = s.hideVotesBar ? 'none' : '';
+        // Top good/bad words section
+        const rankingsSection = document.getElementById('rankingsSection');
+        if (rankingsSection) {
+            rankingsSection.style.display = s.hideTopWords ? 'none' : '';
         }
     },
     disableDailyMode() {
