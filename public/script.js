@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.60',
+    APP_VERSION: '6.2.61',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -3821,25 +3821,68 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 <!-- Inner struts -->
                 <path d="M4,0 Q-2,50 4,100" stroke="#3a5a7a" stroke-width="2" fill="none"/>
                 <path d="M96,0 Q102,50 96,100" stroke="#3a5a7a" stroke-width="2" fill="none"/>
-                <!-- Center strut for prop mount -->
-                <line x1="50" y1="0" x2="50" y2="18" stroke="#2a4a6a" stroke-width="3"/>
             </svg>
         `;
         c.appendChild(cockpitFrame);
+        // WINDSCREEN RAIN/SNOW LAYER - between outside world and cockpit
+        const windscreen = document.createElement('div');
+        windscreen.id = 'flight-windscreen';
+        windscreen.style.cssText = `
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 45;
+            overflow: hidden;
+        `;
+        c.appendChild(windscreen);
+        // WINDSCREEN WIPERS
+        const wiperLeft = document.createElement('div');
+        wiperLeft.id = 'flight-wiper-left';
+        wiperLeft.style.cssText = `
+            position: absolute;
+            bottom: 48%;
+            left: 25%;
+            width: 4px;
+            height: 120px;
+            background: linear-gradient(180deg, #222 0%, #444 50%, #222 100%);
+            border-radius: 2px;
+            transform-origin: bottom center;
+            transform: rotate(-30deg);
+            z-index: 52;
+            opacity: 0;
+            transition: opacity 0.5s;
+        `;
+        c.appendChild(wiperLeft);
+        const wiperRight = document.createElement('div');
+        wiperRight.id = 'flight-wiper-right';
+        wiperRight.style.cssText = `
+            position: absolute;
+            bottom: 48%;
+            right: 25%;
+            width: 4px;
+            height: 120px;
+            background: linear-gradient(180deg, #222 0%, #444 50%, #222 100%);
+            border-radius: 2px;
+            transform-origin: bottom center;
+            transform: rotate(30deg);
+            z-index: 52;
+            opacity: 0;
+            transition: opacity 0.5s;
+        `;
+        c.appendChild(wiperRight);
+        // Propeller - positioned lower, in front of pilot, partially behind panel
         const propAssembly = document.createElement('div');
         propAssembly.style.cssText = `
             position: absolute;
-            top: 0;
+            bottom: 35%;
             left: 50%;
             transform: translateX(-50%);
-            z-index: 55;
+            z-index: 58;
         `;
         propAssembly.innerHTML = `
-            <!-- Spinner hub attached to frame strut -->
-            <div style="position: absolute; top: 12%; left: 50%; transform: translateX(-50%); width: 50px; height: 60px; background: linear-gradient(180deg, #ddd 0%, #999 40%, #777 70%, #555 100%); border-radius: 50% 50% 40% 40%; z-index: 2;"></div>
-            <!-- Propeller - larger and attached -->
-            <div id="flight-prop" style="position: absolute; top: 2%; left: 50%; transform: translateX(-50%); width: 380px; height: 380px;">
-                <svg viewBox="0 0 380 380" style="width: 100%; height: 100%;">
+            <div style="position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); width: 55px; height: 65px; background: linear-gradient(180deg, #ddd 0%, #999 40%, #777 70%, #555 100%); border-radius: 50% 50% 40% 40%; z-index: 2;"></div>
+            <div id="flight-prop" style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); width: 420px; height: 420px;">
+                <svg viewBox="0 0 420 420" style="width: 100%; height: 100%;">
                     <defs>
                         <linearGradient id="propBladeGrad" x1="0%" y1="50%" x2="100%" y2="50%">
                             <stop offset="0%" style="stop-color:#2a2a2a"/>
@@ -3851,9 +3894,9 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                             <stop offset="100%" style="stop-color:#2a2a2a"/>
                         </linearGradient>
                     </defs>
-                    <ellipse cx="190" cy="190" rx="180" ry="18" fill="url(#propBladeGrad)"/>
-                    <circle cx="190" cy="190" r="25" fill="#666"/>
-                    <circle cx="190" cy="190" r="15" fill="#888"/>
+                    <ellipse cx="210" cy="210" rx="200" ry="20" fill="url(#propBladeGrad)"/>
+                    <circle cx="210" cy="210" r="28" fill="#666"/>
+                    <circle cx="210" cy="210" r="18" fill="#888"/>
                 </svg>
             </div>
         `;
@@ -4094,6 +4137,32 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 90% { opacity: 1; }
                 100% { transform: translate(-50%, -50%) scale(3.5); opacity: 0; }
             }
+            @keyframes wiper-sweep-left {
+                0%, 100% { transform: rotate(-30deg); }
+                50% { transform: rotate(45deg); }
+            }
+            @keyframes wiper-sweep-right {
+                0%, 100% { transform: rotate(30deg); }
+                50% { transform: rotate(-45deg); }
+            }
+            @keyframes raindrop-fall {
+                0% { transform: translateY(-20px) rotate(15deg); opacity: 0; }
+                10% { opacity: 0.8; }
+                100% { transform: translateY(100vh) rotate(15deg); opacity: 0.3; }
+            }
+            @keyframes snowflake-windscreen {
+                0% { transform: translateY(-20px) rotate(0deg); opacity: 0; }
+                10% { opacity: 0.9; }
+                100% { transform: translateY(100vh) rotate(360deg); opacity: 0.2; }
+            }
+            #flight-wiper-left.active {
+                opacity: 1;
+                animation: wiper-sweep-left 1.5s ease-in-out infinite;
+            }
+            #flight-wiper-right.active {
+                opacity: 1;
+                animation: wiper-sweep-right 1.5s ease-in-out infinite;
+            }
         `;
         document.head.appendChild(style);
         const spawnCloud = () => {
@@ -4151,6 +4220,59 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         };
         setTimeout(spawnCloud, 500);
         this.flightTimeout = setTimeout(spawnFlyingThing, 1500);
+        // Windscreen weather effects (rain/snow on glass)
+        const updateWindscreenWeather = () => {
+            if (!c.isConnected) return;
+            const windscreen = document.getElementById('flight-windscreen');
+            const wiperL = document.getElementById('flight-wiper-left');
+            const wiperR = document.getElementById('flight-wiper-right');
+            if (!windscreen) return;
+            const isRaining = Weather.isRaining;
+            const isSnowing = Weather.isSnowing;
+            if (wiperL && wiperR) {
+                if (isRaining || isSnowing) {
+                    wiperL.classList.add('active');
+                    wiperR.classList.add('active');
+                } else {
+                    wiperL.classList.remove('active');
+                    wiperR.classList.remove('active');
+                }
+            }
+            if (isRaining) {
+                for (let i = 0; i < 3; i++) {
+                    const drop = document.createElement('div');
+                    drop.style.cssText = `
+                        position: absolute;
+                        left: ${Math.random() * 100}%;
+                        top: -20px;
+                        width: 2px;
+                        height: ${15 + Math.random() * 20}px;
+                        background: linear-gradient(180deg, transparent, rgba(150,200,255,0.6), rgba(100,150,200,0.3));
+                        border-radius: 2px;
+                        animation: raindrop-fall ${0.8 + Math.random() * 0.5}s linear forwards;
+                    `;
+                    windscreen.appendChild(drop);
+                    setTimeout(() => drop.remove(), 1500);
+                }
+            } else if (isSnowing) {
+                for (let i = 0; i < 2; i++) {
+                    const flake = document.createElement('div');
+                    flake.textContent = '❄';
+                    flake.style.cssText = `
+                        position: absolute;
+                        left: ${Math.random() * 100}%;
+                        top: -20px;
+                        font-size: ${8 + Math.random() * 10}px;
+                        color: rgba(255,255,255,0.8);
+                        animation: snowflake-windscreen ${2 + Math.random() * 2}s linear forwards;
+                    `;
+                    windscreen.appendChild(flake);
+                    setTimeout(() => flake.remove(), 4000);
+                }
+            }
+            setTimeout(updateWindscreenWeather, 100);
+        };
+        setTimeout(updateWindscreenWeather, 1000);
         let mountainOffset = 0;
         const performBank = () => {
             if (!c.isConnected) return;
