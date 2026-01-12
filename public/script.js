@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.99',
+    APP_VERSION: '6.3.0',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -3697,7 +3697,7 @@ flight(active) {
 
         // SKY
         const sky = document.createElement('div');
-        sky.style.cssText = `position: absolute; inset: 0; background: linear-gradient(to bottom, #0f4c81 0%, #3282b8 50%, #bbe1fa 100%);`;
+        sky.style.cssText = `position: absolute; inset: 0; background: linear-gradient(to bottom, #0d47a1 0%, #42a5f5 50%, #e3f2fd 100%);`;
         worldContainer.appendChild(sky);
 
         // SUN
@@ -3741,32 +3741,30 @@ flight(active) {
             return { cont, p1, p2 };
         };
 
-        // LAYER 1: BACK MOUNTAINS (Grey, Pointy)
-        // Calculated Points: Peak (200, 20), Left Base (0,100), Right Base (400,100)
-        // Slope = 80y / 200x = 0.4. Snow at y=40 (20px drop) -> x offset = 20/0.4 = 50.
-        // Left Snow Pt: 200-50=150. Right Snow Pt: 200+50=250.
+        // LAYER 1: BACK MOUNTAINS (Grey, Distant, Jagged Snow)
+        // I have manually plotted "zig-zag" points for the bottom of the snow to create the jagged effect.
         const svgBack = `
         <svg viewBox="0 0 1200 100" preserveAspectRatio="none" style="width:100%; height:100%;">
-            <path d="M0,100 L200,20 L400,100 L500,100 L700,30 L900,100 L1000,100 L1100,40 L1200,100 Z" fill="#546e7a"/>
+            <path d="M0,100 L0,70 L200,45 L400,80 L600,40 L800,75 L1000,45 L1200,70 L1200,100 Z" fill="#546e7a"/>
             
-            <path d="M200,20 L150,40 L250,40 Z" fill="white" opacity="0.9"/>
+            <path d="M200,45 L180,60 L188,55 L195,62 L200,58 L205,62 L212,55 L220,60 Z" fill="white" opacity="0.9"/>
             
-            <path d="M700,30 L650,50 L750,50 Z" fill="white" opacity="0.9"/>
+            <path d="M600,40 L580,55 L590,50 L595,58 L600,52 L605,58 L610,50 L620,55 Z" fill="white" opacity="0.9"/>
             
-            <path d="M1100,40 L1070,60 L1130,60 Z" fill="white" opacity="0.9"/>
+            <path d="M1000,45 L980,60 L988,55 L995,62 L1000,58 L1005,62 L1012,55 L1020,60 Z" fill="white" opacity="0.9"/>
         </svg>`;
-        const mtnBack = createMountainLayer(svgBack, 38, 22, 1, 1.0);
+        const mtnBack = createMountainLayer(svgBack, 40, 20, 1, 1.0);
         worldContainer.appendChild(mtnBack.cont);
 
-        // LAYER 2: FRONT MOUNTAINS (Brown, Lower)
-        // Offset peaks to create 3D parallax effect
+        // LAYER 2: FRONT MOUNTAINS (Brown, Closer, Jagged Snow)
+        // Peaks offset from back layer for 3D effect.
         const svgFront = `
         <svg viewBox="0 0 1200 100" preserveAspectRatio="none" style="width:100%; height:100%;">
-            <path d="M0,100 L0,100 L100,100 L300,40 L500,100 L800,100 L1000,50 L1200,100 Z" fill="#5d4037"/>
+            <path d="M0,100 L0,85 L300,55 L500,90 L800,60 L1100,90 L1200,80 L1200,100 Z" fill="#5d4037"/>
             
-            <path d="M300,40 L260,55 L340,55 Z" fill="white" opacity="0.8"/>
+            <path d="M300,55 L280,70 L290,65 L295,72 L300,68 L305,72 L310,65 L320,70 Z" fill="white" opacity="0.8"/>
             
-            <path d="M1000,50 L970,65 L1030,65 Z" fill="white" opacity="0.8"/>
+            <path d="M800,60 L780,75 L790,70 L795,77 L800,72 L805,77 L810,70 L820,75 Z" fill="white" opacity="0.8"/>
         </svg>`;
         const mtnFront = createMountainLayer(svgFront, 50, 15, 2, 1.0);
         worldContainer.appendChild(mtnFront.cont);
@@ -3781,7 +3779,7 @@ flight(active) {
         const grid = document.createElement('div');
         grid.style.cssText = `
             position: absolute; inset: -100%;
-            /* Vertical streaks for speed - creates movement TOWARDS player */
+            /* Vertical streaks for speed - Moving TOWARDS player */
             background-image: 
                 repeating-linear-gradient(90deg, rgba(255,255,255,0.1) 0px, rgba(255,255,255,0.1) 2px, transparent 2px, transparent 100px),
                 repeating-linear-gradient(0deg, rgba(255,255,255,0.2) 0px, rgba(255,255,255,0.2) 1px, transparent 1px, transparent 50px);
@@ -3789,6 +3787,12 @@ flight(active) {
             transform: rotateX(80deg);
         `;
         ground.appendChild(grid);
+        
+        // GROUND OBJECTS (Trees/Rocks)
+        const groundObjContainer = document.createElement('div');
+        groundObjContainer.style.cssText = `position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; perspective: 500px; transform-style: preserve-3d;`;
+        ground.appendChild(groundObjContainer);
+        
         worldContainer.appendChild(ground);
         c.appendChild(worldContainer);
 
@@ -3829,7 +3833,7 @@ flight(active) {
         c.appendChild(prop);
 
         // =========================================
-        // LAYER 5: COCKPIT DASHBOARD
+        // LAYER 5: COCKPIT
         // =========================================
         const cockpit = document.createElement('div');
         cockpit.style.cssText = `position: absolute; inset: 0; pointer-events: none; z-index: 20;`;
@@ -3844,24 +3848,17 @@ flight(active) {
         `;
         cockpit.appendChild(dash);
         
-        // --- DASHBOARD LAYOUT (Flexbox Grid) ---
-        const panelContainer = document.createElement('div');
-        panelContainer.style.cssText = `
+        // --- INSTRUMENTS CONTAINER ---
+        // Using absolute positioning for precise layout
+        const gauges = document.createElement('div');
+        gauges.style.cssText = `
             position: absolute; bottom: 0; left: 0; width: 100%; height: 40%; 
-            display: flex; flex-direction: column; z-index: 22;
+            z-index: 22; pointer-events: none;
         `;
-
-        // ROW 1: Horizon (Top Center)
-        const rowTop = document.createElement('div');
-        rowTop.style.cssText = `flex: 1; display: flex; justify-content: center; align-items: center; padding-top: 10px;`;
         
-        // ROW 2: SPD - LOGO - ALT
-        const rowBot = document.createElement('div');
-        rowBot.style.cssText = `flex: 1; display: flex; justify-content: center; align-items: flex-end; gap: 40px; padding-bottom: 30px;`;
-
         const createGauge = (label, color, type) => {
             const g = document.createElement('div');
-            g.style.cssText = `width: 90px; height: 90px; border-radius: 50%; background: #111; border: 4px solid #546e7a; position: relative; box-shadow: inset 0 0 10px #000; overflow: hidden; flex-shrink: 0;`;
+            g.style.cssText = `width: 90px; height: 90px; border-radius: 50%; background: #111; border: 4px solid #546e7a; position: absolute; box-shadow: inset 0 0 10px #000; overflow: hidden;`;
             if (type === 'horizon') {
                 g.innerHTML = `
                     <div id="gauge-horizon-ball" style="position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: linear-gradient(180deg, #29b6f6 50%, #5d4037 50%); transform: rotate(0deg);"></div>
@@ -3879,33 +3876,45 @@ flight(active) {
             return g;
         };
 
-        // 1. Horizon (Top)
+        // 1. HORIZON (Top Center)
         const att = createGauge("ATT", "", "horizon");
-        rowTop.appendChild(att);
+        att.style.top = "10px"; 
+        att.style.left = "50%";
+        att.style.transform = "translateX(-50%)";
+        gauges.appendChild(att);
 
-        // 2. SPD (Bottom Left)
+        // 2. SPD (Far Left, Bottom)
         const spd = createGauge("SPD", "#ffea00", "std");
-        
-        // 3. LOGO (Bottom Center)
-        const logo = document.createElement('div');
-        logo.style.cssText = `width: 100px; height: 80px; display: flex; align-items: center; justify-content: center;`;
-        logo.innerHTML = `<img src="crying.PNG" alt="Logo" style="max-width: 100%; max-height: 100%; object-fit: contain; opacity: 0.8;" onerror="this.style.display='none'"/>`;
+        spd.style.bottom = "15px";
+        spd.style.left = "20px";
+        gauges.appendChild(spd);
 
-        // 4. ALT (Bottom Right)
+        // 3. ALT (Far Right, Bottom)
         const alt = createGauge("ALT", "#ff1744", "std");
+        alt.style.bottom = "15px";
+        alt.style.right = "20px";
+        gauges.appendChild(alt);
 
-        rowBot.appendChild(spd);
-        rowBot.appendChild(logo);
-        rowBot.appendChild(alt);
+        // 4. LOGO (Middle, Bottom)
+        // Positioned between SPD and ALT
+        const logo = document.createElement('div');
+        logo.style.cssText = `
+            position: absolute;
+            bottom: 15px;
+            left: 50%; transform: translateX(-50%);
+            width: 120px; height: 80px;
+            display: flex; align-items: flex-end; justify-content: center;
+            z-index: 21;
+        `;
+        logo.innerHTML = `<img src="crying.PNG" alt="Logo" style="width: 100%; height: 100%; object-fit: contain; opacity: 0.8;" onerror="this.style.display='none'"/>`;
+        gauges.appendChild(logo);
 
-        panelContainer.appendChild(rowTop);
-        panelContainer.appendChild(rowBot);
-        cockpit.appendChild(panelContainer);
+        cockpit.appendChild(gauges);
 
         // WIPER INDICATOR
         const lightBox = document.createElement('div');
         lightBox.style.cssText = `
-            position: absolute; bottom: 20px; left: 10%; width: 12px; height: 12px;
+            position: absolute; bottom: 20px; left: 8%; width: 12px; height: 12px;
             border-radius: 50%; background: #222; border: 2px solid #555;
             box-shadow: 0 0 2px #000; transition: all 0.3s;
         `;
@@ -3948,6 +3957,11 @@ flight(active) {
                     10% { opacity: 1; } 
                     100% { transform: translate(var(--dx), var(--dy)) scale(6); opacity: 1; } 
                 }
+                @keyframes ground-obj-pass { 
+                    0% { transform: translate(-50%, 0) scale(0.1); opacity: 0; bottom: 50%; } 
+                    20% { opacity: 1; } 
+                    100% { transform: translate(-50%, 0) scale(4); opacity: 1; bottom: -50px; } 
+                }
             `;
             document.head.appendChild(s);
         }
@@ -3985,7 +3999,7 @@ flight(active) {
 
             worldContainer.style.transform = `rotate(${bank}deg) translateY(${pitch}%)`;
             
-            // Move ground 'towards' player (positive Y)
+            // Move ground 'towards' player
             grid.style.backgroundPositionY = `${flightTime * 1200}px`;
 
             const farScroll = (headingOffset * -10) % 2000; 
@@ -4020,8 +4034,6 @@ flight(active) {
             const el = document.createElement('div');
             const isCloud = Math.random() > 0.4;
             const skyEmojis = ['🦅', '🦆', '✈️', '🛸', '🎈'];
-            
-            // Random destination
             const destX = (Math.random() - 0.5) * 200 + "vw";
             const destY = (Math.random() - 0.2) * 100 + "vh";
 
@@ -4047,6 +4059,24 @@ flight(active) {
             setTimeout(() => el.remove(), 6000);
         };
         this.objectSpawnInterval = setInterval(spawnObject, 3000);
+
+        // --- SPAWN GROUND OBJECTS ---
+        const spawnGroundObject = () => {
+            if(!document.body.contains(c)) return;
+            const el = document.createElement('div');
+            const types = ['🌲', '🌲', '🪨', '🌳'];
+            const type = types[Math.floor(Math.random() * types.length)];
+            const leftPos = Math.random() * 100;
+            el.innerHTML = type;
+            el.style.cssText = `
+                position: absolute; left: ${leftPos}%;
+                font-size: 20px; transform-origin: center bottom;
+                animation: ground-obj-pass 2s ease-in forwards;
+            `;
+            groundObjContainer.appendChild(el);
+            setTimeout(() => el.remove(), 2000);
+        };
+        this.groundSpawnInterval = setInterval(spawnGroundObject, 300);
 
         // --- RAIN & WIPER ---
         let wiperAngle = -50;
