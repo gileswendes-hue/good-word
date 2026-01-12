@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.4.1',
+    APP_VERSION: '6.4.2',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -5097,22 +5097,44 @@ displayWord(w) {
                 s.id = 'golden-style';
                 s.textContent = `
                     @keyframes golden-glow {
-                        0%, 100% { text-shadow: 0 0 10px #fbbf24, 0 0 20px #f59e0b, 0 0 5px #fde68a; }
-                        50% { text-shadow: 0 0 20px #fbbf24, 0 0 40px #f59e0b, 0 0 60px #d97706; }
+                        0%, 100% { text-shadow: 0 0 10px #fbbf24, 0 0 20px #f59e0b, 0 0 5px #fde68a !important; }
+                        50% { text-shadow: 0 0 20px #fbbf24, 0 0 40px #f59e0b, 0 0 60px #d97706 !important; }
                     }
                     #wordDisplay.golden-word,
                     body #wordDisplay.golden-word,
-                    body[class*="theme-"] #wordDisplay.golden-word {
+                    body[class*="theme-"] #wordDisplay.golden-word,
+                    body.theme-submarine #wordDisplay.golden-word,
+                    body.theme-banana #wordDisplay.golden-word,
+                    body.theme-woodland #wordDisplay.golden-word,
+                    body.theme-ocean #wordDisplay.golden-word,
+                    body.theme-flight #wordDisplay.golden-word,
+                    body.theme-halloween #wordDisplay.golden-word,
+                    body.theme-fire #wordDisplay.golden-word,
+                    body.theme-rainbow #wordDisplay.golden-word,
+                    body.theme-winter #wordDisplay.golden-word,
+                    body.theme-summer #wordDisplay.golden-word,
+                    body.theme-dark #wordDisplay.golden-word,
+                    body.theme-plymouth #wordDisplay.golden-word,
+                    body.theme-space #wordDisplay.golden-word,
+                    body.theme-ballpit #wordDisplay.golden-word {
                         color: #f59e0b !important;
                         text-shadow: 0 0 10px #fbbf24, 0 0 20px #f59e0b !important;
                         animation: golden-glow 1.5s ease-in-out infinite !important;
                         background: none !important;
+                        background-clip: unset !important;
                         -webkit-background-clip: unset !important;
                         -webkit-text-fill-color: #f59e0b !important;
                     }
                 `;
                 document.head.appendChild(s);
             }
+            // Clear any inline styles that might override the CSS
+            wd.style.color = '';
+            wd.style.textShadow = '';
+            wd.style.animation = '';
+            wd.style.background = '';
+            wd.style.webkitBackgroundClip = '';
+            wd.style.webkitTextFillColor = '';
             wd.classList.add('golden-word');
             this.fitText(txt);
             if (!State.runtime.isCoolingDown) this.disableButtons(false);
@@ -8126,7 +8148,7 @@ async vote(t, s = false) {
                                     (Math.random() < 0.1 && State.runtime.dailyVotesCount >= 3);
                     if (isGolden && !State.runtime.goldenWordFound) {
                         State.runtime.goldenWordFound = true;
-                        UIManager.showPostVoteMessage("🌟 GOLDEN WORD! 🌟");
+                        UIManager.showPostVoteMessage("🌟 GOLDEN! 🌟");
                         const last = State.data.daily.lastDate;
                         let s = State.data.daily.streak;
                         if (last) {
@@ -8140,7 +8162,7 @@ async vote(t, s = false) {
                         setTimeout(() => this.finishDailyChallenge(), 1500);
                         return;
                     } else {
-                        UIManager.showPostVoteMessage(`Vote ${State.runtime.dailyVotesCount} - Keep looking! 🔍`);
+                        UIManager.showPostVoteMessage(`#${State.runtime.dailyVotesCount} - Keep looking! 🔍`);
                         setTimeout(() => { State.runtime.currentWordIndex++; this.nextWord(); }, 600);
                         return;
                     }
@@ -8484,7 +8506,7 @@ async vote(t, s = false) {
         const isGolden = (seed % 2) === 0;
         State.runtime.dailyChallengeType = isGolden ? 'golden' : 'single';
         if (isGolden) {
-            UIManager.showMessage('🌟 Find the Golden Word!');
+            UIManager.showMessage('🌟 Find the Golden!');
             State.runtime.goldenWordFound = false;
             State.runtime.dailyVotesCount = 0;
         } else {
