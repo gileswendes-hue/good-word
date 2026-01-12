@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.61',
+    APP_VERSION: '6.2.62',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -3814,17 +3814,14 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         `;
         cockpitFrame.innerHTML = `
             <svg style="position: absolute; inset: 0; width: 100%; height: 100%;" viewBox="0 0 100 100" preserveAspectRatio="none">
-                <!-- Outer curved frame -->
                 <path d="M0,0 Q-12,50 0,100" stroke="#2a4a6a" stroke-width="5" fill="none"/>
                 <path d="M100,0 Q112,50 100,100" stroke="#2a4a6a" stroke-width="5" fill="none"/>
                 <path d="M0,0 Q50,-12 100,0" stroke="#2a4a6a" stroke-width="3.5" fill="none"/>
-                <!-- Inner struts -->
                 <path d="M4,0 Q-2,50 4,100" stroke="#3a5a7a" stroke-width="2" fill="none"/>
                 <path d="M96,0 Q102,50 96,100" stroke="#3a5a7a" stroke-width="2" fill="none"/>
             </svg>
         `;
         c.appendChild(cockpitFrame);
-        // WINDSCREEN RAIN/SNOW LAYER - between outside world and cockpit
         const windscreen = document.createElement('div');
         windscreen.id = 'flight-windscreen';
         windscreen.style.cssText = `
@@ -3835,72 +3832,100 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             overflow: hidden;
         `;
         c.appendChild(windscreen);
-        // WINDSCREEN WIPERS
+        // WINDSCREEN WIPERS - always visible
         const wiperLeft = document.createElement('div');
         wiperLeft.id = 'flight-wiper-left';
         wiperLeft.style.cssText = `
             position: absolute;
-            bottom: 48%;
-            left: 25%;
-            width: 4px;
-            height: 120px;
-            background: linear-gradient(180deg, #222 0%, #444 50%, #222 100%);
+            bottom: 52%;
+            left: 28%;
+            width: 5px;
+            height: 100px;
+            background: linear-gradient(180deg, #111 0%, #333 50%, #111 100%);
             border-radius: 2px;
             transform-origin: bottom center;
-            transform: rotate(-30deg);
-            z-index: 52;
-            opacity: 0;
-            transition: opacity 0.5s;
+            transform: rotate(-40deg);
+            z-index: 51;
+            box-shadow: 1px 1px 3px rgba(0,0,0,0.5);
         `;
         c.appendChild(wiperLeft);
         const wiperRight = document.createElement('div');
         wiperRight.id = 'flight-wiper-right';
         wiperRight.style.cssText = `
             position: absolute;
-            bottom: 48%;
-            right: 25%;
-            width: 4px;
-            height: 120px;
-            background: linear-gradient(180deg, #222 0%, #444 50%, #222 100%);
+            bottom: 52%;
+            right: 28%;
+            width: 5px;
+            height: 100px;
+            background: linear-gradient(180deg, #111 0%, #333 50%, #111 100%);
             border-radius: 2px;
             transform-origin: bottom center;
-            transform: rotate(30deg);
-            z-index: 52;
-            opacity: 0;
-            transition: opacity 0.5s;
+            transform: rotate(40deg);
+            z-index: 51;
+            box-shadow: -1px 1px 3px rgba(0,0,0,0.5);
         `;
         c.appendChild(wiperRight);
-        // Propeller - positioned lower, in front of pilot, partially behind panel
-        const propAssembly = document.createElement('div');
-        propAssembly.style.cssText = `
+        // ENGINE COWLING - the nose of the plane that prop attaches to
+        const engineCowling = document.createElement('div');
+        engineCowling.style.cssText = `
             position: absolute;
-            bottom: 35%;
+            bottom: 48%;
             left: 50%;
             transform: translateX(-50%);
-            z-index: 58;
+            width: 140px;
+            height: 90px;
+            background: linear-gradient(180deg, #4a5a6a 0%, #3a4a5a 30%, #2a3a4a 60%, #1a2a3a 100%);
+            border-radius: 50% 50% 45% 45%;
+            z-index: 56;
+            box-shadow: inset 0 10px 20px rgba(255,255,255,0.1), inset 0 -10px 20px rgba(0,0,0,0.3), 0 5px 15px rgba(0,0,0,0.4);
         `;
-        propAssembly.innerHTML = `
-            <div style="position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); width: 55px; height: 65px; background: linear-gradient(180deg, #ddd 0%, #999 40%, #777 70%, #555 100%); border-radius: 50% 50% 40% 40%; z-index: 2;"></div>
-            <div id="flight-prop" style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); width: 420px; height: 420px;">
-                <svg viewBox="0 0 420 420" style="width: 100%; height: 100%;">
-                    <defs>
-                        <linearGradient id="propBladeGrad" x1="0%" y1="50%" x2="100%" y2="50%">
-                            <stop offset="0%" style="stop-color:#2a2a2a"/>
-                            <stop offset="15%" style="stop-color:#5a5a5a"/>
-                            <stop offset="30%" style="stop-color:#4a4a4a"/>
-                            <stop offset="50%" style="stop-color:#3a3a3a"/>
-                            <stop offset="70%" style="stop-color:#4a4a4a"/>
-                            <stop offset="85%" style="stop-color:#5a5a5a"/>
-                            <stop offset="100%" style="stop-color:#2a2a2a"/>
-                        </linearGradient>
-                    </defs>
-                    <ellipse cx="210" cy="210" rx="200" ry="20" fill="url(#propBladeGrad)"/>
-                    <circle cx="210" cy="210" r="28" fill="#666"/>
-                    <circle cx="210" cy="210" r="18" fill="#888"/>
-                </svg>
-            </div>
+        c.appendChild(engineCowling);
+        // PROP SPINNER - attached to top of cowling
+        const propSpinner = document.createElement('div');
+        propSpinner.style.cssText = `
+            position: absolute;
+            bottom: calc(48% + 60px);
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50px;
+            height: 55px;
+            background: linear-gradient(180deg, #ccc 0%, #999 30%, #777 60%, #555 100%);
+            border-radius: 50% 50% 40% 40%;
+            z-index: 57;
+            box-shadow: 0 -3px 8px rgba(0,0,0,0.3);
         `;
-        c.appendChild(propAssembly);
+        c.appendChild(propSpinner);
+        // PROPELLER - attached to spinner
+        const propeller = document.createElement('div');
+        propeller.id = 'flight-prop';
+        propeller.style.cssText = `
+            position: absolute;
+            bottom: calc(48% + 85px);
+            left: 50%;
+            transform: translateX(-50%);
+            width: 400px;
+            height: 400px;
+            z-index: 57;
+        `;
+        propeller.innerHTML = `
+            <svg viewBox="0 0 400 400" style="width: 100%; height: 100%;">
+                <defs>
+                    <linearGradient id="propBladeGrad" x1="0%" y1="50%" x2="100%" y2="50%">
+                        <stop offset="0%" style="stop-color:#2a2a2a"/>
+                        <stop offset="15%" style="stop-color:#5a5a5a"/>
+                        <stop offset="30%" style="stop-color:#4a4a4a"/>
+                        <stop offset="50%" style="stop-color:#3a3a3a"/>
+                        <stop offset="70%" style="stop-color:#4a4a4a"/>
+                        <stop offset="85%" style="stop-color:#5a5a5a"/>
+                        <stop offset="100%" style="stop-color:#2a2a2a"/>
+                    </linearGradient>
+                </defs>
+                <ellipse cx="200" cy="200" rx="190" ry="18" fill="url(#propBladeGrad)"/>
+                <circle cx="200" cy="200" r="25" fill="#555"/>
+                <circle cx="200" cy="200" r="15" fill="#777"/>
+            </svg>
+        `;
+        c.appendChild(propeller);
         const panel = document.createElement('div');
         panel.style.cssText = `
             position: absolute;
@@ -3986,7 +4011,7 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 <div style="width: 8px; height: 16px; background: linear-gradient(180deg, #f55, #a22); border-radius: 2px;"></div>
             </div>
             <!-- LEFT SIDE PANEL - gauges, buttons, screens -->
-            <div style="position: absolute; top: 25%; left: 6%; display: flex; flex-direction: column; gap: 5px;">
+            <div style="position: absolute; top: 28%; left: 10%; display: flex; flex-direction: column; gap: 5px;">
                 <div style="width: 38px; height: 38px; border-radius: 50%; background: #0a1520; border: 2px solid #2a3a4a; position: relative;">
                     <div style="position: absolute; top: 50%; left: 50%; width: 1px; height: 14px; background: #fff; transform-origin: bottom center; transform: translate(-50%, -100%) rotate(-20deg);"></div>
                 </div>
@@ -4009,7 +4034,7 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 </div>
             </div>
             <!-- RIGHT SIDE PANEL - gauges, buttons, screens -->
-            <div style="position: absolute; top: 25%; right: 6%; display: flex; flex-direction: column; gap: 5px; align-items: flex-end;">
+            <div style="position: absolute; top: 28%; right: 10%; display: flex; flex-direction: column; gap: 5px; align-items: flex-end;">
                 <div style="width: 38px; height: 38px; border-radius: 50%; background: #0a1520; border: 2px solid #2a3a4a; position: relative;">
                     <div style="position: absolute; top: 50%; left: 50%; width: 1px; height: 14px; background: #f80; transform-origin: bottom center; transform: translate(-50%, -100%) rotate(30deg); animation: fuel-needle 10s ease-in-out infinite;"></div>
                 </div>
@@ -4156,11 +4181,9 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 100% { transform: translateY(100vh) rotate(360deg); opacity: 0.2; }
             }
             #flight-wiper-left.active {
-                opacity: 1;
                 animation: wiper-sweep-left 1.5s ease-in-out infinite;
             }
             #flight-wiper-right.active {
-                opacity: 1;
                 animation: wiper-sweep-right 1.5s ease-in-out infinite;
             }
         `;
