@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.92',
+    APP_VERSION: '6.2.93',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -3729,78 +3729,57 @@ flight(active) {
         const createMountainLayer = (svg, top, height, z, opacity) => {
             const cont = document.createElement('div');
             cont.style.cssText = `position: absolute; top: ${top}%; left: 0; width: 100%; height: ${height}%; z-index: ${z}; opacity: ${opacity}; pointer-events: none;`;
-            
-            // Pane 1
             const p1 = document.createElement('div');
             p1.style.cssText = `position: absolute; top: 0; left: 0; width: 100%; height: 100%; will-change: transform;`;
             p1.innerHTML = svg;
-            
-            // Pane 2 (Looping neighbor)
             const p2 = document.createElement('div');
             p2.style.cssText = `position: absolute; top: 0; left: 100%; width: 100%; height: 100%; will-change: transform;`;
             p2.innerHTML = svg;
-
             cont.appendChild(p1);
             cont.appendChild(p2);
             return { cont, p1, p2 };
         };
 
-        // LAYER 1: DISTANT MOUNTAINS - gray silhouettes (no snow caps)
+        // LAYER 1: BACK MOUNTAINS (Grey, Pointy, Snow Capped)
         const svgBack = `
-		<svg viewBox="0 0 1200 100" preserveAspectRatio="none" style="width:100%; height:100%;">
+        <svg viewBox="0 0 1200 100" preserveAspectRatio="none" style="width:100%; height:100%;">
             <path d="M0,100 L0,70 L150,15 L300,80 L450,10 L550,60 L650,20 L800,75 L950,25 L1050,60 L1200,30 L1200,100 Z" fill="#546e7a"/>
-            <path d="M150,15 L145,25 L155,25 Z  M450,10 L445,20 L455,20 Z  M650,20 L645,30 L655,30 Z  M950,25 L945,35 L955,35 Z  M1200,30 L1195,40 L1205,40 Z" fill="white" opacity="0.9"/>
+            <path d="M150,15 L135,25 L165,25 Z  M450,10 L435,20 L465,20 Z  M650,20 L635,30 L665,30 Z  M950,25 L935,35 L965,35 Z  M1200,30 L1185,40 L1215,40 Z" fill="white" opacity="0.9"/>
         </svg>`;
-        const mtnBack = createMountainLayer(svgBack, 44, 12, 1, 0.5);
+        const mtnBack = createMountainLayer(svgBack, 42, 18, 1, 0.9);
         worldContainer.appendChild(mtnBack.cont);
 
-        // LAYER 2: MAIN MOUNTAINS - brown with properly conforming snow caps
-        // Snow caps calculated using linear interpolation along mountain slopes
+        // LAYER 2: FRONT MOUNTAINS (Brown, Rounded, Snow Capped)
         const svgFront = `
-        <svg viewBox="0 0 1000 100" preserveAspectRatio="none" style="width:100%;height:100%;">
-            <!-- Mountain 1: left(-20,100) peak(90,20) right(200,100) -->
-            <polygon points="-20,100 90,20 200,100" fill="#8b7355"/>
-            <!-- Snow cap at 40% down from peak: lerp each side -->
-            <polygon points="90,20 34,52 146,52" fill="#ffffff"/>
-            
-            <!-- Mountain 2: left(140,100) peak(300,5) right(460,100) -->
-            <polygon points="140,100 300,5 460,100" fill="#7a6b5a"/>
-            <!-- Snow cap at 45% down -->
-            <polygon points="300,5 228,48 372,48" fill="#ffffff"/>
-            
-            <!-- Mountain 3: left(520,100) peak(680,25) right(840,100) -->
-            <polygon points="520,100 680,25 840,100" fill="#8b7355"/>
-            <!-- Snow cap at 40% down -->
-            <polygon points="680,25 616,55 744,55" fill="#f8f8f8"/>
-            
-            <!-- Mountain 4: left(780,100) peak(920,35) right(1060,100) -->
-            <polygon points="780,100 920,35 1060,100" fill="#7a6b5a"/>
-            <!-- Snow cap at 40% down -->
-            <polygon points="920,35 864,61 976,61" fill="#ffffff"/>
+        <svg viewBox="0 0 1200 100" preserveAspectRatio="none" style="width:100%; height:100%;">
+            <path d="M0,100 L0,80 Q150,40 300,80 Q450,30 600,80 Q750,40 900,80 Q1050,40 1200,80 L1200,100 Z" fill="#4e342e"/>
+            <path d="M130,55 Q150,40 170,55 Z  M430,45 Q450,30 470,45 Z  M730,55 Q750,40 770,55 Z  M1030,55 Q1050,40 1070,55 Z" fill="white" opacity="0.8"/>
         </svg>`;
-        const mtnFront = createMountainLayer(svgFront, 45, 16, 2, 1.0);
+        const mtnFront = createMountainLayer(svgFront, 54, 10, 2, 1.0); 
         worldContainer.appendChild(mtnFront.cont);
 
-        // LAYER 3: GREEN HILLS - foreground rolling hills
-        const svgHills = `
-        <svg viewBox="0 0 1000 50" preserveAspectRatio="none" style="width:100%;height:100%;">
-            <path d="M0,50 Q80,20 160,40 Q240,55 320,30 Q400,5 480,25 Q560,45 640,20 Q720,0 800,25 Q880,45 960,20 L1000,35 L1000,50 Z" fill="#4a8a3a"/>
-        </svg>`;
-        const hills = createMountainLayer(svgHills, 55, 8, 3, 1.0);
-        worldContainer.appendChild(hills.cont);
-
-        // GROUND - simple CSS animation, no JS
+        // GROUND
         const ground = document.createElement('div');
         ground.style.cssText = `
-            position: absolute; top: 58%; left: 0; right: 0; bottom: 0;
-            background: linear-gradient(180deg, #3a8a3a 0%, #2e7d32 30%, #1b5e20 100%);
-            z-index: 4;
+            position: absolute; top: 56%; left: -50%; width: 200%; height: 100%;
+            background: linear-gradient(180deg, #2e7d32 0%, #1b5e20 100%);
+            perspective: 1000px; z-index: 3;
         `;
+        const grid = document.createElement('div');
+        grid.style.cssText = `
+            position: absolute; inset: -100%;
+            background-image: 
+                repeating-linear-gradient(90deg, transparent 0, transparent 48px, rgba(255,255,255,0.05) 50px, transparent 52px),
+                linear-gradient(0deg, transparent 24%, rgba(255,255,255,0.1) 25%, rgba(255,255,255,0.1) 26%, transparent 27%);
+            background-size: 200px 150px;
+            transform: rotateX(85deg);
+        `;
+        ground.appendChild(grid);
         worldContainer.appendChild(ground);
         c.appendChild(worldContainer);
 
         // =========================================
-        // LAYER 2: EXTERNAL RAIN STREAKS (Z: 5)
+        // LAYER 2: EXTERNAL RAIN STREAKS
         // =========================================
         const externalRainContainer = document.createElement('div');
         externalRainContainer.style.cssText = `position: absolute; inset: 0; pointer-events: none; z-index: 5; overflow: hidden;`;
@@ -3820,7 +3799,7 @@ flight(active) {
         prop.style.cssText = `
             position: absolute; bottom: 32%; left: 50%; transform: translate(-50%, 50%);
             width: 70vh; height: 70vh; 
-            animation: flight-prop-spin 0.4s linear infinite;
+            animation: flight-prop-spin 0.15s linear infinite;
             z-index: 15;
         `;
         prop.innerHTML = `
@@ -3851,28 +3830,24 @@ flight(active) {
         `;
         cockpit.appendChild(dash);
         
-        // LOGO above instrument panel
+        // LOGO (Re-positioned)
         const logo = document.createElement('div');
         logo.style.cssText = `
             position: absolute;
-            bottom: 40%; /* Sits exactly on top of the dashboard height */
-            left: 0;
-            width: 90%; /* Spans the entire screen width */
-            height: 120px; /* Tall enough to see the image */
-            display: flex;
-            align-items: flex-end; 
-            justify-content: center;
-            pointer-events: none;
-            z-index: 21; /* Above the dash */
+            bottom: 22%; /* Sits above gauges, below prop hub */
+            left: 50%; transform: translateX(-50%);
+            width: 80%; /* Width of main panel area */
+            height: 100px;
+            display: flex; align-items: center; justify-content: center;
+            z-index: 21; pointer-events: none;
         `;
-        // Add the crying logo image (same directory as script)
-        logo.innerHTML = `<img src="crying.PNG" alt="Logo" style="width: 90%; height: 90%; object-fit: contain; opacity: 0.9;" onerror="this.parentElement.style.display='none'"/>`;
+        logo.innerHTML = `<img src="crying.PNG" alt="Logo" style="max-width: 100%; max-height: 100%; opacity: 0.8;" onerror="this.style.display='none'"/>`;
         cockpit.appendChild(logo);
 
         // WIPER INDICATOR
         const lightBox = document.createElement('div');
         lightBox.style.cssText = `
-            position: absolute; bottom: 50px; left: 20%; width: 12px; height: 12px;
+            position: absolute; bottom: 50px; left: 15%; width: 12px; height: 12px;
             border-radius: 50%; background: #222; border: 2px solid #555;
             box-shadow: 0 0 2px #000; transition: all 0.3s;
         `;
@@ -3880,7 +3855,7 @@ flight(active) {
 
         // GAUGES
         const gauges = document.createElement('div');
-        gauges.style.cssText = `position: absolute; bottom: 40px; left: 0; right: 0; height: 140px; display: flex; justify-content: center; align-items: center; gap: 40px;`;
+        gauges.style.cssText = `position: absolute; bottom: 40px; left: 0; right: 0; height: 140px; display: flex; justify-content: center; align-items: center; gap: 40px; z-index: 22;`;
         
         const createGauge = (label, color, type) => {
             const g = document.createElement('div');
@@ -3940,10 +3915,11 @@ flight(active) {
                     from { transform: translate(-50%, 50%) rotate(0deg); } 
                     to { transform: translate(-50%, 50%) rotate(360deg); } 
                 }
+                @keyframes flight-wiper-move { 0%, 100% { transform: rotate(-50deg); } 50% { transform: rotate(50deg); } }
                 @keyframes flight-streak-fall { 
-                    0% { transform: translateY(0); opacity: 0; } 
-                    10% { opacity: 0.8; } 
-                    100% { transform: translateY(100vh); opacity: 0; } 
+                    0% { transform: translateY(-100px); opacity: 0; } 
+                    50% { opacity: 1; } 
+                    100% { transform: translateY(120vh); opacity: 0; } 
                 }
                 @keyframes flight-drop-appear { 
                     0% { opacity: 0; transform: scale(0.5); } 
@@ -3960,7 +3936,7 @@ flight(active) {
                 @keyframes fly-approach {
                     0% { transform: translate(-50%, -50%) scale(0.01); opacity: 0; }
                     10% { opacity: 1; }
-                    100% { transform: translate(var(--dx), var(--dy)) scale(5); opacity: 0; }
+                    100% { transform: translate(var(--dx), var(--dy)) scale(6); opacity: 1; }
                 }
             `;
             document.head.appendChild(s);
@@ -3973,61 +3949,36 @@ flight(active) {
         // --- LOGIC LOOP ---
         const logicLoop = () => {
             if(!document.body.contains(c)) return;
-            flightTime += 0.005; // Slower time progression
+            flightTime += 0.005;
             
-            // Banking physics - longer periods with flat sections
-            // Use a pattern that gives: level -> bank left -> level -> bank right -> level
-            const bankCycle = flightTime * 0.15; // Very slow cycle
+            const bankCycle = flightTime * 0.15;
             let bank = 0;
-            const cyclePos = bankCycle % 1; // 0 to 1 position in cycle
+            const cyclePos = bankCycle % 1;
             
-            if (cyclePos < 0.2) {
-                // Level flight (0-20% of cycle)
-                bank = 0;
-            } else if (cyclePos < 0.4) {
-                // Banking left (20-40% of cycle)
-                const t = (cyclePos - 0.2) / 0.2; // 0 to 1
-                bank = -Math.sin(t * Math.PI) * 6; // Smooth in/out, max 6 degrees
-            } else if (cyclePos < 0.6) {
-                // Level flight (40-60% of cycle)
-                bank = 0;
-            } else if (cyclePos < 0.8) {
-                // Banking right (60-80% of cycle)
-                const t = (cyclePos - 0.6) / 0.2; // 0 to 1
-                bank = Math.sin(t * Math.PI) * 6; // Smooth in/out, max 6 degrees
-            } else {
-                // Level flight (80-100% of cycle)
-                bank = 0;
-            }
+            if (cyclePos < 0.2) bank = 0;
+            else if (cyclePos < 0.4) {
+                const t = (cyclePos - 0.2) / 0.2; 
+                bank = -Math.sin(t * Math.PI) * 6;
+            } else if (cyclePos < 0.6) bank = 0;
+            else if (cyclePos < 0.8) {
+                const t = (cyclePos - 0.6) / 0.2; 
+                bank = Math.sin(t * Math.PI) * 6;
+            } else bank = 0;
             
-            // Gentle pitch variation
             const pitch = Math.sin(flightTime * 0.3) * 1.5;
-            
-            // Only accumulate heading when actually banking
-            if (Math.abs(bank) > 0.5) {
-                headingOffset += bank * 0.02;
-            }
+            if (Math.abs(bank) > 0.5) headingOffset += bank * 0.02;
 
-            // Tilt
             worldContainer.style.transform = `rotate(${bank}deg) translateY(${pitch}%)`;
+            grid.style.backgroundPositionY = `${flightTime * 600}px`;
 
-            // Scroll Mountains (Parallax) - 3 layers
-            // When banking RIGHT (positive bank), mountains should slide LEFT (positive scroll = left motion)
-            // headingOffset increases when banking right, so use POSITIVE multipliers
-            const farScroll = (headingOffset * 10) % 2000; 
+            const farScroll = (headingOffset * -10) % 2000; 
             mtnBack.p1.style.transform = `translateX(${farScroll}px)`;
-            mtnBack.p2.style.transform = `translateX(${farScroll - 2000}px)`;
+            mtnBack.p2.style.transform = `translateX(${farScroll + 2000}px)`; 
             
-            const midScroll = (headingOffset * 20) % 2000;
-            mtnFront.p1.style.transform = `translateX(${midScroll}px)`;
-            mtnFront.p2.style.transform = `translateX(${midScroll - 2000}px)`;
-            
-            // Hills scroll fastest (closest)
-            const nearScroll = (headingOffset * 35) % 2000;
-            hills.p1.style.transform = `translateX(${nearScroll}px)`;
-            hills.p2.style.transform = `translateX(${nearScroll - 2000}px)`;
+            const nearScroll = (headingOffset * -20) % 2000;
+            mtnFront.p1.style.transform = `translateX(${nearScroll}px)`;
+            mtnFront.p2.style.transform = `translateX(${nearScroll + 2000}px)`;
 
-            // Clouds
             Array.from(distantSky.children).forEach(cloud => {
                 let pos = parseFloat(cloud.dataset.pos);
                 pos += parseFloat(cloud.dataset.speed);
@@ -4036,7 +3987,6 @@ flight(active) {
                 cloud.style.left = pos + '%';
             });
 
-            // Gauges
             if (horizonBall) horizonBall.style.transform = `rotate(${-bank}deg) translateY(${pitch * 2}px)`; 
             if (spd.needle) spd.needle.style.transform = `rotate(${-45 + Math.random() * 2}deg)`;
             if (alt.needle) alt.needle.style.transform = `rotate(${-90 + Math.sin(flightTime)*2}deg)`;
@@ -4077,9 +4027,9 @@ flight(active) {
             objectContainer.appendChild(el);
             setTimeout(() => el.remove(), 6000);
         };
-        this.objectSpawnInterval = setInterval(spawnObject, 3000); // Slower spawn
+        this.objectSpawnInterval = setInterval(spawnObject, 3000);
 
-        // --- RAIN & WIPER LOGIC (optimized) ---
+        // --- RAIN & WIPER LOGIC ---
         let wiperAngle = -50;
         let wiperDir = 1;
         let prevWiperAngle = -50;
@@ -4089,6 +4039,7 @@ flight(active) {
             if (!document.body.contains(c)) return;
             rainTick++;
 
+            // Use Standard WeatherManager
             const isRaining = (typeof window.WeatherManager !== 'undefined' && 
                               (window.WeatherManager.isRaining || window.WeatherManager.isSnowing));
 
@@ -4096,16 +4047,15 @@ flight(active) {
             lightBox.style.boxShadow = isRaining ? '0 0 8px #00e676' : '0 0 2px #000';
 
             if (isRaining) {
-                // Update wiper
+                // Manually rotate wiper for collision detection
                 prevWiperAngle = wiperAngle;
                 wiperAngle += wiperDir * 4;
                 if (wiperAngle >= 50) wiperDir = -1;
                 if (wiperAngle <= -50) wiperDir = 1;
                 wiper.style.transform = `rotate(${wiperAngle}deg)`;
 
-                // Spawn rain less frequently
+                // 1. External Rain Streaks
                 if (rainTick % 2 === 0) {
-                    // External streak
                     const streak = document.createElement('div');
                     streak.style.cssText = `
                         position: absolute; left: ${Math.random() * 100}%; top: -40px;
@@ -4116,7 +4066,7 @@ flight(active) {
                     externalRainContainer.appendChild(streak);
                     setTimeout(() => streak.remove(), 500);
                     
-                    // Windscreen drop
+                    // 2. Windscreen Drops
                     if (windscreenRain.children.length < 50) {
                         const drop = document.createElement('div');
                         drop.className = 'rain-drop-glass';
@@ -4138,17 +4088,16 @@ flight(active) {
                     }
                 }
 
-                // Check wiper clearing - only every other tick
+                // 3. Wiper Clearing Logic
                 if (rainTick % 2 === 0) {
                     const drops = windscreenRain.querySelectorAll('.rain-drop-glass:not(.clearing)');
                     drops.forEach(drop => {
                         const dropX = parseFloat(drop.dataset.x);
                         const dropY = parseFloat(drop.dataset.y) || 30;
                         
-                        // Convert drop X to angle (50% = 0°, 0% = -70°, 100% = +70°)
+                        // Approx collision detection based on angle
                         const dropAngle = (dropX - 50) * 1.4;
                         
-                        // Check if wiper crossed this drop's angle
                         const wiperCrossed = (
                             (prevWiperAngle < dropAngle && wiperAngle >= dropAngle) ||
                             (prevWiperAngle > dropAngle && wiperAngle <= dropAngle)
@@ -4156,8 +4105,6 @@ flight(active) {
                         
                         if (wiperCrossed && dropY < 50) {
                             drop.classList.add('clearing');
-                            // Streak in wiper direction: wiperDir > 0 means going right, so streak right
-                            // wiperDir < 0 means going left, so streak left (use scaleX(-1))
                             drop.style.animation = wiperDir > 0 
                                 ? 'flight-drop-streak-right 0.3s ease-out forwards'
                                 : 'flight-drop-streak-left 0.3s ease-out forwards';
@@ -4167,11 +4114,16 @@ flight(active) {
                 }
 
             } else {
-                wiper.style.transform = 'rotate(-50deg)';
-                // Clear all drops quickly
+                // Park wiper when rain stops
+                if (Math.abs(wiperAngle - -50) > 2) {
+                    wiperAngle -= 2; 
+                    wiper.style.transform = `rotate(${wiperAngle}deg)`;
+                } else {
+                    wiper.style.transform = 'rotate(-50deg)';
+                }
                 windscreenRain.innerHTML = '';
             }
-        }, 60); // 60ms interval (~16fps for rain, sufficient)
+        }, 60);
     },
 
     // --- VARIABLES RESTORED FOR OCEAN ---
