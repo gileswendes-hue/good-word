@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.64',
+    APP_VERSION: '6.2.65',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -3769,14 +3769,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 </defs>
                 <!-- Main mountain shapes - jagged peaks -->
                 <path d="M0,120 L0,90 L50,70 L80,85 L120,45 L160,75 L200,50 L250,80 L300,30 L350,60 L400,40 L450,70 L500,25 L550,55 L600,35 L650,65 L700,20 L750,50 L800,30 L850,60 L900,40 L950,70 L1000,25 L1050,55 L1100,35 L1150,65 L1200,20 L1250,50 L1300,40 L1350,70 L1400,30 L1450,60 L1500,45 L1500,120 Z" fill="url(#mtnFrontGrad)"/>
-                <!-- Snow caps on peaks -->
-                <path d="M120,45 L100,65 L140,65 Z" fill="#f5f5f5"/>
-                <path d="M300,30 L275,55 L325,55 Z" fill="#fff"/>
-                <path d="M500,25 L470,55 L530,55 Z" fill="#f5f5f5"/>
-                <path d="M700,20 L665,55 L735,55 Z" fill="#fff"/>
-                <path d="M1000,25 L970,55 L1030,55 Z" fill="#f5f5f5"/>
-                <path d="M1200,20 L1165,55 L1235,55 Z" fill="#fff"/>
-                <path d="M1400,30 L1375,55 L1425,55 Z" fill="#f5f5f5"/>
                 <!-- Ridge detail lines -->
                 <path d="M120,45 L80,85 M300,30 L250,80 M500,25 L450,70 M700,20 L650,65 M1000,25 L950,70 M1200,20 L1150,65 M1400,30 L1350,70" stroke="#704020" stroke-width="1.5" fill="none" opacity="0.4"/>
             </svg>
@@ -3901,77 +3893,73 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             overflow: hidden;
         `;
         c.appendChild(windscreen);
-        // WINDSCREEN WIPERS
-        const wiperLeft = document.createElement('div');
-        wiperLeft.id = 'flight-wiper-left';
-        wiperLeft.style.cssText = `
+        // SINGLE WINDSCREEN WIPER - center mounted, clears majority of screen
+        const wiper = document.createElement('div');
+        wiper.id = 'flight-wiper';
+        wiper.style.cssText = `
             position: absolute;
             bottom: 50%;
-            left: 30%;
-            width: 4px;
-            height: 90px;
-            background: linear-gradient(180deg, #111 0%, #333 50%, #111 100%);
-            border-radius: 2px;
+            left: 50%;
+            width: 5px;
+            height: 140px;
+            background: linear-gradient(180deg, #111 0%, #222 30%, #333 50%, #222 70%, #111 100%);
+            border-radius: 3px;
             transform-origin: bottom center;
-            transform: rotate(-35deg);
+            transform: translateX(-50%) rotate(-70deg);
             z-index: 51;
-            box-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            box-shadow: 1px 1px 3px rgba(0,0,0,0.6);
         `;
-        c.appendChild(wiperLeft);
-        const wiperRight = document.createElement('div');
-        wiperRight.id = 'flight-wiper-right';
-        wiperRight.style.cssText = `
+        // Wiper blade at end
+        const wiperBlade = document.createElement('div');
+        wiperBlade.style.cssText = `
             position: absolute;
-            bottom: 50%;
-            right: 30%;
-            width: 4px;
-            height: 90px;
-            background: linear-gradient(180deg, #111 0%, #333 50%, #111 100%);
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 8px;
+            height: 25px;
+            background: #222;
             border-radius: 2px;
-            transform-origin: bottom center;
-            transform: rotate(35deg);
-            z-index: 51;
-            box-shadow: -1px 1px 2px rgba(0,0,0,0.5);
         `;
-        c.appendChild(wiperRight);
-        // PROP FRAME/STRUTS - connects prop to aircraft
+        wiper.appendChild(wiperBlade);
+        c.appendChild(wiper);
+        // PROP FRAME - attaches from cockpit panel up to prop center
         const propFrame = document.createElement('div');
         propFrame.style.cssText = `
             position: absolute;
-            top: 50%;
+            bottom: 48%;
             left: 50%;
-            transform: translate(-50%, -50%);
-            width: 200px;
-            height: 200px;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 180px;
             z-index: 24;
             pointer-events: none;
         `;
         propFrame.innerHTML = `
-            <svg viewBox="0 0 200 200" style="width: 100%; height: 100%;">
-                <!-- Radial struts from center -->
-                <line x1="100" y1="100" x2="100" y2="10" stroke="#3a4a5a" stroke-width="6"/>
-                <line x1="100" y1="100" x2="100" y2="190" stroke="#3a4a5a" stroke-width="6"/>
-                <line x1="100" y1="100" x2="10" y2="100" stroke="#3a4a5a" stroke-width="6"/>
-                <line x1="100" y1="100" x2="190" y2="100" stroke="#3a4a5a" stroke-width="6"/>
-                <!-- Diagonal braces -->
-                <line x1="100" y1="100" x2="30" y2="30" stroke="#3a4a5a" stroke-width="4"/>
-                <line x1="100" y1="100" x2="170" y2="30" stroke="#3a4a5a" stroke-width="4"/>
-                <line x1="100" y1="100" x2="30" y2="170" stroke="#3a4a5a" stroke-width="4"/>
-                <line x1="100" y1="100" x2="170" y2="170" stroke="#3a4a5a" stroke-width="4"/>
-                <!-- Center hub mount -->
-                <circle cx="100" cy="100" r="25" fill="#4a5a6a" stroke="#2a3a4a" stroke-width="3"/>
-                <circle cx="100" cy="100" r="15" fill="#5a6a7a"/>
+            <svg viewBox="0 0 120 180" style="width: 100%; height: 100%;">
+                <!-- Main vertical strut from cockpit to prop -->
+                <path d="M60,180 L60,30" stroke="#3a4a5a" stroke-width="8" fill="none"/>
+                <!-- V-braces from cockpit -->
+                <path d="M20,180 L60,80" stroke="#3a4a5a" stroke-width="5" fill="none"/>
+                <path d="M100,180 L60,80" stroke="#3a4a5a" stroke-width="5" fill="none"/>
+                <!-- Cross brace -->
+                <path d="M30,130 L90,130" stroke="#3a4a5a" stroke-width="4" fill="none"/>
+                <!-- Engine cowling -->
+                <ellipse cx="60" cy="50" rx="35" ry="25" fill="#4a5a6a" stroke="#2a3a4a" stroke-width="2"/>
+                <!-- Prop hub mount -->
+                <circle cx="60" cy="30" r="20" fill="#5a6a7a" stroke="#3a4a5a" stroke-width="3"/>
+                <circle cx="60" cy="30" r="12" fill="#6a7a8a"/>
             </svg>
         `;
         c.appendChild(propFrame);
-        // PROPELLER - center of screen, in front of frame
+        // PROPELLER - positioned at top of frame
         const propeller = document.createElement('div');
         propeller.id = 'flight-prop';
         propeller.style.cssText = `
             position: absolute;
-            top: 50%;
+            bottom: calc(48% + 150px);
             left: 50%;
-            transform: translate(-50%, -50%);
+            transform: translateX(-50%);
             width: 500px;
             height: 500px;
             z-index: 25;
@@ -4088,8 +4076,8 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         style.id = 'flight-style';
         style.textContent = `
             @keyframes prop-spin {
-                from { transform: translate(-50%, -50%) rotate(0deg); }
-                to { transform: translate(-50%, -50%) rotate(360deg); }
+                from { transform: translateX(-50%) rotate(0deg); }
+                to { transform: translateX(-50%) rotate(360deg); }
             }
             #flight-prop {
                 animation: prop-spin 0.2s linear infinite;
@@ -4162,19 +4150,12 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 10% { opacity: 0.9; }
                 100% { transform: translateY(100vh) rotate(360deg); opacity: 0.2; }
             }
-            @keyframes wiper-sweep-left {
-                0%, 100% { transform: rotate(-35deg); }
-                50% { transform: rotate(50deg); }
+            @keyframes wiper-sweep {
+                0%, 100% { transform: translateX(-50%) rotate(-70deg); }
+                50% { transform: translateX(-50%) rotate(70deg); }
             }
-            @keyframes wiper-sweep-right {
-                0%, 100% { transform: rotate(35deg); }
-                50% { transform: rotate(-50deg); }
-            }
-            #flight-wiper-left.active {
-                animation: wiper-sweep-left 1.5s ease-in-out infinite;
-            }
-            #flight-wiper-right.active {
-                animation: wiper-sweep-right 1.5s ease-in-out infinite;
+            #flight-wiper.active {
+                animation: wiper-sweep 2s ease-in-out infinite;
             }
         `;
         document.head.appendChild(style);
@@ -4237,19 +4218,16 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         const updateWindscreenWeather = () => {
             if (!c.isConnected) return;
             const windscreen = document.getElementById('flight-windscreen');
-            const wiperL = document.getElementById('flight-wiper-left');
-            const wiperR = document.getElementById('flight-wiper-right');
+            const wiper = document.getElementById('flight-wiper');
             if (!windscreen) return;
             const isRaining = Weather.isRaining;
             const isSnowing = Weather.isSnowing;
-            // Activate wipers in rain/snow
-            if (wiperL && wiperR) {
+            // Activate wiper in rain/snow
+            if (wiper) {
                 if (isRaining || isSnowing) {
-                    wiperL.classList.add('active');
-                    wiperR.classList.add('active');
+                    wiper.classList.add('active');
                 } else {
-                    wiperL.classList.remove('active');
-                    wiperR.classList.remove('active');
+                    wiper.classList.remove('active');
                 }
             }
             if (isRaining) {
