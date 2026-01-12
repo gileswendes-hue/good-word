@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.3.11',
+    APP_VERSION: '6.3.12',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -3742,29 +3742,27 @@ flight(active) {
         };
 
         // LAYER 1: BACK MOUNTAINS (Grey, Distant, Jagged Snow)
-        // I have manually plotted "zig-zag" points for the bottom of the snow to create the jagged effect.
-const svgBack = `
+        const svgBack = `
         <svg viewBox="0 0 1200 100" preserveAspectRatio="none" style="width:100%; height:100%;">
             <path d="M0,100 L0,70 L200,45 L400,80 L600,40 L800,75 L1000,45 L1200,70 L1200,100 Z" fill="#546e7a"/>
             
-            <path d="M200,45 L257,55 L240,52 L220,58 L200,53 L180,58 L160,52 L120,55 Z" fill="white" opacity="0.9"/>
+            <path d="M200,45 L180,50 L188,58 L195,54 L200,60 L205,54 L212,58 L220,50 Z" fill="white" opacity="0.9"/>
             
-            <path d="M600,40 L685,55 L660,50 L640,58 L620,52 L600,58 L580,50 L525,55 Z" fill="white" opacity="0.9"/>
+            <path d="M600,40 L585,48 L592,55 L598,50 L600,56 L602,50 L608,55 L615,48 Z" fill="white" opacity="0.9"/>
             
-            <path d="M1000,45 L1080,55 L1060,50 L1040,58 L1020,52 L1000,58 L980,50 L933,55 Z" fill="white" opacity="0.9"/>
+            <path d="M1000,45 L980,50 L988,58 L995,54 L1000,60 L1005,54 L1012,58 L1020,50 Z" fill="white" opacity="0.9"/>
         </svg>`;
         const mtnBack = createMountainLayer(svgBack, 40, 20, 1, 1.0);
         worldContainer.appendChild(mtnBack.cont);
 
-        // LAYER 2: FRONT MOUNTAINS (Brown, Closer, Jagged Snow)
-        // Peaks offset from back layer for 3D effect.
-const svgFront = `
+        // LAYER 2: FRONT MOUNTAINS (Brown, Closer)
+        const svgFront = `
         <svg viewBox="0 0 1200 100" preserveAspectRatio="none" style="width:100%; height:100%;">
             <path d="M0,100 L0,85 L300,55 L500,90 L800,60 L1100,90 L1200,80 L1200,100 Z" fill="#5d4037"/>
             
-            <path d="M300,55 L357,65 L340,62 L320,68 L300,63 L280,68 L260,62 L200,65 Z" fill="white" opacity="0.8"/>
+            <path d="M300,55 L285,60 L292,68 L298,62 L300,70 L302,62 L308,68 L315,60 Z" fill="white" opacity="0.8"/>
             
-            <path d="M800,60 L900,70 L880,66 L850,74 L820,68 L790,74 L750,66 L700,70 Z" fill="white" opacity="0.8"/>
+            <path d="M800,60 L785,65 L792,73 L798,67 L800,75 L802,67 L808,73 L815,65 Z" fill="white" opacity="0.8"/>
         </svg>`;
         const mtnFront = createMountainLayer(svgFront, 50, 15, 2, 1.0);
         worldContainer.appendChild(mtnFront.cont);
@@ -3779,7 +3777,7 @@ const svgFront = `
         const grid = document.createElement('div');
         grid.style.cssText = `
             position: absolute; inset: -100%;
-            /* Vertical streaks for speed - Moving TOWARDS player */
+            /* Vertical streaks moving towards player */
             background-image: 
                 repeating-linear-gradient(90deg, rgba(255,255,255,0.1) 0px, rgba(255,255,255,0.1) 2px, transparent 2px, transparent 100px),
                 repeating-linear-gradient(0deg, rgba(255,255,255,0.2) 0px, rgba(255,255,255,0.2) 1px, transparent 1px, transparent 50px);
@@ -3788,7 +3786,7 @@ const svgFront = `
         `;
         ground.appendChild(grid);
         
-        // GROUND OBJECTS (Trees/Rocks)
+        // GROUND OBJECTS
         const groundObjContainer = document.createElement('div');
         groundObjContainer.style.cssText = `position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; perspective: 500px; transform-style: preserve-3d;`;
         ground.appendChild(groundObjContainer);
@@ -3797,7 +3795,7 @@ const svgFront = `
         c.appendChild(worldContainer);
 
         // =========================================
-        // LAYER 2: RAIN STREAKS
+        // LAYER 2: RAIN
         // =========================================
         const externalRainContainer = document.createElement('div');
         externalRainContainer.style.cssText = `position: absolute; inset: 0; pointer-events: none; z-index: 5; overflow: hidden;`;
@@ -3816,11 +3814,11 @@ const svgFront = `
         const prop = document.createElement('div');
         prop.style.cssText = `
             position: absolute; bottom: 32%; left: 50%; transform: translate(-50%, 50%);
-            width: 70vh; height: 70vh; 
+            width: 105vh; height: 105vh; 
             animation: flight-prop-spin 0.15s linear infinite;
             z-index: 15;
         `;
-prop.innerHTML = `
+        prop.innerHTML = `
             <svg viewBox="0 0 200 200" style="width: 100%; height: 100%; overflow: visible;">
                 <circle cx="100" cy="100" r="90" fill="url(#propBlur)" opacity="0.2"/>
                 <defs><radialGradient id="propBlur"><stop offset="0%" stop-color="transparent"/><stop offset="100%" stop-color="white"/></radialGradient></defs>
@@ -3850,17 +3848,19 @@ prop.innerHTML = `
         `;
         cockpit.appendChild(dash);
         
-        // --- INSTRUMENTS CONTAINER ---
-        // Using absolute positioning for precise layout
+        // --- INSTRUMENTS: TIGHT CENTERED GROUPING ---
+        // Container centered horizontally, fixed width to hold gauges tightly
         const gauges = document.createElement('div');
         gauges.style.cssText = `
-            position: absolute; bottom: 0; left: 0; width: 100%; height: 40%; 
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            width: 320px; display: flex; flex-direction: column; align-items: center;
             z-index: 22; pointer-events: none;
         `;
         
+        // Helper
         const createGauge = (label, color, type) => {
             const g = document.createElement('div');
-            g.style.cssText = `width: 90px; height: 90px; border-radius: 50%; background: #111; border: 4px solid #546e7a; position: absolute; box-shadow: inset 0 0 10px #000; overflow: hidden;`;
+            g.style.cssText = `width: 90px; height: 90px; border-radius: 50%; background: #111; border: 4px solid #546e7a; position: relative; box-shadow: inset 0 0 10px #000; overflow: hidden; flex-shrink: 0;`;
             if (type === 'horizon') {
                 g.innerHTML = `
                     <div id="gauge-horizon-ball" style="position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: linear-gradient(180deg, #29b6f6 50%, #5d4037 50%); transform: rotate(0deg);"></div>
@@ -3878,55 +3878,25 @@ prop.innerHTML = `
             return g;
         };
 
-        // 1. HORIZON (Top Center)
+        // ROW 1: Horizon (Top Center)
         const att = createGauge("ATT", "", "horizon");
-        att.style.top = "15px"; 
-        att.style.left = "50%";
-        att.style.transform = "translateX(-50%)";
+        att.style.top = "40px"; // Moved down slightly
         gauges.appendChild(att);
 
-        // 1b. COMPASS (Below Horizon)
-        const compass = document.createElement('div');
-        compass.style.cssText = `
-            position: absolute; top: 110px; left: 50%; transform: translateX(-50%);
-            width: 70px; height: 35px; background: #111; border: 3px solid #546e7a;
-            border-radius: 5px; box-shadow: inset 0 0 8px #000; overflow: hidden;
+        // ROW 2: SPD | Logo | ALT (Below, slightly overlapping)
+        const row2 = document.createElement('div');
+        row2.style.cssText = `
+            display: flex; align-items: flex-end; justify-content: space-between; 
+            width: 100%; margin-top: -15px; /* Overlap upwards */
         `;
-        compass.innerHTML = `
-            <div id="compass-tape" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); white-space: nowrap; font-size: 10px; font-weight: bold; color: #b0bec5; font-family: monospace;">
-                <span style="color: #ff5722;">N</span>&nbsp;&nbsp;030&nbsp;&nbsp;060&nbsp;&nbsp;<span style="color: #fff;">E</span>&nbsp;&nbsp;120&nbsp;&nbsp;150&nbsp;&nbsp;<span style="color: #ff5722;">S</span>&nbsp;&nbsp;210&nbsp;&nbsp;240&nbsp;&nbsp;<span style="color: #fff;">W</span>&nbsp;&nbsp;300&nbsp;&nbsp;330&nbsp;&nbsp;<span style="color: #ff5722;">N</span>
-            </div>
-            <div style="position: absolute; top: 0; left: 50%; width: 2px; height: 100%; background: #ffea00; transform: translateX(-50%); box-shadow: 0 0 4px #ffea00;"></div>
-            <div style="position: absolute; bottom: 2px; width: 100%; text-align: center; color: #78909c; font-size: 7px;">HDG</div>
-        `;
-        const compassTape = compass.querySelector('#compass-tape');
-        compass.tape = compassTape;
-        gauges.appendChild(compass);
 
-        // 2. SPD (Far Left, Bottom)
         const spd = createGauge("SPD", "#ffea00", "std");
-        spd.style.bottom = "15px";
-        spd.style.left = "20px";
-        gauges.appendChild(spd);
-
-        // 3. ALT (Far Right, Bottom)
-        const alt = createGauge("ALT", "#ff1744", "std");
-        alt.style.bottom = "15px";
-        alt.style.right = "20px";
-        gauges.appendChild(alt);
-
-        // 4. LOGO (Middle, Bottom)
-        // Positioned between SPD and ALT
-const logo = document.createElement('div');
-        logo.style.cssText = `
-            position: absolute;
-            bottom: 10px;
-            left: 50%; transform: translateX(-50%);
-            width: 180px; height: 120px;
-            z-index: 21;
-        `;
+        
+        // 4. LOGO (Middle, Bottom) - Metallic Frame
+        const logo = document.createElement('div');
+        logo.style.cssText = `width: 120px; height: 80px; z-index: 21; margin-bottom: 5px;`;
         logo.innerHTML = `
-            <svg viewBox="0 0 180 120" style="width: 100%; height: 100%; overflow: visible;">
+            <svg viewBox="0 0 120 80" style="width: 100%; height: 100%; overflow: visible;">
                 <defs>
                     <linearGradient id="metalFrame" x1="0" y1="0" x2="1" y2="1">
                         <stop offset="0%" stop-color="#78909c"/>
@@ -3935,23 +3905,31 @@ const logo = document.createElement('div');
                     </linearGradient>
                 </defs>
                 
-                <rect x="6" y="6" width="168" height="108" rx="6" fill="#263238" opacity="0.6" />
+                <rect x="4" y="4" width="112" height="72" rx="4" fill="#263238" opacity="0.6" />
                 
-                <image href="crying.PNG" x="22" y="22" width="135" height="75" preserveAspectRatio="xMidYMid contain" opacity="0.9"/>
+                <image href="crying.PNG" x="15" y="15" width="90" height="50" preserveAspectRatio="xMidYMid contain" opacity="0.9"/>
                 
-                <rect x="6" y="6" width="168" height="108" rx="6" fill="none" stroke="url(#metalFrame)" stroke-width="7" />
+                <rect x="4" y="4" width="112" height="72" rx="4" fill="none" stroke="url(#metalFrame)" stroke-width="5" />
                 
                 <g fill="#cfd8dc" stroke="#455a64" stroke-width="1">
-                    <circle cx="12" cy="12" r="3.5" />   <circle cx="168" cy="12" r="3.5" /> <circle cx="12" cy="108" r="3.5" />  <circle cx="168" cy="108" r="3.5" /></g>
+                    <circle cx="8" cy="8" r="2.5" />   <circle cx="112" cy="8" r="2.5" /> <circle cx="8" cy="72" r="2.5" />  <circle cx="112" cy="72" r="2.5" /></g>
                 <g stroke="#455a64" stroke-width="1">
-                    <path d="M9.5,12 L14.5,12 M12,9.5 L12,14.5" /> <path d="M165.5,12 L170.5,12 M168,9.5 L168,14.5" /> <path d="M9.5,108 L14.5,108 M12,105.5 L12,110.5" /> <path d="M165.5,108 L170.5,108 M168,105.5 L168,110.5" /> </g>
+                    <path d="M6.5,8 L9.5,8 M8,6.5 L8,9.5" /> <path d="M110.5,8 L113.5,8 M112,6.5 L112,9.5" /> <path d="M6.5,72 L9.5,72 M8,70.5 L8,73.5" /> <path d="M110.5,72 L113.5,72 M112,70.5 L112,73.5" /> </g>
             </svg>
         `;
-        gauges.appendChild(logo);
+
+        const alt = createGauge("ALT", "#ff1744", "std");
+
+        row2.appendChild(spd);
+        row2.appendChild(logo);
+        row2.appendChild(alt);
+        gauges.appendChild(row2);
 
         cockpit.appendChild(gauges);
 
-const lightBox = document.createElement('div');
+        // INDICATOR LIGHTS
+        // 1. Wiper Light (Above SPD)
+        const lightBox = document.createElement('div');
         lightBox.style.cssText = `
             position: absolute; bottom: 120px; left: 65px; transform: translateX(-50%);
             width: 20px; height: 20px; /* Larger size */
@@ -3982,7 +3960,7 @@ const lightBox = document.createElement('div');
         // =========================================
         // LAYER 7: WIPER (Z: 100)
         // =========================================
-const wiper = document.createElement('div');
+        const wiper = document.createElement('div');
         wiper.style.cssText = `
             position: absolute; bottom: 40%; left: 50%; width: 0; height: 45vh;
             transform-origin: bottom center; transform: rotate(-50deg);
@@ -4017,6 +3995,7 @@ const wiper = document.createElement('div');
                 @keyframes flight-drop-appear { 0% { opacity: 0; transform: scale(0.5); } 100% { opacity: 1; transform: scale(1); } }
                 @keyframes flight-drop-streak-right { 0% { opacity: 1; transform: scaleX(1) translateX(0); } 100% { opacity: 0; transform: scaleX(4) translateX(30px); } }
                 @keyframes flight-drop-streak-left { 0% { opacity: 1; transform: scaleX(1) translateX(0); } 100% { opacity: 0; transform: scaleX(4) translateX(-30px); } }
+                /* Objects fly AT camera: small to big */
                 @keyframes fly-approach { 
                     0% { transform: translate(-50%, -50%) scale(0.01); opacity: 0; } 
                     10% { opacity: 1; } 
@@ -4036,15 +4015,15 @@ const wiper = document.createElement('div');
         let headingOffset = 0;
         let altitude = 1000;
 
-// --- LOGIC LOOP ---
+        // --- LOGIC LOOP ---
         const logicLoop = () => {
             if(!document.body.contains(c)) return;
             flightTime += 0.005;
             
             // 1. ENGINE POWER (Stable Cruising)
-            // Change target speed every ~30 seconds
+            // Change target speed every ~30 seconds (flightTime 9.0 ≈ 30s)
             const block = Math.floor(flightTime / 9.0);
-            const targetPower = 0.7 + (Math.sin(block * 123.4) * 0.15); 
+            const targetPower = 0.7 + (Math.sin(block * 123.4) * 0.15); // Stable range 0.55 - 0.85
             
             // Smoothly interpolate current power
             let enginePower = parseFloat(prop.dataset.pwr || 0.7);
@@ -4062,11 +4041,11 @@ const wiper = document.createElement('div');
             if (cyclePos < 0.2) bank = 0;
             else if (cyclePos < 0.4) {
                 const t = (cyclePos - 0.2) / 0.2; 
-                bank = -Math.sin(t * Math.PI) * 12; // Increased from 6 to 12 for more visible banking
+                bank = -Math.sin(t * Math.PI) * 6;
             } else if (cyclePos < 0.6) bank = 0;
             else if (cyclePos < 0.8) {
                 const t = (cyclePos - 0.6) / 0.2; 
-                bank = Math.sin(t * Math.PI) * 12; // Increased from 6 to 12 for more visible banking
+                bank = Math.sin(t * Math.PI) * 6;
             } else bank = 0;
             
             const pitch = Math.sin(flightTime * 0.3) * 1.5;
@@ -4083,14 +4062,15 @@ const wiper = document.createElement('div');
             // Move ground 'towards' player
             grid.style.backgroundPositionY = `${flightTime * 1200}px`;
 
-            // Scroll Mountains (Parallax) - accumulate heading based on bank
-            if (Math.abs(bank) > 0.5) headingOffset += bank * 0.5;
+            // Scroll Mountains (Parallax)
+            let headingOffset = 0;
+            if (Math.abs(bank) > 0.5) headingOffset += bank * 0.02; // Accumulate heading
             
-            const farScroll = (headingOffset * -0.5) % 2000; 
+            const farScroll = (headingOffset * -10) % 2000; 
             mtnBack.p1.style.transform = `translateX(${farScroll}px)`;
             mtnBack.p2.style.transform = `translateX(${farScroll + 2000}px)`; 
             
-            const nearScroll = (headingOffset * -1) % 2000;
+            const nearScroll = (headingOffset * -20) % 2000;
             mtnFront.p1.style.transform = `translateX(${nearScroll}px)`;
             mtnFront.p2.style.transform = `translateX(${nearScroll + 2000}px)`;
 
@@ -4108,20 +4088,11 @@ const wiper = document.createElement('div');
             // Horizon
             if (horizonBall) horizonBall.style.transform = `rotate(${-bank}deg) translateY(${pitch * 2}px)`; 
             
-            // Compass - moves based on accumulated heading
-            if (compass.tape) {
-                // Normalize heading to 0-360 range, use headingOffset to determine bearing
-                const bearing = ((headingOffset * 0.5) % 360 + 360) % 360;
-                // Tape scrolls - each character is roughly 8px, full rotation = 360 degrees
-                const tapeOffset = (bearing / 360) * 280; // 280px is approximate tape width for full rotation
-                compass.tape.style.transform = `translate(calc(-50% - ${tapeOffset}px), -50%)`;
-            }
-            
             // Speed (SPD) - Includes Physics + Jitter
             // Declared ONCE here to prevent syntax error
-            let spdAngle = -135 + (enginePower * 220);
-            spdAngle -= (pitch * 25); // Increased gravity effect
-            spdAngle += (Math.random() * 8 - 4); // Increased jitter
+            let spdAngle = -135 + (enginePower * 180);
+            spdAngle -= (pitch * 12); // Gravity effect
+            spdAngle += (Math.random() * 3 - 1.5); // Jitter
             
             if (spd.needle) {
                 spd.needle.style.transition = 'none'; 
@@ -4199,11 +4170,13 @@ const wiper = document.createElement('div');
             const isRaining = (typeof window.WeatherManager !== 'undefined' && 
                               (window.WeatherManager.isRaining || window.WeatherManager.isSnowing));
 
+            // Wiper Light Update
             lightBox.style.background = isRaining ? '#00e676' : '#222';
             lightBox.style.boxShadow = isRaining ? '0 0 8px #00e676' : '0 0 2px #000';
 
+            // Connection Light Update
             const isOnline = navigator.onLine && !State.data.settings.offlineMode;
-            connLight.style.background = isOnline ? '#22c55e' : '#ef4444';
+            connLight.style.background = isOnline ? '#22c55e' : '#ef4444'; // Green = Online, Red = Offline
             connLight.style.boxShadow = isOnline ? '0 0 5px #22c55e' : '0 0 5px #ef4444';
 
             if (isRaining) {
@@ -4264,6 +4237,21 @@ const wiper = document.createElement('div');
                         }
                     });
                 }
+                
+                // Add more dark clouds when raining
+                if (distantSky.children.length < 12 && Math.random() > 0.8) {
+                    const cloud = document.createElement('div');
+                    cloud.innerText = '☁️';
+                    cloud.style.cssText = `
+                        position: absolute; top: ${30 + Math.random() * 15}%; left: -10%;
+                        font-size: ${40 + Math.random() * 40}px; opacity: 0.8;
+                        filter: blur(2px) grayscale(80%); transition: left 1s linear; color: #555;
+                    `;
+                    cloud.dataset.speed = 0.05 + Math.random() * 0.05;
+                    cloud.dataset.pos = -10;
+                    distantSky.appendChild(cloud);
+                }
+                
             } else {
                 if (Math.abs(wiperAngle - -50) > 2) {
                     wiperAngle -= 2;
