@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.3.14',
+    APP_VERSION: '6.3.15',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -3760,7 +3760,7 @@ flight(active) {
         const mtnFront = createMountainLayer(svgFront, 50, 15, 2, 1.0);
         worldContainer.appendChild(mtnFront.cont);
 
-        // GROUND
+        // GROUND (With visible movement grid)
         const ground = document.createElement('div');
         ground.style.cssText = `
             position: absolute; top: 56%; left: -50%; width: 200%; height: 100%;
@@ -3768,11 +3768,12 @@ flight(active) {
             perspective: 500px; z-index: 3; overflow: hidden;
         `;
         const grid = document.createElement('div');
+        // High contrast grid for visibility
         grid.style.cssText = `
             position: absolute; inset: -100%;
             background-image: 
-                repeating-linear-gradient(90deg, rgba(255,255,255,0.3) 0px, rgba(255,255,255,0.3) 2px, transparent 2px, transparent 100px),
-                repeating-linear-gradient(0deg, rgba(255,255,255,0.4) 0px, rgba(255,255,255,0.4) 1px, transparent 1px, transparent 50px);
+                repeating-linear-gradient(90deg, rgba(255,255,255,0.4) 0px, rgba(255,255,255,0.4) 2px, transparent 2px, transparent 100px),
+                repeating-linear-gradient(0deg, rgba(255,255,255,0.5) 0px, rgba(255,255,255,0.5) 1px, transparent 1px, transparent 50px);
             background-size: 200px 200px;
             transform: rotateX(80deg);
         `;
@@ -3786,25 +3787,25 @@ flight(active) {
         worldContainer.appendChild(ground);
         c.appendChild(worldContainer);
 
-        // RAIN
+        // EXTERNAL RAIN
         const externalRainContainer = document.createElement('div');
         externalRainContainer.style.cssText = `position: absolute; inset: 0; pointer-events: none; z-index: 5; overflow: hidden;`;
         c.appendChild(externalRainContainer);
 
-        // OBJECTS (Birds/Clouds)
+        // OBJECTS
         const objectContainer = document.createElement('div');
         objectContainer.style.cssText = `position: absolute; inset: 0; pointer-events: none; z-index: 6; overflow: hidden;`;
         c.appendChild(objectContainer);
 
         // =========================================
-        // PROPELLER (Z-Index 110 - IN FRONT OF WIPER)
+        // PROPELLER (Z-Index 15 - BEHIND DASHBOARD)
         // =========================================
         const prop = document.createElement('div');
         prop.style.cssText = `
             position: absolute; bottom: 32%; left: 50%; transform: translate(-50%, 50%);
             width: 70vh; height: 70vh; 
             animation: flight-prop-spin 0.15s linear infinite;
-            z-index: 110; /* FIXED: Highest layer */
+            z-index: 15; /* Behind cockpit (20) */
         `;
         prop.innerHTML = `
             <svg viewBox="0 0 200 200" style="width: 100%; height: 100%; overflow: visible;">
@@ -3818,7 +3819,7 @@ flight(active) {
         `;
         c.appendChild(prop);
 
-        // COCKPIT
+        // COCKPIT (Z: 20)
         const cockpit = document.createElement('div');
         cockpit.style.cssText = `position: absolute; inset: 0; pointer-events: none; z-index: 20;`;
 
@@ -3832,17 +3833,15 @@ flight(active) {
         `;
         cockpit.appendChild(dash);
         
-        // INSTRUMENTS
+        // --- INSTRUMENTS: SPREAD LAYOUT ---
         const gauges = document.createElement('div');
         gauges.style.cssText = `
-            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-            width: 320px; display: flex; flex-direction: column; align-items: center;
-            z-index: 22; pointer-events: none;
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 22;
         `;
         
         const createGauge = (label, color, type) => {
             const g = document.createElement('div');
-            g.style.cssText = `width: 90px; height: 90px; border-radius: 50%; background: #111; border: 4px solid #546e7a; position: relative; box-shadow: inset 0 0 10px #000; overflow: hidden; flex-shrink: 0;`;
+            g.style.cssText = `width: 90px; height: 90px; border-radius: 50%; background: #111; border: 4px solid #546e7a; position: absolute; box-shadow: inset 0 0 10px #000; overflow: hidden;`;
             if (type === 'horizon') {
                 g.innerHTML = `
                     <div id="gauge-horizon-ball" style="position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: linear-gradient(180deg, #29b6f6 50%, #5d4037 50%); transform: rotate(0deg);"></div>
@@ -3860,17 +3859,28 @@ flight(active) {
             return g;
         };
 
+        // 1. HORIZON (Top Center)
         const att = createGauge("ATT", "", "horizon");
-        att.style.top = "40px";
+        att.style.bottom = "130px"; 
+        att.style.left = "50%";
+        att.style.transform = "translateX(-50%)";
         gauges.appendChild(att);
 
-        const row2 = document.createElement('div');
-        row2.style.cssText = `display: flex; align-items: flex-end; justify-content: space-between; width: 100%; margin-top: -15px;`;
-
+        // 2. SPD (Bottom Left)
         const spd = createGauge("SPD", "#ffea00", "std");
-        
+        spd.style.bottom = "20px";
+        spd.style.left = "20px";
+        gauges.appendChild(spd);
+
+        // 3. ALT (Bottom Right)
+        const alt = createGauge("ALT", "#ff1744", "std");
+        alt.style.bottom = "20px";
+        alt.style.right = "20px";
+        gauges.appendChild(alt);
+
+        // 4. LOGO (Bottom Center)
         const logo = document.createElement('div');
-        logo.style.cssText = `width: 120px; height: 80px; z-index: 21; margin-bottom: 5px;`;
+        logo.style.cssText = `position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); width: 120px; height: 80px; z-index: 21;`;
         logo.innerHTML = `
             <svg viewBox="0 0 120 80" style="width: 100%; height: 100%; overflow: visible;">
                 <defs><linearGradient id="metalFrame" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#78909c"/><stop offset="50%" stop-color="#eceff1"/><stop offset="100%" stop-color="#78909c"/></linearGradient></defs>
@@ -3881,41 +3891,36 @@ flight(active) {
                 <g stroke="#455a64" stroke-width="1"><path d="M6.5,8 L9.5,8 M8,6.5 L8,9.5" /><path d="M110.5,8 L113.5,8 M112,6.5 L112,9.5" /><path d="M6.5,72 L9.5,72 M8,70.5 L8,73.5" /><path d="M110.5,72 L113.5,72 M112,70.5 L112,73.5" /></g>
             </svg>
         `;
+        gauges.appendChild(logo);
 
-        const alt = createGauge("ALT", "#ff1744", "std");
-
-        row2.appendChild(spd);
-        row2.appendChild(logo);
-        row2.appendChild(alt);
-        gauges.appendChild(row2);
-        cockpit.appendChild(gauges);
-
-        // INDICATORS
+        // INDICATORS (Above gauges)
         const lightBox = document.createElement('div');
         lightBox.style.cssText = `position: absolute; bottom: 120px; left: 65px; transform: translateX(-50%); width: 20px; height: 20px; border-radius: 50%; background: #222; border: 2px solid #555; box-shadow: 0 0 2px #000; transition: all 0.3s; z-index: 23;`;
-        cockpit.appendChild(lightBox);
+        gauges.appendChild(lightBox); // Attached to gauges so it's aligned with SPD
 
         const connLight = document.createElement('div');
         connLight.style.cssText = `position: absolute; bottom: 120px; right: 65px; transform: translateX(50%); width: 20px; height: 20px; border-radius: 50%; background: #222; border: 2px solid #555; box-shadow: 0 0 2px #000; transition: all 0.3s; z-index: 23;`;
-        cockpit.appendChild(connLight);
+        gauges.appendChild(connLight); // Attached to gauges aligned with ALT
+
+        cockpit.appendChild(gauges);
         c.appendChild(cockpit);
 
-        // WINDSCREEN RAIN (Z-Index 95)
+        // WINDSCREEN RAIN (Z: 95) - On glass
         const windscreenRain = document.createElement('div');
-        windscreenRain.style.cssText = `position: absolute; inset: 0; pointer-events: none; z-index: 95; overflow: hidden; display: block;`;
+        windscreenRain.style.cssText = `position: absolute; inset: 0; pointer-events: none; z-index: 17; overflow: hidden; display: block;`;
         c.appendChild(windscreenRain);
 
-        // WIPER (Z-Index 100 - BEHIND PROP)
+        // WIPER (Z: 16 - Behind Windscreen Rain, In front of Prop)
         const wiper = document.createElement('div');
         wiper.style.cssText = `
             position: absolute; bottom: 40%; left: 50%; width: 0; height: 45vh;
             transform-origin: bottom center; transform: rotate(-50deg);
-            z-index: 100; display: block; pointer-events: none;
+            z-index: 16; display: block; pointer-events: none;
         `;
         wiper.innerHTML = `<div style="position: absolute; bottom: 0; left: -6px; width: 12px; height: 100%; background: #111; border-radius: 6px; box-shadow: 2px 0 4px rgba(0,0,0,0.5); display: flex; justify-content: center; padding-top: 4px; padding-bottom: 4px;"><div style="width: 2px; height: 100%; background: #666; opacity: 0.8;"></div></div><div style="position: absolute; bottom: -6px; left: -9px; width: 18px; height: 18px; background: #222; border-radius: 50%; border: 2px solid #000; box-shadow: 0 2px 4px rgba(0,0,0,0.8);"></div>`;
         c.appendChild(wiper);
 
-        // ANIMATIONS
+        // --- ANIMATIONS ---
         if(!document.getElementById('flight-anims')) {
             const s = document.createElement('style');
             s.id = 'flight-anims';
@@ -3927,7 +3932,7 @@ flight(active) {
                 @keyframes flight-drop-streak-right { 0% { opacity: 1; transform: scaleX(1) translateX(0); } 100% { opacity: 0; transform: scaleX(4) translateX(30px); } }
                 @keyframes flight-drop-streak-left { 0% { opacity: 1; transform: scaleX(1) translateX(0); } 100% { opacity: 0; transform: scaleX(4) translateX(-30px); } }
                 @keyframes fly-approach { 0% { transform: translate(-50%, -50%) scale(0.01); opacity: 0; } 10% { opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)) scale(6); opacity: 1; } }
-                /* GROUND SCALING: Objects get huge as they pass underneath */
+                /* GROUND SCALING */
                 @keyframes ground-obj-pass { 
                     0% { transform: translate(-50%, 0) scale(0.1); opacity: 0; bottom: 100%; } 
                     10% { opacity: 1; } 
@@ -3941,13 +3946,14 @@ flight(active) {
         let flightTime = 0;
         let headingOffset = 0;
         let altitude = 1000;
+        let groundY = 0;
 
         // --- LOGIC LOOP ---
         const logicLoop = () => {
             if(!document.body.contains(c)) return;
             flightTime += 0.005;
             
-            // ENGINE & PROP
+            // 1. ENGINE POWER
             const block = Math.floor(flightTime / 9.0);
             const targetPower = 0.7 + (Math.sin(block * 123.4) * 0.15); 
             let enginePower = parseFloat(prop.dataset.pwr || 0.7);
@@ -3955,7 +3961,7 @@ flight(active) {
             prop.dataset.pwr = enginePower;
             prop.style.animationDuration = `${0.4 - (enginePower * 0.25)}s`;
 
-            // BANK & PITCH
+            // 2. BANK & PITCH (Larger Amplitude)
             const bankCycle = flightTime * 0.15;
             let bank = 0;
             const cyclePos = bankCycle % 1;
@@ -3964,14 +3970,22 @@ flight(active) {
             else if (cyclePos < 0.6) bank = 0;
             else if (cyclePos < 0.8) bank = Math.sin(((cyclePos - 0.6) / 0.2) * Math.PI) * 12;
             
-            const pitch = Math.sin(flightTime * 0.3) * 1.5;
+            // Pitch Oscillation (Stronger)
+            const pitch = Math.sin(flightTime * 0.5) * 5.0; // +/- 5% translate
+            
+            // Altitude changes with pitch
             altitude += pitch;
             if (altitude < 0) altitude = 0;
             if (altitude > 2000) altitude = 2000;
 
-            // SCENE
+            // 3. WORLD TRANSFORMS
             worldContainer.style.transform = `rotate(${-bank}deg) translateY(${pitch}%)`;
-            grid.style.backgroundPositionY = `${flightTime * 1500}px`;
+            
+            // GROUND SPEED (Depends on pitch)
+            // Pitch > 0 (Up) -> Slow down. Pitch < 0 (Down) -> Speed up.
+            let groundSpeed = 15 - (pitch * 2); 
+            groundY += groundSpeed;
+            grid.style.backgroundPositionY = `${groundY}px`;
 
             if (Math.abs(bank) > 0.5) headingOffset += bank * 0.5;
             const farScroll = (headingOffset * -0.5) % 2000; 
@@ -3989,13 +4003,13 @@ flight(active) {
                 cloud.style.left = pos + '%';
             });
 
-            // GAUGES
+            // 4. GAUGES
             if (horizonBall) horizonBall.style.transform = `rotate(${-bank}deg) translateY(${pitch * 2}px)`; 
             
             // SPEED PHYSICS + JITTER
             let spdAngle = -135 + (enginePower * 220); 
-            spdAngle -= (pitch * 30); // Pitch UP = Slow, Pitch DOWN = Fast
-            spdAngle += (Math.random() * 6 - 3); 
+            spdAngle -= (pitch * 10); // Pitch UP (pos) -> Reduce Angle (Slow). Pitch DOWN -> Increase Angle (Fast)
+            spdAngle += (Math.random() * 4 - 2); 
             
             if (spd.needle) {
                 spd.needle.style.transition = 'none'; 
@@ -4061,7 +4075,6 @@ flight(active) {
                 if (wiperAngle <= -50) wiperDir = 1;
                 wiper.style.transform = `rotate(${wiperAngle}deg)`;
                 
-                // Rain streaks & Drops
                 if (Math.random() > 0.5) {
                     const streak = document.createElement('div');
                     streak.style.cssText = `position: absolute; left: ${Math.random() * 100}%; top: -40px; width: 2px; height: ${50 + Math.random() * 30}px; background: linear-gradient(180deg, transparent, rgba(200,220,255,0.8), rgba(150,180,220,0.4)); animation: flight-streak-fall 0.5s linear forwards;`;
@@ -4089,7 +4102,6 @@ flight(active) {
                     }
                 });
 
-                // MORE DARK CLOUDS
                 if (distantSky.children.length < 25 && Math.random() > 0.7) {
                     const cloud = document.createElement('div');
                     cloud.innerText = '☁️';
