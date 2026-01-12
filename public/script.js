@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.3.17',
+    APP_VERSION: '6.3.18',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -997,6 +997,9 @@ eat() {
         State.data.spiderEatLog = State.data.spiderEatLog.filter(t => t > oneHourAgo);
         State.save('spiderEatLog', State.data.spiderEatLog);
         if (State.data.spiderEatLog.length >= 5) {
+            // Spider is full for 1 hour after eating 5 bugs
+            State.data.spiderFullUntil = Date.now() + (60 * 60 * 1000);
+            State.save('spiderFullUntil', State.data.spiderFullUntil);
             setTimeout(() => UIManager.showPostVoteMessage("The spider is stuffed! 🕷️💤"), 1500);
         }
         this.finish();
