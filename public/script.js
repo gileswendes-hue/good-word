@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.3.19',
+    APP_VERSION: '6.3.20',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -7696,17 +7696,18 @@ const html = `
                         </div>
                     </div>
                 </div>
-                <div class="bg-white p-6 rounded-2xl shadow-2xl flex-1 animate-pop relative border-t-4 border-green-500" style="animation-delay: 0.1s">
-                    <div class="flex items-center justify-between mb-4">
-                        <h2 class="text-2xl font-black text-gray-800 flex items-center gap-2">
-                            <span>🌍</span> PUBLIC GAMES
-                        </h2>
-                        <a href="https://www.facebook.com/groups/2647677235633381" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition text-sm font-bold">
-                            <img src="fblogo.png" alt="FB" class="w-5 h-5">
-                            <span class="hidden sm:inline">Group</span>
-                        </a>
-                    </div>
-                    <div id="publicGamesList" class="space-y-2 max-h-80 overflow-y-auto custom-scrollbar">
+                <div class="bg-white p-6 rounded-2xl shadow-2xl flex-1 animate-pop relative border-t-4 border-green-500 text-center" style="animation-delay: 0.1s">
+            
+            <a href="https://www.facebook.com/groups/2647677235633381" target="_blank" rel="noopener noreferrer" class="absolute top-3 right-4 flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition text-sm font-bold">
+                <img src="fblogo.png" alt="FB" class="w-5 h-5">
+                <span class="hidden sm:inline">Group</span>
+            </a>
+
+            <h2 class="text-2xl font-black text-gray-800 mb-4 flex items-center justify-center gap-2">
+                <span>🌍</span> PUBLIC GAMES
+            </h2>
+
+            <div id="publicGamesList" class="space-y-2 max-h-80 overflow-y-auto custom-scrollbar">
                         <div class="text-center py-8 text-gray-400">
                             <div class="text-3xl mb-2">📡</div>
                             <p class="text-sm">Searching for games...</p>
