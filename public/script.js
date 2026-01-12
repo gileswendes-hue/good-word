@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.62',
+    APP_VERSION: '6.2.63',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -3644,7 +3644,66 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         if (this.fieldSpawnInterval) clearInterval(this.fieldSpawnInterval);
         this.flightObjects.forEach(obj => obj.remove());
         this.flightObjects = [];
+        // Stop engine audio if exists
+        if (this.engineAudio) {
+            this.engineAudio.pause();
+            this.engineAudio = null;
+        }
         if (!active) { c.innerHTML = ''; c.style.background = ''; return; }
+        // Start engine noise if not muted
+        if (!State.data.muted) {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                const lfo = audioCtx.createOscillator();
+                const lfoGain = audioCtx.createGain();
+                // Engine base frequency
+                oscillator.type = 'sawtooth';
+                oscillator.frequency.setValueAtTime(85, audioCtx.currentTime);
+                // LFO for engine rumble variation
+                lfo.type = 'sine';
+                lfo.frequency.setValueAtTime(8, audioCtx.currentTime);
+                lfoGain.gain.setValueAtTime(15, audioCtx.currentTime);
+                lfo.connect(lfoGain);
+                lfoGain.connect(oscillator.frequency);
+                // Low volume
+                gainNode.gain.setValueAtTime(0.06, audioCtx.currentTime);
+                // Create noise for more realistic engine sound
+                const bufferSize = audioCtx.sampleRate * 2;
+                const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const output = noiseBuffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    output[i] = Math.random() * 2 - 1;
+                }
+                const noise = audioCtx.createBufferSource();
+                noise.buffer = noiseBuffer;
+                noise.loop = true;
+                const noiseFilter = audioCtx.createBiquadFilter();
+                noiseFilter.type = 'lowpass';
+                noiseFilter.frequency.setValueAtTime(200, audioCtx.currentTime);
+                const noiseGain = audioCtx.createGain();
+                noiseGain.gain.setValueAtTime(0.03, audioCtx.currentTime);
+                noise.connect(noiseFilter);
+                noiseFilter.connect(noiseGain);
+                noiseGain.connect(audioCtx.destination);
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                oscillator.start();
+                lfo.start();
+                noise.start();
+                this.engineAudio = {
+                    pause: () => {
+                        oscillator.stop();
+                        lfo.stop();
+                        noise.stop();
+                        audioCtx.close();
+                    }
+                };
+            } catch (e) {
+                console.log('Engine audio not available');
+            }
+        }
         c.innerHTML = '';
         const worldContainer = document.createElement('div');
         worldContainer.id = 'flight-world';
@@ -3832,97 +3891,34 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             overflow: hidden;
         `;
         c.appendChild(windscreen);
-        // WINDSCREEN WIPERS - always visible
-        const wiperLeft = document.createElement('div');
-        wiperLeft.id = 'flight-wiper-left';
-        wiperLeft.style.cssText = `
-            position: absolute;
-            bottom: 52%;
-            left: 28%;
-            width: 5px;
-            height: 100px;
-            background: linear-gradient(180deg, #111 0%, #333 50%, #111 100%);
-            border-radius: 2px;
-            transform-origin: bottom center;
-            transform: rotate(-40deg);
-            z-index: 51;
-            box-shadow: 1px 1px 3px rgba(0,0,0,0.5);
-        `;
-        c.appendChild(wiperLeft);
-        const wiperRight = document.createElement('div');
-        wiperRight.id = 'flight-wiper-right';
-        wiperRight.style.cssText = `
-            position: absolute;
-            bottom: 52%;
-            right: 28%;
-            width: 5px;
-            height: 100px;
-            background: linear-gradient(180deg, #111 0%, #333 50%, #111 100%);
-            border-radius: 2px;
-            transform-origin: bottom center;
-            transform: rotate(40deg);
-            z-index: 51;
-            box-shadow: -1px 1px 3px rgba(0,0,0,0.5);
-        `;
-        c.appendChild(wiperRight);
-        // ENGINE COWLING - the nose of the plane that prop attaches to
-        const engineCowling = document.createElement('div');
-        engineCowling.style.cssText = `
-            position: absolute;
-            bottom: 48%;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 140px;
-            height: 90px;
-            background: linear-gradient(180deg, #4a5a6a 0%, #3a4a5a 30%, #2a3a4a 60%, #1a2a3a 100%);
-            border-radius: 50% 50% 45% 45%;
-            z-index: 56;
-            box-shadow: inset 0 10px 20px rgba(255,255,255,0.1), inset 0 -10px 20px rgba(0,0,0,0.3), 0 5px 15px rgba(0,0,0,0.4);
-        `;
-        c.appendChild(engineCowling);
-        // PROP SPINNER - attached to top of cowling
-        const propSpinner = document.createElement('div');
-        propSpinner.style.cssText = `
-            position: absolute;
-            bottom: calc(48% + 60px);
-            left: 50%;
-            transform: translateX(-50%);
-            width: 50px;
-            height: 55px;
-            background: linear-gradient(180deg, #ccc 0%, #999 30%, #777 60%, #555 100%);
-            border-radius: 50% 50% 40% 40%;
-            z-index: 57;
-            box-shadow: 0 -3px 8px rgba(0,0,0,0.3);
-        `;
-        c.appendChild(propSpinner);
-        // PROPELLER - attached to spinner
+        // PROPELLER - center of screen
         const propeller = document.createElement('div');
         propeller.id = 'flight-prop';
         propeller.style.cssText = `
             position: absolute;
-            bottom: calc(48% + 85px);
+            top: 50%;
             left: 50%;
-            transform: translateX(-50%);
-            width: 400px;
-            height: 400px;
-            z-index: 57;
+            transform: translate(-50%, -50%);
+            width: 450px;
+            height: 450px;
+            z-index: 25;
         `;
         propeller.innerHTML = `
-            <svg viewBox="0 0 400 400" style="width: 100%; height: 100%;">
+            <svg viewBox="0 0 450 450" style="width: 100%; height: 100%;">
                 <defs>
                     <linearGradient id="propBladeGrad" x1="0%" y1="50%" x2="100%" y2="50%">
-                        <stop offset="0%" style="stop-color:#2a2a2a"/>
-                        <stop offset="15%" style="stop-color:#5a5a5a"/>
-                        <stop offset="30%" style="stop-color:#4a4a4a"/>
-                        <stop offset="50%" style="stop-color:#3a3a3a"/>
-                        <stop offset="70%" style="stop-color:#4a4a4a"/>
-                        <stop offset="85%" style="stop-color:#5a5a5a"/>
-                        <stop offset="100%" style="stop-color:#2a2a2a"/>
+                        <stop offset="0%" style="stop-color:#1a1a1a"/>
+                        <stop offset="15%" style="stop-color:#4a4a4a"/>
+                        <stop offset="30%" style="stop-color:#3a3a3a"/>
+                        <stop offset="50%" style="stop-color:#2a2a2a"/>
+                        <stop offset="70%" style="stop-color:#3a3a3a"/>
+                        <stop offset="85%" style="stop-color:#4a4a4a"/>
+                        <stop offset="100%" style="stop-color:#1a1a1a"/>
                     </linearGradient>
                 </defs>
-                <ellipse cx="200" cy="200" rx="190" ry="18" fill="url(#propBladeGrad)"/>
-                <circle cx="200" cy="200" r="25" fill="#555"/>
-                <circle cx="200" cy="200" r="15" fill="#777"/>
+                <ellipse cx="225" cy="225" rx="215" ry="22" fill="url(#propBladeGrad)"/>
+                <circle cx="225" cy="225" r="30" fill="#444"/>
+                <circle cx="225" cy="225" r="18" fill="#666"/>
             </svg>
         `;
         c.appendChild(propeller);
@@ -3930,14 +3926,13 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         panel.style.cssText = `
             position: absolute;
             bottom: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 85%;
-            height: 48%;
+            left: 0;
+            right: 0;
+            height: 38%;
             z-index: 60;
         `;
         panel.innerHTML = `
-            <svg style="position: absolute; inset: 0; width: 100%; height: 100%;" viewBox="0 0 200 110" preserveAspectRatio="none">
+            <svg style="position: absolute; inset: 0; width: 100%; height: 100%;" viewBox="0 0 200 80" preserveAspectRatio="none">
                 <defs>
                     <linearGradient id="panelGrad" x1="0%" y1="0%" x2="0%" y2="100%">
                         <stop offset="0%" style="stop-color:#6a7a8a"/>
@@ -3945,164 +3940,74 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                         <stop offset="100%" style="stop-color:#4a5a6a"/>
                     </linearGradient>
                 </defs>
-                <path d="M8,110 L8,45 Q100,15 192,45 L192,110 Z" fill="url(#panelGrad)" stroke="#3a4a5a" stroke-width="1"/>
+                <rect x="0" y="0" width="200" height="80" fill="url(#panelGrad)"/>
+                <rect x="0" y="0" width="200" height="3" fill="#3a4a5a"/>
             </svg>
             <!-- TOP ROW - Main flight instruments -->
-            <div style="position: absolute; top: 18%; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; align-items: center;">
-                <div style="width: 55px; height: 55px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #1a2a3a, #0a1520); border: 3px solid #2a3a4a; position: relative;">
-                    <div style="position: absolute; top: 50%; left: 50%; width: 2px; height: 20px; background: white; transform-origin: bottom center; transform: translate(-50%, -100%); animation: compass-spin 25s linear infinite;"></div>
+            <div style="position: absolute; top: 8%; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; align-items: center;">
+                <div style="width: 50px; height: 50px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #1a2a3a, #0a1520); border: 3px solid #2a3a4a; position: relative;">
+                    <div style="position: absolute; top: 50%; left: 50%; width: 2px; height: 18px; background: white; transform-origin: bottom center; transform: translate(-50%, -100%); animation: compass-spin 25s linear infinite;"></div>
                 </div>
-                <div style="width: 65px; height: 65px; border-radius: 50%; background: linear-gradient(180deg, #1a4a8a 0%, #1a4a8a 48%, #6a4a1a 52%, #6a4a1a 100%); border: 3px solid #2a3a4a; position: relative;">
+                <div style="width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(180deg, #1a4a8a 0%, #1a4a8a 48%, #6a4a1a 52%, #6a4a1a 100%); border: 3px solid #2a3a4a; position: relative;">
                     <div style="position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: white;"></div>
-                    <div style="position: absolute; top: 50%; left: 50%; width: 25px; height: 3px; background: #ff8800; transform: translate(-50%, -50%);"></div>
+                    <div style="position: absolute; top: 50%; left: 50%; width: 22px; height: 3px; background: #ff8800; transform: translate(-50%, -50%);"></div>
                 </div>
-                <div style="width: 55px; height: 55px; border-radius: 50%; background: radial-gradient(circle at 40% 40%, #4a3a1a, #2a2010); border: 3px solid #5a4a2a; position: relative;">
-                    <div style="position: absolute; top: 50%; left: 50%; width: 2px; height: 20px; background: #ff3300; transform-origin: bottom center; transform: translate(-50%, -100%) rotate(45deg); animation: rpm-needle 4s ease-in-out infinite;"></div>
-                </div>
-            </div>
-            <!-- SECOND ROW - Secondary instruments -->
-            <div style="position: absolute; top: 42%; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; align-items: center;">
-                <div style="width: 35px; height: 35px; border-radius: 50%; background: #0a1520; border: 2px solid #2a3a4a; position: relative;">
-                    <div style="position: absolute; top: 50%; left: 50%; width: 1px; height: 12px; background: #0f0; transform-origin: bottom center; transform: translate(-50%, -100%) rotate(20deg); animation: vsi-needle 5s ease-in-out infinite;"></div>
-                </div>
-                <div style="width: 35px; height: 35px; border-radius: 50%; background: #0a1520; border: 2px solid #2a3a4a;"></div>
-                <div style="width: 40px; height: 40px; border-radius: 50%; background: radial-gradient(circle, #f5f5f0, #d5d5d0); border: 2px solid #3a4a5a; position: relative;">
-                    <div style="position: absolute; top: 50%; left: 50%; width: 2px; height: 14px; background: #111; transform-origin: bottom center; transform: translate(-50%, -100%) rotate(-30deg); animation: speed-needle 8s ease-in-out infinite;"></div>
-                </div>
-                <div style="width: 35px; height: 35px; border-radius: 50%; background: #0a1520; border: 2px solid #2a3a4a;"></div>
-                <div style="width: 35px; height: 35px; border-radius: 50%; background: #0a1520; border: 2px solid #2a3a4a; position: relative;">
-                    <div style="position: absolute; top: 50%; left: 50%; width: 12px; height: 2px; background: #ff0; transform: translate(-50%, -50%); animation: turn-needle 4s ease-in-out infinite;"></div>
+                <div style="width: 50px; height: 50px; border-radius: 50%; background: radial-gradient(circle at 40% 40%, #4a3a1a, #2a2010); border: 3px solid #5a4a2a; position: relative;">
+                    <div style="position: absolute; top: 50%; left: 50%; width: 2px; height: 18px; background: #ff3300; transform-origin: bottom center; transform: translate(-50%, -100%) rotate(45deg); animation: rpm-needle 4s ease-in-out infinite;"></div>
                 </div>
             </div>
-            <!-- THIRD ROW - Screens and displays -->
-            <div style="position: absolute; top: 58%; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; align-items: flex-start;">
-                <div style="width: 45px; height: 35px; background: linear-gradient(135deg, #1a3a5a, #0a2040); border: 2px solid #2a4a6a; border-radius: 2px;">
-                    <div style="margin: 4px; border-top: 1px solid rgba(100,200,255,0.3);"></div>
-                    <div style="margin: 4px; border-top: 1px solid rgba(100,200,255,0.2);"></div>
+            <!-- SECOND ROW - Secondary instruments and screens -->
+            <div style="position: absolute; top: 42%; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; align-items: center;">
+                <div style="width: 30px; height: 30px; border-radius: 50%; background: #0a1520; border: 2px solid #2a3a4a; position: relative;">
+                    <div style="position: absolute; top: 50%; left: 50%; width: 1px; height: 10px; background: #0f0; transform-origin: bottom center; transform: translate(-50%, -100%) rotate(20deg); animation: vsi-needle 5s ease-in-out infinite;"></div>
                 </div>
-                <div style="display: flex; flex-direction: column; gap: 2px;">
-                    <div style="width: 30px; height: 12px; background: #1a1a1a; border: 1px solid #333; color: #0f0; font-size: 6px; font-family: monospace; text-align: center; line-height: 12px;">118.5</div>
-                    <div style="width: 30px; height: 12px; background: #1a1a1a; border: 1px solid #333; color: #0a0; font-size: 6px; font-family: monospace; text-align: center; line-height: 12px;">121.9</div>
+                <div style="width: 38px; height: 30px; background: linear-gradient(135deg, #1a3a5a, #0a2040); border: 2px solid #2a4a6a; border-radius: 2px;"></div>
+                <div style="width: 35px; height: 35px; border-radius: 50%; background: radial-gradient(circle, #f5f5f0, #d5d5d0); border: 2px solid #3a4a5a; position: relative;">
+                    <div style="position: absolute; top: 50%; left: 50%; width: 2px; height: 12px; background: #111; transform-origin: bottom center; transform: translate(-50%, -100%) rotate(-30deg); animation: speed-needle 8s ease-in-out infinite;"></div>
                 </div>
-                <div style="width: 45px; height: 35px; background: #0a1520; border: 2px solid #2a4a6a; border-radius: 2px; position: relative;">
-                    <div style="position: absolute; top: 8px; left: 6px; width: 2px; height: 2px; background: #3a8a5a; border-radius: 50%;"></div>
-                    <div style="position: absolute; top: 15px; left: 15px; width: 2px; height: 2px; background: #3a8a5a; border-radius: 50%;"></div>
-                    <div style="position: absolute; top: 22px; left: 25px; width: 10px; height: 1px; background: #5aaa7a; transform: rotate(-20deg);"></div>
+                <div style="width: 38px; height: 30px; background: #0a1520; border: 2px solid #2a4a6a; border-radius: 2px; position: relative;">
+                    <div style="position: absolute; top: 6px; left: 5px; width: 2px; height: 2px; background: #3a8a5a; border-radius: 50%;"></div>
+                    <div style="position: absolute; top: 12px; left: 12px; width: 2px; height: 2px; background: #3a8a5a; border-radius: 50%;"></div>
                 </div>
-            </div>
-            <!-- WARNING LIGHTS ROW -->
-            <div style="position: absolute; top: 74%; left: 50%; transform: translateX(-50%); display: flex; gap: 5px; align-items: center;">
-                <div style="width: 12px; height: 12px; border-radius: 50%; background: #550000; border: 2px solid #333; animation: blink-red 2s infinite;"></div>
-                <div style="width: 12px; height: 12px; border-radius: 50%; background: #554400; border: 2px solid #333; animation: blink-amber 3s infinite;"></div>
-                <div style="width: 16px; height: 8px; background: #222; border: 1px solid #444;"></div>
-                <div style="width: 12px; height: 12px; border-radius: 50%; background: #554400; border: 2px solid #333; animation: blink-amber 2.5s infinite; animation-delay: 1s;"></div>
-                <div style="width: 12px; height: 12px; border-radius: 50%; background: #550000; border: 2px solid #333; animation: blink-red 2.5s infinite; animation-delay: 0.5s;"></div>
-            </div>
-            <!-- BOTTOM ROW - Switches -->
-            <div style="position: absolute; bottom: 5%; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; align-items: flex-end;">
-                <div style="width: 8px; height: 16px; background: linear-gradient(180deg, #ddd, #888); border-radius: 2px;"></div>
-                <div style="width: 8px; height: 16px; background: linear-gradient(180deg, #f55, #a22); border-radius: 2px;"></div>
-                <div style="width: 8px; height: 16px; background: linear-gradient(180deg, #ddd, #888); border-radius: 2px;"></div>
-                <div style="width: 14px; height: 14px; background: radial-gradient(circle, #333, #111); border: 2px solid #555; border-radius: 50%;"></div>
-                <div style="width: 8px; height: 16px; background: linear-gradient(180deg, #ddd, #888); border-radius: 2px;"></div>
-                <div style="width: 8px; height: 16px; background: linear-gradient(180deg, #55f, #22a); border-radius: 2px;"></div>
-                <div style="width: 14px; height: 14px; background: radial-gradient(circle, #333, #111); border: 2px solid #555; border-radius: 50%;"></div>
-                <div style="width: 8px; height: 16px; background: linear-gradient(180deg, #ddd, #888); border-radius: 2px;"></div>
-                <div style="width: 8px; height: 16px; background: linear-gradient(180deg, #f55, #a22); border-radius: 2px;"></div>
-            </div>
-            <!-- LEFT SIDE PANEL - gauges, buttons, screens -->
-            <div style="position: absolute; top: 28%; left: 10%; display: flex; flex-direction: column; gap: 5px;">
-                <div style="width: 38px; height: 38px; border-radius: 50%; background: #0a1520; border: 2px solid #2a3a4a; position: relative;">
-                    <div style="position: absolute; top: 50%; left: 50%; width: 1px; height: 14px; background: #fff; transform-origin: bottom center; transform: translate(-50%, -100%) rotate(-20deg);"></div>
-                </div>
-                <div style="display: flex; gap: 3px;">
-                    <div style="width: 16px; height: 16px; border-radius: 50%; background: #0a1520; border: 1px solid #2a3a4a;"></div>
-                    <div style="width: 16px; height: 16px; border-radius: 50%; background: #0a1520; border: 1px solid #2a3a4a;"></div>
-                </div>
-                <div style="width: 38px; height: 25px; background: #0a1a2a; border: 1px solid #2a4a6a; border-radius: 2px;">
-                    <div style="color: #0f0; font-size: 5px; font-family: monospace; padding: 2px;">ALT</div>
-                </div>
-                <div style="display: flex; gap: 2px;">
-                    <div style="width: 10px; height: 10px; border-radius: 50%; background: #550000; border: 1px solid #333; animation: blink-red 4s infinite;"></div>
-                    <div style="width: 10px; height: 10px; border-radius: 50%; background: #554400; border: 1px solid #333;"></div>
-                    <div style="width: 10px; height: 10px; border-radius: 50%; background: #550000; border: 1px solid #333;"></div>
-                </div>
-                <div style="display: flex; gap: 2px;">
-                    <div style="width: 7px; height: 14px; background: linear-gradient(180deg, #ddd, #666); border-radius: 1px;"></div>
-                    <div style="width: 7px; height: 14px; background: linear-gradient(180deg, #ddd, #666); border-radius: 1px;"></div>
-                    <div style="width: 7px; height: 14px; background: linear-gradient(180deg, #ddd, #666); border-radius: 1px;"></div>
+                <div style="width: 30px; height: 30px; border-radius: 50%; background: #0a1520; border: 2px solid #2a3a4a; position: relative;">
+                    <div style="position: absolute; top: 50%; left: 50%; width: 10px; height: 2px; background: #ff0; transform: translate(-50%, -50%); animation: turn-needle 4s ease-in-out infinite;"></div>
                 </div>
             </div>
-            <!-- RIGHT SIDE PANEL - gauges, buttons, screens -->
-            <div style="position: absolute; top: 28%; right: 10%; display: flex; flex-direction: column; gap: 5px; align-items: flex-end;">
-                <div style="width: 38px; height: 38px; border-radius: 50%; background: #0a1520; border: 2px solid #2a3a4a; position: relative;">
-                    <div style="position: absolute; top: 50%; left: 50%; width: 1px; height: 14px; background: #f80; transform-origin: bottom center; transform: translate(-50%, -100%) rotate(30deg); animation: fuel-needle 10s ease-in-out infinite;"></div>
-                </div>
-                <div style="display: flex; gap: 3px;">
-                    <div style="width: 16px; height: 16px; border-radius: 50%; background: #0a1520; border: 1px solid #2a3a4a;"></div>
-                    <div style="width: 16px; height: 16px; border-radius: 50%; background: #0a1520; border: 1px solid #2a3a4a;"></div>
-                </div>
-                <div style="width: 38px; height: 25px; background: #0a1a2a; border: 1px solid #2a4a6a; border-radius: 2px;">
-                    <div style="color: #f80; font-size: 5px; font-family: monospace; padding: 2px;">FUEL</div>
-                </div>
-                <div style="display: flex; gap: 2px;">
-                    <div style="width: 10px; height: 10px; border-radius: 50%; background: #554400; border: 1px solid #333; animation: blink-amber 3s infinite;"></div>
-                    <div style="width: 10px; height: 10px; border-radius: 50%; background: #550000; border: 1px solid #333;"></div>
-                    <div style="width: 10px; height: 10px; border-radius: 50%; background: #554400; border: 1px solid #333;"></div>
-                </div>
-                <div style="display: flex; gap: 2px;">
-                    <div style="width: 7px; height: 14px; background: linear-gradient(180deg, #ddd, #666); border-radius: 1px;"></div>
-                    <div style="width: 7px; height: 14px; background: linear-gradient(180deg, #f55, #a22); border-radius: 1px;"></div>
-                    <div style="width: 7px; height: 14px; background: linear-gradient(180deg, #ddd, #666); border-radius: 1px;"></div>
-                </div>
+            <!-- THIRD ROW - Warning lights, switches -->
+            <div style="position: absolute; top: 70%; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; align-items: center;">
+                <div style="width: 10px; height: 10px; border-radius: 50%; background: #550000; border: 2px solid #333; animation: blink-red 2s infinite;"></div>
+                <div style="width: 10px; height: 10px; border-radius: 50%; background: #554400; border: 2px solid #333; animation: blink-amber 3s infinite;"></div>
+                <div style="width: 7px; height: 14px; background: linear-gradient(180deg, #ddd, #888); border-radius: 2px;"></div>
+                <div style="width: 7px; height: 14px; background: linear-gradient(180deg, #f55, #a22); border-radius: 2px;"></div>
+                <div style="width: 12px; height: 12px; background: radial-gradient(circle, #333, #111); border: 2px solid #555; border-radius: 50%;"></div>
+                <div style="width: 7px; height: 14px; background: linear-gradient(180deg, #ddd, #888); border-radius: 2px;"></div>
+                <div style="width: 7px; height: 14px; background: linear-gradient(180deg, #55f, #22a); border-radius: 2px;"></div>
+                <div style="width: 10px; height: 10px; border-radius: 50%; background: #554400; border: 2px solid #333; animation: blink-amber 2.5s infinite;"></div>
+                <div style="width: 10px; height: 10px; border-radius: 50%; background: #550000; border: 2px solid #333; animation: blink-red 2.5s infinite;"></div>
             </div>
-            <!-- OVERHEAD PANEL simulation (top of grey area) -->
-            <div style="position: absolute; top: 8%; left: 50%; transform: translateX(-50%); display: flex; gap: 4px;">
-                <div style="width: 6px; height: 10px; background: linear-gradient(180deg, #888, #444); border-radius: 1px;"></div>
-                <div style="width: 6px; height: 10px; background: linear-gradient(180deg, #888, #444); border-radius: 1px;"></div>
-                <div style="width: 8px; height: 8px; border-radius: 50%; background: #550000; border: 1px solid #333; animation: blink-red 5s infinite;"></div>
-                <div style="width: 6px; height: 10px; background: linear-gradient(180deg, #888, #444); border-radius: 1px;"></div>
-                <div style="width: 6px; height: 10px; background: linear-gradient(180deg, #888, #444); border-radius: 1px;"></div>
-                <div style="width: 8px; height: 8px; border-radius: 50%; background: #554400; border: 1px solid #333;"></div>
-                <div style="width: 6px; height: 10px; background: linear-gradient(180deg, #888, #444); border-radius: 1px;"></div>
-                <div style="width: 6px; height: 10px; background: linear-gradient(180deg, #888, #444); border-radius: 1px;"></div>
+            <!-- BOTTOM ROW - More controls -->
+            <div style="position: absolute; bottom: 5%; left: 50%; transform: translateX(-50%); display: flex; gap: 5px; align-items: flex-end;">
+                <div style="width: 22px; height: 15px; background: #1a1a1a; border: 1px solid #333; color: #0f0; font-size: 5px; font-family: monospace; text-align: center; line-height: 15px;">ALT</div>
+                <div style="width: 6px; height: 12px; background: linear-gradient(180deg, #ddd, #666); border-radius: 1px;"></div>
+                <div style="width: 6px; height: 12px; background: linear-gradient(180deg, #ddd, #666); border-radius: 1px;"></div>
+                <div style="width: 22px; height: 15px; background: #1a1a1a; border: 1px solid #333; color: #f80; font-size: 5px; font-family: monospace; text-align: center; line-height: 15px;">FUEL</div>
+                <div style="width: 6px; height: 12px; background: linear-gradient(180deg, #ddd, #666); border-radius: 1px;"></div>
+                <div style="width: 6px; height: 12px; background: linear-gradient(180deg, #ddd, #666); border-radius: 1px;"></div>
+                <div style="width: 22px; height: 15px; background: #1a1a1a; border: 1px solid #333; color: #0ff; font-size: 5px; font-family: monospace; text-align: center; line-height: 15px;">SPD</div>
             </div>
         `;
         c.appendChild(panel);
-        const leftSeat = document.createElement('div');
-        leftSeat.style.cssText = `
-            position: absolute; bottom: 4%; left: 2%; width: 16%; height: 42%;
-            background: linear-gradient(90deg, #5a9a8a, #7abaa9, #5a9a8a);
-            border-radius: 8px 8px 4px 4px; z-index: 55;
-        `;
-        leftSeat.innerHTML = `<div style="position: absolute; bottom: 0; left: 10%; right: 10%; height: 22%; background: #a05050; border-radius: 4px 4px 2px 2px;"></div>`;
-        c.appendChild(leftSeat);
-        const rightSeat = document.createElement('div');
-        rightSeat.style.cssText = `
-            position: absolute; bottom: 4%; right: 2%; width: 16%; height: 42%;
-            background: linear-gradient(90deg, #5a9a8a, #7abaa9, #5a9a8a);
-            border-radius: 8px 8px 4px 4px; z-index: 55;
-        `;
-        rightSeat.innerHTML = `<div style="position: absolute; bottom: 0; left: 10%; right: 10%; height: 22%; background: #a05050; border-radius: 4px 4px 2px 2px;"></div>`;
-        c.appendChild(rightSeat);
-        const yoke = document.createElement('div');
-        yoke.style.cssText = `position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); z-index: 65;`;
-        yoke.innerHTML = `
-            <div style="width: 20px; height: 70px; background: linear-gradient(90deg, #3a4a5a, #5a6a7a, #3a4a5a); border-radius: 4px;"></div>
-            <div style="position: absolute; bottom: 55px; left: 50%; transform: translateX(-50%); width: 60px; height: 12px; background: linear-gradient(180deg, #4a5a6a, #3a4a5a); border-radius: 6px;"></div>
-        `;
-        c.appendChild(yoke);
         const oldStyle = document.getElementById('flight-style');
         if (oldStyle) oldStyle.remove();
         const style = document.createElement('style');
         style.id = 'flight-style';
         style.textContent = `
             @keyframes prop-spin {
-                from { transform: translateX(-50%) rotate(0deg); }
-                to { transform: translateX(-50%) rotate(360deg); }
+                from { transform: translate(-50%, -50%) rotate(0deg); }
+                to { transform: translate(-50%, -50%) rotate(360deg); }
             }
             #flight-prop {
-                animation: prop-spin 0.25s linear infinite;
+                animation: prop-spin 0.2s linear infinite;
             }
             @keyframes field-fly-grid {
                 0% { transform: translateY(0) scaleX(0.3) scaleY(0.15); opacity: 0.4; }
@@ -4162,14 +4067,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 90% { opacity: 1; }
                 100% { transform: translate(-50%, -50%) scale(3.5); opacity: 0; }
             }
-            @keyframes wiper-sweep-left {
-                0%, 100% { transform: rotate(-30deg); }
-                50% { transform: rotate(45deg); }
-            }
-            @keyframes wiper-sweep-right {
-                0%, 100% { transform: rotate(30deg); }
-                50% { transform: rotate(-45deg); }
-            }
             @keyframes raindrop-fall {
                 0% { transform: translateY(-20px) rotate(15deg); opacity: 0; }
                 10% { opacity: 0.8; }
@@ -4179,12 +4076,6 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                 0% { transform: translateY(-20px) rotate(0deg); opacity: 0; }
                 10% { opacity: 0.9; }
                 100% { transform: translateY(100vh) rotate(360deg); opacity: 0.2; }
-            }
-            #flight-wiper-left.active {
-                animation: wiper-sweep-left 1.5s ease-in-out infinite;
-            }
-            #flight-wiper-right.active {
-                animation: wiper-sweep-right 1.5s ease-in-out infinite;
             }
         `;
         document.head.appendChild(style);
@@ -4247,20 +4138,9 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         const updateWindscreenWeather = () => {
             if (!c.isConnected) return;
             const windscreen = document.getElementById('flight-windscreen');
-            const wiperL = document.getElementById('flight-wiper-left');
-            const wiperR = document.getElementById('flight-wiper-right');
             if (!windscreen) return;
             const isRaining = Weather.isRaining;
             const isSnowing = Weather.isSnowing;
-            if (wiperL && wiperR) {
-                if (isRaining || isSnowing) {
-                    wiperL.classList.add('active');
-                    wiperR.classList.add('active');
-                } else {
-                    wiperL.classList.remove('active');
-                    wiperR.classList.remove('active');
-                }
-            }
             if (isRaining) {
                 for (let i = 0; i < 3; i++) {
                     const drop = document.createElement('div');
