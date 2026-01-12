@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.67',
+    APP_VERSION: '6.2.68',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -3736,15 +3736,21 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             height: 15%;
             transition: transform 3s ease-out;
         `;
-        mountainsBack.innerHTML = `
+mountainsBack.innerHTML = `
             <svg viewBox="0 0 1800 150" preserveAspectRatio="none" style="width: 100%; height: 100%;">
                 <defs>
                     <linearGradient id="mtnBackGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" style="stop-color:#9a7a5a"/>
-                        <stop offset="100%" style="stop-color:#7a5a3a"/>
-                    </linearGradient>
+                        <stop offset="0%" style="stop-color:#8ca6b8"/> <stop offset="100%" style="stop-color:#6b8c9e"/> </linearGradient>
                 </defs>
-                <path d="M0,150 L0,110 L60,70 L100,95 L160,55 L220,85 L300,40 L380,80 L450,50 L530,90 L600,45 L680,75 L760,35 L840,70 L920,30 L1000,65 L1080,40 L1160,80 L1240,50 L1320,85 L1400,55 L1480,90 L1560,60 L1650,95 L1720,70 L1800,100 L1800,150 Z" fill="url(#mtnBackGrad)" opacity="0.5"/>
+                <path d="M0,150 L0,100 
+                         L50,60 L100,90 L150,50 L200,80 L250,40 
+                         L300,85 L350,45 L400,90 L450,55 L500,85 
+                         L550,30 L600,80 L650,50 L700,90 L750,40 
+                         L800,85 L850,50 L900,95 L950,45 L1000,80 
+                         L1050,35 L1100,85 L1150,55 L1200,90 L1250,40 
+                         L1300,80 L1350,50 L1400,90 L1450,45 L1500,85 
+                         L1550,35 L1600,90 L1650,60 L1700,100 L1750,70 
+                         L1800,110 L1800,150 Z" fill="url(#mtnBackGrad)" opacity="0.8"/>
             </svg>
         `;
         worldContainer.appendChild(mountainsBack);
@@ -3758,54 +3764,30 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             height: 14%;
             transition: transform 2s ease-out;
         `;
-        mountainsFront.innerHTML = `
+mountainsFront.innerHTML = `
             <svg viewBox="0 0 1600 140" preserveAspectRatio="none" style="width: 100%; height: 100%;">
                 <defs>
-                    <linearGradient id="mtnFrontGrad1" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" style="stop-color:#c8a078"/>
-                        <stop offset="30%" style="stop-color:#b08858"/>
-                        <stop offset="100%" style="stop-color:#906838"/>
+                    <linearGradient id="mtnRockLight" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color:#8a7a6a"/>
+                        <stop offset="100%" style="stop-color:#9a8a7a"/>
                     </linearGradient>
-                    <linearGradient id="mtnFrontGrad2" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" style="stop-color:#b89068"/>
-                        <stop offset="30%" style="stop-color:#a07848"/>
-                        <stop offset="100%" style="stop-color:#805828"/>
+                    <linearGradient id="mtnRockDark" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color:#5a4a3a"/>
+                        <stop offset="100%" style="stop-color:#4a3a2a"/>
                     </linearGradient>
                 </defs>
-                <!-- Mountain 1 - large -->
-                <path d="M-20,140 L80,50 L110,70 L140,45 L180,140 Z" fill="url(#mtnFrontGrad1)"/>
-                <path d="M80,50 L110,70 L140,45 L110,50 Z" fill="#fff"/>
-                <path d="M80,50 L60,80 M140,45 L160,80" stroke="#8a6040" stroke-width="1" opacity="0.3"/>
-                <!-- Mountain 2 -->
-                <path d="M140,140 L220,60 L250,80 L280,55 L320,140 Z" fill="url(#mtnFrontGrad2)"/>
-                <path d="M220,60 L250,80 L280,55 L250,62 Z" fill="#f8f8f8"/>
-                <!-- Mountain 3 - tall -->
-                <path d="M280,140 L380,35 L420,60 L460,30 L500,140 Z" fill="url(#mtnFrontGrad1)"/>
-                <path d="M380,35 L420,60 L460,30 L420,42 Z" fill="#fff"/>
-                <path d="M380,35 L350,75 M460,30 L490,75" stroke="#8a6040" stroke-width="1" opacity="0.3"/>
-                <!-- Mountain 4 -->
-                <path d="M460,140 L540,70 L570,85 L600,65 L640,140 Z" fill="url(#mtnFrontGrad2)"/>
-                <path d="M540,70 L570,85 L600,65 L570,72 Z" fill="#f8f8f8"/>
-                <!-- Mountain 5 - tallest -->
-                <path d="M600,140 L720,20 L760,50 L800,25 L840,140 Z" fill="url(#mtnFrontGrad1)"/>
-                <path d="M720,20 L760,50 L800,25 L760,32 Z" fill="#fff"/>
-                <path d="M720,20 L680,70 M800,25 L840,75" stroke="#8a6040" stroke-width="1" opacity="0.3"/>
-                <!-- Mountain 6 -->
-                <path d="M800,140 L880,55 L910,75 L940,50 L980,140 Z" fill="url(#mtnFrontGrad2)"/>
-                <path d="M880,55 L910,75 L940,50 L910,60 Z" fill="#f8f8f8"/>
-                <!-- Mountain 7 - large -->
-                <path d="M940,140 L1040,30 L1080,55 L1120,25 L1160,140 Z" fill="url(#mtnFrontGrad1)"/>
-                <path d="M1040,30 L1080,55 L1120,25 L1080,38 Z" fill="#fff"/>
-                <path d="M1040,30 L1010,70 M1120,25 L1150,70" stroke="#8a6040" stroke-width="1" opacity="0.3"/>
-                <!-- Mountain 8 -->
-                <path d="M1120,140 L1200,60 L1230,80 L1260,55 L1300,140 Z" fill="url(#mtnFrontGrad2)"/>
-                <path d="M1200,60 L1230,80 L1260,55 L1230,65 Z" fill="#f8f8f8"/>
-                <!-- Mountain 9 -->
-                <path d="M1260,140 L1360,40 L1400,65 L1440,35 L1480,140 Z" fill="url(#mtnFrontGrad1)"/>
-                <path d="M1360,40 L1400,65 L1440,35 L1400,48 Z" fill="#fff"/>
-                <!-- Mountain 10 -->
-                <path d="M1440,140 L1520,70 L1550,90 L1580,65 L1620,140 Z" fill="url(#mtnFrontGrad2)"/>
-                <path d="M1520,70 L1550,90 L1580,65 L1550,75 Z" fill="#f8f8f8"/>
+                <path d="M-50,140 L150,20 L350,140 Z" fill="url(#mtnRockDark)"/>
+                <path d="M-50,140 L150,20 L150,140 Z" fill="url(#mtnRockLight)" opacity="0.3"/>
+                <path d="M120,20 L150,20 L180,50 L150,60 L120,50 Z" fill="white" opacity="0.9"/> <path d="M250,140 L450,40 L650,140 Z" fill="url(#mtnRockDark)"/>
+                <path d="M250,140 L450,40 L450,140 Z" fill="url(#mtnRockLight)" opacity="0.4"/>
+                
+                <path d="M500,140 L750,10 L1000,140 Z" fill="url(#mtnRockDark)"/>
+                <path d="M500,140 L750,10 L750,140 Z" fill="url(#mtnRockLight)" opacity="0.5"/>
+                <path d="M700,10 L750,10 L800,45 L750,55 L700,45 Z" fill="white" opacity="0.9"/> <path d="M900,140 L1150,30 L1400,140 Z" fill="url(#mtnRockDark)"/>
+                <path d="M900,140 L1150,30 L1150,140 Z" fill="url(#mtnRockLight)" opacity="0.4"/>
+
+                <path d="M1300,140 L1500,50 L1700,140 Z" fill="url(#mtnRockDark)"/>
+                <path d="M1300,140 L1500,50 L1500,140 Z" fill="url(#mtnRockLight)" opacity="0.4"/>
             </svg>
         `;
         worldContainer.appendChild(mountainsFront);
@@ -3950,20 +3932,38 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
             pointer-events: none;
             z-index: 50;
         `;
-        cockpitFrame.innerHTML = `
+cockpitFrame.innerHTML = `
             <svg style="position: absolute; inset: 0; width: 100%; height: 100%;" viewBox="0 0 100 100" preserveAspectRatio="none">
-                <!-- Side struts -->
-                <path d="M0,0 Q-12,50 0,100" stroke="#2a4a6a" stroke-width="5" fill="none"/>
-                <path d="M100,0 Q112,50 100,100" stroke="#2a4a6a" stroke-width="5" fill="none"/>
-                <path d="M0,0 Q50,-12 100,0" stroke="#2a4a6a" stroke-width="3.5" fill="none"/>
-                <path d="M4,0 Q-2,50 4,100" stroke="#3a5a7a" stroke-width="2" fill="none"/>
-                <path d="M96,0 Q102,50 96,100" stroke="#3a5a7a" stroke-width="2" fill="none"/>
-                <!-- HORIZONTAL PROP BRACE - connects across cockpit -->
-                <path d="M0,50 L45,50" stroke="#3a4a5a" stroke-width="4" fill="none"/>
-                <path d="M55,50 L100,50" stroke="#3a4a5a" stroke-width="4" fill="none"/>
-                <!-- Prop hub mount in center -->
-                <circle cx="50" cy="50" r="6" fill="#4a5a6a" stroke="#2a3a4a" stroke-width="1.5"/>
-                <circle cx="50" cy="50" r="3" fill="#5a6a7a"/>
+                <defs>
+                    <linearGradient id="frameMetal" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color:#2a3a4a"/>
+                        <stop offset="50%" style="stop-color:#4a5a6a"/>
+                        <stop offset="100%" style="stop-color:#2a3a4a"/>
+                    </linearGradient>
+                    <pattern id="rivets" x="0" y="0" width="10" height="10" patternUnits="userSpaceOnUse">
+                        <circle cx="5" cy="5" r="1" fill="#1a2a3a" opacity="0.5"/>
+                    </pattern>
+                </defs>
+
+                <path d="M0,0 Q-12,50 0,100" stroke="url(#frameMetal)" stroke-width="6" fill="none"/>
+                <path d="M0,0 Q-12,50 0,100" stroke="url(#rivets)" stroke-width="4" fill="none" stroke-dasharray="1, 8"/>
+                
+                <path d="M100,0 Q112,50 100,100" stroke="url(#frameMetal)" stroke-width="6" fill="none"/>
+                <path d="M100,0 Q112,50 100,100" stroke="url(#rivets)" stroke-width="4" fill="none" stroke-dasharray="1, 8"/>
+
+                <path d="M0,0 Q50,-15 100,0" stroke="url(#frameMetal)" stroke-width="5" fill="none"/>
+                
+                <path d="M2,0 Q-8,50 2,100" stroke="#1a2a3a" stroke-width="1" fill="none" opacity="0.5"/>
+                <path d="M98,0 Q108,50 98,100" stroke="#1a2a3a" stroke-width="1" fill="none" opacity="0.5"/>
+
+                <path d="M0,50 L42,50" stroke="#2a3a4a" stroke-width="5" fill="none"/>
+                <path d="M58,50 L100,50" stroke="#2a3a4a" stroke-width="5" fill="none"/>
+                
+                <circle cx="50" cy="50" r="7" fill="#3a4a5a" stroke="#1a2a3a" stroke-width="2"/>
+                <circle cx="50" cy="50" r="3" fill="#1a2a3a"/>
+                
+                <line x1="2" y1="50" x2="40" y2="50" stroke="#1a2a3a" stroke-width="1" stroke-dasharray="2,5" opacity="0.6"/>
+                <line x1="60" y1="50" x2="98" y2="50" stroke="#1a2a3a" stroke-width="1" stroke-dasharray="2,5" opacity="0.6"/>
             </svg>
         `;
         c.appendChild(cockpitFrame);
