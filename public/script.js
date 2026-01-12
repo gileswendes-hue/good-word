@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.3.2',
+    APP_VERSION: '6.3.3',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -3820,14 +3820,16 @@ const svgFront = `
             animation: flight-prop-spin 0.15s linear infinite;
             z-index: 15;
         `;
-        prop.innerHTML = `
+prop.innerHTML = `
             <svg viewBox="0 0 200 200" style="width: 100%; height: 100%; overflow: visible;">
                 <circle cx="100" cy="100" r="90" fill="url(#propBlur)" opacity="0.2"/>
                 <defs><radialGradient id="propBlur"><stop offset="0%" stop-color="transparent"/><stop offset="100%" stop-color="white"/></radialGradient></defs>
-                <path d="M95,100 L92,20 L92,10 L108,10 L108,20 L105,100 Z" fill="#111" />
-                <rect x="92" y="10" width="16" height="15" fill="#ffeb3b" />
-                <path d="M95,100 L92,180 L92,190 L108,190 L108,180 L105,100 Z" fill="#111" />
-                <rect x="92" y="175" width="16" height="15" fill="#ffeb3b" />
+                
+                <path d="M96,100 L92,30 Q100,10 108,30 L104,100 Z" fill="#222" stroke="black" stroke-width="3" stroke-linejoin="round" />
+                <path d="M92,30 Q100,10 108,30 L107,38 L93,38 Z" fill="#ffeb3b" stroke="black" stroke-width="2" stroke-linejoin="round" />
+
+                <path d="M96,100 L92,170 Q100,190 108,170 L104,100 Z" fill="#222" stroke="black" stroke-width="3" stroke-linejoin="round" />
+                <path d="M92,170 Q100,190 108,170 L107,162 L93,162 Z" fill="#ffeb3b" stroke="black" stroke-width="2" stroke-linejoin="round" />
             </svg>
         `;
         c.appendChild(prop);
@@ -3971,10 +3973,16 @@ const svgFront = `
         let headingOffset = 0;
         let altitude = 1000;
 
-        // --- LOGIC LOOP ---
         const logicLoop = () => {
             if(!document.body.contains(c)) return;
             flightTime += 0.005;
+            
+            const enginePower = (Math.sin(flightTime * 0.8) + 1) / 2; 
+            
+            prop.style.animationDuration = `${0.3 - (enginePower * 0.22)}s`;
+
+            const spdAngle = -135 + (enginePower * 180);
+            if (spd.needle) spd.needle.style.transform = `rotate(${spdAngle}deg)`;
             
             const bankCycle = flightTime * 0.15;
             let bank = 0;
@@ -5255,7 +5263,7 @@ displayWord(w) {
         if (!ind) {
             ind = document.createElement('div');
             ind.id = 'offlineIndicator';
-            ind.className = 'fixed bottom-4 left-4 text-xs font-bold px-4 py-3 rounded-full shadow-lg z-50 transition-all duration-300 border-2 select-none cursor-pointer hover:scale-105 active:scale-95';
+            ind.className = 'fixed top-20 right-4 text-xs font-bold px-4 py-3 rounded-full shadow-lg z-50 transition-all duration-300 border-2 select-none cursor-pointer hover:scale-105 active:scale-95';
             ind.onclick = () => {
                 const isCurrentlyOffline = OfflineManager.isActive();
                 OfflineManager.toggle(!isCurrentlyOffline);
