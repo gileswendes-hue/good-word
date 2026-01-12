@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.87',
+    APP_VERSION: '6.2.88',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -3745,105 +3745,92 @@ flight(active) {
             return { cont, p1, p2 };
         };
 
-        // LAYER 1: BACK MOUNTAINS - simple clean triangles like reference
+        // LAYER 1: BACK MOUNTAINS - muted, distant
         const svgBack = `
         <svg viewBox="0 0 1200 100" preserveAspectRatio="none" style="width:100%; height:100%;">
-            <defs>
-                <linearGradient id="mtnBackBrown" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" stop-color="#8b7355"/>
-                    <stop offset="100%" stop-color="#6b5344"/>
-                </linearGradient>
-            </defs>
-            <!-- Simple triangle mountains - brown body with white cap as one shape -->
-            <!-- Mountain 1 -->
-            <polygon points="0,100 100,25 200,100" fill="url(#mtnBackBrown)"/>
-            <polygon points="100,25 75,50 125,50" fill="white"/>
-            <!-- Mountain 2 -->
-            <polygon points="150,100 280,20 410,100" fill="url(#mtnBackBrown)"/>
-            <polygon points="280,20 250,50 310,50" fill="white"/>
-            <!-- Mountain 3 -->
-            <polygon points="360,100 480,35 600,100" fill="url(#mtnBackBrown)"/>
-            <polygon points="480,35 455,60 505,60" fill="white"/>
-            <!-- Mountain 4 -->
-            <polygon points="550,100 700,15 850,100" fill="url(#mtnBackBrown)"/>
-            <polygon points="700,15 665,50 735,50" fill="white"/>
-            <!-- Mountain 5 -->
-            <polygon points="800,100 920,30 1040,100" fill="url(#mtnBackBrown)"/>
-            <polygon points="920,30 890,58 950,58" fill="white"/>
-            <!-- Mountain 6 -->
-            <polygon points="1000,100 1120,40 1200,100" fill="url(#mtnBackBrown)"/>
-            <polygon points="1120,40 1100,60 1140,60" fill="white"/>
+            <!-- Back layer - grayish brown, no snow caps -->
+            <polygon points="0,100 80,40 160,100" fill="#7a6a5a"/>
+            <polygon points="120,100 220,30 320,100" fill="#6a5a4a"/>
+            <polygon points="280,100 400,25 520,100" fill="#7a6a5a"/>
+            <polygon points="480,100 580,35 680,100" fill="#6a5a4a"/>
+            <polygon points="640,100 760,20 880,100" fill="#7a6a5a"/>
+            <polygon points="840,100 940,40 1040,100" fill="#6a5a4a"/>
+            <polygon points="1000,100 1100,30 1200,100" fill="#7a6a5a"/>
         </svg>`;
-        const mtnBack = createMountainLayer(svgBack, 42, 18, 1, 0.7);
+        const mtnBack = createMountainLayer(svgBack, 43, 15, 1, 0.6);
         worldContainer.appendChild(mtnBack.cont);
 
-        // LAYER 2: FRONT MOUNTAINS - larger, cleaner like reference image
+        // LAYER 2: FRONT MOUNTAINS - like reference image exactly
+        // Brown triangles with white snow caps that cover the peak
         const svgFront = `
-        <svg viewBox="0 0 1200 120" preserveAspectRatio="none" style="width:100%; height:100%;">
-            <defs>
-                <linearGradient id="mtnFrontBrown1" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" stop-color="#9c8b7a"/>
-                    <stop offset="100%" stop-color="#7a6a5a"/>
-                </linearGradient>
-                <linearGradient id="mtnFrontBrown2" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" stop-color="#a89080"/>
-                    <stop offset="100%" stop-color="#887060"/>
-                </linearGradient>
-            </defs>
-            <!-- Large foreground mountains - clean triangles -->
-            <!-- Mountain 1 - large left -->
-            <polygon points="-50,120 120,15 290,120" fill="url(#mtnFrontBrown1)"/>
-            <polygon points="120,15 80,55 160,55" fill="white"/>
-            <!-- Mountain 2 -->
-            <polygon points="220,120 380,25 540,120" fill="url(#mtnFrontBrown2)"/>
-            <polygon points="380,25 345,60 415,60" fill="white"/>
-            <!-- Mountain 3 - tallest center -->
-            <polygon points="450,120 650,5 850,120" fill="url(#mtnFrontBrown1)"/>
-            <polygon points="650,5 605,55 695,55" fill="white"/>
-            <!-- Mountain 4 -->
-            <polygon points="780,120 920,30 1060,120" fill="url(#mtnFrontBrown2)"/>
-            <polygon points="920,30 885,62 955,62" fill="white"/>
-            <!-- Mountain 5 - right edge -->
-            <polygon points="1000,120 1130,45 1250,120" fill="url(#mtnFrontBrown1)"/>
-            <polygon points="1130,45 1100,72 1160,72" fill="white"/>
+        <svg viewBox="0 0 1200 100" preserveAspectRatio="none" style="width:100%; height:100%;">
+            <!-- Mountain 1 - left, medium brown -->
+            <polygon points="-30,100 100,20 230,100" fill="#8a7a6a"/>
+            <polygon points="100,20 60,55 140,55" fill="#e8e8e8"/>
+            
+            <!-- Mountain 2 - large center-left, darker -->
+            <polygon points="150,100 320,10 490,100" fill="#7a6a5a"/>
+            <polygon points="320,10 270,55 370,55" fill="#ffffff"/>
+            
+            <!-- Mountain 3 - small right, lighter brown -->
+            <polygon points="550,100 680,35 810,100" fill="#9a8a7a"/>
+            <polygon points="680,35 650,60 710,60" fill="#f0f0f0"/>
+            
+            <!-- Mountain 4 - medium right -->
+            <polygon points="750,100 900,25 1050,100" fill="#8a7a6a"/>
+            <polygon points="900,25 860,58 940,58" fill="#ffffff"/>
+            
+            <!-- Mountain 5 - edge right -->
+            <polygon points="1000,100 1120,40 1240,100" fill="#7a6a5a"/>
+            <polygon points="1120,40 1090,65 1150,65" fill="#e8e8e8"/>
         </svg>`;
-        const mtnFront = createMountainLayer(svgFront, 44, 20, 2, 1.0);
+        const mtnFront = createMountainLayer(svgFront, 46, 18, 2, 1.0);
         worldContainer.appendChild(mtnFront.cont);
 
-        // LAYER 3: ROLLING HILLS - green for parallax depth
+        // LAYER 3: ROLLING HILLS - green foreground
         const svgHills = `
-        <svg viewBox="0 0 1200 80" preserveAspectRatio="none" style="width:100%; height:100%;">
-            <defs>
-                <linearGradient id="hillGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" stop-color="#4a8a4a"/>
-                    <stop offset="100%" stop-color="#2a6a2a"/>
-                </linearGradient>
-            </defs>
-            <path d="M0,80 Q100,40 200,70 T400,50 T600,65 T800,45 T1000,60 T1200,50 L1200,80 Z" fill="url(#hillGrad)"/>
+        <svg viewBox="0 0 1200 60" preserveAspectRatio="none" style="width:100%; height:100%;">
+            <path d="M0,60 Q150,20 300,50 T600,30 T900,45 T1200,35 L1200,60 Z" fill="#3a7a3a"/>
         </svg>`;
-        const hills = createMountainLayer(svgHills, 56, 10, 3, 1.0);
+        const hills = createMountainLayer(svgHills, 56, 8, 3, 1.0);
         worldContainer.appendChild(hills.cont);
 
-        // GROUND - with forward motion gradient stripes
+        // GROUND - with rolling gradient stripes coming toward player
         const ground = document.createElement('div');
         ground.style.cssText = `
             position: absolute; top: 58%; left: -50%; width: 200%; height: 100%;
-            background: linear-gradient(180deg, #3a8a3a 0%, #2e7d32 20%, #1b5e20 50%, #145214 100%);
-            perspective: 1000px; z-index: 4;
+            background: #2e7d32;
+            perspective: 800px; z-index: 4;
             overflow: hidden;
         `;
-        // Perspective grid for forward motion illusion
-        const grid = document.createElement('div');
-        grid.style.cssText = `
-            position: absolute; inset: -100%;
-            background-image: 
-                repeating-linear-gradient(90deg, transparent 0, transparent 95px, rgba(0,0,0,0.1) 98px, transparent 100px),
-                repeating-linear-gradient(0deg, transparent 0, transparent 48px, rgba(255,255,255,0.15) 50px, transparent 52px);
-            background-size: 100px 50px;
-            transform: rotateX(85deg);
-            animation: ground-forward 0.5s linear infinite;
+        
+        // Rolling gradient stripes - horizontal bands that scroll toward viewer
+        const groundStripes = document.createElement('div');
+        groundStripes.id = 'ground-stripes';
+        groundStripes.style.cssText = `
+            position: absolute; 
+            top: 0; left: 0; right: 0;
+            height: 300%;
+            background: repeating-linear-gradient(
+                180deg,
+                #3a9a3a 0px,
+                #2e8e2e 15px,
+                #2a7a2a 30px,
+                #256a25 45px,
+                #205a20 60px,
+                #1a4a1a 75px,
+                #205a20 90px,
+                #256a25 105px,
+                #2a7a2a 120px,
+                #2e8e2e 135px,
+                #3a9a3a 150px
+            );
+            background-size: 100% 150px;
+            transform: rotateX(60deg) translateZ(-50px);
+            transform-origin: top center;
+            animation: ground-roll 1.5s linear infinite;
         `;
-        ground.appendChild(grid);
+        ground.appendChild(groundStripes);
         
         // Field patches that fly toward camera
         const fieldContainer = document.createElement('div');
@@ -4007,17 +3994,17 @@ flight(active) {
                 }
                 @keyframes flight-drop-streak { 
                     0% { opacity: 1; transform: scaleX(1) scaleY(1) translateX(0); }
-                    30% { opacity: 0.8; transform: scaleX(2) scaleY(0.8) translateX(10px); }
-                    100% { opacity: 0; transform: scaleX(6) scaleY(0.3) translateX(40px); } 
+                    30% { opacity: 0.8; transform: scaleX(2.5) scaleY(0.6) translateX(15px); }
+                    100% { opacity: 0; transform: scaleX(5) scaleY(0.2) translateX(40px); } 
                 }
                 @keyframes fly-approach {
                     0% { transform: translate(-50%, -50%) scale(0.01); opacity: 0; }
                     10% { opacity: 1; }
                     100% { transform: translate(var(--dx), var(--dy)) scale(6); opacity: 1; }
                 }
-                @keyframes ground-forward {
-                    0% { background-position-y: 0; }
-                    100% { background-position-y: 50px; }
+                @keyframes ground-roll {
+                    0% { transform: rotateX(60deg) translateZ(-50px) translateY(0); }
+                    100% { transform: rotateX(60deg) translateZ(-50px) translateY(150px); }
                 }
                 @keyframes field-approach {
                     0% { transform: scale(0.1) translateY(0); opacity: 0; }
@@ -4044,23 +4031,22 @@ flight(active) {
 
             // Tilt
             worldContainer.style.transform = `rotate(${bank}deg) translateY(${pitch}%)`;
-            
-            // Ground
-            grid.style.backgroundPositionY = `${flightTime * 600}px`;
 
             // Scroll Mountains (Parallax) - 3 layers
-            const farScroll = (headingOffset * -10) % 2000; 
+            // When banking RIGHT (positive bank), mountains should slide LEFT (positive scroll = left motion)
+            // headingOffset increases when banking right, so use POSITIVE multipliers
+            const farScroll = (headingOffset * 10) % 2000; 
             mtnBack.p1.style.transform = `translateX(${farScroll}px)`;
-            mtnBack.p2.style.transform = `translateX(${farScroll + 2000}px)`;
+            mtnBack.p2.style.transform = `translateX(${farScroll - 2000}px)`;
             
-            const midScroll = (headingOffset * -20) % 2000;
+            const midScroll = (headingOffset * 20) % 2000;
             mtnFront.p1.style.transform = `translateX(${midScroll}px)`;
-            mtnFront.p2.style.transform = `translateX(${midScroll + 2000}px)`;
+            mtnFront.p2.style.transform = `translateX(${midScroll - 2000}px)`;
             
             // Hills scroll fastest (closest)
-            const nearScroll = (headingOffset * -35) % 2000;
+            const nearScroll = (headingOffset * 35) % 2000;
             hills.p1.style.transform = `translateX(${nearScroll}px)`;
-            hills.p2.style.transform = `translateX(${nearScroll + 2000}px)`;
+            hills.p2.style.transform = `translateX(${nearScroll - 2000}px)`;
 
             // Clouds
             Array.from(distantSky.children).forEach(cloud => {
@@ -4186,29 +4172,48 @@ flight(active) {
                     }
                 }
 
-                // 3. Wiper clearing - streak and fade drops when wiper passes
+                // 3. Wiper clearing - only clear drops when wiper blade passes over them
                 const drops = windscreenRain.querySelectorAll('.rain-drop-glass:not(.clearing)');
+                const prevWiperAngle = wiperAngle - (wiperDir * 3); // Previous frame angle
+                
                 drops.forEach(drop => {
                     const dropX = parseFloat(drop.dataset.x);
+                    const dropY = parseFloat(drop.style.top) || 30;
                     const dropAge = parseInt(drop.dataset.age) || 0;
                     drop.dataset.age = dropAge + 1;
                     
-                    // Check if wiper is passing this drop's position
-                    const wiperReach = Math.abs(wiperAngle) / 50;
-                    const dropFromCenter = Math.abs(dropX - 50) / 50;
+                    // Convert drop position to angle from center (wiper pivot)
+                    // Drops at center (50%) = 0 degrees, left = negative, right = positive
+                    const dropAngleFromCenter = (dropX - 50) * 1.4; // Scale to roughly match wiper sweep
                     
-                    // Clear if wiper is sweeping near this drop, or if drop is old
-                    if ((dropFromCenter < wiperReach + 0.15 && Math.random() > 0.6) || dropAge > 60) {
+                    // Only clear if drop is in upper half (where wiper reaches) 
+                    // AND wiper just passed over this angle
+                    const wiperPassedOver = (
+                        (prevWiperAngle <= dropAngleFromCenter && wiperAngle >= dropAngleFromCenter) ||
+                        (prevWiperAngle >= dropAngleFromCenter && wiperAngle <= dropAngleFromCenter)
+                    );
+                    
+                    // Drop must be in top 55% (where wiper reaches) and wiper must have passed
+                    if (wiperPassedOver && dropY < 55) {
                         drop.classList.add('clearing');
-                        // Smear effect - stretch horizontally and fade
+                        // Smear in direction of wiper movement
+                        const smearDir = wiperDir > 0 ? '' : 'scaleX(-1)';
                         drop.style.transition = 'none';
-                        drop.style.animation = 'flight-drop-streak 0.4s ease-out forwards';
-                        setTimeout(() => drop.remove(), 400);
+                        drop.style.transformOrigin = 'center center';
+                        drop.style.animation = 'flight-drop-streak 0.35s ease-out forwards';
+                        if (smearDir) drop.style.transform = smearDir;
+                        setTimeout(() => drop.remove(), 350);
+                    }
+                    // Very old drops just fade
+                    else if (dropAge > 150) {
+                        drop.style.transition = 'opacity 0.5s';
+                        drop.style.opacity = '0';
+                        setTimeout(() => drop.remove(), 500);
                     }
                 });
 
                 // Limit total drops
-                if (windscreenRain.children.length > 60) {
+                if (windscreenRain.children.length > 80) {
                     const oldest = windscreenRain.querySelector('.rain-drop-glass:not(.clearing)');
                     if (oldest) oldest.remove();
                 }
