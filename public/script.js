@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.90',
+    APP_VERSION: '6.2.91',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -3758,29 +3758,29 @@ flight(active) {
         const mtnBack = createMountainLayer(svgBack, 44, 12, 1, 0.5);
         worldContainer.appendChild(mtnBack.cont);
 
-        // LAYER 2: MAIN MOUNTAINS - brown with conforming snow caps
-        // Snow caps use same peak point but shorter sides that follow the mountain slope
+        // LAYER 2: MAIN MOUNTAINS - brown with properly conforming snow caps
+        // Snow caps calculated using linear interpolation along mountain slopes
         const svgFront = `
         <svg viewBox="0 0 1000 100" preserveAspectRatio="none" style="width:100%;height:100%;">
-            <!-- Mountain 1: peak at (90,20), base from -20 to 200 -->
+            <!-- Mountain 1: left(-20,100) peak(90,20) right(200,100) -->
             <polygon points="-20,100 90,20 200,100" fill="#8b7355"/>
-            <!-- Snow cap: same peak, follows slope down to ~40% height -->
-            <polygon points="90,20 46,52 134,52" fill="#ffffff"/>
+            <!-- Snow cap at 40% down from peak: lerp each side -->
+            <polygon points="90,20 34,52 146,52" fill="#ffffff"/>
             
-            <!-- Mountain 2: peak at (300,5), base from 140 to 460 -->
+            <!-- Mountain 2: left(140,100) peak(300,5) right(460,100) -->
             <polygon points="140,100 300,5 460,100" fill="#7a6b5a"/>
-            <!-- Snow cap: follows the exact slope angles -->
-            <polygon points="300,5 236,48 364,48" fill="#ffffff"/>
+            <!-- Snow cap at 45% down -->
+            <polygon points="300,5 228,48 372,48" fill="#ffffff"/>
             
-            <!-- Mountain 3: peak at (680,25), base from 520 to 840 -->
+            <!-- Mountain 3: left(520,100) peak(680,25) right(840,100) -->
             <polygon points="520,100 680,25 840,100" fill="#8b7355"/>
-            <!-- Snow cap -->
-            <polygon points="680,25 624,55 736,55" fill="#f8f8f8"/>
+            <!-- Snow cap at 40% down -->
+            <polygon points="680,25 616,55 744,55" fill="#f8f8f8"/>
             
-            <!-- Mountain 4: peak at (920,35), base from 780 to 1040 -->
+            <!-- Mountain 4: left(780,100) peak(920,35) right(1060,100) -->
             <polygon points="780,100 920,35 1060,100" fill="#7a6b5a"/>
-            <!-- Snow cap -->
-            <polygon points="920,35 871,60 969,60" fill="#ffffff"/>
+            <!-- Snow cap at 40% down -->
+            <polygon points="920,35 864,61 976,61" fill="#ffffff"/>
         </svg>`;
         const mtnFront = createMountainLayer(svgFront, 45, 16, 2, 1.0);
         worldContainer.appendChild(mtnFront.cont);
@@ -3824,7 +3824,7 @@ flight(active) {
         prop.style.cssText = `
             position: absolute; bottom: 32%; left: 50%; transform: translate(-50%, 50%);
             width: 70vh; height: 70vh; 
-            animation: flight-prop-spin 0.15s linear infinite;
+            animation: flight-prop-spin 0.4s linear infinite;
             z-index: 15;
         `;
         prop.innerHTML = `
@@ -3873,8 +3873,8 @@ flight(active) {
             box-shadow: inset 0 2px 4px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.3);
             overflow: hidden;
         `;
-        // Add the crying logo image
-        logo.innerHTML = `<img src="/public/crying.PNG" alt="Logo" style="width: 90%; height: 90%; object-fit: contain; opacity: 0.9;" onerror="this.style.display='none'"/>`;
+        // Add the crying logo image (same directory as script)
+        logo.innerHTML = `<img src="crying.PNG" alt="Logo" style="width: 90%; height: 90%; object-fit: contain; opacity: 0.9;" onerror="this.parentElement.style.display='none'"/>`;
         cockpit.appendChild(logo);
 
         // WIPER INDICATOR
@@ -3981,12 +3981,40 @@ flight(active) {
         // --- LOGIC LOOP ---
         const logicLoop = () => {
             if(!document.body.contains(c)) return;
-            flightTime += 0.01;
+            flightTime += 0.005; // Slower time progression
             
-            // Physics
-            const bank = (Math.sin(flightTime * 0.8) * 4) + (Math.sin(flightTime * 0.3) * 3);
-            const pitch = (Math.sin(flightTime * 0.5) * 2) + (Math.cos(flightTime * 1.1) * 1);
-            headingOffset += bank * 0.05;
+            // Banking physics - longer periods with flat sections
+            // Use a pattern that gives: level -> bank left -> level -> bank right -> level
+            const bankCycle = flightTime * 0.15; // Very slow cycle
+            let bank = 0;
+            const cyclePos = bankCycle % 1; // 0 to 1 position in cycle
+            
+            if (cyclePos < 0.2) {
+                // Level flight (0-20% of cycle)
+                bank = 0;
+            } else if (cyclePos < 0.4) {
+                // Banking left (20-40% of cycle)
+                const t = (cyclePos - 0.2) / 0.2; // 0 to 1
+                bank = -Math.sin(t * Math.PI) * 6; // Smooth in/out, max 6 degrees
+            } else if (cyclePos < 0.6) {
+                // Level flight (40-60% of cycle)
+                bank = 0;
+            } else if (cyclePos < 0.8) {
+                // Banking right (60-80% of cycle)
+                const t = (cyclePos - 0.6) / 0.2; // 0 to 1
+                bank = Math.sin(t * Math.PI) * 6; // Smooth in/out, max 6 degrees
+            } else {
+                // Level flight (80-100% of cycle)
+                bank = 0;
+            }
+            
+            // Gentle pitch variation
+            const pitch = Math.sin(flightTime * 0.3) * 1.5;
+            
+            // Only accumulate heading when actually banking
+            if (Math.abs(bank) > 0.5) {
+                headingOffset += bank * 0.02;
+            }
 
             // Tilt
             worldContainer.style.transform = `rotate(${bank}deg) translateY(${pitch}%)`;
