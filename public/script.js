@@ -7865,7 +7865,7 @@ const Game = {
         try {
             const vEl = document.querySelector('.version-indicator');
             if (vEl) {
-                vEl.textContent = `v${CONFIG.APP_VERSION} | Made by Gilxs in 12,025`;
+                vEl.textContent = `v${CONFIG.APP_VERSION} | Made by Gilxs since 12,025`;
                 Object.assign(vEl.style, {
                     position: 'fixed', bottom: '15px', left: '50%', transform: 'translateX(-50%)',
                     zIndex: '5', pointerEvents: 'none', fontFamily: 'system-ui, -apple-system, sans-serif',
@@ -8145,7 +8145,7 @@ async vote(t, s = false) {
                                     (Math.random() < 0.1 && State.runtime.dailyVotesCount >= 3);
                     if (isGolden && !State.runtime.goldenWordFound) {
                         State.runtime.goldenWordFound = true;
-                        UIManager.showPostVoteMessage("🌟 GOLDEN! 🌟");
+                        UIManager.showPostVoteMessage("🌟 GOLDEN WORD! 🌟");
                         const last = State.data.daily.lastDate;
                         let s = State.data.daily.streak;
                         if (last) {
@@ -8503,7 +8503,7 @@ async vote(t, s = false) {
         const isGolden = (seed % 2) === 0;
         State.runtime.dailyChallengeType = isGolden ? 'golden' : 'single';
         if (isGolden) {
-            UIManager.showMessage('🌟 Find the Golden!');
+            UIManager.showMessage('🌟 Find Golden Word!');
             State.runtime.goldenWordFound = false;
             State.runtime.dailyVotesCount = 0;
         } else {
