@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.3.7',
+    APP_VERSION: '6.3.8',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -4022,27 +4022,20 @@ const logicLoop = () => {
             if(!document.body.contains(c)) return;
             flightTime += 0.005;
             
-            // SURGICAL FIX: Change target speed every ~30 seconds (flightTime 9.0 ≈ 30s)
+            // 1. ENGINE POWER (Stable Cruising)
+            // Change target speed every ~30 seconds (flightTime 9.0 ≈ 30s)
             const block = Math.floor(flightTime / 9.0);
             const targetPower = 0.7 + (Math.sin(block * 123.4) * 0.15); // Stable range 0.55 - 0.85
             
-            // Smoothly interpolate current power (Store state on prop element)
+            // Smoothly interpolate current power
             let enginePower = parseFloat(prop.dataset.pwr || 0.7);
             enginePower += (targetPower - enginePower) * 0.01;
             prop.dataset.pwr = enginePower;
 
-            // 1. Propeller Speed (Faster = Lower Duration)
+            // Update Propeller Speed
             prop.style.animationDuration = `${0.4 - (enginePower * 0.25)}s`;
 
-            // 2. SPD Dial (Synchronized with Power)
-            // Range: -135deg (Empty) to +45deg (Full)
-            const spdAngle = -135 + (enginePower * 180);
-            // Force direct update without transition lag
-            if (spd.needle) {
-                spd.needle.style.transition = 'none'; 
-                spd.needle.style.transform = `rotate(${spdAngle}deg)`;
-            }
-            
+            // 2. FLIGHT DYNAMICS (Banking & Pitching)
             const bankCycle = flightTime * 0.15;
             let bank = 0;
             const cyclePos = bankCycle % 1;
@@ -4058,17 +4051,23 @@ const logicLoop = () => {
             } else bank = 0;
             
             const pitch = Math.sin(flightTime * 0.3) * 1.5;
-            if (Math.abs(bank) > 0.5) headingOffset += bank * 0.02;
             
+            // Altitude changes with pitch
             altitude += pitch;
             if (altitude < 0) altitude = 0;
             if (altitude > 2000) altitude = 2000;
 
+            // 3. APPLY WORLD TRANSFORMS
+            // Negative bank to lean INTO the turn
             worldContainer.style.transform = `rotate(${-bank}deg) translateY(${pitch}%)`;
             
             // Move ground 'towards' player
             grid.style.backgroundPositionY = `${flightTime * 1200}px`;
 
+            // Scroll Mountains (Parallax)
+            let headingOffset = 0;
+            if (Math.abs(bank) > 0.5) headingOffset += bank * 0.02; // Accumulate heading
+            
             const farScroll = (headingOffset * -10) % 2000; 
             mtnBack.p1.style.transform = `translateX(${farScroll}px)`;
             mtnBack.p2.style.transform = `translateX(${farScroll + 2000}px)`; 
@@ -4077,6 +4076,7 @@ const logicLoop = () => {
             mtnFront.p1.style.transform = `translateX(${nearScroll}px)`;
             mtnFront.p2.style.transform = `translateX(${nearScroll + 2000}px)`;
 
+            // Clouds
             Array.from(distantSky.children).forEach(cloud => {
                 let pos = parseFloat(cloud.dataset.pos);
                 pos += parseFloat(cloud.dataset.speed);
@@ -4085,21 +4085,22 @@ const logicLoop = () => {
                 cloud.style.left = pos + '%';
             });
 
-if (horizonBall) horizonBall.style.transform = `rotate(${-bank}deg) translateY(${pitch * 2}px)`; 
+            // 4. UPDATE GAUGES
             
-            // SPD Logic: Engine Power + Gravity (Pitch) + Vibration
-            // 1. Base engine speed
+            // Horizon
+            if (horizonBall) horizonBall.style.transform = `rotate(${-bank}deg) translateY(${pitch * 2}px)`; 
+            
+            // Speed (SPD) - Includes Physics + Jitter
             let spdAngle = -135 + (enginePower * 180);
-            // 2. Physics: Pitching down (negative) increases speed, Pitching up decreases it
-            spdAngle -= (pitch * 12); 
-            // 3. Jitter: Constant slight vibration
-            spdAngle += (Math.random() * 3 - 1.5);
-
+            spdAngle -= (pitch * 12); // Gravity effect
+            spdAngle += (Math.random() * 3 - 1.5); // Jitter
+            
             if (spd.needle) {
-                spd.needle.style.transition = 'none'; // Ensure instant movement for jitter
+                spd.needle.style.transition = 'none'; 
                 spd.needle.style.transform = `rotate(${spdAngle}deg)`;
             }
             
+            // Altitude (ALT)
             const altAngle = -135 + (altitude / 2000 * 270);
             if (alt.needle) alt.needle.style.transform = `rotate(${altAngle}deg)`;
 
