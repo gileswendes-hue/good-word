@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.4.4',
+    APP_VERSION: '6.4.5',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -5092,25 +5092,46 @@ displayWord(w) {
         wd.style.cssText = '';
         wd.style.opacity = '1';
         if (isGolden) {
-            if (!document.getElementById('golden-style')) {
-                const s = document.createElement('style');
-                s.id = 'golden-style';
-                s.textContent = `
-                    @keyframes golden-glow {
-                        0%, 100% { text-shadow: 0 0 10px #fbbf24, 0 0 20px #f59e0b, 0 0 5px #fde68a; }
-                        50% { text-shadow: 0 0 20px #fbbf24, 0 0 40px #f59e0b, 0 0 60px #d97706; }
-                    }
-                `;
-                document.head.appendChild(s);
-            }
-            // Use inline styles with !important to override all theme CSS
-            wd.style.setProperty('color', '#f59e0b', 'important');
-            wd.style.setProperty('text-shadow', '0 0 10px #fbbf24, 0 0 20px #f59e0b', 'important');
-            wd.style.setProperty('animation', 'golden-glow 1.5s ease-in-out infinite', 'important');
-            wd.style.setProperty('background', 'none', 'important');
-            wd.style.setProperty('background-clip', 'unset', 'important');
-            wd.style.setProperty('-webkit-background-clip', 'unset', 'important');
-            wd.style.setProperty('-webkit-text-fill-color', '#f59e0b', 'important');
+            // Remove any existing golden style and re-add at end to ensure it loads last
+            const existingStyle = document.getElementById('golden-style');
+            if (existingStyle) existingStyle.remove();
+            
+            const s = document.createElement('style');
+            s.id = 'golden-style';
+            // Use extremely high specificity selectors
+            s.textContent = `
+                @keyframes golden-glow {
+                    0%, 100% { text-shadow: 0 0 10px #fbbf24, 0 0 20px #f59e0b, 0 0 5px #fde68a; }
+                    50% { text-shadow: 0 0 20px #fbbf24, 0 0 40px #f59e0b, 0 0 60px #d97706; }
+                }
+                html body #wordDisplay.golden-word,
+                html body.theme-submarine #wordDisplay.golden-word,
+                html body.theme-banana #wordDisplay.golden-word,
+                html body.theme-woodland #wordDisplay.golden-word,
+                html body.theme-ocean #wordDisplay.golden-word,
+                html body.theme-flight #wordDisplay.golden-word,
+                html body.theme-halloween #wordDisplay.golden-word,
+                html body.theme-fire #wordDisplay.golden-word,
+                html body.theme-rainbow #wordDisplay.golden-word,
+                html body.theme-winter #wordDisplay.golden-word,
+                html body.theme-summer #wordDisplay.golden-word,
+                html body.theme-dark #wordDisplay.golden-word,
+                html body.theme-plymouth #wordDisplay.golden-word,
+                html body.theme-space #wordDisplay.golden-word,
+                html body.theme-ballpit #wordDisplay.golden-word,
+                html body.theme-default #wordDisplay.golden-word {
+                    color: #f59e0b !important;
+                    text-shadow: 0 0 10px #fbbf24, 0 0 20px #f59e0b !important;
+                    animation: golden-glow 1.5s ease-in-out infinite !important;
+                    background: none !important;
+                    background-clip: unset !important;
+                    -webkit-background-clip: unset !important;
+                    -webkit-text-fill-color: #f59e0b !important;
+                }
+            `;
+            // Append to end of body to ensure it loads after all other styles
+            document.body.appendChild(s);
+            
             wd.classList.add('golden-word');
             this.fitText(txt);
             if (!State.runtime.isCoolingDown) this.disableButtons(false);
