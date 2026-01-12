@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.3.12',
+    APP_VERSION: '6.3.13',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -3741,33 +3741,28 @@ flight(active) {
             return { cont, p1, p2 };
         };
 
-        // LAYER 1: BACK MOUNTAINS (Grey, Distant, Jagged Snow)
+        // LAYER 1: BACK MOUNTAINS
         const svgBack = `
         <svg viewBox="0 0 1200 100" preserveAspectRatio="none" style="width:100%; height:100%;">
             <path d="M0,100 L0,70 L200,45 L400,80 L600,40 L800,75 L1000,45 L1200,70 L1200,100 Z" fill="#546e7a"/>
-            
-            <path d="M200,45 L180,50 L188,58 L195,54 L200,60 L205,54 L212,58 L220,50 Z" fill="white" opacity="0.9"/>
-            
-            <path d="M600,40 L585,48 L592,55 L598,50 L600,56 L602,50 L608,55 L615,48 Z" fill="white" opacity="0.9"/>
-            
-            <path d="M1000,45 L980,50 L988,58 L995,54 L1000,60 L1005,54 L1012,58 L1020,50 Z" fill="white" opacity="0.9"/>
+            <path d="M200,45 L257,55 L240,52 L220,58 L200,53 L180,58 L160,52 L120,55 Z" fill="white" opacity="0.9"/>
+            <path d="M600,40 L685,55 L660,50 L640,58 L620,52 L600,58 L580,50 L525,55 Z" fill="white" opacity="0.9"/>
+            <path d="M1000,45 L1080,55 L1060,50 L1040,58 L1020,52 L1000,58 L980,50 L933,55 Z" fill="white" opacity="0.9"/>
         </svg>`;
         const mtnBack = createMountainLayer(svgBack, 40, 20, 1, 1.0);
         worldContainer.appendChild(mtnBack.cont);
 
-        // LAYER 2: FRONT MOUNTAINS (Brown, Closer)
+        // LAYER 2: FRONT MOUNTAINS
         const svgFront = `
         <svg viewBox="0 0 1200 100" preserveAspectRatio="none" style="width:100%; height:100%;">
             <path d="M0,100 L0,85 L300,55 L500,90 L800,60 L1100,90 L1200,80 L1200,100 Z" fill="#5d4037"/>
-            
-            <path d="M300,55 L285,60 L292,68 L298,62 L300,70 L302,62 L308,68 L315,60 Z" fill="white" opacity="0.8"/>
-            
-            <path d="M800,60 L785,65 L792,73 L798,67 L800,75 L802,67 L808,73 L815,65 Z" fill="white" opacity="0.8"/>
+            <path d="M300,55 L357,65 L340,62 L320,68 L300,63 L280,68 L260,62 L200,65 Z" fill="white" opacity="0.8"/>
+            <path d="M800,60 L900,70 L880,66 L850,74 L820,68 L790,74 L750,66 L700,70 Z" fill="white" opacity="0.8"/>
         </svg>`;
         const mtnFront = createMountainLayer(svgFront, 50, 15, 2, 1.0);
         worldContainer.appendChild(mtnFront.cont);
 
-        // GROUND (Moving Texture)
+        // GROUND
         const ground = document.createElement('div');
         ground.style.cssText = `
             position: absolute; top: 56%; left: -50%; width: 200%; height: 100%;
@@ -3777,10 +3772,9 @@ flight(active) {
         const grid = document.createElement('div');
         grid.style.cssText = `
             position: absolute; inset: -100%;
-            /* Vertical streaks moving towards player */
             background-image: 
-                repeating-linear-gradient(90deg, rgba(255,255,255,0.1) 0px, rgba(255,255,255,0.1) 2px, transparent 2px, transparent 100px),
-                repeating-linear-gradient(0deg, rgba(255,255,255,0.2) 0px, rgba(255,255,255,0.2) 1px, transparent 1px, transparent 50px);
+                repeating-linear-gradient(90deg, rgba(255,255,255,0.3) 0px, rgba(255,255,255,0.3) 2px, transparent 2px, transparent 100px),
+                repeating-linear-gradient(0deg, rgba(255,255,255,0.4) 0px, rgba(255,255,255,0.4) 1px, transparent 1px, transparent 50px);
             background-size: 200px 200px;
             transform: rotateX(80deg);
         `;
@@ -3794,27 +3788,21 @@ flight(active) {
         worldContainer.appendChild(ground);
         c.appendChild(worldContainer);
 
-        // =========================================
-        // LAYER 2: RAIN
-        // =========================================
+        // RAIN
         const externalRainContainer = document.createElement('div');
         externalRainContainer.style.cssText = `position: absolute; inset: 0; pointer-events: none; z-index: 5; overflow: hidden;`;
         c.appendChild(externalRainContainer);
 
-        // =========================================
-        // LAYER 3: OBJECTS
-        // =========================================
+        // OBJECTS
         const objectContainer = document.createElement('div');
         objectContainer.style.cssText = `position: absolute; inset: 0; pointer-events: none; z-index: 6; overflow: hidden;`;
         c.appendChild(objectContainer);
 
-        // =========================================
-        // LAYER 4: PROPELLER
-        // =========================================
+        // PROPELLER (70vh - Original Size)
         const prop = document.createElement('div');
         prop.style.cssText = `
             position: absolute; bottom: 32%; left: 50%; transform: translate(-50%, 50%);
-            width: 105vh; height: 105vh; 
+            width: 70vh; height: 70vh; 
             animation: flight-prop-spin 0.15s linear infinite;
             z-index: 15;
         `;
@@ -3822,19 +3810,15 @@ flight(active) {
             <svg viewBox="0 0 200 200" style="width: 100%; height: 100%; overflow: visible;">
                 <circle cx="100" cy="100" r="90" fill="url(#propBlur)" opacity="0.2"/>
                 <defs><radialGradient id="propBlur"><stop offset="0%" stop-color="transparent"/><stop offset="100%" stop-color="white"/></radialGradient></defs>
-                
                 <path d="M96,100 L92,30 Q100,10 108,30 L104,100 Z" fill="#222" stroke="black" stroke-width="3" stroke-linejoin="round" />
                 <path d="M92,30 Q100,10 108,30 L107,38 L93,38 Z" fill="#ffeb3b" stroke="black" stroke-width="2" stroke-linejoin="round" />
-
                 <path d="M96,100 L92,170 Q100,190 108,170 L104,100 Z" fill="#222" stroke="black" stroke-width="3" stroke-linejoin="round" />
                 <path d="M92,170 Q100,190 108,170 L107,162 L93,162 Z" fill="#ffeb3b" stroke="black" stroke-width="2" stroke-linejoin="round" />
             </svg>
         `;
         c.appendChild(prop);
 
-        // =========================================
-        // LAYER 5: COCKPIT
-        // =========================================
+        // COCKPIT
         const cockpit = document.createElement('div');
         cockpit.style.cssText = `position: absolute; inset: 0; pointer-events: none; z-index: 20;`;
 
@@ -3848,19 +3832,13 @@ flight(active) {
         `;
         cockpit.appendChild(dash);
         
-        // --- INSTRUMENTS: TIGHT CENTERED GROUPING ---
-        // Container centered horizontally, fixed width to hold gauges tightly
+        // INSTRUMENTS
         const gauges = document.createElement('div');
-        gauges.style.cssText = `
-            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-            width: 320px; display: flex; flex-direction: column; align-items: center;
-            z-index: 22; pointer-events: none;
-        `;
+        gauges.style.cssText = `position: absolute; bottom: 0; left: 0; width: 100%; height: 40%; z-index: 22; pointer-events: none;`;
         
-        // Helper
         const createGauge = (label, color, type) => {
             const g = document.createElement('div');
-            g.style.cssText = `width: 90px; height: 90px; border-radius: 50%; background: #111; border: 4px solid #546e7a; position: relative; box-shadow: inset 0 0 10px #000; overflow: hidden; flex-shrink: 0;`;
+            g.style.cssText = `width: 90px; height: 90px; border-radius: 50%; background: #111; border: 4px solid #546e7a; position: absolute; box-shadow: inset 0 0 10px #000; overflow: hidden;`;
             if (type === 'horizon') {
                 g.innerHTML = `
                     <div id="gauge-horizon-ball" style="position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: linear-gradient(180deg, #29b6f6 50%, #5d4037 50%); transform: rotate(0deg);"></div>
@@ -3878,137 +3856,66 @@ flight(active) {
             return g;
         };
 
-        // ROW 1: Horizon (Top Center)
         const att = createGauge("ATT", "", "horizon");
-        att.style.top = "40px"; // Moved down slightly
+        att.style.top = "15px"; 
+        att.style.left = "50%";
+        att.style.transform = "translateX(-50%)";
         gauges.appendChild(att);
 
-        // ROW 2: SPD | Logo | ALT (Below, slightly overlapping)
-        const row2 = document.createElement('div');
-        row2.style.cssText = `
-            display: flex; align-items: flex-end; justify-content: space-between; 
-            width: 100%; margin-top: -15px; /* Overlap upwards */
+        // COMPASS
+        const compass = document.createElement('div');
+        compass.style.cssText = `position: absolute; top: 110px; left: 50%; transform: translateX(-50%); width: 70px; height: 35px; background: #111; border: 3px solid #546e7a; border-radius: 5px; box-shadow: inset 0 0 8px #000; overflow: hidden;`;
+        compass.innerHTML = `
+            <div id="compass-tape" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); white-space: nowrap; font-size: 10px; font-weight: bold; color: #b0bec5; font-family: monospace;">
+                <span style="color: #ff5722;">N</span>&nbsp;&nbsp;030&nbsp;&nbsp;060&nbsp;&nbsp;<span style="color: #fff;">E</span>&nbsp;&nbsp;120&nbsp;&nbsp;150&nbsp;&nbsp;<span style="color: #ff5722;">S</span>&nbsp;&nbsp;210&nbsp;&nbsp;240&nbsp;&nbsp;<span style="color: #fff;">W</span>&nbsp;&nbsp;300&nbsp;&nbsp;330&nbsp;&nbsp;<span style="color: #ff5722;">N</span>
+            </div>
+            <div style="position: absolute; top: 0; left: 50%; width: 2px; height: 100%; background: #ffea00; transform: translateX(-50%); box-shadow: 0 0 4px #ffea00;"></div>
+            <div style="position: absolute; bottom: 2px; width: 100%; text-align: center; color: #78909c; font-size: 7px;">HDG</div>
         `;
+        const compassTape = compass.querySelector('#compass-tape');
+        compass.tape = compassTape;
+        gauges.appendChild(compass);
 
         const spd = createGauge("SPD", "#ffea00", "std");
-        
-        // 4. LOGO (Middle, Bottom) - Metallic Frame
-        const logo = document.createElement('div');
-        logo.style.cssText = `width: 120px; height: 80px; z-index: 21; margin-bottom: 5px;`;
-        logo.innerHTML = `
-            <svg viewBox="0 0 120 80" style="width: 100%; height: 100%; overflow: visible;">
-                <defs>
-                    <linearGradient id="metalFrame" x1="0" y1="0" x2="1" y2="1">
-                        <stop offset="0%" stop-color="#78909c"/>
-                        <stop offset="50%" stop-color="#eceff1"/>
-                        <stop offset="100%" stop-color="#78909c"/>
-                    </linearGradient>
-                </defs>
-                
-                <rect x="4" y="4" width="112" height="72" rx="4" fill="#263238" opacity="0.6" />
-                
-                <image href="crying.PNG" x="15" y="15" width="90" height="50" preserveAspectRatio="xMidYMid contain" opacity="0.9"/>
-                
-                <rect x="4" y="4" width="112" height="72" rx="4" fill="none" stroke="url(#metalFrame)" stroke-width="5" />
-                
-                <g fill="#cfd8dc" stroke="#455a64" stroke-width="1">
-                    <circle cx="8" cy="8" r="2.5" />   <circle cx="112" cy="8" r="2.5" /> <circle cx="8" cy="72" r="2.5" />  <circle cx="112" cy="72" r="2.5" /></g>
-                <g stroke="#455a64" stroke-width="1">
-                    <path d="M6.5,8 L9.5,8 M8,6.5 L8,9.5" /> <path d="M110.5,8 L113.5,8 M112,6.5 L112,9.5" /> <path d="M6.5,72 L9.5,72 M8,70.5 L8,73.5" /> <path d="M110.5,72 L113.5,72 M112,70.5 L112,73.5" /> </g>
-            </svg>
-        `;
+        spd.style.bottom = "15px"; spd.style.left = "20px";
+        gauges.appendChild(spd);
 
         const alt = createGauge("ALT", "#ff1744", "std");
+        alt.style.bottom = "15px"; alt.style.right = "20px";
+        gauges.appendChild(alt);
 
-        row2.appendChild(spd);
-        row2.appendChild(logo);
-        row2.appendChild(alt);
-        gauges.appendChild(row2);
-
+        const logo = document.createElement('div');
+        logo.style.cssText = `position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); width: 180px; height: 120px; z-index: 21;`;
+        logo.innerHTML = `
+            <svg viewBox="0 0 180 120" style="width: 100%; height: 100%; overflow: visible;">
+                <defs><linearGradient id="metalFrame" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#78909c"/><stop offset="50%" stop-color="#eceff1"/><stop offset="100%" stop-color="#78909c"/></linearGradient></defs>
+                <rect x="6" y="6" width="168" height="108" rx="6" fill="#263238" opacity="0.6" />
+                <image href="crying.PNG" x="22" y="22" width="135" height="75" preserveAspectRatio="xMidYMid contain" opacity="0.9"/>
+                <rect x="6" y="6" width="168" height="108" rx="6" fill="none" stroke="url(#metalFrame)" stroke-width="7" />
+                <g fill="#cfd8dc" stroke="#455a64" stroke-width="1"><circle cx="12" cy="12" r="3.5" /> <circle cx="168" cy="12" r="3.5" /> <circle cx="12" cy="108" r="3.5" /> <circle cx="168" cy="108" r="3.5" /></g>
+                <g stroke="#455a64" stroke-width="1"><path d="M9.5,12 L14.5,12 M12,9.5 L12,14.5" /> <path d="M165.5,12 L170.5,12 M168,9.5 L168,14.5" /> <path d="M9.5,108 L14.5,108 M12,105.5 L12,110.5" /> <path d="M165.5,108 L170.5,108 M168,105.5 L168,110.5" /></g>
+            </svg>
+        `;
+        gauges.appendChild(logo);
         cockpit.appendChild(gauges);
 
-        // INDICATOR LIGHTS
-        // 1. Wiper Light (Above SPD)
         const lightBox = document.createElement('div');
-        lightBox.style.cssText = `
-            position: absolute; bottom: 120px; left: 65px; transform: translateX(-50%);
-            width: 20px; height: 20px; /* Larger size */
-            border-radius: 50%; background: #222; border: 2px solid #555;
-            box-shadow: 0 0 2px #000; transition: all 0.3s; z-index: 23;
-        `;
+        lightBox.style.cssText = `position: absolute; bottom: 120px; left: 65px; transform: translateX(-50%); width: 20px; height: 20px; border-radius: 50%; background: #222; border: 2px solid #555; box-shadow: 0 0 2px #000; transition: all 0.3s; z-index: 23;`;
         cockpit.appendChild(lightBox);
 
-        // 2. Connection Light (Above ALT)
         const connLight = document.createElement('div');
-        connLight.style.cssText = `
-            position: absolute; bottom: 120px; right: 65px; transform: translateX(50%);
-            width: 20px; height: 20px; /* Same size */
-            border-radius: 50%; background: #222; border: 2px solid #555;
-            box-shadow: 0 0 2px #000; transition: all 0.3s; z-index: 23;
-        `;
+        connLight.style.cssText = `position: absolute; bottom: 120px; right: 65px; transform: translateX(50%); width: 20px; height: 20px; border-radius: 50%; background: #222; border: 2px solid #555; box-shadow: 0 0 2px #000; transition: all 0.3s; z-index: 23;`;
         cockpit.appendChild(connLight);
-
         c.appendChild(cockpit);
 
-        // =========================================
-        // LAYER 6: WINDSCREEN RAIN (Z: 95)
-        // =========================================
         const windscreenRain = document.createElement('div');
         windscreenRain.style.cssText = `position: absolute; inset: 0; pointer-events: none; z-index: 95; overflow: hidden; display: block;`;
         c.appendChild(windscreenRain);
 
-        // =========================================
-        // LAYER 7: WIPER (Z: 100)
-        // =========================================
         const wiper = document.createElement('div');
-        wiper.style.cssText = `
-            position: absolute; bottom: 40%; left: 50%; width: 0; height: 45vh;
-            transform-origin: bottom center; transform: rotate(-50deg);
-            z-index: 100; display: block; pointer-events: none;
-        `;
-        wiper.innerHTML = `
-            <div style="
-                position: absolute; bottom: 0; left: -6px; width: 12px; height: 100%;
-                background: #111; border-radius: 6px; 
-                box-shadow: 2px 0 4px rgba(0,0,0,0.5);
-                display: flex; justify-content: center; padding-top: 4px; padding-bottom: 4px;
-            ">
-                <div style="width: 2px; height: 100%; background: #666; opacity: 0.8;"></div>
-            </div>
-            
-            <div style="
-                position: absolute; bottom: -6px; left: -9px; width: 18px; height: 18px;
-                background: #222; border-radius: 50%; border: 2px solid #000;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.8);
-            "></div>
-        `;
+        wiper.style.cssText = `position: absolute; bottom: 40%; left: 50%; width: 0; height: 45vh; transform-origin: bottom center; transform: rotate(-50deg); z-index: 100; display: block; pointer-events: none;`;
+        wiper.innerHTML = `<div style="position: absolute; bottom: 0; left: -6px; width: 12px; height: 100%; background: #111; border-radius: 6px; box-shadow: 2px 0 4px rgba(0,0,0,0.5); display: flex; justify-content: center; padding-top: 4px; padding-bottom: 4px;"><div style="width: 2px; height: 100%; background: #666; opacity: 0.8;"></div></div><div style="position: absolute; bottom: -6px; left: -9px; width: 18px; height: 18px; background: #222; border-radius: 50%; border: 2px solid #000; box-shadow: 0 2px 4px rgba(0,0,0,0.8);"></div>`;
         c.appendChild(wiper);
-
-        // --- ANIMATIONS ---
-        if(!document.getElementById('flight-anims')) {
-            const s = document.createElement('style');
-            s.id = 'flight-anims';
-            s.innerHTML = `
-                @keyframes flight-prop-spin { from { transform: translate(-50%, 50%) rotate(0deg); } to { transform: translate(-50%, 50%) rotate(360deg); } }
-                @keyframes flight-wiper-move { 0%, 100% { transform: rotate(-50deg); } 50% { transform: rotate(50deg); } }
-                @keyframes flight-streak-fall { 0% { transform: translateY(-100px); opacity: 0; } 50% { opacity: 1; } 100% { transform: translateY(120vh); opacity: 0; } }
-                @keyframes flight-drop-appear { 0% { opacity: 0; transform: scale(0.5); } 100% { opacity: 1; transform: scale(1); } }
-                @keyframes flight-drop-streak-right { 0% { opacity: 1; transform: scaleX(1) translateX(0); } 100% { opacity: 0; transform: scaleX(4) translateX(30px); } }
-                @keyframes flight-drop-streak-left { 0% { opacity: 1; transform: scaleX(1) translateX(0); } 100% { opacity: 0; transform: scaleX(4) translateX(-30px); } }
-                /* Objects fly AT camera: small to big */
-                @keyframes fly-approach { 
-                    0% { transform: translate(-50%, -50%) scale(0.01); opacity: 0; } 
-                    10% { opacity: 1; } 
-                    100% { transform: translate(var(--dx), var(--dy)) scale(6); opacity: 1; } 
-                }
-                @keyframes ground-obj-pass { 
-                    0% { transform: translate(-50%, 0) scale(0.1); opacity: 0; bottom: 50%; } 
-                    20% { opacity: 1; } 
-                    100% { transform: translate(-50%, 0) scale(4); opacity: 1; bottom: -50px; } 
-                }
-            `;
-            document.head.appendChild(s);
-        }
 
         const horizonBall = document.getElementById('gauge-horizon-ball');
         let flightTime = 0;
@@ -4020,33 +3927,22 @@ flight(active) {
             if(!document.body.contains(c)) return;
             flightTime += 0.005;
             
-            // 1. ENGINE POWER (Stable Cruising)
-            // Change target speed every ~30 seconds (flightTime 9.0 ≈ 30s)
+            // 1. ENGINE POWER (Stable Cruising + Random)
             const block = Math.floor(flightTime / 9.0);
-            const targetPower = 0.7 + (Math.sin(block * 123.4) * 0.15); // Stable range 0.55 - 0.85
-            
-            // Smoothly interpolate current power
+            const targetPower = 0.7 + (Math.sin(block * 123.4) * 0.15); 
             let enginePower = parseFloat(prop.dataset.pwr || 0.7);
             enginePower += (targetPower - enginePower) * 0.01;
             prop.dataset.pwr = enginePower;
-
-            // Update Propeller Speed
             prop.style.animationDuration = `${0.4 - (enginePower * 0.25)}s`;
 
-            // 2. FLIGHT DYNAMICS (Banking & Pitching)
+            // 2. BANK & PITCH
             const bankCycle = flightTime * 0.15;
             let bank = 0;
             const cyclePos = bankCycle % 1;
-            
             if (cyclePos < 0.2) bank = 0;
-            else if (cyclePos < 0.4) {
-                const t = (cyclePos - 0.2) / 0.2; 
-                bank = -Math.sin(t * Math.PI) * 6;
-            } else if (cyclePos < 0.6) bank = 0;
-            else if (cyclePos < 0.8) {
-                const t = (cyclePos - 0.6) / 0.2; 
-                bank = Math.sin(t * Math.PI) * 6;
-            } else bank = 0;
+            else if (cyclePos < 0.4) bank = -Math.sin(((cyclePos - 0.2) / 0.2) * Math.PI) * 12;
+            else if (cyclePos < 0.6) bank = 0;
+            else if (cyclePos < 0.8) bank = Math.sin(((cyclePos - 0.6) / 0.2) * Math.PI) * 12;
             
             const pitch = Math.sin(flightTime * 0.3) * 1.5;
             
@@ -4055,26 +3951,20 @@ flight(active) {
             if (altitude < 0) altitude = 0;
             if (altitude > 2000) altitude = 2000;
 
-            // 3. APPLY WORLD TRANSFORMS
-            // Negative bank to lean INTO the turn
+            // 3. WORLD TRANSFORMS
             worldContainer.style.transform = `rotate(${-bank}deg) translateY(${pitch}%)`;
-            
-            // Move ground 'towards' player
-            grid.style.backgroundPositionY = `${flightTime * 1200}px`;
+            // Visible ground movement
+            grid.style.backgroundPositionY = `${flightTime * 1500}px`; 
 
-            // Scroll Mountains (Parallax)
-            let headingOffset = 0;
-            if (Math.abs(bank) > 0.5) headingOffset += bank * 0.02; // Accumulate heading
-            
-            const farScroll = (headingOffset * -10) % 2000; 
+            // Scroll Mountains
+            if (Math.abs(bank) > 0.5) headingOffset += bank * 0.5;
+            const farScroll = (headingOffset * -0.5) % 2000; 
             mtnBack.p1.style.transform = `translateX(${farScroll}px)`;
             mtnBack.p2.style.transform = `translateX(${farScroll + 2000}px)`; 
-            
-            const nearScroll = (headingOffset * -20) % 2000;
+            const nearScroll = (headingOffset * -1) % 2000;
             mtnFront.p1.style.transform = `translateX(${nearScroll}px)`;
             mtnFront.p2.style.transform = `translateX(${nearScroll + 2000}px)`;
 
-            // Clouds
             Array.from(distantSky.children).forEach(cloud => {
                 let pos = parseFloat(cloud.dataset.pos);
                 pos += parseFloat(cloud.dataset.speed);
@@ -4083,23 +3973,24 @@ flight(active) {
                 cloud.style.left = pos + '%';
             });
 
-            // 4. UPDATE GAUGES
-            
-            // Horizon
+            // 4. GAUGES
             if (horizonBall) horizonBall.style.transform = `rotate(${-bank}deg) translateY(${pitch * 2}px)`; 
+            if (compass.tape) {
+                const bearing = ((headingOffset * 0.5) % 360 + 360) % 360;
+                const tapeOffset = (bearing / 360) * 280;
+                compass.tape.style.transform = `translate(calc(-50% - ${tapeOffset}px), -50%)`;
+            }
             
-            // Speed (SPD) - Includes Physics + Jitter
-            // Declared ONCE here to prevent syntax error
-            let spdAngle = -135 + (enginePower * 180);
-            spdAngle -= (pitch * 12); // Gravity effect
-            spdAngle += (Math.random() * 3 - 1.5); // Jitter
+            // PHYSICS: Speed increases when diving (pitch < 0), decreases when climbing (pitch > 0)
+            let spdAngle = -135 + (enginePower * 220); // Base from engine
+            spdAngle -= (pitch * 30); // Pitch UP (positive) -> Minus Speed. Pitch DOWN (negative) -> Plus Speed.
+            spdAngle += (Math.random() * 6 - 3); // Jitter
             
             if (spd.needle) {
                 spd.needle.style.transition = 'none'; 
                 spd.needle.style.transform = `rotate(${spdAngle}deg)`;
             }
             
-            // Altitude (ALT)
             const altAngle = -135 + (altitude / 2000 * 270);
             if (alt.needle) alt.needle.style.transform = `rotate(${altAngle}deg)`;
 
@@ -4107,7 +3998,7 @@ flight(active) {
         };
         logicLoop();
 
-        // --- SPAWN OBJECTS ---
+        // OBJECT SPAWNERS
         const spawnObject = () => {
             if(!document.body.contains(c)) return;
             const el = document.createElement('div');
@@ -4115,31 +4006,17 @@ flight(active) {
             const skyEmojis = ['🦅', '🦆', '✈️', '🛸', '🎈'];
             const destX = (Math.random() - 0.5) * 200 + "vw";
             const destY = (Math.random() - 0.2) * 100 + "vh";
-
             if(isCloud) {
-                el.style.cssText = `
-                    position: absolute; top: 50%; left: 50%; 
-                    width: 60px; height: 40px; background: #fff;
-                    border-radius: 50px; filter: blur(4px);
-                    box-shadow: 15px -8px 0 5px #fff, -15px 5px 0 5px #fff;
-                    --dx: ${destX}; --dy: ${destY};
-                    animation: fly-approach 6s linear forwards;
-                `;
+                el.style.cssText = `position: absolute; top: 50%; left: 50%; width: 60px; height: 40px; background: #fff; border-radius: 50px; filter: blur(4px); box-shadow: 15px -8px 0 5px #fff, -15px 5px 0 5px #fff; --dx: ${destX}; --dy: ${destY}; animation: fly-approach 6s linear forwards;`;
             } else {
                 el.innerHTML = skyEmojis[Math.floor(Math.random() * skyEmojis.length)];
-                el.style.cssText = `
-                    position: absolute; top: 50%; left: 50%; 
-                    font-size: 10px; text-shadow: 0 0 2px rgba(255,255,255,0.5);
-                    --dx: ${destX}; --dy: ${destY};
-                    animation: fly-approach 6s linear forwards;
-                `;
+                el.style.cssText = `position: absolute; top: 50%; left: 50%; font-size: 10px; text-shadow: 0 0 2px rgba(255,255,255,0.5); --dx: ${destX}; --dy: ${destY}; animation: fly-approach 6s linear forwards;`;
             }
             objectContainer.appendChild(el);
             setTimeout(() => el.remove(), 6000);
         };
         this.objectSpawnInterval = setInterval(spawnObject, 3000);
 
-        // --- SPAWN GROUND OBJECTS ---
         const spawnGroundObject = () => {
             if(!document.body.contains(c)) return;
             const el = document.createElement('div');
@@ -4147,119 +4024,74 @@ flight(active) {
             const type = types[Math.floor(Math.random() * types.length)];
             const leftPos = Math.random() * 100;
             el.innerHTML = type;
-            el.style.cssText = `
-                position: absolute; left: ${leftPos}%;
-                font-size: 20px; transform-origin: center bottom;
-                animation: ground-obj-pass 2s ease-in forwards;
-            `;
+            el.style.cssText = `position: absolute; left: ${leftPos}%; font-size: 20px; transform-origin: center bottom; animation: ground-obj-pass 2s ease-in forwards;`;
             groundObjContainer.appendChild(el);
             setTimeout(() => el.remove(), 2000);
         };
         this.groundSpawnInterval = setInterval(spawnGroundObject, 300);
 
-        // --- RAIN & WIPER ---
+        // WIPER & RAIN
         let wiperAngle = -50;
         let wiperDir = 1;
-        let prevWiperAngle = -50;
-        let rainTick = 0;
         
         this.wiperInterval = setInterval(() => {
             if (!document.body.contains(c)) return;
-            rainTick++;
-
             const isRaining = (typeof window.WeatherManager !== 'undefined' && 
                               (window.WeatherManager.isRaining || window.WeatherManager.isSnowing));
 
-            // Wiper Light Update
             lightBox.style.background = isRaining ? '#00e676' : '#222';
             lightBox.style.boxShadow = isRaining ? '0 0 8px #00e676' : '0 0 2px #000';
-
-            // Connection Light Update
             const isOnline = navigator.onLine && !State.data.settings.offlineMode;
-            connLight.style.background = isOnline ? '#22c55e' : '#ef4444'; // Green = Online, Red = Offline
+            connLight.style.background = isOnline ? '#22c55e' : '#ef4444';
             connLight.style.boxShadow = isOnline ? '0 0 5px #22c55e' : '0 0 5px #ef4444';
 
             if (isRaining) {
-                prevWiperAngle = wiperAngle;
                 wiperAngle += wiperDir * 4;
                 if (wiperAngle >= 50) wiperDir = -1;
                 if (wiperAngle <= -50) wiperDir = 1;
                 wiper.style.transform = `rotate(${wiperAngle}deg)`;
 
-                if (rainTick % 2 === 0) {
+                if (Math.random() > 0.5) {
                     const streak = document.createElement('div');
-                    streak.style.cssText = `
-                        position: absolute; left: ${Math.random() * 100}%; top: -40px;
-                        width: 2px; height: ${50 + Math.random() * 30}px; 
-                        background: linear-gradient(180deg, transparent, rgba(200,220,255,0.8), rgba(150,180,220,0.4));
-                        animation: flight-streak-fall 0.5s linear forwards;
-                    `;
+                    streak.style.cssText = `position: absolute; left: ${Math.random() * 100}%; top: -40px; width: 2px; height: ${50 + Math.random() * 30}px; background: linear-gradient(180deg, transparent, rgba(200,220,255,0.8), rgba(150,180,220,0.4)); animation: flight-streak-fall 0.5s linear forwards;`;
                     externalRainContainer.appendChild(streak);
                     setTimeout(() => streak.remove(), 500);
-                    
                     if (windscreenRain.children.length < 50) {
                         const drop = document.createElement('div');
                         drop.className = 'rain-drop-glass';
                         const size = 5 + Math.random() * 6;
                         const x = 5 + Math.random() * 90;
                         const y = 5 + Math.random() * 45;
-                        drop.style.cssText = `
-                            position: absolute; left: ${x}%; top: ${y}%;
-                            width: ${size}px; height: ${size * 1.1}px; 
-                            background: radial-gradient(ellipse at 30% 30%, 
-                                rgba(255,255,255,0.9), rgba(180,210,255,0.6), rgba(100,150,220,0.3));
-                            border-radius: 50%; opacity: 0;
-                            box-shadow: 0 0 2px rgba(255,255,255,0.7);
-                            animation: flight-drop-appear 0.15s ease-out forwards;
-                        `;
+                        drop.style.cssText = `position: absolute; left: ${x}%; top: ${y}%; width: ${size}px; height: ${size * 1.1}px; background: radial-gradient(ellipse at 30% 30%, rgba(255,255,255,0.9), rgba(180,210,255,0.6), rgba(100,150,220,0.3)); border-radius: 50%; opacity: 0; box-shadow: 0 0 2px rgba(255,255,255,0.7); animation: flight-drop-appear 0.15s ease-out forwards;`;
                         drop.dataset.x = x;
-                        drop.dataset.y = y;
                         windscreenRain.appendChild(drop);
                     }
                 }
-
-                if (rainTick % 2 === 0) {
-                    const drops = windscreenRain.querySelectorAll('.rain-drop-glass:not(.clearing)');
-                    drops.forEach(drop => {
-                        const dropX = parseFloat(drop.dataset.x);
-                        const dropY = parseFloat(drop.dataset.y) || 30;
-                        const dropAngle = (dropX - 50) * 1.4;
-                        const wiperCrossed = (
-                            (prevWiperAngle < dropAngle && wiperAngle >= dropAngle) ||
-                            (prevWiperAngle > dropAngle && wiperAngle <= dropAngle)
-                        );
-                        if (wiperCrossed && dropY < 50) {
-                            drop.classList.add('clearing');
-                            drop.style.animation = wiperDir > 0 
-                                ? 'flight-drop-streak-right 0.3s ease-out forwards'
-                                : 'flight-drop-streak-left 0.3s ease-out forwards';
-                            setTimeout(() => drop.remove(), 300);
-                        }
-                    });
-                }
-                
-                // Add more dark clouds when raining
-                if (distantSky.children.length < 12 && Math.random() > 0.8) {
+                // Clearing drops logic...
+                const drops = windscreenRain.querySelectorAll('.rain-drop-glass:not(.clearing)');
+                drops.forEach(drop => {
+                    const dropX = parseFloat(drop.dataset.x);
+                    const dropAngle = (dropX - 50) * 1.4;
+                    if (Math.abs(wiperAngle - dropAngle) < 5) {
+                        drop.classList.add('clearing');
+                        drop.style.animation = wiperDir > 0 ? 'flight-drop-streak-right 0.3s ease-out forwards' : 'flight-drop-streak-left 0.3s ease-out forwards';
+                        setTimeout(() => drop.remove(), 300);
+                    }
+                });
+                // MORE DARK CLOUDS
+                if (distantSky.children.length < 25 && Math.random() > 0.7) {
                     const cloud = document.createElement('div');
                     cloud.innerText = '☁️';
-                    cloud.style.cssText = `
-                        position: absolute; top: ${30 + Math.random() * 15}%; left: -10%;
-                        font-size: ${40 + Math.random() * 40}px; opacity: 0.8;
-                        filter: blur(2px) grayscale(80%); transition: left 1s linear; color: #555;
-                    `;
+                    cloud.style.cssText = `position: absolute; top: ${30 + Math.random() * 15}%; left: -10%; font-size: ${40 + Math.random() * 40}px; opacity: 0.9; filter: blur(2px) grayscale(90%) brightness(60%); transition: left 1s linear; color: #333;`;
                     cloud.dataset.speed = 0.05 + Math.random() * 0.05;
                     cloud.dataset.pos = -10;
                     distantSky.appendChild(cloud);
                 }
-                
             } else {
                 if (Math.abs(wiperAngle - -50) > 2) {
                     wiperAngle -= 2;
                     wiper.style.transform = `rotate(${wiperAngle}deg)`;
-                } else {
-                    wiper.style.transform = 'rotate(-50deg)';
                 }
-                windscreenRain.innerHTML = '';
             }
         }, 60);
     },
