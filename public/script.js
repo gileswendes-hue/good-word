@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.91',
+    APP_VERSION: '6.2.92',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -16,9 +16,9 @@ const CONFIG = {
     TIP_COOLDOWN: 4,
     HISTORY_SIZE: 500,
     VOTE: {
-        MASH_LIMIT: 4,           // Trigger after 4 fast votes (was 5)
-        COOLDOWN_TIERS: [5, 10, 20],  // Shorter cooldowns
-        STREAK_WINDOW: 800,      // 800ms between votes counts as mashing (was 2000)
+        MASH_LIMIT: 4,           
+        COOLDOWN_TIERS: [5, 10, 20],  
+        STREAK_WINDOW: 800,      
         SWIPE_THRESHOLD: 100
     },
     THEME_SECRETS: {
@@ -76,7 +76,7 @@ const ContentFilter = {
     }
 };
 ContentFilter.init();
-let DOM = {}; // Changed to let
+let DOM = {};
 const loadDOM = () => ({
     header: {
         logoArea: document.getElementById('logoArea'),
@@ -306,7 +306,7 @@ const State = {
         currentTheme: 'default',
         offlineChannel: 1,
         allWords: [],
-        fullWordList: [], // All words for stats calculation (before filtering)
+        fullWordList: [],
         history: [],
         currentWordIndex: 0,
         streak: 0,
@@ -319,7 +319,7 @@ const State = {
         isDailyMode: false,
         lastVoteType: null,
         sameVoteStreak: 0,
-        buttonPresses: [], // Track timestamps of button presses
+        buttonPresses: [],
     },
     init() {
     },
@@ -3747,13 +3747,9 @@ flight(active) {
 
         // LAYER 1: DISTANT MOUNTAINS - gray silhouettes (no snow caps)
         const svgBack = `
-        <svg viewBox="0 0 1000 80" preserveAspectRatio="none" style="width:100%;height:100%;">
-            <polygon points="0,80 70,30 140,80" fill="#7a7a7a"/>
-            <polygon points="100,80 200,15 300,80" fill="#6a6a6a"/>
-            <polygon points="260,80 380,25 500,80" fill="#7a7a7a"/>
-            <polygon points="450,80 560,10 670,80" fill="#6a6a6a"/>
-            <polygon points="620,80 750,30 880,80" fill="#7a7a7a"/>
-            <polygon points="830,80 930,20 1000,80" fill="#6a6a6a"/>
+		<svg viewBox="0 0 1200 100" preserveAspectRatio="none" style="width:100%; height:100%;">
+            <path d="M0,100 L0,70 L150,15 L300,80 L450,10 L550,60 L650,20 L800,75 L950,25 L1050,60 L1200,30 L1200,100 Z" fill="#546e7a"/>
+            <path d="M150,15 L145,25 L155,25 Z  M450,10 L445,20 L455,20 Z  M650,20 L645,30 L655,30 Z  M950,25 L945,35 L955,35 Z  M1200,30 L1195,40 L1205,40 Z" fill="white" opacity="0.9"/>
         </svg>`;
         const mtnBack = createMountainLayer(svgBack, 44, 12, 1, 0.5);
         worldContainer.appendChild(mtnBack.cont);
@@ -3859,19 +3855,15 @@ flight(active) {
         const logo = document.createElement('div');
         logo.style.cssText = `
             position: absolute;
-            bottom: 180px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 60px;
-            height: 60px;
-            border-radius: 8px;
-            background: #2a3a4a;
-            border: 2px solid #1a2a3a;
+            bottom: 40%; /* Sits exactly on top of the dashboard height */
+            left: 0;
+            width: 90%; /* Spans the entire screen width */
+            height: 120px; /* Tall enough to see the image */
             display: flex;
-            align-items: center;
+            align-items: flex-end; 
             justify-content: center;
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.3);
-            overflow: hidden;
+            pointer-events: none;
+            z-index: 21; /* Above the dash */
         `;
         // Add the crying logo image (same directory as script)
         logo.innerHTML = `<img src="crying.PNG" alt="Logo" style="width: 90%; height: 90%; object-fit: contain; opacity: 0.9;" onerror="this.parentElement.style.display='none'"/>`;
