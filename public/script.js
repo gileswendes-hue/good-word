@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.2.86',
+    APP_VERSION: '6.2.87',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -3745,70 +3745,69 @@ flight(active) {
             return { cont, p1, p2 };
         };
 
-        // LAYER 1: BACK MOUNTAINS - cartoon brown style with snow caps
+        // LAYER 1: BACK MOUNTAINS - simple clean triangles like reference
         const svgBack = `
-        <svg viewBox="0 0 1200 120" preserveAspectRatio="none" style="width:100%; height:100%;">
+        <svg viewBox="0 0 1200 100" preserveAspectRatio="none" style="width:100%; height:100%;">
             <defs>
-                <linearGradient id="mtnBack1" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" stop-color="#9a7a5a"/>
-                    <stop offset="100%" stop-color="#7a5a3a"/>
+                <linearGradient id="mtnBackBrown" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#8b7355"/>
+                    <stop offset="100%" stop-color="#6b5344"/>
                 </linearGradient>
             </defs>
-            <!-- Individual mountains with varied peaks -->
-            <path d="M0,120 L60,45 L90,70 L120,40 L160,120 Z" fill="url(#mtnBack1)"/>
-            <path d="M120,40 L90,60 L150,60 Z" fill="#e8e8e8"/>
-            <path d="M140,120 L220,30 L260,55 L300,25 L340,120 Z" fill="url(#mtnBack1)"/>
-            <path d="M300,25 L265,50 L335,50 Z" fill="#fff"/>
-            <path d="M320,120 L400,50 L440,75 L480,45 L520,120 Z" fill="url(#mtnBack1)"/>
-            <path d="M480,45 L450,68 L510,68 Z" fill="#e8e8e8"/>
-            <path d="M500,120 L590,35 L630,60 L670,30 L710,120 Z" fill="url(#mtnBack1)"/>
-            <path d="M670,30 L635,55 L705,55 Z" fill="#fff"/>
-            <path d="M690,120 L770,55 L810,80 L850,50 L890,120 Z" fill="url(#mtnBack1)"/>
-            <path d="M850,50 L820,72 L880,72 Z" fill="#e8e8e8"/>
-            <path d="M870,120 L960,25 L1000,50 L1040,20 L1080,120 Z" fill="url(#mtnBack1)"/>
-            <path d="M1040,20 L1005,48 L1075,48 Z" fill="#fff"/>
-            <path d="M1060,120 L1130,55 L1200,70 L1200,120 Z" fill="url(#mtnBack1)"/>
+            <!-- Simple triangle mountains - brown body with white cap as one shape -->
+            <!-- Mountain 1 -->
+            <polygon points="0,100 100,25 200,100" fill="url(#mtnBackBrown)"/>
+            <polygon points="100,25 75,50 125,50" fill="white"/>
+            <!-- Mountain 2 -->
+            <polygon points="150,100 280,20 410,100" fill="url(#mtnBackBrown)"/>
+            <polygon points="280,20 250,50 310,50" fill="white"/>
+            <!-- Mountain 3 -->
+            <polygon points="360,100 480,35 600,100" fill="url(#mtnBackBrown)"/>
+            <polygon points="480,35 455,60 505,60" fill="white"/>
+            <!-- Mountain 4 -->
+            <polygon points="550,100 700,15 850,100" fill="url(#mtnBackBrown)"/>
+            <polygon points="700,15 665,50 735,50" fill="white"/>
+            <!-- Mountain 5 -->
+            <polygon points="800,100 920,30 1040,100" fill="url(#mtnBackBrown)"/>
+            <polygon points="920,30 890,58 950,58" fill="white"/>
+            <!-- Mountain 6 -->
+            <polygon points="1000,100 1120,40 1200,100" fill="url(#mtnBackBrown)"/>
+            <polygon points="1120,40 1100,60 1140,60" fill="white"/>
         </svg>`;
-        const mtnBack = createMountainLayer(svgBack, 40, 20, 1, 0.85);
+        const mtnBack = createMountainLayer(svgBack, 42, 18, 1, 0.7);
         worldContainer.appendChild(mtnBack.cont);
 
-        // LAYER 2: FRONT MOUNTAINS - larger, more detailed cartoon style  
+        // LAYER 2: FRONT MOUNTAINS - larger, cleaner like reference image
         const svgFront = `
-        <svg viewBox="0 0 1200 140" preserveAspectRatio="none" style="width:100%; height:100%;">
+        <svg viewBox="0 0 1200 120" preserveAspectRatio="none" style="width:100%; height:100%;">
             <defs>
-                <linearGradient id="mtnFront1" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" stop-color="#c4a080"/>
-                    <stop offset="40%" stop-color="#a08060"/>
-                    <stop offset="100%" stop-color="#806040"/>
+                <linearGradient id="mtnFrontBrown1" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#9c8b7a"/>
+                    <stop offset="100%" stop-color="#7a6a5a"/>
                 </linearGradient>
-                <linearGradient id="mtnFront2" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" stop-color="#b89068"/>
-                    <stop offset="40%" stop-color="#987048"/>
-                    <stop offset="100%" stop-color="#785028"/>
+                <linearGradient id="mtnFrontBrown2" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#a89080"/>
+                    <stop offset="100%" stop-color="#887060"/>
                 </linearGradient>
             </defs>
-            <!-- Large foreground mountains -->
-            <path d="M-40,140 L80,35 L120,65 L160,30 L200,140 Z" fill="url(#mtnFront1)"/>
-            <path d="M160,30 L125,58 L195,58 Z" fill="#fff"/>
-            <path d="M80,35 L50,70 M160,30 L190,68" stroke="#8a6040" stroke-width="2" opacity="0.3" fill="none"/>
-            
-            <path d="M180,140 L300,50 L350,85 L400,45 L450,140 Z" fill="url(#mtnFront2)"/>
-            <path d="M400,45 L360,78 L440,78 Z" fill="#f0f0f0"/>
-            
-            <path d="M420,140 L540,25 L590,60 L640,20 L690,140 Z" fill="url(#mtnFront1)"/>
-            <path d="M640,20 L598,55 L682,55 Z" fill="#fff"/>
-            <path d="M540,25 L500,68 M640,20 L680,62" stroke="#8a6040" stroke-width="2" opacity="0.3" fill="none"/>
-            
-            <path d="M660,140 L760,55 L800,80 L840,50 L880,140 Z" fill="url(#mtnFront2)"/>
-            <path d="M840,50 L808,75 L872,75 Z" fill="#f0f0f0"/>
-            
-            <path d="M850,140 L970,30 L1020,65 L1070,25 L1120,140 Z" fill="url(#mtnFront1)"/>
-            <path d="M1070,25 L1028,58 L1112,58 Z" fill="#fff"/>
-            <path d="M970,30 L940,68 M1070,25 L1100,62" stroke="#8a6040" stroke-width="2" opacity="0.3" fill="none"/>
-            
-            <path d="M1100,140 L1160,60 L1200,85 L1200,140 Z" fill="url(#mtnFront2)"/>
+            <!-- Large foreground mountains - clean triangles -->
+            <!-- Mountain 1 - large left -->
+            <polygon points="-50,120 120,15 290,120" fill="url(#mtnFrontBrown1)"/>
+            <polygon points="120,15 80,55 160,55" fill="white"/>
+            <!-- Mountain 2 -->
+            <polygon points="220,120 380,25 540,120" fill="url(#mtnFrontBrown2)"/>
+            <polygon points="380,25 345,60 415,60" fill="white"/>
+            <!-- Mountain 3 - tallest center -->
+            <polygon points="450,120 650,5 850,120" fill="url(#mtnFrontBrown1)"/>
+            <polygon points="650,5 605,55 695,55" fill="white"/>
+            <!-- Mountain 4 -->
+            <polygon points="780,120 920,30 1060,120" fill="url(#mtnFrontBrown2)"/>
+            <polygon points="920,30 885,62 955,62" fill="white"/>
+            <!-- Mountain 5 - right edge -->
+            <polygon points="1000,120 1130,45 1250,120" fill="url(#mtnFrontBrown1)"/>
+            <polygon points="1130,45 1100,72 1160,72" fill="white"/>
         </svg>`;
-        const mtnFront = createMountainLayer(svgFront, 46, 16, 2, 1.0);
+        const mtnFront = createMountainLayer(svgFront, 44, 20, 2, 1.0);
         worldContainer.appendChild(mtnFront.cont);
 
         // LAYER 3: ROLLING HILLS - green for parallax depth
@@ -3822,7 +3821,7 @@ flight(active) {
             </defs>
             <path d="M0,80 Q100,40 200,70 T400,50 T600,65 T800,45 T1000,60 T1200,50 L1200,80 Z" fill="url(#hillGrad)"/>
         </svg>`;
-        const hills = createMountainLayer(svgHills, 54, 10, 3, 1.0);
+        const hills = createMountainLayer(svgHills, 56, 10, 3, 1.0);
         worldContainer.appendChild(hills.cont);
 
         // GROUND - with forward motion gradient stripes
@@ -3998,17 +3997,18 @@ flight(active) {
                 @keyframes flight-prop-spin { 0% { transform: translate(-50%, 50%) rotate(0deg); } 100% { transform: translate(-50%, 50%) rotate(360deg); } }
                 @keyframes flight-wiper-move { 0%, 100% { transform: rotate(-50deg); } 50% { transform: rotate(50deg); } }
                 @keyframes flight-streak-fall { 
-                    0% { transform: translateY(-100px); opacity: 0; } 
-                    20% { opacity: 0.8; } 
+                    0% { transform: translateY(-50px); opacity: 0; } 
+                    15% { opacity: 0.9; } 
                     100% { transform: translateY(120vh); opacity: 0; } 
                 }
                 @keyframes flight-drop-appear { 
-                    0% { opacity: 0; transform: scale(0.3); } 
-                    100% { opacity: 0.8; transform: scale(1); } 
+                    0% { opacity: 0; transform: scale(0.2); } 
+                    100% { opacity: 1; transform: scale(1); } 
                 }
                 @keyframes flight-drop-streak { 
-                    0% { opacity: 0.8; transform: scaleX(1) scaleY(1); } 
-                    100% { opacity: 0; transform: scaleX(4) scaleY(0.5) translateX(50px); } 
+                    0% { opacity: 1; transform: scaleX(1) scaleY(1) translateX(0); }
+                    30% { opacity: 0.8; transform: scaleX(2) scaleY(0.8) translateX(10px); }
+                    100% { opacity: 0; transform: scaleX(6) scaleY(0.3) translateX(40px); } 
                 }
                 @keyframes fly-approach {
                     0% { transform: translate(-50%, -50%) scale(0.01); opacity: 0; }
@@ -4131,43 +4131,59 @@ flight(active) {
 
             if (isRaining) {
                 // Animate Wiper manually for precise control
-                wiperAngle += wiperDir * 4;
+                wiperAngle += wiperDir * 3;
                 if (wiperAngle >= 50) wiperDir = -1;
                 if (wiperAngle <= -50) wiperDir = 1;
                 wiper.style.transform = `rotate(${wiperAngle}deg)`;
 
-                // 1. External Rain Streaks - blue like other themes
-                if (Math.random() > 0.3) {
-                    const streak = document.createElement('div');
-                    streak.style.cssText = `
-                        position: absolute; left: ${Math.random() * 100}%; top: -30px;
-                        width: 2px; height: ${40 + Math.random() * 30}px; 
-                        background: linear-gradient(180deg, transparent, rgba(59, 130, 246, 0.8), rgba(59, 130, 246, 0.4));
-                        border-radius: 1px;
-                        animation: flight-streak-fall ${0.3 + Math.random() * 0.3}s linear forwards;
-                    `;
-                    externalRainContainer.appendChild(streak);
-                    setTimeout(() => streak.remove(), 600);
+                // 1. External Rain Streaks - WHITE with blue tint for visibility against sky
+                for (let i = 0; i < 3; i++) {
+                    if (Math.random() > 0.4) {
+                        const streak = document.createElement('div');
+                        const height = 50 + Math.random() * 40;
+                        streak.style.cssText = `
+                            position: absolute; left: ${Math.random() * 100}%; top: -50px;
+                            width: 2px; height: ${height}px; 
+                            background: linear-gradient(180deg, 
+                                rgba(255,255,255,0.1), 
+                                rgba(200,220,255,0.9), 
+                                rgba(150,180,220,0.6),
+                                rgba(100,150,200,0.2));
+                            border-radius: 1px;
+                            animation: flight-streak-fall ${0.4 + Math.random() * 0.3}s linear forwards;
+                        `;
+                        externalRainContainer.appendChild(streak);
+                        setTimeout(() => streak.remove(), 700);
+                    }
                 }
 
-                // 2. Windscreen Drops - blue, appear and sit on glass
-                if (Math.random() > 0.5) {
-                    const drop = document.createElement('div');
-                    drop.className = 'rain-drop-glass';
-                    const size = 3 + Math.random() * 5;
-                    drop.style.cssText = `
-                        position: absolute; 
-                        left: ${5 + Math.random() * 90}%; 
-                        top: ${5 + Math.random() * 55}%;
-                        width: ${size}px; height: ${size}px; 
-                        background: rgba(59, 130, 246, 0.7);
-                        border-radius: 50%; 
-                        box-shadow: 0 0 3px rgba(59, 130, 246, 0.5), inset 1px 1px 2px rgba(255,255,255,0.3);
-                        animation: flight-drop-appear 0.3s ease-out forwards;
-                    `;
-                    drop.dataset.x = parseFloat(drop.style.left);
-                    drop.dataset.age = 0;
-                    windscreenRain.appendChild(drop);
+                // 2. Windscreen Drops - MORE visible, with white highlight
+                for (let i = 0; i < 2; i++) {
+                    if (Math.random() > 0.3) {
+                        const drop = document.createElement('div');
+                        drop.className = 'rain-drop-glass';
+                        const size = 4 + Math.random() * 8;
+                        drop.style.cssText = `
+                            position: absolute; 
+                            left: ${5 + Math.random() * 90}%; 
+                            top: ${5 + Math.random() * 50}%;
+                            width: ${size}px; height: ${size * 1.2}px; 
+                            background: radial-gradient(ellipse at 30% 30%, 
+                                rgba(255,255,255,0.9) 0%,
+                                rgba(180,210,255,0.7) 30%,
+                                rgba(100,150,220,0.5) 70%,
+                                rgba(60,100,180,0.3) 100%);
+                            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+                            box-shadow: 
+                                0 0 2px rgba(255,255,255,0.8),
+                                0 1px 3px rgba(0,0,0,0.3),
+                                inset 0 -1px 2px rgba(255,255,255,0.5);
+                            animation: flight-drop-appear 0.2s ease-out forwards;
+                        `;
+                        drop.dataset.x = parseFloat(drop.style.left);
+                        drop.dataset.age = 0;
+                        windscreenRain.appendChild(drop);
+                    }
                 }
 
                 // 3. Wiper clearing - streak and fade drops when wiper passes
@@ -4178,20 +4194,21 @@ flight(active) {
                     drop.dataset.age = dropAge + 1;
                     
                     // Check if wiper is passing this drop's position
-                    // Wiper sweeps from center, so drops near center get cleared more
-                    const wiperReach = Math.abs(wiperAngle) / 50; // 0-1 range
-                    const dropFromCenter = Math.abs(dropX - 50) / 50; // 0-1 range
+                    const wiperReach = Math.abs(wiperAngle) / 50;
+                    const dropFromCenter = Math.abs(dropX - 50) / 50;
                     
                     // Clear if wiper is sweeping near this drop, or if drop is old
-                    if ((dropFromCenter < wiperReach + 0.2 && Math.random() > 0.7) || dropAge > 80) {
+                    if ((dropFromCenter < wiperReach + 0.15 && Math.random() > 0.6) || dropAge > 60) {
                         drop.classList.add('clearing');
-                        drop.style.animation = 'flight-drop-streak 0.3s ease-out forwards';
-                        setTimeout(() => drop.remove(), 300);
+                        // Smear effect - stretch horizontally and fade
+                        drop.style.transition = 'none';
+                        drop.style.animation = 'flight-drop-streak 0.4s ease-out forwards';
+                        setTimeout(() => drop.remove(), 400);
                     }
                 });
 
                 // Limit total drops
-                if (windscreenRain.children.length > 40) {
+                if (windscreenRain.children.length > 60) {
                     const oldest = windscreenRain.querySelector('.rain-drop-glass:not(.clearing)');
                     if (oldest) oldest.remove();
                 }
