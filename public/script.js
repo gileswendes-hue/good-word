@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.5.1',
+    APP_VERSION: '6.5.2',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -471,7 +471,7 @@ const OfflineManager = {
         try {
             UIManager.showMessage("Downloading words... 📥");
             const res = await fetch('/api/words/all');
-            if (!res.ok) throw new Error('Network error');
+            if (!res.ok) throw new Error('Network error. Online mode?');
             const data = await res.json();
             if (!data || data.length === 0) {
                 throw new Error('No words received');
@@ -1296,7 +1296,7 @@ async fetchKidsWords() {
                 body: JSON.stringify({ definition, author })
             });
             return await r.json();
-        } catch (e) { return { message: 'Network error' }; }
+        } catch (e) { return { message: 'Network error. Online mode?' }; }
     },
     async getGlobalScores() {
         try {
@@ -7939,7 +7939,7 @@ const Game = {
                 const t = DOM.inputs.newWord.value.trim();
                 if (!t || t.includes(' ') || t.length > 45) { DOM.inputs.modalMsg.textContent = "Invalid word."; return }
                 const btn = document.getElementById('submitWordButton'); btn.disabled = true;
-                try { const r = await API.submitWord(t); if (r.status === 201) { State.incrementContributor(); DOM.inputs.modalMsg.textContent = "Success! Your new word has been added!"; setTimeout(() => { ModalManager.toggle('submission', false); this.refreshData() }, 1000) } else { const d = await r.json(); DOM.inputs.modalMsg.textContent = d.message || "Word already exists in dictionary!" } } catch (e) { DOM.inputs.modalMsg.textContent = "Network Error" }
+                try { const r = await API.submitWord(t); if (r.status === 201) { State.incrementContributor(); DOM.inputs.modalMsg.textContent = "Success! Your new word has been added!"; setTimeout(() => { ModalManager.toggle('submission', false); this.refreshData() }, 1000) } else { const d = await r.json(); DOM.inputs.modalMsg.textContent = d.message || "Word already exists in dictionary!" } } catch (e) { DOM.inputs.modalMsg.textContent = "Word exists!" }
                 btn.disabled = false
             };
             document.getElementById('runComparisonButton').onclick = async () => {
