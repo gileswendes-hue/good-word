@@ -16,7 +16,7 @@ const CONFIG = {
     TIP_COOLDOWN: 4,
     HISTORY_SIZE: 500,
     VOTE: {
-        MASH_LIMIT: 6,           
+        MASH_LIMIT: 8,           
         COOLDOWN_TIERS: [5, 10, 20],  
         STREAK_WINDOW: 1200,      
         SWIPE_THRESHOLD: 100
