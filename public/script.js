@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.4.6',
+    APP_VERSION: '6.4.7',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -8025,7 +8025,7 @@ const Game = {
 async vote(t, s = false) {
         if (State.runtime.isCoolingDown) return;
         const n = Date.now();
-        if (State.runtime.lastVoteTime > 0 && (n - State.runtime.lastVoteTime) < 400) {
+        if (State.runtime.lastVoteTime > 0 && (n - State.runtime.lastVoteTime) < 250) {
             return;
         }
         if (State.runtime.isMultiplayer && typeof RoomManager !== 'undefined' && RoomManager.active) {
@@ -8044,7 +8044,7 @@ async vote(t, s = false) {
             State.runtime.lastVoteType = t;
             if (State.runtime.sameVoteStreak === 6) {
                 State.runtime.sameVoteMessage = t === 'good' ? "Every word is GOOD today? 🤔" : "Having a BAD day? 😤";
-            } else if (State.runtime.sameVoteStreak >= 10) {
+            } else if (State.runtime.sameVoteStreak >= 15) {
                 State.runtime.sameVoteStreak = 0;
                 const msg = t === 'good' ? "Too positive! Take a break." : "Too negative! Take a break.";
                 UIManager.showMessage(msg, true);
@@ -8056,7 +8056,7 @@ async vote(t, s = false) {
         if (!State.runtime.voteTimestamps) State.runtime.voteTimestamps = [];
         State.runtime.voteTimestamps.push(n);
         State.runtime.voteTimestamps = State.runtime.voteTimestamps.filter(t => n - t < 11000);
-        if (State.runtime.voteTimestamps.length >= 6) {
+        if (State.runtime.voteTimestamps.length >= 10) {
             State.runtime.voteTimestamps = [];
             UIManager.showMessage("Slow down! Read the words.", true);
             Haptics.heavy();
