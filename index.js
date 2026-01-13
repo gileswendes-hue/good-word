@@ -31,7 +31,10 @@ const wordSchema = new mongoose.Schema({
     goodVotes: { type: Number, default: 0 },
     badVotes: { type: Number, default: 0 },
     notWordVotes: { type: Number, default: 0 },
-    voters: [{ type: String }]
+    voters: [{ type: String }],
+    definition: { type: String, maxlength: 512, default: null },
+    definitionAuthor: { type: String, default: null },
+    definitionUpdatedAt: { type: Date, default: null }
 }, { timestamps: true });
 const Word = mongoose.model('Word', wordSchema);
 
@@ -827,6 +830,53 @@ app.put('/api/words/:id/vote', async (req, res) => {
     } catch (e) { res.status(500).json({}); } 
 });
 
+// Get definition for a word
+app.get('/api/words/:id/definition', async (req, res) => {
+    try {
+        const word = await Word.findById(req.params.id, 'definition definitionAuthor definitionUpdatedAt');
+        if (!word) return res.status(404).json({ message: 'Word not found' });
+        res.json({ 
+            definition: word.definition, 
+            author: word.definitionAuthor,
+            updatedAt: word.definitionUpdatedAt
+        });
+    } catch (e) { res.status(500).json({ message: 'Error fetching definition' }); }
+});
+
+// Add or update definition for a word (when no dictionary definition exists)
+app.put('/api/words/:id/definition', async (req, res) => {
+    try {
+        const { definition, author } = req.body;
+        
+        // Validate definition length (512 character limit)
+        if (!definition || typeof definition !== 'string') {
+            return res.status(400).json({ message: 'Definition is required' });
+        }
+        if (definition.length > 512) {
+            return res.status(400).json({ message: 'Definition must be 512 characters or less' });
+        }
+        
+        const word = await Word.findByIdAndUpdate(
+            req.params.id,
+            { 
+                definition: definition.trim(),
+                definitionAuthor: author || 'Anonymous',
+                definitionUpdatedAt: new Date()
+            },
+            { new: true }
+        );
+        
+        if (!word) return res.status(404).json({ message: 'Word not found' });
+        
+        res.json({ 
+            message: 'Definition updated',
+            definition: word.definition,
+            author: word.definitionAuthor,
+            updatedAt: word.definitionUpdatedAt
+        });
+    } catch (e) { res.status(500).json({ message: 'Error updating definition' }); }
+});
+
 app.post('/api/words', async (req, res) => { try { const n = new Word({ text: req.body.text }); await n.save(); res.status(201).json(n); } catch (e) { res.status(500).json({}); } });
 app.get('/api/leaderboard', async (req, res) => { try { res.json(await Leaderboard.find().sort({voteCount:-1}).limit(100)); } catch(e){res.json([])} });
 app.get('/api/leaderboard/streaks', async (req, res) => { try { res.json(await Leaderboard.find({dailyStreak:{$gt:0}}).sort({dailyStreak:-1}).limit(10)); } catch(e){res.json([])} });
@@ -865,6 +915,27 @@ app.post('/api/stats/snapshot', async (req, res) => {
         );
         res.json({ message: "OK" });
     } catch(e) { res.status(500).json({}); }
+});
+
+// Community goal endpoint - returns goal based on mode (Kids Mode gets 1/10th the goal)
+const BASE_COMMUNITY_GOAL = 10000; // Base daily community goal
+app.get('/api/community-goal', async (req, res) => {
+    try {
+        const isKidsMode = req.query.kidsMode === 'true';
+        const goal = isKidsMode ? Math.floor(BASE_COMMUNITY_GOAL / 10) : BASE_COMMUNITY_GOAL;
+        
+        // Get today's progress
+        const today = new Date().toISOString().split('T')[0];
+        const stats = await GlobalStats.findOne({ date: today });
+        const progress = stats ? stats.totalVotes : 0;
+        
+        res.json({ 
+            goal,
+            progress,
+            isKidsMode,
+            percentComplete: Math.min(100, Math.round((progress / goal) * 100))
+        });
+    } catch(e) { res.status(500).json({ goal: BASE_COMMUNITY_GOAL, progress: 0 }); }
 });
 
 server.listen(PORT, () => console.log(`Server on ${PORT}`));
