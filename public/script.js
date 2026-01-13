@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.4.7',
+    APP_VERSION: '6.5.1',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -1280,6 +1280,23 @@ async fetchKidsWords() {
     },
     async define(w) {
          return fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${w.toLowerCase()}`);
+    },
+    async getCommunityDefinition(wordId) {
+        try {
+            const r = await fetch(`/api/words/${wordId}/definition`);
+            if (!r.ok) return null;
+            return await r.json();
+        } catch (e) { return null; }
+    },
+    async saveCommunityDefinition(wordId, definition, author) {
+        try {
+            const r = await fetch(`/api/words/${wordId}/definition`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ definition, author })
+            });
+            return await r.json();
+        } catch (e) { return { message: 'Network error' }; }
     },
     async getGlobalScores() {
         try {
@@ -8282,6 +8299,8 @@ async vote(t, s = false) {
         document.getElementById('definitionWord').textContent = w.text.toUpperCase();
         const d = document.getElementById('definitionResults');
         d.innerHTML = 'Loading...';
+        
+        let hasDictionaryDef = false;
         try {
             const r = await API.define(w.text);
             if (!r.ok) throw 0;
@@ -8296,9 +8315,147 @@ async vote(t, s = false) {
                 h += '</ol></div>';
             });
             d.innerHTML = h;
+            hasDictionaryDef = true;
         } catch {
-            d.innerHTML = '<p class="text-red-500">Definition not found.</p>';
+            hasDictionaryDef = false;
         }
+        
+        // If no dictionary definition, show community definition or allow adding one
+        if (!hasDictionaryDef) {
+            const communityDef = await API.getCommunityDefinition(w._id);
+            let h = '';
+            
+            if (communityDef && communityDef.definition) {
+                // Show existing community definition with edit option
+                h = `<div class="mb-4">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-xs font-bold text-purple-600 bg-purple-100 px-2 py-1 rounded">COMMUNITY DEFINITION</span>
+                    </div>
+                    <p class="text-gray-700 mb-2" id="communityDefText">${this.escapeHtml(communityDef.definition)}</p>
+                    <p class="text-xs text-gray-400">Added by ${this.escapeHtml(communityDef.author || 'Anonymous')}</p>
+                    <button id="editCommunityDefBtn" class="mt-3 text-sm text-indigo-600 hover:text-indigo-800 font-medium">✏️ Edit Definition</button>
+                </div>`;
+            } else {
+                // No definition at all - show add form
+                h = `<div class="mb-4">
+                    <p class="text-gray-500 mb-3">No dictionary definition found for this word.</p>
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-xs font-bold text-green-600 bg-green-100 px-2 py-1 rounded">ADD A DEFINITION</span>
+                    </div>
+                    <p class="text-sm text-gray-500 mb-3">Help the community by adding a definition!</p>
+                </div>`;
+            }
+            
+            // Add the edit/add form (hidden initially if showing existing def)
+            const showForm = !communityDef || !communityDef.definition;
+            h += `<div id="communityDefForm" class="${showForm ? '' : 'hidden'}">
+                <textarea id="communityDefInput" 
+                    class="w-full p-3 border border-gray-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" 
+                    rows="3" 
+                    maxlength="512" 
+                    placeholder="Enter a definition (max 512 characters)...">${communityDef && communityDef.definition ? this.escapeHtml(communityDef.definition) : ''}</textarea>
+                <div class="flex justify-between items-center mt-2">
+                    <span id="defCharCount" class="text-xs text-gray-400">0/512</span>
+                    <div class="flex gap-2">
+                        ${communityDef && communityDef.definition ? '<button id="cancelDefEditBtn" class="px-3 py-1 text-sm text-gray-600 hover:text-gray-800">Cancel</button>' : ''}
+                        <button id="saveDefBtn" class="px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded-lg hover:bg-indigo-700 transition">Save Definition</button>
+                    </div>
+                </div>
+                <p id="defSaveMsg" class="text-sm mt-2 hidden"></p>
+            </div>`;
+            
+            d.innerHTML = h;
+            
+            // Set up event handlers
+            const textarea = document.getElementById('communityDefInput');
+            const charCount = document.getElementById('defCharCount');
+            const saveBtn = document.getElementById('saveDefBtn');
+            const editBtn = document.getElementById('editCommunityDefBtn');
+            const cancelBtn = document.getElementById('cancelDefEditBtn');
+            const form = document.getElementById('communityDefForm');
+            const defText = document.getElementById('communityDefText');
+            const saveMsg = document.getElementById('defSaveMsg');
+            
+            if (textarea) {
+                // Update character count
+                const updateCount = () => {
+                    const len = textarea.value.length;
+                    charCount.textContent = `${len}/512`;
+                    charCount.className = len > 480 ? 'text-xs text-orange-500' : (len >= 512 ? 'text-xs text-red-500' : 'text-xs text-gray-400');
+                };
+                textarea.addEventListener('input', updateCount);
+                updateCount();
+            }
+            
+            if (editBtn) {
+                editBtn.onclick = () => {
+                    form.classList.remove('hidden');
+                    editBtn.classList.add('hidden');
+                    textarea.focus();
+                };
+            }
+            
+            if (cancelBtn) {
+                cancelBtn.onclick = () => {
+                    form.classList.add('hidden');
+                    if (editBtn) editBtn.classList.remove('hidden');
+                    textarea.value = communityDef.definition || '';
+                };
+            }
+            
+            if (saveBtn) {
+                saveBtn.onclick = async () => {
+                    const def = textarea.value.trim();
+                    if (!def) {
+                        saveMsg.textContent = 'Please enter a definition';
+                        saveMsg.className = 'text-sm mt-2 text-red-500';
+                        saveMsg.classList.remove('hidden');
+                        return;
+                    }
+                    if (def.length > 512) {
+                        saveMsg.textContent = 'Definition must be 512 characters or less';
+                        saveMsg.className = 'text-sm mt-2 text-red-500';
+                        saveMsg.classList.remove('hidden');
+                        return;
+                    }
+                    
+                    saveBtn.disabled = true;
+                    saveBtn.textContent = 'Saving...';
+                    
+                    const author = State.data.username || 'Anonymous';
+                    const result = await API.saveCommunityDefinition(w._id, def, author);
+                    
+                    if (result.definition) {
+                        saveMsg.textContent = 'Definition saved! 🎉';
+                        saveMsg.className = 'text-sm mt-2 text-green-600';
+                        saveMsg.classList.remove('hidden');
+                        
+                        // Update the display
+                        if (defText) {
+                            defText.textContent = def;
+                        }
+                        
+                        setTimeout(() => {
+                            form.classList.add('hidden');
+                            if (editBtn) editBtn.classList.remove('hidden');
+                            saveMsg.classList.add('hidden');
+                        }, 1500);
+                    } else {
+                        saveMsg.textContent = result.message || 'Failed to save';
+                        saveMsg.className = 'text-sm mt-2 text-red-500';
+                        saveMsg.classList.remove('hidden');
+                    }
+                    
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = 'Save Definition';
+                };
+            }
+        }
+    },
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     },
     loadSpecial(t) {
         const i = State.runtime.allWords.findIndex(w => w.text.toUpperCase() === t);
@@ -9262,6 +9419,7 @@ const StreakManager = {
     window.UIManager = UIManager;
     window.WeatherManager = WeatherManager;
     window.LocalPeerManager = LocalPeerManager;
+    window.StreakManager = StreakManager;
     console.log("%c Good Word / Bad Word ", "background: #4f46e5; color: #bada55; padding: 4px; border-radius: 4px;");
     console.log("Play fair! ️😇");
 })();
