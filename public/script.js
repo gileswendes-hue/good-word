@@ -18,7 +18,7 @@ const CONFIG = {
     VOTE: {
         MASH_LIMIT: 8,           
         COOLDOWN_TIERS: [5, 10, 20],  
-        STREAK_WINDOW: 1200,      
+        STREAK_WINDOW: 1400,      
         SWIPE_THRESHOLD: 100
     },
     THEME_SECRETS: {
