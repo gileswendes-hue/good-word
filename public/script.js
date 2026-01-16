@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.5.4',
+    APP_VERSION: '6.5.4.1',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -9269,35 +9269,48 @@ const StreakManager = {
         document.getElementById('hsSaveBtn').onclick = saveFn;
     },
     async shareScores() {
+        const btn = document.getElementById('hsShareBtn');
+        if (btn) btn.textContent = '⏳ SHARING...';
+        
         const scores = State.data.highScores || [];
         const best = scores.length ? scores[0].score : 0;
         const name = State.data.username || "I";
         const text = `${name} just hit a streak of ${best} on Good Word / Bad Word! 🏆 Can you beat the high scores?`;
         const url = window.location.origin;
-        if (navigator.share) {
-            try {
+        
+        try {
+            if (navigator.share) {
                 await navigator.share({ title: 'High Scores', text: text, url: url });
-            } catch(e) { 
-                // User cancelled or share failed - try clipboard as fallback
-                if (e.name !== 'AbortError') {
-                    try {
-                        await navigator.clipboard.writeText(`${text} ${url}`);
-                        UIManager.showPostVoteMessage("Score copied to clipboard! 📋");
-                    } catch(e2) {
-                        UIManager.showPostVoteMessage("Could not share.");
-                    }
-                }
-            }
-        } else {
-            try {
+                if (btn) btn.textContent = '✅ SHARED!';
+            } else {
                 await navigator.clipboard.writeText(`${text} ${url}`);
+                if (btn) btn.textContent = '📋 COPIED!';
                 UIManager.showPostVoteMessage("Score copied to clipboard! 📋");
-            } catch(e) {
-                UIManager.showPostVoteMessage("Could not share.");
+            }
+        } catch(e) {
+            // If share was cancelled or failed, try clipboard
+            if (e.name !== 'AbortError') {
+                try {
+                    await navigator.clipboard.writeText(`${text} ${url}`);
+                    if (btn) btn.textContent = '📋 COPIED!';
+                    UIManager.showPostVoteMessage("Score copied to clipboard! 📋");
+                } catch(e2) {
+                    if (btn) btn.textContent = '❌ FAILED';
+                    UIManager.showPostVoteMessage("Could not share.");
+                }
+            } else {
+                if (btn) btn.textContent = '📤 SHARE';
             }
         }
+        
+        // Reset button text after 2 seconds
+        setTimeout(() => {
+            const btn = document.getElementById('hsShareBtn');
+            if (btn) btn.textContent = '📤 SHARE';
+        }, 2000);
     },
     async showLeaderboard() {
+        const self = this; // Store reference to StreakManager
         if (!document.getElementById('crt-styles')) {
             const s = document.createElement('style');
             s.id = 'crt-styles';
@@ -9352,13 +9365,13 @@ const StreakManager = {
         div.innerHTML = html;
         document.body.appendChild(div.firstElementChild);
         
-        // Bind click handlers programmatically
+        // Bind click handlers using stored self reference
         const modal = document.getElementById('highScoreModal');
         const crtMonitor = modal.querySelector('.crt-monitor');
-        modal.onclick = (e) => { if (e.target === modal) this.closeLeaderboard(); };
+        modal.onclick = (e) => { if (e.target === modal) self.closeLeaderboard(); };
         crtMonitor.onclick = (e) => e.stopPropagation();
-        document.getElementById('hsShareBtn').onclick = () => this.shareScores();
-        document.getElementById('hsCloseBtn').onclick = () => this.closeLeaderboard();
+        document.getElementById('hsShareBtn').onclick = function() { self.shareScores(); };
+        document.getElementById('hsCloseBtn').onclick = function() { self.closeLeaderboard(); };
         
         const globalScores = await API.getGlobalScores();
         const topGlobal = (globalScores && globalScores.length) ? globalScores.slice(0, 8) : [];
