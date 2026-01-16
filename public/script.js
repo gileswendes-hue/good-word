@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.5.4.2',
+    APP_VERSION: '6.4.3.2',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -471,7 +471,7 @@ const OfflineManager = {
         try {
             UIManager.showMessage("Downloading words... 📥");
             const res = await fetch('/api/words/all');
-            if (!res.ok) throw new Error('Network error. Online mode?');
+            if (!res.ok) throw new Error('Network error');
             const data = await res.json();
             if (!data || data.length === 0) {
                 throw new Error('No words received');
@@ -1280,23 +1280,6 @@ async fetchKidsWords() {
     },
     async define(w) {
          return fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${w.toLowerCase()}`);
-    },
-    async getCommunityDefinition(wordId) {
-        try {
-            const r = await fetch(`/api/words/${wordId}/definition`);
-            if (!r.ok) return null;
-            return await r.json();
-        } catch (e) { return null; }
-    },
-    async saveCommunityDefinition(wordId, definition, author) {
-        try {
-            const r = await fetch(`/api/words/${wordId}/definition`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ definition, author })
-            });
-            return await r.json();
-        } catch (e) { return { message: 'Network error. Online mode?' }; }
     },
     async getGlobalScores() {
         try {
@@ -4712,15 +4695,123 @@ const ShareManager = {
     },
     async generateImage() {
         const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const width = 600;
+        const height = 400;
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Background gradient
+        const grd = ctx.createLinearGradient(0, 0, 0, height);
+        grd.addColorStop(0, "#4f46e5"); // indigo
+        grd.addColorStop(1, "#7c3aed"); // purple
+        ctx.fillStyle = grd;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Border
+        ctx.strokeStyle = "#818cf8";
+        ctx.lineWidth = 6;
+        ctx.strokeRect(10, 10, width - 20, height - 20);
+        
+        // Get user data
+        const d = State.data;
+        const username = d.username || "Player";
+        const votes = d.voteCount || 0;
+        const contributions = d.contributorCount || 0;
+        const streak = Math.max(parseInt(d.longestStreak) || 0, parseInt(d.daily?.bestStreak) || 0);
+        const themes = (d.unlockedThemes?.length || 0) + 1;
+        const badges = Object.values(d.badges || {}).filter(b => b).length;
+        
+        // Title
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "900 28px system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("GOOD WORD / BAD WORD", width / 2, 50);
+        
+        // Username
+        ctx.font = "bold 24px system-ui, sans-serif";
+        ctx.fillStyle = "#fbbf24";
+        ctx.fillText(`${username}'s Stats`, width / 2, 90);
+        
+        // Stats
+        ctx.font = "bold 20px system-ui, sans-serif";
+        ctx.fillStyle = "#ffffff";
+        ctx.textAlign = "left";
+        const startX = 80;
+        const startY = 140;
+        const lineHeight = 45;
+        
+        const stats = [
+            { icon: "⚖️", label: "Total Votes", value: votes.toLocaleString() },
+            { icon: "🔥", label: "Best Streak", value: streak.toString() },
+            { icon: "✍️", label: "Words Added", value: contributions.toString() },
+            { icon: "🎨", label: "Themes Unlocked", value: themes.toString() },
+            { icon: "🏆", label: "Badges Earned", value: badges.toString() }
+        ];
+        
+        stats.forEach((stat, i) => {
+            const y = startY + (i * lineHeight);
+            ctx.font = "28px system-ui";
+            ctx.fillText(stat.icon, startX, y);
+            ctx.font = "bold 18px system-ui, sans-serif";
+            ctx.fillStyle = "#c7d2fe";
+            ctx.fillText(stat.label + ":", startX + 45, y);
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "900 22px system-ui, sans-serif";
+            ctx.fillText(stat.value, startX + 220, y);
+        });
+        
+        // Footer
+        ctx.textAlign = "center";
+        ctx.font = "16px system-ui, sans-serif";
+        ctx.fillStyle = "#a5b4fc";
+        ctx.fillText("GBword.com", width / 2, height - 25);
+        
         return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
     },
     async share() {
-        UIManager.showPostVoteMessage("Generating image...");
+        UIManager.showPostVoteMessage("Generating image... 📸");
         try {
             const blob = await this.generateImage();
+            if (!blob) {
+                UIManager.showPostVoteMessage("Could not generate image.");
+                return;
+            }
+            
+            const file = new File([blob], 'my_gbword_stats.png', { type: 'image/png' });
+            const username = State.data.username || "I";
+            const votes = State.data.voteCount || 0;
+            
+            const shareData = {
+                title: 'My Good Word / Bad Word Stats',
+                text: `${username} has cast ${votes.toLocaleString()} votes on Good Word / Bad Word! 🎮 Play at GBword.com`,
+                files: [file]
+            };
+            
+            if (navigator.canShare && navigator.canShare(shareData)) {
+                await navigator.share(shareData);
+                UIManager.showPostVoteMessage("Shared! 🎉");
+            } else if (navigator.share) {
+                // Try sharing without file
+                await navigator.share({
+                    title: 'My Good Word / Bad Word Stats',
+                    text: `${username} has cast ${votes.toLocaleString()} votes on Good Word / Bad Word! 🎮 Play at GBword.com`,
+                    url: window.location.origin
+                });
+                UIManager.showPostVoteMessage("Shared! 🎉");
+            } else {
+                // Fallback: download the image
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'my_gbword_stats.png';
+                a.click();
+                UIManager.showPostVoteMessage("Stats image downloaded! 📥");
+            }
         } catch (e) {
             console.error(e);
-            UIManager.showPostVoteMessage("Could not share image.");
+            if (e.name !== 'AbortError') {
+                UIManager.showPostVoteMessage("Could not share stats.");
+            }
         }
     }
 };
@@ -7939,7 +8030,7 @@ const Game = {
                 const t = DOM.inputs.newWord.value.trim();
                 if (!t || t.includes(' ') || t.length > 45) { DOM.inputs.modalMsg.textContent = "Invalid word."; return }
                 const btn = document.getElementById('submitWordButton'); btn.disabled = true;
-                try { const r = await API.submitWord(t); if (r.status === 201) { State.incrementContributor(); DOM.inputs.modalMsg.textContent = "Success! Your new word has been added!"; setTimeout(() => { ModalManager.toggle('submission', false); this.refreshData() }, 1000) } else { const d = await r.json(); DOM.inputs.modalMsg.textContent = d.message || "Word already exists in dictionary!" } } catch (e) { DOM.inputs.modalMsg.textContent = "Network error. Offline mode?" }
+                try { const r = await API.submitWord(t); if (r.status === 201) { State.incrementContributor(); DOM.inputs.modalMsg.textContent = "Success! Your new word has been added!"; setTimeout(() => { ModalManager.toggle('submission', false); this.refreshData() }, 1000) } else { const d = await r.json(); DOM.inputs.modalMsg.textContent = d.message || "Word already exists in dictionary!" } } catch (e) { DOM.inputs.modalMsg.textContent = "Network Error" }
                 btn.disabled = false
             };
             document.getElementById('runComparisonButton').onclick = async () => {
@@ -8299,8 +8390,6 @@ async vote(t, s = false) {
         document.getElementById('definitionWord').textContent = w.text.toUpperCase();
         const d = document.getElementById('definitionResults');
         d.innerHTML = 'Loading...';
-        
-        let hasDictionaryDef = false;
         try {
             const r = await API.define(w.text);
             if (!r.ok) throw 0;
@@ -8315,147 +8404,9 @@ async vote(t, s = false) {
                 h += '</ol></div>';
             });
             d.innerHTML = h;
-            hasDictionaryDef = true;
         } catch {
-            hasDictionaryDef = false;
+            d.innerHTML = '<p class="text-red-500">Definition not found.</p>';
         }
-        
-        // If no dictionary definition, show community definition or allow adding one
-        if (!hasDictionaryDef) {
-            const communityDef = await API.getCommunityDefinition(w._id);
-            let h = '';
-            
-            if (communityDef && communityDef.definition) {
-                // Show existing community definition with edit option
-                h = `<div class="mb-4">
-                    <div class="flex items-center gap-2 mb-2">
-                        <span class="text-xs font-bold text-purple-600 bg-purple-100 px-2 py-1 rounded">COMMUNITY DEFINITION</span>
-                    </div>
-                    <p class="text-gray-700 mb-2" id="communityDefText">${this.escapeHtml(communityDef.definition)}</p>
-                    <p class="text-xs text-gray-400">Added by ${this.escapeHtml(communityDef.author || 'Anonymous')}</p>
-                    <button id="editCommunityDefBtn" class="mt-3 text-sm text-indigo-600 hover:text-indigo-800 font-medium">✏️ Edit Definition</button>
-                </div>`;
-            } else {
-                // No definition at all - show add form
-                h = `<div class="mb-4">
-                    <p class="text-gray-500 mb-3">No dictionary definition found for this word.</p>
-                    <div class="flex items-center gap-2 mb-2">
-                        <span class="text-xs font-bold text-green-600 bg-green-100 px-2 py-1 rounded">ADD A DEFINITION</span>
-                    </div>
-                    <p class="text-sm text-gray-500 mb-3">Help the community by adding a definition!</p>
-                </div>`;
-            }
-            
-            // Add the edit/add form (hidden initially if showing existing def)
-            const showForm = !communityDef || !communityDef.definition;
-            h += `<div id="communityDefForm" class="${showForm ? '' : 'hidden'}">
-                <textarea id="communityDefInput" 
-                    class="w-full p-3 border border-gray-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" 
-                    rows="3" 
-                    maxlength="512" 
-                    placeholder="Enter a definition (max 512 characters)...">${communityDef && communityDef.definition ? this.escapeHtml(communityDef.definition) : ''}</textarea>
-                <div class="flex justify-between items-center mt-2">
-                    <span id="defCharCount" class="text-xs text-gray-400">0/512</span>
-                    <div class="flex gap-2">
-                        ${communityDef && communityDef.definition ? '<button id="cancelDefEditBtn" class="px-3 py-1 text-sm text-gray-600 hover:text-gray-800">Cancel</button>' : ''}
-                        <button id="saveDefBtn" class="px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded-lg hover:bg-indigo-700 transition">Save Definition</button>
-                    </div>
-                </div>
-                <p id="defSaveMsg" class="text-sm mt-2 hidden"></p>
-            </div>`;
-            
-            d.innerHTML = h;
-            
-            // Set up event handlers
-            const textarea = document.getElementById('communityDefInput');
-            const charCount = document.getElementById('defCharCount');
-            const saveBtn = document.getElementById('saveDefBtn');
-            const editBtn = document.getElementById('editCommunityDefBtn');
-            const cancelBtn = document.getElementById('cancelDefEditBtn');
-            const form = document.getElementById('communityDefForm');
-            const defText = document.getElementById('communityDefText');
-            const saveMsg = document.getElementById('defSaveMsg');
-            
-            if (textarea) {
-                // Update character count
-                const updateCount = () => {
-                    const len = textarea.value.length;
-                    charCount.textContent = `${len}/512`;
-                    charCount.className = len > 480 ? 'text-xs text-orange-500' : (len >= 512 ? 'text-xs text-red-500' : 'text-xs text-gray-400');
-                };
-                textarea.addEventListener('input', updateCount);
-                updateCount();
-            }
-            
-            if (editBtn) {
-                editBtn.onclick = () => {
-                    form.classList.remove('hidden');
-                    editBtn.classList.add('hidden');
-                    textarea.focus();
-                };
-            }
-            
-            if (cancelBtn) {
-                cancelBtn.onclick = () => {
-                    form.classList.add('hidden');
-                    if (editBtn) editBtn.classList.remove('hidden');
-                    textarea.value = communityDef.definition || '';
-                };
-            }
-            
-            if (saveBtn) {
-                saveBtn.onclick = async () => {
-                    const def = textarea.value.trim();
-                    if (!def) {
-                        saveMsg.textContent = 'Please enter a definition';
-                        saveMsg.className = 'text-sm mt-2 text-red-500';
-                        saveMsg.classList.remove('hidden');
-                        return;
-                    }
-                    if (def.length > 512) {
-                        saveMsg.textContent = 'Definition must be 512 characters or less';
-                        saveMsg.className = 'text-sm mt-2 text-red-500';
-                        saveMsg.classList.remove('hidden');
-                        return;
-                    }
-                    
-                    saveBtn.disabled = true;
-                    saveBtn.textContent = 'Saving...';
-                    
-                    const author = State.data.username || 'Anonymous';
-                    const result = await API.saveCommunityDefinition(w._id, def, author);
-                    
-                    if (result.definition) {
-                        saveMsg.textContent = 'Definition saved! 🎉';
-                        saveMsg.className = 'text-sm mt-2 text-green-600';
-                        saveMsg.classList.remove('hidden');
-                        
-                        // Update the display
-                        if (defText) {
-                            defText.textContent = def;
-                        }
-                        
-                        setTimeout(() => {
-                            form.classList.add('hidden');
-                            if (editBtn) editBtn.classList.remove('hidden');
-                            saveMsg.classList.add('hidden');
-                        }, 1500);
-                    } else {
-                        saveMsg.textContent = result.message || 'Failed to save';
-                        saveMsg.className = 'text-sm mt-2 text-red-500';
-                        saveMsg.classList.remove('hidden');
-                    }
-                    
-                    saveBtn.disabled = false;
-                    saveBtn.textContent = 'Save Definition';
-                };
-            }
-        }
-    },
-    escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
     },
     loadSpecial(t) {
         const i = State.runtime.allWords.findIndex(w => w.text.toUpperCase() === t);
@@ -9269,48 +9220,25 @@ const StreakManager = {
         document.getElementById('hsSaveBtn').onclick = saveFn;
     },
     async shareScores() {
-        const btn = document.getElementById('hsShareBtn');
-        if (btn) btn.textContent = '⏳ SHARING...';
-        
         const scores = State.data.highScores || [];
         const best = scores.length ? scores[0].score : 0;
         const name = State.data.username || "I";
         const text = `${name} just hit a streak of ${best} on Good Word / Bad Word! 🏆 Can you beat the high scores?`;
         const url = window.location.origin;
-        
-        try {
-            if (navigator.share) {
+        if (navigator.share) {
+            try {
                 await navigator.share({ title: 'High Scores', text: text, url: url });
-                if (btn) btn.textContent = '✅ SHARED!';
-            } else {
+            } catch(e) { }
+        } else {
+            try {
                 await navigator.clipboard.writeText(`${text} ${url}`);
-                if (btn) btn.textContent = '📋 COPIED!';
                 UIManager.showPostVoteMessage("Score copied to clipboard! 📋");
-            }
-        } catch(e) {
-            // If share was cancelled or failed, try clipboard
-            if (e.name !== 'AbortError') {
-                try {
-                    await navigator.clipboard.writeText(`${text} ${url}`);
-                    if (btn) btn.textContent = '📋 COPIED!';
-                    UIManager.showPostVoteMessage("Score copied to clipboard! 📋");
-                } catch(e2) {
-                    if (btn) btn.textContent = '❌ FAILED';
-                    UIManager.showPostVoteMessage("Could not share.");
-                }
-            } else {
-                if (btn) btn.textContent = '📤 SHARE';
+            } catch(e) {
+                UIManager.showPostVoteMessage("Could not share.");
             }
         }
-        
-        // Reset button text after 2 seconds
-        setTimeout(() => {
-            const btn = document.getElementById('hsShareBtn');
-            if (btn) btn.textContent = '📤 SHARE';
-        }, 2000);
     },
     async showLeaderboard() {
-        const self = this; // Store reference to StreakManager
         if (!document.getElementById('crt-styles')) {
             const s = document.createElement('style');
             s.id = 'crt-styles';
@@ -9327,7 +9255,7 @@ const StreakManager = {
                     border: 4px solid #333;
                 }
                 .crt-overlay {
-                    position: absolute; inset: 0; pointer-events: none; z-index: 1;
+                    position: absolute; inset: 0; pointer-events: none; z-index: 50;
                     background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
                     background-size: 100% 3px, 4px 100%;
                     animation: scanline-scroll 10s linear infinite;
@@ -9340,8 +9268,8 @@ const StreakManager = {
             document.head.appendChild(s);
         }
         const html = `
-            <div id="highScoreModal" class="fixed inset-0 bg-black/90 z-[200] flex items-center justify-center p-4 backdrop-blur-md">
-                <div class="crt-monitor w-full max-w-md transform transition-all scale-100">
+            <div id="highScoreModal" class="fixed inset-0 bg-black/90 z-[200] flex items-center justify-center p-4 backdrop-blur-md" onclick="StreakManager.closeLeaderboard()">
+                <div class="crt-monitor w-full max-w-md transform transition-all scale-100" onclick="event.stopPropagation()">
                     <div class="crt-overlay"></div>
                     <div class="crt-content">
                         <div class="text-center mb-6">
@@ -9354,8 +9282,8 @@ const StreakManager = {
                         <div class="mt-4 flex justify-between items-center crt-text text-xs text-gray-400 font-bold">
                              <span id="hs-page-indicator">LOADING</span>
                              <div class="flex gap-2">
-                                <button id="hsShareBtn" class="px-2 py-1 border border-gray-600 rounded hover:bg-blue-900/30 hover:text-blue-400 hover:border-blue-500 transition-colors cursor-pointer">📤 SHARE</button>
-                                <button id="hsCloseBtn" class="px-2 py-1 border border-gray-600 rounded hover:bg-red-900/30 hover:text-red-400 hover:border-red-500 transition-colors cursor-pointer">⏏ EJECT DISK</button>
+                                <button onclick="StreakManager.shareScores()" class="px-2 py-1 border border-gray-600 rounded hover:bg-blue-900/30 hover:text-blue-400 hover:border-blue-500 transition-colors cursor-pointer">📤 SHARE</button>
+                                <button onclick="StreakManager.closeLeaderboard()" class="px-2 py-1 border border-gray-600 rounded hover:bg-red-900/30 hover:text-red-400 hover:border-red-500 transition-colors cursor-pointer">⏏ EJECT DISK</button>
                              </div>
                         </div>
                     </div>
@@ -9364,21 +9292,6 @@ const StreakManager = {
         const div = document.createElement('div');
         div.innerHTML = html;
         document.body.appendChild(div.firstElementChild);
-        
-        // Bind click handlers using addEventListener for reliability
-        const modal = document.getElementById('highScoreModal');
-        const crtMonitor = modal.querySelector('.crt-monitor');
-        modal.addEventListener('click', function(e) { if (e.target === modal) self.closeLeaderboard(); });
-        crtMonitor.addEventListener('click', function(e) { e.stopPropagation(); });
-        document.getElementById('hsShareBtn').addEventListener('click', function(e) { 
-            e.stopPropagation();
-            self.shareScores(); 
-        });
-        document.getElementById('hsCloseBtn').addEventListener('click', function(e) { 
-            e.stopPropagation();
-            self.closeLeaderboard(); 
-        });
-        
         const globalScores = await API.getGlobalScores();
         const topGlobal = (globalScores && globalScores.length) ? globalScores.slice(0, 8) : [];
         const localScores = (State.data.highScores || []).slice(0, 8);
@@ -9457,7 +9370,6 @@ const StreakManager = {
     window.UIManager = UIManager;
     window.WeatherManager = WeatherManager;
     window.LocalPeerManager = LocalPeerManager;
-    window.StreakManager = StreakManager;
     console.log("%c Good Word / Bad Word ", "background: #4f46e5; color: #bada55; padding: 4px; border-radius: 4px;");
     console.log("Play fair! ️😇");
 })();
