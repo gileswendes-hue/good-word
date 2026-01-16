@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.4.3.2',
+    APP_VERSION: '6.4.7',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -4695,124 +4695,517 @@ const ShareManager = {
     },
     async generateImage() {
         const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        const width = 600;
-        const height = 400;
-        canvas.width = width;
-        canvas.height = height;
-        
-        // Background gradient
-        const grd = ctx.createLinearGradient(0, 0, 0, height);
-        grd.addColorStop(0, "#4f46e5"); // indigo
-        grd.addColorStop(1, "#7c3aed"); // purple
-        ctx.fillStyle = grd;
-        ctx.fillRect(0, 0, width, height);
-        
-        // Border
-        ctx.strokeStyle = "#818cf8";
-        ctx.lineWidth = 6;
-        ctx.strokeRect(10, 10, width - 20, height - 20);
-        
-        // Get user data
-        const d = State.data;
-        const username = d.username || "Player";
-        const votes = d.voteCount || 0;
-        const contributions = d.contributorCount || 0;
-        const streak = Math.max(parseInt(d.longestStreak) || 0, parseInt(d.daily?.bestStreak) || 0);
-        const themes = (d.unlockedThemes?.length || 0) + 1;
-        const badges = Object.values(d.badges || {}).filter(b => b).length;
-        
-        // Title
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "900 28px system-ui, sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText("GOOD WORD / BAD WORD", width / 2, 50);
-        
-        // Username
-        ctx.font = "bold 24px system-ui, sans-serif";
-        ctx.fillStyle = "#fbbf24";
-        ctx.fillText(`${username}'s Stats`, width / 2, 90);
-        
-        // Stats
-        ctx.font = "bold 20px system-ui, sans-serif";
-        ctx.fillStyle = "#ffffff";
-        ctx.textAlign = "left";
-        const startX = 80;
-        const startY = 140;
-        const lineHeight = 45;
-        
-        const stats = [
-            { icon: "⚖️", label: "Total Votes", value: votes.toLocaleString() },
-            { icon: "🔥", label: "Best Streak", value: streak.toString() },
-            { icon: "✍️", label: "Words Added", value: contributions.toString() },
-            { icon: "🎨", label: "Themes Unlocked", value: themes.toString() },
-            { icon: "🏆", label: "Badges Earned", value: badges.toString() }
-        ];
-        
-        stats.forEach((stat, i) => {
-            const y = startY + (i * lineHeight);
-            ctx.font = "28px system-ui";
-            ctx.fillText(stat.icon, startX, y);
-            ctx.font = "bold 18px system-ui, sans-serif";
-            ctx.fillStyle = "#c7d2fe";
-            ctx.fillText(stat.label + ":", startX + 45, y);
-            ctx.fillStyle = "#ffffff";
-            ctx.font = "900 22px system-ui, sans-serif";
-            ctx.fillText(stat.value, startX + 220, y);
-        });
-        
-        // Footer
-        ctx.textAlign = "center";
-        ctx.font = "16px system-ui, sans-serif";
-        ctx.fillStyle = "#a5b4fc";
-        ctx.fillText("GBword.com", width / 2, height - 25);
-        
         return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
     },
     async share() {
-        UIManager.showPostVoteMessage("Generating image... 📸");
+        UIManager.showPostVoteMessage("Generating image...");
         try {
             const blob = await this.generateImage();
-            if (!blob) {
-                UIManager.showPostVoteMessage("Could not generate image.");
+        } catch (e) {
+            console.error(e);
+            UIManager.showPostVoteMessage("Could not share image.");
+        }
+    }
+};
+const MiniGames = {
+    // ==================== WORD WAR (Higher or Lower) ====================
+    wordWar: {
+        active: false,
+        streak: 0,
+        bestStreak: 0,
+        wordA: null,
+        wordB: null,
+        
+        start() {
+            this.active = true;
+            this.streak = 0;
+            this.bestStreak = parseInt(localStorage.getItem('wordWarBest')) || 0;
+            this.showRound();
+        },
+        
+        getRandomWord() {
+            const words = State.runtime.allWords.filter(w => (w.goodVotes + w.badVotes) >= 5);
+            if (words.length < 10) return State.runtime.allWords[Math.floor(Math.random() * State.runtime.allWords.length)];
+            return words[Math.floor(Math.random() * words.length)];
+        },
+        
+        getScore(word) {
+            return (word.goodVotes || 0) - (word.badVotes || 0);
+        },
+        
+        getApproval(word) {
+            const total = (word.goodVotes || 0) + (word.badVotes || 0);
+            if (total === 0) return 50;
+            return Math.round(((word.goodVotes || 0) / total) * 100);
+        },
+        
+        showRound() {
+            // Get two different words
+            this.wordA = this.getRandomWord();
+            do {
+                this.wordB = this.getRandomWord();
+            } while (this.wordB._id === this.wordA._id);
+            
+            const scoreA = this.getScore(this.wordA);
+            const approvalA = this.getApproval(this.wordA);
+            const approvalB = this.getApproval(this.wordB);
+            
+            const html = `
+                <div id="wordWarModal" class="fixed inset-0 bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 z-[10000] flex items-center justify-center p-4">
+                    <div class="w-full max-w-2xl">
+                        <div class="text-center mb-6">
+                            <h2 class="text-3xl font-black text-white mb-2">⚔️ WORD WAR ⚔️</h2>
+                            <p class="text-purple-200">Which word has a HIGHER approval rating?</p>
+                            <div class="flex justify-center gap-6 mt-3">
+                                <div class="text-yellow-400 font-bold">🔥 Streak: ${this.streak}</div>
+                                <div class="text-purple-300 font-bold">👑 Best: ${this.bestStreak}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex flex-col md:flex-row gap-4 items-stretch">
+                            <!-- Word A (Score Revealed) -->
+                            <div class="flex-1 bg-white/10 backdrop-blur rounded-2xl p-6 text-center border-2 border-white/20">
+                                <div class="text-sm text-purple-300 mb-2 font-bold">REVEALED</div>
+                                <h3 class="text-2xl md:text-3xl font-black text-white mb-4">${this.wordA.text.toUpperCase()}</h3>
+                                <div class="text-5xl font-black ${scoreA >= 0 ? 'text-green-400' : 'text-red-400'} mb-2">${approvalA}%</div>
+                                <div class="text-purple-300 text-sm">Approval Rating</div>
+                            </div>
+                            
+                            <div class="flex items-center justify-center text-4xl font-black text-white/50">VS</div>
+                            
+                            <!-- Word B (Score Hidden) -->
+                            <div class="flex-1 bg-white/10 backdrop-blur rounded-2xl p-6 text-center border-2 border-yellow-400/50">
+                                <div class="text-sm text-yellow-400 mb-2 font-bold">MYSTERY</div>
+                                <h3 class="text-2xl md:text-3xl font-black text-white mb-4">${this.wordB.text.toUpperCase()}</h3>
+                                <div class="text-5xl font-black text-yellow-400 mb-2">?%</div>
+                                <div class="text-purple-300 text-sm">Guess if Higher or Lower!</div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex gap-4 mt-6 justify-center">
+                            <button id="wwHigher" class="px-8 py-4 bg-green-500 hover:bg-green-600 text-white font-black text-xl rounded-xl transition transform hover:scale-105 shadow-lg">
+                                📈 HIGHER
+                            </button>
+                            <button id="wwLower" class="px-8 py-4 bg-red-500 hover:bg-red-600 text-white font-black text-xl rounded-xl transition transform hover:scale-105 shadow-lg">
+                                📉 LOWER
+                            </button>
+                        </div>
+                        
+                        <button id="wwClose" class="mt-6 w-full py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition">
+                            ✕ Exit Game
+                        </button>
+                    </div>
+                </div>`;
+            
+            // Remove existing modal if any
+            const existing = document.getElementById('wordWarModal');
+            if (existing) existing.remove();
+            
+            document.body.insertAdjacentHTML('beforeend', html);
+            
+            document.getElementById('wwHigher').onclick = () => this.guess('higher');
+            document.getElementById('wwLower').onclick = () => this.guess('lower');
+            document.getElementById('wwClose').onclick = () => this.close();
+        },
+        
+        guess(choice) {
+            const approvalA = this.getApproval(this.wordA);
+            const approvalB = this.getApproval(this.wordB);
+            
+            const isHigher = approvalB > approvalA;
+            const isEqual = approvalB === approvalA;
+            const correct = isEqual || (choice === 'higher' && isHigher) || (choice === 'lower' && !isHigher);
+            
+            if (correct) {
+                this.streak++;
+                if (this.streak > this.bestStreak) {
+                    this.bestStreak = this.streak;
+                    localStorage.setItem('wordWarBest', this.bestStreak);
+                }
+                this.showResult(true, approvalB);
+            } else {
+                this.showResult(false, approvalB);
+            }
+        },
+        
+        showResult(correct, actualScore) {
+            const modal = document.getElementById('wordWarModal');
+            if (!modal) return;
+            
+            const resultHtml = `
+                <div class="fixed inset-0 bg-black/80 z-[10001] flex items-center justify-center p-4" id="wwResult">
+                    <div class="bg-white rounded-2xl p-8 text-center max-w-md w-full transform animate-bounce-in">
+                        <div class="text-6xl mb-4">${correct ? '🎉' : '💥'}</div>
+                        <h3 class="text-2xl font-black ${correct ? 'text-green-600' : 'text-red-600'} mb-2">
+                            ${correct ? 'CORRECT!' : 'WRONG!'}
+                        </h3>
+                        <p class="text-gray-600 mb-4">
+                            <strong>${this.wordB.text.toUpperCase()}</strong> has <strong>${actualScore}%</strong> approval
+                        </p>
+                        ${correct ? `
+                            <p class="text-indigo-600 font-bold mb-4">🔥 Streak: ${this.streak}</p>
+                            <button id="wwNext" class="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition">
+                                Next Round →
+                            </button>
+                        ` : `
+                            <p class="text-gray-600 mb-4">Final Streak: <strong class="text-indigo-600">${this.streak}</strong></p>
+                            <div class="flex gap-3 justify-center">
+                                <button id="wwRestart" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition">
+                                    🔄 Play Again
+                                </button>
+                                <button id="wwExit" class="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-xl transition">
+                                    Exit
+                                </button>
+                            </div>
+                        `}
+                    </div>
+                </div>`;
+            
+            document.body.insertAdjacentHTML('beforeend', resultHtml);
+            
+            if (correct) {
+                document.getElementById('wwNext').onclick = () => {
+                    document.getElementById('wwResult').remove();
+                    this.showRound();
+                };
+            } else {
+                document.getElementById('wwRestart').onclick = () => {
+                    document.getElementById('wwResult').remove();
+                    this.streak = 0;
+                    this.showRound();
+                };
+                document.getElementById('wwExit').onclick = () => this.close();
+            }
+        },
+        
+        close() {
+            this.active = false;
+            const modal = document.getElementById('wordWarModal');
+            const result = document.getElementById('wwResult');
+            if (modal) modal.remove();
+            if (result) result.remove();
+        }
+    },
+    
+    // ==================== DEFINITION DASH (Trivia) ====================
+    definitionDash: {
+        active: false,
+        score: 0,
+        round: 0,
+        maxRounds: 10,
+        timer: null,
+        timeLeft: 10,
+        correctWord: null,
+        options: [],
+        
+        start() {
+            this.active = true;
+            this.score = 0;
+            this.round = 0;
+            this.showIntro();
+        },
+        
+        showIntro() {
+            const html = `
+                <div id="defDashModal" class="fixed inset-0 bg-gradient-to-br from-emerald-900 via-teal-900 to-cyan-900 z-[10000] flex items-center justify-center p-4">
+                    <div class="text-center max-w-md">
+                        <div class="text-6xl mb-4">📚</div>
+                        <h2 class="text-3xl font-black text-white mb-4">DEFINITION DASH</h2>
+                        <p class="text-teal-200 mb-6">Read the definition, guess the word!<br>You have <strong>10 seconds</strong> per round.</p>
+                        <div class="bg-white/10 rounded-xl p-4 mb-6">
+                            <p class="text-white font-bold">${this.maxRounds} Rounds</p>
+                            <p class="text-teal-300 text-sm">Score points for correct answers</p>
+                        </div>
+                        <button id="ddStart" class="px-8 py-4 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xl rounded-xl transition transform hover:scale-105 shadow-lg">
+                            🚀 START GAME
+                        </button>
+                        <button id="ddClose" class="mt-4 block w-full py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition">
+                            ✕ Cancel
+                        </button>
+                    </div>
+                </div>`;
+            
+            document.body.insertAdjacentHTML('beforeend', html);
+            document.getElementById('ddStart').onclick = () => this.nextRound();
+            document.getElementById('ddClose').onclick = () => this.close();
+        },
+        
+        async nextRound() {
+            this.round++;
+            if (this.round > this.maxRounds) {
+                this.showFinalScore();
                 return;
             }
             
-            const file = new File([blob], 'my_gbword_stats.png', { type: 'image/png' });
-            const username = State.data.username || "I";
-            const votes = State.data.voteCount || 0;
+            // Find a word with a definition
+            const modal = document.getElementById('defDashModal');
+            if (modal) {
+                modal.innerHTML = `
+                    <div class="text-center">
+                        <div class="text-4xl animate-spin mb-4">📚</div>
+                        <p class="text-white font-bold">Finding a word with definition...</p>
+                    </div>`;
+            }
             
-            const shareData = {
-                title: 'My Good Word / Bad Word Stats',
-                text: `${username} has cast ${votes.toLocaleString()} votes on Good Word / Bad Word! 🎮 Play at GBword.com`,
-                files: [file]
+            let definition = null;
+            let attempts = 0;
+            const maxAttempts = 20;
+            
+            while (!definition && attempts < maxAttempts) {
+                attempts++;
+                const randomWord = State.runtime.allWords[Math.floor(Math.random() * State.runtime.allWords.length)];
+                
+                try {
+                    const r = await API.define(randomWord.text);
+                    if (r.ok) {
+                        const j = await r.json();
+                        if (j[0] && j[0].meanings && j[0].meanings[0] && j[0].meanings[0].definitions[0]) {
+                            this.correctWord = randomWord;
+                            definition = j[0].meanings[0].definitions[0].definition;
+                        }
+                    }
+                } catch (e) {
+                    // Try next word
+                }
+            }
+            
+            if (!definition) {
+                UIManager.showPostVoteMessage("Could not find definitions. Try again!");
+                this.close();
+                return;
+            }
+            
+            // Get 3 random wrong answers
+            this.options = [this.correctWord];
+            while (this.options.length < 4) {
+                const randWord = State.runtime.allWords[Math.floor(Math.random() * State.runtime.allWords.length)];
+                if (!this.options.find(o => o._id === randWord._id)) {
+                    this.options.push(randWord);
+                }
+            }
+            
+            // Shuffle options
+            for (let i = this.options.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [this.options[i], this.options[j]] = [this.options[j], this.options[i]];
+            }
+            
+            this.showQuestion(definition);
+        },
+        
+        showQuestion(definition) {
+            this.timeLeft = 10;
+            
+            const html = `
+                <div id="defDashModal" class="fixed inset-0 bg-gradient-to-br from-emerald-900 via-teal-900 to-cyan-900 z-[10000] flex items-center justify-center p-4">
+                    <div class="w-full max-w-lg">
+                        <div class="flex justify-between items-center mb-4">
+                            <div class="text-white font-bold">Round ${this.round}/${this.maxRounds}</div>
+                            <div class="text-yellow-400 font-bold">Score: ${this.score}</div>
+                        </div>
+                        
+                        <!-- Timer Bar -->
+                        <div class="w-full bg-white/20 rounded-full h-3 mb-6 overflow-hidden">
+                            <div id="ddTimerBar" class="bg-emerald-400 h-full rounded-full transition-all duration-1000" style="width: 100%"></div>
+                        </div>
+                        
+                        <div class="bg-white/10 backdrop-blur rounded-2xl p-6 mb-6">
+                            <div class="text-sm text-teal-300 mb-2 font-bold">📖 DEFINITION:</div>
+                            <p class="text-white text-lg leading-relaxed">${definition}</p>
+                        </div>
+                        
+                        <div class="text-center text-teal-300 mb-4 font-bold">Which word matches this definition?</div>
+                        
+                        <div class="grid grid-cols-2 gap-3">
+                            ${this.options.map((opt, i) => `
+                                <button class="dd-option px-4 py-4 bg-white/10 hover:bg-white/20 border-2 border-white/30 hover:border-emerald-400 text-white font-bold text-lg rounded-xl transition transform hover:scale-102" data-index="${i}">
+                                    ${opt.text.toUpperCase()}
+                                </button>
+                            `).join('')}
+                        </div>
+                        
+                        <div class="mt-4 text-center">
+                            <span id="ddTimeDisplay" class="text-2xl font-black text-yellow-400">${this.timeLeft}s</span>
+                        </div>
+                    </div>
+                </div>`;
+            
+            const existing = document.getElementById('defDashModal');
+            if (existing) existing.remove();
+            
+            document.body.insertAdjacentHTML('beforeend', html);
+            
+            // Bind option clicks
+            document.querySelectorAll('.dd-option').forEach(btn => {
+                btn.onclick = () => {
+                    const index = parseInt(btn.dataset.index);
+                    this.checkAnswer(index);
+                };
+            });
+            
+            // Start timer
+            this.startTimer();
+        },
+        
+        startTimer() {
+            if (this.timer) clearInterval(this.timer);
+            
+            this.timer = setInterval(() => {
+                this.timeLeft--;
+                
+                const display = document.getElementById('ddTimeDisplay');
+                const bar = document.getElementById('ddTimerBar');
+                
+                if (display) display.textContent = this.timeLeft + 's';
+                if (bar) bar.style.width = (this.timeLeft / 10 * 100) + '%';
+                
+                if (this.timeLeft <= 3) {
+                    if (display) display.classList.add('text-red-400');
+                    if (bar) bar.classList.replace('bg-emerald-400', 'bg-red-400');
+                }
+                
+                if (this.timeLeft <= 0) {
+                    clearInterval(this.timer);
+                    this.checkAnswer(-1); // Time's up
+                }
+            }, 1000);
+        },
+        
+        checkAnswer(selectedIndex) {
+            if (this.timer) clearInterval(this.timer);
+            
+            const correct = selectedIndex >= 0 && this.options[selectedIndex]._id === this.correctWord._id;
+            const correctIndex = this.options.findIndex(o => o._id === this.correctWord._id);
+            
+            if (correct) {
+                this.score += Math.max(1, this.timeLeft); // Bonus for speed
+            }
+            
+            // Highlight answers
+            document.querySelectorAll('.dd-option').forEach((btn, i) => {
+                btn.disabled = true;
+                if (i === correctIndex) {
+                    btn.classList.remove('bg-white/10', 'border-white/30');
+                    btn.classList.add('bg-green-500', 'border-green-400');
+                } else if (i === selectedIndex) {
+                    btn.classList.remove('bg-white/10', 'border-white/30');
+                    btn.classList.add('bg-red-500', 'border-red-400');
+                }
+            });
+            
+            // Show result message
+            const modal = document.getElementById('defDashModal');
+            if (modal) {
+                const resultDiv = document.createElement('div');
+                resultDiv.className = 'mt-4 text-center';
+                resultDiv.innerHTML = correct 
+                    ? `<div class="text-green-400 font-black text-xl">✓ Correct! +${Math.max(1, this.timeLeft + 1)} points</div>`
+                    : `<div class="text-red-400 font-black text-xl">${selectedIndex === -1 ? '⏰ Time\'s Up!' : '✗ Wrong!'}</div>`;
+                modal.querySelector('.max-w-lg').appendChild(resultDiv);
+            }
+            
+            // Next round after delay
+            setTimeout(() => this.nextRound(), 2000);
+        },
+        
+        showFinalScore() {
+            const bestScore = parseInt(localStorage.getItem('defDashBest')) || 0;
+            const isNewBest = this.score > bestScore;
+            if (isNewBest) {
+                localStorage.setItem('defDashBest', this.score);
+            }
+            
+            const html = `
+                <div id="defDashModal" class="fixed inset-0 bg-gradient-to-br from-emerald-900 via-teal-900 to-cyan-900 z-[10000] flex items-center justify-center p-4">
+                    <div class="text-center max-w-md bg-white/10 backdrop-blur rounded-2xl p-8">
+                        <div class="text-6xl mb-4">${isNewBest ? '🏆' : '📚'}</div>
+                        <h2 class="text-3xl font-black text-white mb-2">GAME OVER!</h2>
+                        ${isNewBest ? '<div class="text-yellow-400 font-bold mb-4">🎉 NEW HIGH SCORE! 🎉</div>' : ''}
+                        <div class="text-5xl font-black text-emerald-400 mb-4">${this.score}</div>
+                        <p class="text-teal-200 mb-6">points scored</p>
+                        <div class="text-teal-300 mb-6">Best Score: ${Math.max(this.score, bestScore)}</div>
+                        <div class="flex gap-3 justify-center">
+                            <button id="ddRestart" class="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition">
+                                🔄 Play Again
+                            </button>
+                            <button id="ddExit" class="px-6 py-3 bg-white/20 hover:bg-white/30 text-white font-bold rounded-xl transition">
+                                Exit
+                            </button>
+                        </div>
+                    </div>
+                </div>`;
+            
+            const existing = document.getElementById('defDashModal');
+            if (existing) existing.remove();
+            
+            document.body.insertAdjacentHTML('beforeend', html);
+            
+            document.getElementById('ddRestart').onclick = () => {
+                this.score = 0;
+                this.round = 0;
+                this.nextRound();
             };
-            
-            if (navigator.canShare && navigator.canShare(shareData)) {
-                await navigator.share(shareData);
-                UIManager.showPostVoteMessage("Shared! 🎉");
-            } else if (navigator.share) {
-                // Try sharing without file
-                await navigator.share({
-                    title: 'My Good Word / Bad Word Stats',
-                    text: `${username} has cast ${votes.toLocaleString()} votes on Good Word / Bad Word! 🎮 Play at GBword.com`,
-                    url: window.location.origin
-                });
-                UIManager.showPostVoteMessage("Shared! 🎉");
-            } else {
-                // Fallback: download the image
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = 'my_gbword_stats.png';
-                a.click();
-                UIManager.showPostVoteMessage("Stats image downloaded! 📥");
-            }
-        } catch (e) {
-            console.error(e);
-            if (e.name !== 'AbortError') {
-                UIManager.showPostVoteMessage("Could not share stats.");
-            }
+            document.getElementById('ddExit').onclick = () => this.close();
+        },
+        
+        close() {
+            this.active = false;
+            if (this.timer) clearInterval(this.timer);
+            const modal = document.getElementById('defDashModal');
+            if (modal) modal.remove();
         }
+    },
+    
+    // Show mini-games menu
+    showMenu() {
+        const html = `
+            <div id="miniGamesMenu" class="fixed inset-0 bg-black/90 z-[10000] flex items-center justify-center p-4 backdrop-blur">
+                <div class="w-full max-w-md">
+                    <h2 class="text-3xl font-black text-white text-center mb-6">🎮 MINI GAMES</h2>
+                    
+                    <div class="space-y-4">
+                        <button id="startWordWar" class="w-full p-6 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 rounded-2xl text-left transition transform hover:scale-102 shadow-lg">
+                            <div class="flex items-center gap-4">
+                                <span class="text-4xl">⚔️</span>
+                                <div>
+                                    <h3 class="text-xl font-black text-white">Word War</h3>
+                                    <p class="text-purple-200 text-sm">Higher or Lower? Guess which word has better approval!</p>
+                                    <p class="text-yellow-400 text-xs mt-1 font-bold">Best Streak: ${parseInt(localStorage.getItem('wordWarBest')) || 0}</p>
+                                </div>
+                            </div>
+                        </button>
+                        
+                        <button id="startDefDash" class="w-full p-6 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 rounded-2xl text-left transition transform hover:scale-102 shadow-lg">
+                            <div class="flex items-center gap-4">
+                                <span class="text-4xl">📚</span>
+                                <div>
+                                    <h3 class="text-xl font-black text-white">Definition Dash</h3>
+                                    <p class="text-teal-200 text-sm">Read the definition, guess the word! 10 seconds per round.</p>
+                                    <p class="text-yellow-400 text-xs mt-1 font-bold">High Score: ${parseInt(localStorage.getItem('defDashBest')) || 0}</p>
+                                </div>
+                            </div>
+                        </button>
+                    </div>
+                    
+                    <button id="closeMiniGames" class="mt-6 w-full py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition">
+                        ✕ Close
+                    </button>
+                </div>
+            </div>`;
+        
+        document.body.insertAdjacentHTML('beforeend', html);
+        
+        document.getElementById('startWordWar').onclick = () => {
+            document.getElementById('miniGamesMenu').remove();
+            this.wordWar.start();
+        };
+        document.getElementById('startDefDash').onclick = () => {
+            document.getElementById('miniGamesMenu').remove();
+            this.definitionDash.start();
+        };
+        document.getElementById('closeMiniGames').onclick = () => {
+            document.getElementById('miniGamesMenu').remove();
+        };
     }
 };
 const UIManager = {
@@ -8068,9 +8461,23 @@ const Game = {
             }
             State.init();
             RoomManager.init();
+            
+            // Create Mini Games button
+            const miniGamesBtn = document.createElement('button');
+            miniGamesBtn.id = 'miniGamesBtn';
+            miniGamesBtn.className = 'fixed top-16 right-6 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-3 rounded-full shadow-lg z-50 font-bold cursor-pointer hover:from-purple-500 hover:to-pink-500 transition-all active:scale-95';
+            miniGamesBtn.style.cssText = 'width: 68px; height: 68px; padding: 0;';
+            miniGamesBtn.innerHTML = `<span style="font-size: 28px;">🎮</span>`;
+            miniGamesBtn.title = 'Mini Games';
+            miniGamesBtn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); MiniGames.showMenu(); };
+            document.body.appendChild(miniGamesBtn);
+            
             if (State.data.settings.hideMultiplayer || State.data.settings.kidsMode) {
                 const roomBtn = document.getElementById('roomBtn');
                 if (roomBtn) roomBtn.style.display = 'none';
+            }
+            if (State.data.settings.kidsMode) {
+                miniGamesBtn.style.display = 'none';
             }
             DOM.inputs.username.value = State.data.username === 'Unknown' ? '' : State.data.username;
             DOM.inputs.username.addEventListener('change', (e) => State.save('username', e.target.value.trim() || 'Guest'));
@@ -9370,6 +9777,8 @@ const StreakManager = {
     window.UIManager = UIManager;
     window.WeatherManager = WeatherManager;
     window.LocalPeerManager = LocalPeerManager;
+    window.MiniGames = MiniGames;
+    window.StreakManager = StreakManager;
     console.log("%c Good Word / Bad Word ", "background: #4f46e5; color: #bada55; padding: 4px; border-radius: 4px;");
     console.log("Play fair! ️😇");
 })();
