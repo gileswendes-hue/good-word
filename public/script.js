@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.5.2',
+    APP_VERSION: '6.5.3',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -1863,14 +1863,19 @@ const WeatherManager = {
     }
 };
 const CommunityGoal = {
-    MILESTONE: 50000, // 50k increments
+    MILESTONE: 50000, // 50k increments for adults
+    KIDS_MILESTONE: 5000, // 5k increments for kids (1/10th)
+    getMilestone() {
+        return State.data.settings.kidsMode ? this.KIDS_MILESTONE : this.MILESTONE;
+    },
     update(totalVotes) {
         const bar = DOM.header.communityGoalBar;
         const text = DOM.header.communityGoalText;
         if (!bar || !text) return;
-        const currentMilestone = Math.floor(totalVotes / this.MILESTONE) * this.MILESTONE + this.MILESTONE;
-        const prevMilestone = currentMilestone - this.MILESTONE;
-        const progress = ((totalVotes - prevMilestone) / this.MILESTONE) * 100;
+        const milestone = this.getMilestone();
+        const currentMilestone = Math.floor(totalVotes / milestone) * milestone + milestone;
+        const prevMilestone = currentMilestone - milestone;
+        const progress = ((totalVotes - prevMilestone) / milestone) * 100;
         const remaining = currentMilestone - totalVotes;
         bar.style.width = Math.min(progress, 100) + '%';
         const fmt = n => n >= 1000000 ? (n/1000000).toFixed(1) + 'M' : n >= 1000 ? Math.round(n/1000) + 'k' : n;
@@ -9317,7 +9322,7 @@ const StreakManager = {
             document.head.appendChild(s);
         }
         const html = `
-            <div id="highScoreModal" class="fixed inset-0 bg-black/90 z-[200] flex items-center justify-center p-4 backdrop-blur-md" onclick="StreakManager.closeLeaderboard()">
+            <div id="highScoreModal" class="fixed inset-0 bg-black/90 z-[200] flex items-center justify-center p-4 backdrop-blur-md">
                 <div class="crt-monitor w-full max-w-md transform transition-all scale-100" onclick="event.stopPropagation()">
                     <div class="crt-overlay"></div>
                     <div class="crt-content">
@@ -9331,8 +9336,8 @@ const StreakManager = {
                         <div class="mt-4 flex justify-between items-center crt-text text-xs text-gray-400 font-bold">
                              <span id="hs-page-indicator">LOADING</span>
                              <div class="flex gap-2">
-                                <button onclick="StreakManager.shareScores()" class="px-2 py-1 border border-gray-600 rounded hover:bg-blue-900/30 hover:text-blue-400 hover:border-blue-500 transition-colors cursor-pointer">📤 SHARE</button>
-                                <button onclick="StreakManager.closeLeaderboard()" class="px-2 py-1 border border-gray-600 rounded hover:bg-red-900/30 hover:text-red-400 hover:border-red-500 transition-colors cursor-pointer">⏏ EJECT DISK</button>
+                                <button id="hs-share-btn" class="px-2 py-1 border border-gray-600 rounded hover:bg-blue-900/30 hover:text-blue-400 hover:border-blue-500 transition-colors cursor-pointer">📤 SHARE</button>
+                                <button id="hs-close-btn" class="px-2 py-1 border border-gray-600 rounded hover:bg-red-900/30 hover:text-red-400 hover:border-red-500 transition-colors cursor-pointer">⏏ EJECT DISK</button>
                              </div>
                         </div>
                     </div>
@@ -9341,6 +9346,12 @@ const StreakManager = {
         const div = document.createElement('div');
         div.innerHTML = html;
         document.body.appendChild(div.firstElementChild);
+        
+        // Bind event handlers programmatically instead of inline onclick
+        document.getElementById('highScoreModal').onclick = (e) => { if (e.target.id === 'highScoreModal') this.closeLeaderboard(); };
+        document.getElementById('hs-share-btn').onclick = () => this.shareScores();
+        document.getElementById('hs-close-btn').onclick = () => this.closeLeaderboard();
+        
         const globalScores = await API.getGlobalScores();
         const topGlobal = (globalScores && globalScores.length) ? globalScores.slice(0, 8) : [];
         const localScores = (State.data.highScores || []).slice(0, 8);
