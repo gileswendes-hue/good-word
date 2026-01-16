@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.5.4.1',
+    APP_VERSION: '6.5.4.2',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -9327,7 +9327,7 @@ const StreakManager = {
                     border: 4px solid #333;
                 }
                 .crt-overlay {
-                    position: absolute; inset: 0; pointer-events: none; z-index: 50;
+                    position: absolute; inset: 0; pointer-events: none; z-index: 1;
                     background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
                     background-size: 100% 3px, 4px 100%;
                     animation: scanline-scroll 10s linear infinite;
@@ -9365,13 +9365,19 @@ const StreakManager = {
         div.innerHTML = html;
         document.body.appendChild(div.firstElementChild);
         
-        // Bind click handlers using stored self reference
+        // Bind click handlers using addEventListener for reliability
         const modal = document.getElementById('highScoreModal');
         const crtMonitor = modal.querySelector('.crt-monitor');
-        modal.onclick = (e) => { if (e.target === modal) self.closeLeaderboard(); };
-        crtMonitor.onclick = (e) => e.stopPropagation();
-        document.getElementById('hsShareBtn').onclick = function() { self.shareScores(); };
-        document.getElementById('hsCloseBtn').onclick = function() { self.closeLeaderboard(); };
+        modal.addEventListener('click', function(e) { if (e.target === modal) self.closeLeaderboard(); });
+        crtMonitor.addEventListener('click', function(e) { e.stopPropagation(); });
+        document.getElementById('hsShareBtn').addEventListener('click', function(e) { 
+            e.stopPropagation();
+            self.shareScores(); 
+        });
+        document.getElementById('hsCloseBtn').addEventListener('click', function(e) { 
+            e.stopPropagation();
+            self.closeLeaderboard(); 
+        });
         
         const globalScores = await API.getGlobalScores();
         const topGlobal = (globalScores && globalScores.length) ? globalScores.slice(0, 8) : [];
