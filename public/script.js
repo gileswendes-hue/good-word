@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.4.11',
+    APP_VERSION: '6.4.12',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -7790,7 +7790,7 @@ const RoomManager = {
         if (btn) btn.remove();
         btn = document.createElement('button');
         btn.id = 'roomBtn';
-        btn.className = 'fixed top-16 left-6 bg-white text-indigo-700 px-4 py-3 rounded-full shadow-lg z-50 font-bold cursor-pointer hover:bg-indigo-700 transition-transform active:scale-95 flex items-center gap-2';
+        btn.className = 'fixed top-4 left-6 bg-white text-indigo-700 px-4 py-3 rounded-full shadow-lg z-50 font-bold cursor-pointer hover:bg-indigo-700 transition-transform active:scale-95 flex items-center gap-2';
         btn.style.cssText = 'width: 68px; height: 68px; padding: 0;';
         const text = 'MULTIPLAYER · ';
         let chars = '';
