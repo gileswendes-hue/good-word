@@ -1846,14 +1846,19 @@ const WeatherManager = {
     }
 };
 const CommunityGoal = {
-    MILESTONE: 50000, // 50k increments
+    MILESTONE: 50000, // 50k increments for adults
+    KIDS_MILESTONE: 5000, // 5k increments for kids (1/10th)
+    getMilestone() {
+        return State.data.settings.kidsMode ? this.KIDS_MILESTONE : this.MILESTONE;
+    },
     update(totalVotes) {
         const bar = DOM.header.communityGoalBar;
         const text = DOM.header.communityGoalText;
         if (!bar || !text) return;
-        const currentMilestone = Math.floor(totalVotes / this.MILESTONE) * this.MILESTONE + this.MILESTONE;
-        const prevMilestone = currentMilestone - this.MILESTONE;
-        const progress = ((totalVotes - prevMilestone) / this.MILESTONE) * 100;
+        const milestone = this.getMilestone();
+        const currentMilestone = Math.floor(totalVotes / milestone) * milestone + milestone;
+        const prevMilestone = currentMilestone - milestone;
+        const progress = ((totalVotes - prevMilestone) / milestone) * 100;
         const remaining = currentMilestone - totalVotes;
         bar.style.width = Math.min(progress, 100) + '%';
         const fmt = n => n >= 1000000 ? (n/1000000).toFixed(1) + 'M' : n >= 1000 ? Math.round(n/1000) + 'k' : n;
@@ -4695,15 +4700,123 @@ const ShareManager = {
     },
     async generateImage() {
         const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const width = 600;
+        const height = 400;
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Background gradient
+        const grd = ctx.createLinearGradient(0, 0, 0, height);
+        grd.addColorStop(0, "#4f46e5"); // indigo
+        grd.addColorStop(1, "#7c3aed"); // purple
+        ctx.fillStyle = grd;
+        ctx.fillRect(0, 0, width, height);
+        
+        // Border
+        ctx.strokeStyle = "#818cf8";
+        ctx.lineWidth = 6;
+        ctx.strokeRect(10, 10, width - 20, height - 20);
+        
+        // Get user data
+        const d = State.data;
+        const username = d.username || "Player";
+        const votes = d.voteCount || 0;
+        const contributions = d.contributorCount || 0;
+        const streak = Math.max(parseInt(d.longestStreak) || 0, parseInt(d.daily?.bestStreak) || 0);
+        const themes = (d.unlockedThemes?.length || 0) + 1;
+        const badges = Object.values(d.badges || {}).filter(b => b).length;
+        
+        // Title
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "900 28px system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("GOOD WORD / BAD WORD", width / 2, 50);
+        
+        // Username
+        ctx.font = "bold 24px system-ui, sans-serif";
+        ctx.fillStyle = "#fbbf24";
+        ctx.fillText(`${username}'s Stats`, width / 2, 90);
+        
+        // Stats
+        ctx.font = "bold 20px system-ui, sans-serif";
+        ctx.fillStyle = "#ffffff";
+        ctx.textAlign = "left";
+        const startX = 80;
+        const startY = 140;
+        const lineHeight = 45;
+        
+        const stats = [
+            { icon: "⚖️", label: "Total Votes", value: votes.toLocaleString() },
+            { icon: "🔥", label: "Best Streak", value: streak.toString() },
+            { icon: "✍️", label: "Words Added", value: contributions.toString() },
+            { icon: "🎨", label: "Themes Unlocked", value: themes.toString() },
+            { icon: "🏆", label: "Badges Earned", value: badges.toString() }
+        ];
+        
+        stats.forEach((stat, i) => {
+            const y = startY + (i * lineHeight);
+            ctx.font = "28px system-ui";
+            ctx.fillText(stat.icon, startX, y);
+            ctx.font = "bold 18px system-ui, sans-serif";
+            ctx.fillStyle = "#c7d2fe";
+            ctx.fillText(stat.label + ":", startX + 45, y);
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "900 22px system-ui, sans-serif";
+            ctx.fillText(stat.value, startX + 220, y);
+        });
+        
+        // Footer
+        ctx.textAlign = "center";
+        ctx.font = "16px system-ui, sans-serif";
+        ctx.fillStyle = "#a5b4fc";
+        ctx.fillText("GBword.com", width / 2, height - 25);
+        
         return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
     },
     async share() {
-        UIManager.showPostVoteMessage("Generating image...");
+        UIManager.showPostVoteMessage("Generating image... 📸");
         try {
             const blob = await this.generateImage();
+            if (!blob) {
+                UIManager.showPostVoteMessage("Could not generate image.");
+                return;
+            }
+            
+            const file = new File([blob], 'my_gbword_stats.png', { type: 'image/png' });
+            const username = State.data.username || "I";
+            const votes = State.data.voteCount || 0;
+            
+            const shareData = {
+                title: 'My Good Word / Bad Word Stats',
+                text: `${username} has cast ${votes.toLocaleString()} votes on Good Word / Bad Word! 🎮 Play at GBword.com`,
+                files: [file]
+            };
+            
+            if (navigator.canShare && navigator.canShare(shareData)) {
+                await navigator.share(shareData);
+                UIManager.showPostVoteMessage("Shared! 🎉");
+            } else if (navigator.share) {
+                // Try sharing without file
+                await navigator.share({
+                    title: 'My Good Word / Bad Word Stats',
+                    text: `${username} has cast ${votes.toLocaleString()} votes on Good Word / Bad Word! 🎮 Play at GBword.com`,
+                    url: window.location.origin
+                });
+                UIManager.showPostVoteMessage("Shared! 🎉");
+            } else {
+                // Fallback: download the image
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'my_gbword_stats.png';
+                a.click();
+                UIManager.showPostVoteMessage("Stats image downloaded! 📥");
+            }
         } catch (e) {
             console.error(e);
-            UIManager.showPostVoteMessage("Could not share image.");
+            if (e.name !== 'AbortError') {
+                UIManager.showPostVoteMessage("Could not share stats.");
+            }
         }
     }
 };
