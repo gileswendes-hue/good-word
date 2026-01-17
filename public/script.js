@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.4.9',
+    APP_VERSION: '6.4.10',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -5876,7 +5876,7 @@ displayWord(w) {
         if (!ind) {
             ind = document.createElement('div');
             ind.id = 'offlineIndicator';
-            ind.className = 'fixed top-[125px] right-6 text-xs font-bold px-3 py-2 rounded-full shadow-lg z-50 transition-all duration-300 border-2 select-none cursor-pointer hover:scale-105 active:scale-95';
+            ind.className = 'fixed top-[65px] right-6 text-xs font-bold px-3 py-2 rounded-full shadow-lg z-50 transition-all duration-300 border-2 select-none cursor-pointer hover:scale-105 active:scale-95';
             ind.onclick = () => {
                 const isCurrentlyOffline = OfflineManager.isActive();
                 OfflineManager.toggle(!isCurrentlyOffline);
@@ -8578,7 +8578,7 @@ const Game = {
             // Create Mini Games button
             const miniGamesBtn = document.createElement('button');
             miniGamesBtn.id = 'miniGamesBtn';
-            miniGamesBtn.className = 'fixed top-16 right-6 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full shadow-lg z-50 font-bold cursor-pointer hover:from-purple-500 hover:to-pink-500 transition-all active:scale-95 flex items-center justify-center';
+            miniGamesBtn.className = 'fixed top-4 right-6 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full shadow-lg z-50 font-bold cursor-pointer hover:from-purple-500 hover:to-pink-500 transition-all active:scale-95 flex items-center justify-center';
             miniGamesBtn.style.cssText = 'width: 52px; height: 52px; padding: 0;';
             miniGamesBtn.innerHTML = `<span style="font-size: 24px;">🎮</span>`;
             miniGamesBtn.title = 'Mini Games';
