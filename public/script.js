@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.4.10',
+    APP_VERSION: '6.4.11',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -5876,7 +5876,7 @@ displayWord(w) {
         if (!ind) {
             ind = document.createElement('div');
             ind.id = 'offlineIndicator';
-            ind.className = 'fixed top-[65px] right-6 text-xs font-bold px-3 py-2 rounded-full shadow-lg z-50 transition-all duration-300 border-2 select-none cursor-pointer hover:scale-105 active:scale-95';
+            ind.className = 'fixed top-[75px] right-6 text-xs font-bold px-3 py-2 rounded-full shadow-lg z-50 transition-all duration-300 border-2 select-none cursor-pointer hover:scale-105 active:scale-95';
             ind.onclick = () => {
                 const isCurrentlyOffline = OfflineManager.isActive();
                 OfflineManager.toggle(!isCurrentlyOffline);
