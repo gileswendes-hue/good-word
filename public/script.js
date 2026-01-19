@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.5.6',
+    APP_VERSION: '6.5.7',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -10199,35 +10199,52 @@ async showLeaderboard() {
                 
                 .crt-content {
                     position: relative; z-index: 10;
-                    height: 100%; padding: 20px 12px; 
-                    overflow-y: auto; scrollbar-width: none;
-                    font-family: 'VT323', monospace; font-size: 1.4rem;
-                    mask-image: linear-gradient(to bottom, transparent 0%, black 8%, black 92%, transparent 100%);
+                    height: 100%; padding: 15px 10px; 
+                    overflow: hidden;
+                    font-family: 'VT323', monospace; font-size: 1.3rem;
+                    display: flex; flex-direction: column;
                 }
                 .crt-content::-webkit-scrollbar { display: none; }
 
                 /* === SCORES === */
                 .score-header {
-                    text-align: center; padding-bottom: 8px; margin-bottom: 6px;
+                    text-align: center; padding-bottom: 6px; margin-bottom: 4px;
                     border-bottom: 2px solid rgba(255,255,255,0.2);
-                    font-size: 1rem; letter-spacing: 2px; opacity: 0.9;
-                    position: sticky; top: 0; z-index: 5;
-                    background: inherit;
+                    font-size: 0.95rem; letter-spacing: 2px; opacity: 0.9;
+                    flex-shrink: 0;
+                }
+                .score-list {
+                    flex: 1;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: flex-start;
+                    gap: 2px;
+                    overflow: hidden;
                 }
                 .score-row { 
                     display: flex; justify-content: space-between; align-items: center;
-                    padding: 8px 4px; 
+                    padding: 6px 4px; 
                     border-bottom: 1px solid rgba(255,255,255,0.08);
-                    transition: background 0.2s;
+                    flex-shrink: 0;
                 }
-                .score-row:hover { background: rgba(255,255,255,0.05); }
+                .score-row:last-child { border-bottom: none; }
                 .score-row.highlight { 
                     background: rgba(255,255,0,0.1); 
                     animation: pulse-row 1.5s ease-in-out infinite alternate;
                 }
-                .rank { width: 40px; opacity: 0.5; font-size: 1.2rem; }
-                .name { flex: 1; letter-spacing: 2px; font-weight: bold; }
-                .score { font-weight: bold; font-size: 1.3rem; letter-spacing: 1px; }
+                .rank { width: 35px; opacity: 0.5; font-size: 1.1rem; }
+                .name { flex: 1; letter-spacing: 2px; font-weight: bold; font-size: 1.1rem; }
+                .score { font-weight: bold; font-size: 1.2rem; letter-spacing: 1px; }
+                .no-scores {
+                    flex: 1;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    text-align: center;
+                    opacity: 0.6;
+                    font-size: 1.1rem;
+                    line-height: 1.6;
+                }
 
                 /* Theme-specific CRT colors */
                 .theme-wood .crt-content { color: #ffa726; text-shadow: 0 0 8px rgba(255,167,38,0.5); }
@@ -10294,10 +10311,18 @@ async showLeaderboard() {
                     background: linear-gradient(90deg, #2a2a2a 0%, #4a4a4a 30%, #3a3a3a 70%, #1a1a1a 100%);
                     border-radius: 4px 4px 6px 6px;
                     position: relative;
-                    transform: translateY(-10px);
+                    transform: translateY(-10px) rotateX(0deg) rotateZ(0deg);
+                    transform-origin: center bottom;
+                    transition: transform 0.15s ease-out;
                     box-shadow: 
                         0 4px 8px rgba(0,0,0,0.5),
                         inset 0 0 2px rgba(255,255,255,0.1);
+                }
+                .joystick-stick.tilt-left {
+                    transform: translateY(-10px) rotateZ(-15deg);
+                }
+                .joystick-stick.tilt-right {
+                    transform: translateY(-10px) rotateZ(15deg);
                 }
                 .joystick-ball {
                     position: absolute;
@@ -10327,6 +10352,7 @@ async showLeaderboard() {
                     cursor: pointer; 
                     display: grid; place-items: center;
                     transition: transform 0.08s, box-shadow 0.08s;
+                    font-family: 'Press Start 2P', monospace;
                 }
                 .arcade-btn::before {
                     content: '';
@@ -10354,7 +10380,9 @@ async showLeaderboard() {
                         0 5px 0 #1e40af, 
                         0 8px 15px rgba(0,0,0,0.5),
                         0 0 15px rgba(59,130,246,0.3);
-                    font-size: 20px;
+                    font-size: 10px;
+                    color: #fff;
+                    text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
                 }
                 .btn-share { 
                     background: linear-gradient(180deg, #fbbf24 0%, #d97706 50%, #b45309 100%);
@@ -10362,17 +10390,25 @@ async showLeaderboard() {
                         0 5px 0 #92400e, 
                         0 8px 15px rgba(0,0,0,0.5),
                         0 0 15px rgba(234,179,8,0.3);
-                    font-size: 20px;
+                    font-size: 18px;
                 }
                 .btn-share.hidden { display: none; }
                 
-                /* Insert Coin Section */
+                /* Insert Coin Section - Now Clickable */
                 .coin-section {
                     width: 70px;
                     display: flex;
                     flex-direction: column;
                     align-items: center;
                     margin-right: 15px;
+                    cursor: pointer;
+                    transition: transform 0.1s;
+                }
+                .coin-section:hover {
+                    transform: scale(1.05);
+                }
+                .coin-section:active {
+                    transform: scale(0.95);
                 }
                 .coin-slot {
                     width: 40px; height: 8px;
@@ -10503,22 +10539,25 @@ async showLeaderboard() {
         modal.id = 'highScoreModal';
         modal.className = 'arcade-modal';
         
-        // Render List Function
+        // Render List Function - Limited to fit CRT screen
         const generateListHTML = (data) => {
-            if (!data || data.length === 0) return '<div style="text-align:center; margin-top:40px; opacity:0.6;">NO DATA RECORDED<br>PLAY NOW!</div>';
+            if (!data || data.length === 0) {
+                return '<div class="no-scores">NO DATA RECORDED<br>PLAY NOW!</div>';
+            }
             
-            const rows = data.slice(0, 100).map((entry, i) => {
+            // Limit to top 8 scores to fit the CRT screen without scrolling
+            const rows = data.slice(0, 8).map((entry, i) => {
                 const isMe = (entry.name === username);
                 return `
                     <div class="score-row ${isMe ? 'highlight' : ''}">
                         <span class="rank">${i+1}.</span>
-                        <span class="name">${(entry.name || 'UNKNOWN').substring(0, 12).toUpperCase()}</span>
+                        <span class="name">${(entry.name || 'UNKNOWN').substring(0, 10).toUpperCase()}</span>
                         <span class="score">${entry.score}</span>
                     </div>
                 `;
             }).join('');
             
-            return rows + (data.length > 10 ? `<div style="text-align:center; margin: 20px 0;">--- END OF RECORDS ---</div><div style="height:50px"></div>` : '');
+            return `<div class="score-list">${rows}</div>`;
         };
 
         const cabinetHTML = cabinets.map((cab, idx) => `
@@ -10567,12 +10606,20 @@ async showLeaderboard() {
                     
                     <!-- Button Cluster -->
                     <div class="button-cluster">
-                        <button class="arcade-btn btn-toggle" data-idx="${idx}">🌐</button>
-                        <button class="arcade-btn btn-share hidden" data-idx="${idx}">📤</button>
+                        <button class="arcade-btn btn-toggle" data-idx="${idx}">1P</button>
+                        <button class="arcade-btn btn-share hidden" data-idx="${idx}">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="position:relative;z-index:5;color:#fff;">
+                                <circle cx="18" cy="5" r="3"></circle>
+                                <circle cx="6" cy="12" r="3"></circle>
+                                <circle cx="18" cy="19" r="3"></circle>
+                                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                            </svg>
+                        </button>
                     </div>
                     
-                    <!-- Insert Coin -->
-                    <div class="coin-section">
+                    <!-- Insert Coin - Launches Game -->
+                    <div class="coin-section" data-game="${cab.id}" data-idx="${idx}">
                         <div class="coin-slot"></div>
                         <div class="coin-light">
                             <div class="coin-light-inner">INSERT COIN</div>
@@ -10595,7 +10642,7 @@ async showLeaderboard() {
             </div>
             
             <div style="position:absolute; bottom:20px; width:100%; text-align:center; color:rgba(255,255,255,0.35); font-family:'VT323', monospace; font-size:14px; letter-spacing:2px; pointer-events:none;">
-                SWIPE TO BROWSE • TAP 🌐 FOR LOCAL SCORES
+                SWIPE TO BROWSE • 1P/2P FOR SCORES • INSERT COIN TO PLAY
             </div>
         `;
         
@@ -10603,23 +10650,9 @@ async showLeaderboard() {
 
         // 5. Logic & Animation
         let currentIndex = 0;
-        let viewModes = [0, 0, 0]; // 0=Global, 1=Local
+        let viewModes = [0, 0, 0]; // 0=Global (1P), 1=Local (2P)
         const row = document.getElementById('cabinetRow');
         const cabs = document.querySelectorAll('.arcade-cabinet');
-        const scrollTimers = {};
-
-        // Auto Scroll
-        const startAutoScroll = (idx) => {
-            if (scrollTimers[idx]) clearInterval(scrollTimers[idx]);
-            const el = document.getElementById(`list-${idx}`);
-            if(!el) return;
-            
-            scrollTimers[idx] = setInterval(() => {
-                if (el.matches(':hover') || el.classList.contains('touch-active')) return;
-                el.scrollTop += 1;
-                if(el.scrollTop + el.clientHeight >= el.scrollHeight) el.scrollTop = 0;
-            }, 50);
-        };
 
         const refreshCabinetContent = (idx) => {
             const cab = cabinets[idx];
@@ -10633,9 +10666,9 @@ async showLeaderboard() {
                 ${generateListHTML(data)}
             `;
             
-            // Toggle Button Icon
+            // Toggle Button Text (1P = Global, 2P = Local)
             const btnToggle = modal.querySelector(`.btn-toggle[data-idx="${idx}"]`);
-            if(btnToggle) btnToggle.textContent = mode === 0 ? '🌐' : '🏠';
+            if(btnToggle) btnToggle.textContent = mode === 0 ? '1P' : '2P';
 
             // VISIBILITY LOGIC: Show Share Button ONLY if Local (mode 1)
             const btnShare = modal.querySelector(`.btn-share[data-idx="${idx}"]`);
@@ -10643,17 +10676,28 @@ async showLeaderboard() {
                 if (mode === 1) btnShare.classList.remove('hidden');
                 else btnShare.classList.add('hidden');
             }
-            
-            startAutoScroll(idx);
-            
-            container.addEventListener('touchstart', () => container.classList.add('touch-active'));
-            container.addEventListener('touchend', () => setTimeout(() => container.classList.remove('touch-active'), 1000));
         };
 
         cabinets.forEach((_, i) => refreshCabinetContent(i));
 
+        // Joystick Animation Helper
+        const animateJoysticks = (direction) => {
+            const sticks = modal.querySelectorAll('.joystick-stick');
+            sticks.forEach(stick => {
+                stick.classList.remove('tilt-left', 'tilt-right');
+                if (direction === 'left') stick.classList.add('tilt-left');
+                else if (direction === 'right') stick.classList.add('tilt-right');
+            });
+            // Reset after animation
+            if (direction) {
+                setTimeout(() => {
+                    sticks.forEach(stick => stick.classList.remove('tilt-left', 'tilt-right'));
+                }, 300);
+            }
+        };
+
         // Centering Logic
-        const updatePosition = () => {
+        const updatePosition = (direction = null) => {
             const sampleCab = cabs[0];
             const cabWidth = sampleCab.offsetWidth;
             const gapStr = getComputedStyle(document.documentElement).getPropertyValue('--cab-gap').trim();
@@ -10662,6 +10706,9 @@ async showLeaderboard() {
             const screenCenter = window.innerWidth / 2;
             const itemCenter = (currentIndex * (cabWidth + gap)) + (cabWidth / 2);
             row.style.transform = `translateX(${screenCenter - itemCenter}px)`;
+
+            // Animate joystick based on direction
+            if (direction) animateJoysticks(direction);
 
             cabs.forEach((el, i) => {
                 if (i === currentIndex) {
@@ -10675,15 +10722,44 @@ async showLeaderboard() {
         };
 
         setTimeout(updatePosition, 10);
-        window.addEventListener('resize', updatePosition);
+        window.addEventListener('resize', () => updatePosition());
 
         // 6. Interaction Handlers
         modal.querySelectorAll('.btn-toggle').forEach(btn => {
             btn.onclick = (e) => {
                 e.stopPropagation();
-                const idx = parseInt(e.target.dataset.idx);
+                const idx = parseInt(e.target.dataset.idx || e.target.closest('.btn-toggle').dataset.idx);
                 viewModes[idx] = viewModes[idx] === 0 ? 1 : 0;
                 refreshCabinetContent(idx);
+            };
+        });
+
+        // --- COIN INSERT LOGIC (Launch Games) ---
+        modal.querySelectorAll('.coin-section').forEach(coinBtn => {
+            coinBtn.onclick = (e) => {
+                e.stopPropagation();
+                const gameId = coinBtn.dataset.game;
+                const idx = parseInt(coinBtn.dataset.idx);
+                
+                // Only allow launching from active cabinet
+                if (currentIndex !== idx) {
+                    currentIndex = idx;
+                    updatePosition();
+                    return;
+                }
+                
+                // Close the arcade modal
+                close();
+                
+                // Launch the appropriate game
+                if (gameId === 'war' && typeof MiniGames !== 'undefined' && MiniGames.launchWordWar) {
+                    setTimeout(() => MiniGames.launchWordWar(), 100);
+                } else if (gameId === 'def' && typeof MiniGames !== 'undefined' && MiniGames.launchDefDash) {
+                    setTimeout(() => MiniGames.launchDefDash(), 100);
+                } else if (gameId === 'streak') {
+                    // Word Streak is the main game, just close arcade
+                    console.log('Play Word Streak in main game!');
+                }
             };
         });
 
@@ -10691,7 +10767,7 @@ async showLeaderboard() {
         modal.querySelectorAll('.btn-share').forEach(btn => {
             btn.onclick = async (e) => {
                 e.stopPropagation();
-                const idx = parseInt(e.target.dataset.idx);
+                const idx = parseInt(btn.dataset.idx);
                 const cab = cabinets[idx];
                 
                 // Get user's personal best (top local score)
@@ -10722,9 +10798,12 @@ async showLeaderboard() {
         // Close & Cleanup
         const close = () => {
             modal.remove();
-            Object.values(scrollTimers).forEach(t => clearInterval(t));
             window.removeEventListener('resize', updatePosition);
             window.removeEventListener('keydown', keyHandler);
+            window.removeEventListener('mousemove', handleMove);
+            window.removeEventListener('touchmove', handleMove);
+            window.removeEventListener('mouseup', handleEnd);
+            window.removeEventListener('touchend', handleEnd);
         };
         document.getElementById('closeArcade').onclick = close;
 
@@ -10740,7 +10819,7 @@ async showLeaderboard() {
         };
 
         const handleStart = (e) => {
-            if (e.target.closest('.arcade-btn') || e.target.closest('.close-btn')) return;
+            if (e.target.closest('.arcade-btn') || e.target.closest('.close-btn') || e.target.closest('.coin-section')) return;
             isDragging = true;
             startX = e.touches ? e.touches[0].clientX : e.clientX;
             row.style.transition = 'none';
@@ -10753,6 +10832,10 @@ async showLeaderboard() {
             const currentX = e.touches ? e.touches[0].clientX : e.clientX;
             const diff = currentX - startX;
             row.style.transform = `translateX(${startTranslateX + diff}px)`;
+            
+            // Animate joysticks during drag
+            if (diff < -20) animateJoysticks('right');
+            else if (diff > 20) animateJoysticks('left');
         };
 
         const handleEnd = (e) => {
@@ -10763,11 +10846,18 @@ async showLeaderboard() {
             const currentX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
             const diff = currentX - startX;
 
+            let direction = null;
             if (Math.abs(diff) > 50) {
-                if (diff < 0 && currentIndex < cabinets.length - 1) currentIndex++;
-                else if (diff > 0 && currentIndex > 0) currentIndex--;
+                if (diff < 0 && currentIndex < cabinets.length - 1) {
+                    currentIndex++;
+                    direction = 'right';
+                }
+                else if (diff > 0 && currentIndex > 0) {
+                    currentIndex--;
+                    direction = 'left';
+                }
             }
-            updatePosition();
+            updatePosition(direction);
         };
 
         const viewport = modal.querySelector('.cabinet-viewport');
@@ -10780,17 +10870,18 @@ async showLeaderboard() {
 
         cabs.forEach((cab, i) => {
             cab.addEventListener('click', (e) => {
-                if(e.target.closest('.arcade-btn')) return;
+                if(e.target.closest('.arcade-btn') || e.target.closest('.coin-section')) return;
                 if(currentIndex !== i) {
+                    const direction = i > currentIndex ? 'right' : 'left';
                     currentIndex = i;
-                    updatePosition();
+                    updatePosition(direction);
                 }
             });
         });
 
         const keyHandler = (e) => {
-            if (e.key === 'ArrowLeft' && currentIndex > 0) { currentIndex--; updatePosition(); }
-            if (e.key === 'ArrowRight' && currentIndex < cabinets.length - 1) { currentIndex++; updatePosition(); }
+            if (e.key === 'ArrowLeft' && currentIndex > 0) { currentIndex--; updatePosition('left'); }
+            if (e.key === 'ArrowRight' && currentIndex < cabinets.length - 1) { currentIndex++; updatePosition('right'); }
             if (e.key === 'Escape') close();
         };
         window.addEventListener('keydown', keyHandler);
