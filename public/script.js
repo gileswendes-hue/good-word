@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.5.4.3',
+    APP_VERSION: '6.5.4.4',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -9912,20 +9912,18 @@ async showLeaderboard() {
         } catch (e) { console.error("Score fetch error", e); }
 
         // 2. Inject HIGH-FIDELITY Arcade CSS
-        if (!document.getElementById('arcade-styles-v3')) {
+        if (!document.getElementById('arcade-styles-v4')) {
             const s = document.createElement('style');
-            s.id = 'arcade-styles-v3';
+            s.id = 'arcade-styles-v4';
             s.innerHTML = `
                 @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=Black+Ops+One&display=swap');
                 
                 :root {
-                    /* UPDATED: Wider Cabinets */
                     --cab-w: 420px; 
                     --cab-h: 700px;
                     --cab-gap: 50px;
                 }
                 @media (min-width: 768px) {
-                    /* Desktop even wider */
                     :root { --cab-w: 520px; --cab-h: 800px; }
                 }
 
@@ -9975,7 +9973,7 @@ async showLeaderboard() {
                     flex-shrink: 0;
                     position: relative;
                     border-radius: 24px 24px 4px 4px;
-                    border-right: 25px solid rgba(0,0,0,0.5); /* Thicker side for width */
+                    border-right: 25px solid rgba(0,0,0,0.5);
                     border-left: 25px solid rgba(255,255,255,0.05);
                     box-shadow: 0 40px 80px rgba(0,0,0,1);
                     transition: transform 0.5s ease, opacity 0.5s ease, filter 0.5s ease;
@@ -9992,7 +9990,6 @@ async showLeaderboard() {
                 }
 
                 /* --- 4. Distinct Textures --- */
-                /* Theme A: Retro Wood (Streak) */
                 .theme-wood {
                     background-color: #5d4037;
                     background-image: repeating-linear-gradient(90deg, rgba(255,255,255,0.03) 0, rgba(255,255,255,0.03) 2px, transparent 2px, transparent 40px);
@@ -10000,7 +9997,6 @@ async showLeaderboard() {
                 }
                 .theme-wood .marquee-area { background: #3e2723; border: 6px solid #8d6e63; color: #ffb74d; }
                 
-                /* Theme B: Military Camo (War) */
                 .theme-camo {
                     background-color: #333d29;
                     background-image: radial-gradient(circle at 30% 30%, #4a5c38 20px, transparent 21px), radial-gradient(circle at 70% 70%, #1a2115 20px, transparent 21px);
@@ -10008,7 +10004,6 @@ async showLeaderboard() {
                 }
                 .theme-camo .marquee-area { background: #2f1d1d; border: 6px solid #581c1c; color: #ef4444; font-family: 'Black Ops One', cursive; letter-spacing: 2px; }
 
-                /* Theme C: Cyber Grid (Def Dash) */
                 .theme-cyber {
                     background: #000;
                     background-image: linear-gradient(rgba(0,255,0,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(0,255,0,0.1) 1px, transparent 1px);
@@ -10020,7 +10015,7 @@ async showLeaderboard() {
 
                 /* --- 5. Cabinet Components --- */
                 .marquee-area {
-                    height: 110px; /* Taller for bigger text */
+                    height: 110px;
                     margin: 20px; border-radius: 12px;
                     display: flex; flex-direction: column; align-items: center; justify-content: center;
                     box-shadow: inset 0 0 30px rgba(0,0,0,0.8);
@@ -10032,8 +10027,6 @@ async showLeaderboard() {
                     background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, transparent 40%, rgba(255,255,255,0.1) 100%);
                     pointer-events: none;
                 }
-                
-                /* UPDATED: Bolder, Larger Title */
                 .marquee-title { 
                     font-size: 28px; 
                     font-weight: 900; 
@@ -10052,7 +10045,6 @@ async showLeaderboard() {
                     position: relative; overflow: hidden;
                 }
                 
-                /* CRT Screen */
                 .crt-screen {
                     position: absolute; inset: 10px;
                     background: #000;
@@ -10066,14 +10058,12 @@ async showLeaderboard() {
                 }
                 .crt-content {
                     height: 100%; padding: 20px 10px; 
-                    overflow-y: scroll; /* Allow JS scroll */
-                    scrollbar-width: none; /* Firefox hide */
-                    -ms-overflow-style: none; /* IE hide */
+                    overflow-y: scroll; scrollbar-width: none; -ms-overflow-style: none;
                     color: #fff; font-family: 'VT323', monospace; font-size: 1.4rem;
                     text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
                     mask-image: linear-gradient(to bottom, transparent 0%, black 5%, black 95%, transparent 100%);
                 }
-                .crt-content::-webkit-scrollbar { display: none; } /* Chrome hide */
+                .crt-content::-webkit-scrollbar { display: none; }
 
                 .score-row { 
                     display: flex; justify-content: space-between; 
@@ -10129,29 +10119,29 @@ async showLeaderboard() {
             {
                 id: 'streak',
                 theme: 'theme-wood',
-                title: 'WORD STREAK',
+                title: 'Word Streak',
                 subtitle: 'ENDURANCE RUN',
                 dataGlobal: globalStreak || [],
                 dataLocal: (State.data.highScores || []),
-                formatScore: (s) => `${s} Words`
+                shareMsg: (s) => `🔥 I hit a ${s}-word streak in Good Word / Bad Word! Can you beat me?`
             },
             {
                 id: 'war',
                 theme: 'theme-camo',
-                title: 'WORD WAR',
+                title: 'WORD WAR!',
                 subtitle: 'BATTLEFIELD',
                 dataGlobal: globalWar || [],
                 dataLocal: (State.data.wordWarScores || []),
-                formatScore: (s) => `${s} Wins`
+                shareMsg: (s) => `⚔️ I won ${s} battles in Word War! #WordWar`
             },
             {
                 id: 'def',
                 theme: 'theme-cyber',
-                title: 'DEF DASH',
+                title: 'definition dash',
                 subtitle: 'DATA UPLINK',
                 dataGlobal: globalDef || [],
                 dataLocal: (State.data.defDashScores || []),
-                formatScore: (s) => `${s} Pts`
+                shareMsg: (s) => `🧠 I scored ${s} points in Def Dash! #DefDash`
             }
         ];
 
@@ -10160,10 +10150,10 @@ async showLeaderboard() {
         modal.id = 'highScoreModal';
         modal.className = 'arcade-modal';
         
-        // Render Function
-        const generateListHTML = (data, isGlobal) => {
+        // Render List Function
+        const generateListHTML = (data) => {
             if (!data || data.length === 0) return '<div style="text-align:center; margin-top:40px; opacity:0.6;">NO DATA RECORDED<br>PLAY NOW!</div>';
-            // Duplicate list for seamless scroll illusion if plenty of data
+            
             const rows = data.slice(0, 100).map((entry, i) => {
                 const isMe = (entry.name === username);
                 return `
@@ -10222,23 +10212,19 @@ async showLeaderboard() {
         let viewModes = [0, 0, 0]; // 0=Global, 1=Local
         const row = document.getElementById('cabinetRow');
         const cabs = document.querySelectorAll('.arcade-cabinet');
-        
-        // Auto-scroll timers
         const scrollTimers = {};
 
+        // Auto Scroll
         const startAutoScroll = (idx) => {
             if (scrollTimers[idx]) clearInterval(scrollTimers[idx]);
             const el = document.getElementById(`list-${idx}`);
             if(!el) return;
             
             scrollTimers[idx] = setInterval(() => {
-                if (el.matches(':hover') || el.classList.contains('touch-active')) return; // Pause on hover
+                if (el.matches(':hover') || el.classList.contains('touch-active')) return;
                 el.scrollTop += 1;
-                // Reset if reached bottom
-                if(el.scrollTop + el.clientHeight >= el.scrollHeight) {
-                    el.scrollTop = 0; 
-                }
-            }, 50); // Slow speed
+                if(el.scrollTop + el.clientHeight >= el.scrollHeight) el.scrollTop = 0;
+            }, 50);
         };
 
         const refreshCabinetContent = (idx) => {
@@ -10253,32 +10239,27 @@ async showLeaderboard() {
                 ${generateListHTML(data)}
             `;
             
-            // Update toggle button
             const btn = modal.querySelector(`.btn-toggle[data-idx="${idx}"]`);
             if(btn) btn.innerHTML = mode === 0 ? '🌐' : '🏠';
             
-            // Start scrolling
             startAutoScroll(idx);
             
-            // Touch interaction to pause
             container.addEventListener('touchstart', () => container.classList.add('touch-active'));
             container.addEventListener('touchend', () => setTimeout(() => container.classList.remove('touch-active'), 1000));
         };
 
         cabinets.forEach((_, i) => refreshCabinetContent(i));
 
-        // CENTERING LOGIC
+        // Centering Logic
         const updatePosition = () => {
             const sampleCab = cabs[0];
-            const cabWidth = sampleCab.offsetWidth; // Uses new wider CSS
+            const cabWidth = sampleCab.offsetWidth;
             const gapStr = getComputedStyle(document.documentElement).getPropertyValue('--cab-gap').trim();
             const gap = parseInt(gapStr) || 50;
             
             const screenCenter = window.innerWidth / 2;
             const itemCenter = (currentIndex * (cabWidth + gap)) + (cabWidth / 2);
-            const translateX = screenCenter - itemCenter;
-
-            row.style.transform = `translateX(${translateX}px)`;
+            row.style.transform = `translateX(${screenCenter - itemCenter}px)`;
 
             cabs.forEach((el, i) => {
                 if (i === currentIndex) {
@@ -10304,13 +10285,39 @@ async showLeaderboard() {
             };
         });
 
+        // --- NEW SHARE LOGIC ---
         modal.querySelectorAll('.btn-share').forEach(btn => {
-            btn.onclick = (e) => {
+            btn.onclick = async (e) => {
                 e.stopPropagation();
-                self.shareScores();
+                const idx = parseInt(e.target.dataset.idx);
+                const cab = cabinets[idx];
+                
+                // Get user's personal best (top local score)
+                const bestScore = (cab.dataLocal && cab.dataLocal.length > 0) ? cab.dataLocal[0].score : 0;
+                
+                const shareText = cab.shareMsg(bestScore);
+                const shareData = {
+                    title: cab.title,
+                    text: shareText,
+                    url: window.location.href
+                };
+
+                if (navigator.share) {
+                    try { await navigator.share(shareData); } 
+                    catch (err) { console.log('Share skipped'); }
+                } else {
+                    // Fallback
+                    try {
+                        await navigator.clipboard.writeText(`${shareText} ${window.location.href}`);
+                        alert('Score copied to clipboard!');
+                    } catch (err) {
+                        alert('Could not copy score: ' + shareText);
+                    }
+                }
             };
         });
 
+        // Close & Cleanup
         const close = () => {
             modal.remove();
             Object.values(scrollTimers).forEach(t => clearInterval(t));
@@ -10319,7 +10326,7 @@ async showLeaderboard() {
         };
         document.getElementById('closeArcade').onclick = close;
 
-        // Swipe Logic
+        // Swipe & Touch Logic
         let startX = 0;
         let isDragging = false;
         let startTranslateX = 0;
@@ -10340,9 +10347,6 @@ async showLeaderboard() {
 
         const handleMove = (e) => {
             if (!isDragging) return;
-            // Only prevent default if horizontal drag is significant, to allow vertical scrolling of score list
-            // However, score list handles its own scroll. 
-            // We'll prevent default to stop whole page bounce.
             e.preventDefault(); 
             const currentX = e.touches ? e.touches[0].clientX : e.clientX;
             const diff = currentX - startX;
