@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.5.8',
+    APP_VERSION: '6.5.9',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -10800,10 +10800,10 @@ async showLeaderboard() {
                     close();
                     
                     setTimeout(() => {
-                        if (gameId === 'war' && typeof MiniGames !== 'undefined' && MiniGames.launchWordWar) {
-                            MiniGames.launchWordWar();
-                        } else if (gameId === 'def' && typeof MiniGames !== 'undefined' && MiniGames.launchDefDash) {
-                            MiniGames.launchDefDash();
+                        if (gameId === 'war' && typeof MiniGames !== 'undefined' && MiniGames.wordWar) {
+                            MiniGames.wordWar.start();
+                        } else if (gameId === 'def' && typeof MiniGames !== 'undefined' && MiniGames.defDash) {
+                            MiniGames.defDash.start();
                         }
                     }, 100);
                 }, 1200);
