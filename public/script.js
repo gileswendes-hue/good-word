@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.5.3',
+    APP_VERSION: '6.5.4',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -9763,10 +9763,12 @@ const StreakManager = {
     timer: null,
     loopTimer: null,
     LIMIT: 6500,
+
     extend(ms) {
         if (this.timer) clearTimeout(this.timer);
         this.timer = setTimeout(() => this.endStreak(), this.LIMIT + ms);
     },
+
     handleSuccess() {
         if (State.data.settings.noStreaksMode) return;
         const now = Date.now();
@@ -9793,6 +9795,7 @@ const StreakManager = {
         if (this.timer) clearTimeout(this.timer);
         this.timer = setTimeout(() => this.endStreak(), this.LIMIT);
     },
+
     endStreak() {
         const current = State.runtime.streak;
         if (current > (parseInt(State.data.longestStreak) || 0)) {
@@ -9812,6 +9815,7 @@ const StreakManager = {
         }
         State.runtime.streak = 0;
     },
+
     updateScreenCounter(pulse) {
         let el = document.getElementById('streak-floating-counter');
         if (!el) {
@@ -9829,6 +9833,7 @@ const StreakManager = {
             });
         }
     },
+
     showNotification(msg, type) {
         const notif = document.createElement('div');
         notif.textContent = msg;
@@ -9842,14 +9847,17 @@ const StreakManager = {
         document.body.appendChild(notif);
         setTimeout(() => notif.remove(), 2500);
     },
+
     checkHighScore(score) {
         if (!State.data.highScores) State.data.highScores = [];
         const scores = State.data.highScores;
-        const minScore = scores.length < 8 ? 0 : scores[scores.length - 1].score;
-        if (score > minScore || scores.length < 8) {
+        // Updated to Top 10
+        const minScore = scores.length < 10 ? 0 : scores[scores.length - 1].score;
+        if (score > minScore || scores.length < 10) {
             setTimeout(() => this.promptName(score), 500);
         }
     },
+
     promptName(score) {
         if(document.getElementById('nameEntryModal')) return;
         const html = `
@@ -9870,7 +9878,8 @@ const StreakManager = {
             const scores = State.data.highScores || [];
             scores.push({ name, score, date: Date.now() });
             scores.sort((a,b) => b.score - a.score);
-            if(scores.length > 8) scores.pop();
+            // Updated to Top 10
+            if(scores.length > 10) scores.pop();
             State.save('highScores', scores);
             API.submitHighScore(name, score);
             document.getElementById('nameEntryModal').remove();
@@ -9878,582 +9887,198 @@ const StreakManager = {
         };
         document.getElementById('hsSaveBtn').onclick = saveFn;
     },
-    async shareScores() {
-        const scores = State.data.highScores || [];
-        const best = scores.length ? scores[0].score : 0;
-        const name = State.data.username || "I";
-        const text = `${name} just hit a streak of ${best} on Good Word / Bad Word! 🏆 Can you beat the high scores?`;
-        const url = window.location.origin;
-        if (navigator.share) {
-            try {
-                await navigator.share({ title: 'High Scores', text: text, url: url });
-            } catch(e) { }
-        } else {
-            try {
-                await navigator.clipboard.writeText(`${text} ${url}`);
-                UIManager.showPostVoteMessage("Score copied to clipboard! 📋");
-            } catch(e) {
-                UIManager.showPostVoteMessage("Could not share.");
-            }
-        }
-    },
+
     async showLeaderboard() {
         const self = this;
         
-        // Inject arcade cabinet styles - realistic row with sliding CRTs
+        // Inject upgraded arcade cabinet styles
         if (!document.getElementById('arcade-styles')) {
             const s = document.createElement('style');
             s.id = 'arcade-styles';
             s.innerHTML = `
                 @keyframes crt-flicker { 0%,100% {opacity:0.97;} 50% {opacity:1;} }
-                @keyframes crt-glow { 0%,100% {filter: brightness(1);} 50% {filter: brightness(1.05);} }
                 @keyframes scanline { 0% {transform: translateY(-100%);} 100% {transform: translateY(100%);} }
                 @keyframes neon-pulse { 0%,100% {opacity:1; text-shadow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 40px currentColor;} 50% {opacity:0.8; text-shadow: 0 0 5px currentColor, 0 0 10px currentColor;} }
-                @keyframes cabinet-glow { 0%,100% {box-shadow: 0 0 20px rgba(0,0,0,0.8), 0 5px 30px rgba(0,0,0,0.6);} 50% {box-shadow: 0 0 30px rgba(0,0,0,0.8), 0 5px 40px rgba(0,0,0,0.7);} }
                 
-                .arcade-hall {
-                    background: linear-gradient(180deg, #0a0a12 0%, #12121f 50%, #0a0a0f 100%);
-                    min-height: 100vh;
-                    position: relative;
-                    overflow: hidden;
-                }
-                .arcade-hall::before {
-                    content: '';
-                    position: absolute;
-                    top: 0; left: 0; right: 0;
-                    height: 120px;
-                    background: linear-gradient(180deg, rgba(147,51,234,0.15) 0%, transparent 100%);
-                    pointer-events: none;
-                }
-                .arcade-floor {
-                    position: absolute;
-                    bottom: 0; left: 0; right: 0;
-                    height: 100px;
-                    background: linear-gradient(180deg, transparent 0%, rgba(30,20,40,0.8) 100%);
-                    pointer-events: none;
-                }
-                .arcade-floor::before {
-                    content: '';
-                    position: absolute;
-                    bottom: 0; left: 0; right: 0;
-                    height: 4px;
-                    background: repeating-linear-gradient(90deg, #333 0px, #333 20px, #222 20px, #222 40px);
-                }
+                .arcade-hall { background: linear-gradient(180deg, #0a0a12 0%, #12121f 50%, #0a0a0f 100%); min-height: 100vh; position: relative; overflow: hidden; }
+                .arcade-floor { position: absolute; bottom: 0; left: 0; right: 0; height: 120px; background: linear-gradient(180deg, transparent 0%, rgba(30,20,40,0.8) 100%); pointer-events: none; border-top: 4px solid #333; }
                 
-                .cabinet-row {
-                    display: flex;
-                    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-                    gap: 30px;
-                    padding: 0 20px;
-                }
+                .cabinet-row { display: flex; transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1); gap: 50px; padding: 0 20px; }
                 
-                .arcade-cabinet {
-                    flex: 0 0 340px;
-                    height: 520px;
-                    background: linear-gradient(180deg, #1a1a2e 0%, #0f0f1a 40%, #0a0a12 100%);
-                    border-radius: 12px 12px 8px 8px;
-                    position: relative;
-                    animation: cabinet-glow 3s ease-in-out infinite;
-                    transform-style: preserve-3d;
-                    perspective: 1000px;
-                }
-                .arcade-cabinet::before {
-                    content: '';
-                    position: absolute;
-                    inset: 0;
-                    border-radius: 12px 12px 8px 8px;
-                    border: 3px solid #2a2a3e;
-                    border-bottom: 6px solid #1a1a28;
-                    pointer-events: none;
-                }
-                .arcade-cabinet.active {
-                    transform: scale(1.02);
-                    z-index: 10;
-                }
-                .arcade-cabinet.inactive {
-                    transform: scale(0.92);
-                    opacity: 0.6;
-                    filter: brightness(0.7);
-                }
+                /* BIGGER CABINETS */
+                .arcade-cabinet { flex: 0 0 440px; height: 840px; background: linear-gradient(180deg, #2a2a4e 0%, #0f0f1a 40%, #0a0a12 100%); border-radius: 24px 24px 12px 12px; position: relative; box-shadow: 0 20px 50px rgba(0,0,0,0.8); }
+                .arcade-cabinet.active { transform: scale(1.02); z-index: 10; }
+                .arcade-cabinet.inactive { transform: scale(0.92); opacity: 0.6; filter: brightness(0.7); }
                 
-                .cabinet-top {
-                    height: 70px;
-                    background: linear-gradient(180deg, #222 0%, #1a1a28 100%);
-                    border-radius: 12px 12px 0 0;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    position: relative;
-                    border-bottom: 4px solid #0a0a0f;
-                    overflow: hidden;
-                }
-                .cabinet-top::before {
-                    content: '';
-                    position: absolute;
-                    top: 0; left: 10%; right: 10%;
-                    height: 2px;
-                    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
-                }
-                .marquee-text {
-                    font-family: 'Impact', 'Arial Black', sans-serif;
-                    font-size: 1.5rem;
-                    font-weight: 900;
-                    letter-spacing: 0.05em;
-                    animation: neon-pulse 2s ease-in-out infinite;
-                    text-transform: uppercase;
-                }
-                .marquee-sub {
-                    position: absolute;
-                    bottom: 6px;
-                    font-size: 0.6rem;
-                    color: #666;
-                    letter-spacing: 0.15em;
-                    text-transform: uppercase;
-                }
+                .cabinet-top { height: 100px; background: linear-gradient(180deg, #222 0%, #1a1a28 100%); border-radius: 20px 20px 0 0; display: flex; align-items: center; justify-content: center; border-bottom: 5px solid #000; overflow: hidden; }
                 
-                .crt-monitor {
-                    margin: 12px 16px;
-                    height: 300px;
-                    background: #000;
-                    border-radius: 20px;
-                    position: relative;
-                    overflow: hidden;
-                    border: 8px solid #1a1a28;
-                    box-shadow: inset 0 0 50px rgba(0,0,0,0.9), inset 0 0 10px rgba(0,0,0,1);
-                }
-                .crt-monitor::before {
-                    content: '';
-                    position: absolute;
-                    inset: -2px;
-                    border-radius: 20px;
-                    border: 3px solid #333;
-                    pointer-events: none;
-                }
-                .crt-screen {
-                    position: absolute;
-                    inset: 8px;
-                    background: radial-gradient(ellipse at center, #0a1628 0%, #050a14 70%, #020408 100%);
-                    border-radius: 15px;
-                    overflow: hidden;
-                    animation: crt-glow 4s ease-in-out infinite;
-                }
-                .crt-screen::before {
-                    content: '';
-                    position: absolute;
-                    inset: 0;
-                    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
-                    background-size: 100% 3px;
-                    pointer-events: none;
-                    z-index: 10;
-                }
-                .crt-screen::after {
-                    content: '';
-                    position: absolute;
-                    top: -100%;
-                    left: 0;
-                    right: 0;
-                    height: 50%;
-                    background: linear-gradient(transparent, rgba(255,255,255,0.03), transparent);
-                    animation: scanline 8s linear infinite;
-                    pointer-events: none;
-                    z-index: 11;
-                }
-                .crt-content {
-                    position: relative;
-                    z-index: 5;
-                    padding: 15px;
-                    height: 100%;
-                    display: flex;
-                    flex-direction: column;
-                }
-                .crt-curve {
-                    position: absolute;
-                    inset: 0;
-                    border-radius: 15px;
-                    box-shadow: inset 0 0 80px rgba(0,0,0,0.5);
-                    pointer-events: none;
-                    z-index: 8;
-                }
+                /* RETRO NAME STYLING */
+                .marquee-text { font-family: 'Impact', sans-serif; font-size: 2.2rem; text-transform: uppercase; letter-spacing: 2px; }
+                .name-streak { color: #f472b6; animation: neon-pulse 2s infinite; }
+                .name-war { color: #ef4444; -webkit-text-stroke: 1.5px #fff; filter: drop-shadow(0 0 10px #ef4444); }
+                .name-dash { color: #34d399; font-family: 'Courier New', monospace; font-weight: 900; background: #000; padding: 4px 12px; border: 2px solid #34d399; }
+
+                /* REALISTIC ROUNDED CRT */
+                .crt-monitor { margin: 15px 22px; height: 560px; background: #000; border-radius: 50% / 15%; position: relative; overflow: hidden; border: 15px solid #1a1a28; box-shadow: inset 0 0 60px rgba(0,0,0,1); }
+                .crt-screen { position: absolute; inset: 12px; background: radial-gradient(circle at center, #1a2a4a 0%, #050a14 85%); border-radius: 45px; overflow: hidden; animation: crt-flicker 0.1s infinite; }
+                .crt-screen::after { content: ''; position: absolute; top: -100%; left: 0; right: 0; height: 50%; background: linear-gradient(transparent, rgba(255,255,255,0.05), transparent); animation: scanline 8s linear infinite; z-index: 11; }
+                .crt-glare { position: absolute; top: -10%; left: -10%; width: 120%; height: 60%; background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 50%); pointer-events: none; z-index: 15; }
+                .crt-content { position: relative; z-index: 5; padding: 20px; height: 100%; display: flex; flex-direction: column; }
                 
-                .score-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    padding-bottom: 8px;
-                    margin-bottom: 8px;
-                    border-bottom: 2px solid;
-                }
-                .score-header-title {
-                    font-family: 'Courier New', monospace;
-                    font-size: 0.7rem;
-                    font-weight: 900;
-                    letter-spacing: 0.15em;
-                    text-transform: uppercase;
-                }
-                .score-header-label {
-                    font-family: 'Courier New', monospace;
-                    font-size: 0.6rem;
-                    color: #666;
-                    letter-spacing: 0.1em;
-                }
+                .score-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.08); font-family: 'Courier New', monospace; font-size: 1rem; }
+                .score-rank { color: #555; width: 30px; font-weight: bold; }
+                .score-name { font-weight: 900; flex: 1; color: #fff; }
+                .score-value { font-weight: bold; color: #f59e0b; }
+
+                /* 3D CONTROLS */
+                .cabinet-controls { position: absolute; bottom: 0; left: 0; right: 0; height: 140px; background: linear-gradient(180deg, #1a1a2e 0%, #12121f 100%); border-radius: 0 0 12px 12px; border-top: 4px solid #000; display: flex; align-items: center; justify-content: center; gap: 40px; }
+                .joystick-base { width: 55px; height: 55px; background: #000; border-radius: 50%; position: relative; }
+                .joystick-knob { width: 38px; height: 38px; background: radial-gradient(circle at 30% 30%, #ef4444, #7f1d1d); border-radius: 50%; position: absolute; top: -12px; left: 8px; box-shadow: 0 6px 0 #450a0a; }
+                .arcade-btn { width: 45px; height: 45px; border-radius: 50%; border: none; cursor: pointer; box-shadow: 0 6px 0 #000, 0 8px 12px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; transition: all 0.1s; }
+                .arcade-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #000; }
                 
-                .score-list {
-                    flex: 1;
-                    overflow: hidden;
-                }
-                .score-row {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    padding: 6px 0;
-                    border-bottom: 1px solid rgba(255,255,255,0.08);
-                    font-family: 'Courier New', monospace;
-                }
-                .score-rank {
-                    color: #555;
-                    font-size: 0.75rem;
-                    width: 25px;
-                    font-weight: bold;
-                }
-                .score-name {
-                    font-size: 0.9rem;
-                    font-weight: 900;
-                    letter-spacing: 0.1em;
-                    flex: 1;
-                    margin-left: 8px;
-                }
-                .score-value {
-                    font-size: 0.85rem;
-                    font-weight: bold;
-                    letter-spacing: 0.15em;
-                    color: #fff;
-                }
-                .score-row.top-score .score-name {
-                    text-shadow: 0 0 10px currentColor;
-                }
-                
-                .cabinet-controls {
-                    position: absolute;
-                    bottom: 0;
-                    left: 0;
-                    right: 0;
-                    height: 110px;
-                    background: linear-gradient(180deg, #1a1a2e 0%, #12121f 100%);
-                    border-radius: 0 0 8px 8px;
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 10px;
-                    border-top: 3px solid #0a0a0f;
-                }
-                .control-panel {
-                    background: linear-gradient(180deg, #222 0%, #1a1a28 100%);
-                    padding: 10px 20px;
-                    border-radius: 8px;
-                    display: flex;
-                    gap: 15px;
-                    box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
-                }
-                .arcade-btn {
-                    width: 45px;
-                    height: 45px;
-                    border-radius: 50%;
-                    border: none;
-                    cursor: pointer;
-                    transition: all 0.1s;
-                    box-shadow: 0 4px 0 #000, 0 6px 8px rgba(0,0,0,0.4), inset 0 -2px 4px rgba(0,0,0,0.3), inset 0 2px 4px rgba(255,255,255,0.1);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-size: 1.1rem;
-                    position: relative;
-                }
-                .arcade-btn::before {
-                    content: '';
-                    position: absolute;
-                    top: 3px;
-                    left: 15%;
-                    right: 15%;
-                    height: 6px;
-                    background: linear-gradient(180deg, rgba(255,255,255,0.3), transparent);
-                    border-radius: 50%;
-                }
-                .arcade-btn:active {
-                    transform: translateY(3px);
-                    box-shadow: 0 1px 0 #000, 0 2px 4px rgba(0,0,0,0.4), inset 0 -2px 4px rgba(0,0,0,0.3);
-                }
-                .arcade-btn-red { background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%); }
-                .arcade-btn-blue { background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%); }
-                .arcade-btn-green { background: linear-gradient(180deg, #22c55e 0%, #15803d 100%); }
-                .arcade-btn-yellow { background: linear-gradient(180deg, #eab308 0%, #a16207 100%); }
-                
-                .page-indicator {
-                    font-family: 'Courier New', monospace;
-                    font-size: 0.65rem;
-                    color: #666;
-                    letter-spacing: 0.15em;
-                    text-transform: uppercase;
-                }
-                
-                .cabinet-dots {
-                    position: absolute;
-                    bottom: 130px;
-                    left: 50%;
-                    transform: translateX(-50%);
-                    display: flex;
-                    gap: 10px;
-                    z-index: 20;
-                }
-                .cabinet-dot {
-                    width: 10px;
-                    height: 10px;
-                    border-radius: 50%;
-                    background: #333;
-                    border: 2px solid #444;
-                    transition: all 0.3s;
-                    cursor: pointer;
-                }
-                .cabinet-dot.active {
-                    background: #fff;
-                    box-shadow: 0 0 10px #fff, 0 0 20px currentColor;
-                    transform: scale(1.2);
-                }
-                
-                .exit-btn {
-                    position: absolute;
-                    top: 20px;
-                    right: 20px;
-                    background: rgba(255,255,255,0.1);
-                    border: none;
-                    color: #888;
-                    padding: 10px 20px;
-                    border-radius: 8px;
-                    font-family: 'Courier New', monospace;
-                    font-size: 0.8rem;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                    z-index: 100;
-                }
-                .exit-btn:hover {
-                    background: rgba(255,255,255,0.2);
-                    color: #fff;
-                }
-                
-                .no-scores {
-                    flex: 1;
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    color: #444;
-                    font-family: 'Courier New', monospace;
-                    text-align: center;
-                }
-                .no-scores-icon {
-                    font-size: 2rem;
-                    margin-bottom: 10px;
-                    opacity: 0.5;
-                }
+                .cabinet-dot { width: 12px; height: 12px; border-radius: 50%; background: #333; transition: all 0.3s; cursor: pointer; border: 2px solid #444; }
+                .cabinet-dot.active { background: #fff; box-shadow: 0 0 15px #fff; transform: scale(1.3); }
+                .exit-btn { position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.1); color: #fff; padding: 12px 24px; border-radius: 8px; z-index: 100; cursor: pointer; font-weight: bold; border: none; }
             `;
             document.head.appendChild(s);
         }
-        
-        // Cabinet configurations
+
+        const stats = await API.getGlobalScores();
         const cabinets = [
-            { 
-                id: 'streak', 
-                title: '🔥 WORD STREAK',
-                subtitle: 'How long can you last?',
-                color: '#f472b6',
-                localScores: State.data.highScores || [],
-                globalScores: await API.getGlobalScores() || [],
-                scoreLabel: 'WORDS'
-            },
-            { 
-                id: 'wordwar', 
-                title: '⚔️ WORD WAR',
-                subtitle: 'Higher or Lower',
-                color: '#a78bfa',
-                localScores: State.data.wordWarScores || [],
-                globalScores: await API.getMiniGameScores('wordwar') || [],
-                scoreLabel: 'STREAK'
-            },
-            { 
-                id: 'defdash', 
-                title: '📚 DEF DASH',
-                subtitle: 'Definition Trivia',
-                color: '#34d399',
-                localScores: State.data.defDashScores || [],
-                globalScores: await API.getMiniGameScores('defdash') || [],
-                scoreLabel: 'POINTS'
-            }
+            { id: 'streak', title: '🔥 WORD STREAK', class: 'name-streak', color: '#f472b6', localScores: State.data.highScores || [], globalScores: stats || [], scoreLabel: 'WORDS' },
+            { id: 'wordwar', title: '⚔️ WORD WAR', class: 'name-war', color: '#ef4444', localScores: State.data.wordWarScores || [], globalScores: await API.getMiniGameScores('wordwar') || [], scoreLabel: 'STREAK' },
+            { id: 'defdash', title: '📚 DEF DASH', class: 'name-dash', color: '#34d399', localScores: State.data.defDashScores || [], globalScores: await API.getMiniGameScores('defdash') || [], scoreLabel: 'POINTS' }
         ];
-        
+
         let currentCabinet = 0;
         let currentPage = 0; // 0 = world, 1 = local
-        const username = State.data.username || "PLAYER";
-        
-        const renderScoreRow = (s, i, color) => `
-            <div class="score-row ${i === 0 ? 'top-score' : ''}">
-                <span class="score-rank">${(i+1).toString().padStart(2,'0')}</span>
-                <span class="score-name" style="color:${color}">${(s.name || 'AAA').substring(0,3).toUpperCase()}</span>
-                <span class="score-value">${s.score.toString().padStart(6,' ')}</span>
+
+        const renderScoreRow = (s, i) => `
+            <div class="score-row">
+                <span class="score-rank">${(i + 1).toString().padStart(2, '0')}</span>
+                <span class="score-name">${(s.name || 'AAA').substring(0, 3).toUpperCase()}</span>
+                <span class="score-value">${s.score.toString().padStart(6, ' ')}</span>
             </div>`;
-        
+
         const renderCabinet = (cab, index) => {
             const isActive = index === currentCabinet;
-            const scores = currentPage === 0 ? cab.globalScores.slice(0, 8) : cab.localScores.slice(0, 8);
+            // Now slicing Top 10
+            const scores = (currentPage === 0 ? cab.globalScores : cab.localScores).slice(0, 10);
             const pageTitle = currentPage === 0 ? '🌐 WORLD RECORDS' : '🏠 YOUR BEST';
-            
+
             return `
                 <div class="arcade-cabinet ${isActive ? 'active' : 'inactive'}" data-index="${index}">
-                    <!-- Marquee Top -->
-                    <div class="cabinet-top">
-                        <span class="marquee-text" style="color:${cab.color}">${cab.title}</span>
-                        <span class="marquee-sub">${cab.subtitle}</span>
-                    </div>
-                    
-                    <!-- CRT Monitor -->
+                    <div class="cabinet-top"><span class="marquee-text ${cab.class}">${cab.title}</span></div>
                     <div class="crt-monitor">
                         <div class="crt-screen">
-                            <div class="crt-curve"></div>
+                            <div class="crt-glare"></div>
                             <div class="crt-content">
-                                <!-- Score Header -->
-                                <div class="score-header" style="border-color: ${cab.color}40">
-                                    <span class="score-header-title" style="color:${cab.color}">${pageTitle}</span>
-                                    <span class="score-header-label">${cab.scoreLabel}</span>
+                                <div class="flex justify-between items-center pb-2 mb-2 border-b border-gray-800">
+                                    <span class="text-[0.75rem] font-bold" style="color:${cab.color}">${pageTitle}</span>
+                                    <span class="text-[0.65rem] text-gray-500">${cab.scoreLabel}</span>
                                 </div>
-                                
-                                <!-- Score List -->
                                 <div class="score-list">
                                     ${scores.length === 0 
-                                        ? `<div class="no-scores">
-                                            <div class="no-scores-icon">🕹️</div>
-                                            <div>NO RECORDS YET</div>
-                                            <div style="font-size:0.6rem;margin-top:5px;color:#555">BE THE FIRST!</div>
-                                           </div>`
-                                        : scores.map((s, i) => renderScoreRow(s, i, cab.color)).join('')
+                                        ? `<div class="flex flex-col items-center justify-center h-full opacity-20">🕹️<div class="text-[10px]">NO DATA</div></div>`
+                                        : scores.map((s, i) => renderScoreRow(s, i)).join('')
                                     }
                                 </div>
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- Control Panel -->
                     <div class="cabinet-controls">
-                        <div class="control-panel">
-                            <button class="arcade-btn arcade-btn-red cab-prev" title="Previous">◀</button>
-                            <button class="arcade-btn arcade-btn-blue cab-toggle" title="World/Local">${currentPage === 0 ? '🌐' : '🏠'}</button>
-                            <button class="arcade-btn arcade-btn-yellow cab-share" title="Share">📤</button>
-                            <button class="arcade-btn arcade-btn-green cab-next" title="Next">▶</button>
-                        </div>
-                        <div class="page-indicator">
-                            ${currentPage === 0 ? '🌐 WORLD' : '🏠 LOCAL'} · SWIPE TO BROWSE
+                        <div class="joystick-base"><div class="joystick-knob"></div></div>
+                        <div class="flex gap-6">
+                            <button class="arcade-btn bg-blue-600 cab-toggle" title="Toggle Local/World">${currentPage === 0 ? '🏠' : '🌐'}</button>
+                            <button class="arcade-btn bg-yellow-500 cab-share" title="Share Selected Cabinet">📤</button>
                         </div>
                     </div>
-                </div>
-            `;
+                </div>`;
         };
-        
+
         const renderArcadeHall = () => {
-            const offset = -currentCabinet * 370 + (window.innerWidth / 2 - 170);
+            const offset = (window.innerWidth / 2) - 220 - (currentCabinet * 490);
             return `
                 <div class="arcade-hall">
                     <div class="arcade-floor"></div>
-                    
                     <button class="exit-btn" id="arcade-close">✕ EXIT ARCADE</button>
-                    
-                    <!-- Cabinet Dots -->
-                    <div class="cabinet-dots">
-                        ${cabinets.map((c, i) => `
-                            <div class="cabinet-dot ${i === currentCabinet ? 'active' : ''}" 
-                                 style="color:${c.color}" data-index="${i}"></div>
-                        `).join('')}
+                    <div class="absolute bottom-44 left-1/2 -translate-x-1/2 flex gap-4 z-[20]">
+                        ${cabinets.map((c, i) => `<div class="cabinet-dot ${i === currentCabinet ? 'active' : ''}" data-index="${i}"></div>`).join('')}
                     </div>
-                    
-                    <!-- Cabinets Row -->
                     <div style="height:100vh;display:flex;align-items:center;overflow:hidden;">
                         <div class="cabinet-row" style="transform: translateX(${offset}px)">
                             ${cabinets.map((cab, i) => renderCabinet(cab, i)).join('')}
                         </div>
                     </div>
-                </div>
-            `;
+                </div>`;
         };
-        
-        // Create modal
+
         const modal = document.createElement('div');
         modal.id = 'highScoreModal';
-        modal.className = 'fixed inset-0 z-[200]';
+        modal.className = 'fixed inset-0 z-[10000]';
         modal.innerHTML = renderArcadeHall();
         document.body.appendChild(modal);
-        
-        // Touch handling for swipe
-        let touchStartX = 0;
-        const handleSwipe = (diff) => {
-            if (Math.abs(diff) > 50) {
-                if (diff > 0) {
-                    // Swipe left - next
-                    currentCabinet = (currentCabinet + 1) % cabinets.length;
-                } else {
-                    // Swipe right - prev
-                    currentCabinet = (currentCabinet - 1 + cabinets.length) % cabinets.length;
-                }
-                modal.innerHTML = renderArcadeHall();
-                bindEvents();
-                resetAutoScroll();
-            }
-        };
-        
-        // Bind events
+
         const bindEvents = () => {
-            // Nav buttons on active cabinet
-            modal.querySelectorAll('.cab-prev').forEach(btn => {
-                btn.onclick = () => {
-                    currentCabinet = (currentCabinet - 1 + cabinets.length) % cabinets.length;
+            // TOUCH SWIPING LOGIC
+            let touchStartX = 0;
+            const row = modal.querySelector('.cabinet-row');
+            row.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, { passive: true });
+            row.addEventListener('touchend', e => {
+                const diff = touchStartX - e.changedTouches[0].clientX;
+                if (Math.abs(diff) > 50) {
+                    if (diff > 0) currentCabinet = Math.min(currentCabinet + 1, cabinets.length - 1);
+                    else currentCabinet = Math.max(currentCabinet - 1, 0);
                     modal.innerHTML = renderArcadeHall();
                     bindEvents();
                     resetAutoScroll();
-                };
-            });
-            modal.querySelectorAll('.cab-next').forEach(btn => {
-                btn.onclick = () => {
-                    currentCabinet = (currentCabinet + 1) % cabinets.length;
-                    modal.innerHTML = renderArcadeHall();
-                    bindEvents();
-                    resetAutoScroll();
-                };
-            });
+                }
+            }, { passive: true });
+
+            // TOGGLE LOGIC
             modal.querySelectorAll('.cab-toggle').forEach(btn => {
-                btn.onclick = () => {
+                btn.onclick = (e) => {
+                    e.stopPropagation();
                     currentPage = currentPage === 0 ? 1 : 0;
                     modal.innerHTML = renderArcadeHall();
                     bindEvents();
                     resetAutoScroll();
                 };
             });
+
+            // DYNAMIC DYNAMIC SHARE BUTTON
             modal.querySelectorAll('.cab-share').forEach(btn => {
-                btn.onclick = () => self.shareScores();
-            });
-            
-            // Cabinet dots for direct navigation
-            modal.querySelectorAll('.cabinet-dot').forEach(dot => {
-                dot.onclick = () => {
-                    const index = parseInt(dot.dataset.index);
-                    if (index !== currentCabinet) {
-                        currentCabinet = index;
-                        modal.innerHTML = renderArcadeHall();
-                        bindEvents();
-                        resetAutoScroll();
+                btn.onclick = async (e) => {
+                    e.stopPropagation();
+                    const cab = cabinets[currentCabinet];
+                    const topScore = cab.globalScores[0]?.score || 0;
+                    const name = State.data.username || "I";
+                    const text = `${name} just hit a high score of ${topScore} on ${cab.title}! 🏆 Can you beat it on GBword?`;
+                    const url = window.location.origin;
+                    if (navigator.share) {
+                        await navigator.share({ title: cab.title, text: text, url: url });
+                    } else {
+                        navigator.clipboard.writeText(`${text} ${url}`);
+                        UIManager.showPostVoteMessage("Score copied to clipboard! 📋");
                     }
                 };
             });
-            
-            // Click on cabinet to select it
+
+            // DOT NAV
+            modal.querySelectorAll('.cabinet-dot').forEach(dot => {
+                dot.onclick = () => {
+                    currentCabinet = parseInt(dot.dataset.index);
+                    modal.innerHTML = renderArcadeHall();
+                    bindEvents();
+                    resetAutoScroll();
+                };
+            });
+
+            // CABINET SELECTION CLICK
             modal.querySelectorAll('.arcade-cabinet').forEach(cab => {
                 cab.onclick = (e) => {
-                    if (e.target.closest('.arcade-btn')) return; // Don't trigger on button clicks
+                    if (e.target.closest('button')) return;
                     const index = parseInt(cab.dataset.index);
                     if (index !== currentCabinet) {
                         currentCabinet = index;
@@ -10463,47 +10088,34 @@ const StreakManager = {
                     }
                 };
             });
-            
+
             modal.querySelector('#arcade-close').onclick = () => self.closeLeaderboard();
-            
-            // Touch events for swiping
-            modal.addEventListener('touchstart', (e) => {
-                touchStartX = e.changedTouches[0].screenX;
-            }, { passive: true });
-            modal.addEventListener('touchend', (e) => {
-                const diff = touchStartX - e.changedTouches[0].screenX;
-                handleSwipe(diff);
-            }, { passive: true });
         };
-        
-        // Auto-scroll functionality
+
         const autoScroll = () => {
             if (!document.getElementById('highScoreModal')) return;
-            
-            // Toggle page first, then move to next cabinet
-            if (currentPage === 0) {
-                currentPage = 1;
-            } else {
+            if (currentPage === 0) currentPage = 1;
+            else {
                 currentPage = 0;
                 currentCabinet = (currentCabinet + 1) % cabinets.length;
             }
-            
             modal.innerHTML = renderArcadeHall();
             bindEvents();
-            self.loopTimer = setTimeout(autoScroll, 5000);
+            self.loopTimer = setTimeout(autoScroll, 6000);
         };
-        
+
         const resetAutoScroll = () => {
             if (self.loopTimer) clearTimeout(self.loopTimer);
-            self.loopTimer = setTimeout(autoScroll, 5000);
+            self.loopTimer = setTimeout(autoScroll, 6000);
         };
-        
+
         bindEvents();
         resetAutoScroll();
     },
+
     closeLeaderboard() {
         const el = document.getElementById('highScoreModal');
-        if(el) el.remove();
+        if (el) el.remove();
         if (this.loopTimer) clearTimeout(this.loopTimer);
     }
 };
