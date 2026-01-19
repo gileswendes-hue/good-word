@@ -9912,9 +9912,9 @@ async showLeaderboard() {
         } catch (e) { console.error("Score fetch error", e); }
 
         // 2. Inject HIGH-FIDELITY Arcade CSS
-        if (!document.getElementById('arcade-styles-v4')) {
+        if (!document.getElementById('arcade-styles-v5')) {
             const s = document.createElement('style');
-            s.id = 'arcade-styles-v4';
+            s.id = 'arcade-styles-v5';
             s.innerHTML = `
                 @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=Black+Ops+One&display=swap');
                 
@@ -10019,7 +10019,7 @@ async showLeaderboard() {
                     margin: 20px; border-radius: 12px;
                     display: flex; flex-direction: column; align-items: center; justify-content: center;
                     box-shadow: inset 0 0 30px rgba(0,0,0,0.8);
-                    text-transform: uppercase; text-align: center;
+                    text-align: center;
                     position: relative; overflow: hidden;
                 }
                 .marquee-glass {
@@ -10034,8 +10034,9 @@ async showLeaderboard() {
                     animation: neon-flicker 3s infinite;
                     text-shadow: 0 0 15px currentColor;
                     letter-spacing: 1px;
+                    /* Removed uppercase transform to allow custom casing */
                 }
-                .marquee-sub { font-size: 12px; opacity: 0.9; z-index: 2; margin-top: 6px; font-weight: bold; letter-spacing: 2px; }
+                .marquee-sub { font-size: 12px; opacity: 0.9; z-index: 2; margin-top: 6px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; }
 
                 .crt-housing {
                     flex: 1; background: #111; margin: 0 20px 20px 20px;
@@ -10052,6 +10053,14 @@ async showLeaderboard() {
                     overflow: hidden;
                     box-shadow: inset 0 0 60px rgba(0,0,0,1);
                 }
+                /* NEW: Glass Reflection Overlay */
+                .crt-reflection {
+                    position: absolute; inset: 0; pointer-events: none; z-index: 15;
+                    background: linear-gradient(115deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 25%, transparent 40%, transparent 100%);
+                    border-radius: 50% / 10%;
+                    box-shadow: inset 0 0 20px rgba(255,255,255,0.05);
+                }
+                
                 .scanlines {
                     position: absolute; inset: 0; pointer-events: none; z-index: 10;
                     background: linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.25) 50%); background-size: 100% 4px;
@@ -10100,6 +10109,9 @@ async showLeaderboard() {
                 .btn-toggle { background: #2563eb; color: #fff; }
                 .btn-share { background: #ca8a04; color: #fff; }
 
+                /* Hide share button by default (in global mode) */
+                .btn-share.hidden { display: none; }
+
                 .close-btn {
                     position: absolute; top: 20px; right: 20px; z-index: 200;
                     width: 40px; height: 40px; background: rgba(255,0,0,0.2);
@@ -10123,7 +10135,7 @@ async showLeaderboard() {
                 subtitle: 'ENDURANCE RUN',
                 dataGlobal: globalStreak || [],
                 dataLocal: (State.data.highScores || []),
-                shareMsg: (s) => `🔥 I hit a ${s}-word streak in Good Word / Bad Word! Can you beat me?`
+                shareMsg: (s) => `🔥 I hit a ${s}-word streak in Word Streak! Can you beat me?`
             },
             {
                 id: 'war',
@@ -10132,7 +10144,7 @@ async showLeaderboard() {
                 subtitle: 'BATTLEFIELD',
                 dataGlobal: globalWar || [],
                 dataLocal: (State.data.wordWarScores || []),
-                shareMsg: (s) => `⚔️ I won ${s} battles in Word War! #WordWar`
+                shareMsg: (s) => `⚔️ I won ${s} battles in WORD WAR! #WordWar`
             },
             {
                 id: 'def',
@@ -10141,7 +10153,7 @@ async showLeaderboard() {
                 subtitle: 'DATA UPLINK',
                 dataGlobal: globalDef || [],
                 dataLocal: (State.data.defDashScores || []),
-                shareMsg: (s) => `🧠 I scored ${s} points in Def Dash! #DefDash`
+                shareMsg: (s) => `🧠 I scored ${s} points in definition dash! #DefDash`
             }
         ];
 
@@ -10177,6 +10189,7 @@ async showLeaderboard() {
                 </div>
                 <div class="crt-housing">
                     <div class="crt-screen">
+                        <div class="crt-reflection"></div>
                         <div class="scanlines"></div>
                         <div class="crt-content" id="list-${idx}">
                             </div>
@@ -10184,7 +10197,7 @@ async showLeaderboard() {
                 </div>
                 <div class="control-deck">
                     <button class="arcade-btn btn-toggle" data-idx="${idx}">🌐</button>
-                    <button class="arcade-btn btn-share" data-idx="${idx}">📤</button>
+                    <button class="arcade-btn btn-share hidden" data-idx="${idx}">📤</button>
                 </div>
             </div>
         `).join('');
@@ -10229,7 +10242,7 @@ async showLeaderboard() {
 
         const refreshCabinetContent = (idx) => {
             const cab = cabinets[idx];
-            const mode = viewModes[idx]; 
+            const mode = viewModes[idx]; // 0=Global, 1=Local
             const data = mode === 0 ? cab.dataGlobal : cab.dataLocal;
             const title = mode === 0 ? "--- WORLD RECORDS ---" : "--- LOCAL BEST ---";
             
@@ -10239,8 +10252,16 @@ async showLeaderboard() {
                 ${generateListHTML(data)}
             `;
             
-            const btn = modal.querySelector(`.btn-toggle[data-idx="${idx}"]`);
-            if(btn) btn.innerHTML = mode === 0 ? '🌐' : '🏠';
+            // Toggle Button Icon
+            const btnToggle = modal.querySelector(`.btn-toggle[data-idx="${idx}"]`);
+            if(btnToggle) btnToggle.innerHTML = mode === 0 ? '🌐' : '🏠';
+
+            // VISIBILITY LOGIC: Show Share Button ONLY if Local (mode 1)
+            const btnShare = modal.querySelector(`.btn-share[data-idx="${idx}"]`);
+            if(btnShare) {
+                if (mode === 1) btnShare.classList.remove('hidden');
+                else btnShare.classList.add('hidden');
+            }
             
             startAutoScroll(idx);
             
@@ -10285,7 +10306,7 @@ async showLeaderboard() {
             };
         });
 
-        // --- NEW SHARE LOGIC ---
+        // --- SHARE LOGIC ---
         modal.querySelectorAll('.btn-share').forEach(btn => {
             btn.onclick = async (e) => {
                 e.stopPropagation();
