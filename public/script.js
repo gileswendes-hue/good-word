@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.5.4',
+    APP_VERSION: '6.5.4.3',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -9912,19 +9912,21 @@ async showLeaderboard() {
         } catch (e) { console.error("Score fetch error", e); }
 
         // 2. Inject HIGH-FIDELITY Arcade CSS
-        if (!document.getElementById('arcade-styles-v2')) {
+        if (!document.getElementById('arcade-styles-v3')) {
             const s = document.createElement('style');
-            s.id = 'arcade-styles-v2';
+            s.id = 'arcade-styles-v3';
             s.innerHTML = `
                 @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=Black+Ops+One&display=swap');
                 
                 :root {
-                    --cab-w: 360px;
-                    --cab-h: 680px;
-                    --cab-gap: 60px; /* Space between cabinets */
+                    /* UPDATED: Wider Cabinets */
+                    --cab-w: 420px; 
+                    --cab-h: 700px;
+                    --cab-gap: 50px;
                 }
                 @media (min-width: 768px) {
-                    :root { --cab-w: 440px; --cab-h: 750px; }
+                    /* Desktop even wider */
+                    :root { --cab-w: 520px; --cab-h: 800px; }
                 }
 
                 /* --- 1. Scene Setup --- */
@@ -9932,7 +9934,7 @@ async showLeaderboard() {
                     position: fixed; inset: 0; z-index: 9999;
                     background: radial-gradient(circle at 50% 30%, #1a1a2e 0%, #000 90%);
                     display: flex; flex-direction: column; overflow: hidden;
-                    perspective: 1200px; /* Deep 3D perspective */
+                    perspective: 1200px;
                 }
                 .arcade-floor {
                     position: absolute; bottom: 0; left: -50%; right: -50%; height: 40vh;
@@ -9952,9 +9954,9 @@ async showLeaderboard() {
 
                 /* --- 2. Sliding Row --- */
                 .cabinet-viewport {
-                    flex: 1; display: flex; align-items: center; /* Vertical center */
+                    flex: 1; display: flex; align-items: center;
                     width: 100%; z-index: 10;
-                    touch-action: pan-x; /* Allow horizontal swipe */
+                    touch-action: pan-x;
                 }
                 .cabinet-row {
                     display: flex; 
@@ -9962,37 +9964,31 @@ async showLeaderboard() {
                     padding: 0; margin: 0;
                     transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
                     will-change: transform;
-                    align-items: flex-end; /* Align bottoms for floor effect */
+                    align-items: flex-end;
                     height: var(--cab-h);
                 }
 
-                /* --- 3. The Cabinet (Shape & Form) --- */
+                /* --- 3. The Cabinet --- */
                 .arcade-cabinet {
                     width: var(--cab-w); 
                     height: var(--cab-h);
                     flex-shrink: 0;
                     position: relative;
                     border-radius: 24px 24px 4px 4px;
-                    /* Side Panels (Pseudo 3D) */
-                    border-right: 20px solid rgba(0,0,0,0.5);
-                    border-left: 20px solid rgba(255,255,255,0.05);
+                    border-right: 25px solid rgba(0,0,0,0.5); /* Thicker side for width */
+                    border-left: 25px solid rgba(255,255,255,0.05);
                     box-shadow: 0 40px 80px rgba(0,0,0,1);
                     transition: transform 0.5s ease, opacity 0.5s ease, filter 0.5s ease;
                     display: flex; flex-direction: column;
                 }
 
-                /* Active/Inactive States */
                 .arcade-cabinet.active {
                     transform: scale(1.05) translateZ(50px);
-                    z-index: 50;
-                    filter: brightness(1.1);
-                    opacity: 1;
+                    z-index: 50; filter: brightness(1.1); opacity: 1;
                 }
                 .arcade-cabinet.inactive {
                     transform: scale(0.9) translateZ(-50px) rotateX(5deg);
-                    z-index: 1;
-                    filter: brightness(0.5) grayscale(0.7);
-                    opacity: 0.6;
+                    z-index: 1; filter: brightness(0.5) grayscale(0.7); opacity: 0.6;
                 }
 
                 /* --- 4. Distinct Textures --- */
@@ -10000,9 +9996,9 @@ async showLeaderboard() {
                 .theme-wood {
                     background-color: #5d4037;
                     background-image: repeating-linear-gradient(90deg, rgba(255,255,255,0.03) 0, rgba(255,255,255,0.03) 2px, transparent 2px, transparent 40px);
-                    box-shadow: inset 0 0 40px #2e1e19;
+                    box-shadow: inset 0 0 60px #2e1e19;
                 }
-                .theme-wood .marquee-area { background: #3e2723; border: 4px solid #8d6e63; color: #ffb74d; }
+                .theme-wood .marquee-area { background: #3e2723; border: 6px solid #8d6e63; color: #ffb74d; }
                 
                 /* Theme B: Military Camo (War) */
                 .theme-camo {
@@ -10010,23 +10006,24 @@ async showLeaderboard() {
                     background-image: radial-gradient(circle at 30% 30%, #4a5c38 20px, transparent 21px), radial-gradient(circle at 70% 70%, #1a2115 20px, transparent 21px);
                     background-size: 100px 100px;
                 }
-                .theme-camo .marquee-area { background: #2f1d1d; border: 4px solid #581c1c; color: #ef4444; font-family: 'Black Ops One', cursive; letter-spacing: 2px; }
+                .theme-camo .marquee-area { background: #2f1d1d; border: 6px solid #581c1c; color: #ef4444; font-family: 'Black Ops One', cursive; letter-spacing: 2px; }
 
                 /* Theme C: Cyber Grid (Def Dash) */
                 .theme-cyber {
                     background: #000;
                     background-image: linear-gradient(rgba(0,255,0,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(0,255,0,0.1) 1px, transparent 1px);
                     background-size: 30px 30px;
-                    border: 1px solid #00ff00;
-                    box-shadow: 0 0 15px rgba(0,255,0,0.2);
+                    border: 2px solid #00ff00;
+                    box-shadow: 0 0 20px rgba(0,255,0,0.2);
                 }
-                .theme-cyber .marquee-area { background: #002200; border: 4px solid #00ff00; color: #00ff00; text-shadow: 0 0 10px #00ff00; }
+                .theme-cyber .marquee-area { background: #002200; border: 6px solid #00ff00; color: #00ff00; text-shadow: 0 0 10px #00ff00; }
 
                 /* --- 5. Cabinet Components --- */
                 .marquee-area {
-                    height: 90px; margin: 15px; border-radius: 10px;
+                    height: 110px; /* Taller for bigger text */
+                    margin: 20px; border-radius: 12px;
                     display: flex; flex-direction: column; align-items: center; justify-content: center;
-                    box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+                    box-shadow: inset 0 0 30px rgba(0,0,0,0.8);
                     text-transform: uppercase; text-align: center;
                     position: relative; overflow: hidden;
                 }
@@ -10035,22 +10032,31 @@ async showLeaderboard() {
                     background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, transparent 40%, rgba(255,255,255,0.1) 100%);
                     pointer-events: none;
                 }
-                .marquee-title { font-size: 18px; font-weight: bold; z-index: 2; animation: neon-flicker 3s infinite; }
-                .marquee-sub { font-size: 10px; opacity: 0.8; z-index: 2; margin-top: 4px; }
+                
+                /* UPDATED: Bolder, Larger Title */
+                .marquee-title { 
+                    font-size: 28px; 
+                    font-weight: 900; 
+                    z-index: 2; 
+                    animation: neon-flicker 3s infinite;
+                    text-shadow: 0 0 15px currentColor;
+                    letter-spacing: 1px;
+                }
+                .marquee-sub { font-size: 12px; opacity: 0.9; z-index: 2; margin-top: 6px; font-weight: bold; letter-spacing: 2px; }
 
                 .crt-housing {
-                    flex: 1; background: #111; margin: 0 15px 15px 15px;
+                    flex: 1; background: #111; margin: 0 20px 20px 20px;
                     border-radius: 4px 4px 15px 15px;
-                    border: 12px solid #222; border-bottom-width: 30px; /* Chin */
+                    border: 15px solid #222; border-bottom-width: 35px;
                     box-shadow: inset 0 0 20px #000;
                     position: relative; overflow: hidden;
                 }
                 
-                /* THE CRT EFFECT */
+                /* CRT Screen */
                 .crt-screen {
                     position: absolute; inset: 10px;
                     background: #000;
-                    border-radius: 50% / 10%; /* Curved Screen */
+                    border-radius: 50% / 10%;
                     overflow: hidden;
                     box-shadow: inset 0 0 60px rgba(0,0,0,1);
                 }
@@ -10059,29 +10065,30 @@ async showLeaderboard() {
                     background: linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.25) 50%); background-size: 100% 4px;
                 }
                 .crt-content {
-                    height: 100%; padding: 20px 10px; overflow-y: auto;
-                    color: #fff; font-family: 'VT323', monospace; font-size: 1.3rem;
+                    height: 100%; padding: 20px 10px; 
+                    overflow-y: scroll; /* Allow JS scroll */
+                    scrollbar-width: none; /* Firefox hide */
+                    -ms-overflow-style: none; /* IE hide */
+                    color: #fff; font-family: 'VT323', monospace; font-size: 1.4rem;
                     text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
                     mask-image: linear-gradient(to bottom, transparent 0%, black 5%, black 95%, transparent 100%);
                 }
-                /* Hide Scrollbar */
-                .crt-content::-webkit-scrollbar { width: 0; }
+                .crt-content::-webkit-scrollbar { display: none; } /* Chrome hide */
 
-                /* Score Rows */
                 .score-row { 
                     display: flex; justify-content: space-between; 
-                    border-bottom: 1px dashed rgba(255,255,255,0.15); padding: 5px 0; 
+                    border-bottom: 1px dashed rgba(255,255,255,0.15); padding: 8px 0; 
                 }
                 .score-row.highlight { 
                     background: rgba(255,255,255,0.1); 
                     color: #ffff00 !important; 
                     animation: pulse-row 1s infinite alternate;
                 }
-                .rank { width: 35px; color: #888; }
+                .rank { width: 40px; color: #888; }
                 .name { flex: 1; text-align: left; letter-spacing: 1px; }
                 .score { color: #fff; font-weight: bold; }
 
-                /* Theme Colors for Text */
+                /* Theme Colors */
                 .theme-wood .crt-content { color: #ffb74d; text-shadow: 0 0 5px #e65100; }
                 .theme-camo .crt-content { color: #86efac; text-shadow: 0 0 5px #14532d; }
                 .theme-cyber .crt-content { color: #5eead4; text-shadow: 0 0 5px #0f766e; }
@@ -10091,12 +10098,12 @@ async showLeaderboard() {
                     height: 100px; background: rgba(0,0,0,0.3);
                     display: flex; align-items: center; justify-content: center; gap: 20px;
                     border-top: 2px solid rgba(255,255,255,0.1);
-                    margin: 0 15px 20px 15px; border-radius: 0 0 15px 15px;
+                    margin: 0 20px 25px 20px; border-radius: 0 0 15px 15px;
                 }
                 .arcade-btn {
-                    width: 50px; height: 50px; border-radius: 50%; border: none;
-                    box-shadow: 0 5px 0 #000, 0 8px 10px rgba(0,0,0,0.5);
-                    font-size: 22px; cursor: pointer; display: grid; place-items: center;
+                    width: 60px; height: 60px; border-radius: 50%; border: none;
+                    box-shadow: 0 6px 0 #000, 0 10px 15px rgba(0,0,0,0.5);
+                    font-size: 26px; cursor: pointer; display: grid; place-items: center;
                     transition: transform 0.1s; position: relative;
                 }
                 .arcade-btn:active { transform: translateY(5px); box-shadow: 0 0 0 #000; }
@@ -10153,10 +10160,11 @@ async showLeaderboard() {
         modal.id = 'highScoreModal';
         modal.className = 'arcade-modal';
         
-        // Render Function for a single list
+        // Render Function
         const generateListHTML = (data, isGlobal) => {
             if (!data || data.length === 0) return '<div style="text-align:center; margin-top:40px; opacity:0.6;">NO DATA RECORDED<br>PLAY NOW!</div>';
-            return data.slice(0, 50).map((entry, i) => {
+            // Duplicate list for seamless scroll illusion if plenty of data
+            const rows = data.slice(0, 100).map((entry, i) => {
                 const isMe = (entry.name === username);
                 return `
                     <div class="score-row ${isMe ? 'highlight' : ''}">
@@ -10166,6 +10174,8 @@ async showLeaderboard() {
                     </div>
                 `;
             }).join('');
+            
+            return rows + (data.length > 10 ? `<div style="text-align:center; margin: 20px 0;">--- END OF RECORDS ---</div><div style="height:50px"></div>` : '');
         };
 
         const cabinetHTML = cabinets.map((cab, idx) => `
@@ -10207,54 +10217,69 @@ async showLeaderboard() {
         
         document.body.appendChild(modal);
 
-        // 5. State Management & Animation Logic
+        // 5. Logic & Animation
         let currentIndex = 0;
-        let viewModes = [0, 0, 0]; // 0=Global, 1=Local for each cab
+        let viewModes = [0, 0, 0]; // 0=Global, 1=Local
         const row = document.getElementById('cabinetRow');
         const cabs = document.querySelectorAll('.arcade-cabinet');
+        
+        // Auto-scroll timers
+        const scrollTimers = {};
+
+        const startAutoScroll = (idx) => {
+            if (scrollTimers[idx]) clearInterval(scrollTimers[idx]);
+            const el = document.getElementById(`list-${idx}`);
+            if(!el) return;
+            
+            scrollTimers[idx] = setInterval(() => {
+                if (el.matches(':hover') || el.classList.contains('touch-active')) return; // Pause on hover
+                el.scrollTop += 1;
+                // Reset if reached bottom
+                if(el.scrollTop + el.clientHeight >= el.scrollHeight) {
+                    el.scrollTop = 0; 
+                }
+            }, 50); // Slow speed
+        };
 
         const refreshCabinetContent = (idx) => {
             const cab = cabinets[idx];
-            const mode = viewModes[idx]; // 0 or 1
+            const mode = viewModes[idx]; 
             const data = mode === 0 ? cab.dataGlobal : cab.dataLocal;
             const title = mode === 0 ? "--- WORLD RECORDS ---" : "--- LOCAL BEST ---";
             
             const container = document.getElementById(`list-${idx}`);
             container.innerHTML = `
-                <div style="text-align:center; margin-bottom:10px; padding-bottom:5px; border-bottom:2px solid rgba(255,255,255,0.2);">${title}</div>
+                <div style="text-align:center; margin-bottom:10px; padding-bottom:5px; border-bottom:2px solid rgba(255,255,255,0.2); position:sticky; top:0; background:inherit; z-index:10;">${title}</div>
                 ${generateListHTML(data)}
             `;
             
-            // Update toggle button icon
+            // Update toggle button
             const btn = modal.querySelector(`.btn-toggle[data-idx="${idx}"]`);
             if(btn) btn.innerHTML = mode === 0 ? '🌐' : '🏠';
+            
+            // Start scrolling
+            startAutoScroll(idx);
+            
+            // Touch interaction to pause
+            container.addEventListener('touchstart', () => container.classList.add('touch-active'));
+            container.addEventListener('touchend', () => setTimeout(() => container.classList.remove('touch-active'), 1000));
         };
 
-        // Initialize content
         cabinets.forEach((_, i) => refreshCabinetContent(i));
 
-        // THE CORE CENTERING LOGIC
+        // CENTERING LOGIC
         const updatePosition = () => {
-            // Get dynamic dimensions
             const sampleCab = cabs[0];
-            const cabWidth = sampleCab.offsetWidth;
+            const cabWidth = sampleCab.offsetWidth; // Uses new wider CSS
             const gapStr = getComputedStyle(document.documentElement).getPropertyValue('--cab-gap').trim();
-            const gap = parseInt(gapStr) || 60; // Fallback
+            const gap = parseInt(gapStr) || 50;
             
-            const windowWidth = window.innerWidth;
-            
-            // Calculate center position
-            // To center index i:
-            // Shift = (ScreenCenter) - (ItemCenter relative to start of row)
-            // ItemCenter = (i * (cabWidth + gap)) + (cabWidth / 2)
-            
-            const screenCenter = windowWidth / 2;
+            const screenCenter = window.innerWidth / 2;
             const itemCenter = (currentIndex * (cabWidth + gap)) + (cabWidth / 2);
             const translateX = screenCenter - itemCenter;
 
             row.style.transform = `translateX(${translateX}px)`;
 
-            // Update Active Classes
             cabs.forEach((el, i) => {
                 if (i === currentIndex) {
                     el.classList.add('active');
@@ -10266,13 +10291,10 @@ async showLeaderboard() {
             });
         };
 
-        // Initial Layout
-        // Small delay to allow DOM render for width calc
         setTimeout(updatePosition, 10);
         window.addEventListener('resize', updatePosition);
 
         // 6. Interaction Handlers
-        // Toggle Global/Local
         modal.querySelectorAll('.btn-toggle').forEach(btn => {
             btn.onclick = (e) => {
                 e.stopPropagation();
@@ -10282,7 +10304,6 @@ async showLeaderboard() {
             };
         });
 
-        // Share
         modal.querySelectorAll('.btn-share').forEach(btn => {
             btn.onclick = (e) => {
                 e.stopPropagation();
@@ -10290,20 +10311,19 @@ async showLeaderboard() {
             };
         });
 
-        // Close
         const close = () => {
             modal.remove();
+            Object.values(scrollTimers).forEach(t => clearInterval(t));
             window.removeEventListener('resize', updatePosition);
             window.removeEventListener('keydown', keyHandler);
         };
         document.getElementById('closeArcade').onclick = close;
 
-        // --- Swipe Logic (Touch & Mouse) ---
+        // Swipe Logic
         let startX = 0;
         let isDragging = false;
         let startTranslateX = 0;
 
-        // Helper to get current transform value
         const getTranslateX = () => {
             const style = window.getComputedStyle(row);
             const matrix = new WebKitCSSMatrix(style.transform);
@@ -10314,13 +10334,16 @@ async showLeaderboard() {
             if (e.target.closest('.arcade-btn') || e.target.closest('.close-btn')) return;
             isDragging = true;
             startX = e.touches ? e.touches[0].clientX : e.clientX;
-            row.style.transition = 'none'; // Instant movement
+            row.style.transition = 'none';
             startTranslateX = getTranslateX();
         };
 
         const handleMove = (e) => {
             if (!isDragging) return;
-            e.preventDefault(); // Stop page scroll
+            // Only prevent default if horizontal drag is significant, to allow vertical scrolling of score list
+            // However, score list handles its own scroll. 
+            // We'll prevent default to stop whole page bounce.
+            e.preventDefault(); 
             const currentX = e.touches ? e.touches[0].clientX : e.clientX;
             const diff = currentX - startX;
             row.style.transform = `translateX(${startTranslateX + diff}px)`;
@@ -10329,18 +10352,14 @@ async showLeaderboard() {
         const handleEnd = (e) => {
             if (!isDragging) return;
             isDragging = false;
-            row.style.transition = 'transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1)'; // Restore smooth
+            row.style.transition = 'transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1)';
             
             const currentX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
             const diff = currentX - startX;
 
-            // Threshold to switch
             if (Math.abs(diff) > 50) {
-                if (diff < 0 && currentIndex < cabinets.length - 1) {
-                    currentIndex++;
-                } else if (diff > 0 && currentIndex > 0) {
-                    currentIndex--;
-                }
+                if (diff < 0 && currentIndex < cabinets.length - 1) currentIndex++;
+                else if (diff > 0 && currentIndex > 0) currentIndex--;
             }
             updatePosition();
         };
@@ -10348,14 +10367,11 @@ async showLeaderboard() {
         const viewport = modal.querySelector('.cabinet-viewport');
         viewport.addEventListener('mousedown', handleStart);
         viewport.addEventListener('touchstart', handleStart, {passive: false});
-        
         window.addEventListener('mousemove', handleMove);
         window.addEventListener('touchmove', handleMove, {passive: false});
-        
         window.addEventListener('mouseup', handleEnd);
         window.addEventListener('touchend', handleEnd);
 
-        // Click Cabinet to Center
         cabs.forEach((cab, i) => {
             cab.addEventListener('click', (e) => {
                 if(e.target.closest('.arcade-btn')) return;
@@ -10366,16 +10382,9 @@ async showLeaderboard() {
             });
         });
 
-        // Keyboard Nav
         const keyHandler = (e) => {
-            if (e.key === 'ArrowLeft' && currentIndex > 0) {
-                currentIndex--;
-                updatePosition();
-            }
-            if (e.key === 'ArrowRight' && currentIndex < cabinets.length - 1) {
-                currentIndex++;
-                updatePosition();
-            }
+            if (e.key === 'ArrowLeft' && currentIndex > 0) { currentIndex--; updatePosition(); }
+            if (e.key === 'ArrowRight' && currentIndex < cabinets.length - 1) { currentIndex++; updatePosition(); }
             if (e.key === 'Escape') close();
         };
         window.addEventListener('keydown', keyHandler);
