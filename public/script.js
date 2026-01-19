@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.5.5',
+    APP_VERSION: '6.5.4',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -9763,12 +9763,10 @@ const StreakManager = {
     timer: null,
     loopTimer: null,
     LIMIT: 6500,
-
     extend(ms) {
         if (this.timer) clearTimeout(this.timer);
         this.timer = setTimeout(() => this.endStreak(), this.LIMIT + ms);
     },
-
     handleSuccess() {
         if (State.data.settings.noStreaksMode) return;
         const now = Date.now();
@@ -9783,19 +9781,18 @@ const StreakManager = {
         if (currentStreak > State.data.longestStreak) {
             State.save('longestStreak', currentStreak);
             const el = document.getElementById('streak-display-value');
-            if (el) el.textContent = currentStreak + " Words";
+            if(el) el.textContent = currentStreak + " Words";
         }
         if (currentStreak >= 5) {
             if (currentStreak === 5) this.showNotification("🔥 STREAK STARTED!", "success");
             this.updateScreenCounter(true);
         } else {
-            const counter = document.getElementById('streak-floating-counter');
-            if (counter) counter.style.opacity = '0';
+             const counter = document.getElementById('streak-floating-counter');
+             if(counter) counter.style.opacity = '0';
         }
         if (this.timer) clearTimeout(this.timer);
         this.timer = setTimeout(() => this.endStreak(), this.LIMIT);
     },
-
     endStreak() {
         const current = State.runtime.streak;
         if (current > (parseInt(State.data.longestStreak) || 0)) {
@@ -9815,7 +9812,6 @@ const StreakManager = {
         }
         State.runtime.streak = 0;
     },
-
     updateScreenCounter(pulse) {
         let el = document.getElementById('streak-floating-counter');
         if (!el) {
@@ -9833,12 +9829,11 @@ const StreakManager = {
             });
         }
     },
-
     showNotification(msg, type) {
         const notif = document.createElement('div');
         notif.textContent = msg;
         notif.style.cssText = `position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: ${type === 'success' ? '#10b981' : '#374151'}; color: white; padding: 10px 20px; border-radius: 8px; font-weight: bold; z-index: 99999; box-shadow: 0 4px 6px rgba(0,0,0,0.2); animation: fadeOut 2.5s forwards;`;
-        if (!document.getElementById('notif-style')) {
+        if(!document.getElementById('notif-style')) {
             const s = document.createElement('style');
             s.id = 'notif-style';
             s.innerHTML = `@keyframes fadeOut { 0% {opacity:1;} 80% {opacity:1;} 100% {opacity:0;} }`;
@@ -9847,18 +9842,16 @@ const StreakManager = {
         document.body.appendChild(notif);
         setTimeout(() => notif.remove(), 2500);
     },
-
     checkHighScore(score) {
         if (!State.data.highScores) State.data.highScores = [];
         const scores = State.data.highScores;
-        const minScore = scores.length < 10 ? 0 : scores[scores.length - 1].score;
-        if (score > minScore || scores.length < 10) {
+        const minScore = scores.length < 8 ? 0 : scores[scores.length - 1].score;
+        if (score > minScore || scores.length < 8) {
             setTimeout(() => this.promptName(score), 500);
         }
     },
-
     promptName(score) {
-        if (document.getElementById('nameEntryModal')) return;
+        if(document.getElementById('nameEntryModal')) return;
         const html = `
             <div id="nameEntryModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:100000; display:flex; align-items:center; justify-content:center;">
                 <div style="background:white; padding:2rem; border-radius:1rem; text-align:center; max-width:90%; width:300px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
@@ -9876,8 +9869,8 @@ const StreakManager = {
             const name = (document.getElementById('hsNameInput').value || "AAA").toUpperCase();
             const scores = State.data.highScores || [];
             scores.push({ name, score, date: Date.now() });
-            scores.sort((a, b) => b.score - a.score);
-            if (scores.length > 10) scores.pop();
+            scores.sort((a,b) => b.score - a.score);
+            if(scores.length > 8) scores.pop();
             State.save('highScores', scores);
             API.submitHighScore(name, score);
             document.getElementById('nameEntryModal').remove();
@@ -9885,7 +9878,6 @@ const StreakManager = {
         };
         document.getElementById('hsSaveBtn').onclick = saveFn;
     },
-
     async shareScores() {
         const scores = State.data.highScores || [];
         const best = scores.length ? scores[0].score : 0;
@@ -9895,151 +9887,548 @@ const StreakManager = {
         if (navigator.share) {
             try {
                 await navigator.share({ title: 'High Scores', text: text, url: url });
-            } catch (e) {}
+            } catch(e) { }
         } else {
             try {
                 await navigator.clipboard.writeText(`${text} ${url}`);
                 UIManager.showPostVoteMessage("Score copied to clipboard! 📋");
-            } catch (e) {
+            } catch(e) {
                 UIManager.showPostVoteMessage("Could not share.");
             }
         }
     },
-
     async showLeaderboard() {
         const self = this;
-        // 1. UPDATED STYLES: Scanlines, Retro Titles, Non-clashing Dots
+        
+        // Inject arcade cabinet styles - realistic row with sliding CRTs
         if (!document.getElementById('arcade-styles')) {
             const s = document.createElement('style');
             s.id = 'arcade-styles';
             s.innerHTML = `
-                @keyframes crt-flicker { 0%,100% {opacity:0.98;} 50% {opacity:1;} }
-                @keyframes scanline-move { 0% {transform: translateY(-100%);} 100% {transform: translateY(100%);} }
-                @keyframes neon-pulse { 0%,100% {opacity:1; text-shadow: 0 0 10px currentColor, 0 0 20px currentColor;} 50% {opacity:0.7; text-shadow: 0 0 5px currentColor;} }
+                @keyframes crt-flicker { 0%,100% {opacity:0.97;} 50% {opacity:1;} }
+                @keyframes crt-glow { 0%,100% {filter: brightness(1);} 50% {filter: brightness(1.05);} }
+                @keyframes scanline { 0% {transform: translateY(-100%);} 100% {transform: translateY(100%);} }
+                @keyframes neon-pulse { 0%,100% {opacity:1; text-shadow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 40px currentColor;} 50% {opacity:0.8; text-shadow: 0 0 5px currentColor, 0 0 10px currentColor;} }
+                @keyframes cabinet-glow { 0%,100% {box-shadow: 0 0 20px rgba(0,0,0,0.8), 0 5px 30px rgba(0,0,0,0.6);} 50% {box-shadow: 0 0 30px rgba(0,0,0,0.8), 0 5px 40px rgba(0,0,0,0.7);} }
                 
-                .arcade-hall { background: #050508; min-height: 100vh; position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-                .cabinet-row { display: flex; transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1); gap: 60px; padding: 0 20px; }
+                .arcade-hall {
+                    background: linear-gradient(180deg, #0a0a12 0%, #12121f 50%, #0a0a0f 100%);
+                    min-height: 100vh;
+                    position: relative;
+                    overflow: hidden;
+                }
+                .arcade-hall::before {
+                    content: '';
+                    position: absolute;
+                    top: 0; left: 0; right: 0;
+                    height: 120px;
+                    background: linear-gradient(180deg, rgba(147,51,234,0.15) 0%, transparent 100%);
+                    pointer-events: none;
+                }
+                .arcade-floor {
+                    position: absolute;
+                    bottom: 0; left: 0; right: 0;
+                    height: 100px;
+                    background: linear-gradient(180deg, transparent 0%, rgba(30,20,40,0.8) 100%);
+                    pointer-events: none;
+                }
+                .arcade-floor::before {
+                    content: '';
+                    position: absolute;
+                    bottom: 0; left: 0; right: 0;
+                    height: 4px;
+                    background: repeating-linear-gradient(90deg, #333 0px, #333 20px, #222 20px, #222 40px);
+                }
                 
-                /* CABINET STYLING */
-                .arcade-cabinet { flex: 0 0 440px; height: 820px; background: #111; border-radius: 20px 20px 10px 10px; position: relative; transition: all 0.5s; box-shadow: 0 20px 50px rgba(0,0,0,0.9); }
-                .arcade-cabinet.inactive { opacity: 0.5; transform: scale(0.9); filter: brightness(0.6); }
-
-                .cabinet-top { height: 100px; background: #000; border-radius: 20px 20px 0 0; display: flex; align-items: center; justify-content: center; border-bottom: 5px solid #000; }
-                .marquee-text { font-family: 'Impact', sans-serif; font-size: 2.2rem; text-transform: uppercase; letter-spacing: 2px; }
+                .cabinet-row {
+                    display: flex;
+                    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+                    gap: 30px;
+                    padding: 0 20px;
+                }
                 
-                /* RETRO TITLES */
-                .name-streak { color: #f472b6; animation: neon-pulse 2s infinite; }
-                .name-war { color: #ef4444; -webkit-text-stroke: 1.5px #fff; filter: drop-shadow(0 0 10px #ef4444); }
-                .name-dash { color: #34d399; font-family: 'Courier New', monospace; font-weight: 900; background: #000; padding: 4px 12px; border: 2px solid #34d399; }
-
-                /* REALISTIC MONITOR & SCANLINES */
-                .crt-monitor { margin: 15px 20px; height: 540px; background: #000; border-radius: 50% / 15%; position: relative; overflow: hidden; border: 15px solid #1a1a28; box-shadow: inset 0 0 60px rgba(0,0,0,1); }
-                .crt-screen { position: absolute; inset: 12px; background: radial-gradient(circle at center, #1a2a4a 0%, #050a14 85%); border-radius: 45px; overflow: hidden; animation: crt-flicker 0.1s infinite; }
+               .arcade-cabinet {
+    flex: 0 0 420px; /* Increased from 340px */
+    height: 720px;   /* Increased from 520px to fit top 10 */
+    background: linear-gradient(180deg, #2a2a4e 0%, #0f0f1a 40%, #0a0a12 100%);
+    border-radius: 20px 20px 10px 10px;
+}
+                .arcade-cabinet::before {
+                    content: '';
+                    position: absolute;
+                    inset: 0;
+                    border-radius: 12px 12px 8px 8px;
+                    border: 3px solid #2a2a3e;
+                    border-bottom: 6px solid #1a1a28;
+                    pointer-events: none;
+                }
+                .arcade-cabinet.active {
+                    transform: scale(1.02);
+                    z-index: 10;
+                }
+                .arcade-cabinet.inactive {
+                    transform: scale(0.92);
+                    opacity: 0.6;
+                    filter: brightness(0.7);
+                }
                 
-                .crt-screen::before { content: ""; position: absolute; inset: 0; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.15) 50%); background-size: 100% 4px; z-index: 10; pointer-events: none; }
-                .crt-screen::after { content: ""; position: absolute; top: -100%; left: 0; right: 0; height: 50%; background: linear-gradient(transparent, rgba(255,255,255,0.03), transparent); animation: scanline-move 8s linear infinite; z-index: 11; pointer-events: none; }
-                .crt-glare { position: absolute; top: -10%; left: -10%; width: 120%; height: 60%; background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, transparent 50%); z-index: 12; pointer-events: none; }
-
-                /* CONTROLS */
-                .cabinet-controls { height: 140px; background: #1a1a1a; border-top: 5px solid #333; position: relative; border-radius: 0 0 10px 10px; display: flex; align-items: center; justify-content: center; gap: 40px; }
-                .joystick-base { width: 50px; height: 50px; background: #000; border-radius: 50%; position: relative; }
-                .joystick-knob { width: 34px; height: 34px; background: radial-gradient(circle at 30% 30%, #ef4444, #7f1d1d); border-radius: 50%; position: absolute; top: -10px; left: 8px; box-shadow: 0 5px 0 #450a0a; }
-                .arcade-btn-group { display: flex; gap: 15px; }
-                .phys-btn { width: 40px; height: 40px; border-radius: 50%; box-shadow: 0 5px 0 #000, 0 8px 15px rgba(0,0,0,0.5); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
-                .phys-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #000; }
-
-                /* NAVIGATION DOTS - MOVED TO TOP */
-                .cabinet-dots { position: absolute; top: 40px; left: 50%; transform: translateX(-50%); display: flex; gap: 12px; z-index: 100; }
-                .cabinet-dot { width: 12px; height: 12px; border-radius: 50%; background: #333; cursor: pointer; border: 2px solid #444; transition: all 0.3s; }
-                .cabinet-dot.active { background: #fff; box-shadow: 0 0 15px #fff; transform: scale(1.3); }
-
-                .score-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-family: 'Courier New', monospace; color: #fff; font-size: 1rem; }
-                .exit-btn { position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.1); color: #fff; padding: 10px 20px; border-radius: 8px; z-index: 100; font-weight: bold; border: none; cursor: pointer; }
+                .cabinet-top {
+                    height: 70px;
+                    background: linear-gradient(180deg, #222 0%, #1a1a28 100%);
+                    border-radius: 12px 12px 0 0;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    position: relative;
+                    border-bottom: 4px solid #0a0a0f;
+                    overflow: hidden;
+                }
+                .cabinet-top::before {
+                    content: '';
+                    position: absolute;
+                    top: 0; left: 10%; right: 10%;
+                    height: 2px;
+                    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+                }
+                .marquee-text {
+                    font-family: 'Impact', 'Arial Black', sans-serif;
+                    font-size: 1.5rem;
+                    font-weight: 900;
+                    letter-spacing: 0.05em;
+                    animation: neon-pulse 2s ease-in-out infinite;
+                    text-transform: uppercase;
+                }
+                .marquee-sub {
+                    position: absolute;
+                    bottom: 6px;
+                    font-size: 0.6rem;
+                    color: #666;
+                    letter-spacing: 0.15em;
+                    text-transform: uppercase;
+                }
+                
+               .crt-monitor {
+    margin: 12px 16px;
+    height: 480px; /* Increased from 300px */
+    background: #000;
+    /* Realistic curvature */
+    border-radius: 50% / 10%; 
+    position: relative;
+    overflow: hidden;
+    border: 12px solid #1a1a28;
+}
+                .crt-monitor::before {
+                    content: '';
+                    position: absolute;
+                    inset: -2px;
+                    border-radius: 20px;
+                    border: 3px solid #333;
+                    pointer-events: none;
+                }
+                .crt-screen {
+    position: absolute;
+    inset: 12px;
+    background: radial-gradient(circle at center, #1a2a4a 0%, #050a14 80%);
+    /* Rounded corners on the glass */
+    border-radius: 40px; 
+    overflow: hidden;
+}
+                .crt-screen::before {
+                    content: '';
+                    position: absolute;
+                    inset: 0;
+                    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+                    background-size: 100% 3px;
+                    pointer-events: none;
+                    z-index: 10;
+                }
+                .crt-screen::after {
+                    content: '';
+                    position: absolute;
+                    top: -100%;
+                    left: 0;
+                    right: 0;
+                    height: 50%;
+                    background: linear-gradient(transparent, rgba(255,255,255,0.03), transparent);
+                    animation: scanline 8s linear infinite;
+                    pointer-events: none;
+                    z-index: 11;
+                }
+                .crt-content {
+                    position: relative;
+                    z-index: 5;
+                    padding: 15px;
+                    height: 100%;
+                    display: flex;
+                    flex-direction: column;
+                }
+                .crt-curve {
+                    position: absolute;
+                    inset: 0;
+                    border-radius: 15px;
+                    box-shadow: inset 0 0 80px rgba(0,0,0,0.5);
+                    pointer-events: none;
+                    z-index: 8;
+                }
+                
+                .score-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding-bottom: 8px;
+                    margin-bottom: 8px;
+                    border-bottom: 2px solid;
+                }
+                .score-header-title {
+                    font-family: 'Courier New', monospace;
+                    font-size: 0.7rem;
+                    font-weight: 900;
+                    letter-spacing: 0.15em;
+                    text-transform: uppercase;
+                }
+                .score-header-label {
+                    font-family: 'Courier New', monospace;
+                    font-size: 0.6rem;
+                    color: #666;
+                    letter-spacing: 0.1em;
+                }
+                
+                .score-list {
+                    flex: 1;
+                    overflow: hidden;
+                }
+                .score-row {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 6px 0;
+                    border-bottom: 1px solid rgba(255,255,255,0.08);
+                    font-family: 'Courier New', monospace;
+                }
+                .score-rank {
+                    color: #555;
+                    font-size: 0.75rem;
+                    width: 25px;
+                    font-weight: bold;
+                }
+                .score-name {
+                    font-size: 0.9rem;
+                    font-weight: 900;
+                    letter-spacing: 0.1em;
+                    flex: 1;
+                    margin-left: 8px;
+                }
+                .score-value {
+                    font-size: 0.85rem;
+                    font-weight: bold;
+                    letter-spacing: 0.15em;
+                    color: #fff;
+                }
+                .score-row.top-score .score-name {
+                    text-shadow: 0 0 10px currentColor;
+                }
+                
+                .cabinet-controls {
+                    position: absolute;
+                    bottom: 0;
+                    left: 0;
+                    right: 0;
+                    height: 110px;
+                    background: linear-gradient(180deg, #1a1a2e 0%, #12121f 100%);
+                    border-radius: 0 0 8px 8px;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 10px;
+                    border-top: 3px solid #0a0a0f;
+                }
+                .control-panel {
+                    background: linear-gradient(180deg, #222 0%, #1a1a28 100%);
+                    padding: 10px 20px;
+                    border-radius: 8px;
+                    display: flex;
+                    gap: 15px;
+                    box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+                }
+                .arcade-btn {
+                    width: 45px;
+                    height: 45px;
+                    border-radius: 50%;
+                    border: none;
+                    cursor: pointer;
+                    transition: all 0.1s;
+                    box-shadow: 0 4px 0 #000, 0 6px 8px rgba(0,0,0,0.4), inset 0 -2px 4px rgba(0,0,0,0.3), inset 0 2px 4px rgba(255,255,255,0.1);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 1.1rem;
+                    position: relative;
+                }
+                .arcade-btn::before {
+                    content: '';
+                    position: absolute;
+                    top: 3px;
+                    left: 15%;
+                    right: 15%;
+                    height: 6px;
+                    background: linear-gradient(180deg, rgba(255,255,255,0.3), transparent);
+                    border-radius: 50%;
+                }
+                .arcade-btn:active {
+                    transform: translateY(3px);
+                    box-shadow: 0 1px 0 #000, 0 2px 4px rgba(0,0,0,0.4), inset 0 -2px 4px rgba(0,0,0,0.3);
+                }
+                .arcade-btn-red { background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%); }
+                .arcade-btn-blue { background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%); }
+                .arcade-btn-green { background: linear-gradient(180deg, #22c55e 0%, #15803d 100%); }
+                .arcade-btn-yellow { background: linear-gradient(180deg, #eab308 0%, #a16207 100%); }
+                
+                .page-indicator {
+                    font-family: 'Courier New', monospace;
+                    font-size: 0.65rem;
+                    color: #666;
+                    letter-spacing: 0.15em;
+                    text-transform: uppercase;
+                }
+                
+                .cabinet-dots {
+                    position: absolute;
+                    bottom: 130px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    display: flex;
+                    gap: 10px;
+                    z-index: 20;
+                }
+                .cabinet-dot {
+                    width: 10px;
+                    height: 10px;
+                    border-radius: 50%;
+                    background: #333;
+                    border: 2px solid #444;
+                    transition: all 0.3s;
+                    cursor: pointer;
+                }
+                .cabinet-dot.active {
+                    background: #fff;
+                    box-shadow: 0 0 10px #fff, 0 0 20px currentColor;
+                    transform: scale(1.2);
+                }
+                
+                .exit-btn {
+                    position: absolute;
+                    top: 20px;
+                    right: 20px;
+                    background: rgba(255,255,255,0.1);
+                    border: none;
+                    color: #888;
+                    padding: 10px 20px;
+                    border-radius: 8px;
+                    font-family: 'Courier New', monospace;
+                    font-size: 0.8rem;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    z-index: 100;
+                }
+                .exit-btn:hover {
+                    background: rgba(255,255,255,0.2);
+                    color: #fff;
+                }
+                
+                .no-scores {
+                    flex: 1;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    color: #444;
+                    font-family: 'Courier New', monospace;
+                    text-align: center;
+                }
+                .no-scores-icon {
+                    font-size: 2rem;
+                    margin-bottom: 10px;
+                    opacity: 0.5;
+                }
             `;
             document.head.appendChild(s);
         }
-
-        const stats = await API.getGlobalScores();
+        
+        // Cabinet configurations
         const cabinets = [
-            { id: 'streak', title: 'Word Streak', class: 'name-streak', color: '#f472b6', local: State.data.highScores || [], global: stats || [], label: 'WORDS' },
-            { id: 'wordwar', title: 'Word War', class: 'name-war', color: '#ef4444', local: State.data.wordWarScores || [], global: await API.getMiniGameScores('wordwar') || [], label: 'STREAK' },
-            { id: 'defdash', title: 'Def Dash', class: 'name-dash', color: '#34d399', local: State.data.defDashScores || [], global: await API.getMiniGameScores('defdash') || [], label: 'POINTS' }
+            { 
+                id: 'streak', 
+                title: '🔥 WORD STREAK',
+                subtitle: 'How long can you last?',
+                color: '#f472b6',
+                localScores: State.data.highScores || [],
+                globalScores: await API.getGlobalScores() || [],
+                scoreLabel: 'WORDS'
+            },
+            { 
+                id: 'wordwar', 
+                title: '⚔️ WORD WAR',
+                subtitle: 'Higher or Lower',
+                color: '#a78bfa',
+                localScores: State.data.wordWarScores || [],
+                globalScores: await API.getMiniGameScores('wordwar') || [],
+                scoreLabel: 'STREAK'
+            },
+            { 
+                id: 'defdash', 
+                title: '📚 DEF DASH',
+                subtitle: 'Definition Trivia',
+                color: '#34d399',
+                localScores: State.data.defDashScores || [],
+                globalScores: await API.getMiniGameScores('defdash') || [],
+                scoreLabel: 'POINTS'
+            }
         ];
-
+        
         let currentCabinet = 0;
         let currentPage = 0; // 0 = world, 1 = local
-
+        const username = State.data.username || "PLAYER";
+        
+        const renderScoreRow = (s, i, color) => `
+            <div class="score-row ${i === 0 ? 'top-score' : ''}">
+                <span class="score-rank">${(i+1).toString().padStart(2,'0')}</span>
+                <span class="score-name" style="color:${color}">${(s.name || 'AAA').substring(0,3).toUpperCase()}</span>
+                <span class="score-value">${s.score.toString().padStart(6,' ')}</span>
+            </div>`;
+        
         const renderCabinet = (cab, index) => {
-            const scores = (currentPage === 0 ? cab.global : cab.local).slice(0, 10);
+            const isActive = index === currentCabinet;
+            const scores = currentPage === 0 ? cab.globalScores.slice(0, 8) : cab.localScores.slice(0, 8);
+            const pageTitle = currentPage === 0 ? '🌐 WORLD RECORDS' : '🏠 YOUR BEST';
+            
             return `
-                <div class="arcade-cabinet ${index === currentCabinet ? 'active' : 'inactive'}" style="border-left: 5px solid ${cab.color}; box-shadow: 0 0 30px ${cab.color}40;">
-                    <div class="cabinet-top"><span class="marquee-text ${cab.class}">${cab.title}</span></div>
+                <div class="arcade-cabinet ${isActive ? 'active' : 'inactive'}" data-index="${index}">
+                    <!-- Marquee Top -->
+                    <div class="cabinet-top">
+                        <span class="marquee-text" style="color:${cab.color}">${cab.title}</span>
+                        <span class="marquee-sub">${cab.subtitle}</span>
+                    </div>
+                    
+                    <!-- CRT Monitor -->
                     <div class="crt-monitor">
                         <div class="crt-screen">
-                            <div class="crt-glare"></div>
-                            <div class="p-6 h-full flex flex-col">
-                                <div class="flex justify-between text-[10px] text-gray-500 mb-4 border-b border-gray-800 pb-2">
-                                    <span style="color:${cab.color}">${currentPage === 0 ? 'WORLD RECORDS' : 'YOUR BEST'}</span>
-                                    <span>${cab.label}</span>
+                            <div class="crt-curve"></div>
+                            <div class="crt-content">
+                                <!-- Score Header -->
+                                <div class="score-header" style="border-color: ${cab.color}40">
+                                    <span class="score-header-title" style="color:${cab.color}">${pageTitle}</span>
+                                    <span class="score-header-label">${cab.scoreLabel}</span>
                                 </div>
-                                <div class="flex-1">
-                                    ${scores.map((s, i) => `
-                                        <div class="score-row">
-                                            <span class="text-amber-500 font-bold w-8">${(i + 1).toString().padStart(2, '0')}</span>
-                                            <span class="flex-1">${(s.name || 'AAA').toUpperCase()}</span>
-                                            <span>${s.score}</span>
-                                        </div>
-                                    `).join('')}
-                                    ${scores.length === 0 ? '<div class="text-center text-gray-600 mt-20">NO DATA</div>' : ''}
+                                
+                                <!-- Score List -->
+                                <div class="score-list">
+                                    ${scores.length === 0 
+                                        ? `<div class="no-scores">
+                                            <div class="no-scores-icon">🕹️</div>
+                                            <div>NO RECORDS YET</div>
+                                            <div style="font-size:0.6rem;margin-top:5px;color:#555">BE THE FIRST!</div>
+                                           </div>`
+                                        : scores.map((s, i) => renderScoreRow(s, i, cab.color)).join('')
+                                    }
                                 </div>
                             </div>
                         </div>
                     </div>
+                    
+                    <!-- Control Panel -->
                     <div class="cabinet-controls">
-                        <div class="joystick-base"><div class="joystick-knob"></div></div>
-                        <div class="arcade-btn-group">
-                            <button class="phys-btn bg-blue-600 cab-toggle" title="Toggle Local/World">🌐</button>
-                            <button class="phys-btn bg-yellow-500 cab-share" title="Share Score">📤</button>
+                        <div class="control-panel">
+                            <button class="arcade-btn arcade-btn-red cab-prev" title="Previous">◀</button>
+                            <button class="arcade-btn arcade-btn-blue cab-toggle" title="World/Local">${currentPage === 0 ? '🌐' : '🏠'}</button>
+                            <button class="arcade-btn arcade-btn-yellow cab-share" title="Share">📤</button>
+                            <button class="arcade-btn arcade-btn-green cab-next" title="Next">▶</button>
+                        </div>
+                        <div class="page-indicator">
+                            ${currentPage === 0 ? '🌐 WORLD' : '🏠 LOCAL'} · SWIPE TO BROWSE
                         </div>
                     </div>
-                </div>`;
-        };
-
-        const renderArcadeHall = () => {
-            const offset = (window.innerWidth / 2) - 220 - (currentCabinet * 500);
-            return `
-                <div class="cabinet-dots">
-                    ${cabinets.map((c, i) => `<div class="cabinet-dot ${i === currentCabinet ? 'active' : ''}" style="border-color:${c.color}" data-index="${i}"></div>`).join('')}
                 </div>
-                <button class="exit-btn" id="arcade-close">✕ EXIT</button>
-                <div class="cabinet-row" style="transform: translateX(${offset}px)">
-                    ${cabinets.map((cab, i) => renderCabinet(cab, i)).join('')}
-                </div>`;
+            `;
         };
-
+        
+        const renderArcadeHall = () => {
+            const offset = -currentCabinet * 370 + (window.innerWidth / 2 - 170);
+            return `
+                <div class="arcade-hall">
+                    <div class="arcade-floor"></div>
+                    
+                    <button class="exit-btn" id="arcade-close">✕ EXIT ARCADE</button>
+                    
+                    <!-- Cabinet Dots -->
+                    <div class="cabinet-dots">
+                        ${cabinets.map((c, i) => `
+                            <div class="cabinet-dot ${i === currentCabinet ? 'active' : ''}" 
+                                 style="color:${c.color}" data-index="${i}"></div>
+                        `).join('')}
+                    </div>
+                    
+                    <!-- Cabinets Row -->
+                    <div style="height:100vh;display:flex;align-items:center;overflow:hidden;">
+                        <div class="cabinet-row" style="transform: translateX(${offset}px)">
+                            ${cabinets.map((cab, i) => renderCabinet(cab, i)).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        };
+        
+        // Create modal
         const modal = document.createElement('div');
         modal.id = 'highScoreModal';
-        modal.className = 'fixed inset-0 z-[10000] arcade-hall';
+        modal.className = 'fixed inset-0 z-[200]';
         modal.innerHTML = renderArcadeHall();
         document.body.appendChild(modal);
+        
+        // Touch handling for swipe
+let touchStartX = 0;
+const row = modal.querySelector('.cabinet-row');
 
+row.addEventListener('touchstart', e => {
+    touchStartX = e.changedTouches[0].screenX;
+}, { passive: true });
+
+row.addEventListener('touchend', e => {
+    const touchEndX = e.changedTouches[0].screenX;
+    const diff = touchStartX - touchEndX;
+
+    if (Math.abs(diff) > 50) { // Swipe threshold
+        if (diff > 0) {
+            currentCabinet = (currentCabinet + 1) % cabinets.length;
+        } else {
+            currentCabinet = (currentCabinet - 1 + cabinets.length) % cabinets.length;
+        }
+        currentPage = 0; // Reset to page 1 of new cabinet
+        modal.innerHTML = renderArcadeHall();
+        bindEvents();
+        resetAutoScroll();
+    }
+}, { passive: true });
+        
+        // Bind events
         const bindEvents = () => {
-            // SWIPE LOGIC
-            let startX = 0;
-            const row = modal.querySelector('.cabinet-row');
-            row.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
-            row.addEventListener('touchend', e => {
-                const diff = startX - e.changedTouches[0].clientX;
-                if (Math.abs(diff) > 60) {
-                    if (diff > 0) currentCabinet = Math.min(currentCabinet + 1, cabinets.length - 1);
-                    else currentCabinet = Math.max(currentCabinet - 1, 0);
+            // Nav buttons on active cabinet
+            modal.querySelectorAll('.cab-prev').forEach(btn => {
+                btn.onclick = () => {
+                    currentCabinet = (currentCabinet - 1 + cabinets.length) % cabinets.length;
                     modal.innerHTML = renderArcadeHall();
                     bindEvents();
                     resetAutoScroll();
-                }
-            }, { passive: true });
-
-            // BUTTON LOGIC
+                };
+            });
+            modal.querySelectorAll('.cab-next').forEach(btn => {
+                btn.onclick = () => {
+                    currentCabinet = (currentCabinet + 1) % cabinets.length;
+                    modal.innerHTML = renderArcadeHall();
+                    bindEvents();
+                    resetAutoScroll();
+                };
+            });
             modal.querySelectorAll('.cab-toggle').forEach(btn => {
                 btn.onclick = () => {
                     currentPage = currentPage === 0 ? 1 : 0;
@@ -10048,50 +10437,77 @@ const StreakManager = {
                     resetAutoScroll();
                 };
             });
-
             modal.querySelectorAll('.cab-share').forEach(btn => {
-                btn.onclick = async () => {
-                    const cab = cabinets[currentCabinet];
-                    const topScore = cab.global[0]?.score || 0;
-                    const text = `I'm checking out the ${cab.title} leaderboard on GBword! High score is ${topScore}! 🏆`;
-                    if (navigator.share) await navigator.share({ title: cab.title, text, url: window.location.origin });
-                    else { navigator.clipboard.writeText(text); UIManager.showPostVoteMessage("Link copied! 📋"); }
-                };
+                btn.onclick = () => self.shareScores();
             });
-
+            
+            // Cabinet dots for direct navigation
             modal.querySelectorAll('.cabinet-dot').forEach(dot => {
                 dot.onclick = () => {
-                    currentCabinet = parseInt(dot.dataset.index);
-                    modal.innerHTML = renderArcadeHall();
-                    bindEvents();
-                    resetAutoScroll();
+                    const index = parseInt(dot.dataset.index);
+                    if (index !== currentCabinet) {
+                        currentCabinet = index;
+                        modal.innerHTML = renderArcadeHall();
+                        bindEvents();
+                        resetAutoScroll();
+                    }
                 };
             });
-
+            
+            // Click on cabinet to select it
+            modal.querySelectorAll('.arcade-cabinet').forEach(cab => {
+                cab.onclick = (e) => {
+                    if (e.target.closest('.arcade-btn')) return; // Don't trigger on button clicks
+                    const index = parseInt(cab.dataset.index);
+                    if (index !== currentCabinet) {
+                        currentCabinet = index;
+                        modal.innerHTML = renderArcadeHall();
+                        bindEvents();
+                        resetAutoScroll();
+                    }
+                };
+            });
+            
             modal.querySelector('#arcade-close').onclick = () => self.closeLeaderboard();
+            
+            // Touch events for swiping
+            modal.addEventListener('touchstart', (e) => {
+                touchStartX = e.changedTouches[0].screenX;
+            }, { passive: true });
+            modal.addEventListener('touchend', (e) => {
+                const diff = touchStartX - e.changedTouches[0].screenX;
+                handleSwipe(diff);
+            }, { passive: true });
         };
-
+        
+        // Auto-scroll functionality
         const autoScroll = () => {
             if (!document.getElementById('highScoreModal')) return;
-            if (currentPage === 0) currentPage = 1;
-            else { currentPage = 0; currentCabinet = (currentCabinet + 1) % cabinets.length; }
+            
+            // Toggle page first, then move to next cabinet
+            if (currentPage === 0) {
+                currentPage = 1;
+            } else {
+                currentPage = 0;
+                currentCabinet = (currentCabinet + 1) % cabinets.length;
+            }
+            
             modal.innerHTML = renderArcadeHall();
             bindEvents();
-            self.loopTimer = setTimeout(autoScroll, 6000);
+            self.loopTimer = setTimeout(autoScroll, 5000);
         };
-
+        
         const resetAutoScroll = () => {
             if (self.loopTimer) clearTimeout(self.loopTimer);
-            self.loopTimer = setTimeout(autoScroll, 6000);
+            self.loopTimer = setTimeout(autoScroll, 5000);
         };
-
+        
         bindEvents();
         resetAutoScroll();
     },
-
     closeLeaderboard() {
         const el = document.getElementById('highScoreModal');
-        if (el) el.remove();
+        if(el) el.remove();
         if (this.loopTimer) clearTimeout(this.loopTimer);
     }
 };
