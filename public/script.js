@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.5.4.5',
+    APP_VERSION: '6.5.6',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -9920,11 +9920,11 @@ async showLeaderboard() {
                 
                 :root {
                     --cab-w: 420px; 
-                    --cab-h: 700px;
+                    --cab-h: 780px;
                     --cab-gap: 50px;
                 }
                 @media (min-width: 768px) {
-                    :root { --cab-w: 520px; --cab-h: 800px; }
+                    :root { --cab-w: 520px; --cab-h: 880px; }
                 }
 
                 /* === SCENE === */
@@ -9976,17 +9976,36 @@ async showLeaderboard() {
                     height: var(--cab-h);
                     flex-shrink: 0;
                     position: relative;
-                    border-radius: 20px 20px 6px 6px;
+                    border-radius: 12px 12px 6px 6px;
                     transition: transform 0.5s ease, opacity 0.5s ease, filter 0.5s ease;
                     display: flex; flex-direction: column;
+                    transform-style: preserve-3d;
                 }
+                /* 3D Side panels */
                 .arcade-cabinet::before {
-                    content: ''; position: absolute; inset: 0;
-                    border-radius: 20px 20px 6px 6px;
+                    content: ''; position: absolute; 
+                    top: 0; bottom: 0; left: -8px; width: 8px;
+                    background: linear-gradient(90deg, rgba(0,0,0,0.6), rgba(0,0,0,0.2));
+                    transform: rotateY(-90deg);
+                    transform-origin: right;
+                    border-radius: 12px 0 0 6px;
+                }
+                .arcade-cabinet::after {
+                    content: ''; position: absolute;
+                    top: 0; bottom: 0; right: -8px; width: 8px;
+                    background: linear-gradient(90deg, rgba(0,0,0,0.2), rgba(0,0,0,0.6));
+                    transform: rotateY(90deg);
+                    transform-origin: left;
+                    border-radius: 0 12px 6px 0;
+                }
+                .cabinet-shadow {
+                    position: absolute; inset: 0;
+                    border-radius: 12px 12px 6px 6px;
                     box-shadow: 
-                        inset 4px 0 8px rgba(255,255,255,0.05),
-                        inset -4px 0 8px rgba(0,0,0,0.4),
-                        0 30px 60px rgba(0,0,0,0.8);
+                        inset 4px 0 12px rgba(255,255,255,0.08),
+                        inset -4px 0 12px rgba(0,0,0,0.5),
+                        0 40px 80px rgba(0,0,0,0.9),
+                        0 10px 30px rgba(0,0,0,0.6);
                     pointer-events: none; z-index: 100;
                 }
                 .arcade-cabinet.active {
@@ -10001,153 +10020,204 @@ async showLeaderboard() {
 
                 /* === CABINET THEMES === */
                 .theme-wood {
-                    background: linear-gradient(180deg, #6d4c41 0%, #4e342e 50%, #3e2723 100%);
+                    background: linear-gradient(180deg, #6d4c41 0%, #5d4037 30%, #4e342e 60%, #3e2723 100%);
                     background-image: 
-                        repeating-linear-gradient(90deg, rgba(0,0,0,0.1) 0px, transparent 2px, transparent 30px),
-                        repeating-linear-gradient(0deg, rgba(255,255,255,0.02) 0px, transparent 1px, transparent 8px);
+                        repeating-linear-gradient(90deg, rgba(0,0,0,0.08) 0px, transparent 2px, transparent 25px),
+                        repeating-linear-gradient(0deg, rgba(255,255,255,0.015) 0px, transparent 1px, transparent 6px);
                 }
-                .theme-wood .marquee-area { 
-                    background: linear-gradient(180deg, #4a2c2a 0%, #2d1b1a 100%); 
-                    border: 5px solid #8d6e63; 
-                    box-shadow: inset 0 0 20px rgba(0,0,0,0.6), 0 0 15px rgba(255,167,38,0.3);
+                .theme-wood .artwork-frame { 
+                    background: linear-gradient(135deg, #8d6e63 0%, #5d4037 50%, #3e2723 100%);
+                    border: 6px solid #a1887f;
+                    box-shadow: inset 0 0 30px rgba(0,0,0,0.7), 0 4px 20px rgba(0,0,0,0.5);
                 }
-                .theme-wood .marquee-title { color: #ffb74d; text-shadow: 0 0 20px #ff6f00, 0 0 40px #ff6f00; }
-                .theme-wood .marquee-sub { color: #bcaaa4; }
+                .theme-wood .artwork-inner {
+                    background: 
+                        radial-gradient(ellipse at 30% 20%, rgba(255,200,100,0.4) 0%, transparent 50%),
+                        radial-gradient(ellipse at 70% 80%, rgba(255,100,50,0.3) 0%, transparent 50%),
+                        linear-gradient(180deg, #ff8a65 0%, #d84315 50%, #bf360c 100%);
+                }
+                .theme-wood .artwork-title { color: #fff3e0; text-shadow: 3px 3px 0 #bf360c, 0 0 30px rgba(255,138,101,0.8); }
+                .theme-wood .artwork-sub { color: #ffccbc; }
+                .theme-wood .artwork-decor { color: rgba(255,200,150,0.6); }
                 
                 .theme-camo {
-                    background: linear-gradient(180deg, #3d4a2d 0%, #2d3a1f 50%, #1a2410 100%);
+                    background: linear-gradient(180deg, #455a3c 0%, #3d4a2d 30%, #2d3a1f 60%, #1a2410 100%);
                     background-image: 
-                        radial-gradient(ellipse at 20% 30%, rgba(74,92,56,0.6) 0%, transparent 50%),
-                        radial-gradient(ellipse at 80% 60%, rgba(26,33,21,0.8) 0%, transparent 40%),
-                        radial-gradient(ellipse at 50% 80%, rgba(45,58,31,0.5) 0%, transparent 45%);
+                        radial-gradient(ellipse at 20% 30%, rgba(74,92,56,0.5) 0%, transparent 50%),
+                        radial-gradient(ellipse at 80% 60%, rgba(26,33,21,0.6) 0%, transparent 40%),
+                        radial-gradient(ellipse at 50% 80%, rgba(45,58,31,0.4) 0%, transparent 45%);
                 }
-                .theme-camo .marquee-area { 
-                    background: linear-gradient(180deg, #3d1c1c 0%, #1f0f0f 100%); 
-                    border: 5px solid #6b2c2c;
-                    box-shadow: inset 0 0 20px rgba(0,0,0,0.6), 0 0 15px rgba(239,68,68,0.3);
+                .theme-camo .artwork-frame { 
+                    background: linear-gradient(135deg, #4a3728 0%, #2d1f16 50%, #1a110d 100%);
+                    border: 6px solid #5d4037;
+                    box-shadow: inset 0 0 30px rgba(0,0,0,0.7), 0 4px 20px rgba(0,0,0,0.5);
                 }
-                .theme-camo .marquee-title { color: #ef4444; font-family: 'Black Ops One', sans-serif; text-shadow: 0 0 20px #b91c1c, 0 0 40px #7f1d1d; letter-spacing: 3px; }
-                .theme-camo .marquee-sub { color: #a8a29e; }
+                .theme-camo .artwork-inner {
+                    background: 
+                        radial-gradient(ellipse at 50% 30%, rgba(255,50,50,0.5) 0%, transparent 60%),
+                        radial-gradient(ellipse at 20% 70%, rgba(0,0,0,0.5) 0%, transparent 50%),
+                        linear-gradient(180deg, #8b0000 0%, #4a0000 40%, #1a0000 100%);
+                }
+                .theme-camo .artwork-title { color: #fafafa; font-family: 'Black Ops One', sans-serif; text-shadow: 4px 4px 0 #000, 0 0 40px rgba(255,0,0,0.6); letter-spacing: 4px; }
+                .theme-camo .artwork-sub { color: #ef9a9a; }
+                .theme-camo .artwork-decor { color: rgba(255,100,100,0.5); }
 
                 .theme-cyber {
-                    background: linear-gradient(180deg, #0a0a0a 0%, #050505 100%);
-                    border: 2px solid rgba(0,255,136,0.6);
-                    box-shadow: 0 0 30px rgba(0,255,136,0.15), inset 0 0 30px rgba(0,255,136,0.05);
+                    background: linear-gradient(180deg, #0f0f0f 0%, #0a0a0a 50%, #050505 100%);
+                    border: 2px solid rgba(0,255,136,0.5);
+                    box-shadow: 0 0 40px rgba(0,255,136,0.2), inset 0 0 40px rgba(0,255,136,0.03);
                 }
-                .theme-cyber::after {
-                    content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 1;
-                    background-image: 
-                        linear-gradient(rgba(0,255,136,0.03) 1px, transparent 1px),
-                        linear-gradient(90deg, rgba(0,255,136,0.03) 1px, transparent 1px);
-                    background-size: 25px 25px;
-                    border-radius: 20px 20px 6px 6px;
+                .theme-cyber .cabinet-shadow {
+                    box-shadow: 
+                        inset 4px 0 12px rgba(0,255,136,0.1),
+                        inset -4px 0 12px rgba(0,0,0,0.5),
+                        0 40px 80px rgba(0,0,0,0.9),
+                        0 0 60px rgba(0,255,136,0.15);
                 }
-                .theme-cyber .marquee-area { 
-                    background: linear-gradient(180deg, #001a0d 0%, #000a05 100%); 
+                .theme-cyber .artwork-frame { 
+                    background: linear-gradient(135deg, #001a0d 0%, #000d06 50%, #000502 100%);
                     border: 4px solid #00ff88;
-                    box-shadow: inset 0 0 30px rgba(0,255,136,0.2), 0 0 25px rgba(0,255,136,0.4);
+                    box-shadow: inset 0 0 40px rgba(0,255,136,0.3), 0 0 30px rgba(0,255,136,0.4);
                 }
-                .theme-cyber .marquee-title { color: #00ff88; text-shadow: 0 0 10px #00ff88, 0 0 30px #00ff88, 0 0 50px #00aa55; }
-                .theme-cyber .marquee-sub { color: #4ade80; }
+                .theme-cyber .artwork-inner {
+                    background: 
+                        radial-gradient(ellipse at 50% 50%, rgba(0,255,136,0.2) 0%, transparent 70%),
+                        repeating-linear-gradient(0deg, transparent 0px, transparent 3px, rgba(0,255,136,0.05) 3px, rgba(0,255,136,0.05) 6px),
+                        linear-gradient(180deg, #001a0d 0%, #000d06 100%);
+                }
+                .theme-cyber .artwork-title { color: #00ff88; text-shadow: 0 0 10px #00ff88, 0 0 30px #00ff88, 0 0 60px #00aa55; }
+                .theme-cyber .artwork-sub { color: #4ade80; }
+                .theme-cyber .artwork-decor { color: rgba(0,255,136,0.4); }
 
-                /* === MARQUEE === */
-                .marquee-area {
-                    height: 100px; margin: 15px 18px; border-radius: 10px;
-                    display: flex; flex-direction: column; align-items: center; justify-content: center;
+                /* === ARTWORK MARQUEE (Backlit Sign) === */
+                .artwork-frame {
+                    height: 130px; margin: 12px 15px 8px 15px; border-radius: 8px;
                     position: relative; overflow: hidden;
                 }
-                .marquee-glass {
-                    position: absolute; inset: 0; 
-                    background: linear-gradient(135deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.05) 30%, transparent 50%);
-                    pointer-events: none; border-radius: 10px;
+                .artwork-inner {
+                    position: absolute; inset: 6px;
+                    border-radius: 4px;
+                    display: flex; flex-direction: column; 
+                    align-items: center; justify-content: center;
+                    overflow: hidden;
                 }
-                .marquee-title { 
-                    font-size: 26px; font-weight: 900; z-index: 2; 
-                    animation: marquee-glow 2s ease-in-out infinite alternate;
+                .artwork-scanlines {
+                    position: absolute; inset: 0;
+                    background: repeating-linear-gradient(0deg, transparent 0px, transparent 2px, rgba(0,0,0,0.1) 2px, rgba(0,0,0,0.1) 4px);
+                    pointer-events: none; z-index: 3;
                 }
-                .marquee-sub { 
-                    font-size: 11px; z-index: 2; margin-top: 8px; 
-                    font-weight: 600; letter-spacing: 3px; text-transform: uppercase; opacity: 0.9;
+                .artwork-glow {
+                    position: absolute; inset: 0;
+                    background: radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.15) 0%, transparent 60%);
+                    pointer-events: none; z-index: 4;
+                }
+                .artwork-title { 
+                    font-size: 28px; font-weight: 900; z-index: 5; 
+                    text-transform: uppercase; letter-spacing: 2px;
+                    animation: artwork-pulse 3s ease-in-out infinite;
+                }
+                .artwork-sub { 
+                    font-size: 10px; z-index: 5; margin-top: 6px; 
+                    font-weight: 700; letter-spacing: 4px; text-transform: uppercase;
+                }
+                .artwork-decor {
+                    position: absolute; z-index: 2;
+                    font-size: 60px; opacity: 0.3;
+                    pointer-events: none;
+                }
+                .artwork-decor.left { left: 10px; top: 50%; transform: translateY(-50%); }
+                .artwork-decor.right { right: 10px; top: 50%; transform: translateY(-50%); }
+                
+                /* Backlight glow effect */
+                .artwork-backlight {
+                    position: absolute; top: -50%; left: -50%; right: -50%; bottom: -50%;
+                    background: radial-gradient(ellipse at center, currentColor 0%, transparent 70%);
+                    opacity: 0.15;
+                    animation: backlight-pulse 4s ease-in-out infinite alternate;
+                    pointer-events: none;
                 }
 
                 /* === CRT MONITOR === */
                 .crt-housing {
-                    flex: 1; margin: 0 18px 15px 18px;
-                    background: linear-gradient(180deg, #1a1a1a 0%, #0d0d0d 100%);
-                    border-radius: 8px 8px 20px 20px;
-                    padding: 12px;
-                    box-shadow: inset 0 2px 4px rgba(255,255,255,0.05), inset 0 -4px 8px rgba(0,0,0,0.5);
+                    flex: 1; margin: 0 15px 10px 15px;
+                    background: linear-gradient(180deg, #1c1c1c 0%, #121212 50%, #0a0a0a 100%);
+                    border-radius: 10px 10px 16px 16px;
+                    padding: 10px;
+                    box-shadow: 
+                        inset 0 2px 6px rgba(255,255,255,0.06), 
+                        inset 0 -4px 10px rgba(0,0,0,0.6),
+                        0 8px 20px rgba(0,0,0,0.5);
                     position: relative;
                 }
                 .crt-bezel {
-                    position: absolute; inset: 8px;
-                    background: #0a0a0a;
-                    border-radius: 6px 6px 18px 18px;
-                    box-shadow: inset 0 0 20px rgba(0,0,0,0.9);
+                    position: absolute; inset: 6px;
+                    background: linear-gradient(180deg, #0d0d0d 0%, #050505 100%);
+                    border-radius: 8px 8px 14px 14px;
+                    box-shadow: inset 0 0 25px rgba(0,0,0,0.95);
                 }
                 .crt-screen {
-                    position: absolute; inset: 14px;
+                    position: absolute; inset: 12px;
                     background: radial-gradient(ellipse at 50% 50%, #0a0f18 0%, #030508 100%);
-                    border-radius: 45% 45% 42% 42% / 12% 12% 10% 10%;
+                    border-radius: 45% 45% 42% 42% / 10% 10% 8% 8%;
                     overflow: hidden;
                     box-shadow: 
-                        inset 0 0 80px rgba(0,0,0,0.9),
-                        0 0 2px rgba(100,150,255,0.3);
+                        inset 0 0 100px rgba(0,0,0,0.95),
+                        0 0 3px rgba(100,150,255,0.4);
                 }
                 
-                /* CRT Glass Effect - Multiple Layers */
+                /* CRT Glass Effect */
                 .crt-glass {
                     position: absolute; inset: 0; pointer-events: none; z-index: 20;
-                    border-radius: 45% 45% 42% 42% / 12% 12% 10% 10%;
+                    border-radius: 45% 45% 42% 42% / 10% 10% 8% 8%;
                     background: 
-                        linear-gradient(165deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.03) 20%, transparent 40%),
-                        linear-gradient(195deg, transparent 60%, rgba(255,255,255,0.02) 80%, rgba(255,255,255,0.05) 100%);
+                        linear-gradient(165deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.04) 20%, transparent 40%),
+                        linear-gradient(195deg, transparent 60%, rgba(255,255,255,0.02) 80%, rgba(255,255,255,0.06) 100%);
                     box-shadow: 
-                        inset 1px 1px 2px rgba(255,255,255,0.1),
-                        inset -1px -1px 2px rgba(0,0,0,0.3);
+                        inset 2px 2px 4px rgba(255,255,255,0.1),
+                        inset -2px -2px 4px rgba(0,0,0,0.4);
                 }
                 .crt-glare {
                     position: absolute; top: 5%; left: 8%; width: 35%; height: 25%; 
                     pointer-events: none; z-index: 21;
-                    background: radial-gradient(ellipse at 30% 30%, rgba(255,255,255,0.08) 0%, transparent 70%);
+                    background: radial-gradient(ellipse at 30% 30%, rgba(255,255,255,0.1) 0%, transparent 70%);
                     border-radius: 50%;
                     transform: rotate(-15deg);
                 }
                 
                 .scanlines {
                     position: absolute; inset: 0; pointer-events: none; z-index: 15;
-                    background: repeating-linear-gradient(0deg, transparent 0px, transparent 2px, rgba(0,0,0,0.15) 2px, rgba(0,0,0,0.15) 4px);
-                    border-radius: 45% 45% 42% 42% / 12% 12% 10% 10%;
+                    background: repeating-linear-gradient(0deg, transparent 0px, transparent 2px, rgba(0,0,0,0.12) 2px, rgba(0,0,0,0.12) 4px);
+                    border-radius: 45% 45% 42% 42% / 10% 10% 8% 8%;
                 }
                 .screen-flicker {
                     position: absolute; inset: 0; pointer-events: none; z-index: 14;
                     background: transparent;
-                    border-radius: 45% 45% 42% 42% / 12% 12% 10% 10%;
+                    border-radius: 45% 45% 42% 42% / 10% 10% 8% 8%;
                     animation: flicker 0.15s infinite;
                     opacity: 0.03;
                 }
                 
                 .crt-content {
                     position: relative; z-index: 10;
-                    height: 100%; padding: 25px 15px; 
+                    height: 100%; padding: 20px 12px; 
                     overflow-y: auto; scrollbar-width: none;
-                    font-family: 'VT323', monospace; font-size: 1.5rem;
+                    font-family: 'VT323', monospace; font-size: 1.4rem;
                     mask-image: linear-gradient(to bottom, transparent 0%, black 8%, black 92%, transparent 100%);
                 }
                 .crt-content::-webkit-scrollbar { display: none; }
 
                 /* === SCORES === */
                 .score-header {
-                    text-align: center; padding-bottom: 10px; margin-bottom: 8px;
+                    text-align: center; padding-bottom: 8px; margin-bottom: 6px;
                     border-bottom: 2px solid rgba(255,255,255,0.2);
-                    font-size: 1.1rem; letter-spacing: 2px; opacity: 0.9;
+                    font-size: 1rem; letter-spacing: 2px; opacity: 0.9;
                     position: sticky; top: 0; z-index: 5;
                     background: inherit;
                 }
                 .score-row { 
                     display: flex; justify-content: space-between; align-items: center;
-                    padding: 10px 5px; 
-                    border-bottom: 1px solid rgba(255,255,255,0.1);
+                    padding: 8px 4px; 
+                    border-bottom: 1px solid rgba(255,255,255,0.08);
                     transition: background 0.2s;
                 }
                 .score-row:hover { background: rgba(255,255,255,0.05); }
@@ -10155,9 +10225,9 @@ async showLeaderboard() {
                     background: rgba(255,255,0,0.1); 
                     animation: pulse-row 1.5s ease-in-out infinite alternate;
                 }
-                .rank { width: 45px; opacity: 0.5; font-size: 1.3rem; }
+                .rank { width: 40px; opacity: 0.5; font-size: 1.2rem; }
                 .name { flex: 1; letter-spacing: 2px; font-weight: bold; }
-                .score { font-weight: bold; font-size: 1.4rem; letter-spacing: 1px; }
+                .score { font-weight: bold; font-size: 1.3rem; letter-spacing: 1px; }
 
                 /* Theme-specific CRT colors */
                 .theme-wood .crt-content { color: #ffa726; text-shadow: 0 0 8px rgba(255,167,38,0.5); }
@@ -10167,33 +10237,192 @@ async showLeaderboard() {
                 .theme-cyber .crt-content { color: #00ff88; text-shadow: 0 0 8px rgba(0,255,136,0.6); }
                 .theme-cyber .score-row.highlight { background: rgba(0,255,136,0.15); }
 
-                /* === CONTROLS === */
-                .control-deck {
-                    height: 90px; margin: 0 18px 20px 18px;
-                    background: linear-gradient(180deg, #1f1f1f 0%, #141414 100%);
-                    border-radius: 8px;
-                    display: flex; align-items: center; justify-content: center; gap: 25px;
-                    box-shadow: inset 0 2px 4px rgba(255,255,255,0.03), inset 0 -2px 4px rgba(0,0,0,0.5);
-                    border-top: 1px solid rgba(255,255,255,0.05);
+                /* === CONTROL PANEL === */
+                .control-panel {
+                    height: 110px; margin: 0 15px 15px 15px;
+                    background: linear-gradient(180deg, #252525 0%, #1a1a1a 40%, #0f0f0f 100%);
+                    border-radius: 6px 6px 8px 8px;
+                    position: relative;
+                    box-shadow: 
+                        inset 0 2px 4px rgba(255,255,255,0.05), 
+                        inset 0 -3px 6px rgba(0,0,0,0.6),
+                        0 6px 15px rgba(0,0,0,0.5);
+                    display: flex;
+                    align-items: center;
+                    overflow: hidden;
+                }
+                .control-panel::before {
+                    content: '';
+                    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+                    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+                }
+                
+                /* Metal panel texture */
+                .panel-surface {
+                    position: absolute; inset: 0;
+                    background-image: 
+                        repeating-linear-gradient(90deg, transparent 0px, transparent 4px, rgba(255,255,255,0.01) 4px, rgba(255,255,255,0.01) 8px);
+                    border-radius: 6px 6px 8px 8px;
+                    pointer-events: none;
+                }
+                
+                /* Joystick */
+                .joystick-area {
+                    width: 90px; height: 90px;
+                    margin-left: 20px;
+                    position: relative;
+                    display: flex; align-items: center; justify-content: center;
+                }
+                .joystick-base {
+                    width: 70px; height: 70px;
+                    background: radial-gradient(circle at 30% 30%, #3a3a3a, #1a1a1a);
+                    border-radius: 50%;
+                    box-shadow: 
+                        inset 0 4px 8px rgba(0,0,0,0.8),
+                        0 2px 4px rgba(0,0,0,0.5);
+                    display: flex; align-items: center; justify-content: center;
+                }
+                .joystick-ring {
+                    width: 55px; height: 55px;
+                    background: linear-gradient(180deg, #2a2a2a 0%, #1a1a1a 100%);
+                    border-radius: 50%;
+                    box-shadow: inset 0 2px 4px rgba(0,0,0,0.6);
+                    display: flex; align-items: center; justify-content: center;
+                }
+                .joystick-stick {
+                    width: 20px; height: 50px;
+                    background: linear-gradient(90deg, #2a2a2a 0%, #4a4a4a 30%, #3a3a3a 70%, #1a1a1a 100%);
+                    border-radius: 4px 4px 6px 6px;
+                    position: relative;
+                    transform: translateY(-10px);
+                    box-shadow: 
+                        0 4px 8px rgba(0,0,0,0.5),
+                        inset 0 0 2px rgba(255,255,255,0.1);
+                }
+                .joystick-ball {
+                    position: absolute;
+                    top: -18px; left: 50%;
+                    transform: translateX(-50%);
+                    width: 32px; height: 32px;
+                    border-radius: 50%;
+                    background: radial-gradient(circle at 35% 35%, #ff4444, #aa0000 50%, #660000);
+                    box-shadow: 
+                        0 4px 8px rgba(0,0,0,0.6),
+                        inset 0 -4px 8px rgba(0,0,0,0.4),
+                        inset 0 4px 8px rgba(255,255,255,0.2);
+                }
+                
+                /* Button cluster */
+                .button-cluster {
+                    flex: 1;
+                    display: flex;
+                    gap: 12px;
+                    justify-content: center;
+                    align-items: center;
+                    padding: 0 15px;
                 }
                 .arcade-btn {
-                    width: 60px; height: 60px; border-radius: 50%; border: none;
-                    box-shadow: 
-                        0 6px 0 rgba(0,0,0,0.7), 
-                        0 8px 15px rgba(0,0,0,0.5),
-                        inset 0 2px 3px rgba(255,255,255,0.2),
-                        inset 0 -2px 3px rgba(0,0,0,0.3);
-                    font-size: 24px; cursor: pointer; 
+                    width: 52px; height: 52px; border-radius: 50%; border: none;
+                    position: relative;
+                    cursor: pointer; 
                     display: grid; place-items: center;
-                    transition: transform 0.1s, box-shadow 0.1s;
+                    transition: transform 0.08s, box-shadow 0.08s;
+                }
+                .arcade-btn::before {
+                    content: '';
+                    position: absolute;
+                    inset: 3px;
+                    border-radius: 50%;
+                    background: inherit;
+                    box-shadow: inset 0 3px 5px rgba(255,255,255,0.3), inset 0 -3px 5px rgba(0,0,0,0.4);
+                }
+                .arcade-btn::after {
+                    content: '';
+                    position: absolute;
+                    top: 6px; left: 15%;
+                    width: 50%; height: 30%;
+                    background: linear-gradient(180deg, rgba(255,255,255,0.4) 0%, transparent 100%);
+                    border-radius: 50%;
                 }
                 .arcade-btn:active { 
-                    transform: translateY(4px); 
-                    box-shadow: 0 2px 0 rgba(0,0,0,0.7), 0 3px 5px rgba(0,0,0,0.3);
+                    transform: translateY(3px); 
+                    box-shadow: 0 2px 0 rgba(0,0,0,0.8), 0 2px 4px rgba(0,0,0,0.4) !important;
                 }
-                .btn-toggle { background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%); }
-                .btn-share { background: linear-gradient(180deg, #eab308 0%, #a16207 100%); }
+                .btn-toggle { 
+                    background: linear-gradient(180deg, #4a90ff 0%, #2563eb 50%, #1d4ed8 100%);
+                    box-shadow: 
+                        0 5px 0 #1e40af, 
+                        0 8px 15px rgba(0,0,0,0.5),
+                        0 0 15px rgba(59,130,246,0.3);
+                    font-size: 20px;
+                }
+                .btn-share { 
+                    background: linear-gradient(180deg, #fbbf24 0%, #d97706 50%, #b45309 100%);
+                    box-shadow: 
+                        0 5px 0 #92400e, 
+                        0 8px 15px rgba(0,0,0,0.5),
+                        0 0 15px rgba(234,179,8,0.3);
+                    font-size: 20px;
+                }
                 .btn-share.hidden { display: none; }
+                
+                /* Insert Coin Section */
+                .coin-section {
+                    width: 70px;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    margin-right: 15px;
+                }
+                .coin-slot {
+                    width: 40px; height: 8px;
+                    background: linear-gradient(180deg, #0a0a0a, #1a1a1a, #0a0a0a);
+                    border-radius: 4px;
+                    box-shadow: 
+                        inset 0 2px 4px rgba(0,0,0,0.9),
+                        0 1px 0 rgba(255,255,255,0.05);
+                    margin-bottom: 8px;
+                }
+                .coin-light {
+                    width: 50px; height: 20px;
+                    background: linear-gradient(180deg, #1a1a1a, #0f0f0f);
+                    border-radius: 4px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    box-shadow: inset 0 1px 3px rgba(0,0,0,0.8);
+                    overflow: hidden;
+                    position: relative;
+                }
+                .coin-light-inner {
+                    font-family: 'Press Start 2P', monospace;
+                    font-size: 5px;
+                    color: #ff6600;
+                    text-shadow: 0 0 8px #ff6600, 0 0 15px #ff3300;
+                    animation: coin-blink 1s ease-in-out infinite;
+                    letter-spacing: -0.5px;
+                }
+                .coin-light::before {
+                    content: '';
+                    position: absolute; inset: 2px;
+                    background: radial-gradient(ellipse at center, rgba(255,100,0,0.15) 0%, transparent 70%);
+                    animation: coin-glow 1s ease-in-out infinite;
+                }
+                
+                /* Speaker grille */
+                .speaker-grille {
+                    position: absolute;
+                    bottom: 8px; left: 50%;
+                    transform: translateX(-50%);
+                    width: 60px; height: 15px;
+                    display: flex; gap: 3px;
+                    opacity: 0.4;
+                }
+                .speaker-hole {
+                    flex: 1;
+                    background: repeating-linear-gradient(0deg, #0a0a0a 0px, #0a0a0a 2px, #1a1a1a 2px, #1a1a1a 4px);
+                    border-radius: 2px;
+                }
 
                 .close-btn {
                     position: absolute; top: 20px; right: 20px; z-index: 200;
@@ -10207,9 +10436,13 @@ async showLeaderboard() {
                 .close-btn:hover { background: rgba(239,68,68,0.6); border-color: rgba(239,68,68,0.8); }
 
                 /* === ANIMATIONS === */
-                @keyframes marquee-glow { 
-                    0% { filter: brightness(1); } 
-                    100% { filter: brightness(1.2); } 
+                @keyframes artwork-pulse { 
+                    0%, 100% { filter: brightness(1); transform: scale(1); } 
+                    50% { filter: brightness(1.15); transform: scale(1.02); } 
+                }
+                @keyframes backlight-pulse {
+                    0% { opacity: 0.1; }
+                    100% { opacity: 0.2; }
                 }
                 @keyframes pulse-row { 
                     0% { background: rgba(255,255,255,0.05); } 
@@ -10218,6 +10451,14 @@ async showLeaderboard() {
                 @keyframes flicker {
                     0%, 100% { background: transparent; }
                     50% { background: rgba(255,255,255,0.02); }
+                }
+                @keyframes coin-blink {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0.6; }
+                }
+                @keyframes coin-glow {
+                    0%, 100% { opacity: 0.8; }
+                    50% { opacity: 0.4; }
                 }
             `;
             document.head.appendChild(s);
@@ -10230,6 +10471,7 @@ async showLeaderboard() {
                 theme: 'theme-wood',
                 title: 'Word Streak',
                 subtitle: 'ENDURANCE RUN',
+                icon: '🔥',
                 dataGlobal: globalStreak || [],
                 dataLocal: (State.data.highScores || []),
                 shareMsg: (s) => `🔥 I hit a ${s}-word streak in Word Streak! Can you beat me?`
@@ -10239,6 +10481,7 @@ async showLeaderboard() {
                 theme: 'theme-camo',
                 title: 'WORD WAR!',
                 subtitle: 'BATTLEFIELD',
+                icon: '⚔️',
                 dataGlobal: globalWar || [],
                 dataLocal: (State.data.wordWarScores || []),
                 shareMsg: (s) => `⚔️ I won ${s} battles in WORD WAR! #WordWar`
@@ -10246,8 +10489,9 @@ async showLeaderboard() {
             {
                 id: 'def',
                 theme: 'theme-cyber',
-                title: 'definition dash',
+                title: 'DEF DASH',
                 subtitle: 'DATA UPLINK',
+                icon: '🧠',
                 dataGlobal: globalDef || [],
                 dataLocal: (State.data.defDashScores || []),
                 shareMsg: (s) => `🧠 I scored ${s} points in definition dash! #DefDash`
@@ -10279,11 +10523,22 @@ async showLeaderboard() {
 
         const cabinetHTML = cabinets.map((cab, idx) => `
             <div class="arcade-cabinet ${cab.theme} inactive" id="cab-${idx}" data-idx="${idx}">
-                <div class="marquee-area">
-                    <div class="marquee-glass"></div>
-                    <div class="marquee-title">${cab.title}</div>
-                    <div class="marquee-sub">${cab.subtitle}</div>
+                <div class="cabinet-shadow"></div>
+                
+                <!-- Artwork/Marquee Area -->
+                <div class="artwork-frame">
+                    <div class="artwork-inner">
+                        <div class="artwork-backlight"></div>
+                        <div class="artwork-scanlines"></div>
+                        <span class="artwork-decor left">${cab.icon}</span>
+                        <span class="artwork-decor right">${cab.icon}</span>
+                        <div class="artwork-title">${cab.title}</div>
+                        <div class="artwork-sub">${cab.subtitle}</div>
+                        <div class="artwork-glow"></div>
+                    </div>
                 </div>
+                
+                <!-- CRT Monitor -->
                 <div class="crt-housing">
                     <div class="crt-bezel"></div>
                     <div class="crt-screen">
@@ -10294,9 +10549,35 @@ async showLeaderboard() {
                         <div class="crt-glare"></div>
                     </div>
                 </div>
-                <div class="control-deck">
-                    <button class="arcade-btn btn-toggle" data-idx="${idx}">🌐</button>
-                    <button class="arcade-btn btn-share hidden" data-idx="${idx}">📤</button>
+                
+                <!-- Control Panel with Joystick & Buttons -->
+                <div class="control-panel">
+                    <div class="panel-surface"></div>
+                    
+                    <!-- Joystick -->
+                    <div class="joystick-area">
+                        <div class="joystick-base">
+                            <div class="joystick-ring">
+                                <div class="joystick-stick">
+                                    <div class="joystick-ball"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Button Cluster -->
+                    <div class="button-cluster">
+                        <button class="arcade-btn btn-toggle" data-idx="${idx}">🌐</button>
+                        <button class="arcade-btn btn-share hidden" data-idx="${idx}">📤</button>
+                    </div>
+                    
+                    <!-- Insert Coin -->
+                    <div class="coin-section">
+                        <div class="coin-slot"></div>
+                        <div class="coin-light">
+                            <div class="coin-light-inner">INSERT COIN</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         `).join('');
