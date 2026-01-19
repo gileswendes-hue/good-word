@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.5.9',
+    APP_VERSION: '6.6.0',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -8753,6 +8753,10 @@ const Game = {
                     DOM.screens.loading.classList.add('opacity-0', 'pointer-events-none');
                     setTimeout(() => DOM.screens.loading?.remove(), 500);
                 }
+                
+                // URL Hash Routing for direct mini-game links
+                this.handleURLRoute();
+                window.addEventListener('hashchange', () => this.handleURLRoute());
             }, 1500);
             setInterval(() => this.checkCooldown(), 100);
         } catch(e) {
@@ -9756,6 +9760,67 @@ async renderLeaderboardTable() {
                     legY += 30;
                 });
             }
+        }
+    },
+    
+    // URL Hash Routing for direct mini-game links
+    // Supported hashes: #wordwar, #defdash, #arcade, #leaderboard
+    handleURLRoute() {
+        const hash = window.location.hash.toLowerCase().replace('#', '');
+        if (!hash) return;
+        
+        // Clear the hash after processing to allow re-triggering
+        const clearHash = () => {
+            history.replaceState(null, null, window.location.pathname + window.location.search);
+        };
+        
+        switch(hash) {
+            case 'wordwar':
+            case 'word-war':
+            case 'war':
+                clearHash();
+                setTimeout(() => {
+                    if (typeof MiniGames !== 'undefined' && MiniGames.wordWar) {
+                        MiniGames.wordWar.start();
+                    }
+                }, 100);
+                break;
+                
+            case 'defdash':
+            case 'def-dash':
+            case 'definitiondash':
+            case 'definition-dash':
+            case 'def':
+                clearHash();
+                setTimeout(() => {
+                    if (typeof MiniGames !== 'undefined' && MiniGames.defDash) {
+                        MiniGames.defDash.start();
+                    }
+                }, 100);
+                break;
+                
+            case 'arcade':
+            case 'leaderboard':
+            case 'highscores':
+            case 'scores':
+                clearHash();
+                setTimeout(() => {
+                    if (typeof MiniGames !== 'undefined' && MiniGames.showLeaderboard) {
+                        MiniGames.showLeaderboard();
+                    }
+                }, 100);
+                break;
+                
+            case 'minigames':
+            case 'mini-games':
+            case 'games':
+                clearHash();
+                setTimeout(() => {
+                    if (typeof MiniGames !== 'undefined' && MiniGames.showMenu) {
+                        MiniGames.showMenu();
+                    }
+                }, 100);
+                break;
         }
     }
 };
