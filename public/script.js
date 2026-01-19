@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.5.4.4',
+    APP_VERSION: '6.5.4.5',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -9912,9 +9912,9 @@ async showLeaderboard() {
         } catch (e) { console.error("Score fetch error", e); }
 
         // 2. Inject HIGH-FIDELITY Arcade CSS
-        if (!document.getElementById('arcade-styles-v5')) {
+        if (!document.getElementById('arcade-styles-v6')) {
             const s = document.createElement('style');
-            s.id = 'arcade-styles-v5';
+            s.id = 'arcade-styles-v6';
             s.innerHTML = `
                 @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=Black+Ops+One&display=swap');
                 
@@ -9927,30 +9927,35 @@ async showLeaderboard() {
                     :root { --cab-w: 520px; --cab-h: 800px; }
                 }
 
-                /* --- 1. Scene Setup --- */
+                /* === SCENE === */
                 .arcade-modal {
                     position: fixed; inset: 0; z-index: 9999;
-                    background: radial-gradient(circle at 50% 30%, #1a1a2e 0%, #000 90%);
+                    background: linear-gradient(180deg, #0d0d1a 0%, #000 100%);
                     display: flex; flex-direction: column; overflow: hidden;
                     perspective: 1200px;
                 }
                 .arcade-floor {
-                    position: absolute; bottom: 0; left: -50%; right: -50%; height: 40vh;
+                    position: absolute; bottom: 0; left: -50%; right: -50%; height: 35vh;
                     background: 
-                        linear-gradient(0deg, rgba(0,0,0,0.8), transparent),
-                        repeating-linear-gradient(90deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 2px, transparent 2px, transparent 100px),
-                        repeating-linear-gradient(0deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 2px, transparent 2px, transparent 60px);
-                    transform: rotateX(70deg) translateY(20px);
+                        linear-gradient(0deg, rgba(0,0,0,0.9), transparent 70%),
+                        repeating-linear-gradient(90deg, rgba(80,60,120,0.15) 0px, transparent 1px, transparent 80px),
+                        repeating-linear-gradient(0deg, rgba(80,60,120,0.1) 0px, transparent 1px, transparent 50px);
+                    transform: rotateX(75deg);
                     transform-origin: center bottom;
                     pointer-events: none; z-index: 0;
                 }
+                .arcade-ceiling-glow {
+                    position: absolute; top: -50px; left: 20%; right: 20%; height: 150px;
+                    background: radial-gradient(ellipse at center, rgba(147,51,234,0.15) 0%, transparent 70%);
+                    pointer-events: none; z-index: 0;
+                }
                 .arcade-header-overlay {
-                    position: absolute; top: 0; left: 0; right: 0; height: 100px;
-                    background: linear-gradient(180deg, rgba(0,0,0,0.8) 0%, transparent 100%);
+                    position: absolute; top: 0; left: 0; right: 0; height: 80px;
+                    background: linear-gradient(180deg, rgba(0,0,0,0.7) 0%, transparent 100%);
                     z-index: 100; pointer-events: none;
                 }
 
-                /* --- 2. Sliding Row --- */
+                /* === SLIDING ROW === */
                 .cabinet-viewport {
                     flex: 1; display: flex; align-items: center;
                     width: 100%; z-index: 10;
@@ -9959,169 +9964,261 @@ async showLeaderboard() {
                 .cabinet-row {
                     display: flex; 
                     gap: var(--cab-gap);
-                    padding: 0; margin: 0;
                     transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
                     will-change: transform;
                     align-items: flex-end;
                     height: var(--cab-h);
                 }
 
-                /* --- 3. The Cabinet --- */
+                /* === CABINET SHELL === */
                 .arcade-cabinet {
                     width: var(--cab-w); 
                     height: var(--cab-h);
                     flex-shrink: 0;
                     position: relative;
-                    border-radius: 24px 24px 4px 4px;
-                    border-right: 25px solid rgba(0,0,0,0.5);
-                    border-left: 25px solid rgba(255,255,255,0.05);
-                    box-shadow: 0 40px 80px rgba(0,0,0,1);
+                    border-radius: 20px 20px 6px 6px;
                     transition: transform 0.5s ease, opacity 0.5s ease, filter 0.5s ease;
                     display: flex; flex-direction: column;
                 }
-
+                .arcade-cabinet::before {
+                    content: ''; position: absolute; inset: 0;
+                    border-radius: 20px 20px 6px 6px;
+                    box-shadow: 
+                        inset 4px 0 8px rgba(255,255,255,0.05),
+                        inset -4px 0 8px rgba(0,0,0,0.4),
+                        0 30px 60px rgba(0,0,0,0.8);
+                    pointer-events: none; z-index: 100;
+                }
                 .arcade-cabinet.active {
-                    transform: scale(1.05) translateZ(50px);
+                    transform: scale(1.05) translateZ(40px);
                     z-index: 50; filter: brightness(1.1); opacity: 1;
                 }
                 .arcade-cabinet.inactive {
-                    transform: scale(0.9) translateZ(-50px) rotateX(5deg);
-                    z-index: 1; filter: brightness(0.5) grayscale(0.7); opacity: 0.6;
+                    transform: scale(0.88) translateZ(-30px);
+                    z-index: 1; filter: brightness(0.45) saturate(0.5); opacity: 0.7;
+                    cursor: pointer;
                 }
 
-                /* --- 4. Distinct Textures --- */
+                /* === CABINET THEMES === */
                 .theme-wood {
-                    background-color: #5d4037;
-                    background-image: repeating-linear-gradient(90deg, rgba(255,255,255,0.03) 0, rgba(255,255,255,0.03) 2px, transparent 2px, transparent 40px);
-                    box-shadow: inset 0 0 60px #2e1e19;
+                    background: linear-gradient(180deg, #6d4c41 0%, #4e342e 50%, #3e2723 100%);
+                    background-image: 
+                        repeating-linear-gradient(90deg, rgba(0,0,0,0.1) 0px, transparent 2px, transparent 30px),
+                        repeating-linear-gradient(0deg, rgba(255,255,255,0.02) 0px, transparent 1px, transparent 8px);
                 }
-                .theme-wood .marquee-area { background: #3e2723; border: 6px solid #8d6e63; color: #ffb74d; }
+                .theme-wood .marquee-area { 
+                    background: linear-gradient(180deg, #4a2c2a 0%, #2d1b1a 100%); 
+                    border: 5px solid #8d6e63; 
+                    box-shadow: inset 0 0 20px rgba(0,0,0,0.6), 0 0 15px rgba(255,167,38,0.3);
+                }
+                .theme-wood .marquee-title { color: #ffb74d; text-shadow: 0 0 20px #ff6f00, 0 0 40px #ff6f00; }
+                .theme-wood .marquee-sub { color: #bcaaa4; }
                 
                 .theme-camo {
-                    background-color: #333d29;
-                    background-image: radial-gradient(circle at 30% 30%, #4a5c38 20px, transparent 21px), radial-gradient(circle at 70% 70%, #1a2115 20px, transparent 21px);
-                    background-size: 100px 100px;
+                    background: linear-gradient(180deg, #3d4a2d 0%, #2d3a1f 50%, #1a2410 100%);
+                    background-image: 
+                        radial-gradient(ellipse at 20% 30%, rgba(74,92,56,0.6) 0%, transparent 50%),
+                        radial-gradient(ellipse at 80% 60%, rgba(26,33,21,0.8) 0%, transparent 40%),
+                        radial-gradient(ellipse at 50% 80%, rgba(45,58,31,0.5) 0%, transparent 45%);
                 }
-                .theme-camo .marquee-area { background: #2f1d1d; border: 6px solid #581c1c; color: #ef4444; font-family: 'Black Ops One', cursive; letter-spacing: 2px; }
+                .theme-camo .marquee-area { 
+                    background: linear-gradient(180deg, #3d1c1c 0%, #1f0f0f 100%); 
+                    border: 5px solid #6b2c2c;
+                    box-shadow: inset 0 0 20px rgba(0,0,0,0.6), 0 0 15px rgba(239,68,68,0.3);
+                }
+                .theme-camo .marquee-title { color: #ef4444; font-family: 'Black Ops One', sans-serif; text-shadow: 0 0 20px #b91c1c, 0 0 40px #7f1d1d; letter-spacing: 3px; }
+                .theme-camo .marquee-sub { color: #a8a29e; }
 
                 .theme-cyber {
-                    background: #000;
-                    background-image: linear-gradient(rgba(0,255,0,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(0,255,0,0.1) 1px, transparent 1px);
-                    background-size: 30px 30px;
-                    border: 2px solid #00ff00;
-                    box-shadow: 0 0 20px rgba(0,255,0,0.2);
+                    background: linear-gradient(180deg, #0a0a0a 0%, #050505 100%);
+                    border: 2px solid rgba(0,255,136,0.6);
+                    box-shadow: 0 0 30px rgba(0,255,136,0.15), inset 0 0 30px rgba(0,255,136,0.05);
                 }
-                .theme-cyber .marquee-area { background: #002200; border: 6px solid #00ff00; color: #00ff00; text-shadow: 0 0 10px #00ff00; }
+                .theme-cyber::after {
+                    content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+                    background-image: 
+                        linear-gradient(rgba(0,255,136,0.03) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(0,255,136,0.03) 1px, transparent 1px);
+                    background-size: 25px 25px;
+                    border-radius: 20px 20px 6px 6px;
+                }
+                .theme-cyber .marquee-area { 
+                    background: linear-gradient(180deg, #001a0d 0%, #000a05 100%); 
+                    border: 4px solid #00ff88;
+                    box-shadow: inset 0 0 30px rgba(0,255,136,0.2), 0 0 25px rgba(0,255,136,0.4);
+                }
+                .theme-cyber .marquee-title { color: #00ff88; text-shadow: 0 0 10px #00ff88, 0 0 30px #00ff88, 0 0 50px #00aa55; }
+                .theme-cyber .marquee-sub { color: #4ade80; }
 
-                /* --- 5. Cabinet Components --- */
+                /* === MARQUEE === */
                 .marquee-area {
-                    height: 110px;
-                    margin: 20px; border-radius: 12px;
+                    height: 100px; margin: 15px 18px; border-radius: 10px;
                     display: flex; flex-direction: column; align-items: center; justify-content: center;
-                    box-shadow: inset 0 0 30px rgba(0,0,0,0.8);
-                    text-align: center;
                     position: relative; overflow: hidden;
                 }
                 .marquee-glass {
                     position: absolute; inset: 0; 
-                    background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, transparent 40%, rgba(255,255,255,0.1) 100%);
-                    pointer-events: none;
+                    background: linear-gradient(135deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.05) 30%, transparent 50%);
+                    pointer-events: none; border-radius: 10px;
                 }
                 .marquee-title { 
-                    font-size: 28px; 
-                    font-weight: 900; 
-                    z-index: 2; 
-                    animation: neon-flicker 3s infinite;
-                    text-shadow: 0 0 15px currentColor;
-                    letter-spacing: 1px;
-                    /* Removed uppercase transform to allow custom casing */
+                    font-size: 26px; font-weight: 900; z-index: 2; 
+                    animation: marquee-glow 2s ease-in-out infinite alternate;
                 }
-                .marquee-sub { font-size: 12px; opacity: 0.9; z-index: 2; margin-top: 6px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; }
+                .marquee-sub { 
+                    font-size: 11px; z-index: 2; margin-top: 8px; 
+                    font-weight: 600; letter-spacing: 3px; text-transform: uppercase; opacity: 0.9;
+                }
 
+                /* === CRT MONITOR === */
                 .crt-housing {
-                    flex: 1; background: #111; margin: 0 20px 20px 20px;
-                    border-radius: 4px 4px 15px 15px;
-                    border: 15px solid #222; border-bottom-width: 35px;
-                    box-shadow: inset 0 0 20px #000;
-                    position: relative; overflow: hidden;
+                    flex: 1; margin: 0 18px 15px 18px;
+                    background: linear-gradient(180deg, #1a1a1a 0%, #0d0d0d 100%);
+                    border-radius: 8px 8px 20px 20px;
+                    padding: 12px;
+                    box-shadow: inset 0 2px 4px rgba(255,255,255,0.05), inset 0 -4px 8px rgba(0,0,0,0.5);
+                    position: relative;
+                }
+                .crt-bezel {
+                    position: absolute; inset: 8px;
+                    background: #0a0a0a;
+                    border-radius: 6px 6px 18px 18px;
+                    box-shadow: inset 0 0 20px rgba(0,0,0,0.9);
+                }
+                .crt-screen {
+                    position: absolute; inset: 14px;
+                    background: radial-gradient(ellipse at 50% 50%, #0a0f18 0%, #030508 100%);
+                    border-radius: 45% 45% 42% 42% / 12% 12% 10% 10%;
+                    overflow: hidden;
+                    box-shadow: 
+                        inset 0 0 80px rgba(0,0,0,0.9),
+                        0 0 2px rgba(100,150,255,0.3);
                 }
                 
-                .crt-screen {
-                    position: absolute; inset: 10px;
-                    background: #000;
-                    border-radius: 50% / 10%;
-                    overflow: hidden;
-                    box-shadow: inset 0 0 60px rgba(0,0,0,1);
+                /* CRT Glass Effect - Multiple Layers */
+                .crt-glass {
+                    position: absolute; inset: 0; pointer-events: none; z-index: 20;
+                    border-radius: 45% 45% 42% 42% / 12% 12% 10% 10%;
+                    background: 
+                        linear-gradient(165deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.03) 20%, transparent 40%),
+                        linear-gradient(195deg, transparent 60%, rgba(255,255,255,0.02) 80%, rgba(255,255,255,0.05) 100%);
+                    box-shadow: 
+                        inset 1px 1px 2px rgba(255,255,255,0.1),
+                        inset -1px -1px 2px rgba(0,0,0,0.3);
                 }
-                /* NEW: Glass Reflection Overlay */
-                .crt-reflection {
-                    position: absolute; inset: 0; pointer-events: none; z-index: 15;
-                    background: linear-gradient(115deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 25%, transparent 40%, transparent 100%);
-                    border-radius: 50% / 10%;
-                    box-shadow: inset 0 0 20px rgba(255,255,255,0.05);
+                .crt-glare {
+                    position: absolute; top: 5%; left: 8%; width: 35%; height: 25%; 
+                    pointer-events: none; z-index: 21;
+                    background: radial-gradient(ellipse at 30% 30%, rgba(255,255,255,0.08) 0%, transparent 70%);
+                    border-radius: 50%;
+                    transform: rotate(-15deg);
                 }
                 
                 .scanlines {
-                    position: absolute; inset: 0; pointer-events: none; z-index: 10;
-                    background: linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.25) 50%); background-size: 100% 4px;
+                    position: absolute; inset: 0; pointer-events: none; z-index: 15;
+                    background: repeating-linear-gradient(0deg, transparent 0px, transparent 2px, rgba(0,0,0,0.15) 2px, rgba(0,0,0,0.15) 4px);
+                    border-radius: 45% 45% 42% 42% / 12% 12% 10% 10%;
                 }
+                .screen-flicker {
+                    position: absolute; inset: 0; pointer-events: none; z-index: 14;
+                    background: transparent;
+                    border-radius: 45% 45% 42% 42% / 12% 12% 10% 10%;
+                    animation: flicker 0.15s infinite;
+                    opacity: 0.03;
+                }
+                
                 .crt-content {
-                    height: 100%; padding: 20px 10px; 
-                    overflow-y: scroll; scrollbar-width: none; -ms-overflow-style: none;
-                    color: #fff; font-family: 'VT323', monospace; font-size: 1.4rem;
-                    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-                    mask-image: linear-gradient(to bottom, transparent 0%, black 5%, black 95%, transparent 100%);
+                    position: relative; z-index: 10;
+                    height: 100%; padding: 25px 15px; 
+                    overflow-y: auto; scrollbar-width: none;
+                    font-family: 'VT323', monospace; font-size: 1.5rem;
+                    mask-image: linear-gradient(to bottom, transparent 0%, black 8%, black 92%, transparent 100%);
                 }
                 .crt-content::-webkit-scrollbar { display: none; }
 
+                /* === SCORES === */
+                .score-header {
+                    text-align: center; padding-bottom: 10px; margin-bottom: 8px;
+                    border-bottom: 2px solid rgba(255,255,255,0.2);
+                    font-size: 1.1rem; letter-spacing: 2px; opacity: 0.9;
+                    position: sticky; top: 0; z-index: 5;
+                    background: inherit;
+                }
                 .score-row { 
-                    display: flex; justify-content: space-between; 
-                    border-bottom: 1px dashed rgba(255,255,255,0.15); padding: 8px 0; 
+                    display: flex; justify-content: space-between; align-items: center;
+                    padding: 10px 5px; 
+                    border-bottom: 1px solid rgba(255,255,255,0.1);
+                    transition: background 0.2s;
                 }
+                .score-row:hover { background: rgba(255,255,255,0.05); }
                 .score-row.highlight { 
-                    background: rgba(255,255,255,0.1); 
-                    color: #ffff00 !important; 
-                    animation: pulse-row 1s infinite alternate;
+                    background: rgba(255,255,0,0.1); 
+                    animation: pulse-row 1.5s ease-in-out infinite alternate;
                 }
-                .rank { width: 40px; color: #888; }
-                .name { flex: 1; text-align: left; letter-spacing: 1px; }
-                .score { color: #fff; font-weight: bold; }
+                .rank { width: 45px; opacity: 0.5; font-size: 1.3rem; }
+                .name { flex: 1; letter-spacing: 2px; font-weight: bold; }
+                .score { font-weight: bold; font-size: 1.4rem; letter-spacing: 1px; }
 
-                /* Theme Colors */
-                .theme-wood .crt-content { color: #ffb74d; text-shadow: 0 0 5px #e65100; }
-                .theme-camo .crt-content { color: #86efac; text-shadow: 0 0 5px #14532d; }
-                .theme-cyber .crt-content { color: #5eead4; text-shadow: 0 0 5px #0f766e; }
+                /* Theme-specific CRT colors */
+                .theme-wood .crt-content { color: #ffa726; text-shadow: 0 0 8px rgba(255,167,38,0.5); }
+                .theme-wood .score-row.highlight { background: rgba(255,167,38,0.15); }
+                .theme-camo .crt-content { color: #81c784; text-shadow: 0 0 8px rgba(129,199,132,0.5); }
+                .theme-camo .score-row.highlight { background: rgba(129,199,132,0.15); }
+                .theme-cyber .crt-content { color: #00ff88; text-shadow: 0 0 8px rgba(0,255,136,0.6); }
+                .theme-cyber .score-row.highlight { background: rgba(0,255,136,0.15); }
 
-                /* Controls */
+                /* === CONTROLS === */
                 .control-deck {
-                    height: 100px; background: rgba(0,0,0,0.3);
-                    display: flex; align-items: center; justify-content: center; gap: 20px;
-                    border-top: 2px solid rgba(255,255,255,0.1);
-                    margin: 0 20px 25px 20px; border-radius: 0 0 15px 15px;
+                    height: 90px; margin: 0 18px 20px 18px;
+                    background: linear-gradient(180deg, #1f1f1f 0%, #141414 100%);
+                    border-radius: 8px;
+                    display: flex; align-items: center; justify-content: center; gap: 25px;
+                    box-shadow: inset 0 2px 4px rgba(255,255,255,0.03), inset 0 -2px 4px rgba(0,0,0,0.5);
+                    border-top: 1px solid rgba(255,255,255,0.05);
                 }
                 .arcade-btn {
                     width: 60px; height: 60px; border-radius: 50%; border: none;
-                    box-shadow: 0 6px 0 #000, 0 10px 15px rgba(0,0,0,0.5);
-                    font-size: 26px; cursor: pointer; display: grid; place-items: center;
-                    transition: transform 0.1s; position: relative;
+                    box-shadow: 
+                        0 6px 0 rgba(0,0,0,0.7), 
+                        0 8px 15px rgba(0,0,0,0.5),
+                        inset 0 2px 3px rgba(255,255,255,0.2),
+                        inset 0 -2px 3px rgba(0,0,0,0.3);
+                    font-size: 24px; cursor: pointer; 
+                    display: grid; place-items: center;
+                    transition: transform 0.1s, box-shadow 0.1s;
                 }
-                .arcade-btn:active { transform: translateY(5px); box-shadow: 0 0 0 #000; }
-                .btn-toggle { background: #2563eb; color: #fff; }
-                .btn-share { background: #ca8a04; color: #fff; }
-
-                /* Hide share button by default (in global mode) */
+                .arcade-btn:active { 
+                    transform: translateY(4px); 
+                    box-shadow: 0 2px 0 rgba(0,0,0,0.7), 0 3px 5px rgba(0,0,0,0.3);
+                }
+                .btn-toggle { background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%); }
+                .btn-share { background: linear-gradient(180deg, #eab308 0%, #a16207 100%); }
                 .btn-share.hidden { display: none; }
 
                 .close-btn {
                     position: absolute; top: 20px; right: 20px; z-index: 200;
-                    width: 40px; height: 40px; background: rgba(255,0,0,0.2);
-                    border: 2px solid rgba(255,0,0,0.4); border-radius: 50%; color: #fff;
-                    cursor: pointer; display: grid; place-items: center; font-weight: bold;
+                    width: 44px; height: 44px; 
+                    background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+                    border: 2px solid rgba(255,255,255,0.2); border-radius: 50%; 
+                    color: #fff; font-size: 18px;
+                    cursor: pointer; display: grid; place-items: center;
+                    transition: all 0.2s;
                 }
-                .close-btn:hover { background: rgba(255,0,0,0.5); }
+                .close-btn:hover { background: rgba(239,68,68,0.6); border-color: rgba(239,68,68,0.8); }
 
-                @keyframes neon-flicker { 0%,100%{opacity:1} 50%{opacity:0.9} 52%{opacity:0.4} 54%{opacity:1} }
-                @keyframes pulse-row { from{background:rgba(255,255,255,0.1)} to{background:rgba(255,255,255,0.25)} }
+                /* === ANIMATIONS === */
+                @keyframes marquee-glow { 
+                    0% { filter: brightness(1); } 
+                    100% { filter: brightness(1.2); } 
+                }
+                @keyframes pulse-row { 
+                    0% { background: rgba(255,255,255,0.05); } 
+                    100% { background: rgba(255,255,255,0.15); } 
+                }
+                @keyframes flicker {
+                    0%, 100% { background: transparent; }
+                    50% { background: rgba(255,255,255,0.02); }
+                }
             `;
             document.head.appendChild(s);
         }
@@ -10188,11 +10285,13 @@ async showLeaderboard() {
                     <div class="marquee-sub">${cab.subtitle}</div>
                 </div>
                 <div class="crt-housing">
+                    <div class="crt-bezel"></div>
                     <div class="crt-screen">
-                        <div class="crt-reflection"></div>
+                        <div class="screen-flicker"></div>
                         <div class="scanlines"></div>
-                        <div class="crt-content" id="list-${idx}">
-                            </div>
+                        <div class="crt-content" id="list-${idx}"></div>
+                        <div class="crt-glass"></div>
+                        <div class="crt-glare"></div>
                     </div>
                 </div>
                 <div class="control-deck">
@@ -10204,6 +10303,7 @@ async showLeaderboard() {
 
         modal.innerHTML = `
             <div class="arcade-floor"></div>
+            <div class="arcade-ceiling-glow"></div>
             <div class="arcade-header-overlay"></div>
             <button class="close-btn" id="closeArcade">✕</button>
             
@@ -10213,8 +10313,8 @@ async showLeaderboard() {
                 </div>
             </div>
             
-            <div style="position:absolute; bottom:20px; width:100%; text-align:center; color:rgba(255,255,255,0.4); font-family:'Press Start 2P'; font-size:10px; pointer-events:none;">
-                SWIPE TO BROWSE • TAP 🌐 TO TOGGLE GLOBAL/LOCAL
+            <div style="position:absolute; bottom:20px; width:100%; text-align:center; color:rgba(255,255,255,0.35); font-family:'VT323', monospace; font-size:14px; letter-spacing:2px; pointer-events:none;">
+                SWIPE TO BROWSE • TAP 🌐 FOR LOCAL SCORES
             </div>
         `;
         
@@ -10244,17 +10344,17 @@ async showLeaderboard() {
             const cab = cabinets[idx];
             const mode = viewModes[idx]; // 0=Global, 1=Local
             const data = mode === 0 ? cab.dataGlobal : cab.dataLocal;
-            const title = mode === 0 ? "--- WORLD RECORDS ---" : "--- LOCAL BEST ---";
+            const title = mode === 0 ? "🌐 WORLD RECORDS" : "🏠 YOUR BEST";
             
             const container = document.getElementById(`list-${idx}`);
             container.innerHTML = `
-                <div style="text-align:center; margin-bottom:10px; padding-bottom:5px; border-bottom:2px solid rgba(255,255,255,0.2); position:sticky; top:0; background:inherit; z-index:10;">${title}</div>
+                <div class="score-header">${title}</div>
                 ${generateListHTML(data)}
             `;
             
             // Toggle Button Icon
             const btnToggle = modal.querySelector(`.btn-toggle[data-idx="${idx}"]`);
-            if(btnToggle) btnToggle.innerHTML = mode === 0 ? '🌐' : '🏠';
+            if(btnToggle) btnToggle.textContent = mode === 0 ? '🌐' : '🏠';
 
             // VISIBILITY LOGIC: Show Share Button ONLY if Local (mode 1)
             const btnShare = modal.querySelector(`.btn-share[data-idx="${idx}"]`);
