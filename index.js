@@ -66,6 +66,17 @@ const globalStatsSchema = new mongoose.Schema({
 });
 const GlobalStats = mongoose.model('GlobalStats', globalStatsSchema);
 
+// Mini-game scores schema for Word War, Definition Dash, etc.
+const miniGameScoreSchema = new mongoose.Schema({
+    game: { type: String, required: true }, // 'wordwar', 'defdash', etc.
+    name: { type: String, required: true, maxlength: 3 },
+    score: { type: Number, required: true },
+    date: { type: Date, default: Date.now },
+    userId: String
+});
+miniGameScoreSchema.index({ game: 1, score: -1 }); // For efficient querying by game
+const MiniGameScore = mongoose.model('MiniGameScore', miniGameScoreSchema);
+
 let kidsWords = [];
 const loadKidsWords = () => {
     try {
@@ -891,6 +902,24 @@ app.post('/api/leaderboard', async (req, res) => {
 });
 app.get('/api/scores', async (req, res) => { try { res.json(await Score.find().sort({score:-1}).limit(10)); } catch(e){res.json([])} });
 app.post('/api/scores', async (req, res) => { try { const s = new Score(req.body); await s.save(); res.json(s); } catch(e){res.json({})} });
+
+// Mini-game scores endpoints (Word War, Definition Dash, etc.)
+app.get('/api/minigame-scores/:game', async (req, res) => { 
+    try { 
+        res.json(await MiniGameScore.find({ game: req.params.game }).sort({ score: -1 }).limit(10)); 
+    } catch(e) { res.json([]); } 
+});
+app.post('/api/minigame-scores', async (req, res) => { 
+    try { 
+        const { game, name, score, userId } = req.body;
+        if (!game || !name || score === undefined) {
+            return res.status(400).json({ message: 'Missing required fields' });
+        }
+        const s = new MiniGameScore({ game, name: name.toUpperCase().slice(0, 3), score, userId }); 
+        await s.save(); 
+        res.json(s); 
+    } catch(e) { res.status(500).json({}); } 
+});
 
 // Global stats endpoints - stored for all users to see historical data
 app.get('/api/stats/history', async (req, res) => { 
