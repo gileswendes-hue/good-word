@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.5.4.1',
+    APP_VERSION: '6.5.4',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -9899,363 +9899,484 @@ const StreakManager = {
     },
 async showLeaderboard() {
         const self = this;
-        
-        // 1. Fetch Data Concurrently
-        const [globalStreak, globalWar, globalDef] = await Promise.all([
-            API.getGlobalScores(),
-            API.getMiniGameScores('wordwar'),
-            API.getMiniGameScores('defdash')
-        ]);
+        const username = (typeof State !== 'undefined' && State.data.username) ? State.data.username : "PLAYER";
 
-        // 2. Inject Enhanced Arcade CSS (Textures & Smooth Animations)
-        if (!document.getElementById('arcade-styles')) {
+        // 1. Fetch all data concurrently (Fail-safe)
+        let globalStreak = [], globalWar = [], globalDef = [];
+        try {
+            [globalStreak, globalWar, globalDef] = await Promise.all([
+                API.getGlobalScores().catch(() => []),
+                API.getMiniGameScores('wordwar').catch(() => []),
+                API.getMiniGameScores('defdash').catch(() => [])
+            ]);
+        } catch (e) { console.error("Score fetch error", e); }
+
+        // 2. Inject HIGH-FIDELITY Arcade CSS
+        if (!document.getElementById('arcade-styles-v2')) {
             const s = document.createElement('style');
-            s.id = 'arcade-styles';
+            s.id = 'arcade-styles-v2';
             s.innerHTML = `
-                @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=Stencil&display=swap');
+                @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=Black+Ops+One&display=swap');
                 
-                :root { 
-                    --cab-width: 340px; 
-                    --cab-height: 600px; 
-                    --cab-gap: 40px; 
+                :root {
+                    --cab-w: 360px;
+                    --cab-h: 680px;
+                    --cab-gap: 60px; /* Space between cabinets */
                 }
-                @media (min-width: 768px) { 
-                    :root { --cab-width: 420px; --cab-height: 720px; } 
+                @media (min-width: 768px) {
+                    :root { --cab-w: 440px; --cab-h: 750px; }
                 }
 
-                /* --- Layout & Animation --- */
+                /* --- 1. Scene Setup --- */
                 .arcade-modal {
-                    position: fixed; inset: 0; z-index: 10000;
-                    background: radial-gradient(circle at 50% 30%, #1a1a2e 0%, #000 100%);
+                    position: fixed; inset: 0; z-index: 9999;
+                    background: radial-gradient(circle at 50% 30%, #1a1a2e 0%, #000 90%);
                     display: flex; flex-direction: column; overflow: hidden;
+                    perspective: 1200px; /* Deep 3D perspective */
                 }
+                .arcade-floor {
+                    position: absolute; bottom: 0; left: -50%; right: -50%; height: 40vh;
+                    background: 
+                        linear-gradient(0deg, rgba(0,0,0,0.8), transparent),
+                        repeating-linear-gradient(90deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 2px, transparent 2px, transparent 100px),
+                        repeating-linear-gradient(0deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 2px, transparent 2px, transparent 60px);
+                    transform: rotateX(70deg) translateY(20px);
+                    transform-origin: center bottom;
+                    pointer-events: none; z-index: 0;
+                }
+                .arcade-header-overlay {
+                    position: absolute; top: 0; left: 0; right: 0; height: 100px;
+                    background: linear-gradient(180deg, rgba(0,0,0,0.8) 0%, transparent 100%);
+                    z-index: 100; pointer-events: none;
+                }
+
+                /* --- 2. Sliding Row --- */
                 .cabinet-viewport {
-                    flex: 1; display: flex; align-items: center;
-                    width: 100%; perspective: 1000px; overflow: hidden;
+                    flex: 1; display: flex; align-items: center; /* Vertical center */
+                    width: 100%; z-index: 10;
+                    touch-action: pan-x; /* Allow horizontal swipe */
                 }
                 .cabinet-row {
-                    display: flex; gap: var(--cab-gap);
-                    padding-left: 50vw; /* Start from center */
-                    /* Offset logic handled in JS */
-                    transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+                    display: flex; 
+                    gap: var(--cab-gap);
+                    padding: 0; margin: 0;
+                    transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
                     will-change: transform;
+                    align-items: flex-end; /* Align bottoms for floor effect */
+                    height: var(--cab-h);
                 }
 
-                /* --- Cabinet Base --- */
+                /* --- 3. The Cabinet (Shape & Form) --- */
                 .arcade-cabinet {
-                    width: var(--cab-width); height: var(--cab-height);
-                    flex-shrink: 0; position: relative;
-                    border-radius: 20px 20px 4px 4px;
-                    margin-left: calc(var(--cab-width) * -0.5); /* Centering Fix */
-                    transition: transform 0.4s ease, filter 0.4s ease, opacity 0.4s ease;
-                    transform-origin: center bottom;
-                    box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+                    width: var(--cab-w); 
+                    height: var(--cab-h);
+                    flex-shrink: 0;
+                    position: relative;
+                    border-radius: 24px 24px 4px 4px;
+                    /* Side Panels (Pseudo 3D) */
+                    border-right: 20px solid rgba(0,0,0,0.5);
+                    border-left: 20px solid rgba(255,255,255,0.05);
+                    box-shadow: 0 40px 80px rgba(0,0,0,1);
+                    transition: transform 0.5s ease, opacity 0.5s ease, filter 0.5s ease;
+                    display: flex; flex-direction: column;
+                }
+
+                /* Active/Inactive States */
+                .arcade-cabinet.active {
+                    transform: scale(1.05) translateZ(50px);
+                    z-index: 50;
+                    filter: brightness(1.1);
+                    opacity: 1;
                 }
                 .arcade-cabinet.inactive {
-                    transform: scale(0.85) translateY(20px) rotateX(5deg);
-                    opacity: 0.5; filter: brightness(0.4) grayscale(0.6); pointer-events: none;
-                }
-                .arcade-cabinet.active {
-                    transform: scale(1.05) translateY(0) rotateX(0deg);
-                    opacity: 1; filter: brightness(1.1); z-index: 10;
-                    box-shadow: 0 0 0 2px rgba(255,255,255,0.1), 0 30px 80px rgba(0,0,0,0.9);
+                    transform: scale(0.9) translateZ(-50px) rotateX(5deg);
+                    z-index: 1;
+                    filter: brightness(0.5) grayscale(0.7);
+                    opacity: 0.6;
                 }
 
-                /* --- DISTINCT SKINS --- */
-                /* 1. Streak: Synthwave Pink/Purple */
-                .cab-streak {
-                    background: linear-gradient(180deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
-                    border-left: 15px solid #4338ca; border-right: 15px solid #4338ca;
+                /* --- 4. Distinct Textures --- */
+                /* Theme A: Retro Wood (Streak) */
+                .theme-wood {
+                    background-color: #5d4037;
+                    background-image: repeating-linear-gradient(90deg, rgba(255,255,255,0.03) 0, rgba(255,255,255,0.03) 2px, transparent 2px, transparent 40px);
+                    box-shadow: inset 0 0 40px #2e1e19;
                 }
-                .cab-streak .cabinet-marquee { background: #312e81; border: 4px solid #818cf8; color: #f472b6; }
-                .cab-streak .crt-content { color: #f472b6; text-shadow: 0 0 4px #f472b6; }
-                .cab-streak .score-row.my-score { background: rgba(244, 114, 182, 0.2); }
-
-                /* 2. War: Camo/Military */
-                .cab-war {
-                    background: repeating-linear-gradient(45deg, #3f4c3b 0, #3f4c3b 20px, #2c3829 20px, #2c3829 40px);
-                    border-left: 15px solid #1a2316; border-right: 15px solid #1a2316;
+                .theme-wood .marquee-area { background: #3e2723; border: 4px solid #8d6e63; color: #ffb74d; }
+                
+                /* Theme B: Military Camo (War) */
+                .theme-camo {
+                    background-color: #333d29;
+                    background-image: radial-gradient(circle at 30% 30%, #4a5c38 20px, transparent 21px), radial-gradient(circle at 70% 70%, #1a2115 20px, transparent 21px);
+                    background-size: 100px 100px;
                 }
-                .cab-war .cabinet-marquee { background: #7f1d1d; border: 4px solid #b91c1c; color: #fca5a5; font-family: 'Stencil', monospace; letter-spacing: 2px; }
-                .cab-war .crt-content { color: #fca5a5; text-shadow: 0 0 4px #ef4444; }
-                .cab-war .score-row.my-score { background: rgba(239, 68, 68, 0.2); }
+                .theme-camo .marquee-area { background: #2f1d1d; border: 4px solid #581c1c; color: #ef4444; font-family: 'Black Ops One', cursive; letter-spacing: 2px; }
 
-                /* 3. Def Dash: Matrix/Cyber */
-                .cab-def {
-                    background: linear-gradient(180deg, #064e3b 0%, #065f46 100%);
-                    border-left: 15px solid #022c22; border-right: 15px solid #022c22;
+                /* Theme C: Cyber Grid (Def Dash) */
+                .theme-cyber {
+                    background: #000;
+                    background-image: linear-gradient(rgba(0,255,0,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(0,255,0,0.1) 1px, transparent 1px);
+                    background-size: 30px 30px;
+                    border: 1px solid #00ff00;
+                    box-shadow: 0 0 15px rgba(0,255,0,0.2);
                 }
-                .cab-def .cabinet-marquee { background: #022c22; border: 4px solid #10b981; color: #34d399; }
-                .cab-def .crt-content { color: #34d399; text-shadow: 0 0 4px #10b981; }
-                .cab-def .score-row.my-score { background: rgba(52, 211, 153, 0.2); }
+                .theme-cyber .marquee-area { background: #002200; border: 4px solid #00ff00; color: #00ff00; text-shadow: 0 0 10px #00ff00; }
 
-                /* --- Components --- */
-                .cabinet-marquee {
-                    height: 80px; margin: 10px 15px; border-radius: 10px;
+                /* --- 5. Cabinet Components --- */
+                .marquee-area {
+                    height: 90px; margin: 15px; border-radius: 10px;
                     display: flex; flex-direction: column; align-items: center; justify-content: center;
-                    box-shadow: inset 0 0 20px rgba(0,0,0,0.6); position: relative; overflow: hidden;
-                    text-transform: uppercase; font-family: 'Press Start 2P', cursive;
+                    box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+                    text-transform: uppercase; text-align: center;
+                    position: relative; overflow: hidden;
                 }
-                .marquee-glass { position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255,255,255,0.3) 0%, transparent 50%); }
-                .marquee-title { font-size: 14px; z-index: 2; text-align: center; line-height: 1.4; animation: neon 2s infinite alternate; }
+                .marquee-glass {
+                    position: absolute; inset: 0; 
+                    background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, transparent 40%, rgba(255,255,255,0.1) 100%);
+                    pointer-events: none;
+                }
+                .marquee-title { font-size: 18px; font-weight: bold; z-index: 2; animation: neon-flicker 3s infinite; }
+                .marquee-sub { font-size: 10px; opacity: 0.8; z-index: 2; margin-top: 4px; }
 
-                .cabinet-screen-bezel {
-                    background: #111; margin: 0 15px; flex: 1; border-radius: 4px 4px 20px 20px;
-                    border: 8px solid #222; border-bottom-width: 25px;
-                    box-shadow: inset 0 0 10px #000; position: relative; overflow: hidden;
+                .crt-housing {
+                    flex: 1; background: #111; margin: 0 15px 15px 15px;
+                    border-radius: 4px 4px 15px 15px;
+                    border: 12px solid #222; border-bottom-width: 30px; /* Chin */
+                    box-shadow: inset 0 0 20px #000;
+                    position: relative; overflow: hidden;
                 }
+                
+                /* THE CRT EFFECT */
                 .crt-screen {
-                    position: absolute; inset: 10px; background: #000;
-                    border-radius: 40px / 20px; overflow: hidden;
-                    box-shadow: inset 0 0 40px rgba(0,0,0,0.9);
-                }
-                .crt-content {
-                    height: 100%; padding: 15px; overflow-y: auto;
-                    font-family: 'VT323', monospace; font-size: 1.2rem;
+                    position: absolute; inset: 10px;
+                    background: #000;
+                    border-radius: 50% / 10%; /* Curved Screen */
+                    overflow: hidden;
+                    box-shadow: inset 0 0 60px rgba(0,0,0,1);
                 }
                 .scanlines {
-                    position: absolute; inset: 0; pointer-events: none; z-index: 20;
-                    background: linear-gradient(rgba(0,0,0,0) 50%, rgba(0,0,0,0.25) 50%); background-size: 100% 4px;
+                    position: absolute; inset: 0; pointer-events: none; z-index: 10;
+                    background: linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.25) 50%); background-size: 100% 4px;
                 }
-                
-                /* Scores */
-                .score-row { display: flex; justify-content: space-between; border-bottom: 1px dashed rgba(255,255,255,0.1); padding: 4px 0; }
-                .rank-num { width: 30px; opacity: 0.7; }
-                .player-name { flex: 1; text-align: left; }
-                
+                .crt-content {
+                    height: 100%; padding: 20px 10px; overflow-y: auto;
+                    color: #fff; font-family: 'VT323', monospace; font-size: 1.3rem;
+                    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+                    mask-image: linear-gradient(to bottom, transparent 0%, black 5%, black 95%, transparent 100%);
+                }
+                /* Hide Scrollbar */
+                .crt-content::-webkit-scrollbar { width: 0; }
+
+                /* Score Rows */
+                .score-row { 
+                    display: flex; justify-content: space-between; 
+                    border-bottom: 1px dashed rgba(255,255,255,0.15); padding: 5px 0; 
+                }
+                .score-row.highlight { 
+                    background: rgba(255,255,255,0.1); 
+                    color: #ffff00 !important; 
+                    animation: pulse-row 1s infinite alternate;
+                }
+                .rank { width: 35px; color: #888; }
+                .name { flex: 1; text-align: left; letter-spacing: 1px; }
+                .score { color: #fff; font-weight: bold; }
+
+                /* Theme Colors for Text */
+                .theme-wood .crt-content { color: #ffb74d; text-shadow: 0 0 5px #e65100; }
+                .theme-camo .crt-content { color: #86efac; text-shadow: 0 0 5px #14532d; }
+                .theme-cyber .crt-content { color: #5eead4; text-shadow: 0 0 5px #0f766e; }
+
                 /* Controls */
-                .cab-controls {
-                    position: absolute; bottom: -60px; left: 0; right: 0;
-                    display: flex; justify-content: center; gap: 15px;
-                    transition: bottom 0.3s;
+                .control-deck {
+                    height: 100px; background: rgba(0,0,0,0.3);
+                    display: flex; align-items: center; justify-content: center; gap: 20px;
+                    border-top: 2px solid rgba(255,255,255,0.1);
+                    margin: 0 15px 20px 15px; border-radius: 0 0 15px 15px;
                 }
-                .arcade-cabinet.active .cab-controls { bottom: 20px; }
-                
-                .c-btn {
-                    width: 50px; height: 50px; border-radius: 50%; border: none; cursor: pointer;
-                    box-shadow: 0 4px 0 rgba(0,0,0,0.5), 0 8px 10px rgba(0,0,0,0.3);
-                    font-size: 20px; display: flex; align-items: center; justify-content: center;
-                    transition: transform 0.1s, box-shadow 0.1s; color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+                .arcade-btn {
+                    width: 50px; height: 50px; border-radius: 50%; border: none;
+                    box-shadow: 0 5px 0 #000, 0 8px 10px rgba(0,0,0,0.5);
+                    font-size: 22px; cursor: pointer; display: grid; place-items: center;
+                    transition: transform 0.1s; position: relative;
                 }
-                .c-btn:active { transform: translateY(4px); box-shadow: 0 0 0 rgba(0,0,0,0.5); }
-                .btn-toggle { background: #3b82f6; }
-                .btn-share { background: #eab308; }
-                
-                .arcade-close {
-                    position: absolute; top: 20px; right: 20px; z-index: 100;
-                    background: rgba(255,255,255,0.1); width: 40px; height: 40px; border-radius: 50%;
-                    color: #fff; border: 1px solid rgba(255,255,255,0.2); cursor: pointer;
-                    display: flex; align-items: center; justify-content: center;
+                .arcade-btn:active { transform: translateY(5px); box-shadow: 0 0 0 #000; }
+                .btn-toggle { background: #2563eb; color: #fff; }
+                .btn-share { background: #ca8a04; color: #fff; }
+
+                .close-btn {
+                    position: absolute; top: 20px; right: 20px; z-index: 200;
+                    width: 40px; height: 40px; background: rgba(255,0,0,0.2);
+                    border: 2px solid rgba(255,0,0,0.4); border-radius: 50%; color: #fff;
+                    cursor: pointer; display: grid; place-items: center; font-weight: bold;
                 }
-                .arcade-close:hover { background: rgba(255,255,255,0.2); }
-                
-                @keyframes neon { from { text-shadow: 0 0 5px #fff, 0 0 10px currentColor; } to { text-shadow: 0 0 2px #fff, 0 0 5px currentColor; } }
+                .close-btn:hover { background: rgba(255,0,0,0.5); }
+
+                @keyframes neon-flicker { 0%,100%{opacity:1} 50%{opacity:0.9} 52%{opacity:0.4} 54%{opacity:1} }
+                @keyframes pulse-row { from{background:rgba(255,255,255,0.1)} to{background:rgba(255,255,255,0.25)} }
             `;
             document.head.appendChild(s);
         }
 
-        // 3. Setup Cabinet Data
+        // 3. Define Cabinet Data
         const cabinets = [
             {
                 id: 'streak',
-                theme: 'cab-streak',
+                theme: 'theme-wood',
                 title: 'WORD STREAK',
-                subtitle: 'LONGEST RUN',
-                data: { local: State.data.highScores || [], global: globalStreak || [] }
+                subtitle: 'ENDURANCE RUN',
+                dataGlobal: globalStreak || [],
+                dataLocal: (State.data.highScores || []),
+                formatScore: (s) => `${s} Words`
             },
             {
-                id: 'wordwar',
-                theme: 'cab-war',
+                id: 'war',
+                theme: 'theme-camo',
                 title: 'WORD WAR',
                 subtitle: 'BATTLEFIELD',
-                data: { local: State.data.wordWarScores || [], global: globalWar || [] }
+                dataGlobal: globalWar || [],
+                dataLocal: (State.data.wordWarScores || []),
+                formatScore: (s) => `${s} Wins`
             },
             {
-                id: 'defdash',
-                theme: 'cab-def',
+                id: 'def',
+                theme: 'theme-cyber',
                 title: 'DEF DASH',
-                subtitle: 'KNOWLEDGE',
-                data: { local: State.data.defDashScores || [], global: globalDef || [] }
+                subtitle: 'DATA UPLINK',
+                dataGlobal: globalDef || [],
+                dataLocal: (State.data.defDashScores || []),
+                formatScore: (s) => `${s} Pts`
             }
         ];
 
-        // 4. Build DOM (Static Structure)
+        // 4. Construct DOM
         const modal = document.createElement('div');
         modal.id = 'highScoreModal';
         modal.className = 'arcade-modal';
         
-        // Helper to render a score list
-        const renderList = (scores, currentUser) => {
-            if (!scores || scores.length === 0) return '<div style="text-align:center;margin-top:50px;opacity:0.5;">NO DATA</div>';
-            return scores.slice(0, 50).map((s, i) => `
-                <div class="score-row ${s.name === currentUser ? 'my-score' : ''}">
-                    <span class="rank-num">${i+1}.</span>
-                    <span class="player-name">${(s.name || 'UNK').substring(0,10)}</span>
-                    <span>${s.score}</span>
-                </div>
-            `).join('');
+        // Render Function for a single list
+        const generateListHTML = (data, isGlobal) => {
+            if (!data || data.length === 0) return '<div style="text-align:center; margin-top:40px; opacity:0.6;">NO DATA RECORDED<br>PLAY NOW!</div>';
+            return data.slice(0, 50).map((entry, i) => {
+                const isMe = (entry.name === username);
+                return `
+                    <div class="score-row ${isMe ? 'highlight' : ''}">
+                        <span class="rank">${i+1}.</span>
+                        <span class="name">${(entry.name || 'UNKNOWN').substring(0, 12).toUpperCase()}</span>
+                        <span class="score">${entry.score}</span>
+                    </div>
+                `;
+            }).join('');
         };
 
-        const username = State.data.username || "PLAYER";
-        
-        const cabHTML = cabinets.map((cab, i) => `
-            <div class="arcade-cabinet ${cab.theme} ${i===0 ? 'active' : 'inactive'}" id="cab-${i}">
-                <div class="cabinet-marquee">
+        const cabinetHTML = cabinets.map((cab, idx) => `
+            <div class="arcade-cabinet ${cab.theme} inactive" id="cab-${idx}" data-idx="${idx}">
+                <div class="marquee-area">
                     <div class="marquee-glass"></div>
-                    <div class="marquee-title">${cab.title}<br><span style="font-size:0.6em;opacity:0.8">${cab.subtitle}</span></div>
+                    <div class="marquee-title">${cab.title}</div>
+                    <div class="marquee-sub">${cab.subtitle}</div>
                 </div>
-                <div class="cabinet-screen-bezel">
+                <div class="crt-housing">
                     <div class="crt-screen">
                         <div class="scanlines"></div>
-                        <div class="crt-content custom-scrollbar" id="content-${i}">
+                        <div class="crt-content" id="list-${idx}">
                             </div>
                     </div>
                 </div>
-                <div class="cab-controls">
-                    <button class="c-btn btn-toggle" data-idx="${i}">🌐</button>
-                    <button class="c-btn btn-share" onclick="this.dispatchEvent(new CustomEvent('share-score'))">📤</button>
+                <div class="control-deck">
+                    <button class="arcade-btn btn-toggle" data-idx="${idx}">🌐</button>
+                    <button class="arcade-btn btn-share" data-idx="${idx}">📤</button>
                 </div>
             </div>
         `).join('');
 
         modal.innerHTML = `
-            <button class="arcade-close" id="closeArcade">✕</button>
+            <div class="arcade-floor"></div>
+            <div class="arcade-header-overlay"></div>
+            <button class="close-btn" id="closeArcade">✕</button>
+            
             <div class="cabinet-viewport">
                 <div class="cabinet-row" id="cabinetRow">
-                    ${cabHTML}
+                    ${cabinetHTML}
                 </div>
             </div>
-            <div style="text-align:center; color:rgba(255,255,255,0.4); padding: 10px; font-family:'Press Start 2P'; font-size:10px;">
-                SWIPE TO BROWSE • TAP 🌐 FOR LOCAL/GLOBAL
+            
+            <div style="position:absolute; bottom:20px; width:100%; text-align:center; color:rgba(255,255,255,0.4); font-family:'Press Start 2P'; font-size:10px; pointer-events:none;">
+                SWIPE TO BROWSE • TAP 🌐 TO TOGGLE GLOBAL/LOCAL
             </div>
         `;
+        
         document.body.appendChild(modal);
 
-        // 5. Logic
+        // 5. State Management & Animation Logic
         let currentIndex = 0;
-        let viewMode = 'global'; // 'global' or 'local'
+        let viewModes = [0, 0, 0]; // 0=Global, 1=Local for each cab
         const row = document.getElementById('cabinetRow');
         const cabs = document.querySelectorAll('.arcade-cabinet');
 
-        // Render content for a cabinet
-        const updateContent = (idx) => {
+        const refreshCabinetContent = (idx) => {
             const cab = cabinets[idx];
-            const dataset = viewMode === 'global' ? cab.data.global : cab.data.local;
-            const title = viewMode === 'global' ? 'WORLD RECORDS' : 'LOCAL BEST';
-            const html = `
-                <div style="text-align:center; border-bottom:2px solid; margin-bottom:10px; padding-bottom:5px;">${title}</div>
-                ${renderList(dataset, username)}
+            const mode = viewModes[idx]; // 0 or 1
+            const data = mode === 0 ? cab.dataGlobal : cab.dataLocal;
+            const title = mode === 0 ? "--- WORLD RECORDS ---" : "--- LOCAL BEST ---";
+            
+            const container = document.getElementById(`list-${idx}`);
+            container.innerHTML = `
+                <div style="text-align:center; margin-bottom:10px; padding-bottom:5px; border-bottom:2px solid rgba(255,255,255,0.2);">${title}</div>
+                ${generateListHTML(data)}
             `;
-            document.getElementById(`content-${idx}`).innerHTML = html;
+            
+            // Update toggle button icon
+            const btn = modal.querySelector(`.btn-toggle[data-idx="${idx}"]`);
+            if(btn) btn.innerHTML = mode === 0 ? '🌐' : '🏠';
         };
 
-        // Initialize all contents
-        cabinets.forEach((_, i) => updateContent(i));
+        // Initialize content
+        cabinets.forEach((_, i) => refreshCabinetContent(i));
 
-        // Smooth Slide Logic
-        const updateCarousel = () => {
-            const w = window.innerWidth >= 768 ? 420 : 340; // Match CSS variables
-            const gap = 40;
-            // Center calculation: - (index * (width + gap))
-            const offset = -1 * (currentIndex * (w + gap));
-            row.style.transform = `translateX(${offset}px)`;
+        // THE CORE CENTERING LOGIC
+        const updatePosition = () => {
+            // Get dynamic dimensions
+            const sampleCab = cabs[0];
+            const cabWidth = sampleCab.offsetWidth;
+            const gapStr = getComputedStyle(document.documentElement).getPropertyValue('--cab-gap').trim();
+            const gap = parseInt(gapStr) || 60; // Fallback
+            
+            const windowWidth = window.innerWidth;
+            
+            // Calculate center position
+            // To center index i:
+            // Shift = (ScreenCenter) - (ItemCenter relative to start of row)
+            // ItemCenter = (i * (cabWidth + gap)) + (cabWidth / 2)
+            
+            const screenCenter = windowWidth / 2;
+            const itemCenter = (currentIndex * (cabWidth + gap)) + (cabWidth / 2);
+            const translateX = screenCenter - itemCenter;
 
+            row.style.transform = `translateX(${translateX}px)`;
+
+            // Update Active Classes
             cabs.forEach((el, i) => {
                 if (i === currentIndex) {
-                    el.classList.remove('inactive');
                     el.classList.add('active');
+                    el.classList.remove('inactive');
                 } else {
-                    el.classList.remove('active');
                     el.classList.add('inactive');
+                    el.classList.remove('active');
                 }
             });
         };
-        
-        // Initial Position
-        updateCarousel();
 
-        // 6. Event Handling (Touch & Click)
+        // Initial Layout
+        // Small delay to allow DOM render for width calc
+        setTimeout(updatePosition, 10);
+        window.addEventListener('resize', updatePosition);
+
+        // 6. Interaction Handlers
+        // Toggle Global/Local
+        modal.querySelectorAll('.btn-toggle').forEach(btn => {
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                const idx = parseInt(e.target.dataset.idx);
+                viewModes[idx] = viewModes[idx] === 0 ? 1 : 0;
+                refreshCabinetContent(idx);
+            };
+        });
+
+        // Share
+        modal.querySelectorAll('.btn-share').forEach(btn => {
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                self.shareScores();
+            };
+        });
+
+        // Close
+        const close = () => {
+            modal.remove();
+            window.removeEventListener('resize', updatePosition);
+            window.removeEventListener('keydown', keyHandler);
+        };
+        document.getElementById('closeArcade').onclick = close;
+
+        // --- Swipe Logic (Touch & Mouse) ---
         let startX = 0;
         let isDragging = false;
-        let currentTranslate = 0;
+        let startTranslateX = 0;
 
-        const viewport = modal.querySelector('.cabinet-viewport');
+        // Helper to get current transform value
+        const getTranslateX = () => {
+            const style = window.getComputedStyle(row);
+            const matrix = new WebKitCSSMatrix(style.transform);
+            return matrix.m41;
+        };
 
         const handleStart = (e) => {
-            // Ignore if hitting a button
-            if(e.target.closest('button')) return;
-            startX = e.touches ? e.touches[0].clientX : e.clientX;
+            if (e.target.closest('.arcade-btn') || e.target.closest('.close-btn')) return;
             isDragging = true;
-            row.style.transition = 'none'; // Disable transition for 1:1 movement
-            const w = window.innerWidth >= 768 ? 420 : 340;
-            const gap = 40;
-            currentTranslate = -1 * (currentIndex * (w + gap));
+            startX = e.touches ? e.touches[0].clientX : e.clientX;
+            row.style.transition = 'none'; // Instant movement
+            startTranslateX = getTranslateX();
         };
 
         const handleMove = (e) => {
             if (!isDragging) return;
-            const x = e.touches ? e.touches[0].clientX : e.clientX;
-            const diff = x - startX;
-            // Resistance at edges
-            if ((currentIndex === 0 && diff > 0) || (currentIndex === cabinets.length-1 && diff < 0)) {
-                row.style.transform = `translateX(${currentTranslate + (diff * 0.3)}px)`;
-            } else {
-                row.style.transform = `translateX(${currentTranslate + diff}px)`;
-            }
+            e.preventDefault(); // Stop page scroll
+            const currentX = e.touches ? e.touches[0].clientX : e.clientX;
+            const diff = currentX - startX;
+            row.style.transform = `translateX(${startTranslateX + diff}px)`;
         };
 
         const handleEnd = (e) => {
             if (!isDragging) return;
             isDragging = false;
-            row.style.transition = 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
+            row.style.transition = 'transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1)'; // Restore smooth
             
-            const endX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
-            const diff = endX - startX;
-            
+            const currentX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+            const diff = currentX - startX;
+
+            // Threshold to switch
             if (Math.abs(diff) > 50) {
-                if (diff > 0 && currentIndex > 0) currentIndex--;
-                else if (diff < 0 && currentIndex < cabinets.length - 1) currentIndex++;
+                if (diff < 0 && currentIndex < cabinets.length - 1) {
+                    currentIndex++;
+                } else if (diff > 0 && currentIndex > 0) {
+                    currentIndex--;
+                }
             }
-            updateCarousel();
+            updatePosition();
         };
 
+        const viewport = modal.querySelector('.cabinet-viewport');
         viewport.addEventListener('mousedown', handleStart);
-        viewport.addEventListener('touchstart', handleStart, {passive: true});
+        viewport.addEventListener('touchstart', handleStart, {passive: false});
+        
         window.addEventListener('mousemove', handleMove);
         window.addEventListener('touchmove', handleMove, {passive: false});
+        
         window.addEventListener('mouseup', handleEnd);
         window.addEventListener('touchend', handleEnd);
 
-        // Toggle Button Logic
-        modal.querySelectorAll('.btn-toggle').forEach(btn => {
-            btn.onclick = (e) => {
-                // Toggle mode globally for consistency
-                viewMode = viewMode === 'global' ? 'local' : 'global';
-                // Update button text for all
-                modal.querySelectorAll('.btn-toggle').forEach(b => b.innerText = viewMode === 'global' ? '🌐' : '🏠');
-                // Refresh contents
-                cabinets.forEach((_, i) => updateContent(i));
-            };
+        // Click Cabinet to Center
+        cabs.forEach((cab, i) => {
+            cab.addEventListener('click', (e) => {
+                if(e.target.closest('.arcade-btn')) return;
+                if(currentIndex !== i) {
+                    currentIndex = i;
+                    updatePosition();
+                }
+            });
         });
 
-        // Share Handler
-        modal.addEventListener('share-score', () => self.shareScores());
-
-        // Close
-        document.getElementById('closeArcade').onclick = () => {
-            modal.remove();
-            if (self.loopTimer) clearTimeout(self.loopTimer);
-        };
-        
-        // Clean up keyboard events
+        // Keyboard Nav
         const keyHandler = (e) => {
-            if (!document.getElementById('highScoreModal')) {
-                window.removeEventListener('keydown', keyHandler);
-                return;
+            if (e.key === 'ArrowLeft' && currentIndex > 0) {
+                currentIndex--;
+                updatePosition();
             }
-            if (e.key === 'ArrowLeft' && currentIndex > 0) { currentIndex--; updateCarousel(); }
-            if (e.key === 'ArrowRight' && currentIndex < cabinets.length - 1) { currentIndex++; updateCarousel(); }
-            if (e.key === 'Escape') modal.remove();
+            if (e.key === 'ArrowRight' && currentIndex < cabinets.length - 1) {
+                currentIndex++;
+                updatePosition();
+            }
+            if (e.key === 'Escape') close();
         };
         window.addEventListener('keydown', keyHandler);
     },
