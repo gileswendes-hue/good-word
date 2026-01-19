@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.5.2',
+    APP_VERSION: '6.5.3',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -40,14 +40,15 @@ const CONFIG = {
 };
 const P2P_COLORS = ['#3b82f6', '#ef4444', '#22c55e', '#eab308', '#8b5cf6', '#ec4899'];
 const ContentFilter = {
-    _encoded: 'bmlnZ2VyfG5pZ2dhfGZhZ2dvdHxmYWd8ZHlrZXx0cmFubnl8cmV0YXJkfHNwYXN0aWN8Y2hpbmt8Z29va3xzcGljfGtpa2V8d2V0YmFja3xiZWFuZXJ8Y29vbnxyYWdoZWFkfHRvd2VsaGVhZHxjYW1lbGpvY2tleXxwYWtpfHdvcHxqYXB8Y3JhY2tlcnxob25reXxncmluZ298bmVncm98Y29sb3JlZHxuZWdyZXNzfG11bGF0dG98aGFsZmJyZWVkfHF1ZWVyfHF1ZWVyc3xob21vfGhvbW9zfGxlc2JvfHNoZW1hbGV8aGVzaGV8dHJhbnN2ZXN0aXRlfGhlcm1hcGhyb2RpdGV8c29kb21pdGV8YnVnZ2VyfG5vbmNlfHBlZG98cGFlZG98cGVkb3BoaWxlfHBlcnZlcnR8cmFwaXN0fG1vbGVzdGVyfG5henl8bmF6aXN8aGl0bGVyfGhvbG9jYXVzdHxqaWhhZHxqaWhhZGl8dGVycm9yaXN0',
+    // Only truly offensive slurs - racial, transphobic, homophobic
+    _encoded: 'bmlnZ2VyfG5pZ2dhfGZhZ2dvdHxkeWtlfHRyYW5ueXxjaGlua3xnb29rfHNwaWN8a2lrZXx3ZXRiYWNrfGJlYW5lcnxjb29ufHJhZ2hlYWR8dG93ZWxoZWFkfGNhbWVsam9ja2V5fHBha2l8d29wfGphcHxob25reXxuZWdyb3xoYWxmYnJlZWR8c2hlbWFsZXxoZXNoZXxwZWRvfHBhZWRvfHBlZG9waGlsZXxuYXppfG5hemlzfGhpdGxlcg==',
     _patterns: null,
     init() {
         try {
             const decoded = atob(this._encoded);
             const terms = decoded.split('|');
             this._patterns = terms.map(term => {
-                // Build pattern character by character to avoid nested replacements
+                // Build pattern character by character to avoid corruption
                 let escaped = '';
                 for (const c of term) {
                     switch(c) {
@@ -60,7 +61,8 @@ const ContentFilter = {
                         default: escaped += c;
                     }
                 }
-                return new RegExp(`\\b${escaped}[s$5]?\\b`, 'i');
+                // Match whole word only, with optional plural
+                return new RegExp(`^${escaped}[s$5]?$`, 'i');
             });
         } catch(e) {
             console.warn('ContentFilter init failed');
@@ -70,6 +72,7 @@ const ContentFilter = {
     isOffensive(text) {
         if (!this._patterns) this.init();
         if (!text || typeof text !== 'string') return false;
+        // Test the whole word as-is (already normalized by caller or just test directly)
         const normalized = text.toLowerCase().replace(/[_\-\.]/g, '');
         return this._patterns.some(pattern => pattern.test(normalized));
     },
@@ -9897,91 +9900,360 @@ const StreakManager = {
     async showLeaderboard() {
         const self = this;
         
-        // Inject arcade cabinet styles
+        // Inject arcade cabinet styles - realistic row with sliding CRTs
         if (!document.getElementById('arcade-styles')) {
             const s = document.createElement('style');
             s.id = 'arcade-styles';
             s.innerHTML = `
-                @keyframes crt-flicker { 0% {opacity:0.95;} 2% {opacity:0.99;} 4% {opacity:0.95;} 100% {opacity:0.95;} }
-                @keyframes crt-glow { 0% {text-shadow: 0 0 5px currentColor, 0 0 10px currentColor;} 50% {text-shadow: 0 0 15px currentColor, 0 0 20px currentColor;} 100% {text-shadow: 0 0 5px currentColor, 0 0 10px currentColor;} }
-                @keyframes scanline-scroll { 0% {background-position: 0 0;} 100% {background-position: 0 100%;} }
-                @keyframes cabinet-enter { 0% {transform: scale(0.8) rotateY(-15deg); opacity:0;} 100% {transform: scale(1) rotateY(0); opacity:1;} }
-                @keyframes neon-flicker { 0%,19%,21%,23%,25%,54%,56%,100% {opacity:1;} 20%,24%,55% {opacity:0.6;} }
-                .arcade-cabinet {
-                    background: linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f0f23 100%);
-                    border-radius: 20px 20px 10px 10px;
-                    box-shadow: 0 0 0 4px #333, 0 0 30px rgba(0,0,0,0.8), inset 0 2px 0 rgba(255,255,255,0.1);
-                    position: relative;
-                    animation: cabinet-enter 0.4s ease-out;
-                }
-                .arcade-marquee {
-                    background: linear-gradient(180deg, #222 0%, #111 100%);
-                    border-radius: 15px 15px 0 0;
-                    padding: 12px;
-                    border-bottom: 3px solid #000;
+                @keyframes crt-flicker { 0%,100% {opacity:0.97;} 50% {opacity:1;} }
+                @keyframes crt-glow { 0%,100% {filter: brightness(1);} 50% {filter: brightness(1.05);} }
+                @keyframes scanline { 0% {transform: translateY(-100%);} 100% {transform: translateY(100%);} }
+                @keyframes neon-pulse { 0%,100% {opacity:1; text-shadow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 40px currentColor;} 50% {opacity:0.8; text-shadow: 0 0 5px currentColor, 0 0 10px currentColor;} }
+                @keyframes cabinet-glow { 0%,100% {box-shadow: 0 0 20px rgba(0,0,0,0.8), 0 5px 30px rgba(0,0,0,0.6);} 50% {box-shadow: 0 0 30px rgba(0,0,0,0.8), 0 5px 40px rgba(0,0,0,0.7);} }
+                
+                .arcade-hall {
+                    background: linear-gradient(180deg, #0a0a12 0%, #12121f 50%, #0a0a0f 100%);
+                    min-height: 100vh;
                     position: relative;
                     overflow: hidden;
                 }
-                .arcade-marquee::before {
+                .arcade-hall::before {
+                    content: '';
+                    position: absolute;
+                    top: 0; left: 0; right: 0;
+                    height: 120px;
+                    background: linear-gradient(180deg, rgba(147,51,234,0.15) 0%, transparent 100%);
+                    pointer-events: none;
+                }
+                .arcade-floor {
+                    position: absolute;
+                    bottom: 0; left: 0; right: 0;
+                    height: 100px;
+                    background: linear-gradient(180deg, transparent 0%, rgba(30,20,40,0.8) 100%);
+                    pointer-events: none;
+                }
+                .arcade-floor::before {
+                    content: '';
+                    position: absolute;
+                    bottom: 0; left: 0; right: 0;
+                    height: 4px;
+                    background: repeating-linear-gradient(90deg, #333 0px, #333 20px, #222 20px, #222 40px);
+                }
+                
+                .cabinet-row {
+                    display: flex;
+                    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+                    gap: 30px;
+                    padding: 0 20px;
+                }
+                
+                .arcade-cabinet {
+                    flex: 0 0 340px;
+                    height: 520px;
+                    background: linear-gradient(180deg, #1a1a2e 0%, #0f0f1a 40%, #0a0a12 100%);
+                    border-radius: 12px 12px 8px 8px;
+                    position: relative;
+                    animation: cabinet-glow 3s ease-in-out infinite;
+                    transform-style: preserve-3d;
+                    perspective: 1000px;
+                }
+                .arcade-cabinet::before {
                     content: '';
                     position: absolute;
                     inset: 0;
-                    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.03) 50%, transparent 100%);
+                    border-radius: 12px 12px 8px 8px;
+                    border: 3px solid #2a2a3e;
+                    border-bottom: 6px solid #1a1a28;
+                    pointer-events: none;
                 }
-                .arcade-screen {
-                    background-color: #050508;
-                    margin: 0 12px;
-                    border-radius: 10px;
+                .arcade-cabinet.active {
+                    transform: scale(1.02);
+                    z-index: 10;
+                }
+                .arcade-cabinet.inactive {
+                    transform: scale(0.92);
+                    opacity: 0.6;
+                    filter: brightness(0.7);
+                }
+                
+                .cabinet-top {
+                    height: 70px;
+                    background: linear-gradient(180deg, #222 0%, #1a1a28 100%);
+                    border-radius: 12px 12px 0 0;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    position: relative;
+                    border-bottom: 4px solid #0a0a0f;
+                    overflow: hidden;
+                }
+                .cabinet-top::before {
+                    content: '';
+                    position: absolute;
+                    top: 0; left: 10%; right: 10%;
+                    height: 2px;
+                    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+                }
+                .marquee-text {
+                    font-family: 'Impact', 'Arial Black', sans-serif;
+                    font-size: 1.5rem;
+                    font-weight: 900;
+                    letter-spacing: 0.05em;
+                    animation: neon-pulse 2s ease-in-out infinite;
+                    text-transform: uppercase;
+                }
+                .marquee-sub {
+                    position: absolute;
+                    bottom: 6px;
+                    font-size: 0.6rem;
+                    color: #666;
+                    letter-spacing: 0.15em;
+                    text-transform: uppercase;
+                }
+                
+                .crt-monitor {
+                    margin: 12px 16px;
+                    height: 300px;
+                    background: #000;
+                    border-radius: 20px;
                     position: relative;
                     overflow: hidden;
-                    animation: crt-flicker 0.1s infinite;
-                    border: 4px solid #222;
-                    box-shadow: inset 0 0 30px rgba(0,0,0,0.8);
+                    border: 8px solid #1a1a28;
+                    box-shadow: inset 0 0 50px rgba(0,0,0,0.9), inset 0 0 10px rgba(0,0,0,1);
                 }
-                .arcade-screen-overlay {
-                    position: absolute; inset: 0; pointer-events: none; z-index: 5;
-                    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.2) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.04));
-                    background-size: 100% 2px, 3px 100%;
-                    border-radius: 8px;
+                .crt-monitor::before {
+                    content: '';
+                    position: absolute;
+                    inset: -2px;
+                    border-radius: 20px;
+                    border: 3px solid #333;
+                    pointer-events: none;
                 }
-                .arcade-controls {
-                    background: linear-gradient(180deg, #1a1a2e 0%, #0d0d1a 100%);
+                .crt-screen {
+                    position: absolute;
+                    inset: 8px;
+                    background: radial-gradient(ellipse at center, #0a1628 0%, #050a14 70%, #020408 100%);
+                    border-radius: 15px;
+                    overflow: hidden;
+                    animation: crt-glow 4s ease-in-out infinite;
+                }
+                .crt-screen::before {
+                    content: '';
+                    position: absolute;
+                    inset: 0;
+                    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+                    background-size: 100% 3px;
+                    pointer-events: none;
+                    z-index: 10;
+                }
+                .crt-screen::after {
+                    content: '';
+                    position: absolute;
+                    top: -100%;
+                    left: 0;
+                    right: 0;
+                    height: 50%;
+                    background: linear-gradient(transparent, rgba(255,255,255,0.03), transparent);
+                    animation: scanline 8s linear infinite;
+                    pointer-events: none;
+                    z-index: 11;
+                }
+                .crt-content {
+                    position: relative;
+                    z-index: 5;
                     padding: 15px;
-                    border-radius: 0 0 10px 10px;
+                    height: 100%;
                     display: flex;
+                    flex-direction: column;
+                }
+                .crt-curve {
+                    position: absolute;
+                    inset: 0;
+                    border-radius: 15px;
+                    box-shadow: inset 0 0 80px rgba(0,0,0,0.5);
+                    pointer-events: none;
+                    z-index: 8;
+                }
+                
+                .score-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding-bottom: 8px;
+                    margin-bottom: 8px;
+                    border-bottom: 2px solid;
+                }
+                .score-header-title {
+                    font-family: 'Courier New', monospace;
+                    font-size: 0.7rem;
+                    font-weight: 900;
+                    letter-spacing: 0.15em;
+                    text-transform: uppercase;
+                }
+                .score-header-label {
+                    font-family: 'Courier New', monospace;
+                    font-size: 0.6rem;
+                    color: #666;
+                    letter-spacing: 0.1em;
+                }
+                
+                .score-list {
+                    flex: 1;
+                    overflow: hidden;
+                }
+                .score-row {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 6px 0;
+                    border-bottom: 1px solid rgba(255,255,255,0.08);
+                    font-family: 'Courier New', monospace;
+                }
+                .score-rank {
+                    color: #555;
+                    font-size: 0.75rem;
+                    width: 25px;
+                    font-weight: bold;
+                }
+                .score-name {
+                    font-size: 0.9rem;
+                    font-weight: 900;
+                    letter-spacing: 0.1em;
+                    flex: 1;
+                    margin-left: 8px;
+                }
+                .score-value {
+                    font-size: 0.85rem;
+                    font-weight: bold;
+                    letter-spacing: 0.15em;
+                    color: #fff;
+                }
+                .score-row.top-score .score-name {
+                    text-shadow: 0 0 10px currentColor;
+                }
+                
+                .cabinet-controls {
+                    position: absolute;
+                    bottom: 0;
+                    left: 0;
+                    right: 0;
+                    height: 110px;
+                    background: linear-gradient(180deg, #1a1a2e 0%, #12121f 100%);
+                    border-radius: 0 0 8px 8px;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
                     justify-content: center;
-                    gap: 12px;
-                    border-top: 2px solid #333;
+                    gap: 10px;
+                    border-top: 3px solid #0a0a0f;
+                }
+                .control-panel {
+                    background: linear-gradient(180deg, #222 0%, #1a1a28 100%);
+                    padding: 10px 20px;
+                    border-radius: 8px;
+                    display: flex;
+                    gap: 15px;
+                    box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
                 }
                 .arcade-btn {
-                    width: 50px; height: 50px;
+                    width: 45px;
+                    height: 45px;
                     border-radius: 50%;
-                    border: 3px solid #444;
+                    border: none;
                     cursor: pointer;
                     transition: all 0.1s;
-                    box-shadow: 0 4px 0 #000, 0 6px 10px rgba(0,0,0,0.5);
-                    display: flex; align-items: center; justify-content: center;
-                    font-size: 20px;
+                    box-shadow: 0 4px 0 #000, 0 6px 8px rgba(0,0,0,0.4), inset 0 -2px 4px rgba(0,0,0,0.3), inset 0 2px 4px rgba(255,255,255,0.1);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 1.1rem;
+                    position: relative;
                 }
-                .arcade-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #000; }
+                .arcade-btn::before {
+                    content: '';
+                    position: absolute;
+                    top: 3px;
+                    left: 15%;
+                    right: 15%;
+                    height: 6px;
+                    background: linear-gradient(180deg, rgba(255,255,255,0.3), transparent);
+                    border-radius: 50%;
+                }
+                .arcade-btn:active {
+                    transform: translateY(3px);
+                    box-shadow: 0 1px 0 #000, 0 2px 4px rgba(0,0,0,0.4), inset 0 -2px 4px rgba(0,0,0,0.3);
+                }
                 .arcade-btn-red { background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%); }
                 .arcade-btn-blue { background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%); }
                 .arcade-btn-green { background: linear-gradient(180deg, #22c55e 0%, #15803d 100%); }
                 .arcade-btn-yellow { background: linear-gradient(180deg, #eab308 0%, #a16207 100%); }
-                .crt-text { font-family: 'Courier New', monospace; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 900; }
-                .score-row { border-bottom: 1px dashed rgba(255,255,255,0.15); }
-                .neon-text { animation: neon-flicker 2s infinite; }
-                .cabinet-indicator { 
-                    display: flex; gap: 8px; justify-content: center; margin-top: 15px;
+                
+                .page-indicator {
+                    font-family: 'Courier New', monospace;
+                    font-size: 0.65rem;
+                    color: #666;
+                    letter-spacing: 0.15em;
+                    text-transform: uppercase;
+                }
+                
+                .cabinet-dots {
+                    position: absolute;
+                    bottom: 130px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    display: flex;
+                    gap: 10px;
+                    z-index: 20;
                 }
                 .cabinet-dot {
-                    width: 12px; height: 12px; border-radius: 50%;
-                    background: #333; border: 2px solid #555;
+                    width: 10px;
+                    height: 10px;
+                    border-radius: 50%;
+                    background: #333;
+                    border: 2px solid #444;
                     transition: all 0.3s;
+                    cursor: pointer;
                 }
                 .cabinet-dot.active {
                     background: #fff;
                     box-shadow: 0 0 10px #fff, 0 0 20px currentColor;
+                    transform: scale(1.2);
+                }
+                
+                .exit-btn {
+                    position: absolute;
+                    top: 20px;
+                    right: 20px;
+                    background: rgba(255,255,255,0.1);
+                    border: none;
+                    color: #888;
+                    padding: 10px 20px;
+                    border-radius: 8px;
+                    font-family: 'Courier New', monospace;
+                    font-size: 0.8rem;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    z-index: 100;
+                }
+                .exit-btn:hover {
+                    background: rgba(255,255,255,0.2);
+                    color: #fff;
+                }
+                
+                .no-scores {
+                    flex: 1;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    color: #444;
+                    font-family: 'Courier New', monospace;
+                    text-align: center;
+                }
+                .no-scores-icon {
+                    font-size: 2rem;
+                    margin-bottom: 10px;
+                    opacity: 0.5;
                 }
             `;
             document.head.appendChild(s);
@@ -10023,71 +10295,89 @@ const StreakManager = {
         const username = State.data.username || "PLAYER";
         
         const renderScoreRow = (s, i, color) => `
-            <div class="flex justify-between items-center crt-text text-xs py-1.5 score-row">
-                <div class="flex gap-2 items-center">
-                    <span class="text-gray-500">${(i+1).toString().padStart(2,'0')}</span>
-                    <span style="color:${color}" class="font-black">${(s.name || 'AAA').substring(0,3).toUpperCase()}</span>
-                </div>
-                <span class="text-white tracking-wider font-bold">${s.score.toString().padStart(5,'0')}</span>
+            <div class="score-row ${i === 0 ? 'top-score' : ''}">
+                <span class="score-rank">${(i+1).toString().padStart(2,'0')}</span>
+                <span class="score-name" style="color:${color}">${(s.name || 'AAA').substring(0,3).toUpperCase()}</span>
+                <span class="score-value">${s.score.toString().padStart(6,' ')}</span>
             </div>`;
         
-        const renderCabinet = () => {
-            const cab = cabinets[currentCabinet];
-            const scores = currentPage === 0 ? cab.globalScores.slice(0, 10) : cab.localScores.slice(0, 10);
-            const pageTitle = currentPage === 0 ? 'WORLD RECORDS' : `${username.toUpperCase()}'S BEST`;
+        const renderCabinet = (cab, index) => {
+            const isActive = index === currentCabinet;
+            const scores = currentPage === 0 ? cab.globalScores.slice(0, 8) : cab.localScores.slice(0, 8);
+            const pageTitle = currentPage === 0 ? '🌐 WORLD RECORDS' : '🏠 YOUR BEST';
             
             return `
-                <div class="arcade-cabinet w-full max-w-sm">
-                    <!-- Marquee -->
-                    <div class="arcade-marquee text-center">
-                        <h2 class="text-2xl font-black neon-text" style="color:${cab.color}">${cab.title}</h2>
-                        <p class="text-gray-400 text-xs mt-1">${cab.subtitle}</p>
+                <div class="arcade-cabinet ${isActive ? 'active' : 'inactive'}" data-index="${index}">
+                    <!-- Marquee Top -->
+                    <div class="cabinet-top">
+                        <span class="marquee-text" style="color:${cab.color}">${cab.title}</span>
+                        <span class="marquee-sub">${cab.subtitle}</span>
                     </div>
                     
-                    <!-- Screen -->
-                    <div class="arcade-screen" style="min-height: 340px;">
-                        <div class="arcade-screen-overlay"></div>
-                        <div class="p-4 relative z-10">
-                            <!-- Page Header -->
-                            <div class="flex justify-between items-center mb-3 pb-2" style="border-bottom: 2px solid ${cab.color}40">
-                                <span class="crt-text text-xs" style="color:${cab.color}">${pageTitle}</span>
-                                <span class="crt-text text-xs text-gray-500">${cab.scoreLabel}</span>
-                            </div>
-                            
-                            <!-- Scores -->
-                            <div id="arcade-scores" class="space-y-0.5">
-                                ${scores.length === 0 
-                                    ? `<div class="text-center text-gray-500 crt-text text-xs mt-12">NO RECORDS YET<br><span class="text-xs">BE THE FIRST!</span></div>`
-                                    : scores.map((s, i) => renderScoreRow(s, i, cab.color)).join('')
-                                }
+                    <!-- CRT Monitor -->
+                    <div class="crt-monitor">
+                        <div class="crt-screen">
+                            <div class="crt-curve"></div>
+                            <div class="crt-content">
+                                <!-- Score Header -->
+                                <div class="score-header" style="border-color: ${cab.color}40">
+                                    <span class="score-header-title" style="color:${cab.color}">${pageTitle}</span>
+                                    <span class="score-header-label">${cab.scoreLabel}</span>
+                                </div>
+                                
+                                <!-- Score List -->
+                                <div class="score-list">
+                                    ${scores.length === 0 
+                                        ? `<div class="no-scores">
+                                            <div class="no-scores-icon">🕹️</div>
+                                            <div>NO RECORDS YET</div>
+                                            <div style="font-size:0.6rem;margin-top:5px;color:#555">BE THE FIRST!</div>
+                                           </div>`
+                                        : scores.map((s, i) => renderScoreRow(s, i, cab.color)).join('')
+                                    }
+                                </div>
                             </div>
                         </div>
                     </div>
                     
-                    <!-- Controls -->
-                    <div class="arcade-controls">
-                        <button id="arcade-prev-cab" class="arcade-btn arcade-btn-red" title="Previous Game">◀</button>
-                        <button id="arcade-toggle-page" class="arcade-btn arcade-btn-blue" title="World/Local">${currentPage === 0 ? '🌐' : '🏠'}</button>
-                        <button id="arcade-share" class="arcade-btn arcade-btn-yellow" title="Share">📤</button>
-                        <button id="arcade-next-cab" class="arcade-btn arcade-btn-green" title="Next Game">▶</button>
+                    <!-- Control Panel -->
+                    <div class="cabinet-controls">
+                        <div class="control-panel">
+                            <button class="arcade-btn arcade-btn-red cab-prev" title="Previous">◀</button>
+                            <button class="arcade-btn arcade-btn-blue cab-toggle" title="World/Local">${currentPage === 0 ? '🌐' : '🏠'}</button>
+                            <button class="arcade-btn arcade-btn-yellow cab-share" title="Share">📤</button>
+                            <button class="arcade-btn arcade-btn-green cab-next" title="Next">▶</button>
+                        </div>
+                        <div class="page-indicator">
+                            ${currentPage === 0 ? '🌐 WORLD' : '🏠 LOCAL'} · SWIPE TO BROWSE
+                        </div>
                     </div>
+                </div>
+            `;
+        };
+        
+        const renderArcadeHall = () => {
+            const offset = -currentCabinet * 370 + (window.innerWidth / 2 - 170);
+            return `
+                <div class="arcade-hall">
+                    <div class="arcade-floor"></div>
                     
-                    <!-- Cabinet Indicators -->
-                    <div class="cabinet-indicator">
+                    <button class="exit-btn" id="arcade-close">✕ EXIT ARCADE</button>
+                    
+                    <!-- Cabinet Dots -->
+                    <div class="cabinet-dots">
                         ${cabinets.map((c, i) => `
-                            <div class="cabinet-dot ${i === currentCabinet ? 'active' : ''}" style="color:${c.color}"></div>
+                            <div class="cabinet-dot ${i === currentCabinet ? 'active' : ''}" 
+                                 style="color:${c.color}" data-index="${i}"></div>
                         `).join('')}
                     </div>
                     
-                    <!-- Page Indicator -->
-                    <div class="text-center mt-2 crt-text text-xs text-gray-500">
-                        ${currentPage === 0 ? '🌐 WORLD' : '🏠 LOCAL'} · SWIPE OR TAP TO BROWSE
+                    <!-- Cabinets Row -->
+                    <div style="height:100vh;display:flex;align-items:center;overflow:hidden;">
+                        <div class="cabinet-row" style="transform: translateX(${offset}px)">
+                            ${cabinets.map((cab, i) => renderCabinet(cab, i)).join('')}
+                        </div>
                     </div>
-                    
-                    <!-- Close Button -->
-                    <button id="arcade-close" class="mt-4 w-full py-2 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white font-bold rounded-lg transition text-sm">
-                        ✕ EXIT ARCADE
-                    </button>
                 </div>
             `;
         };
@@ -10095,8 +10385,8 @@ const StreakManager = {
         // Create modal
         const modal = document.createElement('div');
         modal.id = 'highScoreModal';
-        modal.className = 'fixed inset-0 bg-black/95 z-[200] flex items-center justify-center p-4 backdrop-blur-md';
-        modal.innerHTML = renderCabinet();
+        modal.className = 'fixed inset-0 z-[200]';
+        modal.innerHTML = renderArcadeHall();
         document.body.appendChild(modal);
         
         // Touch handling for swipe
@@ -10110,8 +10400,7 @@ const StreakManager = {
                     // Swipe right - prev
                     currentCabinet = (currentCabinet - 1 + cabinets.length) % cabinets.length;
                 }
-                currentPage = 0;
-                modal.innerHTML = renderCabinet();
+                modal.innerHTML = renderArcadeHall();
                 bindEvents();
                 resetAutoScroll();
             }
@@ -10119,31 +10408,63 @@ const StreakManager = {
         
         // Bind events
         const bindEvents = () => {
-            modal.querySelector('#arcade-prev-cab').onclick = () => {
-                currentCabinet = (currentCabinet - 1 + cabinets.length) % cabinets.length;
-                currentPage = 0;
-                modal.innerHTML = renderCabinet();
-                bindEvents();
-                resetAutoScroll();
-            };
-            modal.querySelector('#arcade-next-cab').onclick = () => {
-                currentCabinet = (currentCabinet + 1) % cabinets.length;
-                currentPage = 0;
-                modal.innerHTML = renderCabinet();
-                bindEvents();
-                resetAutoScroll();
-            };
-            modal.querySelector('#arcade-toggle-page').onclick = () => {
-                currentPage = currentPage === 0 ? 1 : 0;
-                modal.innerHTML = renderCabinet();
-                bindEvents();
-                resetAutoScroll();
-            };
-            modal.querySelector('#arcade-share').onclick = () => self.shareScores();
-            modal.querySelector('#arcade-close').onclick = () => self.closeLeaderboard();
+            // Nav buttons on active cabinet
+            modal.querySelectorAll('.cab-prev').forEach(btn => {
+                btn.onclick = () => {
+                    currentCabinet = (currentCabinet - 1 + cabinets.length) % cabinets.length;
+                    modal.innerHTML = renderArcadeHall();
+                    bindEvents();
+                    resetAutoScroll();
+                };
+            });
+            modal.querySelectorAll('.cab-next').forEach(btn => {
+                btn.onclick = () => {
+                    currentCabinet = (currentCabinet + 1) % cabinets.length;
+                    modal.innerHTML = renderArcadeHall();
+                    bindEvents();
+                    resetAutoScroll();
+                };
+            });
+            modal.querySelectorAll('.cab-toggle').forEach(btn => {
+                btn.onclick = () => {
+                    currentPage = currentPage === 0 ? 1 : 0;
+                    modal.innerHTML = renderArcadeHall();
+                    bindEvents();
+                    resetAutoScroll();
+                };
+            });
+            modal.querySelectorAll('.cab-share').forEach(btn => {
+                btn.onclick = () => self.shareScores();
+            });
             
-            // Click on modal background to close
-            modal.onclick = (e) => { if (e.target === modal) self.closeLeaderboard(); };
+            // Cabinet dots for direct navigation
+            modal.querySelectorAll('.cabinet-dot').forEach(dot => {
+                dot.onclick = () => {
+                    const index = parseInt(dot.dataset.index);
+                    if (index !== currentCabinet) {
+                        currentCabinet = index;
+                        modal.innerHTML = renderArcadeHall();
+                        bindEvents();
+                        resetAutoScroll();
+                    }
+                };
+            });
+            
+            // Click on cabinet to select it
+            modal.querySelectorAll('.arcade-cabinet').forEach(cab => {
+                cab.onclick = (e) => {
+                    if (e.target.closest('.arcade-btn')) return; // Don't trigger on button clicks
+                    const index = parseInt(cab.dataset.index);
+                    if (index !== currentCabinet) {
+                        currentCabinet = index;
+                        modal.innerHTML = renderArcadeHall();
+                        bindEvents();
+                        resetAutoScroll();
+                    }
+                };
+            });
+            
+            modal.querySelector('#arcade-close').onclick = () => self.closeLeaderboard();
             
             // Touch events for swiping
             modal.addEventListener('touchstart', (e) => {
@@ -10167,14 +10488,14 @@ const StreakManager = {
                 currentCabinet = (currentCabinet + 1) % cabinets.length;
             }
             
-            modal.innerHTML = renderCabinet();
+            modal.innerHTML = renderArcadeHall();
             bindEvents();
-            self.loopTimer = setTimeout(autoScroll, 4000);
+            self.loopTimer = setTimeout(autoScroll, 5000);
         };
         
         const resetAutoScroll = () => {
             if (self.loopTimer) clearTimeout(self.loopTimer);
-            self.loopTimer = setTimeout(autoScroll, 4000);
+            self.loopTimer = setTimeout(autoScroll, 5000);
         };
         
         bindEvents();
