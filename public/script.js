@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.5.7',
+    APP_VERSION: '6.5.8',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -10748,18 +10748,65 @@ async showLeaderboard() {
                     return;
                 }
                 
-                // Close the arcade modal
-                close();
+                const crtContent = document.getElementById(`list-${idx}`);
                 
-                // Launch the appropriate game
-                if (gameId === 'war' && typeof MiniGames !== 'undefined' && MiniGames.launchWordWar) {
-                    setTimeout(() => MiniGames.launchWordWar(), 100);
-                } else if (gameId === 'def' && typeof MiniGames !== 'undefined' && MiniGames.launchDefDash) {
-                    setTimeout(() => MiniGames.launchDefDash(), 100);
-                } else if (gameId === 'streak') {
-                    // Word Streak is the main game, just close arcade
-                    console.log('Play Word Streak in main game!');
+                // Word Streak = Fake coin!
+                if (gameId === 'streak') {
+                    crtContent.innerHTML = `
+                        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; text-align:center;">
+                            <div style="font-size: 2rem; color: #ff4444; text-shadow: 0 0 20px #ff0000; animation: fakeCoinFlash 0.3s ease-in-out 3;">FAKE COIN!</div>
+                            <div style="font-size: 1rem; margin-top: 15px; opacity: 0.6;">Nice try...</div>
+                        </div>
+                    `;
+                    // Add flash animation if not exists
+                    if (!document.getElementById('fake-coin-anim')) {
+                        const style = document.createElement('style');
+                        style.id = 'fake-coin-anim';
+                        style.textContent = `
+                            @keyframes fakeCoinFlash {
+                                0%, 100% { opacity: 1; transform: scale(1); }
+                                50% { opacity: 0.5; transform: scale(1.1); }
+                            }
+                        `;
+                        document.head.appendChild(style);
+                    }
+                    // Return to scores after delay
+                    setTimeout(() => refreshCabinetContent(idx), 2000);
+                    return;
                 }
+                
+                // Word War or Def Dash - Show loading then launch
+                crtContent.innerHTML = `
+                    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; text-align:center;">
+                        <div style="font-size: 2rem; animation: loadingPulse 0.8s ease-in-out infinite;">LOADING...</div>
+                        <div style="margin-top: 20px; font-size: 3rem; animation: loadingPulse 0.8s ease-in-out infinite 0.2s;">${cabinets[idx].icon}</div>
+                    </div>
+                `;
+                // Add loading animation if not exists
+                if (!document.getElementById('loading-anim')) {
+                    const style = document.createElement('style');
+                    style.id = 'loading-anim';
+                    style.textContent = `
+                        @keyframes loadingPulse {
+                            0%, 100% { opacity: 1; }
+                            50% { opacity: 0.3; }
+                        }
+                    `;
+                    document.head.appendChild(style);
+                }
+                
+                // Close and launch after delay
+                setTimeout(() => {
+                    close();
+                    
+                    setTimeout(() => {
+                        if (gameId === 'war' && typeof MiniGames !== 'undefined' && MiniGames.launchWordWar) {
+                            MiniGames.launchWordWar();
+                        } else if (gameId === 'def' && typeof MiniGames !== 'undefined' && MiniGames.launchDefDash) {
+                            MiniGames.launchDefDash();
+                        }
+                    }, 100);
+                }, 1200);
             };
         });
 
