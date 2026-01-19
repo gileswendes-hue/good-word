@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.4.12',
+    APP_VERSION: '6.5.1',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -236,6 +236,8 @@ const State = {
         profilePhoto: localStorage.getItem('profilePhoto') || null,
         longestStreak: parseInt(localStorage.getItem('longestStreak') || 0),
         highScores: safeParse('highScores', []),
+        wordWarScores: safeParse('wordWarScores', []),
+        defDashScores: safeParse('defDashScores', []),
         pendingVotes: safeParse('pendingVotes', []),
         offlineCache: safeParse('offlineCache', []),
         unlockedThemes: safeParse('unlockedThemes', []),
@@ -326,12 +328,14 @@ const State = {
     save(k, v) {
         this.data[k] = v;
         const s = localStorage;
-        if (['pendingVotes','offlineCache','highScores','unlockedThemes','seenHistory','settings'].includes(k)) {
+        if (['pendingVotes','offlineCache','highScores','wordWarScores','defDashScores','unlockedThemes','seenHistory','settings'].includes(k)) {
             s.setItem(k, JSON.stringify(v));
         }
         if (k === 'pendingVotes') s.setItem('pendingVotes', JSON.stringify(v));
         else if (k === 'offlineCache') s.setItem('offlineCache', JSON.stringify(v));
         else if (k === 'highScores') s.setItem('highScores', JSON.stringify(v));
+        else if (k === 'wordWarScores') s.setItem('wordWarScores', JSON.stringify(v));
+        else if (k === 'defDashScores') s.setItem('defDashScores', JSON.stringify(v));
         else if (k === 'insectStats') {
             s.setItem('insectSaved', v.saved);
             s.setItem('insectEaten', v.eaten);
@@ -1296,6 +1300,22 @@ async fetchKidsWords() {
                 body: JSON.stringify({ name, score, userId: State.data.userId })
             });
         } catch (e) { console.error("Score submit failed", e); }
+    },
+    async submitMiniGameScore(game, name, score) {
+        try {
+            await fetch('/api/minigame-scores', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ game, name, score, userId: State.data.userId })
+            });
+        } catch (e) { console.error("Mini-game score submit failed", e); }
+    },
+    async getMiniGameScores(game) {
+        try {
+            const r = await fetch(`/api/minigame-scores/${game}`);
+            if (!r.ok) return [];
+            return await r.json();
+        } catch (e) { return []; }
     },
     async submitUserVotes(userId, username, voteCount, dailyStreak = null, bestDailyStreak = null) {
         try {
@@ -4982,6 +5002,8 @@ const MiniGames = {
                     this.showRound();
                 };
             } else {
+                // Check if this is a high score
+                this.checkHighScore(this.streak);
                 document.getElementById('wwRestart').onclick = () => {
                     document.getElementById('wwResult').remove();
                     this.streak = 0;
@@ -4989,6 +5011,49 @@ const MiniGames = {
                 };
                 document.getElementById('wwExit').onclick = () => this.close();
             }
+        },
+        
+        checkHighScore(score) {
+            if (score < 3) return; // Minimum score to qualify
+            const scores = State.data.wordWarScores || [];
+            const minScore = scores.length < 10 ? 0 : scores[scores.length - 1].score;
+            if (score > minScore || scores.length < 10) {
+                setTimeout(() => this.promptName(score), 500);
+            }
+        },
+        
+        promptName(score) {
+            const existingResult = document.getElementById('wwResult');
+            if (existingResult) existingResult.remove();
+            
+            const html = `
+                <div id="wwNameEntry" class="fixed inset-0 bg-black/90 z-[10002] flex items-center justify-center p-4">
+                    <div class="bg-gradient-to-br from-indigo-600 to-purple-700 p-8 rounded-2xl text-center max-w-sm w-full shadow-2xl border-4 border-yellow-400">
+                        <div class="text-4xl mb-2">🏆</div>
+                        <h2 class="text-2xl font-black text-white mb-1">HIGH SCORE!</h2>
+                        <p class="text-purple-200 mb-4">Word War Streak: ${score}</p>
+                        <input type="text" id="wwNameInput" maxlength="3" placeholder="AAA"
+                            class="text-3xl text-center w-full tracking-widest border-4 border-purple-300 rounded-xl p-3 uppercase font-black mb-4 bg-white/90">
+                        <button id="wwSaveScore" class="w-full py-3 bg-yellow-400 hover:bg-yellow-300 text-purple-900 font-black text-lg rounded-xl transition">
+                            SAVE SCORE
+                        </button>
+                    </div>
+                </div>`;
+            
+            document.body.insertAdjacentHTML('beforeend', html);
+            document.getElementById('wwNameInput').focus();
+            
+            document.getElementById('wwSaveScore').onclick = () => {
+                const name = (document.getElementById('wwNameInput').value || "AAA").toUpperCase().substring(0, 3);
+                const scores = State.data.wordWarScores || [];
+                scores.push({ name, score, date: Date.now() });
+                scores.sort((a, b) => b.score - a.score);
+                if (scores.length > 10) scores.pop();
+                State.save('wordWarScores', scores);
+                document.getElementById('wwNameEntry').remove();
+                // Submit to global leaderboard
+                API.submitMiniGameScore('wordwar', name, score);
+            };
         },
         
         close() {
@@ -5138,7 +5203,7 @@ const MiniGames = {
                         </div>
                         
                         <div class="mt-4 text-center">
-                            <span id="ddTimeDisplay" class="text-2xl font-black text-yellow-400">${this.timeLeft}s</span>
+                            <span id="ddTimeDisplay" class="text-2xl font-black text-yellow-400">10.0s</span>
                         </div>
                     </div>
                 </div>`;
@@ -5162,6 +5227,7 @@ const MiniGames = {
         
         startTimer() {
             if (this.timer) clearInterval(this.timer);
+            this.timeLeft = 100; // 10 seconds in 0.1s increments (100 = 10.0s)
             
             this.timer = setInterval(() => {
                 this.timeLeft--;
@@ -5169,10 +5235,11 @@ const MiniGames = {
                 const display = document.getElementById('ddTimeDisplay');
                 const bar = document.getElementById('ddTimerBar');
                 
-                if (display) display.textContent = this.timeLeft + 's';
-                if (bar) bar.style.width = (this.timeLeft / 10 * 100) + '%';
+                const displaySeconds = (this.timeLeft / 10).toFixed(1);
+                if (display) display.textContent = displaySeconds + 's';
+                if (bar) bar.style.width = (this.timeLeft) + '%';
                 
-                if (this.timeLeft <= 3) {
+                if (this.timeLeft <= 30) { // 3 seconds
                     if (display) display.classList.add('text-red-400');
                     if (bar) bar.classList.replace('bg-emerald-400', 'bg-red-400');
                 }
@@ -5181,7 +5248,7 @@ const MiniGames = {
                     clearInterval(this.timer);
                     this.checkAnswer(-1); // Time's up
                 }
-            }, 1000);
+            }, 100); // Run every 0.1 seconds
         },
         
         checkAnswer(selectedIndex) {
@@ -5190,8 +5257,10 @@ const MiniGames = {
             const correct = selectedIndex >= 0 && this.options[selectedIndex]._id === this.correctWord._id;
             const correctIndex = this.options.findIndex(o => o._id === this.correctWord._id);
             
+            // Score based on 0.1 second increments - gives whole number score
+            const pointsEarned = correct ? Math.max(10, this.timeLeft) : 0;
             if (correct) {
-                this.score += Math.max(1, this.timeLeft); // Bonus for speed
+                this.score += pointsEarned;
             }
             
             // Highlight answers
@@ -5212,7 +5281,7 @@ const MiniGames = {
                 const resultDiv = document.createElement('div');
                 resultDiv.className = 'mt-4 text-center';
                 resultDiv.innerHTML = correct 
-                    ? `<div class="text-green-400 font-black text-xl">✓ Correct! +${Math.max(1, this.timeLeft + 1)} points</div>`
+                    ? `<div class="text-green-400 font-black text-xl">✓ Correct! +${pointsEarned} points</div>`
                     : `<div class="text-red-400 font-black text-xl">${selectedIndex === -1 ? '⏰ Time\'s Up!' : '✗ Wrong!'}</div>`;
                 modal.querySelector('.max-w-lg').appendChild(resultDiv);
             }
@@ -5222,11 +5291,13 @@ const MiniGames = {
         },
         
         showFinalScore() {
-            const bestScore = parseInt(localStorage.getItem('defDashBest')) || 0;
+            const scores = State.data.defDashScores || [];
+            const bestScore = scores.length > 0 ? scores[0].score : 0;
             const isNewBest = this.score > bestScore;
-            if (isNewBest) {
-                localStorage.setItem('defDashBest', this.score);
-            }
+            
+            // Check if qualifies for high score
+            const minScore = scores.length < 10 ? 0 : scores[scores.length - 1].score;
+            const qualifiesForHighScore = this.score >= 100 && (this.score > minScore || scores.length < 10);
             
             const html = `
                 <div id="defDashModal" class="fixed inset-0 bg-gradient-to-br from-emerald-900 via-teal-900 to-cyan-900 z-[10000] flex items-center justify-center p-4">
@@ -5253,12 +5324,57 @@ const MiniGames = {
             
             document.body.insertAdjacentHTML('beforeend', html);
             
+            // Check for high score entry
+            if (qualifiesForHighScore) {
+                setTimeout(() => this.promptName(this.score), 500);
+            }
+            
             document.getElementById('ddRestart').onclick = () => {
                 this.score = 0;
                 this.round = 0;
                 this.nextRound();
             };
             document.getElementById('ddExit').onclick = () => this.close();
+        },
+        
+        checkHighScore(score) {
+            if (score < 100) return; // Minimum score to qualify
+            const scores = State.data.defDashScores || [];
+            const minScore = scores.length < 10 ? 0 : scores[scores.length - 1].score;
+            if (score > minScore || scores.length < 10) {
+                setTimeout(() => this.promptName(score), 500);
+            }
+        },
+        
+        promptName(score) {
+            const html = `
+                <div id="ddNameEntry" class="fixed inset-0 bg-black/90 z-[10002] flex items-center justify-center p-4">
+                    <div class="bg-gradient-to-br from-emerald-600 to-teal-700 p-8 rounded-2xl text-center max-w-sm w-full shadow-2xl border-4 border-yellow-400">
+                        <div class="text-4xl mb-2">🏆</div>
+                        <h2 class="text-2xl font-black text-white mb-1">HIGH SCORE!</h2>
+                        <p class="text-teal-200 mb-4">Definition Dash: ${score} pts</p>
+                        <input type="text" id="ddNameInput" maxlength="3" placeholder="AAA"
+                            class="text-3xl text-center w-full tracking-widest border-4 border-teal-300 rounded-xl p-3 uppercase font-black mb-4 bg-white/90">
+                        <button id="ddSaveScore" class="w-full py-3 bg-yellow-400 hover:bg-yellow-300 text-teal-900 font-black text-lg rounded-xl transition">
+                            SAVE SCORE
+                        </button>
+                    </div>
+                </div>`;
+            
+            document.body.insertAdjacentHTML('beforeend', html);
+            document.getElementById('ddNameInput').focus();
+            
+            document.getElementById('ddSaveScore').onclick = () => {
+                const name = (document.getElementById('ddNameInput').value || "AAA").toUpperCase().substring(0, 3);
+                const scores = State.data.defDashScores || [];
+                scores.push({ name, score, date: Date.now() });
+                scores.sort((a, b) => b.score - a.score);
+                if (scores.length > 10) scores.pop();
+                State.save('defDashScores', scores);
+                document.getElementById('ddNameEntry').remove();
+                // Submit to global leaderboard
+                API.submitMiniGameScore('defdash', name, score);
+            };
         },
         
         close() {
@@ -5271,6 +5387,11 @@ const MiniGames = {
     
     // Show mini-games menu
     showMenu() {
+        const wwScores = State.data.wordWarScores || [];
+        const ddScores = State.data.defDashScores || [];
+        const wwBest = wwScores.length > 0 ? wwScores[0].score : 0;
+        const ddBest = ddScores.length > 0 ? ddScores[0].score : 0;
+        
         const html = `
             <div id="miniGamesMenu" class="fixed inset-0 bg-black/90 z-[10000] flex items-center justify-center p-4 backdrop-blur">
                 <div class="w-full max-w-md">
@@ -5283,7 +5404,7 @@ const MiniGames = {
                                 <div>
                                     <h3 class="text-xl font-black text-white">Word War</h3>
                                     <p class="text-purple-200 text-sm">Higher or Lower? Guess which word has better approval!</p>
-                                    <p class="text-yellow-400 text-xs mt-1 font-bold">Best Streak: ${parseInt(localStorage.getItem('wordWarBest')) || 0}</p>
+                                    <p class="text-yellow-400 text-xs mt-1 font-bold">Best Streak: ${wwBest}</p>
                                 </div>
                             </div>
                         </button>
@@ -5294,9 +5415,14 @@ const MiniGames = {
                                 <div>
                                     <h3 class="text-xl font-black text-white">Definition Dash</h3>
                                     <p class="text-teal-200 text-sm">Read the definition, guess the word! 10 seconds per round.</p>
-                                    <p class="text-yellow-400 text-xs mt-1 font-bold">High Score: ${parseInt(localStorage.getItem('defDashBest')) || 0}</p>
+                                    <p class="text-yellow-400 text-xs mt-1 font-bold">High Score: ${ddBest}</p>
                                 </div>
                             </div>
+                        </button>
+                        
+                        <button id="viewArcadeScores" class="w-full p-4 bg-gradient-to-r from-pink-600 to-orange-600 hover:from-pink-500 hover:to-orange-500 rounded-2xl text-center transition transform hover:scale-102 shadow-lg">
+                            <span class="text-2xl">🏆</span>
+                            <span class="text-white font-black ml-2">VIEW HIGH SCORES</span>
                         </button>
                     </div>
                     
@@ -5315,6 +5441,10 @@ const MiniGames = {
         document.getElementById('startDefDash').onclick = () => {
             document.getElementById('miniGamesMenu').remove();
             this.definitionDash.start();
+        };
+        document.getElementById('viewArcadeScores').onclick = () => {
+            document.getElementById('miniGamesMenu').remove();
+            StreakManager.showLeaderboard();
         };
         document.getElementById('closeMiniGames').onclick = () => {
             document.getElementById('miniGamesMenu').remove();
@@ -9759,125 +9889,290 @@ const StreakManager = {
         }
     },
     async showLeaderboard() {
-        if (!document.getElementById('crt-styles')) {
+        const self = this;
+        
+        // Inject arcade cabinet styles
+        if (!document.getElementById('arcade-styles')) {
             const s = document.createElement('style');
-            s.id = 'crt-styles';
+            s.id = 'arcade-styles';
             s.innerHTML = `
                 @keyframes crt-flicker { 0% {opacity:0.95;} 2% {opacity:0.99;} 4% {opacity:0.95;} 100% {opacity:0.95;} }
-                @keyframes crt-glow { 0% {text-shadow: 0 0 5px #f0f, 0 0 10px #f0f;} 50% {text-shadow: 0 0 15px #0ff, 0 0 20px #0ff;} 100% {text-shadow: 0 0 5px #f0f, 0 0 10px #f0f;} }
+                @keyframes crt-glow { 0% {text-shadow: 0 0 5px currentColor, 0 0 10px currentColor;} 50% {text-shadow: 0 0 15px currentColor, 0 0 20px currentColor;} 100% {text-shadow: 0 0 5px currentColor, 0 0 10px currentColor;} }
                 @keyframes scanline-scroll { 0% {background-position: 0 0;} 100% {background-position: 0 100%;} }
-                .crt-monitor {
-                    background-color: #050505;
-                    box-shadow: 0 0 0 3px #222, 0 0 40px rgba(0,0,0,0.8);
-                    border-radius: 20px;
-                    position: relative; overflow: hidden;
+                @keyframes cabinet-enter { 0% {transform: scale(0.8) rotateY(-15deg); opacity:0;} 100% {transform: scale(1) rotateY(0); opacity:1;} }
+                @keyframes neon-flicker { 0%,19%,21%,23%,25%,54%,56%,100% {opacity:1;} 20%,24%,55% {opacity:0.6;} }
+                .arcade-cabinet {
+                    background: linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f0f23 100%);
+                    border-radius: 20px 20px 10px 10px;
+                    box-shadow: 0 0 0 4px #333, 0 0 30px rgba(0,0,0,0.8), inset 0 2px 0 rgba(255,255,255,0.1);
+                    position: relative;
+                    animation: cabinet-enter 0.4s ease-out;
+                }
+                .arcade-marquee {
+                    background: linear-gradient(180deg, #222 0%, #111 100%);
+                    border-radius: 15px 15px 0 0;
+                    padding: 12px;
+                    border-bottom: 3px solid #000;
+                    position: relative;
+                    overflow: hidden;
+                }
+                .arcade-marquee::before {
+                    content: '';
+                    position: absolute;
+                    inset: 0;
+                    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.03) 50%, transparent 100%);
+                }
+                .arcade-screen {
+                    background-color: #050508;
+                    margin: 0 12px;
+                    border-radius: 10px;
+                    position: relative;
+                    overflow: hidden;
                     animation: crt-flicker 0.1s infinite;
-                    border: 4px solid #333;
+                    border: 4px solid #222;
+                    box-shadow: inset 0 0 30px rgba(0,0,0,0.8);
                 }
-                .crt-overlay {
-                    position: absolute; inset: 0; pointer-events: none; z-index: 50;
-                    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-                    background-size: 100% 3px, 4px 100%;
-                    animation: scanline-scroll 10s linear infinite;
+                .arcade-screen-overlay {
+                    position: absolute; inset: 0; pointer-events: none; z-index: 5;
+                    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.2) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.04));
+                    background-size: 100% 2px, 3px 100%;
+                    border-radius: 8px;
                 }
-                .crt-content { padding: 2rem; position: relative; z-index: 10; }
-                .crt-text { font-family: 'Courier New', monospace; text-transform: uppercase; letter-spacing: 0.15em; font-weight: 900; text-shadow: 2px 2px 0px #000; }
-                .crt-title { animation: crt-glow 2s infinite alternate; color: #fff; font-size: 2rem; }
-                .crt-row { border-bottom: 2px dashed rgba(255,255,255,0.2); }
+                .arcade-controls {
+                    background: linear-gradient(180deg, #1a1a2e 0%, #0d0d1a 100%);
+                    padding: 15px;
+                    border-radius: 0 0 10px 10px;
+                    display: flex;
+                    justify-content: center;
+                    gap: 12px;
+                    border-top: 2px solid #333;
+                }
+                .arcade-btn {
+                    width: 50px; height: 50px;
+                    border-radius: 50%;
+                    border: 3px solid #444;
+                    cursor: pointer;
+                    transition: all 0.1s;
+                    box-shadow: 0 4px 0 #000, 0 6px 10px rgba(0,0,0,0.5);
+                    display: flex; align-items: center; justify-content: center;
+                    font-size: 20px;
+                }
+                .arcade-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #000; }
+                .arcade-btn-red { background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%); }
+                .arcade-btn-blue { background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%); }
+                .arcade-btn-green { background: linear-gradient(180deg, #22c55e 0%, #15803d 100%); }
+                .arcade-btn-yellow { background: linear-gradient(180deg, #eab308 0%, #a16207 100%); }
+                .crt-text { font-family: 'Courier New', monospace; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 900; }
+                .score-row { border-bottom: 1px dashed rgba(255,255,255,0.15); }
+                .neon-text { animation: neon-flicker 2s infinite; }
+                .cabinet-indicator { 
+                    display: flex; gap: 8px; justify-content: center; margin-top: 15px;
+                }
+                .cabinet-dot {
+                    width: 12px; height: 12px; border-radius: 50%;
+                    background: #333; border: 2px solid #555;
+                    transition: all 0.3s;
+                }
+                .cabinet-dot.active {
+                    background: #fff;
+                    box-shadow: 0 0 10px #fff, 0 0 20px currentColor;
+                }
             `;
             document.head.appendChild(s);
         }
-        const html = `
-            <div id="highScoreModal" class="fixed inset-0 bg-black/90 z-[200] flex items-center justify-center p-4 backdrop-blur-md" onclick="StreakManager.closeLeaderboard()">
-                <div class="crt-monitor w-full max-w-md transform transition-all scale-100" onclick="event.stopPropagation()">
-                    <div class="crt-overlay"></div>
-                    <div class="crt-content">
-                        <div class="text-center mb-6">
-                            <h2 class="crt-text crt-title mb-2">STREAK HIGH SCORES</h2>
-                            <div class="h-1 w-full bg-gradient-to-r from-pink-500 to-cyan-500 shadow-[0_0_10px_white]"></div>
-                        </div>
-                        <div id="hs-display-area" class="min-h-[340px]">
-                            <div class="text-center mt-20 text-cyan-400 crt-text animate-pulse">CONNECTING...</div>
-                        </div>
-                        <div class="mt-4 flex justify-between items-center crt-text text-xs text-gray-400 font-bold">
-                             <span id="hs-page-indicator">LOADING</span>
-                             <div class="flex gap-2">
-                                <button onclick="StreakManager.shareScores()" class="px-2 py-1 border border-gray-600 rounded hover:bg-blue-900/30 hover:text-blue-400 hover:border-blue-500 transition-colors cursor-pointer">📤 SHARE</button>
-                                <button onclick="StreakManager.closeLeaderboard()" class="px-2 py-1 border border-gray-600 rounded hover:bg-red-900/30 hover:text-red-400 hover:border-red-500 transition-colors cursor-pointer">⏏ EJECT DISK</button>
-                             </div>
+        
+        // Cabinet configurations
+        const cabinets = [
+            { 
+                id: 'streak', 
+                title: '🔥 WORD STREAK',
+                subtitle: 'How long can you last?',
+                color: '#f472b6',
+                localScores: State.data.highScores || [],
+                globalScores: await API.getGlobalScores() || [],
+                scoreLabel: 'WORDS'
+            },
+            { 
+                id: 'wordwar', 
+                title: '⚔️ WORD WAR',
+                subtitle: 'Higher or Lower',
+                color: '#a78bfa',
+                localScores: State.data.wordWarScores || [],
+                globalScores: await API.getMiniGameScores('wordwar') || [],
+                scoreLabel: 'STREAK'
+            },
+            { 
+                id: 'defdash', 
+                title: '📚 DEF DASH',
+                subtitle: 'Definition Trivia',
+                color: '#34d399',
+                localScores: State.data.defDashScores || [],
+                globalScores: await API.getMiniGameScores('defdash') || [],
+                scoreLabel: 'POINTS'
+            }
+        ];
+        
+        let currentCabinet = 0;
+        let currentPage = 0; // 0 = world, 1 = local
+        const username = State.data.username || "PLAYER";
+        
+        const renderScoreRow = (s, i, color) => `
+            <div class="flex justify-between items-center crt-text text-xs py-1.5 score-row">
+                <div class="flex gap-2 items-center">
+                    <span class="text-gray-500">${(i+1).toString().padStart(2,'0')}</span>
+                    <span style="color:${color}" class="font-black">${(s.name || 'AAA').substring(0,3).toUpperCase()}</span>
+                </div>
+                <span class="text-white tracking-wider font-bold">${s.score.toString().padStart(5,'0')}</span>
+            </div>`;
+        
+        const renderCabinet = () => {
+            const cab = cabinets[currentCabinet];
+            const scores = currentPage === 0 ? cab.globalScores.slice(0, 10) : cab.localScores.slice(0, 10);
+            const pageTitle = currentPage === 0 ? 'WORLD RECORDS' : `${username.toUpperCase()}'S BEST`;
+            
+            return `
+                <div class="arcade-cabinet w-full max-w-sm">
+                    <!-- Marquee -->
+                    <div class="arcade-marquee text-center">
+                        <h2 class="text-2xl font-black neon-text" style="color:${cab.color}">${cab.title}</h2>
+                        <p class="text-gray-400 text-xs mt-1">${cab.subtitle}</p>
+                    </div>
+                    
+                    <!-- Screen -->
+                    <div class="arcade-screen" style="min-height: 340px;">
+                        <div class="arcade-screen-overlay"></div>
+                        <div class="p-4 relative z-10">
+                            <!-- Page Header -->
+                            <div class="flex justify-between items-center mb-3 pb-2" style="border-bottom: 2px solid ${cab.color}40">
+                                <span class="crt-text text-xs" style="color:${cab.color}">${pageTitle}</span>
+                                <span class="crt-text text-xs text-gray-500">${cab.scoreLabel}</span>
+                            </div>
+                            
+                            <!-- Scores -->
+                            <div id="arcade-scores" class="space-y-0.5">
+                                ${scores.length === 0 
+                                    ? `<div class="text-center text-gray-500 crt-text text-xs mt-12">NO RECORDS YET<br><span class="text-xs">BE THE FIRST!</span></div>`
+                                    : scores.map((s, i) => renderScoreRow(s, i, cab.color)).join('')
+                                }
+                            </div>
                         </div>
                     </div>
+                    
+                    <!-- Controls -->
+                    <div class="arcade-controls">
+                        <button id="arcade-prev-cab" class="arcade-btn arcade-btn-red" title="Previous Game">◀</button>
+                        <button id="arcade-toggle-page" class="arcade-btn arcade-btn-blue" title="World/Local">🌐</button>
+                        <button id="arcade-share" class="arcade-btn arcade-btn-yellow" title="Share">📤</button>
+                        <button id="arcade-next-cab" class="arcade-btn arcade-btn-green" title="Next Game">▶</button>
+                    </div>
+                    
+                    <!-- Cabinet Indicators -->
+                    <div class="cabinet-indicator">
+                        ${cabinets.map((c, i) => `
+                            <div class="cabinet-dot ${i === currentCabinet ? 'active' : ''}" style="color:${c.color}"></div>
+                        `).join('')}
+                    </div>
+                    
+                    <!-- Page Indicator -->
+                    <div class="text-center mt-2 crt-text text-xs text-gray-500">
+                        ${currentPage === 0 ? '🌐 WORLD' : '👤 LOCAL'} · SWIPE OR TAP TO BROWSE
+                    </div>
+                    
+                    <!-- Close Button -->
+                    <button id="arcade-close" class="mt-4 w-full py-2 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white font-bold rounded-lg transition text-sm">
+                        ✕ EXIT ARCADE
+                    </button>
                 </div>
-            </div>`;
-        const div = document.createElement('div');
-        div.innerHTML = html;
-        document.body.appendChild(div.firstElementChild);
-        const globalScores = await API.getGlobalScores();
-        const topGlobal = (globalScores && globalScores.length) ? globalScores.slice(0, 8) : [];
-        const localScores = (State.data.highScores || []).slice(0, 8);
-        const username = State.data.username || "PLAYER";
-        const renderRow = (s, i, color) => `
-            <div class="flex justify-between items-center crt-text text-sm py-2 crt-row">
-                <div class="flex gap-3 items-center">
-                    <span class="text-gray-500">#${(i+1).toString().padStart(2,'0')}</span>
-                    <span class="${color} font-black text-lg drop-shadow-[0_0_3px_rgba(255,255,255,0.5)]">${s.name.substring(0,3).toUpperCase()}</span>
-                </div>
-                <span class="text-white tracking-widest text-xl font-bold">${s.score.toString().padStart(4,'0')}</span>
-            </div>`;
-        const area = document.getElementById('hs-display-area');
-        const indicator = document.getElementById('hs-page-indicator');
-        let showingGlobal = true;
+            `;
+        };
+        
+        // Create modal
+        const modal = document.createElement('div');
+        modal.id = 'highScoreModal';
+        modal.className = 'fixed inset-0 bg-black/95 z-[200] flex items-center justify-center p-4 backdrop-blur-md';
+        modal.innerHTML = renderCabinet();
+        document.body.appendChild(modal);
+        
+        // Touch handling for swipe
         let touchStartX = 0;
-        let touchEndX = 0;
-        const renderPage = () => {
-            if(!document.getElementById('highScoreModal')) return;
-            area.style.opacity = '0';
-            setTimeout(() => {
-                if (showingGlobal) {
-                    indicator.textContent = "PAGE 1/2 [WORLD]";
-                    indicator.style.color = '#34d399';
-                    let h = `<div class="text-cyan-400 text-sm crt-text mb-4 border-b-2 border-cyan-700 pb-1 font-black">GLOBAL RANKINGS</div>`;
-                    if (topGlobal.length === 0) h += '<div class="text-gray-500 text-xs crt-text mt-8 text-center">NO DATA FOUND</div>';
-                    else h += topGlobal.map((s,i) => renderRow(s, i, 'text-cyan-400')).join('');
-                    area.innerHTML = h;
+        const handleSwipe = (diff) => {
+            if (Math.abs(diff) > 50) {
+                if (diff > 0) {
+                    // Swipe left - next
+                    currentCabinet = (currentCabinet + 1) % cabinets.length;
                 } else {
-                    indicator.textContent = "PAGE 2/2 [LOCAL]";
-                    indicator.style.color = '#fbbf24';
-                    let h = `<div class="text-yellow-400 text-sm crt-text mb-4 border-b-2 border-yellow-700 pb-1 font-black">${username.toUpperCase()}'S RECORDS</div>`;
-                    if (localScores.length === 0) h += '<div class="text-gray-500 text-xs crt-text mt-8 text-center">PLAY TO SET SCORES</div>';
-                    else h += localScores.map((s,i) => renderRow(s, i, 'text-yellow-400')).join('');
-                    area.innerHTML = h;
+                    // Swipe right - prev
+                    currentCabinet = (currentCabinet - 1 + cabinets.length) % cabinets.length;
                 }
-                area.style.transition = 'opacity 0.2s';
-                area.style.opacity = '1';
-            }, 200);
-        };
-        const switchPage = () => {
-            showingGlobal = !showingGlobal;
-            renderPage();
-            if (this.loopTimer) clearTimeout(this.loopTimer);
-            this.loopTimer = setTimeout(autoSwitch, 5000);
-        };
-        const autoSwitch = () => {
-            if(!document.getElementById('highScoreModal')) return;
-            showingGlobal = !showingGlobal;
-            renderPage();
-            this.loopTimer = setTimeout(autoSwitch, 5000);
-        };
-        area.addEventListener('touchstart', (e) => {
-            touchStartX = e.changedTouches[0].screenX;
-        }, { passive: true });
-        area.addEventListener('touchend', (e) => {
-            touchEndX = e.changedTouches[0].screenX;
-            const diff = touchStartX - touchEndX;
-            if (Math.abs(diff) > 50) { // Minimum swipe distance
-                switchPage();
+                currentPage = 0;
+                modal.innerHTML = renderCabinet();
+                bindEvents();
+                resetAutoScroll();
             }
-        }, { passive: true });
-        area.style.cursor = 'pointer';
-        area.onclick = switchPage;
-        renderPage();
-        this.loopTimer = setTimeout(autoSwitch, 5000);
+        };
+        
+        // Bind events
+        const bindEvents = () => {
+            modal.querySelector('#arcade-prev-cab').onclick = () => {
+                currentCabinet = (currentCabinet - 1 + cabinets.length) % cabinets.length;
+                currentPage = 0;
+                modal.innerHTML = renderCabinet();
+                bindEvents();
+                resetAutoScroll();
+            };
+            modal.querySelector('#arcade-next-cab').onclick = () => {
+                currentCabinet = (currentCabinet + 1) % cabinets.length;
+                currentPage = 0;
+                modal.innerHTML = renderCabinet();
+                bindEvents();
+                resetAutoScroll();
+            };
+            modal.querySelector('#arcade-toggle-page').onclick = () => {
+                currentPage = currentPage === 0 ? 1 : 0;
+                modal.innerHTML = renderCabinet();
+                bindEvents();
+                resetAutoScroll();
+            };
+            modal.querySelector('#arcade-share').onclick = () => self.shareScores();
+            modal.querySelector('#arcade-close').onclick = () => self.closeLeaderboard();
+            
+            // Click on modal background to close
+            modal.onclick = (e) => { if (e.target === modal) self.closeLeaderboard(); };
+            
+            // Touch events for swiping
+            modal.addEventListener('touchstart', (e) => {
+                touchStartX = e.changedTouches[0].screenX;
+            }, { passive: true });
+            modal.addEventListener('touchend', (e) => {
+                const diff = touchStartX - e.changedTouches[0].screenX;
+                handleSwipe(diff);
+            }, { passive: true });
+        };
+        
+        // Auto-scroll functionality
+        const autoScroll = () => {
+            if (!document.getElementById('highScoreModal')) return;
+            
+            // Toggle page first, then move to next cabinet
+            if (currentPage === 0) {
+                currentPage = 1;
+            } else {
+                currentPage = 0;
+                currentCabinet = (currentCabinet + 1) % cabinets.length;
+            }
+            
+            modal.innerHTML = renderCabinet();
+            bindEvents();
+            self.loopTimer = setTimeout(autoScroll, 4000);
+        };
+        
+        const resetAutoScroll = () => {
+            if (self.loopTimer) clearTimeout(self.loopTimer);
+            self.loopTimer = setTimeout(autoScroll, 4000);
+        };
+        
+        bindEvents();
+        resetAutoScroll();
     },
     closeLeaderboard() {
         const el = document.getElementById('highScoreModal');
