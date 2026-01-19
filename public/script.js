@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.5.1',
+    APP_VERSION: '6.5.2',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -47,14 +47,20 @@ const ContentFilter = {
             const decoded = atob(this._encoded);
             const terms = decoded.split('|');
             this._patterns = terms.map(term => {
-                const escaped = term
-                    .replace(/a/g, '[a@4]')
-                    .replace(/e/g, '[e3]')
-                    .replace(/i/g, '[i1!]')
-                    .replace(/o/g, '[o0]')
-                    .replace(/s/g, '[s$5]')
-                    .replace(/g/g, '[gq9]');
-                return new RegExp(`\\b${escaped}s?\\b`, 'i');
+                // Build pattern character by character to avoid nested replacements
+                let escaped = '';
+                for (const c of term) {
+                    switch(c) {
+                        case 'a': escaped += '[a@4]'; break;
+                        case 'e': escaped += '[e3]'; break;
+                        case 'i': escaped += '[i1!]'; break;
+                        case 'o': escaped += '[o0]'; break;
+                        case 's': escaped += '[s$5]'; break;
+                        case 'g': escaped += '[gq9]'; break;
+                        default: escaped += c;
+                    }
+                }
+                return new RegExp(`\\b${escaped}[s$5]?\\b`, 'i');
             });
         } catch(e) {
             console.warn('ContentFilter init failed');
@@ -10061,7 +10067,7 @@ const StreakManager = {
                     <!-- Controls -->
                     <div class="arcade-controls">
                         <button id="arcade-prev-cab" class="arcade-btn arcade-btn-red" title="Previous Game">◀</button>
-                        <button id="arcade-toggle-page" class="arcade-btn arcade-btn-blue" title="World/Local">🌐</button>
+                        <button id="arcade-toggle-page" class="arcade-btn arcade-btn-blue" title="World/Local">${currentPage === 0 ? '🌐' : '🏠'}</button>
                         <button id="arcade-share" class="arcade-btn arcade-btn-yellow" title="Share">📤</button>
                         <button id="arcade-next-cab" class="arcade-btn arcade-btn-green" title="Next Game">▶</button>
                     </div>
@@ -10075,7 +10081,7 @@ const StreakManager = {
                     
                     <!-- Page Indicator -->
                     <div class="text-center mt-2 crt-text text-xs text-gray-500">
-                        ${currentPage === 0 ? '🌐 WORLD' : '👤 LOCAL'} · SWIPE OR TAP TO BROWSE
+                        ${currentPage === 0 ? '🌐 WORLD' : '🏠 LOCAL'} · SWIPE OR TAP TO BROWSE
                     </div>
                     
                     <!-- Close Button -->
