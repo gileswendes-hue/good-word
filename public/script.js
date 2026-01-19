@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.5.4',
+    APP_VERSION: '6.5.4.1',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -9897,613 +9897,367 @@ const StreakManager = {
             }
         }
     },
-    async showLeaderboard() {
+async showLeaderboard() {
         const self = this;
         
-        // Inject arcade cabinet styles - realistic row with sliding CRTs
+        // 1. Fetch Data Concurrently
+        const [globalStreak, globalWar, globalDef] = await Promise.all([
+            API.getGlobalScores(),
+            API.getMiniGameScores('wordwar'),
+            API.getMiniGameScores('defdash')
+        ]);
+
+        // 2. Inject Enhanced Arcade CSS (Textures & Smooth Animations)
         if (!document.getElementById('arcade-styles')) {
             const s = document.createElement('style');
             s.id = 'arcade-styles';
             s.innerHTML = `
-                @keyframes crt-flicker { 0%,100% {opacity:0.97;} 50% {opacity:1;} }
-                @keyframes crt-glow { 0%,100% {filter: brightness(1);} 50% {filter: brightness(1.05);} }
-                @keyframes scanline { 0% {transform: translateY(-100%);} 100% {transform: translateY(100%);} }
-                @keyframes neon-pulse { 0%,100% {opacity:1; text-shadow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 40px currentColor;} 50% {opacity:0.8; text-shadow: 0 0 5px currentColor, 0 0 10px currentColor;} }
-                @keyframes cabinet-glow { 0%,100% {box-shadow: 0 0 20px rgba(0,0,0,0.8), 0 5px 30px rgba(0,0,0,0.6);} 50% {box-shadow: 0 0 30px rgba(0,0,0,0.8), 0 5px 40px rgba(0,0,0,0.7);} }
+                @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=Stencil&display=swap');
                 
-                .arcade-hall {
-                    background: linear-gradient(180deg, #0a0a12 0%, #12121f 50%, #0a0a0f 100%);
-                    min-height: 100vh;
-                    position: relative;
-                    overflow: hidden;
+                :root { 
+                    --cab-width: 340px; 
+                    --cab-height: 600px; 
+                    --cab-gap: 40px; 
                 }
-                .arcade-hall::before {
-                    content: '';
-                    position: absolute;
-                    top: 0; left: 0; right: 0;
-                    height: 120px;
-                    background: linear-gradient(180deg, rgba(147,51,234,0.15) 0%, transparent 100%);
-                    pointer-events: none;
+                @media (min-width: 768px) { 
+                    :root { --cab-width: 420px; --cab-height: 720px; } 
                 }
-                .arcade-floor {
-                    position: absolute;
-                    bottom: 0; left: 0; right: 0;
-                    height: 100px;
-                    background: linear-gradient(180deg, transparent 0%, rgba(30,20,40,0.8) 100%);
-                    pointer-events: none;
+
+                /* --- Layout & Animation --- */
+                .arcade-modal {
+                    position: fixed; inset: 0; z-index: 10000;
+                    background: radial-gradient(circle at 50% 30%, #1a1a2e 0%, #000 100%);
+                    display: flex; flex-direction: column; overflow: hidden;
                 }
-                .arcade-floor::before {
-                    content: '';
-                    position: absolute;
-                    bottom: 0; left: 0; right: 0;
-                    height: 4px;
-                    background: repeating-linear-gradient(90deg, #333 0px, #333 20px, #222 20px, #222 40px);
+                .cabinet-viewport {
+                    flex: 1; display: flex; align-items: center;
+                    width: 100%; perspective: 1000px; overflow: hidden;
                 }
-                
                 .cabinet-row {
-                    display: flex;
-                    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-                    gap: 30px;
-                    padding: 0 20px;
+                    display: flex; gap: var(--cab-gap);
+                    padding-left: 50vw; /* Start from center */
+                    /* Offset logic handled in JS */
+                    transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+                    will-change: transform;
                 }
-                
-               .arcade-cabinet {
-    flex: 0 0 420px; /* Increased from 340px */
-    height: 720px;   /* Increased from 520px to fit top 10 */
-    background: linear-gradient(180deg, #2a2a4e 0%, #0f0f1a 40%, #0a0a12 100%);
-    border-radius: 20px 20px 10px 10px;
-}
-                .arcade-cabinet::before {
-                    content: '';
-                    position: absolute;
-                    inset: 0;
-                    border-radius: 12px 12px 8px 8px;
-                    border: 3px solid #2a2a3e;
-                    border-bottom: 6px solid #1a1a28;
-                    pointer-events: none;
-                }
-                .arcade-cabinet.active {
-                    transform: scale(1.02);
-                    z-index: 10;
+
+                /* --- Cabinet Base --- */
+                .arcade-cabinet {
+                    width: var(--cab-width); height: var(--cab-height);
+                    flex-shrink: 0; position: relative;
+                    border-radius: 20px 20px 4px 4px;
+                    margin-left: calc(var(--cab-width) * -0.5); /* Centering Fix */
+                    transition: transform 0.4s ease, filter 0.4s ease, opacity 0.4s ease;
+                    transform-origin: center bottom;
+                    box-shadow: 0 20px 50px rgba(0,0,0,0.8);
                 }
                 .arcade-cabinet.inactive {
-                    transform: scale(0.92);
-                    opacity: 0.6;
-                    filter: brightness(0.7);
+                    transform: scale(0.85) translateY(20px) rotateX(5deg);
+                    opacity: 0.5; filter: brightness(0.4) grayscale(0.6); pointer-events: none;
                 }
-                
-                .cabinet-top {
-                    height: 70px;
-                    background: linear-gradient(180deg, #222 0%, #1a1a28 100%);
-                    border-radius: 12px 12px 0 0;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    position: relative;
-                    border-bottom: 4px solid #0a0a0f;
-                    overflow: hidden;
+                .arcade-cabinet.active {
+                    transform: scale(1.05) translateY(0) rotateX(0deg);
+                    opacity: 1; filter: brightness(1.1); z-index: 10;
+                    box-shadow: 0 0 0 2px rgba(255,255,255,0.1), 0 30px 80px rgba(0,0,0,0.9);
                 }
-                .cabinet-top::before {
-                    content: '';
-                    position: absolute;
-                    top: 0; left: 10%; right: 10%;
-                    height: 2px;
-                    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+
+                /* --- DISTINCT SKINS --- */
+                /* 1. Streak: Synthwave Pink/Purple */
+                .cab-streak {
+                    background: linear-gradient(180deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
+                    border-left: 15px solid #4338ca; border-right: 15px solid #4338ca;
                 }
-                .marquee-text {
-                    font-family: 'Impact', 'Arial Black', sans-serif;
-                    font-size: 1.5rem;
-                    font-weight: 900;
-                    letter-spacing: 0.05em;
-                    animation: neon-pulse 2s ease-in-out infinite;
-                    text-transform: uppercase;
+                .cab-streak .cabinet-marquee { background: #312e81; border: 4px solid #818cf8; color: #f472b6; }
+                .cab-streak .crt-content { color: #f472b6; text-shadow: 0 0 4px #f472b6; }
+                .cab-streak .score-row.my-score { background: rgba(244, 114, 182, 0.2); }
+
+                /* 2. War: Camo/Military */
+                .cab-war {
+                    background: repeating-linear-gradient(45deg, #3f4c3b 0, #3f4c3b 20px, #2c3829 20px, #2c3829 40px);
+                    border-left: 15px solid #1a2316; border-right: 15px solid #1a2316;
                 }
-                .marquee-sub {
-                    position: absolute;
-                    bottom: 6px;
-                    font-size: 0.6rem;
-                    color: #666;
-                    letter-spacing: 0.15em;
-                    text-transform: uppercase;
+                .cab-war .cabinet-marquee { background: #7f1d1d; border: 4px solid #b91c1c; color: #fca5a5; font-family: 'Stencil', monospace; letter-spacing: 2px; }
+                .cab-war .crt-content { color: #fca5a5; text-shadow: 0 0 4px #ef4444; }
+                .cab-war .score-row.my-score { background: rgba(239, 68, 68, 0.2); }
+
+                /* 3. Def Dash: Matrix/Cyber */
+                .cab-def {
+                    background: linear-gradient(180deg, #064e3b 0%, #065f46 100%);
+                    border-left: 15px solid #022c22; border-right: 15px solid #022c22;
                 }
-                
-               .crt-monitor {
-    margin: 12px 16px;
-    height: 480px; /* Increased from 300px */
-    background: #000;
-    /* Realistic curvature */
-    border-radius: 50% / 10%; 
-    position: relative;
-    overflow: hidden;
-    border: 12px solid #1a1a28;
-}
-                .crt-monitor::before {
-                    content: '';
-                    position: absolute;
-                    inset: -2px;
-                    border-radius: 20px;
-                    border: 3px solid #333;
-                    pointer-events: none;
+                .cab-def .cabinet-marquee { background: #022c22; border: 4px solid #10b981; color: #34d399; }
+                .cab-def .crt-content { color: #34d399; text-shadow: 0 0 4px #10b981; }
+                .cab-def .score-row.my-score { background: rgba(52, 211, 153, 0.2); }
+
+                /* --- Components --- */
+                .cabinet-marquee {
+                    height: 80px; margin: 10px 15px; border-radius: 10px;
+                    display: flex; flex-direction: column; align-items: center; justify-content: center;
+                    box-shadow: inset 0 0 20px rgba(0,0,0,0.6); position: relative; overflow: hidden;
+                    text-transform: uppercase; font-family: 'Press Start 2P', cursive;
+                }
+                .marquee-glass { position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255,255,255,0.3) 0%, transparent 50%); }
+                .marquee-title { font-size: 14px; z-index: 2; text-align: center; line-height: 1.4; animation: neon 2s infinite alternate; }
+
+                .cabinet-screen-bezel {
+                    background: #111; margin: 0 15px; flex: 1; border-radius: 4px 4px 20px 20px;
+                    border: 8px solid #222; border-bottom-width: 25px;
+                    box-shadow: inset 0 0 10px #000; position: relative; overflow: hidden;
                 }
                 .crt-screen {
-    position: absolute;
-    inset: 12px;
-    background: radial-gradient(circle at center, #1a2a4a 0%, #050a14 80%);
-    /* Rounded corners on the glass */
-    border-radius: 40px; 
-    overflow: hidden;
-}
-                .crt-screen::before {
-                    content: '';
-                    position: absolute;
-                    inset: 0;
-                    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
-                    background-size: 100% 3px;
-                    pointer-events: none;
-                    z-index: 10;
-                }
-                .crt-screen::after {
-                    content: '';
-                    position: absolute;
-                    top: -100%;
-                    left: 0;
-                    right: 0;
-                    height: 50%;
-                    background: linear-gradient(transparent, rgba(255,255,255,0.03), transparent);
-                    animation: scanline 8s linear infinite;
-                    pointer-events: none;
-                    z-index: 11;
+                    position: absolute; inset: 10px; background: #000;
+                    border-radius: 40px / 20px; overflow: hidden;
+                    box-shadow: inset 0 0 40px rgba(0,0,0,0.9);
                 }
                 .crt-content {
-                    position: relative;
-                    z-index: 5;
-                    padding: 15px;
-                    height: 100%;
-                    display: flex;
-                    flex-direction: column;
+                    height: 100%; padding: 15px; overflow-y: auto;
+                    font-family: 'VT323', monospace; font-size: 1.2rem;
                 }
-                .crt-curve {
-                    position: absolute;
-                    inset: 0;
-                    border-radius: 15px;
-                    box-shadow: inset 0 0 80px rgba(0,0,0,0.5);
-                    pointer-events: none;
-                    z-index: 8;
+                .scanlines {
+                    position: absolute; inset: 0; pointer-events: none; z-index: 20;
+                    background: linear-gradient(rgba(0,0,0,0) 50%, rgba(0,0,0,0.25) 50%); background-size: 100% 4px;
                 }
                 
-                .score-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    padding-bottom: 8px;
-                    margin-bottom: 8px;
-                    border-bottom: 2px solid;
-                }
-                .score-header-title {
-                    font-family: 'Courier New', monospace;
-                    font-size: 0.7rem;
-                    font-weight: 900;
-                    letter-spacing: 0.15em;
-                    text-transform: uppercase;
-                }
-                .score-header-label {
-                    font-family: 'Courier New', monospace;
-                    font-size: 0.6rem;
-                    color: #666;
-                    letter-spacing: 0.1em;
-                }
+                /* Scores */
+                .score-row { display: flex; justify-content: space-between; border-bottom: 1px dashed rgba(255,255,255,0.1); padding: 4px 0; }
+                .rank-num { width: 30px; opacity: 0.7; }
+                .player-name { flex: 1; text-align: left; }
                 
-                .score-list {
-                    flex: 1;
-                    overflow: hidden;
+                /* Controls */
+                .cab-controls {
+                    position: absolute; bottom: -60px; left: 0; right: 0;
+                    display: flex; justify-content: center; gap: 15px;
+                    transition: bottom 0.3s;
                 }
-                .score-row {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    padding: 6px 0;
-                    border-bottom: 1px solid rgba(255,255,255,0.08);
-                    font-family: 'Courier New', monospace;
-                }
-                .score-rank {
-                    color: #555;
-                    font-size: 0.75rem;
-                    width: 25px;
-                    font-weight: bold;
-                }
-                .score-name {
-                    font-size: 0.9rem;
-                    font-weight: 900;
-                    letter-spacing: 0.1em;
-                    flex: 1;
-                    margin-left: 8px;
-                }
-                .score-value {
-                    font-size: 0.85rem;
-                    font-weight: bold;
-                    letter-spacing: 0.15em;
-                    color: #fff;
-                }
-                .score-row.top-score .score-name {
-                    text-shadow: 0 0 10px currentColor;
-                }
+                .arcade-cabinet.active .cab-controls { bottom: 20px; }
                 
-                .cabinet-controls {
-                    position: absolute;
-                    bottom: 0;
-                    left: 0;
-                    right: 0;
-                    height: 110px;
-                    background: linear-gradient(180deg, #1a1a2e 0%, #12121f 100%);
-                    border-radius: 0 0 8px 8px;
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 10px;
-                    border-top: 3px solid #0a0a0f;
+                .c-btn {
+                    width: 50px; height: 50px; border-radius: 50%; border: none; cursor: pointer;
+                    box-shadow: 0 4px 0 rgba(0,0,0,0.5), 0 8px 10px rgba(0,0,0,0.3);
+                    font-size: 20px; display: flex; align-items: center; justify-content: center;
+                    transition: transform 0.1s, box-shadow 0.1s; color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.5);
                 }
-                .control-panel {
-                    background: linear-gradient(180deg, #222 0%, #1a1a28 100%);
-                    padding: 10px 20px;
-                    border-radius: 8px;
-                    display: flex;
-                    gap: 15px;
-                    box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
-                }
-                .arcade-btn {
-                    width: 45px;
-                    height: 45px;
-                    border-radius: 50%;
-                    border: none;
-                    cursor: pointer;
-                    transition: all 0.1s;
-                    box-shadow: 0 4px 0 #000, 0 6px 8px rgba(0,0,0,0.4), inset 0 -2px 4px rgba(0,0,0,0.3), inset 0 2px 4px rgba(255,255,255,0.1);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-size: 1.1rem;
-                    position: relative;
-                }
-                .arcade-btn::before {
-                    content: '';
-                    position: absolute;
-                    top: 3px;
-                    left: 15%;
-                    right: 15%;
-                    height: 6px;
-                    background: linear-gradient(180deg, rgba(255,255,255,0.3), transparent);
-                    border-radius: 50%;
-                }
-                .arcade-btn:active {
-                    transform: translateY(3px);
-                    box-shadow: 0 1px 0 #000, 0 2px 4px rgba(0,0,0,0.4), inset 0 -2px 4px rgba(0,0,0,0.3);
-                }
-                .arcade-btn-red { background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%); }
-                .arcade-btn-blue { background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%); }
-                .arcade-btn-green { background: linear-gradient(180deg, #22c55e 0%, #15803d 100%); }
-                .arcade-btn-yellow { background: linear-gradient(180deg, #eab308 0%, #a16207 100%); }
+                .c-btn:active { transform: translateY(4px); box-shadow: 0 0 0 rgba(0,0,0,0.5); }
+                .btn-toggle { background: #3b82f6; }
+                .btn-share { background: #eab308; }
                 
-                .page-indicator {
-                    font-family: 'Courier New', monospace;
-                    font-size: 0.65rem;
-                    color: #666;
-                    letter-spacing: 0.15em;
-                    text-transform: uppercase;
+                .arcade-close {
+                    position: absolute; top: 20px; right: 20px; z-index: 100;
+                    background: rgba(255,255,255,0.1); width: 40px; height: 40px; border-radius: 50%;
+                    color: #fff; border: 1px solid rgba(255,255,255,0.2); cursor: pointer;
+                    display: flex; align-items: center; justify-content: center;
                 }
+                .arcade-close:hover { background: rgba(255,255,255,0.2); }
                 
-                .cabinet-dots {
-                    position: absolute;
-                    bottom: 130px;
-                    left: 50%;
-                    transform: translateX(-50%);
-                    display: flex;
-                    gap: 10px;
-                    z-index: 20;
-                }
-                .cabinet-dot {
-                    width: 10px;
-                    height: 10px;
-                    border-radius: 50%;
-                    background: #333;
-                    border: 2px solid #444;
-                    transition: all 0.3s;
-                    cursor: pointer;
-                }
-                .cabinet-dot.active {
-                    background: #fff;
-                    box-shadow: 0 0 10px #fff, 0 0 20px currentColor;
-                    transform: scale(1.2);
-                }
-                
-                .exit-btn {
-                    position: absolute;
-                    top: 20px;
-                    right: 20px;
-                    background: rgba(255,255,255,0.1);
-                    border: none;
-                    color: #888;
-                    padding: 10px 20px;
-                    border-radius: 8px;
-                    font-family: 'Courier New', monospace;
-                    font-size: 0.8rem;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                    z-index: 100;
-                }
-                .exit-btn:hover {
-                    background: rgba(255,255,255,0.2);
-                    color: #fff;
-                }
-                
-                .no-scores {
-                    flex: 1;
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    color: #444;
-                    font-family: 'Courier New', monospace;
-                    text-align: center;
-                }
-                .no-scores-icon {
-                    font-size: 2rem;
-                    margin-bottom: 10px;
-                    opacity: 0.5;
-                }
+                @keyframes neon { from { text-shadow: 0 0 5px #fff, 0 0 10px currentColor; } to { text-shadow: 0 0 2px #fff, 0 0 5px currentColor; } }
             `;
             document.head.appendChild(s);
         }
-        
-        // Cabinet configurations
+
+        // 3. Setup Cabinet Data
         const cabinets = [
-            { 
-                id: 'streak', 
-                title: '🔥 WORD STREAK',
-                subtitle: 'How long can you last?',
-                color: '#f472b6',
-                localScores: State.data.highScores || [],
-                globalScores: await API.getGlobalScores() || [],
-                scoreLabel: 'WORDS'
+            {
+                id: 'streak',
+                theme: 'cab-streak',
+                title: 'WORD STREAK',
+                subtitle: 'LONGEST RUN',
+                data: { local: State.data.highScores || [], global: globalStreak || [] }
             },
-            { 
-                id: 'wordwar', 
-                title: '⚔️ WORD WAR',
-                subtitle: 'Higher or Lower',
-                color: '#a78bfa',
-                localScores: State.data.wordWarScores || [],
-                globalScores: await API.getMiniGameScores('wordwar') || [],
-                scoreLabel: 'STREAK'
+            {
+                id: 'wordwar',
+                theme: 'cab-war',
+                title: 'WORD WAR',
+                subtitle: 'BATTLEFIELD',
+                data: { local: State.data.wordWarScores || [], global: globalWar || [] }
             },
-            { 
-                id: 'defdash', 
-                title: '📚 DEF DASH',
-                subtitle: 'Definition Trivia',
-                color: '#34d399',
-                localScores: State.data.defDashScores || [],
-                globalScores: await API.getMiniGameScores('defdash') || [],
-                scoreLabel: 'POINTS'
+            {
+                id: 'defdash',
+                theme: 'cab-def',
+                title: 'DEF DASH',
+                subtitle: 'KNOWLEDGE',
+                data: { local: State.data.defDashScores || [], global: globalDef || [] }
             }
         ];
-        
-        let currentCabinet = 0;
-        let currentPage = 0; // 0 = world, 1 = local
-        const username = State.data.username || "PLAYER";
-        
-        const renderScoreRow = (s, i, color) => `
-            <div class="score-row ${i === 0 ? 'top-score' : ''}">
-                <span class="score-rank">${(i+1).toString().padStart(2,'0')}</span>
-                <span class="score-name" style="color:${color}">${(s.name || 'AAA').substring(0,3).toUpperCase()}</span>
-                <span class="score-value">${s.score.toString().padStart(6,' ')}</span>
-            </div>`;
-        
-        const renderCabinet = (cab, index) => {
-            const isActive = index === currentCabinet;
-            const scores = currentPage === 0 ? cab.globalScores.slice(0, 8) : cab.localScores.slice(0, 8);
-            const pageTitle = currentPage === 0 ? '🌐 WORLD RECORDS' : '🏠 YOUR BEST';
-            
-            return `
-                <div class="arcade-cabinet ${isActive ? 'active' : 'inactive'}" data-index="${index}">
-                    <!-- Marquee Top -->
-                    <div class="cabinet-top">
-                        <span class="marquee-text" style="color:${cab.color}">${cab.title}</span>
-                        <span class="marquee-sub">${cab.subtitle}</span>
-                    </div>
-                    
-                    <!-- CRT Monitor -->
-                    <div class="crt-monitor">
-                        <div class="crt-screen">
-                            <div class="crt-curve"></div>
-                            <div class="crt-content">
-                                <!-- Score Header -->
-                                <div class="score-header" style="border-color: ${cab.color}40">
-                                    <span class="score-header-title" style="color:${cab.color}">${pageTitle}</span>
-                                    <span class="score-header-label">${cab.scoreLabel}</span>
-                                </div>
-                                
-                                <!-- Score List -->
-                                <div class="score-list">
-                                    ${scores.length === 0 
-                                        ? `<div class="no-scores">
-                                            <div class="no-scores-icon">🕹️</div>
-                                            <div>NO RECORDS YET</div>
-                                            <div style="font-size:0.6rem;margin-top:5px;color:#555">BE THE FIRST!</div>
-                                           </div>`
-                                        : scores.map((s, i) => renderScoreRow(s, i, cab.color)).join('')
-                                    }
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Control Panel -->
-                    <div class="cabinet-controls">
-                        <div class="control-panel">
-                            <button class="arcade-btn arcade-btn-red cab-prev" title="Previous">◀</button>
-                            <button class="arcade-btn arcade-btn-blue cab-toggle" title="World/Local">${currentPage === 0 ? '🌐' : '🏠'}</button>
-                            <button class="arcade-btn arcade-btn-yellow cab-share" title="Share">📤</button>
-                            <button class="arcade-btn arcade-btn-green cab-next" title="Next">▶</button>
-                        </div>
-                        <div class="page-indicator">
-                            ${currentPage === 0 ? '🌐 WORLD' : '🏠 LOCAL'} · SWIPE TO BROWSE
-                        </div>
-                    </div>
-                </div>
-            `;
-        };
-        
-        const renderArcadeHall = () => {
-            const offset = -currentCabinet * 370 + (window.innerWidth / 2 - 170);
-            return `
-                <div class="arcade-hall">
-                    <div class="arcade-floor"></div>
-                    
-                    <button class="exit-btn" id="arcade-close">✕ EXIT ARCADE</button>
-                    
-                    <!-- Cabinet Dots -->
-                    <div class="cabinet-dots">
-                        ${cabinets.map((c, i) => `
-                            <div class="cabinet-dot ${i === currentCabinet ? 'active' : ''}" 
-                                 style="color:${c.color}" data-index="${i}"></div>
-                        `).join('')}
-                    </div>
-                    
-                    <!-- Cabinets Row -->
-                    <div style="height:100vh;display:flex;align-items:center;overflow:hidden;">
-                        <div class="cabinet-row" style="transform: translateX(${offset}px)">
-                            ${cabinets.map((cab, i) => renderCabinet(cab, i)).join('')}
-                        </div>
-                    </div>
-                </div>
-            `;
-        };
-        
-        // Create modal
+
+        // 4. Build DOM (Static Structure)
         const modal = document.createElement('div');
         modal.id = 'highScoreModal';
-        modal.className = 'fixed inset-0 z-[200]';
-        modal.innerHTML = renderArcadeHall();
+        modal.className = 'arcade-modal';
+        
+        // Helper to render a score list
+        const renderList = (scores, currentUser) => {
+            if (!scores || scores.length === 0) return '<div style="text-align:center;margin-top:50px;opacity:0.5;">NO DATA</div>';
+            return scores.slice(0, 50).map((s, i) => `
+                <div class="score-row ${s.name === currentUser ? 'my-score' : ''}">
+                    <span class="rank-num">${i+1}.</span>
+                    <span class="player-name">${(s.name || 'UNK').substring(0,10)}</span>
+                    <span>${s.score}</span>
+                </div>
+            `).join('');
+        };
+
+        const username = State.data.username || "PLAYER";
+        
+        const cabHTML = cabinets.map((cab, i) => `
+            <div class="arcade-cabinet ${cab.theme} ${i===0 ? 'active' : 'inactive'}" id="cab-${i}">
+                <div class="cabinet-marquee">
+                    <div class="marquee-glass"></div>
+                    <div class="marquee-title">${cab.title}<br><span style="font-size:0.6em;opacity:0.8">${cab.subtitle}</span></div>
+                </div>
+                <div class="cabinet-screen-bezel">
+                    <div class="crt-screen">
+                        <div class="scanlines"></div>
+                        <div class="crt-content custom-scrollbar" id="content-${i}">
+                            </div>
+                    </div>
+                </div>
+                <div class="cab-controls">
+                    <button class="c-btn btn-toggle" data-idx="${i}">🌐</button>
+                    <button class="c-btn btn-share" onclick="this.dispatchEvent(new CustomEvent('share-score'))">📤</button>
+                </div>
+            </div>
+        `).join('');
+
+        modal.innerHTML = `
+            <button class="arcade-close" id="closeArcade">✕</button>
+            <div class="cabinet-viewport">
+                <div class="cabinet-row" id="cabinetRow">
+                    ${cabHTML}
+                </div>
+            </div>
+            <div style="text-align:center; color:rgba(255,255,255,0.4); padding: 10px; font-family:'Press Start 2P'; font-size:10px;">
+                SWIPE TO BROWSE • TAP 🌐 FOR LOCAL/GLOBAL
+            </div>
+        `;
         document.body.appendChild(modal);
-        
-        // Touch handling for swipe
-let touchStartX = 0;
-const row = modal.querySelector('.cabinet-row');
 
-row.addEventListener('touchstart', e => {
-    touchStartX = e.changedTouches[0].screenX;
-}, { passive: true });
+        // 5. Logic
+        let currentIndex = 0;
+        let viewMode = 'global'; // 'global' or 'local'
+        const row = document.getElementById('cabinetRow');
+        const cabs = document.querySelectorAll('.arcade-cabinet');
 
-row.addEventListener('touchend', e => {
-    const touchEndX = e.changedTouches[0].screenX;
-    const diff = touchStartX - touchEndX;
+        // Render content for a cabinet
+        const updateContent = (idx) => {
+            const cab = cabinets[idx];
+            const dataset = viewMode === 'global' ? cab.data.global : cab.data.local;
+            const title = viewMode === 'global' ? 'WORLD RECORDS' : 'LOCAL BEST';
+            const html = `
+                <div style="text-align:center; border-bottom:2px solid; margin-bottom:10px; padding-bottom:5px;">${title}</div>
+                ${renderList(dataset, username)}
+            `;
+            document.getElementById(`content-${idx}`).innerHTML = html;
+        };
 
-    if (Math.abs(diff) > 50) { // Swipe threshold
-        if (diff > 0) {
-            currentCabinet = (currentCabinet + 1) % cabinets.length;
-        } else {
-            currentCabinet = (currentCabinet - 1 + cabinets.length) % cabinets.length;
-        }
-        currentPage = 0; // Reset to page 1 of new cabinet
-        modal.innerHTML = renderArcadeHall();
-        bindEvents();
-        resetAutoScroll();
-    }
-}, { passive: true });
-        
-        // Bind events
-        const bindEvents = () => {
-            // Nav buttons on active cabinet
-            modal.querySelectorAll('.cab-prev').forEach(btn => {
-                btn.onclick = () => {
-                    currentCabinet = (currentCabinet - 1 + cabinets.length) % cabinets.length;
-                    modal.innerHTML = renderArcadeHall();
-                    bindEvents();
-                    resetAutoScroll();
-                };
+        // Initialize all contents
+        cabinets.forEach((_, i) => updateContent(i));
+
+        // Smooth Slide Logic
+        const updateCarousel = () => {
+            const w = window.innerWidth >= 768 ? 420 : 340; // Match CSS variables
+            const gap = 40;
+            // Center calculation: - (index * (width + gap))
+            const offset = -1 * (currentIndex * (w + gap));
+            row.style.transform = `translateX(${offset}px)`;
+
+            cabs.forEach((el, i) => {
+                if (i === currentIndex) {
+                    el.classList.remove('inactive');
+                    el.classList.add('active');
+                } else {
+                    el.classList.remove('active');
+                    el.classList.add('inactive');
+                }
             });
-            modal.querySelectorAll('.cab-next').forEach(btn => {
-                btn.onclick = () => {
-                    currentCabinet = (currentCabinet + 1) % cabinets.length;
-                    modal.innerHTML = renderArcadeHall();
-                    bindEvents();
-                    resetAutoScroll();
-                };
-            });
-            modal.querySelectorAll('.cab-toggle').forEach(btn => {
-                btn.onclick = () => {
-                    currentPage = currentPage === 0 ? 1 : 0;
-                    modal.innerHTML = renderArcadeHall();
-                    bindEvents();
-                    resetAutoScroll();
-                };
-            });
-            modal.querySelectorAll('.cab-share').forEach(btn => {
-                btn.onclick = () => self.shareScores();
-            });
-            
-            // Cabinet dots for direct navigation
-            modal.querySelectorAll('.cabinet-dot').forEach(dot => {
-                dot.onclick = () => {
-                    const index = parseInt(dot.dataset.index);
-                    if (index !== currentCabinet) {
-                        currentCabinet = index;
-                        modal.innerHTML = renderArcadeHall();
-                        bindEvents();
-                        resetAutoScroll();
-                    }
-                };
-            });
-            
-            // Click on cabinet to select it
-            modal.querySelectorAll('.arcade-cabinet').forEach(cab => {
-                cab.onclick = (e) => {
-                    if (e.target.closest('.arcade-btn')) return; // Don't trigger on button clicks
-                    const index = parseInt(cab.dataset.index);
-                    if (index !== currentCabinet) {
-                        currentCabinet = index;
-                        modal.innerHTML = renderArcadeHall();
-                        bindEvents();
-                        resetAutoScroll();
-                    }
-                };
-            });
-            
-            modal.querySelector('#arcade-close').onclick = () => self.closeLeaderboard();
-            
-            // Touch events for swiping
-            modal.addEventListener('touchstart', (e) => {
-                touchStartX = e.changedTouches[0].screenX;
-            }, { passive: true });
-            modal.addEventListener('touchend', (e) => {
-                const diff = touchStartX - e.changedTouches[0].screenX;
-                handleSwipe(diff);
-            }, { passive: true });
         };
         
-        // Auto-scroll functionality
-        const autoScroll = () => {
-            if (!document.getElementById('highScoreModal')) return;
-            
-            // Toggle page first, then move to next cabinet
-            if (currentPage === 0) {
-                currentPage = 1;
+        // Initial Position
+        updateCarousel();
+
+        // 6. Event Handling (Touch & Click)
+        let startX = 0;
+        let isDragging = false;
+        let currentTranslate = 0;
+
+        const viewport = modal.querySelector('.cabinet-viewport');
+
+        const handleStart = (e) => {
+            // Ignore if hitting a button
+            if(e.target.closest('button')) return;
+            startX = e.touches ? e.touches[0].clientX : e.clientX;
+            isDragging = true;
+            row.style.transition = 'none'; // Disable transition for 1:1 movement
+            const w = window.innerWidth >= 768 ? 420 : 340;
+            const gap = 40;
+            currentTranslate = -1 * (currentIndex * (w + gap));
+        };
+
+        const handleMove = (e) => {
+            if (!isDragging) return;
+            const x = e.touches ? e.touches[0].clientX : e.clientX;
+            const diff = x - startX;
+            // Resistance at edges
+            if ((currentIndex === 0 && diff > 0) || (currentIndex === cabinets.length-1 && diff < 0)) {
+                row.style.transform = `translateX(${currentTranslate + (diff * 0.3)}px)`;
             } else {
-                currentPage = 0;
-                currentCabinet = (currentCabinet + 1) % cabinets.length;
+                row.style.transform = `translateX(${currentTranslate + diff}px)`;
             }
+        };
+
+        const handleEnd = (e) => {
+            if (!isDragging) return;
+            isDragging = false;
+            row.style.transition = 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1)';
             
-            modal.innerHTML = renderArcadeHall();
-            bindEvents();
-            self.loopTimer = setTimeout(autoScroll, 5000);
+            const endX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+            const diff = endX - startX;
+            
+            if (Math.abs(diff) > 50) {
+                if (diff > 0 && currentIndex > 0) currentIndex--;
+                else if (diff < 0 && currentIndex < cabinets.length - 1) currentIndex++;
+            }
+            updateCarousel();
         };
-        
-        const resetAutoScroll = () => {
+
+        viewport.addEventListener('mousedown', handleStart);
+        viewport.addEventListener('touchstart', handleStart, {passive: true});
+        window.addEventListener('mousemove', handleMove);
+        window.addEventListener('touchmove', handleMove, {passive: false});
+        window.addEventListener('mouseup', handleEnd);
+        window.addEventListener('touchend', handleEnd);
+
+        // Toggle Button Logic
+        modal.querySelectorAll('.btn-toggle').forEach(btn => {
+            btn.onclick = (e) => {
+                // Toggle mode globally for consistency
+                viewMode = viewMode === 'global' ? 'local' : 'global';
+                // Update button text for all
+                modal.querySelectorAll('.btn-toggle').forEach(b => b.innerText = viewMode === 'global' ? '🌐' : '🏠');
+                // Refresh contents
+                cabinets.forEach((_, i) => updateContent(i));
+            };
+        });
+
+        // Share Handler
+        modal.addEventListener('share-score', () => self.shareScores());
+
+        // Close
+        document.getElementById('closeArcade').onclick = () => {
+            modal.remove();
             if (self.loopTimer) clearTimeout(self.loopTimer);
-            self.loopTimer = setTimeout(autoScroll, 5000);
         };
         
-        bindEvents();
-        resetAutoScroll();
+        // Clean up keyboard events
+        const keyHandler = (e) => {
+            if (!document.getElementById('highScoreModal')) {
+                window.removeEventListener('keydown', keyHandler);
+                return;
+            }
+            if (e.key === 'ArrowLeft' && currentIndex > 0) { currentIndex--; updateCarousel(); }
+            if (e.key === 'ArrowRight' && currentIndex < cabinets.length - 1) { currentIndex++; updateCarousel(); }
+            if (e.key === 'Escape') modal.remove();
+        };
+        window.addEventListener('keydown', keyHandler);
     },
     closeLeaderboard() {
         const el = document.getElementById('highScoreModal');
