@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.5.4.4',
+    APP_VERSION: '6.5.1',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -9897,522 +9897,609 @@ const StreakManager = {
             }
         }
     },
-async showLeaderboard() {
+    async showLeaderboard() {
         const self = this;
-        const username = (typeof State !== 'undefined' && State.data.username) ? State.data.username : "PLAYER";
-
-        // 1. Fetch all data concurrently (Fail-safe)
-        let globalStreak = [], globalWar = [], globalDef = [];
-        try {
-            [globalStreak, globalWar, globalDef] = await Promise.all([
-                API.getGlobalScores().catch(() => []),
-                API.getMiniGameScores('wordwar').catch(() => []),
-                API.getMiniGameScores('defdash').catch(() => [])
-            ]);
-        } catch (e) { console.error("Score fetch error", e); }
-
-        // 2. Inject HIGH-FIDELITY Arcade CSS
-        if (!document.getElementById('arcade-styles-v5')) {
+        
+        // Inject arcade cabinet styles - realistic row with sliding CRTs
+        if (!document.getElementById('arcade-styles')) {
             const s = document.createElement('style');
-            s.id = 'arcade-styles-v5';
+            s.id = 'arcade-styles';
             s.innerHTML = `
-                @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=Black+Ops+One&display=swap');
+                @keyframes crt-flicker { 0%,100% {opacity:0.97;} 50% {opacity:1;} }
+                @keyframes crt-glow { 0%,100% {filter: brightness(1);} 50% {filter: brightness(1.05);} }
+                @keyframes scanline { 0% {transform: translateY(-100%);} 100% {transform: translateY(100%);} }
+                @keyframes neon-pulse { 0%,100% {opacity:1; text-shadow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 40px currentColor;} 50% {opacity:0.8; text-shadow: 0 0 5px currentColor, 0 0 10px currentColor;} }
+                @keyframes cabinet-glow { 0%,100% {box-shadow: 0 0 20px rgba(0,0,0,0.8), 0 5px 30px rgba(0,0,0,0.6);} 50% {box-shadow: 0 0 30px rgba(0,0,0,0.8), 0 5px 40px rgba(0,0,0,0.7);} }
                 
-                :root {
-                    --cab-w: 420px; 
-                    --cab-h: 700px;
-                    --cab-gap: 50px;
-                }
-                @media (min-width: 768px) {
-                    :root { --cab-w: 520px; --cab-h: 800px; }
-                }
-
-                /* --- 1. Scene Setup --- */
-                .arcade-modal {
-                    position: fixed; inset: 0; z-index: 9999;
-                    background: radial-gradient(circle at 50% 30%, #1a1a2e 0%, #000 90%);
-                    display: flex; flex-direction: column; overflow: hidden;
-                    perspective: 1200px;
-                }
-                .arcade-floor {
-                    position: absolute; bottom: 0; left: -50%; right: -50%; height: 40vh;
-                    background: 
-                        linear-gradient(0deg, rgba(0,0,0,0.8), transparent),
-                        repeating-linear-gradient(90deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 2px, transparent 2px, transparent 100px),
-                        repeating-linear-gradient(0deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 2px, transparent 2px, transparent 60px);
-                    transform: rotateX(70deg) translateY(20px);
-                    transform-origin: center bottom;
-                    pointer-events: none; z-index: 0;
-                }
-                .arcade-header-overlay {
-                    position: absolute; top: 0; left: 0; right: 0; height: 100px;
-                    background: linear-gradient(180deg, rgba(0,0,0,0.8) 0%, transparent 100%);
-                    z-index: 100; pointer-events: none;
-                }
-
-                /* --- 2. Sliding Row --- */
-                .cabinet-viewport {
-                    flex: 1; display: flex; align-items: center;
-                    width: 100%; z-index: 10;
-                    touch-action: pan-x;
-                }
-                .cabinet-row {
-                    display: flex; 
-                    gap: var(--cab-gap);
-                    padding: 0; margin: 0;
-                    transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
-                    will-change: transform;
-                    align-items: flex-end;
-                    height: var(--cab-h);
-                }
-
-                /* --- 3. The Cabinet --- */
-                .arcade-cabinet {
-                    width: var(--cab-w); 
-                    height: var(--cab-h);
-                    flex-shrink: 0;
+                .arcade-hall {
+                    background: linear-gradient(180deg, #0a0a12 0%, #12121f 50%, #0a0a0f 100%);
+                    min-height: 100vh;
                     position: relative;
-                    border-radius: 24px 24px 4px 4px;
-                    border-right: 25px solid rgba(0,0,0,0.5);
-                    border-left: 25px solid rgba(255,255,255,0.05);
-                    box-shadow: 0 40px 80px rgba(0,0,0,1);
-                    transition: transform 0.5s ease, opacity 0.5s ease, filter 0.5s ease;
-                    display: flex; flex-direction: column;
+                    overflow: hidden;
                 }
-
-                .arcade-cabinet.active {
-                    transform: scale(1.05) translateZ(50px);
-                    z-index: 50; filter: brightness(1.1); opacity: 1;
-                }
-                .arcade-cabinet.inactive {
-                    transform: scale(0.9) translateZ(-50px) rotateX(5deg);
-                    z-index: 1; filter: brightness(0.5) grayscale(0.7); opacity: 0.6;
-                }
-
-                /* --- 4. Distinct Textures --- */
-                .theme-wood {
-                    background-color: #5d4037;
-                    background-image: repeating-linear-gradient(90deg, rgba(255,255,255,0.03) 0, rgba(255,255,255,0.03) 2px, transparent 2px, transparent 40px);
-                    box-shadow: inset 0 0 60px #2e1e19;
-                }
-                .theme-wood .marquee-area { background: #3e2723; border: 6px solid #8d6e63; color: #ffb74d; }
-                
-                .theme-camo {
-                    background-color: #333d29;
-                    background-image: radial-gradient(circle at 30% 30%, #4a5c38 20px, transparent 21px), radial-gradient(circle at 70% 70%, #1a2115 20px, transparent 21px);
-                    background-size: 100px 100px;
-                }
-                .theme-camo .marquee-area { background: #2f1d1d; border: 6px solid #581c1c; color: #ef4444; font-family: 'Black Ops One', cursive; letter-spacing: 2px; }
-
-                .theme-cyber {
-                    background: #000;
-                    background-image: linear-gradient(rgba(0,255,0,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(0,255,0,0.1) 1px, transparent 1px);
-                    background-size: 30px 30px;
-                    border: 2px solid #00ff00;
-                    box-shadow: 0 0 20px rgba(0,255,0,0.2);
-                }
-                .theme-cyber .marquee-area { background: #002200; border: 6px solid #00ff00; color: #00ff00; text-shadow: 0 0 10px #00ff00; }
-
-                /* --- 5. Cabinet Components --- */
-                .marquee-area {
-                    height: 110px;
-                    margin: 20px; border-radius: 12px;
-                    display: flex; flex-direction: column; align-items: center; justify-content: center;
-                    box-shadow: inset 0 0 30px rgba(0,0,0,0.8);
-                    text-align: center;
-                    position: relative; overflow: hidden;
-                }
-                .marquee-glass {
-                    position: absolute; inset: 0; 
-                    background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, transparent 40%, rgba(255,255,255,0.1) 100%);
+                .arcade-hall::before {
+                    content: '';
+                    position: absolute;
+                    top: 0; left: 0; right: 0;
+                    height: 120px;
+                    background: linear-gradient(180deg, rgba(147,51,234,0.15) 0%, transparent 100%);
                     pointer-events: none;
                 }
-                .marquee-title { 
-                    font-size: 28px; 
-                    font-weight: 900; 
-                    z-index: 2; 
-                    animation: neon-flicker 3s infinite;
-                    text-shadow: 0 0 15px currentColor;
-                    letter-spacing: 1px;
-                    /* Removed uppercase transform to allow custom casing */
+                .arcade-floor {
+                    position: absolute;
+                    bottom: 0; left: 0; right: 0;
+                    height: 100px;
+                    background: linear-gradient(180deg, transparent 0%, rgba(30,20,40,0.8) 100%);
+                    pointer-events: none;
                 }
-                .marquee-sub { font-size: 12px; opacity: 0.9; z-index: 2; margin-top: 6px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; }
-
-                .crt-housing {
-                    flex: 1; background: #111; margin: 0 20px 20px 20px;
-                    border-radius: 4px 4px 15px 15px;
-                    border: 15px solid #222; border-bottom-width: 35px;
-                    box-shadow: inset 0 0 20px #000;
-                    position: relative; overflow: hidden;
+                .arcade-floor::before {
+                    content: '';
+                    position: absolute;
+                    bottom: 0; left: 0; right: 0;
+                    height: 4px;
+                    background: repeating-linear-gradient(90deg, #333 0px, #333 20px, #222 20px, #222 40px);
                 }
                 
-                .crt-screen {
-                    position: absolute; inset: 10px;
-                    background: #000;
-                    border-radius: 50% / 10%;
+                .cabinet-row {
+                    display: flex;
+                    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+                    gap: 30px;
+                    padding: 0 20px;
+                }
+                
+                .arcade-cabinet {
+                    flex: 0 0 340px;
+                    height: 520px;
+                    background: linear-gradient(180deg, #1a1a2e 0%, #0f0f1a 40%, #0a0a12 100%);
+                    border-radius: 12px 12px 8px 8px;
+                    position: relative;
+                    animation: cabinet-glow 3s ease-in-out infinite;
+                    transform-style: preserve-3d;
+                    perspective: 1000px;
+                }
+                .arcade-cabinet::before {
+                    content: '';
+                    position: absolute;
+                    inset: 0;
+                    border-radius: 12px 12px 8px 8px;
+                    border: 3px solid #2a2a3e;
+                    border-bottom: 6px solid #1a1a28;
+                    pointer-events: none;
+                }
+                .arcade-cabinet.active {
+                    transform: scale(1.02);
+                    z-index: 10;
+                }
+                .arcade-cabinet.inactive {
+                    transform: scale(0.92);
+                    opacity: 0.6;
+                    filter: brightness(0.7);
+                }
+                
+                .cabinet-top {
+                    height: 70px;
+                    background: linear-gradient(180deg, #222 0%, #1a1a28 100%);
+                    border-radius: 12px 12px 0 0;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    position: relative;
+                    border-bottom: 4px solid #0a0a0f;
                     overflow: hidden;
-                    box-shadow: inset 0 0 60px rgba(0,0,0,1);
                 }
-                /* NEW: Glass Reflection Overlay */
-                .crt-reflection {
-                    position: absolute; inset: 0; pointer-events: none; z-index: 15;
-                    background: linear-gradient(115deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 25%, transparent 40%, transparent 100%);
-                    border-radius: 50% / 10%;
-                    box-shadow: inset 0 0 20px rgba(255,255,255,0.05);
+                .cabinet-top::before {
+                    content: '';
+                    position: absolute;
+                    top: 0; left: 10%; right: 10%;
+                    height: 2px;
+                    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+                }
+                .marquee-text {
+                    font-family: 'Impact', 'Arial Black', sans-serif;
+                    font-size: 1.5rem;
+                    font-weight: 900;
+                    letter-spacing: 0.05em;
+                    animation: neon-pulse 2s ease-in-out infinite;
+                    text-transform: uppercase;
+                }
+                .marquee-sub {
+                    position: absolute;
+                    bottom: 6px;
+                    font-size: 0.6rem;
+                    color: #666;
+                    letter-spacing: 0.15em;
+                    text-transform: uppercase;
                 }
                 
-                .scanlines {
-                    position: absolute; inset: 0; pointer-events: none; z-index: 10;
-                    background: linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.25) 50%); background-size: 100% 4px;
+                .crt-monitor {
+                    margin: 12px 16px;
+                    height: 300px;
+                    background: #000;
+                    border-radius: 20px;
+                    position: relative;
+                    overflow: hidden;
+                    border: 8px solid #1a1a28;
+                    box-shadow: inset 0 0 50px rgba(0,0,0,0.9), inset 0 0 10px rgba(0,0,0,1);
+                }
+                .crt-monitor::before {
+                    content: '';
+                    position: absolute;
+                    inset: -2px;
+                    border-radius: 20px;
+                    border: 3px solid #333;
+                    pointer-events: none;
+                }
+                .crt-screen {
+                    position: absolute;
+                    inset: 8px;
+                    background: radial-gradient(ellipse at center, #0a1628 0%, #050a14 70%, #020408 100%);
+                    border-radius: 15px;
+                    overflow: hidden;
+                    animation: crt-glow 4s ease-in-out infinite;
+                }
+                .crt-screen::before {
+                    content: '';
+                    position: absolute;
+                    inset: 0;
+                    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+                    background-size: 100% 3px;
+                    pointer-events: none;
+                    z-index: 10;
+                }
+                .crt-screen::after {
+                    content: '';
+                    position: absolute;
+                    top: -100%;
+                    left: 0;
+                    right: 0;
+                    height: 50%;
+                    background: linear-gradient(transparent, rgba(255,255,255,0.03), transparent);
+                    animation: scanline 8s linear infinite;
+                    pointer-events: none;
+                    z-index: 11;
                 }
                 .crt-content {
-                    height: 100%; padding: 20px 10px; 
-                    overflow-y: scroll; scrollbar-width: none; -ms-overflow-style: none;
-                    color: #fff; font-family: 'VT323', monospace; font-size: 1.4rem;
-                    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-                    mask-image: linear-gradient(to bottom, transparent 0%, black 5%, black 95%, transparent 100%);
+                    position: relative;
+                    z-index: 5;
+                    padding: 15px;
+                    height: 100%;
+                    display: flex;
+                    flex-direction: column;
                 }
-                .crt-content::-webkit-scrollbar { display: none; }
-
-                .score-row { 
-                    display: flex; justify-content: space-between; 
-                    border-bottom: 1px dashed rgba(255,255,255,0.15); padding: 8px 0; 
+                .crt-curve {
+                    position: absolute;
+                    inset: 0;
+                    border-radius: 15px;
+                    box-shadow: inset 0 0 80px rgba(0,0,0,0.5);
+                    pointer-events: none;
+                    z-index: 8;
                 }
-                .score-row.highlight { 
-                    background: rgba(255,255,255,0.1); 
-                    color: #ffff00 !important; 
-                    animation: pulse-row 1s infinite alternate;
+                
+                .score-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding-bottom: 8px;
+                    margin-bottom: 8px;
+                    border-bottom: 2px solid;
                 }
-                .rank { width: 40px; color: #888; }
-                .name { flex: 1; text-align: left; letter-spacing: 1px; }
-                .score { color: #fff; font-weight: bold; }
-
-                /* Theme Colors */
-                .theme-wood .crt-content { color: #ffb74d; text-shadow: 0 0 5px #e65100; }
-                .theme-camo .crt-content { color: #86efac; text-shadow: 0 0 5px #14532d; }
-                .theme-cyber .crt-content { color: #5eead4; text-shadow: 0 0 5px #0f766e; }
-
-                /* Controls */
-                .control-deck {
-                    height: 100px; background: rgba(0,0,0,0.3);
-                    display: flex; align-items: center; justify-content: center; gap: 20px;
-                    border-top: 2px solid rgba(255,255,255,0.1);
-                    margin: 0 20px 25px 20px; border-radius: 0 0 15px 15px;
+                .score-header-title {
+                    font-family: 'Courier New', monospace;
+                    font-size: 0.7rem;
+                    font-weight: 900;
+                    letter-spacing: 0.15em;
+                    text-transform: uppercase;
+                }
+                .score-header-label {
+                    font-family: 'Courier New', monospace;
+                    font-size: 0.6rem;
+                    color: #666;
+                    letter-spacing: 0.1em;
+                }
+                
+                .score-list {
+                    flex: 1;
+                    overflow: hidden;
+                }
+                .score-row {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 6px 0;
+                    border-bottom: 1px solid rgba(255,255,255,0.08);
+                    font-family: 'Courier New', monospace;
+                }
+                .score-rank {
+                    color: #555;
+                    font-size: 0.75rem;
+                    width: 25px;
+                    font-weight: bold;
+                }
+                .score-name {
+                    font-size: 0.9rem;
+                    font-weight: 900;
+                    letter-spacing: 0.1em;
+                    flex: 1;
+                    margin-left: 8px;
+                }
+                .score-value {
+                    font-size: 0.85rem;
+                    font-weight: bold;
+                    letter-spacing: 0.15em;
+                    color: #fff;
+                }
+                .score-row.top-score .score-name {
+                    text-shadow: 0 0 10px currentColor;
+                }
+                
+                .cabinet-controls {
+                    position: absolute;
+                    bottom: 0;
+                    left: 0;
+                    right: 0;
+                    height: 110px;
+                    background: linear-gradient(180deg, #1a1a2e 0%, #12121f 100%);
+                    border-radius: 0 0 8px 8px;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 10px;
+                    border-top: 3px solid #0a0a0f;
+                }
+                .control-panel {
+                    background: linear-gradient(180deg, #222 0%, #1a1a28 100%);
+                    padding: 10px 20px;
+                    border-radius: 8px;
+                    display: flex;
+                    gap: 15px;
+                    box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
                 }
                 .arcade-btn {
-                    width: 60px; height: 60px; border-radius: 50%; border: none;
-                    box-shadow: 0 6px 0 #000, 0 10px 15px rgba(0,0,0,0.5);
-                    font-size: 26px; cursor: pointer; display: grid; place-items: center;
-                    transition: transform 0.1s; position: relative;
+                    width: 45px;
+                    height: 45px;
+                    border-radius: 50%;
+                    border: none;
+                    cursor: pointer;
+                    transition: all 0.1s;
+                    box-shadow: 0 4px 0 #000, 0 6px 8px rgba(0,0,0,0.4), inset 0 -2px 4px rgba(0,0,0,0.3), inset 0 2px 4px rgba(255,255,255,0.1);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 1.1rem;
+                    position: relative;
                 }
-                .arcade-btn:active { transform: translateY(5px); box-shadow: 0 0 0 #000; }
-                .btn-toggle { background: #2563eb; color: #fff; }
-                .btn-share { background: #ca8a04; color: #fff; }
-
-                /* Hide share button by default (in global mode) */
-                .btn-share.hidden { display: none; }
-
-                .close-btn {
-                    position: absolute; top: 20px; right: 20px; z-index: 200;
-                    width: 40px; height: 40px; background: rgba(255,0,0,0.2);
-                    border: 2px solid rgba(255,0,0,0.4); border-radius: 50%; color: #fff;
-                    cursor: pointer; display: grid; place-items: center; font-weight: bold;
+                .arcade-btn::before {
+                    content: '';
+                    position: absolute;
+                    top: 3px;
+                    left: 15%;
+                    right: 15%;
+                    height: 6px;
+                    background: linear-gradient(180deg, rgba(255,255,255,0.3), transparent);
+                    border-radius: 50%;
                 }
-                .close-btn:hover { background: rgba(255,0,0,0.5); }
-
-                @keyframes neon-flicker { 0%,100%{opacity:1} 50%{opacity:0.9} 52%{opacity:0.4} 54%{opacity:1} }
-                @keyframes pulse-row { from{background:rgba(255,255,255,0.1)} to{background:rgba(255,255,255,0.25)} }
+                .arcade-btn:active {
+                    transform: translateY(3px);
+                    box-shadow: 0 1px 0 #000, 0 2px 4px rgba(0,0,0,0.4), inset 0 -2px 4px rgba(0,0,0,0.3);
+                }
+                .arcade-btn-red { background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%); }
+                .arcade-btn-blue { background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%); }
+                .arcade-btn-green { background: linear-gradient(180deg, #22c55e 0%, #15803d 100%); }
+                .arcade-btn-yellow { background: linear-gradient(180deg, #eab308 0%, #a16207 100%); }
+                
+                .page-indicator {
+                    font-family: 'Courier New', monospace;
+                    font-size: 0.65rem;
+                    color: #666;
+                    letter-spacing: 0.15em;
+                    text-transform: uppercase;
+                }
+                
+                .cabinet-dots {
+                    position: absolute;
+                    bottom: 130px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    display: flex;
+                    gap: 10px;
+                    z-index: 20;
+                }
+                .cabinet-dot {
+                    width: 10px;
+                    height: 10px;
+                    border-radius: 50%;
+                    background: #333;
+                    border: 2px solid #444;
+                    transition: all 0.3s;
+                    cursor: pointer;
+                }
+                .cabinet-dot.active {
+                    background: #fff;
+                    box-shadow: 0 0 10px #fff, 0 0 20px currentColor;
+                    transform: scale(1.2);
+                }
+                
+                .exit-btn {
+                    position: absolute;
+                    top: 20px;
+                    right: 20px;
+                    background: rgba(255,255,255,0.1);
+                    border: none;
+                    color: #888;
+                    padding: 10px 20px;
+                    border-radius: 8px;
+                    font-family: 'Courier New', monospace;
+                    font-size: 0.8rem;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    z-index: 100;
+                }
+                .exit-btn:hover {
+                    background: rgba(255,255,255,0.2);
+                    color: #fff;
+                }
+                
+                .no-scores {
+                    flex: 1;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    color: #444;
+                    font-family: 'Courier New', monospace;
+                    text-align: center;
+                }
+                .no-scores-icon {
+                    font-size: 2rem;
+                    margin-bottom: 10px;
+                    opacity: 0.5;
+                }
             `;
             document.head.appendChild(s);
         }
-
-        // 3. Define Cabinet Data
+        
+        // Cabinet configurations
         const cabinets = [
-            {
-                id: 'streak',
-                theme: 'theme-wood',
-                title: 'Word Streak',
-                subtitle: 'ENDURANCE RUN',
-                dataGlobal: globalStreak || [],
-                dataLocal: (State.data.highScores || []),
-                shareMsg: (s) => `🔥 I hit a ${s}-word streak in Word Streak! Can you beat me?`
+            { 
+                id: 'streak', 
+                title: '🔥 WORD STREAK',
+                subtitle: 'How long can you last?',
+                color: '#f472b6',
+                localScores: State.data.highScores || [],
+                globalScores: await API.getGlobalScores() || [],
+                scoreLabel: 'WORDS'
             },
-            {
-                id: 'war',
-                theme: 'theme-camo',
-                title: 'WORD WAR!',
-                subtitle: 'BATTLEFIELD',
-                dataGlobal: globalWar || [],
-                dataLocal: (State.data.wordWarScores || []),
-                shareMsg: (s) => `⚔️ I won ${s} battles in WORD WAR! #WordWar`
+            { 
+                id: 'wordwar', 
+                title: '⚔️ WORD WAR',
+                subtitle: 'Higher or Lower',
+                color: '#a78bfa',
+                localScores: State.data.wordWarScores || [],
+                globalScores: await API.getMiniGameScores('wordwar') || [],
+                scoreLabel: 'STREAK'
             },
-            {
-                id: 'def',
-                theme: 'theme-cyber',
-                title: 'definition dash',
-                subtitle: 'DATA UPLINK',
-                dataGlobal: globalDef || [],
-                dataLocal: (State.data.defDashScores || []),
-                shareMsg: (s) => `🧠 I scored ${s} points in definition dash! #DefDash`
+            { 
+                id: 'defdash', 
+                title: '📚 DEF DASH',
+                subtitle: 'Definition Trivia',
+                color: '#34d399',
+                localScores: State.data.defDashScores || [],
+                globalScores: await API.getMiniGameScores('defdash') || [],
+                scoreLabel: 'POINTS'
             }
         ];
-
-        // 4. Construct DOM
+        
+        let currentCabinet = 0;
+        let currentPage = 0; // 0 = world, 1 = local
+        const username = State.data.username || "PLAYER";
+        
+        const renderScoreRow = (s, i, color) => `
+            <div class="score-row ${i === 0 ? 'top-score' : ''}">
+                <span class="score-rank">${(i+1).toString().padStart(2,'0')}</span>
+                <span class="score-name" style="color:${color}">${(s.name || 'AAA').substring(0,3).toUpperCase()}</span>
+                <span class="score-value">${s.score.toString().padStart(6,' ')}</span>
+            </div>`;
+        
+        const renderCabinet = (cab, index) => {
+            const isActive = index === currentCabinet;
+            const scores = currentPage === 0 ? cab.globalScores.slice(0, 8) : cab.localScores.slice(0, 8);
+            const pageTitle = currentPage === 0 ? '🌐 WORLD RECORDS' : '🏠 YOUR BEST';
+            
+            return `
+                <div class="arcade-cabinet ${isActive ? 'active' : 'inactive'}" data-index="${index}">
+                    <!-- Marquee Top -->
+                    <div class="cabinet-top">
+                        <span class="marquee-text" style="color:${cab.color}">${cab.title}</span>
+                        <span class="marquee-sub">${cab.subtitle}</span>
+                    </div>
+                    
+                    <!-- CRT Monitor -->
+                    <div class="crt-monitor">
+                        <div class="crt-screen">
+                            <div class="crt-curve"></div>
+                            <div class="crt-content">
+                                <!-- Score Header -->
+                                <div class="score-header" style="border-color: ${cab.color}40">
+                                    <span class="score-header-title" style="color:${cab.color}">${pageTitle}</span>
+                                    <span class="score-header-label">${cab.scoreLabel}</span>
+                                </div>
+                                
+                                <!-- Score List -->
+                                <div class="score-list">
+                                    ${scores.length === 0 
+                                        ? `<div class="no-scores">
+                                            <div class="no-scores-icon">🕹️</div>
+                                            <div>NO RECORDS YET</div>
+                                            <div style="font-size:0.6rem;margin-top:5px;color:#555">BE THE FIRST!</div>
+                                           </div>`
+                                        : scores.map((s, i) => renderScoreRow(s, i, cab.color)).join('')
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Control Panel -->
+                    <div class="cabinet-controls">
+                        <div class="control-panel">
+                            <button class="arcade-btn arcade-btn-red cab-prev" title="Previous">◀</button>
+                            <button class="arcade-btn arcade-btn-blue cab-toggle" title="World/Local">${currentPage === 0 ? '🌐' : '🏠'}</button>
+                            <button class="arcade-btn arcade-btn-yellow cab-share" title="Share">📤</button>
+                            <button class="arcade-btn arcade-btn-green cab-next" title="Next">▶</button>
+                        </div>
+                        <div class="page-indicator">
+                            ${currentPage === 0 ? '🌐 WORLD' : '🏠 LOCAL'} · SWIPE TO BROWSE
+                        </div>
+                    </div>
+                </div>
+            `;
+        };
+        
+        const renderArcadeHall = () => {
+            const offset = -currentCabinet * 370 + (window.innerWidth / 2 - 170);
+            return `
+                <div class="arcade-hall">
+                    <div class="arcade-floor"></div>
+                    
+                    <button class="exit-btn" id="arcade-close">✕ EXIT ARCADE</button>
+                    
+                    <!-- Cabinet Dots -->
+                    <div class="cabinet-dots">
+                        ${cabinets.map((c, i) => `
+                            <div class="cabinet-dot ${i === currentCabinet ? 'active' : ''}" 
+                                 style="color:${c.color}" data-index="${i}"></div>
+                        `).join('')}
+                    </div>
+                    
+                    <!-- Cabinets Row -->
+                    <div style="height:100vh;display:flex;align-items:center;overflow:hidden;">
+                        <div class="cabinet-row" style="transform: translateX(${offset}px)">
+                            ${cabinets.map((cab, i) => renderCabinet(cab, i)).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        };
+        
+        // Create modal
         const modal = document.createElement('div');
         modal.id = 'highScoreModal';
-        modal.className = 'arcade-modal';
-        
-        // Render List Function
-        const generateListHTML = (data) => {
-            if (!data || data.length === 0) return '<div style="text-align:center; margin-top:40px; opacity:0.6;">NO DATA RECORDED<br>PLAY NOW!</div>';
-            
-            const rows = data.slice(0, 100).map((entry, i) => {
-                const isMe = (entry.name === username);
-                return `
-                    <div class="score-row ${isMe ? 'highlight' : ''}">
-                        <span class="rank">${i+1}.</span>
-                        <span class="name">${(entry.name || 'UNKNOWN').substring(0, 12).toUpperCase()}</span>
-                        <span class="score">${entry.score}</span>
-                    </div>
-                `;
-            }).join('');
-            
-            return rows + (data.length > 10 ? `<div style="text-align:center; margin: 20px 0;">--- END OF RECORDS ---</div><div style="height:50px"></div>` : '');
-        };
-
-        const cabinetHTML = cabinets.map((cab, idx) => `
-            <div class="arcade-cabinet ${cab.theme} inactive" id="cab-${idx}" data-idx="${idx}">
-                <div class="marquee-area">
-                    <div class="marquee-glass"></div>
-                    <div class="marquee-title">${cab.title}</div>
-                    <div class="marquee-sub">${cab.subtitle}</div>
-                </div>
-                <div class="crt-housing">
-                    <div class="crt-screen">
-                        <div class="crt-reflection"></div>
-                        <div class="scanlines"></div>
-                        <div class="crt-content" id="list-${idx}">
-                            </div>
-                    </div>
-                </div>
-                <div class="control-deck">
-                    <button class="arcade-btn btn-toggle" data-idx="${idx}">🌐</button>
-                    <button class="arcade-btn btn-share hidden" data-idx="${idx}">📤</button>
-                </div>
-            </div>
-        `).join('');
-
-        modal.innerHTML = `
-            <div class="arcade-floor"></div>
-            <div class="arcade-header-overlay"></div>
-            <button class="close-btn" id="closeArcade">✕</button>
-            
-            <div class="cabinet-viewport">
-                <div class="cabinet-row" id="cabinetRow">
-                    ${cabinetHTML}
-                </div>
-            </div>
-            
-            <div style="position:absolute; bottom:20px; width:100%; text-align:center; color:rgba(255,255,255,0.4); font-family:'Press Start 2P'; font-size:10px; pointer-events:none;">
-                SWIPE TO BROWSE • TAP 🌐 TO TOGGLE GLOBAL/LOCAL
-            </div>
-        `;
-        
+        modal.className = 'fixed inset-0 z-[200]';
+        modal.innerHTML = renderArcadeHall();
         document.body.appendChild(modal);
-
-        // 5. Logic & Animation
-        let currentIndex = 0;
-        let viewModes = [0, 0, 0]; // 0=Global, 1=Local
-        const row = document.getElementById('cabinetRow');
-        const cabs = document.querySelectorAll('.arcade-cabinet');
-        const scrollTimers = {};
-
-        // Auto Scroll
-        const startAutoScroll = (idx) => {
-            if (scrollTimers[idx]) clearInterval(scrollTimers[idx]);
-            const el = document.getElementById(`list-${idx}`);
-            if(!el) return;
-            
-            scrollTimers[idx] = setInterval(() => {
-                if (el.matches(':hover') || el.classList.contains('touch-active')) return;
-                el.scrollTop += 1;
-                if(el.scrollTop + el.clientHeight >= el.scrollHeight) el.scrollTop = 0;
-            }, 50);
-        };
-
-        const refreshCabinetContent = (idx) => {
-            const cab = cabinets[idx];
-            const mode = viewModes[idx]; // 0=Global, 1=Local
-            const data = mode === 0 ? cab.dataGlobal : cab.dataLocal;
-            const title = mode === 0 ? "--- WORLD RECORDS ---" : "--- LOCAL BEST ---";
-            
-            const container = document.getElementById(`list-${idx}`);
-            container.innerHTML = `
-                <div style="text-align:center; margin-bottom:10px; padding-bottom:5px; border-bottom:2px solid rgba(255,255,255,0.2); position:sticky; top:0; background:inherit; z-index:10;">${title}</div>
-                ${generateListHTML(data)}
-            `;
-            
-            // Toggle Button Icon
-            const btnToggle = modal.querySelector(`.btn-toggle[data-idx="${idx}"]`);
-            if(btnToggle) btnToggle.innerHTML = mode === 0 ? '🌐' : '🏠';
-
-            // VISIBILITY LOGIC: Show Share Button ONLY if Local (mode 1)
-            const btnShare = modal.querySelector(`.btn-share[data-idx="${idx}"]`);
-            if(btnShare) {
-                if (mode === 1) btnShare.classList.remove('hidden');
-                else btnShare.classList.add('hidden');
-            }
-            
-            startAutoScroll(idx);
-            
-            container.addEventListener('touchstart', () => container.classList.add('touch-active'));
-            container.addEventListener('touchend', () => setTimeout(() => container.classList.remove('touch-active'), 1000));
-        };
-
-        cabinets.forEach((_, i) => refreshCabinetContent(i));
-
-        // Centering Logic
-        const updatePosition = () => {
-            const sampleCab = cabs[0];
-            const cabWidth = sampleCab.offsetWidth;
-            const gapStr = getComputedStyle(document.documentElement).getPropertyValue('--cab-gap').trim();
-            const gap = parseInt(gapStr) || 50;
-            
-            const screenCenter = window.innerWidth / 2;
-            const itemCenter = (currentIndex * (cabWidth + gap)) + (cabWidth / 2);
-            row.style.transform = `translateX(${screenCenter - itemCenter}px)`;
-
-            cabs.forEach((el, i) => {
-                if (i === currentIndex) {
-                    el.classList.add('active');
-                    el.classList.remove('inactive');
-                } else {
-                    el.classList.add('inactive');
-                    el.classList.remove('active');
-                }
-            });
-        };
-
-        setTimeout(updatePosition, 10);
-        window.addEventListener('resize', updatePosition);
-
-        // 6. Interaction Handlers
-        modal.querySelectorAll('.btn-toggle').forEach(btn => {
-            btn.onclick = (e) => {
-                e.stopPropagation();
-                const idx = parseInt(e.target.dataset.idx);
-                viewModes[idx] = viewModes[idx] === 0 ? 1 : 0;
-                refreshCabinetContent(idx);
-            };
-        });
-
-        // --- SHARE LOGIC ---
-        modal.querySelectorAll('.btn-share').forEach(btn => {
-            btn.onclick = async (e) => {
-                e.stopPropagation();
-                const idx = parseInt(e.target.dataset.idx);
-                const cab = cabinets[idx];
-                
-                // Get user's personal best (top local score)
-                const bestScore = (cab.dataLocal && cab.dataLocal.length > 0) ? cab.dataLocal[0].score : 0;
-                
-                const shareText = cab.shareMsg(bestScore);
-                const shareData = {
-                    title: cab.title,
-                    text: shareText,
-                    url: window.location.href
-                };
-
-                if (navigator.share) {
-                    try { await navigator.share(shareData); } 
-                    catch (err) { console.log('Share skipped'); }
-                } else {
-                    // Fallback
-                    try {
-                        await navigator.clipboard.writeText(`${shareText} ${window.location.href}`);
-                        alert('Score copied to clipboard!');
-                    } catch (err) {
-                        alert('Could not copy score: ' + shareText);
-                    }
-                }
-            };
-        });
-
-        // Close & Cleanup
-        const close = () => {
-            modal.remove();
-            Object.values(scrollTimers).forEach(t => clearInterval(t));
-            window.removeEventListener('resize', updatePosition);
-            window.removeEventListener('keydown', keyHandler);
-        };
-        document.getElementById('closeArcade').onclick = close;
-
-        // Swipe & Touch Logic
-        let startX = 0;
-        let isDragging = false;
-        let startTranslateX = 0;
-
-        const getTranslateX = () => {
-            const style = window.getComputedStyle(row);
-            const matrix = new WebKitCSSMatrix(style.transform);
-            return matrix.m41;
-        };
-
-        const handleStart = (e) => {
-            if (e.target.closest('.arcade-btn') || e.target.closest('.close-btn')) return;
-            isDragging = true;
-            startX = e.touches ? e.touches[0].clientX : e.clientX;
-            row.style.transition = 'none';
-            startTranslateX = getTranslateX();
-        };
-
-        const handleMove = (e) => {
-            if (!isDragging) return;
-            e.preventDefault(); 
-            const currentX = e.touches ? e.touches[0].clientX : e.clientX;
-            const diff = currentX - startX;
-            row.style.transform = `translateX(${startTranslateX + diff}px)`;
-        };
-
-        const handleEnd = (e) => {
-            if (!isDragging) return;
-            isDragging = false;
-            row.style.transition = 'transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1)';
-            
-            const currentX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
-            const diff = currentX - startX;
-
+        
+        // Touch handling for swipe
+        let touchStartX = 0;
+        const handleSwipe = (diff) => {
             if (Math.abs(diff) > 50) {
-                if (diff < 0 && currentIndex < cabinets.length - 1) currentIndex++;
-                else if (diff > 0 && currentIndex > 0) currentIndex--;
-            }
-            updatePosition();
-        };
-
-        const viewport = modal.querySelector('.cabinet-viewport');
-        viewport.addEventListener('mousedown', handleStart);
-        viewport.addEventListener('touchstart', handleStart, {passive: false});
-        window.addEventListener('mousemove', handleMove);
-        window.addEventListener('touchmove', handleMove, {passive: false});
-        window.addEventListener('mouseup', handleEnd);
-        window.addEventListener('touchend', handleEnd);
-
-        cabs.forEach((cab, i) => {
-            cab.addEventListener('click', (e) => {
-                if(e.target.closest('.arcade-btn')) return;
-                if(currentIndex !== i) {
-                    currentIndex = i;
-                    updatePosition();
+                if (diff > 0) {
+                    // Swipe left - next
+                    currentCabinet = (currentCabinet + 1) % cabinets.length;
+                } else {
+                    // Swipe right - prev
+                    currentCabinet = (currentCabinet - 1 + cabinets.length) % cabinets.length;
                 }
-            });
-        });
-
-        const keyHandler = (e) => {
-            if (e.key === 'ArrowLeft' && currentIndex > 0) { currentIndex--; updatePosition(); }
-            if (e.key === 'ArrowRight' && currentIndex < cabinets.length - 1) { currentIndex++; updatePosition(); }
-            if (e.key === 'Escape') close();
+                modal.innerHTML = renderArcadeHall();
+                bindEvents();
+                resetAutoScroll();
+            }
         };
-        window.addEventListener('keydown', keyHandler);
+        
+        // Bind events
+        const bindEvents = () => {
+            // Nav buttons on active cabinet
+            modal.querySelectorAll('.cab-prev').forEach(btn => {
+                btn.onclick = () => {
+                    currentCabinet = (currentCabinet - 1 + cabinets.length) % cabinets.length;
+                    modal.innerHTML = renderArcadeHall();
+                    bindEvents();
+                    resetAutoScroll();
+                };
+            });
+            modal.querySelectorAll('.cab-next').forEach(btn => {
+                btn.onclick = () => {
+                    currentCabinet = (currentCabinet + 1) % cabinets.length;
+                    modal.innerHTML = renderArcadeHall();
+                    bindEvents();
+                    resetAutoScroll();
+                };
+            });
+            modal.querySelectorAll('.cab-toggle').forEach(btn => {
+                btn.onclick = () => {
+                    currentPage = currentPage === 0 ? 1 : 0;
+                    modal.innerHTML = renderArcadeHall();
+                    bindEvents();
+                    resetAutoScroll();
+                };
+            });
+            modal.querySelectorAll('.cab-share').forEach(btn => {
+                btn.onclick = () => self.shareScores();
+            });
+            
+            // Cabinet dots for direct navigation
+            modal.querySelectorAll('.cabinet-dot').forEach(dot => {
+                dot.onclick = () => {
+                    const index = parseInt(dot.dataset.index);
+                    if (index !== currentCabinet) {
+                        currentCabinet = index;
+                        modal.innerHTML = renderArcadeHall();
+                        bindEvents();
+                        resetAutoScroll();
+                    }
+                };
+            });
+            
+            // Click on cabinet to select it
+            modal.querySelectorAll('.arcade-cabinet').forEach(cab => {
+                cab.onclick = (e) => {
+                    if (e.target.closest('.arcade-btn')) return; // Don't trigger on button clicks
+                    const index = parseInt(cab.dataset.index);
+                    if (index !== currentCabinet) {
+                        currentCabinet = index;
+                        modal.innerHTML = renderArcadeHall();
+                        bindEvents();
+                        resetAutoScroll();
+                    }
+                };
+            });
+            
+            modal.querySelector('#arcade-close').onclick = () => self.closeLeaderboard();
+            
+            // Touch events for swiping
+            modal.addEventListener('touchstart', (e) => {
+                touchStartX = e.changedTouches[0].screenX;
+            }, { passive: true });
+            modal.addEventListener('touchend', (e) => {
+                const diff = touchStartX - e.changedTouches[0].screenX;
+                handleSwipe(diff);
+            }, { passive: true });
+        };
+        
+        // Auto-scroll functionality
+        const autoScroll = () => {
+            if (!document.getElementById('highScoreModal')) return;
+            
+            // Toggle page first, then move to next cabinet
+            if (currentPage === 0) {
+                currentPage = 1;
+            } else {
+                currentPage = 0;
+                currentCabinet = (currentCabinet + 1) % cabinets.length;
+            }
+            
+            modal.innerHTML = renderArcadeHall();
+            bindEvents();
+            self.loopTimer = setTimeout(autoScroll, 5000);
+        };
+        
+        const resetAutoScroll = () => {
+            if (self.loopTimer) clearTimeout(self.loopTimer);
+            self.loopTimer = setTimeout(autoScroll, 5000);
+        };
+        
+        bindEvents();
+        resetAutoScroll();
     },
     closeLeaderboard() {
         const el = document.getElementById('highScoreModal');
