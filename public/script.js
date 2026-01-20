@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.6.3',
+    APP_VERSION: '6.6.4',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -5628,7 +5628,12 @@ const MiniGames = {
             const spawnRate = Math.max(40, Math.floor(100 - this.gameSpeed * 3));
             if (this.frameCount % spawnRate === 0) {
                 const wordObj = this.realWords[Math.floor(Math.random() * this.realWords.length)];
-                const word = (wordObj.text || 'WORD').toUpperCase();
+                let word = (wordObj.text || 'WORD').toUpperCase();
+                
+                // Limit word length to 8 characters max for jumpability
+                if (word.length > 8) {
+                    word = word.substring(0, 8);
+                }
                 
                 this.obstacles.push({
                     x: this.canvas.width,
@@ -5636,14 +5641,20 @@ const MiniGames = {
                     width: this.ctx.measureText(word).width + 20 || word.length * 14,
                     height: 35,
                     text: word,
-                    color: '#ef4444'
+                    color: '#ef4444',
+                    wordLength: word.length
                 });
             }
             
             // Spawn collectibles (fake words - collect for bonus!)
             if (this.fakeWords.length > 0 && this.frameCount % (spawnRate * 3) === 0 && Math.random() > 0.5) {
                 const wordObj = this.fakeWords[Math.floor(Math.random() * this.fakeWords.length)];
-                const word = (wordObj.text || 'FAKE').toUpperCase();
+                let word = (wordObj.text || 'FAKE').toUpperCase();
+                
+                // Limit collectible word length too
+                if (word.length > 10) {
+                    word = word.substring(0, 10);
+                }
                 
                 // Spawn in the air so player must jump to collect
                 this.collectibles.push({
@@ -5656,8 +5667,21 @@ const MiniGames = {
                 });
             }
             
-            // Update player physics
-            this.player.vy += this.gravity;
+            // Update player physics with extended jump for long words
+            // Check if there's a long word approaching
+            let extendJump = false;
+            for (const obs of this.obstacles) {
+                const distanceToObs = obs.x - this.player.x;
+                // If a long word is approaching and player is jumping, reduce gravity
+                if (obs.wordLength >= 6 && distanceToObs > 0 && distanceToObs < 200 && this.player.isJumping && this.player.vy < 0) {
+                    extendJump = true;
+                    break;
+                }
+            }
+            
+            // Apply reduced gravity for extended jumps over long words
+            const currentGravity = extendJump ? this.gravity * 0.6 : this.gravity;
+            this.player.vy += currentGravity;
             this.player.y += this.player.vy;
             
             if (this.player.y >= this.groundY) {
@@ -5894,9 +5918,20 @@ const MiniGames = {
                 // Submit to server
                 API.submitMiniGameScore('wordjump', initials, this.score);
                 
-                // Remove overlay and show game over screen
-                overlay.remove();
-                this.showGameOverScreen(true);
+                // Close game and return to arcade on Word Jump cabinet
+                this.active = false;
+                this.isGameOver = false;
+                if (this.gameLoop) cancelAnimationFrame(this.gameLoop);
+                if (this.keyHandler) window.removeEventListener('keydown', this.keyHandler);
+                const gameModal = document.getElementById('wordJumpModal');
+                if (gameModal) gameModal.remove();
+                
+                // Return to arcade on Word Jump cabinet (index 3)
+                setTimeout(() => {
+                    if (typeof StreakManager !== 'undefined' && StreakManager.showLeaderboard) {
+                        StreakManager.showLeaderboard(3);
+                    }
+                }, 100);
             };
             
             document.getElementById('wjSubmitInitials').onclick = submitScore;
@@ -5969,6 +6004,13 @@ const MiniGames = {
             if (this.keyHandler) window.removeEventListener('keydown', this.keyHandler);
             const modal = document.getElementById('wordJumpModal');
             if (modal) modal.remove();
+            
+            // Return to arcade on Word Jump cabinet (index 3)
+            setTimeout(() => {
+                if (typeof StreakManager !== 'undefined' && StreakManager.showLeaderboard) {
+                    StreakManager.showLeaderboard(3);
+                }
+            }, 100);
         }
     }
 };
@@ -10589,9 +10631,10 @@ const StreakManager = {
             }
         }
     },
-async showLeaderboard() {
+async showLeaderboard(startCabinetIndex = 0) {
         const self = this;
         const username = (typeof State !== 'undefined' && State.data.username) ? State.data.username : "PLAYER";
+        const initialCabinetIndex = startCabinetIndex;
 
         // 1. Fetch all data concurrently (Fail-safe)
         let globalStreak = [], globalWar = [], globalDef = [], globalJump = [];
@@ -11382,7 +11425,7 @@ async showLeaderboard() {
         document.body.appendChild(modal);
 
         // 5. Logic & Animation
-        let currentIndex = 0;
+        let currentIndex = initialCabinetIndex;
         let viewModes = [0, 0, 0, 0]; // 0=Global (1P), 1=Local (2P)
         const row = document.getElementById('cabinetRow');
         const cabs = document.querySelectorAll('.arcade-cabinet');
