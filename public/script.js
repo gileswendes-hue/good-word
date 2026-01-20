@@ -5553,7 +5553,7 @@ const MiniGames = {
                         </div>
                     </div>
                     <canvas id="wordJumpCanvas" class="rounded-xl shadow-2xl border-4 border-white/50" style="max-width: 100%; touch-action: none;"></canvas>
-                    <div class="mt-4 text-white/80 text-sm font-bold">TAP or SPACE to jump! Collect <span class="text-yellow-300">golden words</span> for +5 points!</div>
+                    <div class="mt-4 text-white/80 text-sm font-bold">TAP or SPACE to jump! Collect <span class="text-yellow-300">NOT A WORDs</span> for +5 points!</div>
                     <button id="wjClose" class="mt-4 px-6 py-2 bg-white/20 hover:bg-white/30 text-white font-bold rounded-xl transition">
                         ✕ Exit Game
                     </button>
