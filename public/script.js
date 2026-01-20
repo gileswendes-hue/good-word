@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.6.2',
+    APP_VERSION: '6.6.3',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -5504,32 +5504,43 @@ const MiniGames = {
         ctx: null,
         player: null,
         obstacles: [],
-        words: [],
+        collectibles: [],
+        wordData: [],
         groundY: 0,
         gravity: 0.6,
         jumpForce: -12,
         gameSpeed: 5,
         frameCount: 0,
+        isGameOver: false,
+        pendingRestart: false,
         
         start() {
             this.active = true;
+            this.isGameOver = false;
+            this.pendingRestart = false;
             this.score = 0;
             this.bestScore = parseInt(localStorage.getItem('wordJumpBest')) || 0;
             this.gameSpeed = 5;
             this.frameCount = 0;
             this.obstacles = [];
-            this.words = this.getRandomWords(20);
+            this.collectibles = [];
+            this.prepareWordData();
             this.showGame();
         },
         
-        getRandomWords(count) {
-            const words = [];
+        prepareWordData() {
+            // Get words and separate into real words and "not words"
             const source = State.runtime.allWords || [];
-            for (let i = 0; i < count && source.length > 0; i++) {
-                const w = source[Math.floor(Math.random() * source.length)];
-                if (w && w.text) words.push(w.text.toUpperCase());
-            }
-            return words.length > 0 ? words : ['WORD', 'JUMP', 'GAME', 'PLAY', 'FUN'];
+            this.wordData = [];
+            
+            // Get real words (words with 0 or 1 notWordVotes)
+            const realWords = source.filter(w => (w.notWordVotes || 0) <= 1);
+            // Get fake words (words with more than 1 notWordVotes) - these are collectible!
+            const fakeWords = source.filter(w => (w.notWordVotes || 0) > 1);
+            
+            // Store for obstacle generation
+            this.realWords = realWords.length > 0 ? realWords : [{ text: 'WORD' }, { text: 'JUMP' }, { text: 'GAME' }];
+            this.fakeWords = fakeWords.length > 0 ? fakeWords : [];
         },
         
         showGame() {
@@ -5542,7 +5553,7 @@ const MiniGames = {
                         </div>
                     </div>
                     <canvas id="wordJumpCanvas" class="rounded-xl shadow-2xl border-4 border-white/50" style="max-width: 100%; touch-action: none;"></canvas>
-                    <div class="mt-4 text-white/80 text-sm font-bold">TAP or SPACE to jump!</div>
+                    <div class="mt-4 text-white/80 text-sm font-bold">TAP or SPACE to jump! Collect <span class="text-yellow-300">golden words</span> for +5 points!</div>
                     <button id="wjClose" class="mt-4 px-6 py-2 bg-white/20 hover:bg-white/30 text-white font-bold rounded-xl transition">
                         ✕ Exit Game
                     </button>
@@ -5572,19 +5583,27 @@ const MiniGames = {
             };
             
             // Event listeners
-            const jump = () => {
+            this.jumpHandler = (e) => {
+                if (e) e.preventDefault();
+                
+                if (this.isGameOver) {
+                    // Restart game on tap after game over
+                    this.restartGame();
+                    return;
+                }
+                
                 if (!this.player.isJumping && this.active) {
                     this.player.vy = this.jumpForce;
                     this.player.isJumping = true;
                 }
             };
             
-            this.canvas.onclick = jump;
-            this.canvas.ontouchstart = (e) => { e.preventDefault(); jump(); };
+            this.canvas.onclick = this.jumpHandler;
+            this.canvas.ontouchstart = this.jumpHandler;
             this.keyHandler = (e) => {
                 if (e.code === 'Space' || e.code === 'ArrowUp') {
                     e.preventDefault();
-                    jump();
+                    this.jumpHandler();
                 }
             };
             window.addEventListener('keydown', this.keyHandler);
@@ -5596,7 +5615,7 @@ const MiniGames = {
         },
         
         update() {
-            if (!this.active) return;
+            if (!this.active || this.isGameOver) return;
             
             this.frameCount++;
             
@@ -5605,18 +5624,35 @@ const MiniGames = {
                 this.gameSpeed = Math.min(15, this.gameSpeed + 0.5);
             }
             
-            // Spawn obstacles
-            if (this.frameCount % Math.floor(100 - this.gameSpeed * 3) === 0) {
-                const word = this.words[Math.floor(Math.random() * this.words.length)];
-                const isLetter = Math.random() > 0.3;
+            // Spawn obstacles (real words - must jump over)
+            const spawnRate = Math.max(40, Math.floor(100 - this.gameSpeed * 3));
+            if (this.frameCount % spawnRate === 0) {
+                const wordObj = this.realWords[Math.floor(Math.random() * this.realWords.length)];
+                const word = (wordObj.text || 'WORD').toUpperCase();
+                
                 this.obstacles.push({
                     x: this.canvas.width,
                     y: this.groundY,
-                    width: isLetter ? 30 + Math.random() * 20 : word.length * 12 + 20,
-                    height: isLetter ? 40 + Math.random() * 30 : 35,
-                    text: isLetter ? word.charAt(0) : word,
-                    isLetter: isLetter,
-                    color: isLetter ? '#ef4444' : '#8b5cf6'
+                    width: this.ctx.measureText(word).width + 20 || word.length * 14,
+                    height: 35,
+                    text: word,
+                    color: '#ef4444'
+                });
+            }
+            
+            // Spawn collectibles (fake words - collect for bonus!)
+            if (this.fakeWords.length > 0 && this.frameCount % (spawnRate * 3) === 0 && Math.random() > 0.5) {
+                const wordObj = this.fakeWords[Math.floor(Math.random() * this.fakeWords.length)];
+                const word = (wordObj.text || 'FAKE').toUpperCase();
+                
+                // Spawn in the air so player must jump to collect
+                this.collectibles.push({
+                    x: this.canvas.width,
+                    y: this.groundY - 80 - Math.random() * 40,
+                    width: word.length * 12 + 16,
+                    height: 28,
+                    text: word,
+                    collected: false
                 });
             }
             
@@ -5634,7 +5670,7 @@ const MiniGames = {
             for (let i = this.obstacles.length - 1; i >= 0; i--) {
                 this.obstacles[i].x -= this.gameSpeed;
                 
-                // Remove off-screen obstacles
+                // Remove off-screen obstacles and score
                 if (this.obstacles[i].x + this.obstacles[i].width < 0) {
                     this.obstacles.splice(i, 1);
                     this.score++;
@@ -5642,10 +5678,31 @@ const MiniGames = {
                     continue;
                 }
                 
-                // Collision detection
+                // Collision detection with obstacles
                 if (this.checkCollision(this.player, this.obstacles[i])) {
                     this.gameOver();
                     return;
+                }
+            }
+            
+            // Update collectibles
+            for (let i = this.collectibles.length - 1; i >= 0; i--) {
+                this.collectibles[i].x -= this.gameSpeed;
+                
+                // Remove off-screen collectibles
+                if (this.collectibles[i].x + this.collectibles[i].width < 0) {
+                    this.collectibles.splice(i, 1);
+                    continue;
+                }
+                
+                // Check if player collects it
+                if (!this.collectibles[i].collected && this.checkCollision(this.player, this.collectibles[i])) {
+                    this.collectibles[i].collected = true;
+                    this.score += 5; // Bonus points!
+                    document.getElementById('wjScore').textContent = this.score;
+                    // Show +5 animation
+                    this.showBonusText(this.collectibles[i].x, this.collectibles[i].y);
+                    this.collectibles.splice(i, 1);
                 }
             }
             
@@ -5653,6 +5710,12 @@ const MiniGames = {
             this.draw();
             
             this.gameLoop = requestAnimationFrame(() => this.update());
+        },
+        
+        bonusTexts: [],
+        
+        showBonusText(x, y) {
+            this.bonusTexts.push({ x, y, alpha: 1, vy: -2 });
         },
         
         checkCollision(player, obstacle) {
@@ -5709,40 +5772,140 @@ const MiniGames = {
             ctx.fillStyle = '#fff';
             ctx.fillRect(p.x + 10, p.y - p.height + 30, 20, 4); // Mouth
             
-            // Draw obstacles
+            // Draw obstacles (real words - just text, no box)
+            ctx.font = 'bold 24px sans-serif';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'bottom';
             this.obstacles.forEach(obs => {
+                // Draw shadow
+                ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                ctx.fillText(obs.text, obs.x + 2, obs.y + 2);
+                // Draw text
                 ctx.fillStyle = obs.color;
-                ctx.fillRect(obs.x, obs.y - obs.height, obs.width, obs.height);
+                ctx.fillText(obs.text, obs.x, obs.y);
+            });
+            
+            // Draw collectibles (fake words - golden, in the air)
+            this.collectibles.forEach(col => {
+                // Glowing golden background
+                ctx.fillStyle = 'rgba(251, 191, 36, 0.3)';
+                ctx.fillRect(col.x - 4, col.y - col.height - 4, col.width + 8, col.height + 8);
                 
-                // Draw text on obstacle
-                ctx.fillStyle = '#fff';
-                ctx.font = `bold ${obs.isLetter ? '20' : '12'}px sans-serif`;
+                ctx.fillStyle = '#fbbf24';
+                ctx.fillRect(col.x, col.y - col.height, col.width, col.height);
+                
+                // Sparkle effect
+                ctx.fillStyle = 'rgba(255,255,255,0.8)';
+                const sparkleX = col.x + (this.frameCount % 20) * (col.width / 20);
+                ctx.fillRect(sparkleX, col.y - col.height + 2, 4, 4);
+                
+                // Text
+                ctx.fillStyle = '#78350f';
+                ctx.font = 'bold 14px sans-serif';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText(obs.text, obs.x + obs.width / 2, obs.y - obs.height / 2);
+                ctx.fillText(col.text, col.x + col.width / 2, col.y - col.height / 2);
             });
+            
+            // Draw bonus texts
+            ctx.font = 'bold 20px sans-serif';
+            ctx.textAlign = 'center';
+            for (let i = this.bonusTexts.length - 1; i >= 0; i--) {
+                const bt = this.bonusTexts[i];
+                bt.y += bt.vy;
+                bt.alpha -= 0.02;
+                
+                if (bt.alpha <= 0) {
+                    this.bonusTexts.splice(i, 1);
+                    continue;
+                }
+                
+                ctx.fillStyle = `rgba(251, 191, 36, ${bt.alpha})`;
+                ctx.fillText('+5', bt.x, bt.y);
+            }
         },
         
         gameOver() {
             this.active = false;
+            this.isGameOver = true;
             cancelAnimationFrame(this.gameLoop);
             
-            if (this.score > this.bestScore) {
+            const isNewBest = this.score > this.bestScore;
+            
+            if (isNewBest) {
+                // Show initials prompt for new high score
+                this.showInitialsPrompt();
+            } else {
+                // Just show game over screen
+                this.showGameOverScreen(false);
+            }
+        },
+        
+        showInitialsPrompt() {
+            const modal = document.getElementById('wordJumpModal');
+            if (!modal) return;
+            
+            const overlay = document.createElement('div');
+            overlay.id = 'wjInitialsOverlay';
+            overlay.className = 'absolute inset-0 bg-black/80 flex items-center justify-center z-10';
+            overlay.innerHTML = `
+                <div class="bg-gradient-to-b from-indigo-600 to-indigo-800 rounded-2xl p-6 text-center shadow-2xl border-4 border-yellow-400 max-w-xs mx-4">
+                    <div class="text-4xl mb-2">🏆</div>
+                    <h3 class="text-2xl font-black text-yellow-400 mb-2">NEW HIGH SCORE!</h3>
+                    <p class="text-3xl font-bold text-white mb-4">${this.score}</p>
+                    <p class="text-white mb-3">Enter your initials:</p>
+                    <input type="text" id="wjInitialsInput" maxlength="3" 
+                        class="w-24 h-14 text-center text-3xl font-black uppercase bg-white rounded-lg border-4 border-yellow-400 text-indigo-800 focus:outline-none focus:border-yellow-300"
+                        placeholder="AAA">
+                    <button id="wjSubmitInitials" 
+                        class="mt-4 w-full py-3 bg-yellow-400 hover:bg-yellow-300 text-indigo-900 font-black text-lg rounded-lg transition">
+                        SUBMIT
+                    </button>
+                </div>
+            `;
+            
+            modal.style.position = 'relative';
+            modal.appendChild(overlay);
+            
+            const input = document.getElementById('wjInitialsInput');
+            const defaultInitials = (State.data.username || 'AAA').substring(0, 3).toUpperCase();
+            input.value = defaultInitials;
+            input.focus();
+            input.select();
+            
+            // Handle input to only allow letters
+            input.addEventListener('input', (e) => {
+                e.target.value = e.target.value.replace(/[^a-zA-Z]/g, '').toUpperCase();
+            });
+            
+            const submitScore = () => {
+                const initials = (input.value || 'AAA').toUpperCase().padEnd(3, 'A').substring(0, 3);
+                
+                // Save high score
                 this.bestScore = this.score;
                 localStorage.setItem('wordJumpBest', this.bestScore);
                 
-                // Save to server
+                // Save to local scores
                 const scores = State.data.wordJumpScores || [];
-                scores.push({ score: this.score, date: new Date().toISOString() });
+                scores.push({ name: initials, score: this.score, date: new Date().toISOString() });
                 scores.sort((a, b) => b.score - a.score);
                 State.save('wordJumpScores', scores.slice(0, 10));
                 
-                // Submit to leaderboard
-                const name = (State.data.username || 'AAA').substring(0, 3).toUpperCase();
-                API.submitMiniGameScore('wordjump', name, this.score);
-            }
+                // Submit to server
+                API.submitMiniGameScore('wordjump', initials, this.score);
+                
+                // Remove overlay and show game over screen
+                overlay.remove();
+                this.showGameOverScreen(true);
+            };
             
-            // Show game over screen
+            document.getElementById('wjSubmitInitials').onclick = submitScore;
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') submitScore();
+            });
+        },
+        
+        showGameOverScreen(wasNewBest) {
             const ctx = this.ctx;
             ctx.fillStyle = 'rgba(0,0,0,0.7)';
             ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -5750,29 +5913,58 @@ const MiniGames = {
             ctx.fillStyle = '#fff';
             ctx.font = 'bold 36px sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText('GAME OVER', this.canvas.width / 2, this.canvas.height / 2 - 30);
+            ctx.textBaseline = 'middle';
+            ctx.fillText('GAME OVER', this.canvas.width / 2, this.canvas.height / 2 - 40);
             
             ctx.font = 'bold 24px sans-serif';
-            ctx.fillText(`Score: ${this.score}`, this.canvas.width / 2, this.canvas.height / 2 + 10);
+            ctx.fillText(`Score: ${this.score}`, this.canvas.width / 2, this.canvas.height / 2);
             
-            if (this.score >= this.bestScore) {
+            if (wasNewBest) {
                 ctx.fillStyle = '#fbbf24';
-                ctx.fillText('NEW BEST!', this.canvas.width / 2, this.canvas.height / 2 + 45);
+                ctx.font = 'bold 20px sans-serif';
+                ctx.fillText('🏆 NEW BEST! 🏆', this.canvas.width / 2, this.canvas.height / 2 + 35);
             }
             
             ctx.fillStyle = '#fff';
-            ctx.font = '16px sans-serif';
-            ctx.fillText('Tap to play again', this.canvas.width / 2, this.canvas.height / 2 + 80);
+            ctx.font = '18px sans-serif';
+            ctx.fillText('Tap to play again', this.canvas.width / 2, this.canvas.height / 2 + 70);
             
-            // Allow restart
-            this.canvas.onclick = () => {
-                this.close();
-                this.start();
-            };
+            // Update best display
+            const bestEl = document.getElementById('wjBest');
+            if (bestEl) bestEl.textContent = this.bestScore;
+        },
+        
+        restartGame() {
+            if (this.pendingRestart) return;
+            this.pendingRestart = true;
+            
+            // Reset state
+            this.active = true;
+            this.isGameOver = false;
+            this.score = 0;
+            this.gameSpeed = 5;
+            this.frameCount = 0;
+            this.obstacles = [];
+            this.collectibles = [];
+            this.bonusTexts = [];
+            
+            // Reset player
+            this.player.y = this.groundY;
+            this.player.vy = 0;
+            this.player.isJumping = false;
+            
+            // Update score display
+            document.getElementById('wjScore').textContent = '0';
+            
+            this.pendingRestart = false;
+            
+            // Restart game loop
+            this.gameLoop = requestAnimationFrame(() => this.update());
         },
         
         close() {
             this.active = false;
+            this.isGameOver = false;
             if (this.gameLoop) cancelAnimationFrame(this.gameLoop);
             if (this.keyHandler) window.removeEventListener('keydown', this.keyHandler);
             const modal = document.getElementById('wordJumpModal');
