@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.6.5',
+    APP_VERSION: '6.6.6',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -5553,7 +5553,7 @@ const MiniGames = {
                         </div>
                     </div>
                     <canvas id="wordJumpCanvas" class="rounded-xl shadow-2xl border-4 border-white/50" style="max-width: 100%; touch-action: none;"></canvas>
-                    <div class="mt-4 text-white/80 text-sm font-bold">TAP or SPACE to jump! Collect <span class="text-yellow-300">golden words</span> for +5 points!</div>
+                    <div class="mt-4 text-white/80 text-sm font-bold">TAP or SPACE to jump! Collect <span class="text-yellow-300">NOT A WORDs</span> for +5 points!</div>
                     <button id="wjClose" class="mt-4 px-6 py-2 bg-white/20 hover:bg-white/30 text-white font-bold rounded-xl transition">
                         ✕ Exit Game
                     </button>
@@ -5854,9 +5854,10 @@ const MiniGames = {
             this.isGameOver = true;
             cancelAnimationFrame(this.gameLoop);
             
-            const isNewBest = this.score > this.bestScore;
+            // Check if this is a new personal best OR if score > 0 and no best yet
+            const isNewBest = this.score > this.bestScore || (this.score > 0 && this.bestScore === 0);
             
-            if (isNewBest) {
+            if (isNewBest && this.score > 0) {
                 // Show initials prompt for new high score
                 this.showInitialsPrompt();
             } else {
@@ -11259,7 +11260,7 @@ async showLeaderboard(startCabinetIndex = 0) {
                     animation: coinDrop 0.6s ease-in forwards;
                 }
                 .coin-anim::before {
-                    content: '$';
+                    content: '£';
                     position: absolute;
                     inset: 0;
                     display: flex;
