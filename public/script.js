@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.6.1',
+    APP_VERSION: '6.6.2',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -247,6 +247,7 @@ const State = {
         highScores: safeParse('highScores', []),
         wordWarScores: safeParse('wordWarScores', []),
         defDashScores: safeParse('defDashScores', []),
+        wordJumpScores: safeParse('wordJumpScores', []),
         pendingVotes: safeParse('pendingVotes', []),
         offlineCache: safeParse('offlineCache', []),
         unlockedThemes: safeParse('unlockedThemes', []),
@@ -337,7 +338,7 @@ const State = {
     save(k, v) {
         this.data[k] = v;
         const s = localStorage;
-        if (['pendingVotes','offlineCache','highScores','wordWarScores','defDashScores','unlockedThemes','seenHistory','settings'].includes(k)) {
+        if (['pendingVotes','offlineCache','highScores','wordWarScores','defDashScores','wordJumpScores','unlockedThemes','seenHistory','settings'].includes(k)) {
             s.setItem(k, JSON.stringify(v));
         }
         if (k === 'pendingVotes') s.setItem('pendingVotes', JSON.stringify(v));
@@ -345,6 +346,7 @@ const State = {
         else if (k === 'highScores') s.setItem('highScores', JSON.stringify(v));
         else if (k === 'wordWarScores') s.setItem('wordWarScores', JSON.stringify(v));
         else if (k === 'defDashScores') s.setItem('defDashScores', JSON.stringify(v));
+        else if (k === 'wordJumpScores') s.setItem('wordJumpScores', JSON.stringify(v));
         else if (k === 'insectStats') {
             s.setItem('insectSaved', v.saved);
             s.setItem('insectEaten', v.eaten);
@@ -557,7 +559,7 @@ const OfflineManager = {
                 State.data.settings.offlineMode = true;
                 State.save('settings', State.data.settings);
                 State.runtime.allWords = State.data.offlineCache
-                    .filter(w => (w.notWordVotes || 0) < 3);
+                    .filter(w => (w.notWordVotes || 0) < 20);
                 State.runtime.fullWordList = State.runtime.allWords; // Same reference
                 for (let i = State.runtime.allWords.length - 1; i > 0; i--) {
                     const j = Math.floor(Math.random() * (i + 1));
@@ -5490,6 +5492,292 @@ const MiniGames = {
         document.getElementById('closeMiniGames').onclick = () => {
             document.getElementById('miniGamesMenu').remove();
         };
+    },
+    
+    // ==================== WORD JUMP (Endless Runner) ====================
+    wordJump: {
+        active: false,
+        score: 0,
+        bestScore: 0,
+        gameLoop: null,
+        canvas: null,
+        ctx: null,
+        player: null,
+        obstacles: [],
+        words: [],
+        groundY: 0,
+        gravity: 0.6,
+        jumpForce: -12,
+        gameSpeed: 5,
+        frameCount: 0,
+        
+        start() {
+            this.active = true;
+            this.score = 0;
+            this.bestScore = parseInt(localStorage.getItem('wordJumpBest')) || 0;
+            this.gameSpeed = 5;
+            this.frameCount = 0;
+            this.obstacles = [];
+            this.words = this.getRandomWords(20);
+            this.showGame();
+        },
+        
+        getRandomWords(count) {
+            const words = [];
+            const source = State.runtime.allWords || [];
+            for (let i = 0; i < count && source.length > 0; i++) {
+                const w = source[Math.floor(Math.random() * source.length)];
+                if (w && w.text) words.push(w.text.toUpperCase());
+            }
+            return words.length > 0 ? words : ['WORD', 'JUMP', 'GAME', 'PLAY', 'FUN'];
+        },
+        
+        showGame() {
+            const html = `
+                <div id="wordJumpModal" class="fixed inset-0 bg-gradient-to-b from-sky-400 via-sky-300 to-green-400 z-[10000] flex flex-col items-center justify-center p-4">
+                    <div class="text-center mb-4">
+                        <div class="flex justify-center gap-8 text-white font-bold text-lg">
+                            <div>Score: <span id="wjScore">0</span></div>
+                            <div>Best: <span id="wjBest">${this.bestScore}</span></div>
+                        </div>
+                    </div>
+                    <canvas id="wordJumpCanvas" class="rounded-xl shadow-2xl border-4 border-white/50" style="max-width: 100%; touch-action: none;"></canvas>
+                    <div class="mt-4 text-white/80 text-sm font-bold">TAP or SPACE to jump!</div>
+                    <button id="wjClose" class="mt-4 px-6 py-2 bg-white/20 hover:bg-white/30 text-white font-bold rounded-xl transition">
+                        ✕ Exit Game
+                    </button>
+                </div>`;
+            
+            document.body.insertAdjacentHTML('beforeend', html);
+            
+            this.canvas = document.getElementById('wordJumpCanvas');
+            this.ctx = this.canvas.getContext('2d');
+            
+            // Set canvas size
+            const maxW = Math.min(800, window.innerWidth - 32);
+            const maxH = Math.min(300, window.innerHeight - 200);
+            this.canvas.width = maxW;
+            this.canvas.height = maxH;
+            this.groundY = this.canvas.height - 40;
+            
+            // Initialize player
+            this.player = {
+                x: 80,
+                y: this.groundY,
+                width: 40,
+                height: 50,
+                vy: 0,
+                isJumping: false,
+                color: '#4f46e5'
+            };
+            
+            // Event listeners
+            const jump = () => {
+                if (!this.player.isJumping && this.active) {
+                    this.player.vy = this.jumpForce;
+                    this.player.isJumping = true;
+                }
+            };
+            
+            this.canvas.onclick = jump;
+            this.canvas.ontouchstart = (e) => { e.preventDefault(); jump(); };
+            this.keyHandler = (e) => {
+                if (e.code === 'Space' || e.code === 'ArrowUp') {
+                    e.preventDefault();
+                    jump();
+                }
+            };
+            window.addEventListener('keydown', this.keyHandler);
+            
+            document.getElementById('wjClose').onclick = () => this.close();
+            
+            // Start game loop
+            this.gameLoop = requestAnimationFrame(() => this.update());
+        },
+        
+        update() {
+            if (!this.active) return;
+            
+            this.frameCount++;
+            
+            // Increase speed over time
+            if (this.frameCount % 500 === 0) {
+                this.gameSpeed = Math.min(15, this.gameSpeed + 0.5);
+            }
+            
+            // Spawn obstacles
+            if (this.frameCount % Math.floor(100 - this.gameSpeed * 3) === 0) {
+                const word = this.words[Math.floor(Math.random() * this.words.length)];
+                const isLetter = Math.random() > 0.3;
+                this.obstacles.push({
+                    x: this.canvas.width,
+                    y: this.groundY,
+                    width: isLetter ? 30 + Math.random() * 20 : word.length * 12 + 20,
+                    height: isLetter ? 40 + Math.random() * 30 : 35,
+                    text: isLetter ? word.charAt(0) : word,
+                    isLetter: isLetter,
+                    color: isLetter ? '#ef4444' : '#8b5cf6'
+                });
+            }
+            
+            // Update player physics
+            this.player.vy += this.gravity;
+            this.player.y += this.player.vy;
+            
+            if (this.player.y >= this.groundY) {
+                this.player.y = this.groundY;
+                this.player.vy = 0;
+                this.player.isJumping = false;
+            }
+            
+            // Update obstacles
+            for (let i = this.obstacles.length - 1; i >= 0; i--) {
+                this.obstacles[i].x -= this.gameSpeed;
+                
+                // Remove off-screen obstacles
+                if (this.obstacles[i].x + this.obstacles[i].width < 0) {
+                    this.obstacles.splice(i, 1);
+                    this.score++;
+                    document.getElementById('wjScore').textContent = this.score;
+                    continue;
+                }
+                
+                // Collision detection
+                if (this.checkCollision(this.player, this.obstacles[i])) {
+                    this.gameOver();
+                    return;
+                }
+            }
+            
+            // Draw
+            this.draw();
+            
+            this.gameLoop = requestAnimationFrame(() => this.update());
+        },
+        
+        checkCollision(player, obstacle) {
+            const px = player.x;
+            const py = player.y - player.height;
+            const pw = player.width;
+            const ph = player.height;
+            
+            const ox = obstacle.x;
+            const oy = obstacle.y - obstacle.height;
+            const ow = obstacle.width;
+            const oh = obstacle.height;
+            
+            return px < ox + ow && px + pw > ox && py < oy + oh && py + ph > oy;
+        },
+        
+        draw() {
+            const ctx = this.ctx;
+            const w = this.canvas.width;
+            const h = this.canvas.height;
+            
+            // Clear and draw background
+            ctx.fillStyle = '#87CEEB';
+            ctx.fillRect(0, 0, w, h);
+            
+            // Draw clouds
+            ctx.fillStyle = 'rgba(255,255,255,0.8)';
+            for (let i = 0; i < 5; i++) {
+                const cx = ((this.frameCount * 0.5 + i * 180) % (w + 100)) - 50;
+                const cy = 30 + i * 20;
+                ctx.beginPath();
+                ctx.arc(cx, cy, 25, 0, Math.PI * 2);
+                ctx.arc(cx + 25, cy - 10, 20, 0, Math.PI * 2);
+                ctx.arc(cx + 50, cy, 25, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            // Draw ground
+            ctx.fillStyle = '#22c55e';
+            ctx.fillRect(0, this.groundY, w, h - this.groundY);
+            ctx.fillStyle = '#166534';
+            ctx.fillRect(0, this.groundY, w, 4);
+            
+            // Draw player (simple character)
+            const p = this.player;
+            ctx.fillStyle = p.color;
+            ctx.fillRect(p.x, p.y - p.height, p.width, p.height);
+            
+            // Player face
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(p.x + 25, p.y - p.height + 12, 8, 8); // Eye
+            ctx.fillStyle = '#000';
+            ctx.fillRect(p.x + 27, p.y - p.height + 14, 4, 4); // Pupil
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(p.x + 10, p.y - p.height + 30, 20, 4); // Mouth
+            
+            // Draw obstacles
+            this.obstacles.forEach(obs => {
+                ctx.fillStyle = obs.color;
+                ctx.fillRect(obs.x, obs.y - obs.height, obs.width, obs.height);
+                
+                // Draw text on obstacle
+                ctx.fillStyle = '#fff';
+                ctx.font = `bold ${obs.isLetter ? '20' : '12'}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(obs.text, obs.x + obs.width / 2, obs.y - obs.height / 2);
+            });
+        },
+        
+        gameOver() {
+            this.active = false;
+            cancelAnimationFrame(this.gameLoop);
+            
+            if (this.score > this.bestScore) {
+                this.bestScore = this.score;
+                localStorage.setItem('wordJumpBest', this.bestScore);
+                
+                // Save to server
+                const scores = State.data.wordJumpScores || [];
+                scores.push({ score: this.score, date: new Date().toISOString() });
+                scores.sort((a, b) => b.score - a.score);
+                State.save('wordJumpScores', scores.slice(0, 10));
+                
+                // Submit to leaderboard
+                const name = (State.data.username || 'AAA').substring(0, 3).toUpperCase();
+                API.submitMiniGameScore('wordjump', name, this.score);
+            }
+            
+            // Show game over screen
+            const ctx = this.ctx;
+            ctx.fillStyle = 'rgba(0,0,0,0.7)';
+            ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 36px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('GAME OVER', this.canvas.width / 2, this.canvas.height / 2 - 30);
+            
+            ctx.font = 'bold 24px sans-serif';
+            ctx.fillText(`Score: ${this.score}`, this.canvas.width / 2, this.canvas.height / 2 + 10);
+            
+            if (this.score >= this.bestScore) {
+                ctx.fillStyle = '#fbbf24';
+                ctx.fillText('NEW BEST!', this.canvas.width / 2, this.canvas.height / 2 + 45);
+            }
+            
+            ctx.fillStyle = '#fff';
+            ctx.font = '16px sans-serif';
+            ctx.fillText('Tap to play again', this.canvas.width / 2, this.canvas.height / 2 + 80);
+            
+            // Allow restart
+            this.canvas.onclick = () => {
+                this.close();
+                this.start();
+            };
+        },
+        
+        close() {
+            this.active = false;
+            if (this.gameLoop) cancelAnimationFrame(this.gameLoop);
+            if (this.keyHandler) window.removeEventListener('keydown', this.keyHandler);
+            const modal = document.getElementById('wordJumpModal');
+            if (modal) modal.remove();
+        }
     }
 };
 const UIManager = {
@@ -9247,7 +9535,7 @@ async vote(t, s = false) {
             State.runtime.allWords = d;
             State.runtime.fullWordList = d; // Store full list for stats
             if (!isKids) {
-                 State.runtime.allWords = d.filter(w => (w.notWordVotes || 0) < 3);
+                 State.runtime.allWords = d.filter(w => (w.notWordVotes || 0) < 20);
                  State.runtime.fullWordList = State.runtime.allWords; // Update full list too
             }
         } else {
@@ -9929,8 +10217,8 @@ async renderLeaderboardTable() {
             case 'def':
                 clearHash();
                 setTimeout(() => {
-                    if (typeof MiniGames !== 'undefined' && MiniGames.defDash) {
-                        MiniGames.defDash.start();
+                    if (typeof MiniGames !== 'undefined' && MiniGames.definitionDash) {
+                        MiniGames.definitionDash.start();
                     }
                 }, 100);
                 break;
@@ -9954,6 +10242,17 @@ async renderLeaderboardTable() {
                 setTimeout(() => {
                     if (typeof MiniGames !== 'undefined' && MiniGames.showMenu) {
                         MiniGames.showMenu();
+                    }
+                }, 100);
+                break;
+                
+            case 'wordjump':
+            case 'word-jump':
+            case 'jump':
+                clearHash();
+                setTimeout(() => {
+                    if (typeof MiniGames !== 'undefined' && MiniGames.wordJump) {
+                        MiniGames.wordJump.start();
                     }
                 }, 100);
                 break;
@@ -10103,12 +10402,13 @@ async showLeaderboard() {
         const username = (typeof State !== 'undefined' && State.data.username) ? State.data.username : "PLAYER";
 
         // 1. Fetch all data concurrently (Fail-safe)
-        let globalStreak = [], globalWar = [], globalDef = [];
+        let globalStreak = [], globalWar = [], globalDef = [], globalJump = [];
         try {
-            [globalStreak, globalWar, globalDef] = await Promise.all([
+            [globalStreak, globalWar, globalDef, globalJump] = await Promise.all([
                 API.getGlobalScores().catch(() => []),
                 API.getMiniGameScores('wordwar').catch(() => []),
-                API.getMiniGameScores('defdash').catch(() => [])
+                API.getMiniGameScores('defdash').catch(() => []),
+                API.getMiniGameScores('wordjump').catch(() => [])
             ]);
         } catch (e) { console.error("Score fetch error", e); }
 
@@ -10289,6 +10589,36 @@ async showLeaderboard() {
                 .theme-cyber .artwork-title { color: #00ff88; text-shadow: 0 0 10px #00ff88, 0 0 30px #00ff88, 0 0 60px #00aa55; }
                 .theme-cyber .artwork-sub { color: #4ade80; }
                 .theme-cyber .artwork-decor { color: rgba(0,255,136,0.4); }
+
+                /* Sky Theme for Word Jump */
+                .theme-sky {
+                    background: linear-gradient(180deg, #38bdf8 0%, #0ea5e9 30%, #0284c7 60%, #0369a1 100%);
+                    border: 2px solid rgba(255,255,255,0.3);
+                    box-shadow: 0 0 40px rgba(56,189,248,0.2), inset 0 0 40px rgba(255,255,255,0.05);
+                }
+                .theme-sky .cabinet-shadow {
+                    box-shadow: 
+                        inset 4px 0 12px rgba(255,255,255,0.15),
+                        inset -4px 0 12px rgba(0,0,0,0.3),
+                        0 40px 80px rgba(0,0,0,0.9),
+                        0 0 60px rgba(56,189,248,0.15);
+                }
+                .theme-sky .artwork-frame { 
+                    background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 50%, #0369a1 100%);
+                    border: 4px solid #7dd3fc;
+                    box-shadow: inset 0 0 40px rgba(255,255,255,0.2), 0 0 30px rgba(56,189,248,0.4);
+                }
+                .theme-sky .artwork-inner {
+                    background: 
+                        radial-gradient(ellipse at 30% 20%, rgba(255,255,255,0.4) 0%, transparent 50%),
+                        radial-gradient(ellipse at 70% 80%, rgba(34,197,94,0.3) 0%, transparent 50%),
+                        linear-gradient(180deg, #7dd3fc 0%, #38bdf8 50%, #0ea5e9 100%);
+                }
+                .theme-sky .artwork-title { color: #fff; text-shadow: 2px 2px 0 #0369a1, 0 0 30px rgba(255,255,255,0.8); }
+                .theme-sky .artwork-sub { color: #e0f2fe; }
+                .theme-sky .artwork-decor { color: rgba(255,255,255,0.5); }
+                .theme-sky .crt-content { color: #38bdf8; text-shadow: 0 0 8px rgba(56,189,248,0.6); }
+                .theme-sky .score-row.highlight { background: rgba(56,189,248,0.15); }
 
                 /* === ARTWORK MARQUEE (Backlit Sign) === */
                 .artwork-frame {
@@ -10726,12 +11056,22 @@ async showLeaderboard() {
             {
                 id: 'def',
                 theme: 'theme-cyber',
-                title: 'DEF DASH',
+                title: 'definition dash',
                 subtitle: 'DATA UPLINK',
                 icon: '🧠',
                 dataGlobal: globalDef || [],
                 dataLocal: (State.data.defDashScores || []),
                 shareMsg: (s) => `🧠 I scored ${s} points in definition dash! #DefDash`
+            },
+            {
+                id: 'jump',
+                theme: 'theme-sky',
+                title: 'Word Jump',
+                subtitle: 'ENDLESS RUNNER',
+                icon: '🦘',
+                dataGlobal: globalJump || [],
+                dataLocal: (State.data.wordJumpScores || []),
+                shareMsg: (s) => `🦘 I jumped over ${s} words in Word Jump! #WordJump`
             }
         ];
 
@@ -10851,7 +11191,7 @@ async showLeaderboard() {
 
         // 5. Logic & Animation
         let currentIndex = 0;
-        let viewModes = [0, 0, 0]; // 0=Global (1P), 1=Local (2P)
+        let viewModes = [0, 0, 0, 0]; // 0=Global (1P), 1=Local (2P)
         const row = document.getElementById('cabinetRow');
         const cabs = document.querySelectorAll('.arcade-cabinet');
 
@@ -11003,8 +11343,10 @@ async showLeaderboard() {
                     setTimeout(() => {
                         if (gameId === 'war' && typeof MiniGames !== 'undefined' && MiniGames.wordWar) {
                             MiniGames.wordWar.start();
-                        } else if (gameId === 'def' && typeof MiniGames !== 'undefined' && MiniGames.defDash) {
-                            MiniGames.defDash.start();
+                        } else if (gameId === 'def' && typeof MiniGames !== 'undefined' && MiniGames.definitionDash) {
+                            MiniGames.definitionDash.start();
+                        } else if (gameId === 'jump' && typeof MiniGames !== 'undefined' && MiniGames.wordJump) {
+                            MiniGames.wordJump.start();
                         }
                     }, 100);
                 }, 1200);
