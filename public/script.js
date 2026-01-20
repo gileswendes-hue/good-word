@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.6.6',
+    APP_VERSION: '6.6.7',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -4870,6 +4870,109 @@ const ShareManager = {
     }
 };
 const MiniGames = {
+    // ==================== SHARED SCORING HELPER ====================
+    scoreHelper: {
+        // Prompt user for initials and save score
+        promptAndSave(gameId, score, options = {}) {
+            const {
+                title = 'HIGH SCORE!',
+                subtitle = '',
+                bgGradient = 'from-indigo-600 to-purple-700',
+                borderColor = 'border-yellow-400',
+                inputBorderColor = 'border-purple-300',
+                buttonTextColor = 'text-purple-900',
+                localStorageKey = null,
+                stateKey = null,
+                cabinetIndex = 0,
+                onComplete = null
+            } = options;
+            
+            const html = `
+                <div id="mgScoreEntry" class="fixed inset-0 bg-black/90 z-[10002] flex items-center justify-center p-4">
+                    <div class="bg-gradient-to-br ${bgGradient} p-8 rounded-2xl text-center max-w-sm w-full shadow-2xl border-4 ${borderColor}">
+                        <div class="text-4xl mb-2">🏆</div>
+                        <h2 class="text-2xl font-black text-white mb-1">${title}</h2>
+                        <p class="text-white/80 mb-2">${subtitle}</p>
+                        <p class="text-4xl font-black text-yellow-400 mb-4">${score}</p>
+                        <p class="text-white/70 text-sm mb-2">Enter your initials:</p>
+                        <input type="text" id="mgNameInput" maxlength="3" placeholder="AAA"
+                            class="text-3xl text-center w-full tracking-widest border-4 ${inputBorderColor} rounded-xl p-3 uppercase font-black mb-4 bg-white/90">
+                        <button id="mgSaveScore" class="w-full py-3 bg-yellow-400 hover:bg-yellow-300 ${buttonTextColor} font-black text-lg rounded-xl transition">
+                            SAVE SCORE
+                        </button>
+                    </div>
+                </div>`;
+            
+            document.body.insertAdjacentHTML('beforeend', html);
+            
+            const input = document.getElementById('mgNameInput');
+            const defaultInitials = (State.data.username || 'AAA').substring(0, 3).toUpperCase();
+            input.value = defaultInitials;
+            input.focus();
+            input.select();
+            
+            // Only allow letters
+            input.addEventListener('input', (e) => {
+                e.target.value = e.target.value.replace(/[^a-zA-Z]/g, '').toUpperCase();
+            });
+            
+            const saveScore = () => {
+                const name = (input.value || 'AAA').toUpperCase().padEnd(3, 'A').substring(0, 3);
+                
+                // Save to local storage
+                if (localStorageKey) {
+                    localStorage.setItem(localStorageKey, score);
+                }
+                
+                // Save to State
+                if (stateKey) {
+                    const scores = State.data[stateKey] || [];
+                    scores.push({ name, score, date: new Date().toISOString() });
+                    scores.sort((a, b) => b.score - a.score);
+                    State.save(stateKey, scores.slice(0, 10));
+                }
+                
+                // Submit to global leaderboard
+                API.submitMiniGameScore(gameId, name, score);
+                
+                // Remove entry modal
+                document.getElementById('mgScoreEntry').remove();
+                
+                // Callback or return to arcade
+                if (onComplete) {
+                    onComplete();
+                } else {
+                    // Return to arcade on appropriate cabinet
+                    setTimeout(() => {
+                        if (typeof StreakManager !== 'undefined' && StreakManager.showLeaderboard) {
+                            StreakManager.showLeaderboard(cabinetIndex);
+                        }
+                    }, 100);
+                }
+            };
+            
+            document.getElementById('mgSaveScore').onclick = saveScore;
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') saveScore();
+            });
+        },
+        
+        // Check if score qualifies for high score entry
+        qualifiesForHighScore(score, stateKey, minScore = 1) {
+            if (score < minScore) return false;
+            const scores = State.data[stateKey] || [];
+            if (scores.length < 10) return true;
+            const lowestScore = scores[scores.length - 1].score;
+            return score > lowestScore;
+        },
+        
+        // Get best score from state
+        getBestScore(stateKey) {
+            const scores = State.data[stateKey] || [];
+            return scores.length > 0 ? scores[0].score : 0;
+        }
+    },
+    
     // ==================== WORD WAR (Higher or Lower) ====================
     wordWar: {
         active: false,
@@ -4881,7 +4984,7 @@ const MiniGames = {
         start() {
             this.active = true;
             this.streak = 0;
-            this.bestStreak = parseInt(localStorage.getItem('wordWarBest')) || 0;
+            this.bestStreak = MiniGames.scoreHelper.getBestScore('wordWarScores');
             this.showRound();
         },
         
@@ -5031,66 +5134,54 @@ const MiniGames = {
                     this.showRound();
                 };
             } else {
-                // Check if this is a high score
-                this.checkHighScore(this.streak);
-                document.getElementById('wwRestart').onclick = () => {
-                    document.getElementById('wwResult').remove();
-                    this.streak = 0;
-                    this.showRound();
-                };
-                document.getElementById('wwExit').onclick = () => this.close();
+                // Check if this qualifies for high score (min 3 streak)
+                if (MiniGames.scoreHelper.qualifiesForHighScore(this.streak, 'wordWarScores', 3)) {
+                    const existingResult = document.getElementById('wwResult');
+                    if (existingResult) existingResult.remove();
+                    
+                    MiniGames.scoreHelper.promptAndSave('wordwar', this.streak, {
+                        title: 'HIGH SCORE!',
+                        subtitle: 'Word War Streak',
+                        bgGradient: 'from-indigo-600 to-purple-700',
+                        borderColor: 'border-yellow-400',
+                        inputBorderColor: 'border-purple-300',
+                        buttonTextColor: 'text-purple-900',
+                        stateKey: 'wordWarScores',
+                        cabinetIndex: 1, // Word War cabinet
+                        onComplete: () => this.close()
+                    });
+                }
+                
+                const restartBtn = document.getElementById('wwRestart');
+                const exitBtn = document.getElementById('wwExit');
+                if (restartBtn) {
+                    restartBtn.onclick = () => {
+                        document.getElementById('wwResult').remove();
+                        this.streak = 0;
+                        this.showRound();
+                    };
+                }
+                if (exitBtn) {
+                    exitBtn.onclick = () => this.close();
+                }
             }
-        },
-        
-        checkHighScore(score) {
-            if (score < 3) return; // Minimum score to qualify
-            const scores = State.data.wordWarScores || [];
-            const minScore = scores.length < 10 ? 0 : scores[scores.length - 1].score;
-            if (score > minScore || scores.length < 10) {
-                setTimeout(() => this.promptName(score), 500);
-            }
-        },
-        
-        promptName(score) {
-            const existingResult = document.getElementById('wwResult');
-            if (existingResult) existingResult.remove();
-            
-            const html = `
-                <div id="wwNameEntry" class="fixed inset-0 bg-black/90 z-[10002] flex items-center justify-center p-4">
-                    <div class="bg-gradient-to-br from-indigo-600 to-purple-700 p-8 rounded-2xl text-center max-w-sm w-full shadow-2xl border-4 border-yellow-400">
-                        <div class="text-4xl mb-2">🏆</div>
-                        <h2 class="text-2xl font-black text-white mb-1">HIGH SCORE!</h2>
-                        <p class="text-purple-200 mb-4">Word War Streak: ${score}</p>
-                        <input type="text" id="wwNameInput" maxlength="3" placeholder="AAA"
-                            class="text-3xl text-center w-full tracking-widest border-4 border-purple-300 rounded-xl p-3 uppercase font-black mb-4 bg-white/90">
-                        <button id="wwSaveScore" class="w-full py-3 bg-yellow-400 hover:bg-yellow-300 text-purple-900 font-black text-lg rounded-xl transition">
-                            SAVE SCORE
-                        </button>
-                    </div>
-                </div>`;
-            
-            document.body.insertAdjacentHTML('beforeend', html);
-            document.getElementById('wwNameInput').focus();
-            
-            document.getElementById('wwSaveScore').onclick = () => {
-                const name = (document.getElementById('wwNameInput').value || "AAA").toUpperCase().substring(0, 3);
-                const scores = State.data.wordWarScores || [];
-                scores.push({ name, score, date: Date.now() });
-                scores.sort((a, b) => b.score - a.score);
-                if (scores.length > 10) scores.pop();
-                State.save('wordWarScores', scores);
-                document.getElementById('wwNameEntry').remove();
-                // Submit to global leaderboard
-                API.submitMiniGameScore('wordwar', name, score);
-            };
         },
         
         close() {
             this.active = false;
             const modal = document.getElementById('wordWarModal');
             const result = document.getElementById('wwResult');
+            const entry = document.getElementById('mgScoreEntry');
             if (modal) modal.remove();
             if (result) result.remove();
+            if (entry) entry.remove();
+            
+            // Return to Word War cabinet
+            setTimeout(() => {
+                if (typeof StreakManager !== 'undefined' && StreakManager.showLeaderboard) {
+                    StreakManager.showLeaderboard(1);
+                }
+            }, 100);
         }
     },
     
@@ -5334,13 +5425,9 @@ const MiniGames = {
         },
         
         showFinalScore() {
-            const scores = State.data.defDashScores || [];
-            const bestScore = scores.length > 0 ? scores[0].score : 0;
+            const bestScore = MiniGames.scoreHelper.getBestScore('defDashScores');
             const isNewBest = this.score > bestScore;
-            
-            // Check if qualifies for high score
-            const minScore = scores.length < 10 ? 0 : scores[scores.length - 1].score;
-            const qualifiesForHighScore = this.score >= 100 && (this.score > minScore || scores.length < 10);
+            const qualifiesForHighScore = MiniGames.scoreHelper.qualifiesForHighScore(this.score, 'defDashScores', 50);
             
             const html = `
                 <div id="defDashModal" class="fixed inset-0 bg-gradient-to-br from-emerald-900 via-teal-900 to-cyan-900 z-[10000] flex items-center justify-center p-4">
@@ -5369,7 +5456,22 @@ const MiniGames = {
             
             // Check for high score entry
             if (qualifiesForHighScore) {
-                setTimeout(() => this.promptName(this.score), 500);
+                setTimeout(() => {
+                    const gameModal = document.getElementById('defDashModal');
+                    if (gameModal) gameModal.remove();
+                    
+                    MiniGames.scoreHelper.promptAndSave('defdash', this.score, {
+                        title: 'HIGH SCORE!',
+                        subtitle: 'Definition Dash',
+                        bgGradient: 'from-emerald-600 to-teal-700',
+                        borderColor: 'border-yellow-400',
+                        inputBorderColor: 'border-teal-300',
+                        buttonTextColor: 'text-teal-900',
+                        stateKey: 'defDashScores',
+                        cabinetIndex: 2, // Definition Dash cabinet
+                        onComplete: () => this.close()
+                    });
+                }, 500);
             }
             
             document.getElementById('ddRestart').onclick = () => {
@@ -5380,51 +5482,20 @@ const MiniGames = {
             document.getElementById('ddExit').onclick = () => this.close();
         },
         
-        checkHighScore(score) {
-            if (score < 100) return; // Minimum score to qualify
-            const scores = State.data.defDashScores || [];
-            const minScore = scores.length < 10 ? 0 : scores[scores.length - 1].score;
-            if (score > minScore || scores.length < 10) {
-                setTimeout(() => this.promptName(score), 500);
-            }
-        },
-        
-        promptName(score) {
-            const html = `
-                <div id="ddNameEntry" class="fixed inset-0 bg-black/90 z-[10002] flex items-center justify-center p-4">
-                    <div class="bg-gradient-to-br from-emerald-600 to-teal-700 p-8 rounded-2xl text-center max-w-sm w-full shadow-2xl border-4 border-yellow-400">
-                        <div class="text-4xl mb-2">🏆</div>
-                        <h2 class="text-2xl font-black text-white mb-1">HIGH SCORE!</h2>
-                        <p class="text-teal-200 mb-4">Definition Dash: ${score} pts</p>
-                        <input type="text" id="ddNameInput" maxlength="3" placeholder="AAA"
-                            class="text-3xl text-center w-full tracking-widest border-4 border-teal-300 rounded-xl p-3 uppercase font-black mb-4 bg-white/90">
-                        <button id="ddSaveScore" class="w-full py-3 bg-yellow-400 hover:bg-yellow-300 text-teal-900 font-black text-lg rounded-xl transition">
-                            SAVE SCORE
-                        </button>
-                    </div>
-                </div>`;
-            
-            document.body.insertAdjacentHTML('beforeend', html);
-            document.getElementById('ddNameInput').focus();
-            
-            document.getElementById('ddSaveScore').onclick = () => {
-                const name = (document.getElementById('ddNameInput').value || "AAA").toUpperCase().substring(0, 3);
-                const scores = State.data.defDashScores || [];
-                scores.push({ name, score, date: Date.now() });
-                scores.sort((a, b) => b.score - a.score);
-                if (scores.length > 10) scores.pop();
-                State.save('defDashScores', scores);
-                document.getElementById('ddNameEntry').remove();
-                // Submit to global leaderboard
-                API.submitMiniGameScore('defdash', name, score);
-            };
-        },
-        
         close() {
             this.active = false;
             if (this.timer) clearInterval(this.timer);
             const modal = document.getElementById('defDashModal');
+            const entry = document.getElementById('mgScoreEntry');
             if (modal) modal.remove();
+            if (entry) entry.remove();
+            
+            // Return to Definition Dash cabinet
+            setTimeout(() => {
+                if (typeof StreakManager !== 'undefined' && StreakManager.showLeaderboard) {
+                    StreakManager.showLeaderboard(2);
+                }
+            }, 100);
         }
     },
     
@@ -5519,7 +5590,7 @@ const MiniGames = {
             this.isGameOver = false;
             this.pendingRestart = false;
             this.score = 0;
-            this.bestScore = parseInt(localStorage.getItem('wordJumpBest')) || 0;
+            this.bestScore = MiniGames.scoreHelper.getBestScore('wordJumpScores');
             this.gameSpeed = 5;
             this.frameCount = 0;
             this.obstacles = [];
@@ -5854,91 +5925,30 @@ const MiniGames = {
             this.isGameOver = true;
             cancelAnimationFrame(this.gameLoop);
             
-            // Check if this is a new personal best OR if score > 0 and no best yet
-            const isNewBest = this.score > this.bestScore || (this.score > 0 && this.bestScore === 0);
+            // Check if this qualifies for high score (any score > 0)
+            const qualifies = MiniGames.scoreHelper.qualifiesForHighScore(this.score, 'wordJumpScores', 1);
             
-            if (isNewBest && this.score > 0) {
-                // Show initials prompt for new high score
-                this.showInitialsPrompt();
+            if (qualifies && this.score > 0) {
+                // Close game modal and show shared initials prompt
+                const gameModal = document.getElementById('wordJumpModal');
+                if (gameModal) gameModal.remove();
+                if (this.keyHandler) window.removeEventListener('keydown', this.keyHandler);
+                
+                MiniGames.scoreHelper.promptAndSave('wordjump', this.score, {
+                    title: 'HIGH SCORE!',
+                    subtitle: 'Word Jump',
+                    bgGradient: 'from-sky-500 to-blue-600',
+                    borderColor: 'border-yellow-400',
+                    inputBorderColor: 'border-sky-300',
+                    buttonTextColor: 'text-sky-900',
+                    localStorageKey: 'wordJumpBest',
+                    stateKey: 'wordJumpScores',
+                    cabinetIndex: 3 // Word Jump cabinet
+                });
             } else {
                 // Just show game over screen
                 this.showGameOverScreen(false);
             }
-        },
-        
-        showInitialsPrompt() {
-            const modal = document.getElementById('wordJumpModal');
-            if (!modal) return;
-            
-            const overlay = document.createElement('div');
-            overlay.id = 'wjInitialsOverlay';
-            overlay.className = 'absolute inset-0 bg-black/80 flex items-center justify-center z-10';
-            overlay.innerHTML = `
-                <div class="bg-gradient-to-b from-indigo-600 to-indigo-800 rounded-2xl p-6 text-center shadow-2xl border-4 border-yellow-400 max-w-xs mx-4">
-                    <div class="text-4xl mb-2">🏆</div>
-                    <h3 class="text-2xl font-black text-yellow-400 mb-2">NEW HIGH SCORE!</h3>
-                    <p class="text-3xl font-bold text-white mb-4">${this.score}</p>
-                    <p class="text-white mb-3">Enter your initials:</p>
-                    <input type="text" id="wjInitialsInput" maxlength="3" 
-                        class="w-24 h-14 text-center text-3xl font-black uppercase bg-white rounded-lg border-4 border-yellow-400 text-indigo-800 focus:outline-none focus:border-yellow-300"
-                        placeholder="AAA">
-                    <button id="wjSubmitInitials" 
-                        class="mt-4 w-full py-3 bg-yellow-400 hover:bg-yellow-300 text-indigo-900 font-black text-lg rounded-lg transition">
-                        SUBMIT
-                    </button>
-                </div>
-            `;
-            
-            modal.style.position = 'relative';
-            modal.appendChild(overlay);
-            
-            const input = document.getElementById('wjInitialsInput');
-            const defaultInitials = (State.data.username || 'AAA').substring(0, 3).toUpperCase();
-            input.value = defaultInitials;
-            input.focus();
-            input.select();
-            
-            // Handle input to only allow letters
-            input.addEventListener('input', (e) => {
-                e.target.value = e.target.value.replace(/[^a-zA-Z]/g, '').toUpperCase();
-            });
-            
-            const submitScore = () => {
-                const initials = (input.value || 'AAA').toUpperCase().padEnd(3, 'A').substring(0, 3);
-                
-                // Save high score
-                this.bestScore = this.score;
-                localStorage.setItem('wordJumpBest', this.bestScore);
-                
-                // Save to local scores
-                const scores = State.data.wordJumpScores || [];
-                scores.push({ name: initials, score: this.score, date: new Date().toISOString() });
-                scores.sort((a, b) => b.score - a.score);
-                State.save('wordJumpScores', scores.slice(0, 10));
-                
-                // Submit to server
-                API.submitMiniGameScore('wordjump', initials, this.score);
-                
-                // Close game and return to arcade on Word Jump cabinet
-                this.active = false;
-                this.isGameOver = false;
-                if (this.gameLoop) cancelAnimationFrame(this.gameLoop);
-                if (this.keyHandler) window.removeEventListener('keydown', this.keyHandler);
-                const gameModal = document.getElementById('wordJumpModal');
-                if (gameModal) gameModal.remove();
-                
-                // Return to arcade on Word Jump cabinet (index 3)
-                setTimeout(() => {
-                    if (typeof StreakManager !== 'undefined' && StreakManager.showLeaderboard) {
-                        StreakManager.showLeaderboard(3);
-                    }
-                }, 100);
-            };
-            
-            document.getElementById('wjSubmitInitials').onclick = submitScore;
-            input.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') submitScore();
-            });
         },
         
         showGameOverScreen(wasNewBest) {
