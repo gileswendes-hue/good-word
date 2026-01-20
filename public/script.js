@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.6.4',
+    APP_VERSION: '6.6.5',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -5553,7 +5553,7 @@ const MiniGames = {
                         </div>
                     </div>
                     <canvas id="wordJumpCanvas" class="rounded-xl shadow-2xl border-4 border-white/50" style="max-width: 100%; touch-action: none;"></canvas>
-                    <div class="mt-4 text-white/80 text-sm font-bold">TAP or SPACE to jump! Collect <span class="text-yellow-300">NOT A WORDs</span> for +5 points!</div>
+                    <div class="mt-4 text-white/80 text-sm font-bold">TAP or SPACE to jump! Collect <span class="text-yellow-300">golden words</span> for +5 points!</div>
                     <button id="wjClose" class="mt-4 px-6 py-2 bg-white/20 hover:bg-white/30 text-white font-bold rounded-xl transition">
                         ✕ Exit Game
                     </button>
@@ -10906,20 +10906,72 @@ async showLeaderboard(startCabinetIndex = 0) {
                 /* === CRT MONITOR === */
                 .crt-housing {
                     flex: 1; margin: 0 15px 10px 15px;
-                    background: linear-gradient(180deg, #1c1c1c 0%, #121212 50%, #0a0a0a 100%);
+                    background: linear-gradient(180deg, #2a2a2a 0%, #1c1c1c 50%, #121212 100%);
                     border-radius: 10px 10px 16px 16px;
                     padding: 10px;
                     box-shadow: 
-                        inset 0 2px 6px rgba(255,255,255,0.06), 
+                        inset 0 2px 6px rgba(255,255,255,0.08), 
                         inset 0 -4px 10px rgba(0,0,0,0.6),
                         0 8px 20px rgba(0,0,0,0.5);
                     position: relative;
                 }
+                /* Theme-specific CRT housing */
+                .theme-wood .crt-housing {
+                    background: linear-gradient(180deg, #5d4037 0%, #4e342e 30%, #3e2723 60%, #2e1f1a 100%);
+                    box-shadow: 
+                        inset 0 2px 6px rgba(255,200,150,0.1), 
+                        inset 0 -4px 10px rgba(0,0,0,0.6),
+                        0 8px 20px rgba(0,0,0,0.5);
+                }
+                .theme-camo .crt-housing {
+                    background: linear-gradient(180deg, #4a5240 0%, #3d4435 30%, #2e3328 60%, #1f2218 100%);
+                    box-shadow: 
+                        inset 0 2px 6px rgba(129,199,132,0.08), 
+                        inset 0 -4px 10px rgba(0,0,0,0.6),
+                        0 8px 20px rgba(0,0,0,0.5);
+                }
+                .theme-cyber .crt-housing {
+                    background: linear-gradient(180deg, #0a1a10 0%, #061208 30%, #030a05 60%, #010503 100%);
+                    border: 1px solid rgba(0,255,136,0.2);
+                    box-shadow: 
+                        inset 0 2px 6px rgba(0,255,136,0.05), 
+                        inset 0 -4px 10px rgba(0,0,0,0.6),
+                        0 8px 20px rgba(0,0,0,0.5),
+                        0 0 20px rgba(0,255,136,0.1);
+                }
+                .theme-sky .crt-housing {
+                    background: linear-gradient(180deg, #1e4a6e 0%, #153a58 30%, #0c2a42 60%, #061a2c 100%);
+                    box-shadow: 
+                        inset 0 2px 6px rgba(125,211,252,0.1), 
+                        inset 0 -4px 10px rgba(0,0,0,0.6),
+                        0 8px 20px rgba(0,0,0,0.5);
+                }
                 .crt-bezel {
                     position: absolute; inset: 6px;
-                    background: linear-gradient(180deg, #0d0d0d 0%, #050505 100%);
+                    background: linear-gradient(180deg, #1a1a1a 0%, #0d0d0d 50%, #050505 100%);
                     border-radius: 8px 8px 14px 14px;
                     box-shadow: inset 0 0 25px rgba(0,0,0,0.95);
+                }
+                /* Theme-specific bezels */
+                .theme-wood .crt-bezel {
+                    background: linear-gradient(180deg, #3e2723 0%, #2e1f1a 50%, #1a1210 100%);
+                    border: 2px solid #5d4037;
+                    border-top-color: #6d4c41;
+                }
+                .theme-camo .crt-bezel {
+                    background: linear-gradient(180deg, #2e3328 0%, #1f2218 50%, #12150e 100%);
+                    border: 2px solid #4a5240;
+                    border-top-color: #5a6250;
+                }
+                .theme-cyber .crt-bezel {
+                    background: linear-gradient(180deg, #030a05 0%, #020503 50%, #010302 100%);
+                    border: 1px solid rgba(0,255,136,0.3);
+                    box-shadow: inset 0 0 25px rgba(0,0,0,0.95), inset 0 0 10px rgba(0,255,136,0.1);
+                }
+                .theme-sky .crt-bezel {
+                    background: linear-gradient(180deg, #0c2a42 0%, #061a2c 50%, #030d16 100%);
+                    border: 2px solid #1e4a6e;
+                    border-top-color: #2e5a7e;
                 }
                 .crt-screen {
                     position: absolute; inset: 12px;
@@ -11169,6 +11221,7 @@ async showLeaderboard(startCabinetIndex = 0) {
                     margin-right: 15px;
                     cursor: pointer;
                     transition: transform 0.1s;
+                    position: relative;
                 }
                 .coin-section:hover {
                     transform: scale(1.05);
@@ -11184,6 +11237,135 @@ async showLeaderboard(startCabinetIndex = 0) {
                         inset 0 2px 4px rgba(0,0,0,0.9),
                         0 1px 0 rgba(255,255,255,0.05);
                     margin-bottom: 8px;
+                    position: relative;
+                    overflow: visible;
+                    z-index: 5;
+                }
+                
+                /* Gold Coin Animation */
+                .coin-anim {
+                    position: absolute;
+                    width: 28px; height: 28px;
+                    border-radius: 50%;
+                    background: radial-gradient(circle at 35% 35%, #ffd700, #daa520 40%, #b8860b 70%, #8b6914);
+                    border: 2px solid #ffd700;
+                    box-shadow: 
+                        inset 0 -2px 4px rgba(0,0,0,0.3),
+                        0 2px 8px rgba(255,215,0,0.6),
+                        0 0 15px rgba(255,215,0,0.4);
+                    top: -60px; left: 50%;
+                    transform: translateX(-50%);
+                    z-index: 10;
+                    animation: coinDrop 0.6s ease-in forwards;
+                }
+                .coin-anim::before {
+                    content: '$';
+                    position: absolute;
+                    inset: 0;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 14px;
+                    font-weight: bold;
+                    color: #8b6914;
+                    text-shadow: 0 1px 0 rgba(255,255,255,0.3);
+                }
+                .coin-anim::after {
+                    content: '';
+                    position: absolute;
+                    top: 3px; left: 3px;
+                    width: 8px; height: 8px;
+                    background: radial-gradient(circle, rgba(255,255,255,0.8), transparent);
+                    border-radius: 50%;
+                }
+                
+                /* Fake Coin / Bottle Cap Animation */
+                .fake-coin-anim {
+                    position: absolute;
+                    width: 26px; height: 26px;
+                    border-radius: 50%;
+                    background: 
+                        radial-gradient(circle at 30% 30%, #888, #555 50%, #333),
+                        repeating-conic-gradient(from 0deg, #666 0deg 15deg, #444 15deg 30deg);
+                    border: 2px solid #777;
+                    box-shadow: 
+                        inset 0 -2px 4px rgba(0,0,0,0.5),
+                        0 2px 6px rgba(0,0,0,0.4);
+                    top: -60px; left: 50%;
+                    transform: translateX(-50%) rotate(0deg);
+                    z-index: 10;
+                    animation: fakeCoinDrop 0.8s ease-in forwards;
+                }
+                .fake-coin-anim::before {
+                    content: '';
+                    position: absolute;
+                    inset: 4px;
+                    border-radius: 50%;
+                    background: 
+                        linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.1) 50%, transparent 60%),
+                        radial-gradient(circle at 60% 60%, #444, #222);
+                    border: 1px dashed #555;
+                }
+                /* Crumpled texture lines */
+                .fake-coin-anim::after {
+                    content: '';
+                    position: absolute;
+                    inset: 2px;
+                    border-radius: 50%;
+                    background: 
+                        linear-gradient(45deg, transparent 45%, rgba(0,0,0,0.2) 50%, transparent 55%),
+                        linear-gradient(-45deg, transparent 45%, rgba(255,255,255,0.1) 50%, transparent 55%),
+                        linear-gradient(90deg, transparent 45%, rgba(0,0,0,0.15) 50%, transparent 55%);
+                }
+                
+                @keyframes coinDrop {
+                    0% {
+                        top: -60px;
+                        opacity: 1;
+                        transform: translateX(-50%) rotateY(0deg) scale(1);
+                    }
+                    50% {
+                        opacity: 1;
+                        transform: translateX(-50%) rotateY(180deg) scale(1);
+                    }
+                    85% {
+                        top: -10px;
+                        opacity: 1;
+                        transform: translateX(-50%) rotateY(360deg) scale(0.8);
+                    }
+                    100% {
+                        top: 0px;
+                        opacity: 0;
+                        transform: translateX(-50%) rotateY(540deg) scale(0.3);
+                    }
+                }
+                
+                @keyframes fakeCoinDrop {
+                    0% {
+                        top: -60px;
+                        opacity: 1;
+                        transform: translateX(-50%) rotate(0deg) scale(1);
+                    }
+                    30% {
+                        transform: translateX(-50%) rotate(-20deg) scale(1);
+                    }
+                    50% {
+                        top: -30px;
+                        transform: translateX(-50%) rotate(15deg) scale(0.95);
+                    }
+                    70% {
+                        transform: translateX(-50%) rotate(-10deg) scale(0.9);
+                    }
+                    85% {
+                        top: -10px;
+                        opacity: 1;
+                        transform: translateX(-50%) rotate(5deg) scale(0.7);
+                    }
+                    100% {
+                        top: 0px;
+                        opacity: 0;
+                        transform: translateX(-50%) rotate(0deg) scale(0.3);
+                    }
                 }
                 .coin-light {
                     width: 50px; height: 20px;
@@ -11525,15 +11707,35 @@ async showLeaderboard(startCabinetIndex = 0) {
                 }
                 
                 const crtContent = document.getElementById(`list-${idx}`);
+                const coinSlot = coinBtn.querySelector('.coin-slot');
+                
+                // Create and animate the coin
+                const createCoinAnimation = (isFake) => {
+                    // Remove any existing coin animations
+                    const existing = coinSlot.querySelector('.coin-anim, .fake-coin-anim');
+                    if (existing) existing.remove();
+                    
+                    const coin = document.createElement('div');
+                    coin.className = isFake ? 'fake-coin-anim' : 'coin-anim';
+                    coinSlot.appendChild(coin);
+                    
+                    // Remove after animation completes
+                    setTimeout(() => coin.remove(), isFake ? 800 : 600);
+                };
                 
                 // Word Streak = Fake coin!
                 if (gameId === 'streak') {
-                    crtContent.innerHTML = `
-                        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; text-align:center;">
-                            <div style="font-size: 2rem; color: #ff4444; text-shadow: 0 0 20px #ff0000; animation: fakeCoinFlash 0.3s ease-in-out 3;">FAKE COIN!</div>
-                            <div style="font-size: 1rem; margin-top: 15px; opacity: 0.6;">Nice try...</div>
-                        </div>
-                    `;
+                    createCoinAnimation(true); // Fake bottle cap animation
+                    
+                    setTimeout(() => {
+                        crtContent.innerHTML = `
+                            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; text-align:center;">
+                                <div style="font-size: 2rem; color: #ff4444; text-shadow: 0 0 20px #ff0000; animation: fakeCoinFlash 0.3s ease-in-out 3;">FAKE COIN!</div>
+                                <div style="font-size: 1rem; margin-top: 15px; opacity: 0.6;">Nice try...</div>
+                            </div>
+                        `;
+                    }, 400);
+                    
                     // Add flash animation if not exists
                     if (!document.getElementById('fake-coin-anim')) {
                         const style = document.createElement('style');
@@ -11547,17 +11749,22 @@ async showLeaderboard(startCabinetIndex = 0) {
                         document.head.appendChild(style);
                     }
                     // Return to scores after delay
-                    setTimeout(() => refreshCabinetContent(idx), 2000);
+                    setTimeout(() => refreshCabinetContent(idx), 2500);
                     return;
                 }
                 
-                // Word War or Def Dash - Show loading then launch
-                crtContent.innerHTML = `
-                    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; text-align:center;">
-                        <div style="font-size: 2rem; animation: loadingPulse 0.8s ease-in-out infinite;">LOADING...</div>
-                        <div style="margin-top: 20px; font-size: 3rem; animation: loadingPulse 0.8s ease-in-out infinite 0.2s;">${cabinets[idx].icon}</div>
-                    </div>
-                `;
+                // Word War, Def Dash, or Word Jump - Real coin animation
+                createCoinAnimation(false); // Gold coin animation
+                
+                setTimeout(() => {
+                    crtContent.innerHTML = `
+                        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; text-align:center;">
+                            <div style="font-size: 2rem; animation: loadingPulse 0.8s ease-in-out infinite;">LOADING...</div>
+                            <div style="margin-top: 20px; font-size: 3rem; animation: loadingPulse 0.8s ease-in-out infinite 0.2s;">${cabinets[idx].icon}</div>
+                        </div>
+                    `;
+                }, 300);
+                
                 // Add loading animation if not exists
                 if (!document.getElementById('loading-anim')) {
                     const style = document.createElement('style');
