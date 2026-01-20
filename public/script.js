@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.6.0',
+    APP_VERSION: '6.6.1',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -1293,6 +1293,24 @@ async fetchKidsWords() {
     },
     async define(w) {
          return fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${w.toLowerCase()}`);
+    },
+    async getCommunityDefinition(wordId) {
+        try {
+            const r = await fetch(`${CONFIG.API_BASE_URL}/${wordId}/definition`);
+            if (!r.ok) return null;
+            return await r.json();
+        } catch (e) { return null; }
+    },
+    async setCommunityDefinition(wordId, definition, author) {
+        try {
+            const r = await fetch(`${CONFIG.API_BASE_URL}/${wordId}/definition`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ definition, author })
+            });
+            if (!r.ok) return null;
+            return await r.json();
+        } catch (e) { return null; }
     },
     async getGlobalScores() {
         try {
@@ -5136,12 +5154,13 @@ const MiniGames = {
             
             let definition = null;
             let attempts = 0;
-            const maxAttempts = 20;
+            const maxAttempts = 25;
             
             while (!definition && attempts < maxAttempts) {
                 attempts++;
                 const randomWord = State.runtime.allWords[Math.floor(Math.random() * State.runtime.allWords.length)];
                 
+                // First try the dictionary API
                 try {
                     const r = await API.define(randomWord.text);
                     if (r.ok) {
@@ -5152,7 +5171,20 @@ const MiniGames = {
                         }
                     }
                 } catch (e) {
-                    // Try next word
+                    // Dictionary API failed, try community definition
+                }
+                
+                // If no dictionary definition, try community definition
+                if (!definition && randomWord._id) {
+                    try {
+                        const communityDef = await API.getCommunityDefinition(randomWord._id);
+                        if (communityDef && communityDef.definition) {
+                            this.correctWord = randomWord;
+                            definition = communityDef.definition;
+                        }
+                    } catch (e) {
+                        // No community definition either, try next word
+                    }
                 }
             }
             
@@ -9053,23 +9085,127 @@ async vote(t, s = false) {
         document.getElementById('definitionWord').textContent = w.text.toUpperCase();
         const d = document.getElementById('definitionResults');
         d.innerHTML = 'Loading...';
+        
+        let hasDictionaryDef = false;
+        
         try {
+            // First try the external dictionary API
             const r = await API.define(w.text);
-            if (!r.ok) throw 0;
-            const j = await r.json();
-            let h = '';
-            j[0].meanings.forEach(m => {
-                h += `<div class="mb-4"><h4 class="text-lg font-bold italic text-indigo-600">${m.partOfSpeech}</h4><ol class="list-decimal list-inside pl-4 mt-2 space-y-1">`;
-                m.definitions.forEach(def => {
-                    h += `<li>${def.definition}</li>`;
-                    if (def.example) h += `<p class="text-sm text-gray-500 pl-4 italic">"${def.example}"</p>`;
+            if (r.ok) {
+                const j = await r.json();
+                let h = '';
+                j[0].meanings.forEach(m => {
+                    h += `<div class="mb-4"><h4 class="text-lg font-bold italic text-indigo-600">${m.partOfSpeech}</h4><ol class="list-decimal list-inside pl-4 mt-2 space-y-1">`;
+                    m.definitions.forEach(def => {
+                        h += `<li>${def.definition}</li>`;
+                        if (def.example) h += `<p class="text-sm text-gray-500 pl-4 italic">"${def.example}"</p>`;
+                    });
+                    h += '</ol></div>';
                 });
-                h += '</ol></div>';
-            });
-            d.innerHTML = h;
+                d.innerHTML = h;
+                hasDictionaryDef = true;
+            }
         } catch {
-            d.innerHTML = '<p class="text-red-500">Definition not found.</p>';
+            // Dictionary API failed, will try community definition
         }
+        
+        // If no dictionary definition found, try community definition
+        if (!hasDictionaryDef) {
+            const communityDef = await API.getCommunityDefinition(w._id);
+            
+            if (communityDef && communityDef.definition) {
+                // Show community definition
+                d.innerHTML = `
+                    <div class="mb-4">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="bg-purple-100 text-purple-700 text-xs font-bold px-2 py-1 rounded">COMMUNITY DEFINITION</span>
+                        </div>
+                        <p class="text-gray-800 text-lg">${communityDef.definition}</p>
+                        <p class="text-sm text-gray-500 mt-2">— Added by ${communityDef.author || 'Anonymous'}${communityDef.updatedAt ? ` on ${new Date(communityDef.updatedAt).toLocaleDateString()}` : ''}</p>
+                    </div>
+                    <div class="border-t pt-4 mt-4">
+                        <button id="editCommunityDef" class="text-sm text-indigo-600 hover:text-indigo-800 font-medium">✏️ Suggest a better definition</button>
+                    </div>
+                `;
+                document.getElementById('editCommunityDef').onclick = () => this.showAddDefinitionForm(w);
+            } else {
+                // No definition at all - show form to add one
+                d.innerHTML = `
+                    <div class="text-center py-4">
+                        <p class="text-gray-500 mb-4">No dictionary definition found for this word.</p>
+                        <p class="text-sm text-gray-400 mb-6">Be the first to add a community definition!</p>
+                        <button id="addCommunityDef" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition">
+                            ✨ Add Definition
+                        </button>
+                    </div>
+                `;
+                document.getElementById('addCommunityDef').onclick = () => this.showAddDefinitionForm(w);
+            }
+        }
+    },
+    
+    showAddDefinitionForm(word) {
+        const d = document.getElementById('definitionResults');
+        const username = State.data.username || 'Anonymous';
+        
+        d.innerHTML = `
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Your definition for "${word.text.toUpperCase()}"</label>
+                    <textarea id="communityDefInput" 
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
+                        rows="4"
+                        maxlength="512"
+                        placeholder="Enter a clear, helpful definition..."></textarea>
+                    <p class="text-xs text-gray-400 mt-1"><span id="defCharCount">0</span>/512 characters</p>
+                </div>
+                <div class="flex gap-3">
+                    <button id="submitCommunityDef" class="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition">
+                        Submit Definition
+                    </button>
+                    <button id="cancelCommunityDef" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-lg transition">
+                        Cancel
+                    </button>
+                </div>
+                <p class="text-xs text-gray-500 text-center">Submitting as: ${username}</p>
+            </div>
+        `;
+        
+        const textarea = document.getElementById('communityDefInput');
+        const charCount = document.getElementById('defCharCount');
+        
+        textarea.addEventListener('input', () => {
+            charCount.textContent = textarea.value.length;
+        });
+        
+        document.getElementById('submitCommunityDef').onclick = async () => {
+            const definition = textarea.value.trim();
+            if (!definition) {
+                UIManager.showPostVoteMessage('Please enter a definition');
+                return;
+            }
+            if (definition.length > 512) {
+                UIManager.showPostVoteMessage('Definition is too long (max 512 characters)');
+                return;
+            }
+            
+            d.innerHTML = '<p class="text-center text-gray-500 animate-pulse">Saving definition...</p>';
+            
+            const result = await API.setCommunityDefinition(word._id, definition, username);
+            if (result) {
+                UIManager.showPostVoteMessage('✨ Definition added! Thank you!');
+                this.showDefinition(); // Refresh to show the new definition
+            } else {
+                UIManager.showPostVoteMessage('Failed to save definition. Try again.');
+                this.showAddDefinitionForm(word); // Show form again
+            }
+        };
+        
+        document.getElementById('cancelCommunityDef').onclick = () => {
+            this.showDefinition(); // Go back to definition view
+        };
+        
+        textarea.focus();
     },
     loadSpecial(t) {
         const i = State.runtime.allWords.findIndex(w => w.text.toUpperCase() === t);
