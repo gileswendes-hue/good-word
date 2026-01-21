@@ -95,7 +95,7 @@ loadKidsWords();
 
 const rooms = {};
 const localRooms = {}; // WebRTC local rooms for offline/festival play
-const MODE_MINS = { 'coop': 2, 'versus': 4, 'vip': 3, 'hipster': 3, 'speed': 2, 'survival': 2, 'traitor': 3, 'kids': 2, 'okstoopid': 2 };
+const MODE_MINS = { 'coop': 2, 'versus': 4, 'vip': 3, 'hipster': 3, 'speed': 2, 'survival': 2, 'traitor': 3, 'kids': 2, 'okstoopid': 2, 'controversial': 2 };
 const MODE_MAXS = { 'okstoopid': 2 };
 
 // Clean up stale local rooms (older than 4 hours)
@@ -468,11 +468,21 @@ io.on('connection', (socket) => {
                 let selection = [];
                 while(selection.length < room.maxWords && shuffled.length > 0) selection = selection.concat(shuffled);
                 room.words = selection.slice(0, room.maxWords).map(t => ({ text: t }));
+            } else if (room.mode === 'controversial') {
+                // Controversial King needs 3x words (3 choices per round)
+                room.words = await Word.aggregate([{ $sample: { size: room.maxWords * 3 } }]);
+                room.controversialRound = 0;
             } else {
                 room.words = await Word.aggregate([{ $sample: { size: room.maxWords } }]);
             }
             io.to(roomCode).emit('gameStarted', { totalWords: room.maxWords, mode: room.mode, vipId: room.vipId, words: room.words });
-            room.wordTimer = setTimeout(() => sendNextWord(roomCode), 4000);
+            
+            // Controversial mode uses different flow
+            if (room.mode === 'controversial') {
+                room.wordTimer = setTimeout(() => sendNextControversialRound(roomCode), 4000);
+            } else {
+                room.wordTimer = setTimeout(() => sendNextWord(roomCode), 4000);
+            }
         } catch (e) { console.error(e); }
     });
 
@@ -494,6 +504,24 @@ io.on('connection', (socket) => {
         if (!room || room.state !== 'drinking') return;
         room.readyConfirms.add(socket.id);
         checkDrinkingCompletion(roomCode);
+    });
+    
+    // Controversial King: player picks a word
+    socket.on('controversialPick', ({ roomCode, wordId, wordIndex }) => {
+        const room = rooms[roomCode];
+        if (!room || room.state !== 'playing' || room.mode !== 'controversial') return;
+        const player = room.players.find(p => p.id === socket.id);
+        if (!player || player.isSpectator) return;
+        
+        // Store the pick
+        room.currentVotes[socket.id] = { wordId, wordIndex, time: Date.now() };
+        io.to(roomCode).emit('playerVoted', { playerId: socket.id });
+        
+        // Check if all players have picked
+        const activePlayers = room.players.filter(p => !p.isSpectator);
+        if (Object.keys(room.currentVotes).length >= activePlayers.length) {
+            finishControversialRound(roomCode);
+        }
     });
 });
 
@@ -815,6 +843,120 @@ function finishWord(roomCode) {
     if(drinkers.length>0) { room.state='drinking'; room.readyConfirms=new Set(); io.to(roomCode).emit('drinkPenalty', { drinkers, msg: drinkMsg }); }
     else { room.wordTimer = setTimeout(() => sendNextWord(roomCode), 3000); }
 }
+
+// ============ Controversial King Mode Functions ============
+
+// Calculate how controversial a word is (0 = perfect 50/50, higher = less controversial)
+function getControversyScore(word) {
+    const g = word.goodVotes || 0;
+    const b = word.badVotes || 0;
+    const total = g + b;
+    if (total === 0) return 0.5; // No votes = assume 50/50
+    const ratio = g / total;
+    return Math.abs(0.5 - ratio); // 0 = most controversial (50/50), 0.5 = least (100/0 or 0/100)
+}
+
+// Send the next round of 3 words for Controversial King
+function sendNextControversialRound(roomCode) {
+    const room = rooms[roomCode];
+    if (!room || room.mode !== 'controversial') return;
+    
+    // Check if game is over
+    if (room.controversialRound >= room.maxWords) {
+        processGameEnd(roomCode);
+        return;
+    }
+    
+    // Get 3 words for this round
+    const startIdx = room.controversialRound * 3;
+    const roundWords = room.words.slice(startIdx, startIdx + 3);
+    
+    if (roundWords.length < 3) {
+        processGameEnd(roomCode, "Not enough words!");
+        return;
+    }
+    
+    room.currentVotes = {};
+    room.currentVoteTimes = {};
+    room.wordStartTime = Date.now();
+    room.currentRoundWords = roundWords;
+    
+    // Send 3 words to all players (without revealing vote stats)
+    io.to(roomCode).emit('controversialRound', {
+        words: roundWords.map(w => ({ _id: w._id, text: w.text })), // Hide vote counts
+        roundNum: room.controversialRound + 1,
+        totalRounds: room.maxWords
+    });
+}
+
+// Process the results of a Controversial King round
+function finishControversialRound(roomCode) {
+    const room = rooms[roomCode];
+    if (!room || room.mode !== 'controversial') return;
+    
+    const votes = room.currentVotes;
+    const words = room.currentRoundWords;
+    
+    // Calculate controversy scores for each word
+    const wordScores = words.map((w, i) => ({
+        word: w,
+        index: i,
+        controversyScore: getControversyScore(w)
+    }));
+    
+    // Sort by controversy (lower score = more controversial)
+    wordScores.sort((a, b) => a.controversyScore - b.controversyScore);
+    const winnerIndex = wordScores[0].index; // Most controversial word's original index
+    const secondIndex = wordScores[1].index;
+    
+    // Calculate player scores
+    const playerScores = [];
+    room.players.forEach(p => {
+        if (p.isSpectator) return;
+        const pick = votes[p.id];
+        if (!pick) return;
+        
+        let points = 0;
+        let correct = false;
+        
+        if (pick.wordIndex === winnerIndex) {
+            points = 3; // Picked most controversial
+            correct = true;
+        } else if (pick.wordIndex === secondIndex) {
+            points = 1; // Picked second most controversial
+        }
+        
+        p.score += points;
+        playerScores.push({ 
+            id: p.id, 
+            name: p.name, 
+            picked: pick.wordIndex,
+            points,
+            correct
+        });
+    });
+    
+    // Send results to all players
+    io.to(roomCode).emit('controversialResult', {
+        words: words, // Full word data with vote counts
+        winnerIndex,
+        secondIndex,
+        scores: playerScores,
+        rankings: [...room.players].filter(p => !p.isSpectator).sort((a, b) => b.score - a.score)
+    });
+    
+    room.controversialRound++;
+    
+    // Check if game is over
+    if (room.controversialRound >= room.maxWords) {
+        room.wordTimer = setTimeout(() => processGameEnd(roomCode), 4000);
+    } else {
+        // Next round after delay
+        room.wordTimer = setTimeout(() => sendNextControversialRound(roomCode), 4000);
+    }
+}
+
+// ============ End Controversial King Functions ============
 
 app.get('/kids_words.txt', (req, res) => { const p = path.join(__dirname, 'kids_words.txt'); if (fs.existsSync(p)) res.sendFile(p); else res.status(404).send(""); });
 app.get('/api/words/all', async (req, res) => { try { res.json(await Word.find().sort({ createdAt: -1 })); } catch (e) { res.json([]); } });
