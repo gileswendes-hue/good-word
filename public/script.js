@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.6.7',
+    APP_VERSION: '6.6.9',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -248,6 +248,7 @@ const State = {
         wordWarScores: safeParse('wordWarScores', []),
         defDashScores: safeParse('defDashScores', []),
         wordJumpScores: safeParse('wordJumpScores', []),
+        pendingMiniGameScores: safeParse('pendingMiniGameScores', []),
         pendingVotes: safeParse('pendingVotes', []),
         offlineCache: safeParse('offlineCache', []),
         unlockedThemes: safeParse('unlockedThemes', []),
@@ -338,7 +339,7 @@ const State = {
     save(k, v) {
         this.data[k] = v;
         const s = localStorage;
-        if (['pendingVotes','offlineCache','highScores','wordWarScores','defDashScores','wordJumpScores','unlockedThemes','seenHistory','settings'].includes(k)) {
+        if (['pendingVotes','offlineCache','highScores','wordWarScores','defDashScores','wordJumpScores','pendingMiniGameScores','unlockedThemes','seenHistory','settings'].includes(k)) {
             s.setItem(k, JSON.stringify(v));
         }
         if (k === 'pendingVotes') s.setItem('pendingVotes', JSON.stringify(v));
@@ -347,6 +348,7 @@ const State = {
         else if (k === 'wordWarScores') s.setItem('wordWarScores', JSON.stringify(v));
         else if (k === 'defDashScores') s.setItem('defDashScores', JSON.stringify(v));
         else if (k === 'wordJumpScores') s.setItem('wordJumpScores', JSON.stringify(v));
+        else if (k === 'pendingMiniGameScores') s.setItem('pendingMiniGameScores', JSON.stringify(v));
         else if (k === 'insectStats') {
             s.setItem('insectSaved', v.saved);
             s.setItem('insectEaten', v.eaten);
@@ -582,6 +584,11 @@ const OfflineManager = {
         }
     }
 };
+// Sync pending mini-game scores when coming back online
+window.addEventListener('online', () => {
+    console.log('Back online - syncing pending mini-game scores...');
+    setTimeout(() => API.syncPendingMiniGameScores(), 1000);
+});
 if (!localStorage.getItem('userId')) localStorage.setItem('userId', State.data.userId);
 const Accessibility = {
     apply() {
@@ -1331,13 +1338,61 @@ async fetchKidsWords() {
         } catch (e) { console.error("Score submit failed", e); }
     },
     async submitMiniGameScore(game, name, score) {
+        const scoreData = { game, name, score, userId: State.data.userId, timestamp: Date.now() };
         try {
-            await fetch('/api/minigame-scores', {
+            const response = await fetch('/api/minigame-scores', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ game, name, score, userId: State.data.userId })
+                body: JSON.stringify(scoreData)
             });
-        } catch (e) { console.error("Mini-game score submit failed", e); }
+            if (!response.ok) {
+                throw new Error('Server returned ' + response.status);
+            }
+            // Successfully uploaded - also check for any pending scores to sync
+            this.syncPendingMiniGameScores();
+        } catch (e) {
+            console.warn("Mini-game score submit failed, saving for later sync:", e);
+            // Save to pending queue for later upload
+            const pending = State.data.pendingMiniGameScores || [];
+            // Avoid duplicates (same game, name, score within 1 minute)
+            const isDuplicate = pending.some(p => 
+                p.game === game && p.name === name && p.score === score && 
+                Math.abs(p.timestamp - scoreData.timestamp) < 60000
+            );
+            if (!isDuplicate) {
+                pending.push(scoreData);
+                State.save('pendingMiniGameScores', pending);
+            }
+        }
+    },
+    async syncPendingMiniGameScores() {
+        const pending = State.data.pendingMiniGameScores || [];
+        if (pending.length === 0) return;
+        
+        const stillPending = [];
+        for (const scoreData of pending) {
+            try {
+                const response = await fetch('/api/minigame-scores', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(scoreData)
+                });
+                if (!response.ok) {
+                    stillPending.push(scoreData);
+                } else {
+                    console.log(`Synced pending score: ${scoreData.game} - ${scoreData.score}`);
+                }
+            } catch (e) {
+                stillPending.push(scoreData);
+            }
+        }
+        
+        State.save('pendingMiniGameScores', stillPending);
+        
+        if (stillPending.length < pending.length) {
+            const synced = pending.length - stillPending.length;
+            console.log(`Synced ${synced} pending mini-game score(s) to world records`);
+        }
     },
     async getMiniGameScores(game) {
         try {
@@ -8456,15 +8511,195 @@ const RoomManager = {
     hostTheme: null,
     listenersAttached: false,
     modeConfig: {
-        'coop': { label: '🤝 Co-op Sync', desc: 'Vote together! Match with the Global Majority.', min: 2 },
-        'okstoopid': { label: '💘 OK Stoopid', desc: 'Couples Mode. Match each other quickly for the highest score!', min: 2, max: 2 },
-        'versus': { label: '⚔️ Team Versus', desc: 'Red vs Blue. Best Team wins.', min: 2 },
-        'vip': { label: '⭐ The VIP', desc: 'One player is the VIP. Everyone tries to match their vote!', min: 3 },
-        'hipster': { label: '🕶️ Hipster Mode', desc: 'Be unique! Score by voting with the minority.', min: 3 },
-        'speed': { label: '⏱️ Speed Demon', desc: 'Vote fast! Speed and accuracy wins.', min: 2 },
-        'survival': { label: '💣 Sudden Death', desc: 'Three Lives. Vote with majority, or die.', min: 2 },
-        'traitor': { label: '🕵️ The Traitor', desc: 'One Traitor tries to ruin everything!', min: 3 },
-        'kids': { label: '👶 Kids Mode', desc: 'Simple words. Family friendly!', min: 2 }
+        'coop': { 
+            label: '🤝 Co-op Sync', 
+            desc: 'Vote together! Match with the Global Majority.', 
+            min: 2,
+            rules: `<b>🤝 Co-op Sync Rules</b><br><br>
+                <b>Goal:</b> Work together as a team to match the global majority vote.<br><br>
+                <b>How to Play:</b><br>
+                • Each round, a word appears for all players<br>
+                • Everyone votes Good 👍 or Bad 👎<br>
+                • Your team score increases when you match the global majority<br><br>
+                <b>Scoring:</b><br>
+                • Higher sync percentage = Better team performance<br>
+                • Try to achieve 100% sync with your group!<br><br>
+                <b>Tip:</b> Think about what most people would vote, not just your opinion!`
+        },
+        'okstoopid': { 
+            label: '💘 OK Stoopid', 
+            desc: 'Couples Mode. Match each other quickly for the highest score!', 
+            min: 2, 
+            max: 2,
+            rules: `<b>💘 OK Stoopid Rules</b><br><br>
+                <b>Goal:</b> Match your partner's votes as quickly as possible!<br><br>
+                <b>How to Play:</b><br>
+                • Only 2 players allowed - perfect for couples or best friends<br>
+                • Each round, both players vote Good 👍 or Bad 👎<br>
+                • Try to think like your partner!<br><br>
+                <b>Scoring:</b><br>
+                • Match = Points based on how fast you both voted<br>
+                • Mismatch = No points<br>
+                • Fastest matches score the most!<br><br>
+                <b>Tip:</b> The better you know each other, the higher you'll score!`
+        },
+        'versus': { 
+            label: '⚔️ Team Versus', 
+            desc: 'Red vs Blue. Best Team wins.', 
+            min: 2,
+            rules: `<b>⚔️ Team Versus Rules</b><br><br>
+                <b>Goal:</b> Beat the opposing team by matching the global majority more often.<br><br>
+                <b>How to Play:</b><br>
+                • Players are split into Red and Blue teams<br>
+                • Each round, everyone votes Good 👍 or Bad 👎<br>
+                • The team with more players matching the majority wins the round<br><br>
+                <b>Scoring:</b><br>
+                • Round win = 1 point for your team<br>
+                • Most points at the end wins!<br><br>
+                <b>Tip:</b> Coordinate with your teammates for strategic voting!`
+        },
+        'vip': { 
+            label: '⭐ The VIP', 
+            desc: 'One player is the VIP. Everyone tries to match their vote!', 
+            min: 3,
+            rules: `<b>⭐ The VIP Rules</b><br><br>
+                <b>Goal:</b> If you're the VIP, vote your heart. Everyone else - match the VIP!<br><br>
+                <b>How to Play:</b><br>
+                • One random player becomes the VIP (⭐) each game<br>
+                • The VIP votes however they want<br>
+                • All other players try to predict and match the VIP's vote<br><br>
+                <b>Scoring:</b><br>
+                • Match the VIP = Points<br>
+                • Miss the VIP's vote = No points<br>
+                • VIP scores based on how many people they fooled!<br><br>
+                <b>Tip:</b> Study the VIP's personality - are they a "Good" or "Bad" person?`
+        },
+        'hipster': { 
+            label: '🕶️ Hipster Mode', 
+            desc: 'Be unique! Score by voting with the minority.', 
+            min: 3,
+            rules: `<b>🕶️ Hipster Mode Rules</b><br><br>
+                <b>Goal:</b> Be different! Vote against the crowd to score points.<br><br>
+                <b>How to Play:</b><br>
+                • Each round, everyone votes Good 👍 or Bad 👎<br>
+                • The minority vote wins!<br>
+                • If everyone votes the same... nobody scores<br><br>
+                <b>Scoring:</b><br>
+                • Minority voter = Points<br>
+                • Majority voter = No points<br>
+                • Ties = Everyone scores half points<br><br>
+                <b>Tip:</b> Think about what everyone ELSE will vote, then vote the opposite!`
+        },
+        'controversial': { 
+            label: '🔥 Controversial King', 
+            desc: 'Pick the most divisive word! Closest to 50/50 wins.', 
+            min: 2,
+            rules: `<b>🔥 Controversial King Rules</b><br><br>
+                <b>Goal:</b> Find the most controversial word - the one closest to a 50/50 split!<br><br>
+                <b>How to Play:</b><br>
+                • Each round shows 3 words with their global vote stats hidden<br>
+                • Pick the word you think is most controversial (closest to 50% good / 50% bad)<br>
+                • The server reveals which word was actually closest to 50/50<br><br>
+                <b>Scoring:</b><br>
+                • Picking the most controversial word = 3 points<br>
+                • Second most controversial = 1 point<br>
+                • Least controversial = 0 points<br><br>
+                <b>Tip:</b> Words that could go either way tend to be the most divisive!`
+        },
+        'speed': { 
+            label: '⏱️ Speed Demon', 
+            desc: 'Vote fast! Speed and accuracy wins.', 
+            min: 2,
+            rules: `<b>⏱️ Speed Demon Rules</b><br><br>
+                <b>Goal:</b> Be fast AND correct! Match the majority as quickly as possible.<br><br>
+                <b>How to Play:</b><br>
+                • Each round, vote Good 👍 or Bad 👎<br>
+                • The faster you vote, the more potential points<br>
+                • But only if you match the majority!<br><br>
+                <b>Scoring:</b><br>
+                • Fast + Correct = Maximum points<br>
+                • Slow + Correct = Fewer points<br>
+                • Wrong = Zero points (no matter how fast)<br><br>
+                <b>Tip:</b> Trust your gut - overthinking costs precious seconds!`
+        },
+        'survival': { 
+            label: '💣 Sudden Death', 
+            desc: 'Three Lives. Vote with majority, or die.', 
+            min: 2,
+            rules: `<b>💣 Sudden Death Rules</b><br><br>
+                <b>Goal:</b> Survive! Don't run out of lives.<br><br>
+                <b>How to Play:</b><br>
+                • Everyone starts with 3 lives ❤️❤️❤️<br>
+                • Each round, vote Good 👍 or Bad 👎<br>
+                • Vote with the majority = Safe<br>
+                • Vote with the minority = Lose 1 life 💔<br><br>
+                <b>Elimination:</b><br>
+                • Lose all 3 lives = Eliminated! 💀<br>
+                • Last player standing wins!<br>
+                • Eliminated players become spectators<br><br>
+                <b>Tip:</b> Play it safe early - the field narrows as players get eliminated!`
+        },
+        'traitor': { 
+            label: '🕵️ The Traitor', 
+            desc: 'One Traitor tries to ruin everything!', 
+            min: 3,
+            rules: `<b>🕵️ The Traitor Rules</b><br><br>
+                <b>Goal:</b> Traitor tries to sabotage. Everyone else tries to sync.<br><br>
+                <b>How to Play:</b><br>
+                • One random player is secretly the Traitor 🕵️<br>
+                • Loyal players try to match the majority<br>
+                • The Traitor tries to vote with minorities to lower the team's sync<br><br>
+                <b>Winning:</b><br>
+                • Loyalists win if sync stays above 60%<br>
+                • Traitor wins if they drag sync below 40%<br>
+                • The Traitor's identity is revealed at the end!<br><br>
+                <b>Tip:</b> Traitors - be subtle! Too obvious and you'll be suspected.`
+        },
+        'kids': { 
+            label: '👶 Kids Mode', 
+            desc: 'Simple words. Family friendly!', 
+            min: 2,
+            rules: `<b>👶 Kids Mode Rules</b><br><br>
+                <b>Goal:</b> Fun for the whole family! Vote together on kid-friendly words.<br><br>
+                <b>How to Play:</b><br>
+                • Only simple, family-friendly words appear<br>
+                • Everyone votes Good 👍 or Bad 👎<br>
+                • No complicated or adult content<br><br>
+                <b>Scoring:</b><br>
+                • Match the group = Points<br>
+                • Everyone has fun - that's the real win!<br><br>
+                <b>Perfect for:</b> Young children, family game nights, classroom activities`
+        }
+    },
+    // Show rules modal for a game mode
+    showModeRules(modeKey) {
+        const mode = this.modeConfig[modeKey];
+        if (!mode || !mode.rules) return;
+        
+        const existingModal = document.getElementById('modeRulesModal');
+        if (existingModal) existingModal.remove();
+        
+        const modal = document.createElement('div');
+        modal.id = 'modeRulesModal';
+        modal.className = 'fixed inset-0 bg-black/70 z-[10000] flex items-center justify-center p-4 backdrop-blur-sm';
+        modal.innerHTML = `
+            <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl animate-pop max-h-[80vh] overflow-y-auto">
+                <div class="flex justify-between items-start mb-4">
+                    <h3 class="text-xl font-black text-gray-800">${mode.label}</h3>
+                    <button onclick="document.getElementById('modeRulesModal').remove()" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+                </div>
+                <div class="text-sm text-gray-600 leading-relaxed">
+                    ${mode.rules}
+                </div>
+                <button onclick="document.getElementById('modeRulesModal').remove()" class="mt-6 w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition">
+                    Got it!
+                </button>
+            </div>
+        `;
+        modal.onclick = (e) => {
+            if (e.target === modal) modal.remove();
+        };
+        document.body.appendChild(modal);
     },
     init() {
         window.RoomManager = this;
@@ -8655,6 +8890,140 @@ this.socket.on('nextWord', (data) => {
                 banner.textContent = label;
             }
         });
+        // Controversial King - shows 3 words to pick from
+        this.socket.on('controversialRound', (data) => {
+            const { words, roundNum, totalRounds } = data;
+            // Hide regular game UI
+            UIManager.disableButtons(true);
+            DOM.game.buttons.good.style.display = 'none';
+            DOM.game.buttons.bad.style.display = 'none';
+            DOM.game.wordDisplay.style.display = 'none';
+            
+            // Remove existing controversial UI if present
+            const existing = document.getElementById('controversialPickUI');
+            if (existing) existing.remove();
+            
+            // Create word selection UI
+            const ui = document.createElement('div');
+            ui.id = 'controversialPickUI';
+            ui.className = 'fixed inset-0 bg-black/80 z-[9998] flex flex-col items-center justify-center p-4';
+            ui.innerHTML = `
+                <div class="text-center mb-6">
+                    <div class="text-4xl mb-2">🔥</div>
+                    <h2 class="text-2xl font-black text-white">CONTROVERSIAL KING</h2>
+                    <p class="text-white/70 mt-1">Round ${roundNum}/${totalRounds} - Pick the MOST controversial word!</p>
+                    <p class="text-yellow-400 text-sm mt-1">Closest to 50/50 split wins!</p>
+                </div>
+                <div class="grid grid-cols-1 gap-4 w-full max-w-md">
+                    ${words.map((w, i) => `
+                        <button class="controversial-word-btn p-6 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-400 hover:to-red-500 rounded-2xl text-white font-black text-2xl shadow-lg transition transform hover:scale-105 active:scale-95" data-word-id="${w._id}" data-index="${i}">
+                            ${w.text.toUpperCase()}
+                        </button>
+                    `).join('')}
+                </div>
+                <p class="text-white/50 text-sm mt-6">⏳ Pick quickly for bonus points!</p>
+            `;
+            document.body.appendChild(ui);
+            
+            // Add click handlers
+            ui.querySelectorAll('.controversial-word-btn').forEach(btn => {
+                btn.onclick = () => {
+                    const wordId = btn.dataset.wordId;
+                    const idx = parseInt(btn.dataset.index);
+                    
+                    // Visual feedback - highlight selected
+                    ui.querySelectorAll('.controversial-word-btn').forEach(b => {
+                        b.disabled = true;
+                        b.style.opacity = b === btn ? '1' : '0.4';
+                    });
+                    btn.innerHTML += ' ✓';
+                    
+                    // Send selection to server
+                    this.socket.emit('controversialPick', { 
+                        roomCode: this.roomCode, 
+                        wordId,
+                        wordIndex: idx
+                    });
+                };
+            });
+            
+            // Update banner
+            const banner = document.querySelector('.mp-banner-text');
+            if (banner) {
+                banner.textContent = `🔥 Controversial King (${roundNum}/${totalRounds})`;
+            }
+        });
+        
+        // Controversial King - round result
+        this.socket.on('controversialResult', (data) => {
+            const { words, winnerIndex, scores } = data;
+            const ui = document.getElementById('controversialPickUI');
+            if (!ui) return;
+            
+            // Calculate controversy scores (closeness to 50%)
+            const getControversyScore = (w) => {
+                const g = w.goodVotes || 0;
+                const b = w.badVotes || 0;
+                const total = g + b;
+                if (total === 0) return 0;
+                const ratio = g / total;
+                // Return how close to 0.5 (lower = more controversial)
+                return Math.abs(0.5 - ratio);
+            };
+            
+            // Update UI to show results
+            const btns = ui.querySelectorAll('.controversial-word-btn');
+            btns.forEach((btn, i) => {
+                const w = words[i];
+                const g = w.goodVotes || 0;
+                const b = w.badVotes || 0;
+                const total = g + b;
+                const pct = total > 0 ? Math.round((g / total) * 100) : 50;
+                const deviation = Math.abs(50 - pct);
+                
+                btn.innerHTML = `
+                    <div class="text-xl">${w.text.toUpperCase()}</div>
+                    <div class="text-sm mt-2 font-normal">
+                        ${pct}% Good / ${100-pct}% Bad
+                        <br><span class="${i === winnerIndex ? 'text-yellow-300' : 'text-white/50'}">${deviation}% from 50/50</span>
+                    </div>
+                    ${i === winnerIndex ? '<div class="mt-2 text-yellow-400">👑 MOST CONTROVERSIAL!</div>' : ''}
+                `;
+                
+                btn.className = i === winnerIndex 
+                    ? 'p-4 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-2xl text-white shadow-lg border-4 border-yellow-300'
+                    : 'p-4 bg-gray-700 rounded-2xl text-white/60 shadow-lg';
+            });
+            
+            // Show player scores
+            if (scores && scores.length > 0) {
+                const scoresHtml = scores.map(s => 
+                    `<div class="flex justify-between items-center py-1">
+                        <span class="${s.correct ? 'text-yellow-400' : 'text-white/60'}">${s.name}</span>
+                        <span class="font-bold ${s.correct ? 'text-green-400' : 'text-red-400'}">${s.correct ? '+3' : '+0'}</span>
+                    </div>`
+                ).join('');
+                
+                const scoresDiv = document.createElement('div');
+                scoresDiv.className = 'mt-4 bg-black/50 rounded-xl p-4 w-full max-w-md';
+                scoresDiv.innerHTML = `
+                    <div class="text-white/70 text-sm font-bold mb-2">ROUND RESULTS</div>
+                    ${scoresHtml}
+                `;
+                ui.querySelector('.grid').after(scoresDiv);
+            }
+            
+            // Auto-remove after delay
+            setTimeout(() => {
+                if (ui && ui.parentNode) {
+                    ui.remove();
+                    // Restore regular game UI for next round or game over
+                    DOM.game.buttons.good.style.display = '';
+                    DOM.game.buttons.bad.style.display = '';
+                    DOM.game.wordDisplay.style.display = '';
+                }
+            }, 3500);
+        });
         this.socket.on('playerVoted', () => { Haptics.light(); });
 this.socket.on('roundResult', (data) => {
     if (data.players) this.players = data.players;
@@ -8679,6 +9048,13 @@ this.socket.on('roundResult', (data) => {
         });
         this.socket.on('gameOver', (data) => {
             this.cleanupMultiplayer();
+            // Clean up Controversial King UI if present
+            const controversialUI = document.getElementById('controversialPickUI');
+            if (controversialUI) controversialUI.remove();
+            DOM.game.buttons.good.style.display = '';
+            DOM.game.buttons.bad.style.display = '';
+            DOM.game.wordDisplay.style.display = '';
+            
             const banner = document.querySelector('.mp-banner-text');
             if(banner) banner.remove();
             const ui = document.getElementById('mp-mode-ui');
@@ -8829,11 +9205,18 @@ renderLobby() {
             let styleClass = isSelected
                 ? 'bg-indigo-100 border-[3px] border-indigo-500 shadow-inner'
                 : 'bg-white border border-gray-200 hover:bg-gray-50 cursor-pointer';
+            // Add info button for selected mode
+            const infoBtn = isSelected 
+                ? `<button onclick="event.stopPropagation(); window.RoomManager.showModeRules('${key}')" class="ml-2 w-6 h-6 bg-indigo-500 hover:bg-indigo-600 text-white rounded-full text-xs font-bold flex items-center justify-center transition" title="View Rules">ℹ️</button>`
+                : '';
             modesHtml += `
                 <div ${clickAttr} class="flex flex-col p-3 rounded-xl transition-all duration-200 ${styleClass} min-h-[80px]">
                     <div class="flex justify-between items-center mb-1">
                         <span class="font-bold text-sm ${isSelected ? 'text-indigo-700' : 'text-gray-700'}">${conf.label}</span>
-                        ${isSelected ? '✅' : ''}
+                        <div class="flex items-center">
+                            ${infoBtn}
+                            ${isSelected ? '<span class="ml-1">✅</span>' : ''}
+                        </div>
                     </div>
                     <span class="text-xs text-gray-500 leading-tight">${conf.desc}</span>
                 </div>`;
@@ -9312,6 +9695,10 @@ const Game = {
             }
             this.applyUIVisibility();
             await this.refreshData();
+            
+            // Sync any pending mini-game scores that failed to upload
+            API.syncPendingMiniGameScores();
+            
             DiscoveryManager.init();
             setTimeout(() => {
                 if (DOM.screens && DOM.screens.loading) {
@@ -11467,6 +11854,7 @@ async showLeaderboard(startCabinetIndex = 0) {
                 title: 'Word Streak',
                 subtitle: 'ENDURANCE RUN',
                 icon: '🔥',
+                gameHash: '', // No direct game for streak
                 dataGlobal: globalStreak || [],
                 dataLocal: (State.data.highScores || []),
                 shareMsg: (s) => `🔥 I hit a ${s}-word streak in Word Streak! Can you beat me?`
@@ -11477,6 +11865,7 @@ async showLeaderboard(startCabinetIndex = 0) {
                 title: 'WORD WAR!',
                 subtitle: 'BATTLEFIELD',
                 icon: '⚔️',
+                gameHash: '#WordWar',
                 dataGlobal: globalWar || [],
                 dataLocal: (State.data.wordWarScores || []),
                 shareMsg: (s) => `⚔️ I won ${s} battles in WORD WAR! #WordWar`
@@ -11487,6 +11876,7 @@ async showLeaderboard(startCabinetIndex = 0) {
                 title: 'definition dash',
                 subtitle: 'DATA UPLINK',
                 icon: '🧠',
+                gameHash: '#DefDash',
                 dataGlobal: globalDef || [],
                 dataLocal: (State.data.defDashScores || []),
                 shareMsg: (s) => `🧠 I scored ${s} points in definition dash! #DefDash`
@@ -11497,6 +11887,7 @@ async showLeaderboard(startCabinetIndex = 0) {
                 title: 'Word Jump',
                 subtitle: 'ENDLESS RUNNER',
                 icon: '🦘',
+                gameHash: '#WordJump',
                 dataGlobal: globalJump || [],
                 dataLocal: (State.data.wordJumpScores || []),
                 shareMsg: (s) => `🦘 I jumped over ${s} words in Word Jump! #WordJump`
@@ -11816,11 +12207,15 @@ async showLeaderboard(startCabinetIndex = 0) {
                 // Get user's personal best (top local score)
                 const bestScore = (cab.dataLocal && cab.dataLocal.length > 0) ? cab.dataLocal[0].score : 0;
                 
+                // Build direct game link with hash
+                const baseUrl = 'https://good-word.onrender.com/';
+                const gameUrl = cab.gameHash ? baseUrl + cab.gameHash : baseUrl;
+                
                 const shareText = cab.shareMsg(bestScore);
                 const shareData = {
                     title: cab.title,
                     text: shareText,
-                    url: window.location.href
+                    url: gameUrl
                 };
 
                 if (navigator.share) {
@@ -11829,7 +12224,7 @@ async showLeaderboard(startCabinetIndex = 0) {
                 } else {
                     // Fallback
                     try {
-                        await navigator.clipboard.writeText(`${shareText} ${window.location.href}`);
+                        await navigator.clipboard.writeText(`${shareText} ${gameUrl}`);
                         alert('Score copied to clipboard!');
                     } catch (err) {
                         alert('Could not copy score: ' + shareText);
