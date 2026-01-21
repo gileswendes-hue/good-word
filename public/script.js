@@ -4943,8 +4943,8 @@ const MiniGames = {
             } = options;
             
             const html = `
-                <div id="mgScoreEntry" class="fixed inset-0 bg-black/90 z-[10002] flex items-center justify-center p-4">
-                    <div class="bg-gradient-to-br ${bgGradient} p-8 rounded-2xl text-center max-w-sm w-full shadow-2xl border-4 ${borderColor}">
+                <div id="mgScoreEntry" class="fixed inset-0 bg-black/90 z-[10002] flex items-start justify-center p-4 pt-8 sm:items-center sm:pt-4 overflow-y-auto">
+                    <div class="bg-gradient-to-br ${bgGradient} p-6 sm:p-8 rounded-2xl text-center max-w-sm w-full shadow-2xl border-4 ${borderColor} mb-4">
                         <div class="text-4xl mb-2">🏆</div>
                         <h2 class="text-2xl font-black text-white mb-1">${title}</h2>
                         <p class="text-white/80 mb-2">${subtitle}</p>
@@ -5727,14 +5727,20 @@ const MiniGames = {
             this.canvas.onclick = this.jumpHandler;
             this.canvas.ontouchstart = this.jumpHandler;
             
-            // Add touch support for bottom half of the screen
+            // Add touch support for bottom half of the screen (excluding buttons)
             const modal = document.getElementById('wordJumpModal');
             this.bottomHalfTouchHandler = (e) => {
+                // Ignore if touching a button or interactive element
+                if (e.target.closest('button')) return;
+                
                 // Only trigger if touch is in the bottom half of the screen
                 const touch = e.touches ? e.touches[0] : e;
                 const screenHeight = window.innerHeight;
-                if (touch.clientY > screenHeight / 2) {
-                    // Prevent default to avoid scrolling
+                const canvasRect = this.canvas.getBoundingClientRect();
+                
+                // Check if touch is below the canvas top and not on the exit button area
+                // Exit button is at the bottom, so exclude the bottom 80px
+                if (touch.clientY > canvasRect.top && touch.clientY < (screenHeight - 80)) {
                     e.preventDefault();
                     this.jumpHandler(e);
                 }
@@ -11616,8 +11622,10 @@ async showLeaderboard(startCabinetIndex = 0) {
                         0 5px 0 #1e40af, 
                         0 8px 15px rgba(0,0,0,0.5),
                         0 0 15px rgba(59,130,246,0.3);
-                    font-size: 10px;
+                    font-size: 20px;
                     color: #fff;
+                    font-family: system-ui, -apple-system, sans-serif;
+                    z-index: 1;
                     text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
                 }
                 .btn-share { 
