@@ -5679,7 +5679,7 @@ const MiniGames = {
                         </div>
                     </div>
                     <canvas id="wordJumpCanvas" class="rounded-xl shadow-2xl border-4 border-white/50" style="max-width: 100%; touch-action: none;"></canvas>
-                    <div class="mt-4 text-white/80 text-sm font-bold">TAP or SPACE to jump! Collect <span class="text-yellow-300">NOT A WORDs</span> for +5 points!</div>
+                    <div class="mt-4 text-white/80 text-sm font-bold">TAP BELOW or SPACE to jump! Collect <span class="text-yellow-300">NOT A WORDs</span> for +5 points!</div>
                     <button id="wjClose" class="mt-4 px-6 py-2 bg-white/20 hover:bg-white/30 text-white font-bold rounded-xl transition">
                         ✕ Exit Game
                     </button>
@@ -5726,6 +5726,21 @@ const MiniGames = {
             
             this.canvas.onclick = this.jumpHandler;
             this.canvas.ontouchstart = this.jumpHandler;
+            
+            // Add touch support for bottom half of the screen
+            const modal = document.getElementById('wordJumpModal');
+            this.bottomHalfTouchHandler = (e) => {
+                // Only trigger if touch is in the bottom half of the screen
+                const touch = e.touches ? e.touches[0] : e;
+                const screenHeight = window.innerHeight;
+                if (touch.clientY > screenHeight / 2) {
+                    // Prevent default to avoid scrolling
+                    e.preventDefault();
+                    this.jumpHandler(e);
+                }
+            };
+            modal.addEventListener('touchstart', this.bottomHalfTouchHandler, { passive: false });
+            
             this.keyHandler = (e) => {
                 if (e.code === 'Space' || e.code === 'ArrowUp') {
                     e.preventDefault();
@@ -6069,7 +6084,12 @@ const MiniGames = {
             if (this.gameLoop) cancelAnimationFrame(this.gameLoop);
             if (this.keyHandler) window.removeEventListener('keydown', this.keyHandler);
             const modal = document.getElementById('wordJumpModal');
-            if (modal) modal.remove();
+            if (modal) {
+                if (this.bottomHalfTouchHandler) {
+                    modal.removeEventListener('touchstart', this.bottomHalfTouchHandler);
+                }
+                modal.remove();
+            }
             
             // Return to arcade on Word Jump cabinet (index 3)
             setTimeout(() => {
@@ -11966,7 +11986,7 @@ async showLeaderboard(startCabinetIndex = 0) {
                     
                     <!-- Button Cluster -->
                     <div class="button-cluster">
-                        <button class="arcade-btn btn-toggle" data-idx="${idx}">1P</button>
+                        <button class="arcade-btn btn-toggle" data-idx="${idx}">🏠</button>
                         <button class="arcade-btn btn-share hidden" data-idx="${idx}">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="position:relative;z-index:5;color:#fff;">
                                 <circle cx="18" cy="5" r="3"></circle>
@@ -12026,15 +12046,20 @@ async showLeaderboard(startCabinetIndex = 0) {
                 ${generateListHTML(data)}
             `;
             
-            // Toggle Button Text (1P = Global, 2P = Local)
+            // Toggle Button Text: 🌍 when share visible (local mode), 🏠 when alone (global mode)
             const btnToggle = modal.querySelector(`.btn-toggle[data-idx="${idx}"]`);
-            if(btnToggle) btnToggle.textContent = mode === 0 ? '1P' : '2P';
-
-            // VISIBILITY LOGIC: Show Share Button ONLY if Local (mode 1)
             const btnShare = modal.querySelector(`.btn-share[data-idx="${idx}"]`);
+            
             if(btnShare) {
-                if (mode === 1) btnShare.classList.remove('hidden');
-                else btnShare.classList.add('hidden');
+                if (mode === 1) {
+                    btnShare.classList.remove('hidden');
+                    // Local mode with share button visible: show globe emoji
+                    if(btnToggle) btnToggle.textContent = '🌍';
+                } else {
+                    btnShare.classList.add('hidden');
+                    // Global mode, share hidden: show home emoji
+                    if(btnToggle) btnToggle.textContent = '🏠';
+                }
             }
         };
 
