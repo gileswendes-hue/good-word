@@ -2,7 +2,7 @@
 const CONFIG = {
     API_BASE_URL: '/api/words',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.6.9',
+    APP_VERSION: '6.6.10',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
@@ -4943,7 +4943,7 @@ const MiniGames = {
             } = options;
             
             const html = `
-                <div id="mgScoreEntry" class="fixed inset-0 bg-black/90 z-[10002] flex items-start justify-center p-4 pt-8 sm:items-center sm:pt-4 overflow-y-auto">
+                <div id="mgScoreEntry" class="fixed inset-0 bg-black/90 z-[10002] flex items-start justify-center p-4 pt-16 sm:items-center sm:pt-4 overflow-y-auto">
                     <div class="bg-gradient-to-br ${bgGradient} p-6 sm:p-8 rounded-2xl text-center max-w-sm w-full shadow-2xl border-4 ${borderColor} mb-4">
                         <div class="text-4xl mb-2">🏆</div>
                         <h2 class="text-2xl font-black text-white mb-1">${title}</h2>
@@ -11603,6 +11603,7 @@ async showLeaderboard(startCabinetIndex = 0) {
                     border-radius: 50%;
                     background: inherit;
                     box-shadow: inset 0 3px 5px rgba(255,255,255,0.3), inset 0 -3px 5px rgba(0,0,0,0.4);
+                    z-index: 1;
                 }
                 .arcade-btn::after {
                     content: '';
@@ -11611,6 +11612,7 @@ async showLeaderboard(startCabinetIndex = 0) {
                     width: 50%; height: 30%;
                     background: linear-gradient(180deg, rgba(255,255,255,0.4) 0%, transparent 100%);
                     border-radius: 50%;
+                    z-index: 2;
                 }
                 .arcade-btn:active { 
                     transform: translateY(3px); 
@@ -11622,12 +11624,12 @@ async showLeaderboard(startCabinetIndex = 0) {
                         0 5px 0 #1e40af, 
                         0 8px 15px rgba(0,0,0,0.5),
                         0 0 15px rgba(59,130,246,0.3);
-                    font-size: 20px;
+                    font-size: 22px;
                     color: #fff;
                     font-family: system-ui, -apple-system, sans-serif;
-                    z-index: 1;
                     text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
                 }
+                .btn-toggle > * { position: relative; z-index: 5; }
                 .btn-share { 
                     background: linear-gradient(180deg, #fbbf24 0%, #d97706 50%, #b45309 100%);
                     box-shadow: 
@@ -11636,6 +11638,7 @@ async showLeaderboard(startCabinetIndex = 0) {
                         0 0 15px rgba(234,179,8,0.3);
                     font-size: 18px;
                 }
+                .btn-share > * { position: relative; z-index: 5; }
                 .btn-share.hidden { display: none; }
                 
                 /* Insert Coin Section - Now Clickable */
@@ -11994,7 +11997,7 @@ async showLeaderboard(startCabinetIndex = 0) {
                     
                     <!-- Button Cluster -->
                     <div class="button-cluster">
-                        <button class="arcade-btn btn-toggle" data-idx="${idx}">🏠</button>
+                        <button class="arcade-btn btn-toggle" data-idx="${idx}"><span>🏠</span></button>
                         <button class="arcade-btn btn-share hidden" data-idx="${idx}">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="position:relative;z-index:5;color:#fff;">
                                 <circle cx="18" cy="5" r="3"></circle>
@@ -12062,11 +12065,11 @@ async showLeaderboard(startCabinetIndex = 0) {
                 if (mode === 1) {
                     btnShare.classList.remove('hidden');
                     // Local mode with share button visible: show globe emoji
-                    if(btnToggle) btnToggle.textContent = '🌍';
+                    if(btnToggle) btnToggle.innerHTML = '<span>🌍</span>';
                 } else {
                     btnShare.classList.add('hidden');
                     // Global mode, share hidden: show home emoji
-                    if(btnToggle) btnToggle.textContent = '🏠';
+                    if(btnToggle) btnToggle.innerHTML = '<span>🏠</span>';
                 }
             }
         };
