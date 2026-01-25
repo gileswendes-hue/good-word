@@ -25,6 +25,7 @@ Effects.woodland = function(active) {
     if (Effects.woodlandLeafInterval) clearInterval(Effects.woodlandLeafInterval);
     if (Effects.woodlandBirdTimeout) clearTimeout(Effects.woodlandBirdTimeout);
     if (Effects.woodlandRareTimeout) clearTimeout(Effects.woodlandRareTimeout);
+    if (Effects.woodlandSpiritTimeout) clearTimeout(Effects.woodlandSpiritTimeout);
     
     if (!active) {
         c.innerHTML = '';
@@ -558,19 +559,194 @@ Effects.woodland = function(active) {
     }
     
     // ========================================================================
-    // MUSHROOMS
+    // INTERACTIVE MUSHROOMS (Collectible!)
     // ========================================================================
+    // Initialize mushroom counter in State if not exists
+    if (!State.data.mushroomsCollected) {
+        State.data.mushroomsCollected = parseInt(localStorage.getItem('mushroomsCollected') || '0');
+    }
+    
     const mushroomTypes = ['🍄', '🍄‍🟫'];
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 8; i++) {
         const mushroom = document.createElement('div');
-        mushroom.textContent = mushroomTypes[Math.floor(Math.random() * mushroomTypes.length)];
+        const isRare = Math.random() < 0.15;
+        mushroom.textContent = isRare ? '🍄‍🟫' : mushroomTypes[Math.floor(Math.random() * mushroomTypes.length)];
+        mushroom.className = 'woodland-mushroom';
         mushroom.style.cssText = `
-            position: absolute; bottom: ${8 + Math.random() * 8}%; left: ${5 + Math.random() * 90}%;
-            font-size: ${10 + Math.random() * 10}px; opacity: ${0.7 + Math.random() * 0.3}; z-index: 5;
+            position: absolute; bottom: ${8 + Math.random() * 10}%; left: ${5 + Math.random() * 90}%;
+            font-size: ${12 + Math.random() * 12}px; opacity: ${0.8 + Math.random() * 0.2}; z-index: 5;
             transform: scaleX(${Math.random() > 0.5 ? 1 : -1});
             filter: drop-shadow(1px 2px 2px rgba(0,0,0,0.4)) ${timeOfDay === 'night' ? 'brightness(0.5)' : ''};
+            cursor: pointer; pointer-events: auto;
+            transition: transform 0.2s, opacity 0.2s;
         `;
+        
+        mushroom.onclick = (e) => {
+            e.stopPropagation();
+            State.data.mushroomsCollected++;
+            localStorage.setItem('mushroomsCollected', State.data.mushroomsCollected);
+            
+            const msg = isRare ? '✨ Rare brown mushroom! ✨' : 'Mushroom collected!';
+            UIManager.showPostVoteMessage(`🍄 ${msg} (${State.data.mushroomsCollected})`);
+            SoundManager.playPop();
+            Haptics.light();
+            
+            // Check for forager badge
+            if (State.data.mushroomsCollected >= 10) {
+                State.unlockBadge('forager');
+            }
+            
+            // Pop animation
+            mushroom.style.transform = 'scale(1.5)';
+            mushroom.style.opacity = '0';
+            setTimeout(() => mushroom.remove(), 200);
+        };
+        
         c.appendChild(mushroom);
+    }
+    
+    // ========================================================================
+    // FOREST SPIRIT (Ultra-rare mystical wisp)
+    // ========================================================================
+    const spawnForestSpirit = () => {
+        if (State.runtime.currentTheme !== 'woodland') return;
+        
+        const spirit = document.createElement('div');
+        spirit.className = 'woodland-spirit';
+        spirit.innerHTML = `
+            <div style="
+                width: 20px; height: 20px;
+                background: radial-gradient(circle, rgba(150, 255, 200, 1) 0%, rgba(100, 200, 255, 0.8) 40%, transparent 70%);
+                border-radius: 50%;
+                animation: spiritPulse 1.5s ease-in-out infinite;
+                box-shadow: 0 0 20px rgba(150, 255, 200, 0.8), 0 0 40px rgba(100, 200, 255, 0.5);
+            "></div>
+        `;
+        
+        // Random path across screen
+        const startY = 30 + Math.random() * 40;
+        const startLeft = Math.random() > 0.5;
+        
+        spirit.style.cssText = `
+            position: absolute;
+            top: ${startY}%;
+            ${startLeft ? 'left' : 'right'}: -30px;
+            z-index: 25;
+            pointer-events: auto;
+            cursor: pointer;
+            transition: left 12s cubic-bezier(0.4, 0, 0.2, 1), right 12s cubic-bezier(0.4, 0, 0.2, 1), top 12s ease-in-out;
+        `;
+        
+        // Add animation style if not exists
+        if (!document.getElementById('spirit-style')) {
+            const style = document.createElement('style');
+            style.id = 'spirit-style';
+            style.textContent = `
+                @keyframes spiritPulse {
+                    0%, 100% { transform: scale(1); opacity: 0.8; }
+                    50% { transform: scale(1.3); opacity: 1; }
+                }
+                @keyframes spiritTrail {
+                    0% { opacity: 0.6; transform: scale(1); }
+                    100% { opacity: 0; transform: scale(0.3); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        c.appendChild(spirit);
+        
+        // Trail effect
+        const trailInterval = setInterval(() => {
+            if (!spirit.parentNode) {
+                clearInterval(trailInterval);
+                return;
+            }
+            const trail = document.createElement('div');
+            const rect = spirit.getBoundingClientRect();
+            trail.style.cssText = `
+                position: fixed;
+                left: ${rect.left + 10}px;
+                top: ${rect.top + 10}px;
+                width: 10px; height: 10px;
+                background: radial-gradient(circle, rgba(150, 255, 200, 0.6) 0%, transparent 70%);
+                border-radius: 50%;
+                pointer-events: none;
+                animation: spiritTrail 1s ease-out forwards;
+                z-index: 24;
+            `;
+            document.body.appendChild(trail);
+            setTimeout(() => trail.remove(), 1000);
+        }, 100);
+        
+        // Start movement
+        requestAnimationFrame(() => {
+            spirit.style[startLeft ? 'left' : 'right'] = '110%';
+            spirit.style.top = (20 + Math.random() * 50) + '%';
+        });
+        
+        spirit.onclick = (e) => {
+            e.stopPropagation();
+            clearInterval(trailInterval);
+            
+            State.unlockBadge('forestspirit');
+            UIManager.showPostVoteMessage('🔮 You caught the Forest Spirit! ✨');
+            SoundManager.playPop();
+            Haptics.heavy();
+            
+            // Magical burst effect
+            for (let i = 0; i < 15; i++) {
+                const particle = document.createElement('div');
+                particle.style.cssText = `
+                    position: fixed;
+                    left: ${e.clientX}px;
+                    top: ${e.clientY}px;
+                    width: ${5 + Math.random() * 10}px;
+                    height: ${5 + Math.random() * 10}px;
+                    background: ${['#96ffc8', '#64c8ff', '#c8ff64', '#ffc864'][Math.floor(Math.random() * 4)]};
+                    border-radius: 50%;
+                    pointer-events: none;
+                    z-index: 1000;
+                `;
+                document.body.appendChild(particle);
+                
+                const angle = (i / 15) * Math.PI * 2;
+                const dist = 80 + Math.random() * 50;
+                particle.animate([
+                    { transform: 'translate(-50%, -50%) scale(1)', opacity: 1 },
+                    { transform: `translate(calc(-50% + ${Math.cos(angle) * dist}px), calc(-50% + ${Math.sin(angle) * dist}px)) scale(0)`, opacity: 0 }
+                ], { duration: 800, easing: 'ease-out' }).onfinish = () => particle.remove();
+            }
+            
+            spirit.style.transition = 'transform 0.5s, opacity 0.5s';
+            spirit.style.transform = 'scale(3)';
+            spirit.style.opacity = '0';
+            setTimeout(() => spirit.remove(), 500);
+        };
+        
+        // Remove after crossing screen
+        setTimeout(() => {
+            clearInterval(trailInterval);
+            if (spirit.parentNode) spirit.remove();
+        }, 14000);
+        
+        // Spawn again later (very rare - every 60-120 seconds)
+        Effects.woodlandSpiritTimeout = setTimeout(spawnForestSpirit, 60000 + Math.random() * 60000);
+    };
+    
+    // First spirit spawn after 20-40 seconds
+    Effects.woodlandSpiritTimeout = setTimeout(spawnForestSpirit, 20000 + Math.random() * 20000);
+    
+    // ========================================================================
+    // WEATHER CHANCE (Gentle rain in woodland)
+    // ========================================================================
+    if (Math.random() < 0.2 && timeOfDay !== 'night') {
+        // 20% chance of light rain during day
+        setTimeout(() => {
+            if (State.runtime.currentTheme !== 'woodland') return;
+            Effects.rain(true);
+            UIManager.showPostVoteMessage('🌧️ A gentle forest rain begins...');
+        }, 5000);
     }
 };
 
