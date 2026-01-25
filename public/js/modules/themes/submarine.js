@@ -2,7 +2,8 @@
  * ============================================================================
  * SUBMARINE THEME EFFECT
  * ============================================================================
- * Bubbles with interactive fish, octopus, pufferfish, sharks, jellyfish, seals, and boots
+ * Bubbles with interactive fish, octopus, pufferfish, sharks, jellyfish, seals, and boots.
+ * Now with Depth (Z-Index layering) and Intelligent Seal Pathing.
  */
 
 (function() {
@@ -31,6 +32,8 @@ Effects.bubbles = function(active) {
         const s = Math.random() * 30 + 10;
         p.style.width = p.style.height = `${s}px`;
         p.style.left = `${cl[Math.floor(Math.random() * cl.length)] + (Math.random() - 0.5) * 20}%`;
+        // Bubbles are always in the back (z-index 0 or 1)
+        p.style.zIndex = '1';
         p.style.animationDuration = `${Math.random() * 10 + 10}s`;
         p.style.animationDelay = `-${Math.random() * 15}s`;
         c.appendChild(p);
@@ -57,18 +60,12 @@ Effects.spawnFish = function() {
             }
             @keyframes jellyfish-swim {
                 0% { transform: translateY(0) scale(1, 1); }
-                50% { transform: translateY(-20px) scale(0.90, 1.15); }
+                50% { transform: translateY(-30px) scale(0.90, 1.15); }
                 100% { transform: translateY(0) scale(1, 1); }
             }
-            @keyframes seal-swim {
-                0% { transform: rotate(0deg) translateY(0); }
-                25% { transform: rotate(5deg) translateY(-10px); }
-                75% { transform: rotate(-5deg) translateY(10px); }
-                100% { transform: rotate(0deg) translateY(0); }
-            }
+            /* Seals calculate their own path keyframes dynamically */
             .octopus-motion { animation: octopus-swim 2s ease-in-out infinite; }
             .jellyfish-motion { animation: jellyfish-swim 3s ease-in-out infinite; }
-            .seal-motion { animation: seal-swim 1.5s ease-in-out infinite; }
         `;
         document.head.appendChild(style);
     }
@@ -79,32 +76,38 @@ Effects.spawnFish = function() {
         '🐟': { k: 'fish', msg: "Gotcha! 🐟", speed: [12, 18], size: '3rem' },
         '🐠': { k: 'tropical', msg: "So colourful! 🐠", speed: [15, 25], size: '3rem' },
         '🐡': { k: 'puffer', msg: "", speed: [20, 30], size: '3rem' },
-        '🦈': { k: 'shark', msg: "You're gonna need a bigger boat! 🦈", speed: [8, 14], size: '5rem' }, // Larger Shark
+        '🦈': { k: 'shark', msg: "You're gonna need a bigger boat! 🦈", speed: [8, 14], size: '5rem' },
         '🐙': { k: 'octopus', msg: "Wiggle wiggle! 🐙", speed: [18, 25], size: '3.5rem' },
-        '🪼': { k: 'jellyfish', msg: "Ouch! Stinging! 🪼", speed: [25, 35], size: '3.5rem' }, // Slow Jellyfish
-        '🦭': { k: 'seal', msg: "Arf! Arf! 🦭", speed: [10, 16], size: '5.5rem' }, // Large, fast Seal
+        '🪼': { k: 'jellyfish', msg: "Ouch! Stinging! 🪼", speed: [25, 35], size: '3.5rem' },
+        '🦭': { k: 'seal', msg: "Arf! Arf! 🦭", speed: [8, 12], size: '5.5rem' }, // Slower speed for seals to allow curves
         '🥾': { k: 'prankster', msg: "Keep the ocean clean!", speed: [15, 20], size: '3rem' }
     };
     
-    // Random fish selection with weighted probability
+    // Random fish selection
     const roll = Math.random();
     let fishEmoji = '🐟';
     
-    if (roll < 0.05) fishEmoji = '🥾';        // 5% Boot
-    else if (roll < 0.12) fishEmoji = '🐙';   // 7% Octopus
-    else if (roll < 0.20) fishEmoji = '🦈';   // 8% Shark
-    else if (roll < 0.28) fishEmoji = '🪼';   // 8% Jellyfish
-    else if (roll < 0.36) fishEmoji = '🦭';   // 8% Seal
-    else if (roll < 0.50) fishEmoji = '🐡';   // 14% Puffer
-    else if (roll < 0.75) fishEmoji = '🐠';   // 25% Tropical
-    else fishEmoji = '🐟';                    // 25% Blue
+    if (roll < 0.05) fishEmoji = '🥾';        
+    else if (roll < 0.12) fishEmoji = '🐙';   
+    else if (roll < 0.20) fishEmoji = '🦈';   
+    else if (roll < 0.28) fishEmoji = '🪼';   
+    else if (roll < 0.36) fishEmoji = '🦭';   
+    else if (roll < 0.50) fishEmoji = '🐡';   
+    else if (roll < 0.75) fishEmoji = '🐠';   
+    else fishEmoji = '🐟';                    
     
     const config = fishData[fishEmoji] || fishData['🐟'];
     
     const wrap = document.createElement('div');
     wrap.className = 'submarine-fish-wrap';
     wrap.style.position = 'fixed';
-    wrap.style.zIndex = '10';
+    
+    // --- DEPTH LOGIC ---
+    // Randomize Z-Index: 
+    // 1-5: Behind Cards (Background layer)
+    // 30-40: In Front (Foreground layer, blocks card but under modals)
+    const isForeground = Math.random() > 0.5;
+    wrap.style.zIndex = isForeground ? '40' : '1';
     
     const inner = document.createElement('div');
     inner.className = 'submarine-fish-inner';
@@ -121,15 +124,14 @@ Effects.spawnFish = function() {
         inner.style.animationDelay = '-' + (Math.random() * 2) + 's';
     } else if (fishEmoji === '🪼') {
         inner.classList.add('jellyfish-motion');
-    } else if (fishEmoji === '🦭') {
-        inner.classList.add('seal-motion');
     }
     
     const isBoot = fishEmoji === '🥾';
+    const isSeal = fishEmoji === '🦭';
     const startLeft = Math.random() > 0.5;
     const baseDir = startLeft ? -1 : 1;
     const duration = (Math.random() * (config.speed[1] - config.speed[0]) + config.speed[0]) || 15;
-    const isFakeOut = !isBoot && fishEmoji !== '🐙' && fishEmoji !== '🪼' && Math.random() < 0.10;
+    const isFakeOut = !isBoot && !isSeal && fishEmoji !== '🐙' && fishEmoji !== '🪼' && Math.random() < 0.10;
     
     if (isBoot) {
         inner.style.animation = 'spin-slow 10s linear infinite';
@@ -137,13 +139,68 @@ Effects.spawnFish = function() {
         wrap.style.left = (Math.random() * 80 + 10) + '%';
         wrap.style.top = '110vh';
         inner.style.transform = `rotate(${Math.random() * 360}deg)`;
+    } else if (isSeal) {
+        // --- INTELLIGENT SEAL LOGIC ---
+        // Seals generate a unique keyframe path (Curve or Dive)
+        const pathId = 'seal-path-' + Date.now() + Math.floor(Math.random() * 1000);
+        const startY = Math.random() * 70 + 10; // 10% to 80% vh
+        // Random destination Y (can be way up or way down)
+        const endY = Math.max(10, Math.min(80, startY + (Math.random() * 60 - 30))); 
+        const midY = (startY + endY) / 2 + (Math.random() * 40 - 20); // Curve control point
+        
+        // Dynamic Keyframe for CSS Motion Offset or Transform
+        // We will use standard translate because offset-path support varies
+        const style = document.createElement('style');
+        style.id = pathId;
+        
+        const startX = startLeft ? '110vw' : '-20vw';
+        const endX = startLeft ? '-20vw' : '110vw';
+        
+        // Calculate rotation angles for realism
+        const angleStart = startLeft ? '0deg' : '0deg'; 
+        const angleMid = (midY < startY) ? (startLeft ? '15deg' : '-15deg') : (startLeft ? '-15deg' : '15deg');
+        const angleEnd = '0deg';
+
+        style.innerHTML = `
+            @keyframes ${pathId} {
+                0% { 
+                    transform: translate(${startX}, ${startY}vh) rotate(${angleStart}); 
+                }
+                50% { 
+                    transform: translate(50vw, ${midY}vh) rotate(${angleMid}); 
+                }
+                100% { 
+                    transform: translate(${endX}, ${endY}vh) rotate(${angleEnd}); 
+                }
+            }
+        `;
+        document.head.appendChild(style);
+        
+        wrap.style.left = '0';
+        wrap.style.top = '0'; // Position handled by keyframe
+        wrap.style.animation = `${pathId} ${duration}s cubic-bezier(0.45, 0.05, 0.55, 0.95) forwards`;
+        
+        // Face correct direction
+        inner.style.transform = `scaleX(${startLeft ? 1 : -1})`; 
+        
+        // Cleanup keyframe on end
+        wrap.addEventListener('animationend', () => {
+            if (style.parentNode) style.remove();
+            if (wrap.parentNode) wrap.remove();
+            
+            // Seal escaped
+            State.data.fishStats.spared = (State.data.fishStats.spared || 0) + 1;
+            State.save('fishStats', State.data.fishStats);
+            if (State.data.fishStats.spared >= 250) State.unlockBadge('shepherd');
+        });
+
     } else {
+        // Standard Fish Movement
         inner.style.transition = 'font-size 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), transform 0.2s';
         wrap.style.top = (Math.random() * 80 + 10) + 'vh';
         wrap.style.left = startLeft ? '-150px' : '110vw';
         
         // Directional facing
-        // Jellyfish don't flip horizontally usually, they just drift, but standard flip is fine
         inner.style.transform = `scaleX(${baseDir})`;
     }
     
@@ -187,8 +244,10 @@ Effects.spawnFish = function() {
         }, 2000);
     };
     
-    // Handle fish escaping
+    // Handle fish escaping (Standard Fish + Boot)
+    // Seals use 'animationend', this handles 'transitionend'
     const handleEscape = (e) => {
+        if (isSeal) return; // Handled by animation listener
         const prop = isBoot ? 'top' : 'left';
         if (e.propertyName !== prop) return;
         if (wrap.parentNode) {
@@ -261,15 +320,18 @@ Effects.spawnFish = function() {
                 setTimeout(() => ink.remove(), 1000);
             }
             
-            const jetSpeed = Math.random() * 0.8 + 1.2;
-            wrap.style.transition = `left ${jetSpeed}s cubic-bezier(0.25, 1, 0.5, 1), top ${jetSpeed}s ease-out`;
-            wrap.style.left = (110 + Math.random() * 30) + 'vw';
-            wrap.style.top = (-20 - Math.random() * 30) + 'vh';
-            setTimeout(() => { if (wrap.parentNode) wrap.remove(); }, jetSpeed * 1000 + 200);
+            // Jet away
+            if (!isSeal) { // Seals handled differently due to animation
+                const jetSpeed = Math.random() * 0.8 + 1.2;
+                wrap.style.transition = `left ${jetSpeed}s cubic-bezier(0.25, 1, 0.5, 1), top ${jetSpeed}s ease-out`;
+                wrap.style.left = (110 + Math.random() * 30) + 'vw';
+                wrap.style.top = (-20 - Math.random() * 30) + 'vh';
+                setTimeout(() => { if (wrap.parentNode) wrap.remove(); }, jetSpeed * 1000 + 200);
+            }
             return;
         }
         
-        // Fish fakes out and swims away
+        // Fish fakes out (Seals don't fake out, they just swim)
         if (isFakeOut) {
             showBubble('hey!');
             SoundManager.playPop();
@@ -297,7 +359,7 @@ Effects.spawnFish = function() {
             if (State.data.fishStats.caught >= 250) State.unlockBadge('angler');
         }
         
-        // Specific feedback for new creatures
+        // Messages
         if (fishEmoji === '🐡') UIManager.showPostVoteMessage("Popped!");
         else if (fishEmoji === '🪼') UIManager.showPostVoteMessage("Zzap! Caught!");
         else if (fishEmoji === '🦭') UIManager.showPostVoteMessage("Playful Catch!");
@@ -312,8 +374,8 @@ Effects.spawnFish = function() {
         let pColor = '#60a5fa'; // Default blue
         if (fishEmoji === '🐡') pColor = '#eab308';
         if (isBoot) pColor = '#78350f';
-        if (fishEmoji === '🪼') pColor = '#e879f9'; // Pink for jellyfish
-        if (fishEmoji === '🦭') pColor = '#9ca3af'; // Grey for seal
+        if (fishEmoji === '🪼') pColor = '#e879f9'; // Pink
+        if (fishEmoji === '🦭') pColor = '#9ca3af'; // Grey
         
         for (let i = 0; i < 12; i++) {
             const p = document.createElement('div');
@@ -333,20 +395,22 @@ Effects.spawnFish = function() {
         setTimeout(() => wrap.remove(), 100);
     };
     
-    // Start movement
-    requestAnimationFrame(() => {
-        if (isBoot) {
-            wrap.style.top = '-20%';
-            wrap.style.transition = `top ${duration}s linear`;
-        } else {
-            wrap.style.left = startLeft ? '125vw' : '-25vw';
-            wrap.style.transition = `left ${duration}s linear`;
-        }
-    });
-    
-    setTimeout(() => {
-        if (wrap.parentNode) wrap.remove();
-    }, duration * 1000 + 3000);
+    // Start movement for non-seals (Seals use animation automatically)
+    if (!isSeal) {
+        requestAnimationFrame(() => {
+            if (isBoot) {
+                wrap.style.top = '-20%';
+                wrap.style.transition = `top ${duration}s linear`;
+            } else {
+                wrap.style.left = startLeft ? '125vw' : '-25vw';
+                wrap.style.transition = `left ${duration}s linear`;
+            }
+        });
+        
+        setTimeout(() => {
+            if (wrap.parentNode) wrap.remove();
+        }, duration * 1000 + 3000);
+    }
     
     Effects.fishTimeout = setTimeout(() => Effects.spawnFish(), Math.random() * 4000 + 1000);
 };
