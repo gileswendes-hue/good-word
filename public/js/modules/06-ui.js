@@ -231,7 +231,12 @@ openProfile() {
             { k: 'diamond', i: '💎', d: 'hidden Gem.' },
             { k: 'rock', i: '🤘', d: 'space rock!' },
             { k: 'chopper', i: '🚁', d: 'Get to the choppa!' },
-            { k: 'snowman', i: '⛄', d: "# We're walking in the air..." }
+            { k: 'snowman', i: '⛄', d: "# We're walking in the air..." },
+            { k: 'deer', i: '🦌', t: 'Majestic Deer', d: 'Spotted in the woodland!' },
+            { k: 'bear', i: '🐻', t: 'Forest Bear', d: 'A rare woodland friend!' },
+            { k: 'badger', i: '🦡', t: 'Bashful Badger', d: 'The rarest woodland creature!' },
+            { k: 'forestspirit', i: '🔮', t: 'Forest Spirit', d: 'Caught the mystical wisp!' },
+            { k: 'forager', i: '🧺', t: 'The Forager', d: 'Collected 10 mushrooms!' }
         ];
         const row_fish = [
             { k: 'fish', i: '🐟', t: 'Blue Fish', d: 'A standard catch.' },
