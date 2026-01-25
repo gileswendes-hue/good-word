@@ -243,7 +243,9 @@ openProfile() {
             { k: 'tropical', i: '🐠', t: 'Tropical Fish', d: 'Found in the deep.' },
             { k: 'puffer', i: '🐡', t: 'Pufferfish', d: 'Spiky friend.' },
             { k: 'shark', i: '🦈', t: 'Shark', d: 'Gonna need a bigger boat.' },
-            { k: 'octopus', i: '🐙', t: 'The Kraken', d: 'Ink-credible!' }
+            { k: 'octopus', i: '🐙', t: 'The Kraken', d: 'Ink-credible!' },
+            { k: 'jellyfish', i: '🪼', t: 'Jellyfish', d: 'Squishy and stinging!' },
+            { k: 'seal', i: '🦭', t: 'Seal', d: 'The puppy of the sea!' }
         ];
         const row3 = [
             { k: 'exterminator', i: '☠️', t: 'The Exterminator', d: 'Fed 100 bugs', val: d.insectStats.eaten, gold: 1000 },
