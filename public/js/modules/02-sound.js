@@ -620,7 +620,12 @@ const Physics = {
         for (let i = 0; i < len; i++) {
             const b = balls[i];
             b.el.style.transform = `translate(${b.x}px, ${b.y}px)`;
+            if (b.bubble) {
+                b.bubble.style.transform = `translate(${b.x + b.r}px, ${b.y - 20}px) translate(-50%, -100%)`;
+            }
         }
+        // Continue animation loop
+        Effects.ballLoop = requestAnimationFrame(Physics.run);
     }
 };
 
