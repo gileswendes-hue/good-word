@@ -2,7 +2,7 @@
  * ============================================================================
  * SUBMARINE THEME EFFECT
  * ============================================================================
- * Bubbles with interactive fish, octopus, pufferfish, sharks, and boots
+ * Bubbles with interactive fish, octopus, pufferfish, sharks, jellyfish, seals, and boots
  */
 
 (function() {
@@ -19,6 +19,7 @@ Effects.bubbles = function(active) {
     
     c.innerHTML = '';
     
+    // Bubble Logic
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     const isLowPower = navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4;
     const particleCount = (isMobile || isLowPower) ? 15 : 35;
@@ -42,10 +43,10 @@ Effects.spawnFish = function() {
     const c = DOM.theme.effects.bubble;
     if (!c) return;
     
-    // Add octopus animation style
-    if (!document.getElementById('octopus-style')) {
+    // Inject Custom Animations for Creatures
+    if (!document.getElementById('sea-creature-styles')) {
         const style = document.createElement('style');
-        style.id = 'octopus-style';
+        style.id = 'sea-creature-styles';
         style.innerHTML = `
             @keyframes octopus-swim {
                 0% { transform: translateY(0) scale(1, 1); }
@@ -54,7 +55,20 @@ Effects.spawnFish = function() {
                 75% { transform: translateY(30px) scale(1.1, 0.9); }
                 100% { transform: translateY(0) scale(1, 1); }
             }
+            @keyframes jellyfish-swim {
+                0% { transform: translateY(0) scale(1, 1); }
+                50% { transform: translateY(-20px) scale(0.90, 1.15); }
+                100% { transform: translateY(0) scale(1, 1); }
+            }
+            @keyframes seal-swim {
+                0% { transform: rotate(0deg) translateY(0); }
+                25% { transform: rotate(5deg) translateY(-10px); }
+                75% { transform: rotate(-5deg) translateY(10px); }
+                100% { transform: rotate(0deg) translateY(0); }
+            }
             .octopus-motion { animation: octopus-swim 2s ease-in-out infinite; }
+            .jellyfish-motion { animation: jellyfish-swim 3s ease-in-out infinite; }
+            .seal-motion { animation: seal-swim 1.5s ease-in-out infinite; }
         `;
         document.head.appendChild(style);
     }
@@ -62,22 +76,28 @@ Effects.spawnFish = function() {
     if (State.runtime.currentTheme !== 'submarine') return;
     
     const fishData = {
-        '🐟': { k: 'fish', msg: "Gotcha! 🐟", speed: [12, 18] },
-        '🐠': { k: 'tropical', msg: "So colourful! 🐠", speed: [15, 25] },
-        '🐡': { k: 'puffer', msg: "", speed: [20, 30] },
-        '🦈': { k: 'shark', msg: "You're gonna need a bigger boat! 🦈", speed: [6, 10] },
-        '🐙': { k: 'octopus', msg: "Wiggle wiggle! 🐙", speed: [18, 25] },
-        '🥾': { k: 'prankster', msg: "Keep the ocean clean!", speed: [15, 20] }
+        '🐟': { k: 'fish', msg: "Gotcha! 🐟", speed: [12, 18], size: '3rem' },
+        '🐠': { k: 'tropical', msg: "So colourful! 🐠", speed: [15, 25], size: '3rem' },
+        '🐡': { k: 'puffer', msg: "", speed: [20, 30], size: '3rem' },
+        '🦈': { k: 'shark', msg: "You're gonna need a bigger boat! 🦈", speed: [8, 14], size: '5rem' }, // Larger Shark
+        '🐙': { k: 'octopus', msg: "Wiggle wiggle! 🐙", speed: [18, 25], size: '3.5rem' },
+        '🪼': { k: 'jellyfish', msg: "Ouch! Stinging! 🪼", speed: [25, 35], size: '3.5rem' }, // Slow Jellyfish
+        '🦭': { k: 'seal', msg: "Arf! Arf! 🦭", speed: [10, 16], size: '5.5rem' }, // Large, fast Seal
+        '🥾': { k: 'prankster', msg: "Keep the ocean clean!", speed: [15, 20], size: '3rem' }
     };
     
     // Random fish selection with weighted probability
     const roll = Math.random();
     let fishEmoji = '🐟';
-    if (roll < 0.05) fishEmoji = '🥾';
-    else if (roll < 0.15) fishEmoji = '🐙';
-    else if (roll < 0.25) fishEmoji = '🦈';
-    else if (roll < 0.40) fishEmoji = '🐡';
-    else if (roll < 0.70) fishEmoji = '🐠';
+    
+    if (roll < 0.05) fishEmoji = '🥾';        // 5% Boot
+    else if (roll < 0.12) fishEmoji = '🐙';   // 7% Octopus
+    else if (roll < 0.20) fishEmoji = '🦈';   // 8% Shark
+    else if (roll < 0.28) fishEmoji = '🪼';   // 8% Jellyfish
+    else if (roll < 0.36) fishEmoji = '🦭';   // 8% Seal
+    else if (roll < 0.50) fishEmoji = '🐡';   // 14% Puffer
+    else if (roll < 0.75) fishEmoji = '🐠';   // 25% Tropical
+    else fishEmoji = '🐟';                    // 25% Blue
     
     const config = fishData[fishEmoji] || fishData['🐟'];
     
@@ -92,19 +112,24 @@ Effects.spawnFish = function() {
     inner.dataset.clicks = "0";
     inner.style.display = 'block';
     inner.style.lineHeight = '1';
-    inner.style.fontSize = fishEmoji === '🐙' ? '3.5rem' : '3rem';
+    inner.style.fontSize = config.size;
     
+    // Apply specific animations
     if (fishEmoji === '🐙') {
         inner.classList.add('octopus-motion');
         inner.style.animationDuration = (Math.random() * 1 + 1.5) + 's';
         inner.style.animationDelay = '-' + (Math.random() * 2) + 's';
+    } else if (fishEmoji === '🪼') {
+        inner.classList.add('jellyfish-motion');
+    } else if (fishEmoji === '🦭') {
+        inner.classList.add('seal-motion');
     }
     
     const isBoot = fishEmoji === '🥾';
     const startLeft = Math.random() > 0.5;
     const baseDir = startLeft ? -1 : 1;
     const duration = (Math.random() * (config.speed[1] - config.speed[0]) + config.speed[0]) || 15;
-    const isFakeOut = !isBoot && fishEmoji !== '🐙' && Math.random() < 0.10;
+    const isFakeOut = !isBoot && fishEmoji !== '🐙' && fishEmoji !== '🪼' && Math.random() < 0.10;
     
     if (isBoot) {
         inner.style.animation = 'spin-slow 10s linear infinite';
@@ -116,6 +141,9 @@ Effects.spawnFish = function() {
         inner.style.transition = 'font-size 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), transform 0.2s';
         wrap.style.top = (Math.random() * 80 + 10) + 'vh';
         wrap.style.left = startLeft ? '-150px' : '110vw';
+        
+        // Directional facing
+        // Jellyfish don't flip horizontally usually, they just drift, but standard flip is fine
         inner.style.transform = `scaleX(${baseDir})`;
     }
     
@@ -269,14 +297,23 @@ Effects.spawnFish = function() {
             if (State.data.fishStats.caught >= 250) State.unlockBadge('angler');
         }
         
+        // Specific feedback for new creatures
         if (fishEmoji === '🐡') UIManager.showPostVoteMessage("Popped!");
+        else if (fishEmoji === '🪼') UIManager.showPostVoteMessage("Zzap! Caught!");
+        else if (fishEmoji === '🦭') UIManager.showPostVoteMessage("Playful Catch!");
+        else if (fishEmoji === '🦈') UIManager.showPostVoteMessage("Big Catch!");
+        
         SoundManager.playPop();
         
         // Pop particles
         const rect = wrap.getBoundingClientRect();
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
-        const pColor = fishEmoji === '🐡' ? '#eab308' : (isBoot ? '#78350f' : '#60a5fa');
+        let pColor = '#60a5fa'; // Default blue
+        if (fishEmoji === '🐡') pColor = '#eab308';
+        if (isBoot) pColor = '#78350f';
+        if (fishEmoji === '🪼') pColor = '#e879f9'; // Pink for jellyfish
+        if (fishEmoji === '🦭') pColor = '#9ca3af'; // Grey for seal
         
         for (let i = 0; i < 12; i++) {
             const p = document.createElement('div');
