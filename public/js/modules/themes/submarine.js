@@ -1,0 +1,319 @@
+/**
+ * ============================================================================
+ * SUBMARINE THEME EFFECT
+ * ============================================================================
+ * Bubbles with interactive fish, octopus, pufferfish, sharks, and boots
+ */
+
+(function() {
+'use strict';
+
+Effects.bubbles = function(active) {
+    const c = DOM.theme.effects.bubble;
+    if (Effects.fishTimeout) clearTimeout(Effects.fishTimeout);
+    
+    if (!active) { 
+        c.innerHTML = ''; 
+        return; 
+    }
+    
+    c.innerHTML = '';
+    
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isLowPower = navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4;
+    const particleCount = (isMobile || isLowPower) ? 15 : 35;
+    const cl = [10, 30, 70, 90];
+    
+    for (let i = 0; i < particleCount; i++) {
+        const p = document.createElement('div');
+        p.className = 'bubble-particle';
+        const s = Math.random() * 30 + 10;
+        p.style.width = p.style.height = `${s}px`;
+        p.style.left = `${cl[Math.floor(Math.random() * cl.length)] + (Math.random() - 0.5) * 20}%`;
+        p.style.animationDuration = `${Math.random() * 10 + 10}s`;
+        p.style.animationDelay = `-${Math.random() * 15}s`;
+        c.appendChild(p);
+    }
+    
+    Effects.spawnFish();
+};
+
+Effects.spawnFish = function() {
+    const c = DOM.theme.effects.bubble;
+    if (!c) return;
+    
+    // Add octopus animation style
+    if (!document.getElementById('octopus-style')) {
+        const style = document.createElement('style');
+        style.id = 'octopus-style';
+        style.innerHTML = `
+            @keyframes octopus-swim {
+                0% { transform: translateY(0) scale(1, 1); }
+                25% { transform: translateY(-30px) scale(0.9, 1.1); }
+                50% { transform: translateY(0) scale(1, 1); }
+                75% { transform: translateY(30px) scale(1.1, 0.9); }
+                100% { transform: translateY(0) scale(1, 1); }
+            }
+            .octopus-motion { animation: octopus-swim 2s ease-in-out infinite; }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    if (State.runtime.currentTheme !== 'submarine') return;
+    
+    const fishData = {
+        '🐟': { k: 'fish', msg: "Gotcha! 🐟", speed: [12, 18] },
+        '🐠': { k: 'tropical', msg: "So colourful! 🐠", speed: [15, 25] },
+        '🐡': { k: 'puffer', msg: "", speed: [20, 30] },
+        '🦈': { k: 'shark', msg: "You're gonna need a bigger boat! 🦈", speed: [6, 10] },
+        '🐙': { k: 'octopus', msg: "Wiggle wiggle! 🐙", speed: [18, 25] },
+        '🥾': { k: 'prankster', msg: "Keep the ocean clean!", speed: [15, 20] }
+    };
+    
+    // Random fish selection with weighted probability
+    const roll = Math.random();
+    let fishEmoji = '🐟';
+    if (roll < 0.05) fishEmoji = '🥾';
+    else if (roll < 0.15) fishEmoji = '🐙';
+    else if (roll < 0.25) fishEmoji = '🦈';
+    else if (roll < 0.40) fishEmoji = '🐡';
+    else if (roll < 0.70) fishEmoji = '🐠';
+    
+    const config = fishData[fishEmoji] || fishData['🐟'];
+    
+    const wrap = document.createElement('div');
+    wrap.className = 'submarine-fish-wrap';
+    wrap.style.position = 'fixed';
+    wrap.style.zIndex = '10';
+    
+    const inner = document.createElement('div');
+    inner.className = 'submarine-fish-inner';
+    inner.textContent = fishEmoji;
+    inner.dataset.clicks = "0";
+    inner.style.display = 'block';
+    inner.style.lineHeight = '1';
+    inner.style.fontSize = fishEmoji === '🐙' ? '3.5rem' : '3rem';
+    
+    if (fishEmoji === '🐙') {
+        inner.classList.add('octopus-motion');
+        inner.style.animationDuration = (Math.random() * 1 + 1.5) + 's';
+        inner.style.animationDelay = '-' + (Math.random() * 2) + 's';
+    }
+    
+    const isBoot = fishEmoji === '🥾';
+    const startLeft = Math.random() > 0.5;
+    const baseDir = startLeft ? -1 : 1;
+    const duration = (Math.random() * (config.speed[1] - config.speed[0]) + config.speed[0]) || 15;
+    const isFakeOut = !isBoot && fishEmoji !== '🐙' && Math.random() < 0.10;
+    
+    if (isBoot) {
+        inner.style.animation = 'spin-slow 10s linear infinite';
+        inner.style.transition = 'transform 0.5s';
+        wrap.style.left = (Math.random() * 80 + 10) + '%';
+        wrap.style.top = '110vh';
+        inner.style.transform = `rotate(${Math.random() * 360}deg)`;
+    } else {
+        inner.style.transition = 'font-size 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), transform 0.2s';
+        wrap.style.top = (Math.random() * 80 + 10) + 'vh';
+        wrap.style.left = startLeft ? '-150px' : '110vw';
+        inner.style.transform = `scaleX(${baseDir})`;
+    }
+    
+    wrap.appendChild(inner);
+    c.appendChild(wrap);
+    void wrap.offsetWidth;
+    
+    // Speech bubble helper
+    const showBubble = (text) => {
+        const old = wrap.querySelector('.fish-bubble');
+        if (old) old.remove();
+        
+        const b = document.createElement('div');
+        b.className = 'fish-bubble';
+        Object.assign(b.style, {
+            position: 'absolute', bottom: '100%', left: '50%',
+            transform: 'translateX(-50%)', background: 'white', color: '#1f2937',
+            padding: '6px 12px', borderRadius: '12px', fontSize: '16px',
+            fontWeight: 'bold', whiteSpace: 'nowrap', zIndex: '20',
+            pointerEvents: 'none', opacity: '0', transition: 'opacity 0.2s',
+            boxShadow: '0 2px 5px rgba(0,0,0,0.2)', border: '1px solid #e5e7eb',
+            marginBottom: '10px'
+        });
+        b.textContent = text;
+        
+        const arrow = document.createElement('div');
+        Object.assign(arrow.style, {
+            position: 'absolute', top: '100%', left: '50%', marginLeft: '-6px',
+            borderWidth: '6px', borderStyle: 'solid',
+            borderColor: 'white transparent transparent transparent'
+        });
+        b.appendChild(arrow);
+        wrap.appendChild(b);
+        
+        requestAnimationFrame(() => b.style.opacity = '1');
+        setTimeout(() => { 
+            if (b.parentNode) { 
+                b.style.opacity = '0'; 
+                setTimeout(() => b.remove(), 300); 
+            } 
+        }, 2000);
+    };
+    
+    // Handle fish escaping
+    const handleEscape = (e) => {
+        const prop = isBoot ? 'top' : 'left';
+        if (e.propertyName !== prop) return;
+        if (wrap.parentNode) {
+            if (!isBoot) {
+                State.data.fishStats.spared = (State.data.fishStats.spared || 0) + 1;
+                State.save('fishStats', State.data.fishStats);
+                if (State.data.fishStats.spared >= 250) State.unlockBadge('shepherd');
+            }
+            wrap.remove();
+        }
+    };
+    wrap.addEventListener('transitionend', handleEscape);
+    
+    // Click handler
+    wrap.onclick = (e) => {
+        e.stopPropagation();
+        
+        // Pufferfish grows when clicked
+        if (fishEmoji === '🐡') {
+            let clicks = parseInt(inner.dataset.clicks) || 0;
+            const canGrow = clicks < 5;
+            const roll = Math.random();
+            const shouldCatch = !canGrow || (roll < 0.25);
+            
+            if (!shouldCatch) {
+                clicks++;
+                inner.dataset.clicks = clicks;
+                State.unlockBadge('puffer');
+                const newSize = 3 + (clicks * 1.5);
+                inner.style.fontSize = `${newSize}rem`;
+                Haptics.light();
+                const puffMsgs = ["Wanna fight?", "I'm bigger than your dad.", "I'll spike you!", "Stop it!", "I am big scary bear!", "Why not pick on someone your own size?"];
+                showBubble(puffMsgs[Math.floor(Math.random() * puffMsgs.length)]);
+                return;
+            }
+        }
+        
+        const data = fishData[fishEmoji];
+        
+        // Octopus inks and jets away
+        if (fishEmoji === '🐙') {
+            e.stopPropagation();
+            if (data.k) State.unlockBadge(data.k);
+            State.data.fishStats.caught++;
+            State.save('fishStats', State.data.fishStats);
+            UIManager.showPostVoteMessage("Inked!");
+            SoundManager.playWhoosh();
+            
+            const rect = wrap.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            
+            // Ink splatter
+            for (let i = 0; i < 12; i++) {
+                const ink = document.createElement('div');
+                const ox = (Math.random() - 0.5) * 40;
+                const oy = (Math.random() - 0.5) * 40;
+                Object.assign(ink.style, {
+                    position: 'fixed', left: (centerX + ox) + 'px', top: (centerY + oy) + 'px',
+                    width: (Math.random() * 15 + 10) + 'px', height: (Math.random() * 15 + 10) + 'px',
+                    background: '#000000', borderRadius: '50%', opacity: '0.8',
+                    pointerEvents: 'none', zIndex: '99',
+                    transition: 'transform 1s ease-out, opacity 1s ease-out'
+                });
+                document.body.appendChild(ink);
+                requestAnimationFrame(() => {
+                    ink.style.transform = `scale(${Math.random() * 2 + 1}) translate(${ox}px, ${oy}px)`;
+                    ink.style.opacity = '0';
+                });
+                setTimeout(() => ink.remove(), 1000);
+            }
+            
+            const jetSpeed = Math.random() * 0.8 + 1.2;
+            wrap.style.transition = `left ${jetSpeed}s cubic-bezier(0.25, 1, 0.5, 1), top ${jetSpeed}s ease-out`;
+            wrap.style.left = (110 + Math.random() * 30) + 'vw';
+            wrap.style.top = (-20 - Math.random() * 30) + 'vh';
+            setTimeout(() => { if (wrap.parentNode) wrap.remove(); }, jetSpeed * 1000 + 200);
+            return;
+        }
+        
+        // Fish fakes out and swims away
+        if (isFakeOut) {
+            showBubble('hey!');
+            SoundManager.playPop();
+            const currentLeft = getComputedStyle(wrap).left;
+            wrap.style.transition = 'none';
+            wrap.style.left = currentLeft;
+            setTimeout(() => {
+                if (!wrap.parentNode) return;
+                inner.style.transition = 'none';
+                inner.style.transform = `scaleX(${-baseDir})`;
+                wrap.style.transition = `left ${duration * 0.5}s linear`;
+                wrap.style.left = startLeft ? '-150px' : '110vw';
+                setTimeout(() => {
+                    if (wrap.parentNode) wrap.remove();
+                }, duration * 500 + 100);
+            }, 600);
+            return;
+        }
+        
+        // Normal catch
+        if (data.k) State.unlockBadge(data.k);
+        if (!isBoot) {
+            State.data.fishStats.caught++;
+            State.save('fishStats', State.data.fishStats);
+            if (State.data.fishStats.caught >= 250) State.unlockBadge('angler');
+        }
+        
+        if (fishEmoji === '🐡') UIManager.showPostVoteMessage("Popped!");
+        SoundManager.playPop();
+        
+        // Pop particles
+        const rect = wrap.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        const pColor = fishEmoji === '🐡' ? '#eab308' : (isBoot ? '#78350f' : '#60a5fa');
+        
+        for (let i = 0; i < 12; i++) {
+            const p = document.createElement('div');
+            p.style.cssText = `position: fixed; width: 8px; height: 8px; background: ${pColor}; border-radius: 50%; pointer-events: none; z-index: 102; left: ${centerX}px; top: ${centerY}px;`;
+            document.body.appendChild(p);
+            const angle = Math.random() * Math.PI * 2;
+            const velocity = Math.random() * 60 + 20;
+            p.animate([
+                { transform: 'translate(0,0) scale(1)', opacity: 1 },
+                { transform: `translate(${Math.cos(angle) * velocity}px, ${Math.sin(angle) * velocity}px) scale(0)`, opacity: 0 }
+            ], { duration: 400, easing: 'ease-out' }).onfinish = () => p.remove();
+        }
+        
+        wrap.style.transition = 'opacity 0.1s, transform 0.1s';
+        wrap.style.opacity = '0';
+        wrap.style.transform = 'scale(0)';
+        setTimeout(() => wrap.remove(), 100);
+    };
+    
+    // Start movement
+    requestAnimationFrame(() => {
+        if (isBoot) {
+            wrap.style.top = '-20%';
+            wrap.style.transition = `top ${duration}s linear`;
+        } else {
+            wrap.style.left = startLeft ? '125vw' : '-25vw';
+            wrap.style.transition = `left ${duration}s linear`;
+        }
+    });
+    
+    setTimeout(() => {
+        if (wrap.parentNode) wrap.remove();
+    }, duration * 1000 + 3000);
+    
+    Effects.fishTimeout = setTimeout(() => Effects.spawnFish(), Math.random() * 4000 + 1000);
+};
+
+console.log('%c[Theme: Submarine] Loaded', 'color: #06b6d4');
+
+})();
