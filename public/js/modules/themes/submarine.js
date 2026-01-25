@@ -3,7 +3,7 @@
  * SUBMARINE THEME EFFECT
  * ============================================================================
  * Bubbles with interactive fish, octopus, pufferfish, sharks, jellyfish, seals, and boots.
- * Fixed: Depth layering now works by appending directly to Body.
+ * FIXED: Depth Layering using explicit Z-Index Stacking Contexts.
  */
 
 (function() {
@@ -18,14 +18,28 @@ Effects.bubbles = function(active) {
     // Clean up any existing global fish from the body
     document.querySelectorAll('.submarine-fish-wrap').forEach(el => el.remove());
     
+    // Reset Card Z-Index when leaving theme
+    if (DOM.game.card) {
+        DOM.game.card.style.zIndex = '';
+        DOM.game.card.style.position = '';
+    }
+
     if (!active) { 
         c.innerHTML = ''; 
         return; 
     }
     
+    // --- STACKING CONTEXT FIX ---
+    // We must force the Game Card to have a specific Z-Index so we can put fish BEHIND it (z=1) and IN FRONT (z=100)
+    // without using z=-1 (which hides fish behind the body background color).
+    if (DOM.game.card) {
+        DOM.game.card.style.position = 'relative'; // Required for z-index to work
+        DOM.game.card.style.zIndex = '10';         // Card sits at Level 10
+    }
+    
     c.innerHTML = '';
     
-    // Bubble Logic (Kept inside the container 'c' as they are just visual noise)
+    // Bubble Logic (Visual noise only, kept in container)
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     const isLowPower = navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4;
     const particleCount = (isMobile || isLowPower) ? 15 : 35;
@@ -37,7 +51,7 @@ Effects.bubbles = function(active) {
         const s = Math.random() * 30 + 10;
         p.style.width = p.style.height = `${s}px`;
         p.style.left = `${cl[Math.floor(Math.random() * cl.length)] + (Math.random() - 0.5) * 20}%`;
-        // Bubbles stay behind standard content but in front of bg
+        // Bubbles at Level 0 (Behind Fish and Card)
         p.style.zIndex = '0'; 
         p.style.animationDuration = `${Math.random() * 10 + 10}s`;
         p.style.animationDelay = `-${Math.random() * 15}s`;
@@ -103,13 +117,14 @@ Effects.spawnFish = function() {
     wrap.className = 'submarine-fish-wrap';
     wrap.style.position = 'fixed';
     
-    // --- TRUE DEPTH LOGIC ---
-    // We append to document.body, so -1 places it behind the standard DOM flow (game cards)
-    // 200 places it above almost everything (modals usually 100-150 in Tailwind config)
+    // --- EXPLICIT DEPTH LAYERING ---
+    // The Card is set to z-index: 10
+    // Background Fish: z-index: 1 (Visible above body bg, below card)
+    // Foreground Fish: z-index: 100 (Visible above card)
     const isForeground = Math.random() > 0.5;
-    wrap.style.zIndex = isForeground ? '200' : '-1';
+    wrap.style.zIndex = isForeground ? '100' : '1';
     
-    // Blur effect for background fish to enhance depth perception
+    // Slight blur for background fish to sell the depth effect
     if (!isForeground) {
         wrap.style.filter = 'blur(1px) brightness(0.9)';
     }
@@ -195,7 +210,7 @@ Effects.spawnFish = function() {
     
     wrap.appendChild(inner);
     
-    // *** IMPORTANT: Append to BODY to break out of theme container stacking context ***
+    // Append to BODY to ensure we are outside the theme container's stacking context
     document.body.appendChild(wrap);
     
     void wrap.offsetWidth;
