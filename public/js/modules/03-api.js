@@ -28,7 +28,7 @@ const API = {
         try {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 8000);
-            const r = await fetch(CONFIG.API_BASE_URL, { signal: controller.signal });
+            const r = await fetch(CONFIG.API_FETCH_URL, { signal: controller.signal });
             clearTimeout(timeoutId);
             if (!r.ok) {
                 throw new Error(`Server Status ${r.status}`);
