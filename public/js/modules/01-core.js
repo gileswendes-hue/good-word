@@ -339,6 +339,8 @@ const State = {
             puffer: localStorage.getItem('pufferBadgeUnlocked') === 'true',
             shark: localStorage.getItem('sharkBadgeUnlocked') === 'true',
             octopus: localStorage.getItem('octopusBadgeUnlocked') === 'true',
+            jellyfish: localStorage.getItem('jellyfishBadgeUnlocked') === 'true',
+            seal: localStorage.getItem('sealBadgeUnlocked') === 'true',
             snowman: localStorage.getItem('snowmanBadgeUnlocked') === 'true',
             angler: localStorage.getItem('anglerBadgeUnlocked') === 'true',
             shepherd: localStorage.getItem('shepherdBadgeUnlocked') === 'true',
