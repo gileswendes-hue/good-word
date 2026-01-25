@@ -3,7 +3,7 @@
  * SUBMARINE THEME EFFECT
  * ============================================================================
  * Bubbles with interactive fish, octopus, pufferfish, sharks, jellyfish, seals, and boots.
- * Now with Depth (Z-Index layering) and Intelligent Seal Pathing.
+ * Fixed: Depth layering now works by appending directly to Body.
  */
 
 (function() {
@@ -11,7 +11,12 @@
 
 Effects.bubbles = function(active) {
     const c = DOM.theme.effects.bubble;
+    
+    // Clear the spawner timeout
     if (Effects.fishTimeout) clearTimeout(Effects.fishTimeout);
+    
+    // Clean up any existing global fish from the body
+    document.querySelectorAll('.submarine-fish-wrap').forEach(el => el.remove());
     
     if (!active) { 
         c.innerHTML = ''; 
@@ -20,7 +25,7 @@ Effects.bubbles = function(active) {
     
     c.innerHTML = '';
     
-    // Bubble Logic
+    // Bubble Logic (Kept inside the container 'c' as they are just visual noise)
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     const isLowPower = navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4;
     const particleCount = (isMobile || isLowPower) ? 15 : 35;
@@ -32,8 +37,8 @@ Effects.bubbles = function(active) {
         const s = Math.random() * 30 + 10;
         p.style.width = p.style.height = `${s}px`;
         p.style.left = `${cl[Math.floor(Math.random() * cl.length)] + (Math.random() - 0.5) * 20}%`;
-        // Bubbles are always in the back
-        p.style.zIndex = '-1';
+        // Bubbles stay behind standard content but in front of bg
+        p.style.zIndex = '0'; 
         p.style.animationDuration = `${Math.random() * 10 + 10}s`;
         p.style.animationDelay = `-${Math.random() * 15}s`;
         c.appendChild(p);
@@ -43,9 +48,6 @@ Effects.bubbles = function(active) {
 };
 
 Effects.spawnFish = function() {
-    const c = DOM.theme.effects.bubble;
-    if (!c) return;
-    
     // Inject Custom Animations for Creatures
     if (!document.getElementById('sea-creature-styles')) {
         const style = document.createElement('style');
@@ -63,7 +65,6 @@ Effects.spawnFish = function() {
                 50% { transform: translateY(-30px) scale(0.90, 1.15); }
                 100% { transform: translateY(0) scale(1, 1); }
             }
-            /* Seals calculate their own path keyframes dynamically */
             .octopus-motion { animation: octopus-swim 2s ease-in-out infinite; }
             .jellyfish-motion { animation: jellyfish-swim 3s ease-in-out infinite; }
         `;
@@ -102,12 +103,17 @@ Effects.spawnFish = function() {
     wrap.className = 'submarine-fish-wrap';
     wrap.style.position = 'fixed';
     
-    // --- DEPTH LOGIC FIX ---
-    // -1: Behind Cards (Standard content flow is 0 or auto)
-    // 40: In Front (Foreground layer, blocks card but under modals)
+    // --- TRUE DEPTH LOGIC ---
+    // We append to document.body, so -1 places it behind the standard DOM flow (game cards)
+    // 200 places it above almost everything (modals usually 100-150 in Tailwind config)
     const isForeground = Math.random() > 0.5;
-    wrap.style.zIndex = isForeground ? '40' : '-1';
+    wrap.style.zIndex = isForeground ? '200' : '-1';
     
+    // Blur effect for background fish to enhance depth perception
+    if (!isForeground) {
+        wrap.style.filter = 'blur(1px) brightness(0.9)';
+    }
+
     const inner = document.createElement('div');
     inner.className = 'submarine-fish-inner';
     inner.textContent = fishEmoji;
@@ -140,12 +146,10 @@ Effects.spawnFish = function() {
         inner.style.transform = `rotate(${Math.random() * 360}deg)`;
     } else if (isSeal) {
         // --- INTELLIGENT SEAL LOGIC ---
-        // Seals generate a unique keyframe path (Curve or Dive)
         const pathId = 'seal-path-' + Date.now() + Math.floor(Math.random() * 1000);
-        const startY = Math.random() * 70 + 10; // 10% to 80% vh
-        // Random destination Y
+        const startY = Math.random() * 70 + 10; 
         const endY = Math.max(10, Math.min(80, startY + (Math.random() * 60 - 30))); 
-        const midY = (startY + endY) / 2 + (Math.random() * 40 - 20); // Curve control point
+        const midY = (startY + endY) / 2 + (Math.random() * 40 - 20); 
         
         const style = document.createElement('style');
         style.id = pathId;
@@ -153,39 +157,29 @@ Effects.spawnFish = function() {
         const startX = startLeft ? '110vw' : '-20vw';
         const endX = startLeft ? '-20vw' : '110vw';
         
-        // Calculate rotation angles for steering realism
+        // Calculate rotation angles
         const angleStart = '0deg'; 
         const angleMid = (midY < startY) ? (startLeft ? '15deg' : '-15deg') : (startLeft ? '-15deg' : '15deg');
         const angleEnd = '0deg';
 
         style.innerHTML = `
             @keyframes ${pathId} {
-                0% { 
-                    transform: translate(${startX}, ${startY}vh) rotate(${angleStart}); 
-                }
-                50% { 
-                    transform: translate(50vw, ${midY}vh) rotate(${angleMid}); 
-                }
-                100% { 
-                    transform: translate(${endX}, ${endY}vh) rotate(${angleEnd}); 
-                }
+                0% { transform: translate(${startX}, ${startY}vh) rotate(${angleStart}); }
+                50% { transform: translate(50vw, ${midY}vh) rotate(${angleMid}); }
+                100% { transform: translate(${endX}, ${endY}vh) rotate(${angleEnd}); }
             }
         `;
         document.head.appendChild(style);
         
         wrap.style.left = '0';
-        wrap.style.top = '0'; // Position handled by keyframe
+        wrap.style.top = '0';
         wrap.style.animation = `${pathId} ${duration}s cubic-bezier(0.45, 0.05, 0.55, 0.95) forwards`;
-        
-        // Face correct direction
         inner.style.transform = `scaleX(${startLeft ? 1 : -1})`; 
         
-        // Cleanup keyframe on end
         wrap.addEventListener('animationend', () => {
             if (style.parentNode) style.remove();
             if (wrap.parentNode) wrap.remove();
             
-            // Seal escaped
             State.data.fishStats.spared = (State.data.fishStats.spared || 0) + 1;
             State.save('fishStats', State.data.fishStats);
             if (State.data.fishStats.spared >= 250) State.unlockBadge('shepherd');
@@ -196,13 +190,14 @@ Effects.spawnFish = function() {
         inner.style.transition = 'font-size 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), transform 0.2s';
         wrap.style.top = (Math.random() * 80 + 10) + 'vh';
         wrap.style.left = startLeft ? '-150px' : '110vw';
-        
-        // Directional facing
         inner.style.transform = `scaleX(${baseDir})`;
     }
     
     wrap.appendChild(inner);
-    c.appendChild(wrap);
+    
+    // *** IMPORTANT: Append to BODY to break out of theme container stacking context ***
+    document.body.appendChild(wrap);
+    
     void wrap.offsetWidth;
     
     // Speech bubble helper
@@ -241,9 +236,8 @@ Effects.spawnFish = function() {
         }, 2000);
     };
     
-    // Handle fish escaping
     const handleEscape = (e) => {
-        if (isSeal) return; // Handled by animation listener
+        if (isSeal) return;
         const prop = isBoot ? 'top' : 'left';
         if (e.propertyName !== prop) return;
         if (wrap.parentNode) {
@@ -261,7 +255,7 @@ Effects.spawnFish = function() {
     wrap.onclick = (e) => {
         e.stopPropagation();
         
-        // Pufferfish grows when clicked
+        // Pufferfish Logic
         if (fishEmoji === '🐡') {
             let clicks = parseInt(inner.dataset.clicks) || 0;
             const canGrow = clicks < 5;
@@ -283,7 +277,7 @@ Effects.spawnFish = function() {
         
         const data = fishData[fishEmoji];
         
-        // Octopus inks and jets away
+        // Octopus Logic
         if (fishEmoji === '🐙') {
             e.stopPropagation();
             if (data.k) State.unlockBadge(data.k);
@@ -305,7 +299,7 @@ Effects.spawnFish = function() {
                     position: 'fixed', left: (centerX + ox) + 'px', top: (centerY + oy) + 'px',
                     width: (Math.random() * 15 + 10) + 'px', height: (Math.random() * 15 + 10) + 'px',
                     background: '#000000', borderRadius: '50%', opacity: '0.8',
-                    pointerEvents: 'none', zIndex: '99',
+                    pointerEvents: 'none', zIndex: '999',
                     transition: 'transform 1s ease-out, opacity 1s ease-out'
                 });
                 document.body.appendChild(ink);
@@ -316,7 +310,6 @@ Effects.spawnFish = function() {
                 setTimeout(() => ink.remove(), 1000);
             }
             
-            // Jet away
             if (!isSeal) {
                 const jetSpeed = Math.random() * 0.8 + 1.2;
                 wrap.style.transition = `left ${jetSpeed}s cubic-bezier(0.25, 1, 0.5, 1), top ${jetSpeed}s ease-out`;
@@ -327,7 +320,7 @@ Effects.spawnFish = function() {
             return;
         }
         
-        // Fish fakes out
+        // Fake out
         if (isFakeOut) {
             showBubble('hey!');
             SoundManager.playPop();
@@ -347,7 +340,7 @@ Effects.spawnFish = function() {
             return;
         }
         
-        // Normal catch
+        // Catch Logic
         if (data.k) State.unlockBadge(data.k);
         if (!isBoot) {
             State.data.fishStats.caught++;
@@ -355,7 +348,6 @@ Effects.spawnFish = function() {
             if (State.data.fishStats.caught >= 250) State.unlockBadge('angler');
         }
         
-        // Messages
         if (fishEmoji === '🐡') UIManager.showPostVoteMessage("Popped!");
         else if (fishEmoji === '🪼') UIManager.showPostVoteMessage("Zzap! Caught!");
         else if (fishEmoji === '🦭') UIManager.showPostVoteMessage("Playful Catch!");
@@ -363,11 +355,10 @@ Effects.spawnFish = function() {
         
         SoundManager.playPop();
         
-        // Pop particles
         const rect = wrap.getBoundingClientRect();
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
-        let pColor = '#60a5fa'; // Default blue
+        let pColor = '#60a5fa';
         if (fishEmoji === '🐡') pColor = '#eab308';
         if (isBoot) pColor = '#78350f';
         if (fishEmoji === '🪼') pColor = '#e879f9';
@@ -375,7 +366,7 @@ Effects.spawnFish = function() {
         
         for (let i = 0; i < 12; i++) {
             const p = document.createElement('div');
-            p.style.cssText = `position: fixed; width: 8px; height: 8px; background: ${pColor}; border-radius: 50%; pointer-events: none; z-index: 102; left: ${centerX}px; top: ${centerY}px;`;
+            p.style.cssText = `position: fixed; width: 8px; height: 8px; background: ${pColor}; border-radius: 50%; pointer-events: none; z-index: 999; left: ${centerX}px; top: ${centerY}px;`;
             document.body.appendChild(p);
             const angle = Math.random() * Math.PI * 2;
             const velocity = Math.random() * 60 + 20;
