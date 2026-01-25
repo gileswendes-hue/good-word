@@ -341,7 +341,13 @@ const State = {
             octopus: localStorage.getItem('octopusBadgeUnlocked') === 'true',
             snowman: localStorage.getItem('snowmanBadgeUnlocked') === 'true',
             angler: localStorage.getItem('anglerBadgeUnlocked') === 'true',
-            shepherd: localStorage.getItem('shepherdBadgeUnlocked') === 'true'
+            shepherd: localStorage.getItem('shepherdBadgeUnlocked') === 'true',
+            // Woodland creatures
+            deer: localStorage.getItem('deerBadgeUnlocked') === 'true',
+            bear: localStorage.getItem('bearBadgeUnlocked') === 'true',
+            badger: localStorage.getItem('badgerBadgeUnlocked') === 'true',
+            forestspirit: localStorage.getItem('forestspiritBadgeUnlocked') === 'true',
+            forager: localStorage.getItem('foragerBadgeUnlocked') === 'true'
         },
         settings: {
             ...DEFAULT_SETTINGS,
