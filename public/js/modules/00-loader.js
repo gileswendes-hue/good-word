@@ -1,26 +1,3 @@
-/**
- * ============================================================================
- * GOOD WORD / BAD WORD - MODULE LOADER (00-loader.js)
- * ============================================================================
- * 
- * This loader manages the sequential loading of all game modules.
- * Include this single script in your HTML and it will load all others.
- * 
- * Usage in HTML:
- *   <script src="/js/modules/00-loader.js"></script>
- * 
- * Module Load Order:
- *   01-core.js    → Foundation (CONFIG, State, DOM, Utils)
- *   02-sound.js   → Audio (SoundManager, MosquitoManager, Physics)
- *   03-api.js     → Backend communication
- *   04-themes.js  → Theme system and CSS injection
- *   05-effects.js → Visual effects (rain, snow, fire, etc.)
- *   06-ui.js      → User interface management
- *   07-game.js    → Core game logic
- *   08-minigames.js → Arcade games (lazy loaded)
- * ============================================================================
- */
-
 (function() {
 'use strict';
 
