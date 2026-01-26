@@ -231,21 +231,47 @@ Effects.halloween = function(active) {
                 document.body.appendChild(b);
                 this.bubbleElement = b;
                 
+                // Store reference to bat for position updates
+                const batAI = this;
+                let frameId = null;
+                
                 const updatePos = () => {
-                    if (!b.parentNode || !this.element) return;
-                    const rect = this.element.getBoundingClientRect();
+                    if (!b.parentNode || !batAI.element) {
+                        if (frameId) cancelAnimationFrame(frameId);
+                        return;
+                    }
+                    
+                    // Convert percentage position to pixels
+                    const batX = (batAI.currentX / 100) * window.innerWidth;
+                    const batY = (batAI.currentY / 100) * window.innerHeight;
                     const bubRect = b.getBoundingClientRect();
-                    let left = rect.left + rect.width / 2 - bubRect.width / 2;
-                    let top = rect.top - bubRect.height - 15;
+                    
+                    // Position bubble above the bat
+                    let left = batX - bubRect.width / 2;
+                    let top = batY - bubRect.height - 20;
+                    
+                    // Keep on screen
                     left = Math.max(10, Math.min(window.innerWidth - bubRect.width - 10, left));
                     top = Math.max(10, top);
+                    
                     b.style.left = left + 'px';
                     b.style.top = top + 'px';
-                    if (b.parentNode && this.state !== 'idle') requestAnimationFrame(updatePos);
+                    
+                    // Keep updating while visible
+                    if (b.parentNode && b.style.opacity !== '0') {
+                        frameId = requestAnimationFrame(updatePos);
+                    }
                 };
                 
+                b.frameId = frameId;
                 requestAnimationFrame(() => { b.style.opacity = '1'; updatePos(); });
-                setTimeout(() => { if (b.parentNode) { b.style.opacity = '0'; setTimeout(() => b.remove(), 300); } }, 2500);
+                setTimeout(() => { 
+                    if (b.parentNode) { 
+                        b.style.opacity = '0'; 
+                        if (b.frameId) cancelAnimationFrame(b.frameId);
+                        setTimeout(() => b.remove(), 300); 
+                    } 
+                }, 2500);
             },
             
             onPoked() {
@@ -310,6 +336,12 @@ Effects.halloween = function(active) {
                 if (!this.element || this.pathIndex >= this.flightPath.length) { this.destroy(); return; }
                 
                 const target = this.flightPath[this.pathIndex];
+                
+                // Update hunt target if chasing a moving bug
+                if (this.state === 'hunting' && target.isAirCatch) {
+                    this.updateHuntTarget();
+                }
+                
                 const dx = target.x - this.currentX;
                 const dy = target.y - this.currentY;
                 const distance = Math.sqrt(dx * dx + dy * dy);
@@ -320,17 +352,27 @@ Effects.halloween = function(active) {
                 }
                 
                 // Try hunting occasionally when hungry
-                if ((this.state === 'flying' || this.state === 'hunting') && this.mood === 'hungry' && Math.random() < 0.01) {
+                if ((this.state === 'flying') && this.mood === 'hungry' && Math.random() < 0.01) {
                     this.tryHunt();
                 }
                 
-                // Check if we reached hunt target
-                if (target.isHunt && distance < 8) {
+                // Check if we reached hunt target (use larger radius for air catches)
+                const catchRadius = target.isAirCatch ? 12 : 8;
+                if (target.isHunt && distance < catchRadius) {
                     this.completedHunt(target);
                     this.pathIndex++;
                     if (this.pathIndex < this.flightPath.length) {
                         this.state = 'flying';
                     }
+                    return;
+                }
+                
+                // Timeout hunts that take too long
+                if (target.isHunt && this.huntStartTime && (Date.now() - this.huntStartTime > 5000)) {
+                    this.say('missed');
+                    this.huntTargetMoving = false;
+                    this.pathIndex++;
+                    this.state = 'flying';
                     return;
                 }
                 
@@ -454,54 +496,188 @@ Effects.halloween = function(active) {
                 }, 3000 + Math.random() * 5000);
             },
             
+            // Get the current bug position from MosquitoManager or DOM
+            getBugPosition() {
+                if (typeof MosquitoManager === 'undefined') return null;
+                
+                let bugX, bugY;
+                
+                // First try MosquitoManager's direct properties
+                if (MosquitoManager.x !== undefined && MosquitoManager.y !== undefined) {
+                    bugX = MosquitoManager.x;
+                    bugY = MosquitoManager.y;
+                }
+                
+                // If not available or seems wrong, try DOM element
+                if (bugX === undefined || bugY === undefined || 
+                    (bugX === 0 && bugY === 0)) {
+                    // Try multiple selectors to find the bug element
+                    const selectors = [
+                        '#mosquito', '.mosquito', '[data-bug]',
+                        '#bug', '.bug', '.insect',
+                        '[id*="mosquito"]', '[id*="bug"]', '[class*="mosquito"]'
+                    ];
+                    
+                    let bugEl = null;
+                    for (const sel of selectors) {
+                        bugEl = document.querySelector(sel);
+                        if (bugEl) break;
+                    }
+                    
+                    if (bugEl) {
+                        const rect = bugEl.getBoundingClientRect();
+                        // Convert to percentage of viewport
+                        bugX = ((rect.left + rect.width / 2) / window.innerWidth) * 100;
+                        bugY = ((rect.top + rect.height / 2) / window.innerHeight) * 100;
+                    }
+                }
+                
+                // Handle case where position is in pixels instead of percentage
+                if (bugX !== undefined && bugY !== undefined) {
+                    // If values are large, they're probably pixels
+                    if (bugX > 100 || bugY > 100) {
+                        bugX = (bugX / window.innerWidth) * 100;
+                        bugY = (bugY / window.innerHeight) * 100;
+                    }
+                    
+                    // Clamp to valid range
+                    bugX = Math.max(0, Math.min(100, bugX));
+                    bugY = Math.max(0, Math.min(100, bugY));
+                    
+                    return { x: bugX, y: bugY };
+                }
+                
+                return null;
+            },
+            
+            // Predict where bug will be based on its movement
+            predictBugPosition(currentPos, leadTime = 0.5) {
+                if (!currentPos || !this.lastBugPos) {
+                    this.lastBugPos = currentPos;
+                    this.lastBugTime = Date.now();
+                    return currentPos;
+                }
+                
+                const now = Date.now();
+                const dt = (now - this.lastBugTime) / 1000;
+                
+                if (dt > 0 && dt < 1) {
+                    // Calculate velocity
+                    const vx = (currentPos.x - this.lastBugPos.x) / dt;
+                    const vy = (currentPos.y - this.lastBugPos.y) / dt;
+                    
+                    // Predict future position
+                    const predictedX = currentPos.x + vx * leadTime;
+                    const predictedY = currentPos.y + vy * leadTime;
+                    
+                    // Update last known position
+                    this.lastBugPos = currentPos;
+                    this.lastBugTime = now;
+                    
+                    // Clamp to screen
+                    return {
+                        x: Math.max(5, Math.min(95, predictedX)),
+                        y: Math.max(5, Math.min(95, predictedY))
+                    };
+                }
+                
+                this.lastBugPos = currentPos;
+                this.lastBugTime = now;
+                return currentPos;
+            },
+            
             tryHunt() {
+                if (typeof MosquitoManager === 'undefined') return;
+                
                 // Check for bugs in web first (stealing from spider!)
-                if (typeof MosquitoManager !== 'undefined' && MosquitoManager.state === 'stuck') {
+                if (MosquitoManager.state === 'stuck') {
                     // Bug is in the web - should we steal it?
                     const willSteal = this.mood === 'hungry' || Math.random() < 0.3;
                     if (willSteal) {
-                        const bugX = MosquitoManager.x || 88;
-                        const bugY = MosquitoManager.y || 20;
+                        const bugPos = this.getBugPosition();
+                        const bugX = bugPos?.x || 88;
+                        const bugY = bugPos?.y || 20;
                         
                         this.say('startHunt');
                         this.state = 'hunting';
+                        this.huntStartTime = Date.now();
                         this.flightPath.splice(this.pathIndex, 0, { 
-                            x: bugX, y: bugY, speed: 0.8, isHunt: true, isSteal: true 
+                            x: bugX, y: bugY, speed: 0.9, isHunt: true, isSteal: true 
                         });
                         return;
                     }
                 }
                 
-                // Check for flying bugs
-                if (typeof MosquitoManager !== 'undefined' && MosquitoManager.state === 'flying') {
-                    const bugX = MosquitoManager.x;
-                    const bugY = MosquitoManager.y;
-                    const targetX = typeof bugX === 'number' ? bugX : 50;
-                    const targetY = typeof bugY === 'number' ? bugY : 30;
+                // Check for flying bugs - use prediction for mid-air catch
+                if (MosquitoManager.state === 'flying') {
+                    const bugPos = this.getBugPosition();
+                    if (!bugPos) return;
                     
-                    const dx = targetX - this.currentX;
-                    const dy = targetY - this.currentY;
+                    // Calculate distance to current position
+                    const dx = bugPos.x - this.currentX;
+                    const dy = bugPos.y - this.currentY;
                     const distance = Math.sqrt(dx * dx + dy * dy);
                     
-                    if (distance < 40) {
+                    if (distance < 50) { // Within hunting range
+                        // Predict where bug will be
+                        const predictedPos = this.predictBugPosition(bugPos, 0.8);
+                        
                         this.say('startHunt');
                         this.state = 'hunting';
+                        this.huntStartTime = Date.now();
+                        this.huntTargetMoving = true;
+                        
                         this.flightPath.splice(this.pathIndex, 0, { 
-                            x: targetX, y: targetY, speed: 0.7, isHunt: true 
+                            x: predictedPos.x, 
+                            y: predictedPos.y, 
+                            speed: 0.85, 
+                            isHunt: true,
+                            isAirCatch: true
                         });
                     }
+                }
+            },
+            
+            // Called during flight to update hunt target if bug is moving
+            updateHuntTarget() {
+                if (this.state !== 'hunting' || !this.huntTargetMoving) return;
+                if (this.pathIndex >= this.flightPath.length) return;
+                
+                const target = this.flightPath[this.pathIndex];
+                if (!target.isHunt || !target.isAirCatch) return;
+                
+                // Update target position based on current bug location
+                const bugPos = this.getBugPosition();
+                if (bugPos) {
+                    const predictedPos = this.predictBugPosition(bugPos, 0.4);
+                    target.x = predictedPos.x;
+                    target.y = predictedPos.y;
                 }
             },
             
             completedHunt(target) {
                 if (!target.isHunt) return;
                 
+                this.huntTargetMoving = false;
+                
                 // Check if we successfully caught something
                 if (typeof MosquitoManager !== 'undefined') {
                     const wasInWeb = target.isSteal && MosquitoManager.state === 'stuck';
                     const wasFlying = MosquitoManager.state === 'flying';
                     
-                    if (wasInWeb || wasFlying) {
+                    // For mid-air catch, check if we're close enough to the bug
+                    let caughtMidAir = false;
+                    if (target.isAirCatch && wasFlying) {
+                        const bugPos = this.getBugPosition();
+                        if (bugPos) {
+                            const dx = bugPos.x - this.currentX;
+                            const dy = bugPos.y - this.currentY;
+                            const distance = Math.sqrt(dx * dx + dy * dy);
+                            caughtMidAir = distance < 12; // Close enough to catch
+                        }
+                    }
+                    
+                    if (wasInWeb || caughtMidAir) {
                         // We caught/stole the bug!
                         const bugType = MosquitoManager.currentBug || '🦟';
                         
@@ -531,11 +707,18 @@ Effects.halloween = function(active) {
                             // Spider gets angry!
                             this.triggerSpiderAnger();
                         } else {
-                            // Just caught a flying bug - normal
-                            const eatLines = GAME_DIALOGUE?.bat?.eating || {};
-                            const eatText = eatLines[bugType] || eatLines.default || "Tasty!";
-                            this.say(eatText);
+                            // Caught a flying bug mid-air!
+                            // Use special mid-air catch dialogue
+                            const midAirLines = GAME_DIALOGUE?.bat?.caughtMidAir;
+                            if (midAirLines && midAirLines.length > 0) {
+                                this.say(midAirLines[Math.floor(Math.random() * midAirLines.length)]);
+                            } else {
+                                const eatLines = GAME_DIALOGUE?.bat?.eating || {};
+                                const eatText = eatLines[bugType] || eatLines.default || "Tasty!";
+                                this.say(eatText);
+                            }
                             this.mood = 'happy';
+                            CreatureCoordinator.updateMood('bat', 'happy');
                         }
                     } else {
                         // Missed!
