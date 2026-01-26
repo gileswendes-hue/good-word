@@ -630,37 +630,35 @@ body.mode-colorblind .border-red-100 { border-color: #ffedd5 !important; }
 /* --- WOODLAND THEME --- */
 body.theme-woodland { background: linear-gradient(180deg, #2d5016 0%, #3d6b1e 50%, #1a3409 100%) !important; }
 .theme-woodland #gameCard, .theme-woodland .ranking-card {
-    background-color: rgba(45, 80, 22, 0.9) !important;
+    background-color: rgba(255, 255, 255, 0.92) !important;
     border: 2px solid #5a8f2a !important;
-    box-shadow: 0 0 30px rgba(90, 143, 42, 0.3), 0 15px 40px rgba(0, 0, 0, 0.5) !important;
+    box-shadow: 0 0 30px rgba(90, 143, 42, 0.3), 0 15px 40px rgba(0, 0, 0, 0.3) !important;
 }
-.theme-woodland #wordDisplay { color: #a8d08d !important; text-shadow: 0 0 10px rgba(168, 208, 141, 0.5); }
-.theme-woodland .text-gray-900, .theme-woodland .rank-item .text-gray-800 { color: #e8f5e9 !important; }
-.theme-woodland .text-gray-500, .theme-woodland .text-gray-600 { color: #a5d6a7 !important; }
+.theme-woodland #wordDisplay { color: #2d5016 !important; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); }
 .theme-woodland #woodland-effect { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; overflow: hidden; }
 
 /* --- FLIGHT THEME --- */
-body.theme-flight { background: linear-gradient(180deg, #1e3a5f 0%, #2d5a87 30%, #87ceeb 100%) !important; }
+body.theme-flight { background: linear-gradient(180deg, #0c4a6e 0%, #0369a1 30%, #7dd3fc 100%) !important; }
 .theme-flight #gameCard, .theme-flight .ranking-card {
-    background-color: rgba(30, 58, 95, 0.85) !important;
-    border: 1px solid rgba(135, 206, 235, 0.3) !important;
-    box-shadow: 0 0 20px rgba(135, 206, 235, 0.2), 0 15px 40px rgba(0, 0, 0, 0.4) !important;
+    background-color: rgba(255, 255, 255, 0.95) !important;
+    border: 1px solid rgba(14, 165, 233, 0.3) !important;
+    box-shadow: 0 0 20px rgba(14, 165, 233, 0.2), 0 15px 40px rgba(0, 0, 0, 0.2) !important;
 }
-.theme-flight #wordDisplay { color: #e0f2fe !important; text-shadow: 0 0 10px rgba(224, 242, 254, 0.5); }
-.theme-flight .text-gray-900, .theme-flight .rank-item .text-gray-800 { color: #f0f9ff !important; }
-.theme-flight .text-gray-500, .theme-flight .text-gray-600 { color: #bae6fd !important; }
+.theme-flight #wordDisplay { color: #0c4a6e !important; text-shadow: 0 2px 4px rgba(255, 255, 255, 0.5); }
+.theme-flight .text-gray-900 { color: #0c4a6e !important; }
+.theme-flight .text-gray-500, .theme-flight .text-gray-600 { color: #0369a1 !important; }
 .theme-flight #flight-effect { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; overflow: hidden; }
 
 /* --- OCEAN THEME --- */
 body.theme-ocean { background: linear-gradient(180deg, #0c4a6e 0%, #0369a1 50%, #0ea5e9 100%) !important; }
 .theme-ocean #gameCard, .theme-ocean .ranking-card {
-    background-color: rgba(12, 74, 110, 0.9) !important;
+    background-color: rgba(255, 255, 255, 0.95) !important;
     border: 2px solid #0284c7 !important;
-    box-shadow: 0 0 30px rgba(2, 132, 199, 0.3), 0 15px 40px rgba(0, 0, 0, 0.5) !important;
+    box-shadow: 0 0 30px rgba(2, 132, 199, 0.3), 0 15px 40px rgba(0, 0, 0, 0.3) !important;
 }
-.theme-ocean #wordDisplay { color: #7dd3fc !important; text-shadow: 0 0 15px rgba(125, 211, 252, 0.6); }
-.theme-ocean .text-gray-900, .theme-ocean .rank-item .text-gray-800 { color: #e0f2fe !important; }
-.theme-ocean .text-gray-500, .theme-ocean .text-gray-600 { color: #7dd3fc !important; }
+.theme-ocean #wordDisplay { color: #0c4a6e !important; text-shadow: 0 2px 4px rgba(255, 255, 255, 0.5); }
+.theme-ocean .text-gray-900 { color: #0c4a6e !important; }
+.theme-ocean .text-gray-500, .theme-ocean .text-gray-600 { color: #0369a1 !important; }
 .theme-ocean #ocean-effect { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; overflow: hidden; }
 
 /* =========================================
@@ -694,17 +692,6 @@ body.theme-ocean { background: linear-gradient(180deg, #0c4a6e 0%, #0369a1 50%, 
     100% { transform: translateY(110vh); opacity: 0.3; }
 }
 
-/* Snow Effect (for weather, not winter theme) */
-#snow-effect {
-    position: fixed;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    z-index: 45;
-    overflow: hidden;
-}
-
 /* =========================================
    8. UTILITY ANIMATIONS
    ========================================= */
@@ -720,52 +707,8 @@ body.theme-ocean { background: linear-gradient(180deg, #0c4a6e 0%, #0369a1 50%, 
     100% { opacity: 0; }
 }
 
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
-}
-
-@keyframes bounce {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-10px); }
-}
-
-/* Loading spinner */
-.loading-spinner {
-    width: 40px;
-    height: 40px;
-    border: 4px solid rgba(255, 255, 255, 0.3);
-    border-top-color: white;
-    border-radius: 50%;
-    animation: spin-slow 1s linear infinite;
-}
-
 /* =========================================
-   9. MODAL & OVERLAY STYLES
-   ========================================= */
-
-.modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(4px);
-    z-index: 100;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.modal-content {
-    background: white;
-    border-radius: 1rem;
-    max-width: 90vw;
-    max-height: 90vh;
-    overflow-y: auto;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-}
-
-/* =========================================
-   10. SCROLLBAR STYLING
+   9. SCROLLBAR STYLING
    ========================================= */
 
 ::-webkit-scrollbar {
