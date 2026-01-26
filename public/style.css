@@ -52,19 +52,19 @@ button:active {
 }
 
 .daily-banner {
-    background: linear-gradient(90deg, #6366f1, #a855f7);
     color: white;
     padding: 8px 16px;
     border-radius: 12px;
     margin-bottom: 1rem;
     cursor: pointer;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    transition: transform 0.1s;
+    transition: transform 0.1s, background 0.3s;
     width: 100%;
     text-align: center;
     font-weight: bold;
     position: relative;
     overflow: hidden;
+    display: none; /* Hidden by default, JS shows it */
 }
 
 .daily-banner:hover { transform: scale(1.02); }
@@ -665,7 +665,6 @@ body.theme-ocean { background: linear-gradient(180deg, #0c4a6e 0%, #0369a1 50%, 
    7. WEATHER EFFECTS
    ========================================= */
 
-/* Rain Effect */
 #rain-effect {
     position: fixed;
     inset: 0;
@@ -707,25 +706,7 @@ body.theme-ocean { background: linear-gradient(180deg, #0c4a6e 0%, #0369a1 50%, 
     100% { opacity: 0; }
 }
 
-/* =========================================
-   9. SCROLLBAR STYLING
-   ========================================= */
-
-::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-
-::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.1);
-    border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 0, 0, 0.5);
-}
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.1); border-radius: 4px; }
+::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.3); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.5); }
