@@ -13,10 +13,16 @@ Effects.halloween = function(active) {
         if (Effects.spiderTimeout) clearTimeout(Effects.spiderTimeout);
         if (Effects.webRaf) cancelAnimationFrame(Effects.webRaf);
         if (Effects.batTimeout) clearTimeout(Effects.batTimeout);
+        if (Effects.floorSpiderTimeout) clearTimeout(Effects.floorSpiderTimeout);
         const isSafeMode = State.data.settings.arachnophobiaMode;
         if (!active || isSafeMode) {
             const old = document.getElementById('spider-wrap');
-            if (old) old.remove();
+            if (old) {
+                if (old.floorSpiderAI) old.floorSpiderAI.destroy();
+                old.remove();
+            }
+            const oldFloor = document.getElementById('floor-spider-container');
+            if (oldFloor) oldFloor.remove();
             const oldWeb = document.getElementById('spider-web-corner');
             if (oldWeb) oldWeb.remove();
             const style = document.getElementById('spider-motion-style');
@@ -110,6 +116,29 @@ Effects.halloween = function(active) {
             const s = document.createElement('style');
             s.id = 'spider-motion-style';
             s.innerHTML = `
+                /* Realistic leg animations for floor scuttling */
+                @keyframes leg-cycle-left {
+                    0%, 100% { transform: rotate(-15deg) scaleY(1); }
+                    25% { transform: rotate(10deg) scaleY(0.85); }
+                    50% { transform: rotate(20deg) scaleY(1); }
+                    75% { transform: rotate(5deg) scaleY(0.9); }
+                }
+                @keyframes leg-cycle-right {
+                    0%, 100% { transform: rotate(15deg) scaleY(1); }
+                    25% { transform: rotate(-5deg) scaleY(0.9); }
+                    50% { transform: rotate(-20deg) scaleY(1); }
+                    75% { transform: rotate(-10deg) scaleY(0.85); }
+                }
+                @keyframes body-bob {
+                    0%, 100% { transform: translateY(0) rotate(0deg); }
+                    12.5% { transform: translateY(-2px) rotate(-0.5deg); }
+                    25% { transform: translateY(1px) rotate(0.3deg); }
+                    37.5% { transform: translateY(-1px) rotate(-0.3deg); }
+                    50% { transform: translateY(0) rotate(0deg); }
+                    62.5% { transform: translateY(-2px) rotate(0.5deg); }
+                    75% { transform: translateY(1px) rotate(-0.3deg); }
+                    87.5% { transform: translateY(-1px) rotate(0.3deg); }
+                }
                 @keyframes spider-idle-wiggle {
                     0%, 100% { transform: rotate(0deg); }
                     50% { transform: rotate(2deg); }
@@ -119,14 +148,29 @@ Effects.halloween = function(active) {
                     50% { transform: rotate(1deg); }
                 }
                 @keyframes spider-pause-wiggle {
+                    0%, 100% { transform: rotate(0deg) scale(1); }
+                    30% { transform: rotate(2deg) scale(1.02); }
+                    70% { transform: rotate(-1deg) scale(0.98); }
+                }
+                @keyframes spider-look-around {
                     0%, 100% { transform: rotate(0deg); }
-                    50% { transform: rotate(3deg); }
+                    20% { transform: rotate(-8deg); }
+                    40% { transform: rotate(5deg); }
+                    60% { transform: rotate(-3deg); }
+                    80% { transform: rotate(6deg); }
+                }
+                @keyframes leg-twitch {
+                    0%, 100% { transform: rotate(0deg); }
+                    50% { transform: rotate(8deg); }
                 }
                 .scuttling-motion {
                     animation: spider-moving 0.8s infinite ease-in-out;
                 }
                 .spider-paused {
-                    animation: spider-pause-wiggle 1s ease-in-out;
+                    animation: spider-pause-wiggle 1.5s ease-in-out;
+                }
+                .spider-looking {
+                    animation: spider-look-around 2s ease-in-out;
                 }
                 .hunting-scuttle {
                     animation: spider-moving 0.5s infinite ease-in-out;
@@ -137,9 +181,456 @@ Effects.halloween = function(active) {
                 .spider-fat {
                     filter: drop-shadow(0 10px 5px rgba(0,0,0,0.4)); transition: transform 1s cubic-bezier(0.5, 0, 0.5, 1);
                 }
+                /* Floor spider specific styles */
+                .floor-spider-container {
+                    position: fixed;
+                    z-index: 103;
+                    pointer-events: none;
+                    transition: none;
+                }
+                .floor-spider-body {
+                    position: relative;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    pointer-events: auto;
+                    cursor: pointer;
+                }
+                .floor-spider-body.scuttling .spider-legs-left {
+                    animation: leg-cycle-left 0.15s infinite linear;
+                }
+                .floor-spider-body.scuttling .spider-legs-right {
+                    animation: leg-cycle-right 0.15s infinite linear;
+                }
+                .floor-spider-body.scuttling .spider-core {
+                    animation: body-bob 0.3s infinite linear;
+                }
+                .floor-spider-body.paused .spider-core {
+                    animation: spider-pause-wiggle 1.5s ease-in-out;
+                }
+                .floor-spider-body.looking .spider-core {
+                    animation: spider-look-around 2s ease-in-out;
+                }
+                .floor-spider-body.paused .spider-legs-left,
+                .floor-spider-body.paused .spider-legs-right {
+                    animation: leg-twitch 0.8s ease-in-out;
+                }
+                .spider-legs-left, .spider-legs-right {
+                    position: absolute;
+                    font-size: 0.6em;
+                    opacity: 0.9;
+                    transform-origin: center;
+                }
+                .spider-legs-left {
+                    left: -0.4em;
+                }
+                .spider-legs-right {
+                    right: -0.4em;
+                    transform: scaleX(-1);
+                }
+                .spider-core {
+                    position: relative;
+                    z-index: 2;
+                }
             `;
             document.head.appendChild(s);
         }
+        // ========================================================================
+        // INTELLIGENT FLOOR SPIDER MOVEMENT SYSTEM
+        // ========================================================================
+        const floorSpiderAI = {
+            active: false,
+            currentX: 0,
+            currentY: 0,
+            targetX: 0,
+            targetY: 0,
+            state: 'idle', // idle, moving, pausing, looking, thinking
+            moveSpeed: 180, // pixels per second
+            element: null,
+            bodyElement: null,
+            animationFrame: null,
+            lastTime: 0,
+            pauseTimeout: null,
+            thinkingTimeout: null,
+            facingRight: true,
+            stepCount: 0,
+            
+            // Dialogue for different states
+            dialogue: {
+                moving: ["*scuttle scuttle*", "...", "~", "hmm...", "*tap tap tap*"],
+                pausing: ["🤔", "..?", "*sniff sniff*", "hm.", "*looks around*", "where was I going?"],
+                thinking: ["what's over there?", "*contemplates*", "decisions...", "left or right?", "🕷️💭"],
+                arriving: ["ah, here.", "nice spot.", "*settles*", "perfect.", "yes, this'll do."],
+                startMoving: ["off I go!", "time to explore!", "*stretches legs*", "adventure awaits!", "let's see..."]
+            },
+            
+            // Initialize the floor spider
+            init(container) {
+                this.element = container;
+                this.bodyElement = container.querySelector('.floor-spider-body');
+                this.currentX = window.innerWidth * 0.5;
+                this.currentY = window.innerHeight - 80;
+                this.updatePosition();
+            },
+            
+            // Get a random dialogue line
+            say(category) {
+                const lines = this.dialogue[category];
+                if (!lines || !this.bodyElement) return;
+                const text = lines[Math.floor(Math.random() * lines.length)];
+                
+                // Create a bubble specifically for the floor spider
+                const old = document.getElementById('floor-spider-bubble');
+                if (old) old.remove();
+                
+                const b = document.createElement('div');
+                b.id = 'floor-spider-bubble';
+                Object.assign(b.style, {
+                    position: 'fixed',
+                    background: 'white', 
+                    color: '#1f2937', 
+                    padding: '6px 12px',
+                    borderRadius: '12px', 
+                    fontSize: '13px', 
+                    fontWeight: 'bold',
+                    fontFamily: 'sans-serif', 
+                    whiteSpace: 'nowrap',
+                    pointerEvents: 'none', 
+                    opacity: '0', 
+                    transition: 'opacity 0.2s',
+                    boxShadow: '0 3px 8px rgba(0,0,0,0.3)', 
+                    border: '2px solid #1f2937',
+                    zIndex: '110'
+                });
+                b.textContent = text;
+                
+                // Arrow pointing down
+                const arrow = document.createElement('div');
+                Object.assign(arrow.style, {
+                    position: 'absolute',
+                    bottom: '-8px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    width: '0',
+                    height: '0',
+                    borderStyle: 'solid',
+                    borderWidth: '8px 8px 0 8px',
+                    borderColor: '#1f2937 transparent transparent transparent'
+                });
+                b.appendChild(arrow);
+                document.body.appendChild(b);
+                
+                // Position above the floor spider
+                const updatePos = () => {
+                    if (!b.parentNode || !this.element) return;
+                    const rect = this.bodyElement.getBoundingClientRect();
+                    const bubRect = b.getBoundingClientRect();
+                    let left = rect.left + rect.width / 2 - bubRect.width / 2;
+                    let top = rect.top - bubRect.height - 15;
+                    
+                    // Keep in viewport
+                    left = Math.max(10, Math.min(window.innerWidth - bubRect.width - 10, left));
+                    top = Math.max(10, top);
+                    
+                    b.style.left = left + 'px';
+                    b.style.top = top + 'px';
+                    
+                    if (b.parentNode) requestAnimationFrame(updatePos);
+                };
+                
+                requestAnimationFrame(() => {
+                    b.style.opacity = '1';
+                    updatePos();
+                });
+                
+                // Remove after delay
+                setTimeout(() => {
+                    if (b.parentNode) {
+                        b.style.opacity = '0';
+                        setTimeout(() => b.remove(), 300);
+                    }
+                }, 2000);
+            },
+            
+            // Update visual position
+            updatePosition() {
+                if (!this.element) return;
+                this.element.style.left = `${this.currentX}px`;
+                this.element.style.top = `${this.currentY}px`;
+                
+                // Flip spider based on direction
+                if (this.bodyElement) {
+                    this.bodyElement.style.transform = this.facingRight ? 'scaleX(1)' : 'scaleX(-1)';
+                }
+            },
+            
+            // Choose a new destination intelligently
+            chooseDestination() {
+                // Prefer edges and corners - spiders like to stay near walls
+                const preferEdge = Math.random() < 0.6;
+                const margin = 60;
+                const maxX = window.innerWidth - margin;
+                const maxY = window.innerHeight - margin;
+                
+                let targetX, targetY;
+                
+                if (preferEdge) {
+                    // Pick a wall
+                    const wall = Math.floor(Math.random() * 4);
+                    switch(wall) {
+                        case 0: // Left wall
+                            targetX = margin + Math.random() * 50;
+                            targetY = margin + Math.random() * (maxY - margin);
+                            break;
+                        case 1: // Right wall
+                            targetX = maxX - Math.random() * 50;
+                            targetY = margin + Math.random() * (maxY - margin);
+                            break;
+                        case 2: // Bottom (floor)
+                            targetX = margin + Math.random() * (maxX - margin);
+                            targetY = maxY - Math.random() * 50;
+                            break;
+                        default: // Random corner
+                            const corners = [
+                                {x: margin + 30, y: maxY - 30},
+                                {x: maxX - 30, y: maxY - 30},
+                                {x: margin + 30, y: maxY * 0.7},
+                                {x: maxX - 30, y: maxY * 0.7}
+                            ];
+                            const corner = corners[Math.floor(Math.random() * corners.length)];
+                            targetX = corner.x;
+                            targetY = corner.y;
+                    }
+                } else {
+                    // Random position in lower 2/3 of screen
+                    targetX = margin + Math.random() * (maxX - margin);
+                    targetY = window.innerHeight * 0.4 + Math.random() * (maxY - window.innerHeight * 0.4);
+                }
+                
+                return { x: targetX, y: targetY };
+            },
+            
+            // Start moving to a target
+            moveTo(x, y, onComplete) {
+                this.targetX = x;
+                this.targetY = y;
+                this.state = 'moving';
+                this.stepCount = 0;
+                
+                // Face the right direction
+                this.facingRight = x > this.currentX;
+                this.updatePosition();
+                
+                // Add scuttling animation
+                if (this.bodyElement) {
+                    this.bodyElement.classList.remove('paused', 'looking');
+                    this.bodyElement.classList.add('scuttling');
+                }
+                
+                // Occasionally say something when starting to move
+                if (Math.random() < 0.3) {
+                    this.say('startMoving');
+                }
+                
+                this.lastTime = performance.now();
+                this.animateMovement(onComplete);
+            },
+            
+            // Animate the movement with realistic acceleration/deceleration
+            animateMovement(onComplete) {
+                if (this.state !== 'moving') return;
+                
+                const now = performance.now();
+                const deltaTime = (now - this.lastTime) / 1000;
+                this.lastTime = now;
+                
+                const dx = this.targetX - this.currentX;
+                const dy = this.targetY - this.currentY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                // Check if we should pause mid-journey
+                this.stepCount++;
+                if (this.stepCount > 30 && Math.random() < 0.008) {
+                    this.pauseMidJourney(() => {
+                        this.moveTo(this.targetX, this.targetY, onComplete);
+                    });
+                    return;
+                }
+                
+                // Arrived at destination
+                if (distance < 5) {
+                    this.currentX = this.targetX;
+                    this.currentY = this.targetY;
+                    this.updatePosition();
+                    this.state = 'idle';
+                    
+                    if (this.bodyElement) {
+                        this.bodyElement.classList.remove('scuttling');
+                    }
+                    
+                    // Sometimes say something on arrival
+                    if (Math.random() < 0.4) {
+                        this.say('arriving');
+                    }
+                    
+                    if (onComplete) onComplete();
+                    return;
+                }
+                
+                // Calculate movement with slight speed variation (simulates leg coordination)
+                const speedVariation = 0.85 + Math.random() * 0.3;
+                const currentSpeed = this.moveSpeed * speedVariation;
+                
+                // Slow down when approaching target
+                const slowdownDistance = 100;
+                const speedMultiplier = distance < slowdownDistance ? 
+                    0.3 + (distance / slowdownDistance) * 0.7 : 1;
+                
+                const moveDistance = currentSpeed * deltaTime * speedMultiplier;
+                const ratio = Math.min(moveDistance / distance, 1);
+                
+                // Add tiny random wobble for organic movement
+                const wobble = Math.sin(now / 50) * 0.5;
+                
+                this.currentX += dx * ratio + wobble * (dy / distance);
+                this.currentY += dy * ratio - wobble * (dx / distance);
+                
+                // Keep in bounds
+                this.currentX = Math.max(30, Math.min(window.innerWidth - 30, this.currentX));
+                this.currentY = Math.max(100, Math.min(window.innerHeight - 30, this.currentY));
+                
+                this.updatePosition();
+                
+                this.animationFrame = requestAnimationFrame(() => this.animateMovement(onComplete));
+            },
+            
+            // Pause mid-journey to look around
+            pauseMidJourney(onResume) {
+                this.state = 'pausing';
+                
+                if (this.bodyElement) {
+                    this.bodyElement.classList.remove('scuttling');
+                    this.bodyElement.classList.add('paused');
+                }
+                
+                // Say something while paused
+                if (Math.random() < 0.6) {
+                    setTimeout(() => this.say('pausing'), 300);
+                }
+                
+                // Look around after initial pause
+                this.pauseTimeout = setTimeout(() => {
+                    if (this.state !== 'pausing') return;
+                    this.state = 'looking';
+                    
+                    if (this.bodyElement) {
+                        this.bodyElement.classList.remove('paused');
+                        this.bodyElement.classList.add('looking');
+                    }
+                    
+                    // Maybe change direction we're facing
+                    if (Math.random() < 0.3) {
+                        this.facingRight = !this.facingRight;
+                        this.updatePosition();
+                    }
+                    
+                    // Resume after looking
+                    this.thinkingTimeout = setTimeout(() => {
+                        if (this.bodyElement) {
+                            this.bodyElement.classList.remove('looking');
+                        }
+                        this.state = 'idle';
+                        if (onResume) onResume();
+                    }, 1500 + Math.random() * 1500);
+                    
+                }, 800 + Math.random() * 1200);
+            },
+            
+            // Full thinking/decision pause
+            think(onComplete) {
+                this.state = 'thinking';
+                
+                if (this.bodyElement) {
+                    this.bodyElement.classList.remove('scuttling');
+                    this.bodyElement.classList.add('paused');
+                }
+                
+                // Say thinking dialogue
+                if (Math.random() < 0.5) {
+                    setTimeout(() => this.say('thinking'), 500);
+                }
+                
+                this.thinkingTimeout = setTimeout(() => {
+                    if (this.bodyElement) {
+                        this.bodyElement.classList.remove('paused');
+                        this.bodyElement.classList.add('looking');
+                    }
+                    
+                    setTimeout(() => {
+                        if (this.bodyElement) {
+                            this.bodyElement.classList.remove('looking');
+                        }
+                        this.state = 'idle';
+                        if (onComplete) onComplete();
+                    }, 1000 + Math.random() * 1500);
+                    
+                }, 1500 + Math.random() * 2000);
+            },
+            
+            // Stop all movement
+            stop() {
+                this.state = 'idle';
+                if (this.animationFrame) {
+                    cancelAnimationFrame(this.animationFrame);
+                    this.animationFrame = null;
+                }
+                if (this.pauseTimeout) {
+                    clearTimeout(this.pauseTimeout);
+                    this.pauseTimeout = null;
+                }
+                if (this.thinkingTimeout) {
+                    clearTimeout(this.thinkingTimeout);
+                    this.thinkingTimeout = null;
+                }
+                if (this.bodyElement) {
+                    this.bodyElement.classList.remove('scuttling', 'paused', 'looking');
+                }
+            },
+            
+            // Main behavior loop - decide what to do next
+            doBehavior() {
+                if (this.state !== 'idle') return;
+                
+                const action = Math.random();
+                
+                if (action < 0.15) {
+                    // Just think for a bit
+                    this.think(() => {
+                        setTimeout(() => this.doBehavior(), 500 + Math.random() * 1000);
+                    });
+                } else {
+                    // Move somewhere
+                    const dest = this.chooseDestination();
+                    this.moveTo(dest.x, dest.y, () => {
+                        // After arriving, wait then do something else
+                        const waitTime = 2000 + Math.random() * 4000;
+                        setTimeout(() => this.doBehavior(), waitTime);
+                    });
+                }
+            },
+            
+            // Clean up
+            destroy() {
+                this.stop();
+                if (this.element) {
+                    this.element.remove();
+                    this.element = null;
+                    this.bodyElement = null;
+                }
+            }
+        };
+        
+        // Legacy scuttle object for ceiling movement (kept for compatibility)
         const spiderScuttle = {
             active: false,
             targetX: 50,
@@ -308,6 +799,72 @@ Effects.halloween = function(active) {
                     setTimeout(() => { body.style.animation = ''; }, 2000);
                 }
             };
+            
+            // ================================================================
+            // FLOOR SPIDER SETUP
+            // ================================================================
+            // Create floor spider element with animated legs
+            let floorSpider = document.getElementById('floor-spider-container');
+            if (!floorSpider) {
+                floorSpider = document.createElement('div');
+                floorSpider.id = 'floor-spider-container';
+                floorSpider.className = 'floor-spider-container';
+                
+                const floorFontSize = (2.5 + (cappedEaten * 0.4)).toFixed(2);
+                floorSpider.innerHTML = `
+                    <div class="floor-spider-body" style="font-size: ${floorFontSize}rem;">
+                        <div class="spider-legs-left">⌇</div>
+                        <div class="spider-core">🕷️</div>
+                        <div class="spider-legs-right">⌇</div>
+                    </div>
+                `;
+                document.body.appendChild(floorSpider);
+                
+                // Initialize the AI
+                floorSpiderAI.init(floorSpider);
+                
+                // Click handler for floor spider
+                const floorBody = floorSpider.querySelector('.floor-spider-body');
+                floorBody.onclick = (e) => {
+                    e.stopPropagation();
+                    State.unlockBadge('spider');
+                    
+                    // Stop current movement
+                    floorSpiderAI.stop();
+                    
+                    const lines = GAME_DIALOGUE.spider.pokeHappy || ["Hey!", "Watch it!", "Excuse me!"];
+                    const text = lines[Math.floor(Math.random() * lines.length)];
+                    showSpiderBubble(text);
+                    
+                    // Startle animation - jump back
+                    floorBody.style.animation = 'shake 0.3s ease-in-out';
+                    setTimeout(() => {
+                        floorBody.style.animation = '';
+                        // Run away briefly then resume
+                        const escapeX = floorSpiderAI.currentX + (Math.random() > 0.5 ? 150 : -150);
+                        const escapeY = floorSpiderAI.currentY + (Math.random() * 50 - 25);
+                        floorSpiderAI.moveSpeed = 300; // Faster escape
+                        floorSpiderAI.moveTo(
+                            Math.max(50, Math.min(window.innerWidth - 50, escapeX)),
+                            Math.max(150, Math.min(window.innerHeight - 50, escapeY)),
+                            () => {
+                                floorSpiderAI.moveSpeed = 180; // Back to normal
+                                setTimeout(() => floorSpiderAI.doBehavior(), 2000);
+                            }
+                        );
+                    }, 300);
+                };
+                
+                // Start the behavior loop after a delay
+                setTimeout(() => {
+                    if (document.body.contains(floorSpider)) {
+                        floorSpiderAI.doBehavior();
+                    }
+                }, 3000);
+            }
+            
+            // Store reference for cleanup
+            wrap.floorSpiderAI = floorSpiderAI;
         }
         const body = wrap.querySelector('#spider-body');
         const thread = wrap.querySelector('#spider-thread');
