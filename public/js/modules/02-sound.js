@@ -1,25 +1,6 @@
-/**
- * ============================================================================
- * GOOD WORD / BAD WORD - SOUND & INTERACTION MODULE (02-sound.js)
- * ============================================================================
- * 
- * Contains:
- * - SoundManager: Web Audio API sound effects
- * - MosquitoManager: Halloween bug easter egg
- * - TiltManager: Device orientation for card tilt
- * - Physics: Ball pit physics simulation
- * - GAME_DIALOGUE: Easter egg messages
- * 
- * Dependencies: 01-core.js
- * ============================================================================
- */
-
 (function() {
 'use strict';
-
-// ============================================================================
-// GAME DIALOGUE - Easter Egg Messages
-// ============================================================================
+    
 const GAME_DIALOGUE = {
     insects: {
         '🦟': "You saved the mosquito! 🦟",
