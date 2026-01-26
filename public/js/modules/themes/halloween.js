@@ -208,7 +208,17 @@ Effects.halloween = function(active) {
                     }
                 }
                 
-                if (this.bubbleElement) this.bubbleElement.remove();
+                // Slow down while speaking!
+                this.isSpeaking = true;
+                this.preSpeakSpeed = this.flightPath[this.pathIndex]?.speed || 0.35;
+                if (this.flightPath[this.pathIndex]) {
+                    this.flightPath[this.pathIndex].speed = 0.08; // Very slow while talking
+                }
+                
+                if (this.bubbleElement) {
+                    this.bubbleElement.remove();
+                    this.bubbleElement = null;
+                }
                 
                 const b = document.createElement('div');
                 b.id = 'bat-bubble';
@@ -217,7 +227,8 @@ Effects.halloween = function(active) {
                     padding: '6px 12px', borderRadius: '12px', fontSize: '12px',
                     fontWeight: 'bold', fontFamily: 'sans-serif', whiteSpace: 'nowrap',
                     pointerEvents: 'none', opacity: '0', transition: 'opacity 0.3s',
-                    boxShadow: '0 3px 10px rgba(0,0,0,0.4)', border: '2px solid #8b5cf6', zIndex: '5001'
+                    boxShadow: '0 3px 10px rgba(0,0,0,0.4)', border: '2px solid #8b5cf6', zIndex: '5001',
+                    left: '-9999px', top: '-9999px' // Start offscreen
                 });
                 b.textContent = text;
                 
@@ -233,45 +244,67 @@ Effects.halloween = function(active) {
                 
                 // Store reference to bat for position updates
                 const batAI = this;
-                let frameId = null;
                 
                 const updatePos = () => {
                     if (!b.parentNode || !batAI.element) {
-                        if (frameId) cancelAnimationFrame(frameId);
                         return;
                     }
                     
-                    // Convert percentage position to pixels
-                    const batX = (batAI.currentX / 100) * window.innerWidth;
-                    const batY = (batAI.currentY / 100) * window.innerHeight;
+                    // Get bat element's actual position on screen
+                    const batRect = batAI.element.getBoundingClientRect();
                     const bubRect = b.getBoundingClientRect();
                     
-                    // Position bubble above the bat
-                    let left = batX - bubRect.width / 2;
-                    let top = batY - bubRect.height - 20;
+                    // Position bubble above the bat element
+                    let left = batRect.left + batRect.width / 2 - bubRect.width / 2;
+                    let top = batRect.top - bubRect.height - 12;
                     
                     // Keep on screen
                     left = Math.max(10, Math.min(window.innerWidth - bubRect.width - 10, left));
                     top = Math.max(10, top);
+                    
+                    // If bat is near top, put bubble below instead
+                    if (top < 20) {
+                        top = batRect.bottom + 12;
+                        // Flip arrow to point up
+                        arrow.style.bottom = 'auto';
+                        arrow.style.top = '-8px';
+                        arrow.style.borderWidth = '0 8px 8px 8px';
+                        arrow.style.borderColor = 'transparent transparent #8b5cf6 transparent';
+                    }
                     
                     b.style.left = left + 'px';
                     b.style.top = top + 'px';
                     
                     // Keep updating while visible
                     if (b.parentNode && b.style.opacity !== '0') {
-                        frameId = requestAnimationFrame(updatePos);
+                        requestAnimationFrame(updatePos);
                     }
                 };
                 
-                b.frameId = frameId;
-                requestAnimationFrame(() => { b.style.opacity = '1'; updatePos(); });
+                // Wait a frame for the bubble to render before positioning
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        b.style.opacity = '1';
+                        updatePos();
+                    });
+                });
+                
+                // Restore speed and remove bubble after delay
                 setTimeout(() => { 
+                    // Restore speed
+                    batAI.isSpeaking = false;
+                    if (batAI.flightPath[batAI.pathIndex]) {
+                        batAI.flightPath[batAI.pathIndex].speed = batAI.preSpeakSpeed || 0.35;
+                    }
+                    
                     if (b.parentNode) { 
                         b.style.opacity = '0'; 
-                        if (b.frameId) cancelAnimationFrame(b.frameId);
-                        setTimeout(() => b.remove(), 300); 
+                        setTimeout(() => {
+                            if (b.parentNode) b.remove();
+                            if (batAI.bubbleElement === b) batAI.bubbleElement = null;
+                        }, 300); 
                     } 
-                }, 2500);
+                }, 2800);
             },
             
             onPoked() {
@@ -315,8 +348,8 @@ Effects.halloween = function(active) {
                     this.flightPath.push({
                         x: 10 + Math.random() * 80,
                         y: 5 + Math.random() * 50,
-                        restHere: Math.random() < 0.15,
-                        speed: 0.25 + Math.random() * 0.35
+                        restHere: Math.random() < 0.2, // More rest stops
+                        speed: 0.12 + Math.random() * 0.15 // Much slower: 0.12-0.27 (was 0.25-0.60)
                     });
                 }
                 
@@ -328,7 +361,7 @@ Effects.halloween = function(active) {
                     case 2: exitPoint = { x: 30 + Math.random() * 40, y: 110 }; break;
                     default: exitPoint = { x: -10, y: 20 + Math.random() * 30 };
                 }
-                this.flightPath.push({ ...exitPoint, exit: true, speed: 0.5 });
+                this.flightPath.push({ ...exitPoint, exit: true, speed: 0.25 }); // Slower exit too
             },
             
             fly() {
@@ -382,14 +415,18 @@ Effects.halloween = function(active) {
                     this.pathIndex++;
                     if (Math.random() < 0.15) this.say('flying');
                 } else {
-                    const speed = target.speed || 0.35;
-                    const moveRatio = Math.min(speed, distance * 0.04);
+                    const speed = target.speed || 0.18;
+                    const moveRatio = Math.min(speed, distance * 0.03);
                     const time = Date.now() / 1000;
-                    const waveX = Math.sin(time * 2.5) * 0.25;
-                    const waveY = Math.cos(time * 2) * 0.15;
                     
-                    this.currentX += (dx / distance) * moveRatio * 1.8 + waveX;
-                    this.currentY += (dy / distance) * moveRatio * 1.8 + waveY;
+                    // Reduce wobble when speaking so bubble stays readable
+                    const wobbleScale = this.isSpeaking ? 0.1 : 1.0;
+                    const waveX = Math.sin(time * 2) * 0.15 * wobbleScale;
+                    const waveY = Math.cos(time * 1.5) * 0.1 * wobbleScale;
+                    
+                    // Slower overall movement multiplier
+                    this.currentX += (dx / distance) * moveRatio * 1.2 + waveX;
+                    this.currentY += (dy / distance) * moveRatio * 1.2 + waveY;
                     
                     const emoji = this.element.querySelector('.bat-emoji');
                     if (emoji) emoji.style.transform = dx < 0 ? 'scaleX(-1)' : 'scaleX(1)';
@@ -602,7 +639,7 @@ Effects.halloween = function(active) {
                         this.state = 'hunting';
                         this.huntStartTime = Date.now();
                         this.flightPath.splice(this.pathIndex, 0, { 
-                            x: bugX, y: bugY, speed: 0.9, isHunt: true, isSteal: true 
+                            x: bugX, y: bugY, speed: 0.4, isHunt: true, isSteal: true 
                         });
                         return;
                     }
@@ -630,7 +667,7 @@ Effects.halloween = function(active) {
                         this.flightPath.splice(this.pathIndex, 0, { 
                             x: predictedPos.x, 
                             y: predictedPos.y, 
-                            speed: 0.85, 
+                            speed: 0.35, 
                             isHunt: true,
                             isAirCatch: true
                         });
@@ -788,7 +825,7 @@ Effects.halloween = function(active) {
                     return distA - distB;
                 });
                 
-                this.flightPath = [{ ...exits[0], exit: true, speed: 0.7 }];
+                this.flightPath = [{ ...exits[0], exit: true, speed: 0.3 }]; // Slower exit
                 this.pathIndex = 0;
                 this.fly();
             },
@@ -1003,6 +1040,12 @@ Effects.halloween = function(active) {
             say(textOrCategory) {
                 if (!this.bodyElement || this.element.style.display === 'none') return;
                 
+                // Validate floor spider is visible and on screen
+                const rect = this.bodyElement.getBoundingClientRect();
+                if (rect.width === 0 || rect.height === 0) return;
+                if (rect.top < -50 || rect.top > window.innerHeight + 50 ||
+                    rect.left < -50 || rect.left > window.innerWidth + 50) return;
+                
                 let text = textOrCategory;
                 // Check if it's a category key in GAME_DIALOGUE
                 if (typeof GAME_DIALOGUE !== 'undefined' && GAME_DIALOGUE.spider) {
@@ -1039,7 +1082,8 @@ Effects.halloween = function(active) {
                     transition: 'opacity 0.2s',
                     boxShadow: '0 3px 8px rgba(0,0,0,0.3)', 
                     border: '2px solid #4a3627',
-                    zIndex: '110'
+                    zIndex: '110',
+                    left: '-9999px', top: '-9999px' // Start offscreen
                 });
                 b.textContent = text;
                 
@@ -1058,22 +1102,36 @@ Effects.halloween = function(active) {
                 b.appendChild(arrow);
                 document.body.appendChild(b);
                 
+                const floorSpider = this;
                 const updatePos = () => {
-                    if (!b.parentNode || !this.element) return;
-                    const rect = this.bodyElement.getBoundingClientRect();
+                    if (!b.parentNode || !floorSpider.element || !floorSpider.bodyElement) return;
+                    const rect = floorSpider.bodyElement.getBoundingClientRect();
+                    
+                    // Stop if spider is hidden
+                    if (rect.width === 0 || rect.height === 0) {
+                        b.style.opacity = '0';
+                        return;
+                    }
+                    
                     const bubRect = b.getBoundingClientRect();
                     let left = rect.left + rect.width / 2 - bubRect.width / 2;
                     let top = rect.top - bubRect.height - 15;
+                    
+                    // Keep on screen
                     left = Math.max(10, Math.min(window.innerWidth - bubRect.width - 10, left));
                     top = Math.max(10, top);
+                    
                     b.style.left = left + 'px';
                     b.style.top = top + 'px';
-                    if (b.parentNode) requestAnimationFrame(updatePos);
+                    if (b.parentNode && b.style.opacity !== '0') requestAnimationFrame(updatePos);
                 };
                 
+                // Wait for layout
                 requestAnimationFrame(() => {
-                    b.style.opacity = '1';
-                    updatePos();
+                    requestAnimationFrame(() => {
+                        b.style.opacity = '1';
+                        updatePos();
+                    });
                 });
                 
                 setTimeout(() => {
@@ -1414,6 +1472,19 @@ Effects.halloween = function(active) {
             const showSpiderBubble = (text, type = 'normal') => {
                 const old = document.getElementById('spider-bubble-dynamic');
                 if (old) { if (old.rafId) cancelAnimationFrame(old.rafId); old.remove(); }
+                
+                // Make sure spider body is visible and positioned
+                const spiderRect = body.getBoundingClientRect();
+                if (spiderRect.width === 0 || spiderRect.height === 0) {
+                    return null; // Spider not visible, don't show bubble
+                }
+                
+                // Don't show bubble if spider is off-screen
+                if (spiderRect.top < -50 || spiderRect.top > window.innerHeight + 50 ||
+                    spiderRect.left < -50 || spiderRect.left > window.innerWidth + 50) {
+                    return null;
+                }
+                
                 const b = document.createElement('div');
                 b.id = 'spider-bubble-dynamic';
                 Object.assign(b.style, {
@@ -1423,7 +1494,8 @@ Effects.halloween = function(active) {
                     fontFamily: 'sans-serif', whiteSpace: 'nowrap', width: 'max-content',
                     pointerEvents: 'none', opacity: '0', transition: 'opacity 0.2s',
                     boxShadow: '0 4px 10px rgba(0,0,0,0.3)', border: '2px solid #1f2937',
-                    zIndex: '110', willChange: 'top, left'
+                    zIndex: '110', willChange: 'top, left',
+                    left: '-9999px', top: '-9999px' // Start offscreen until positioned
                 });
                 b.textContent = text;
                 const arrow = document.createElement('div');
@@ -1433,9 +1505,17 @@ Effects.halloween = function(active) {
                 });
                 b.appendChild(arrow);
                 document.body.appendChild(b);
+                
                 const updatePosition = () => {
-                    if (!b.parentNode) return; 
+                    if (!b.parentNode || !body) return; 
                     const spiderRect = body.getBoundingClientRect();
+                    
+                    // Stop updating if spider is gone or hidden
+                    if (spiderRect.width === 0 || spiderRect.height === 0) {
+                        b.style.opacity = '0';
+                        return;
+                    }
+                    
                     const bubRect = b.getBoundingClientRect();
                     const currentTransform = body.style.transform || '';
                     const gap = 15;
@@ -1444,8 +1524,7 @@ Effects.halloween = function(active) {
                     
                     let top, left;
                     if (rotation === 180 || type === 'upside-down') {
-                        // Bubble BELOW spider (visually above because inverted? No, element is inverted)
-                        // If spider is upside down (dropped), bubble should be below head
+                        // Bubble below spider (spider is upside down/dropped)
                         top = spiderRect.bottom + gap;
                         left = spiderRect.left + (spiderRect.width / 2) - (bubRect.width / 2);
                         Object.assign(arrow.style, {
@@ -1464,15 +1543,26 @@ Effects.halloween = function(active) {
                             borderColor: '#1f2937 transparent transparent transparent'
                         });
                     }
+                    
+                    // Keep on screen
                     if (left < 10) left = 10;
                     if (left + bubRect.width > window.innerWidth - 10) left = window.innerWidth - bubRect.width - 10;
-                    if (top < 10) top = 10;
-                    if (top + bubRect.height > window.innerHeight - 10) top = window.innerHeight - bubRect.height - 10;
+                    if (top < 10) top = spiderRect.bottom + gap; // Flip to below if too high
+                    if (top + bubRect.height > window.innerHeight - 10) top = spiderRect.top - bubRect.height - gap;
+                    
                     b.style.top = `${top}px`;
                     b.style.left = `${left}px`;
                     b.rafId = requestAnimationFrame(updatePosition);
                 };
-                requestAnimationFrame(() => { b.style.opacity = '1'; updatePosition(); });
+                
+                // Wait two frames for layout to complete before showing
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        b.style.opacity = '1';
+                        updatePosition();
+                    });
+                });
+                
                 setTimeout(() => {
                     if (b.parentNode) {
                         b.style.opacity = '0';
