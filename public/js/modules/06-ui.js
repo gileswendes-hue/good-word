@@ -243,9 +243,7 @@ openProfile() {
             { k: 'tropical', i: '🐠', t: 'Tropical Fish', d: 'Found in the deep.' },
             { k: 'puffer', i: '🐡', t: 'Pufferfish', d: 'Spiky friend.' },
             { k: 'shark', i: '🦈', t: 'Shark', d: 'Gonna need a bigger boat.' },
-            { k: 'octopus', i: '🐙', t: 'The Kraken', d: 'Ink-credible!' },
-            { k: 'jellyfish', i: '🪼', t: 'Jellyfish', d: 'Squishy and stinging!' },
-            { k: 'seal', i: '🦭', t: 'Seal', d: 'The puppy of the sea!' }
+            { k: 'octopus', i: '🐙', t: 'The Kraken', d: 'Ink-credible!' }
         ];
         const row3 = [
             { k: 'exterminator', i: '☠️', t: 'The Exterminator', d: 'Fed 100 bugs', val: d.insectStats.eaten, gold: 1000 },
@@ -1111,6 +1109,8 @@ init() {
                 if (State.data.unlockedThemes.includes('halloween')) {
                     html += mkTog('toggleArachnophobia', '🚫 Arachnophobia Mode', s.arachnophobiaMode);
                 }
+                html += mkTog('toggleVeganMode', '🥬 Vegan Mode', s.veganMode, 'text-green-600');
+                html += `<p class="text-xs text-gray-400 mt-1 mb-2">Daily "Find a Snack" challenge only accepts plant-based foods!</p>`;
                 html += mkTog('toggleKidsMode', '🧸 Kids Mode', s.kidsMode, 'text-pink-600');
                 html += `</div></div>`;
                 html += `<div><h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 border-b border-gray-100 pb-1">Fun</h3><div class="space-y-4">`;
@@ -1235,6 +1235,15 @@ init() {
                     State.save('settings', { ...State.data.settings, muteSounds: e.target.checked });
                     SoundManager.updateMute();
                 };
+                const veganBtn = document.getElementById('toggleVeganMode');
+                if (veganBtn) {
+                    veganBtn.onchange = e => {
+                        State.save('settings', { ...State.data.settings, veganMode: e.target.checked });
+                        if (e.target.checked) {
+                            UIManager.showPostVoteMessage("🥬 Vegan Mode enabled! Plant-based snacks only!");
+                        }
+                    };
+                }
                 const arachBtn = document.getElementById('toggleArachnophobia');
                 if (arachBtn) {
                     arachBtn.onchange = e => {
