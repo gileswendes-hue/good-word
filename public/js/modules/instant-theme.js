@@ -1,12 +1,4 @@
-/**
- * ============================================================================
- * INSTANT THEME LOADER
- * ============================================================================
- * Place this in <head> BEFORE any other scripts for instant theme application
- * This applies the saved theme's colors/background immediately, eliminating flash
- * 
- * Usage: <script src="/js/modules/instant-theme.js"></script>
- */
+
 
 (function() {
     'use strict';
