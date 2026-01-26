@@ -25,8 +25,8 @@
 // CONFIG - Global Constants
 // ============================================================================
 const CONFIG = {
-    API_BASE_URL: '/api/words',           // Base for voting
-    API_FETCH_URL: '/api/words/all',      // For fetching all words
+    API_BASE_URL: '/api/words',
+    API_FETCH_URL: '/api/words/all',
     SCORE_API_URL: '/api/scores',
     APP_VERSION: '6.6.10',
     KIDS_LIST_FILE: 'kids_words.txt',
