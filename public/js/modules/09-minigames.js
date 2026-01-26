@@ -685,9 +685,26 @@ const MiniGames = {
                             </div>
                         </button>
                         
-                        <button id="viewArcadeScores" class="w-full p-4 bg-gradient-to-r from-pink-600 to-orange-600 hover:from-pink-500 hover:to-orange-500 rounded-2xl text-center transition transform hover:scale-102 shadow-lg">
-                            <span class="text-2xl">🏆</span>
-                            <span class="text-white font-black ml-2">VIEW HIGH SCORES</span>
+                        <button id="startWordJump" class="w-full p-6 bg-gradient-to-r from-sky-600 to-cyan-600 hover:from-sky-500 hover:to-cyan-500 rounded-2xl text-left transition transform hover:scale-102 shadow-lg">
+                            <div class="flex items-center gap-4">
+                                <span class="text-4xl">🦘</span>
+                                <div>
+                                    <h3 class="text-xl font-black text-white">Word Jump</h3>
+                                    <p class="text-cyan-200 text-sm">Endless runner! Jump over bad words, collect good ones!</p>
+                                    <p class="text-yellow-400 text-xs mt-1 font-bold">High Score: ${this.wordJump.bestScore || 0}</p>
+                                </div>
+                            </div>
+                        </button>
+                        
+                        <button id="viewArcadeScores" class="w-full p-5 bg-gradient-to-r from-pink-600 to-orange-600 hover:from-pink-500 hover:to-orange-500 rounded-2xl transition transform hover:scale-102 shadow-lg border-2 border-yellow-400/50">
+                            <div class="flex items-center justify-center gap-3">
+                                <span class="text-3xl">🕹️</span>
+                                <div class="text-left">
+                                    <span class="text-white font-black text-lg">ENTER THE ARCADE</span>
+                                    <p class="text-orange-200 text-xs">View global leaderboards & high scores</p>
+                                </div>
+                                <span class="text-3xl">🏆</span>
+                            </div>
                         </button>
                     </div>
                     
@@ -706,6 +723,10 @@ const MiniGames = {
         document.getElementById('startDefDash').onclick = () => {
             document.getElementById('miniGamesMenu').remove();
             this.definitionDash.start();
+        };
+        document.getElementById('startWordJump').onclick = () => {
+            document.getElementById('miniGamesMenu').remove();
+            this.wordJump.start();
         };
         document.getElementById('viewArcadeScores').onclick = () => {
             document.getElementById('miniGamesMenu').remove();
