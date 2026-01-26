@@ -4,7 +4,174 @@ const GAME_DIALOGUE = {
         "🐞": "Lucky escape!",
         "🐝": "Buzz off!",
         "🦟": "Phew!",
-        "🚁": "GET TO THE CHOPPA!"
+        "🪲": "GET TO THE CHOPPA!"
+    },
+
+    // ========================================================================
+    // BAT DIALOGUE - New!
+    // ========================================================================
+    bat: {
+        idle: {
+            morning: [
+                "Ugh, it's bright out...",
+                "Five more hours...",
+                "Why am I awake?",
+                "The sun is my enemy.",
+                "Vampires don't do mornings.",
+                "Need my beauty sleep.",
+                "Is it dusk yet?",
+                "Too early for this."
+            ],
+            afternoon: [
+                "*yawn*",
+                "Still not nighttime...",
+                "Just passing through.",
+                "Zzz... huh? What?",
+                "Looking for shade.",
+                "Wrong time zone.",
+                "Midday crisis.",
+                "The cave was cozier."
+            ],
+            evening: [
+                "Now we're talking!",
+                "Prime time baby!",
+                "The hunt begins!",
+                "Dusk is beautiful.",
+                "Echolocation: ON",
+                "Moths, beware!",
+                "Evening flight!",
+                "My favorite hour!"
+            ],
+            night: [
+                "This is MY time!",
+                "Night owl? Night BAT!",
+                "Hunting mode: ACTIVE",
+                "The darkness embraces me.",
+                "Sonar says... BUGS!",
+                "Midnight snack time!",
+                "Who needs daylight?",
+                "Boo!",
+                "Peak performance hours.",
+                "The stars are lovely.",
+                "Stealth mode engaged.",
+                "I can see you~"
+            ]
+        },
+
+        getIdlePhrase() {
+            const hour = new Date().getHours();
+            let timeKey;
+            if (hour >= 5 && hour < 12) timeKey = 'morning';
+            else if (hour >= 12 && hour < 17) timeKey = 'afternoon';
+            else if (hour >= 17 && hour < 21) timeKey = 'evening';
+            else timeKey = 'night';
+            
+            const phrases = GAME_DIALOGUE.bat.idle[timeKey];
+            return phrases[Math.floor(Math.random() * phrases.length)];
+        },
+
+        flying: [
+            "Wheee!",
+            "Coming through!",
+            "Flap flap flap~",
+            "*swoosh*",
+            "Watch your head!",
+            "Air traffic!",
+            "Bat signal!",
+            "Night flight!",
+            "Echolocation ping!",
+            "*sonic squeak*",
+            "Above you!",
+            "Just vibing."
+        ],
+
+        hunting: [
+            "Target acquired!",
+            "Dinner time!",
+            "Got one!",
+            "Intercepting!",
+            "Lock on!",
+            "MINE!",
+            "Bug detected!",
+            "Snack attack!",
+            "Going in hot!",
+            "Echolocation: HIT!"
+        ],
+
+        eating: {
+            "🐞": "Crunchy wings!",
+            "🐝": "Spicy! Worth it.",
+            "🦟": "Easy pickings!",
+            "🪲": "Protein!",
+            "🦋": "Delicate flavor~",
+            "🛸": "Wait, what?",
+            default: "Tasty!"
+        },
+
+        missed: [
+            "Drat!",
+            "It got away!",
+            "Next time...",
+            "My echolocation needs calibrating.",
+            "Wind threw me off.",
+            "Lucky bug.",
+            "I wasn't even hungry.",
+            "Technical difficulties."
+        ],
+
+        startHunt: [
+            "Ooh, what's that?",
+            "Movement detected!",
+            "Snack incoming!",
+            "Don't mind if I do~",
+            "Bug spotted!",
+            "Hello, dinner!"
+        ],
+
+        // When resting/hanging
+        resting: [
+            "Nice spot.",
+            "*hangs upside down*",
+            "Just chilling.",
+            "Taking five.",
+            "Good perch.",
+            "Scenic view.",
+            "Don't mind me.",
+            "Stretching my wings."
+        ],
+
+        // When leaving
+        leaving: [
+            "Gotta fly!",
+            "Off I go!",
+            "See ya!",
+            "Places to be!",
+            "Exit stage... up!",
+            "Byeee!",
+            "Back to the cave!",
+            "Time to vanish."
+        ],
+
+        // Meeting the spider
+        meetingSpider: [
+            "Hey web-head!",
+            "Nice silk!",
+            "Respect the hustle.",
+            "Fellow night creature!",
+            "Any leftovers?",
+            "Seen any moths?"
+        ],
+
+        poked: [
+            "Hey!",
+            "Rude!",
+            "I'm flying here!",
+            "Watch it!",
+            "Personal space!",
+            "Do I poke you?",
+            "*startled squeak*",
+            "Not cool."
+        ]
     },
 
     // All spider speech
@@ -217,15 +384,15 @@ const GAME_DIALOGUE = {
             "🐞": "Crunchy shell!",
             "🐝": "Spicy snack!",
             "🦟": "Finally, quiet.",
-            "🚁": "Tastes like metal!",
+            "🪲": "Tastes like metal!",
             // New additions (assigned to potential new bugs)
             "🦋": "Tastes like chicken.",
-            "🐛": "Finger lickin' good.",
+            "🛸": "Finger lickin' good.",
             "🐜": "Pure protein shake!",
             "🪰": "Crunchy on the outside, soft on the inside.",
             "🦗": "Needs a little salt.",
             "🕷️": "Chef's kiss!",
-            "🐌": "Best meal of the week.",
+            "🌸": "Best meal of the week.",
             "🦂": "Slimy... yet satisfying.",
             default: "Yummy!"
         },
@@ -272,6 +439,17 @@ const GAME_DIALOGUE = {
             "Don't mind me.",
             "You missed a spot.",
             "Showoff."
+        ],
+
+        // Reacting to bat
+        meetingBat: [
+            "Hey wing-head!",
+            "Flying competition?",
+            "Stay off my web!",
+            "Seen any flies?",
+            "Respect the turf.",
+            "Night shift buddy!",
+            "Don't eat my bugs!"
         ],
 
         // Floor spider interactions
