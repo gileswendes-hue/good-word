@@ -248,6 +248,96 @@ const GAME_DIALOGUE = {
             "Error 404: Fly not found.",
             "Sad web noises.",
             "I'll be in my room."
-        ]
+        ],
+
+        // Floor spider scuttling dialogue
+        floor: {
+            moving: [
+                "*scuttle scuttle*",
+                "...",
+                "~",
+                "hmm...",
+                "*tap tap tap*",
+                "♪♪♪",
+                "*clickety click*",
+                "la la la...",
+                "eight legs, one mission.",
+                "*pitter patter*"
+            ],
+            pausing: [
+                "🤔",
+                "..?",
+                "*sniff sniff*",
+                "hm.",
+                "*looks around*",
+                "where was I going?",
+                "wait...",
+                "*freezes*",
+                "did you see that?",
+                "hold on...",
+                "*suspicious*",
+                "something's different."
+            ],
+            thinking: [
+                "what's over there?",
+                "*contemplates*",
+                "decisions...",
+                "left or right?",
+                "🕷️💭",
+                "the floor is interesting.",
+                "so many corners...",
+                "which way?",
+                "pros and cons...",
+                "eeny meeny..."
+            ],
+            arriving: [
+                "ah, here.",
+                "nice spot.",
+                "*settles*",
+                "perfect.",
+                "yes, this'll do.",
+                "home sweet corner.",
+                "cozy.",
+                "this is the place.",
+                "*satisfied*",
+                "destination reached."
+            ],
+            startMoving: [
+                "off I go!",
+                "time to explore!",
+                "*stretches legs*",
+                "adventure awaits!",
+                "let's see...",
+                "onward!",
+                "places to be!",
+                "can't stay still forever.",
+                "walkies!",
+                "floor patrol!"
+            ],
+            leaving: [
+                "brb",
+                "gotta go!",
+                "see ya!",
+                "off to the shadows...",
+                "lunch break!",
+                "nature calls...",
+                "bye for now!",
+                "*disappears*",
+                "I'll be back.",
+                "don't miss me too much!"
+            ],
+            returning: [
+                "I'm back!",
+                "miss me?",
+                "hello again!",
+                "*emerges*",
+                "back from my break.",
+                "did I miss anything?",
+                "reporting for duty!",
+                "the shadows were nice.",
+                "couldn't stay away.",
+                "home sweet home!"
+            ]
+        }
     }
 };
