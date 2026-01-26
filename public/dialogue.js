@@ -250,8 +250,42 @@ const GAME_DIALOGUE = {
             "I'll be in my room."
         ],
 
-        // Floor spider scuttling dialogue
+        // Meeting Dialogue (Ceiling Spider)
+        meetingTop: [
+            "Hello down there!", 
+            "Nice floor!", 
+            "Any bugs?", 
+            "How's the view?",
+            "Nice legs!",
+            "Working hard?",
+            "Do a barrel roll!",
+            "I have the high ground!"
+        ],
+
+        // Meeting Dialogue (Floor Spider)
+        meetingBottom: [
+            "Hello up there!", 
+            "Nice web!", 
+            "All clear!", 
+            "Watch your step!",
+            "Just passing through!",
+            "Don't mind me.",
+            "You missed a spot.",
+            "Showoff."
+        ],
+
+        // Floor spider interactions
         floor: {
+            turfWar: [
+                "Occupied!", 
+                "Coming through!", 
+                "Scram!", 
+                "Too crowded!",
+                "My turf!",
+                "Oops, sorry!",
+                "Nope, bye!",
+                "Exit stage left!"
+            ],
             moving: [
                 "*scuttle scuttle*",
                 "...",
