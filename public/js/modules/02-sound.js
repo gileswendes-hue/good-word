@@ -176,11 +176,22 @@ const MosquitoManager = {
     type: '🦟',
     config: {},
     COOLDOWN: 1 * 60 * 1000,
+    
+    // Smooth movement properties
+    targetAngle: 0,
+    angleVelocity: 0,
+    targetSpeed: 0.2,
+    lastDirectionChange: 0,
+    patternPhase: 0,
+    patternType: 'wander', // wander, zigzag, spiral, figure8, erratic
+    patternTimer: 0,
+    smoothingFactor: 0.08, // Lower = smoother turns
+    
     TYPES: {
-        '🐞': { name: 'Ladybird', speed: 0.2, turnRate: 0.005, wobble: 0.01, badge: null },
-        '🐝': { name: 'Bee', speed: 0.35, turnRate: 0.1, wobble: 0.05, badge: null },
-        '🦟': { name: 'Mosquito', speed: 0.2, turnRate: 0.02, wobble: 0.02, badge: null },
-        '🚁': { name: 'Chopper', speed: 0.45, turnRate: 0.001, wobble: 0.0, badge: 'chopper' }
+        '🐞': { name: 'Ladybird', speed: 0.2, turnRate: 0.005, wobble: 0.01, badge: null, patterns: ['wander', 'zigzag'] },
+        '🐝': { name: 'Bee', speed: 0.35, turnRate: 0.1, wobble: 0.05, badge: null, patterns: ['zigzag', 'figure8', 'erratic'] },
+        '🦟': { name: 'Mosquito', speed: 0.2, turnRate: 0.02, wobble: 0.02, badge: null, patterns: ['wander', 'spiral', 'erratic'] },
+        '🚁': { name: 'Chopper', speed: 0.45, turnRate: 0.001, wobble: 0.0, badge: 'chopper', patterns: ['wander'] }
     },
     
     startMonitoring() {
@@ -248,6 +259,14 @@ const MosquitoManager = {
         this.type = isRare ? '🚁' : keys[Math.floor(Math.random() * keys.length)];
         this.config = this.TYPES[this.type];
         this.speed = this.config.speed;
+        this.targetSpeed = this.config.speed;
+        
+        // Initialize smooth movement
+        this.angleVelocity = 0;
+        this.patternTimer = 0;
+        this.patternPhase = Math.random() * Math.PI * 2;
+        this.selectNewPattern();
+        
         this.el = document.createElement('div');
         this.el.textContent = this.type;
         this.el.className = 'mosquito-entity';
@@ -255,6 +274,7 @@ const MosquitoManager = {
         this.x = startRight ? 105 : -5;
         this.y = Math.random() * 50 + 10;
         this.angle = startRight ? Math.PI : 0;
+        this.targetAngle = this.angle;
         Object.assign(this.el.style, {
             position: 'fixed',
             fontSize: this.type === '🚁' ? '2.5rem' : '1.8rem',
@@ -318,8 +338,10 @@ const MosquitoManager = {
             if (bubble) bubble.remove();
             this.state = 'leaving';
             SoundManager.startBuzz();
-            this.angle = Math.random() * Math.PI * 2;
-            this.speed = 0.6;
+            // Set a smooth exit direction
+            this.targetAngle = Math.random() * Math.PI * 2;
+            this.targetSpeed = 0.6;
+            this.patternType = 'wander'; // Simple pattern for exit
         }, 2000);
     },
     
@@ -344,35 +366,50 @@ const MosquitoManager = {
     loop() {
         if (!document.body.contains(this.el)) return;
         if (this.state === 'flying' || this.state === 'leaving') {
-            this.turnCycle += this.config.turnRate;
-            let turnAmount = Math.sin(this.turnCycle) * this.config.wobble;
-            if (this.type === '🚁') {
-                turnAmount = 0;
-                this.y += Math.sin(Date.now() / 200) * 0.05;
+            const now = Date.now();
+            
+            // Pattern-based movement for more interesting paths
+            this.patternTimer++;
+            
+            // Change pattern occasionally
+            if (this.patternTimer > 300 + Math.random() * 400) {
+                this.patternTimer = 0;
+                this.selectNewPattern();
             }
-            this.angle += turnAmount;
+            
+            // Calculate target angle based on current pattern
+            this.updatePatternMovement(now);
+            
+            // Smoothly interpolate angle towards target (key for smooth turns!)
+            const angleDiff = this.normalizeAngle(this.targetAngle - this.angle);
+            this.angleVelocity += angleDiff * this.smoothingFactor;
+            this.angleVelocity *= 0.85; // Damping
+            this.angle += this.angleVelocity;
+            
+            // Smoothly interpolate speed
+            this.speed += (this.targetSpeed - this.speed) * 0.1;
+            
+            // Apply movement
             this.x += Math.cos(this.angle) * this.speed;
             this.y += Math.sin(this.angle) * this.speed;
-            if (this.state === 'flying') {
-                if (this.x > 110) {
-                    this.x = -10;
-                    this.angle = 0 + (Math.random() * 0.5 - 0.25);
-                    this.trailPoints = [];
-                }
-                else if (this.x < -10) {
-                    this.x = 110;
-                    this.angle = Math.PI + (Math.random() * 0.5 - 0.25);
-                    this.trailPoints = [];
-                }
-                if (this.y < 5 || this.y > 95) {
-                    this.angle = -this.angle;
-                    this.y = Math.max(5, Math.min(95, this.y));
-                }
+            
+            // Helicopter specific bobbing
+            if (this.type === '🚁') {
+                this.y += Math.sin(now / 200) * 0.05;
             }
+            
+            // Smooth boundary handling
+            if (this.state === 'flying') {
+                this.handleBoundaries();
+            }
+            
+            // Update element position
             this.el.style.left = this.x + '%';
             this.el.style.top = this.y + '%';
             const facingRight = Math.cos(this.angle) > 0;
             this.el.style.transform = `translate(-50%, -50%) ${facingRight ? 'scaleX(-1)' : 'scaleX(1)'}`;
+            
+            // Trail rendering
             const pxX = (this.x / 100) * window.innerWidth;
             const pxY = (this.y / 100) * window.innerHeight;
             if (pxX > 0 && pxX < window.innerWidth) this.trailPoints.push({x: pxX, y: pxY});
@@ -381,6 +418,8 @@ const MosquitoManager = {
                 const d = `M ${this.trailPoints.map(p => `${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' L ')}`;
                 this.path.setAttribute('d', d);
             }
+            
+            // Web zone detection
             const distRight = window.innerWidth - pxX;
             const distTop = pxY;
             const inWebZone = (distRight + distTop) < 300;
@@ -404,6 +443,112 @@ const MosquitoManager = {
             this.el.style.transform = `translate(-50%, -50%) scale(1.2)`;
         }
         this.raf = requestAnimationFrame(() => this.loop());
+    },
+    
+    // Normalize angle to -PI to PI range
+    normalizeAngle(angle) {
+        while (angle > Math.PI) angle -= Math.PI * 2;
+        while (angle < -Math.PI) angle += Math.PI * 2;
+        return angle;
+    },
+    
+    // Select a new movement pattern
+    selectNewPattern() {
+        const patterns = this.config.patterns || ['wander'];
+        this.patternType = patterns[Math.floor(Math.random() * patterns.length)];
+        this.patternPhase = Math.random() * Math.PI * 2;
+        
+        // Vary speed with pattern
+        if (this.patternType === 'erratic') {
+            this.targetSpeed = this.config.speed * (0.8 + Math.random() * 0.8);
+        } else if (this.patternType === 'spiral') {
+            this.targetSpeed = this.config.speed * 0.7;
+        } else {
+            this.targetSpeed = this.config.speed;
+        }
+    },
+    
+    // Update target angle based on current pattern
+    updatePatternMovement(now) {
+        const t = now / 1000;
+        this.turnCycle += this.config.turnRate;
+        
+        switch (this.patternType) {
+            case 'wander':
+                // Gentle random wandering with perlin-like noise
+                const noiseX = Math.sin(t * 0.5 + this.patternPhase) * 0.3;
+                const noiseY = Math.cos(t * 0.7 + this.patternPhase * 1.3) * 0.2;
+                this.targetAngle += (noiseX + noiseY) * this.config.wobble * 2;
+                break;
+                
+            case 'zigzag':
+                // Smooth zigzag pattern
+                const zigzagPhase = Math.sin(this.turnCycle * 2);
+                this.targetAngle = this.angle + zigzagPhase * this.config.wobble * 3;
+                break;
+                
+            case 'spiral':
+                // Gradual spiraling
+                this.targetAngle += this.config.wobble * 0.5;
+                break;
+                
+            case 'figure8':
+                // Figure-8 pattern
+                const fig8 = Math.sin(this.turnCycle) * Math.cos(this.turnCycle * 0.5);
+                this.targetAngle = this.angle + fig8 * this.config.wobble * 4;
+                break;
+                
+            case 'erratic':
+                // More chaotic but still smooth
+                if (Math.random() < 0.02) {
+                    this.targetAngle += (Math.random() - 0.5) * Math.PI * 0.5;
+                }
+                this.targetAngle += Math.sin(this.turnCycle * 3) * this.config.wobble;
+                break;
+                
+            default:
+                this.targetAngle += Math.sin(this.turnCycle) * this.config.wobble;
+        }
+    },
+    
+    // Handle screen boundaries smoothly
+    handleBoundaries() {
+        const margin = 8;
+        const turnStrength = 0.15;
+        
+        // Soft boundary avoidance - gradually turn away from edges
+        if (this.x < margin) {
+            // Near left edge - turn right
+            this.targetAngle = this.smoothTurnTowards(0, turnStrength);
+            if (this.x < -5) {
+                // Wrap around smoothly
+                this.x = 105;
+                this.trailPoints = [];
+            }
+        } else if (this.x > 100 - margin) {
+            // Near right edge - turn left
+            this.targetAngle = this.smoothTurnTowards(Math.PI, turnStrength);
+            if (this.x > 105) {
+                this.x = -5;
+                this.trailPoints = [];
+            }
+        }
+        
+        if (this.y < margin) {
+            // Near top - turn down
+            this.targetAngle = this.smoothTurnTowards(Math.PI / 2, turnStrength);
+            this.y = Math.max(margin, this.y);
+        } else if (this.y > 100 - margin) {
+            // Near bottom - turn up
+            this.targetAngle = this.smoothTurnTowards(-Math.PI / 2, turnStrength);
+            this.y = Math.min(100 - margin, this.y);
+        }
+    },
+    
+    // Smoothly blend current angle towards target
+    smoothTurnTowards(targetAngle, strength) {
+        const diff = this.normalizeAngle(targetAngle - this.angle);
+        return this.angle + diff * strength;
     },
     
     eat() {
