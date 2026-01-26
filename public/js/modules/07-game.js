@@ -326,6 +326,8 @@ async vote(t, s = false) {
             }
             if (State.runtime.isDailyMode) {
                 const tod = new Date(), dStr = tod.toISOString().split('T')[0];
+                
+                // GOLDEN WORD CHALLENGE
                 if (State.runtime.dailyChallengeType === 'golden') {
                     State.runtime.dailyVotesCount = (State.runtime.dailyVotesCount || 0) + 1;
                     const isGolden = (State.runtime.goldenWord && w._id === State.runtime.goldenWord._id) ||
@@ -351,6 +353,73 @@ async vote(t, s = false) {
                         return;
                     }
                 }
+                
+                // STREAK CHALLENGE
+                if (State.runtime.dailyChallengeType === 'streak') {
+                    State.runtime.dailyVotesCount = (State.runtime.dailyVotesCount || 0) + 1;
+                    
+                    // Check if vote matches previous vote type
+                    if (!State.runtime.lastDailyVoteType) {
+                        State.runtime.lastDailyVoteType = t;
+                        State.runtime.dailyStreakCount = 1;
+                    } else if (State.runtime.lastDailyVoteType === t) {
+                        State.runtime.dailyStreakCount++;
+                    } else {
+                        State.runtime.lastDailyVoteType = t;
+                        State.runtime.dailyStreakCount = 1;
+                    }
+                    
+                    if (State.runtime.dailyStreakCount >= State.runtime.dailyStreakTarget) {
+                        UIManager.showPostVoteMessage(`🔥 ${State.runtime.dailyStreakTarget}-STREAK! Challenge Complete!`);
+                        const last = State.data.daily.lastDate;
+                        let s = State.data.daily.streak;
+                        if (last) {
+                            const yd = new Date(); yd.setDate(yd.getDate() - 1);
+                            s = last === yd.toISOString().split('T')[0] ? s + 1 : 1;
+                        } else s = 1;
+                        const best = Math.max(s, State.data.daily.bestStreak || 0);
+                        State.save('daily', { streak: s, lastDate: dStr, bestStreak: best });
+                        DOM.daily.streakResult.textContent = '🔥 ' + s + ' 🔥';
+                        setTimeout(() => this.finishDailyChallenge(), 1500);
+                        return;
+                    } else {
+                        const remaining = State.runtime.dailyStreakTarget - State.runtime.dailyStreakCount;
+                        UIManager.showPostVoteMessage(`🔥 Streak: ${State.runtime.dailyStreakCount}/${State.runtime.dailyStreakTarget} - ${remaining} more!`);
+                        if (DOM.game.dailyStatus) DOM.game.dailyStatus.innerHTML = `<span class="font-bold">🔥 Streak: ${State.runtime.dailyStreakCount}/${State.runtime.dailyStreakTarget}</span>`;
+                        setTimeout(() => { State.runtime.currentWordIndex++; this.nextWord(); }, 600);
+                        return;
+                    }
+                }
+                
+                // SNACK CHALLENGE
+                if (State.runtime.dailyChallengeType === 'snack') {
+                    State.runtime.dailyVotesCount = (State.runtime.dailyVotesCount || 0) + 1;
+                    
+                    // Check if current word is a food/snack using definition
+                    const isSnack = State.runtime.isFoodWord ? State.runtime.isFoodWord(w) : false;
+                    
+                    if (isSnack && !State.runtime.snackFound) {
+                        State.runtime.snackFound = true;
+                        UIManager.showPostVoteMessage(`🍕 YUM! Found "${w.text}"! 🍴`);
+                        const last = State.data.daily.lastDate;
+                        let s = State.data.daily.streak;
+                        if (last) {
+                            const yd = new Date(); yd.setDate(yd.getDate() - 1);
+                            s = last === yd.toISOString().split('T')[0] ? s + 1 : 1;
+                        } else s = 1;
+                        const best = Math.max(s, State.data.daily.bestStreak || 0);
+                        State.save('daily', { streak: s, lastDate: dStr, bestStreak: best });
+                        DOM.daily.streakResult.textContent = '🔥 ' + s + ' 🍕';
+                        setTimeout(() => this.finishDailyChallenge(), 1500);
+                        return;
+                    } else {
+                        UIManager.showPostVoteMessage(`#${State.runtime.dailyVotesCount} - Not edible! Keep looking! 🍴`);
+                        setTimeout(() => { State.runtime.currentWordIndex++; this.nextWord(); }, 600);
+                        return;
+                    }
+                }
+                
+                // SINGLE VOTE CHALLENGE (default)
                 const last = State.data.daily.lastDate;
                 let s = State.data.daily.streak;
                 if (last) {
@@ -783,26 +852,116 @@ async vote(t, s = false) {
         if (t === State.data.daily.lastDate) return;
         State.runtime.isDailyMode = true;
         DOM.game.dailyBanner.classList.add('daily-locked-mode');
+        DOM.game.dailyBanner.classList.remove('daily-pulse');
         DOM.game.buttons.notWord.style.visibility = 'hidden';
         DOM.game.buttons.custom.style.visibility = 'hidden';
+        
+        // Generate seed from date
         let seed = 0;
         for (let i = 0; i < t.length; i++) {
             seed = ((seed << 5) - seed) + t.charCodeAt(i);
             seed |= 0;
         }
         seed = Math.abs(seed);
-        const isGolden = (seed % 2) === 0;
-        State.runtime.dailyChallengeType = isGolden ? 'golden' : 'single';
-        if (isGolden) {
-            UIManager.showMessage('🌟 Find Golden Word!');
-            State.runtime.goldenWordFound = false;
-            State.runtime.dailyVotesCount = 0;
+        
+        // Challenge type selection (4 types now)
+        // 0 = golden word, 1 = single vote, 2 = start a streak, 3 = find a snack
+        const challengeType = seed % 4;
+        
+        // Food-related keywords to search in definitions
+        const foodKeywords = [
+            // Food types
+            'food', 'fruit', 'vegetable', 'meat', 'fish', 'seafood', 'poultry', 'dairy',
+            'grain', 'bread', 'pastry', 'dessert', 'snack', 'meal', 'dish', 'cuisine',
+            // Eating/cooking related
+            'eat', 'eaten', 'edible', 'cook', 'bake', 'fry', 'roast', 'grill',
+            'breakfast', 'lunch', 'dinner', 'supper', 'brunch',
+            // Drinks
+            'drink', 'beverage', 'juice', 'wine', 'beer', 'coffee', 'tea',
+            // Taste/texture
+            'tasty', 'delicious', 'sweet', 'savory', 'flavour', 'flavor',
+            // Ingredients
+            'ingredient', 'recipe', 'sauce', 'spice', 'herb', 'seasoning',
+            // Specific food categories
+            'candy', 'chocolate', 'cake', 'pie', 'cookie', 'soup', 'salad', 'sandwich',
+            'pizza', 'pasta', 'noodle', 'rice', 'cereal', 'yogurt', 'cheese', 'butter',
+            'cream', 'egg', 'bacon', 'sausage', 'steak', 'chicken', 'pork', 'beef',
+            'lamb', 'turkey', 'ham', 'burger', 'hotdog', 'taco', 'burrito', 'sushi',
+            // Plants we eat
+            'berry', 'nut', 'seed', 'legume', 'bean', 'pea', 'lentil',
+            // Prepared food
+            'baked', 'fried', 'grilled', 'roasted', 'steamed', 'boiled'
+        ];
+        
+        // Helper function to check if a word is food based on its definition
+        const isFoodWord = (word) => {
+            if (!word) return false;
+            const def = (word.definition || '').toLowerCase();
+            const text = (word.text || '').toLowerCase();
+            
+            // Check definition for food keywords
+            if (def) {
+                for (const keyword of foodKeywords) {
+                    if (def.includes(keyword)) return true;
+                }
+            }
+            
+            // Also check if the word itself is a common food term
+            const commonFoods = [
+                'apple', 'banana', 'orange', 'grape', 'strawberry', 'mango', 'pineapple',
+                'pizza', 'burger', 'taco', 'sushi', 'pasta', 'rice', 'bread', 'cake',
+                'cookie', 'pie', 'donut', 'muffin', 'croissant', 'bagel', 'waffle',
+                'pancake', 'cereal', 'oatmeal', 'yogurt', 'cheese', 'milk', 'butter',
+                'egg', 'bacon', 'sausage', 'ham', 'steak', 'chicken', 'fish', 'shrimp',
+                'lobster', 'crab', 'salmon', 'tuna', 'soup', 'salad', 'sandwich',
+                'fries', 'chips', 'popcorn', 'pretzel', 'nachos', 'candy', 'chocolate',
+                'coffee', 'tea', 'juice', 'smoothie', 'lemonade', 'milkshake',
+                'carrot', 'potato', 'tomato', 'onion', 'garlic', 'pepper', 'lettuce',
+                'spinach', 'broccoli', 'corn', 'bean', 'pea', 'mushroom', 'olive'
+            ];
+            if (commonFoods.some(food => text.includes(food) || food.includes(text))) {
+                return true;
+            }
+            
+            return false;
+        };
+        
+        // Store the helper function for use during voting
+        State.runtime.isFoodWord = isFoodWord;
+        
+        if (challengeType === 0) {
+            // Golden Word Challenge
+            State.runtime.dailyChallengeType = 'golden';
+            UIManager.showMessage('🌟 Find the Golden Word!');
+            if (DOM.game.dailyStatus) DOM.game.dailyStatus.innerHTML = `<span class="font-bold">🌟 Find Golden Word!</span><br><span class="text-xs">Vote until you find it!</span>`;
+        } else if (challengeType === 1) {
+            // Single Vote Challenge
+            State.runtime.dailyChallengeType = 'single';
+            UIManager.showMessage('📝 Vote on Today\'s Word!');
+            if (DOM.game.dailyStatus) DOM.game.dailyStatus.innerHTML = `<span class="font-bold">📝 Daily Word</span><br><span class="text-xs">Cast your vote!</span>`;
+        } else if (challengeType === 2) {
+            // Start a Streak Challenge
+            State.runtime.dailyChallengeType = 'streak';
+            State.runtime.dailyStreakTarget = 5;
+            State.runtime.dailyStreakCount = 0;
+            UIManager.showMessage('🔥 Start a 5-Word Streak!');
+            if (DOM.game.dailyStatus) DOM.game.dailyStatus.innerHTML = `<span class="font-bold">🔥 Get a Streak!</span><br><span class="text-xs">Vote the same way 5x in a row!</span>`;
         } else {
-            UIManager.showMessage('Loading Daily Word...');
+            // Find a Snack Challenge
+            State.runtime.dailyChallengeType = 'snack';
+            State.runtime.snackFound = false;
+            UIManager.showMessage('🍕 Find Something to Eat!');
+            if (DOM.game.dailyStatus) DOM.game.dailyStatus.innerHTML = `<span class="font-bold">🍕 Find a Snack!</span><br><span class="text-xs">Vote until you find food!</span>`;
         }
+        
+        State.runtime.goldenWordFound = false;
+        State.runtime.dailyVotesCount = 0;
+        
         API.getAllWords().then(words => {
             const sortedWords = words.sort((a, b) => a.text.localeCompare(b.text));
-            if (isGolden) {
+            
+            if (State.runtime.dailyChallengeType === 'golden') {
+                // Golden word challenge - find specific word
                 const goldenIdx = (seed * 7) % sortedWords.length;
                 State.runtime.goldenWord = sortedWords[goldenIdx];
                 const shuffled = [...words];
@@ -822,8 +981,9 @@ async vote(t, s = false) {
                 State.runtime.allWords = shuffled;
                 State.runtime.currentWordIndex = 0;
                 UIManager.displayWord(shuffled[0]);
-                if (DOM.game.dailyStatus) DOM.game.dailyStatus.textContent = "Find 🌟";
-            } else {
+                
+            } else if (State.runtime.dailyChallengeType === 'single') {
+                // Single word challenge
                 const winningWordRef = sortedWords[seed % sortedWords.length];
                 if (winningWordRef) {
                     State.runtime.allWords = [winningWordRef];
@@ -832,6 +992,38 @@ async vote(t, s = false) {
                 } else {
                     UIManager.showMessage("No Daily Word Found");
                 }
+                
+            } else if (State.runtime.dailyChallengeType === 'streak') {
+                // Streak challenge - shuffle normally
+                const shuffled = [...words];
+                for (let i = shuffled.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+                }
+                State.runtime.allWords = shuffled;
+                State.runtime.currentWordIndex = 0;
+                UIManager.displayWord(shuffled[0]);
+                
+            } else if (State.runtime.dailyChallengeType === 'snack') {
+                // Snack challenge - ensure a food word is within first 20 words
+                const shuffled = [...words];
+                for (let i = shuffled.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+                }
+                
+                // Find a food word using definition-based detection and place it within first 15-25 words
+                const foodWordIdx = shuffled.findIndex(w => isFoodWord(w));
+                
+                if (foodWordIdx > 25) {
+                    const targetPos = 10 + Math.floor(Math.random() * 15);
+                    const foodWord = shuffled.splice(foodWordIdx, 1)[0];
+                    shuffled.splice(targetPos, 0, foodWord);
+                }
+                
+                State.runtime.allWords = shuffled;
+                State.runtime.currentWordIndex = 0;
+                UIManager.displayWord(shuffled[0]);
             }
         });
     },
@@ -851,12 +1043,42 @@ checkDailyStatus() {
         const l = State.data.daily.lastDate;
         if (State.data.settings.kidsMode || t === l) {
              DOM.game.dailyBanner.style.display = 'none';
+             DOM.game.dailyBanner.classList.remove('daily-pulse');
         } else {
-             DOM.game.dailyStatus.textContent = "Vote Now!";
+             // Add pulse animation style if not exists
+             if (!document.getElementById('daily-pulse-style')) {
+                 const style = document.createElement('style');
+                 style.id = 'daily-pulse-style';
+                 style.textContent = `
+                     @keyframes dailyPulse {
+                         0%, 100% { 
+                             transform: scale(1); 
+                             box-shadow: 0 4px 15px rgba(234, 179, 8, 0.4);
+                         }
+                         50% { 
+                             transform: scale(1.03); 
+                             box-shadow: 0 6px 25px rgba(234, 179, 8, 0.7);
+                         }
+                     }
+                     .daily-pulse {
+                         animation: dailyPulse 2s ease-in-out infinite !important;
+                         cursor: pointer !important;
+                     }
+                     .daily-pulse:hover {
+                         animation: none !important;
+                         transform: scale(1.05) !important;
+                         box-shadow: 0 8px 30px rgba(234, 179, 8, 0.8) !important;
+                     }
+                 `;
+                 document.head.appendChild(style);
+             }
+             
+             DOM.game.dailyStatus.innerHTML = `<span class="font-bold">🎯 Complete today's challenge!</span><br><span class="text-xs opacity-90">Click here to start! Keep your streak!</span>`;
              DOM.game.dailyBanner.style.display = 'block';
              DOM.game.dailyBanner.style.opacity = '1';
              DOM.game.dailyBanner.style.pointerEvents = 'auto';
              DOM.game.dailyBanner.style.filter = 'none';
+             DOM.game.dailyBanner.classList.add('daily-pulse');
         }
     },
     setRandomFavicon() {
