@@ -394,13 +394,15 @@ async vote(t, s = false) {
                 // SNACK CHALLENGE
                 if (State.runtime.dailyChallengeType === 'snack') {
                     State.runtime.dailyVotesCount = (State.runtime.dailyVotesCount || 0) + 1;
+                    const isVeganMode = State.data.settings.veganMode;
                     
                     // Check if current word is a food/snack using definition
                     const isSnack = State.runtime.isFoodWord ? State.runtime.isFoodWord(w) : false;
                     
                     if (isSnack && !State.runtime.snackFound) {
                         State.runtime.snackFound = true;
-                        UIManager.showPostVoteMessage(`🍕 YUM! Found "${w.text}"! 🍴`);
+                        const emoji = isVeganMode ? '🥬' : '🍕';
+                        UIManager.showPostVoteMessage(`${emoji} YUM! Found "${w.text}"! 🍴`);
                         const last = State.data.daily.lastDate;
                         let s = State.data.daily.streak;
                         if (last) {
@@ -409,11 +411,14 @@ async vote(t, s = false) {
                         } else s = 1;
                         const best = Math.max(s, State.data.daily.bestStreak || 0);
                         State.save('daily', { streak: s, lastDate: dStr, bestStreak: best });
-                        DOM.daily.streakResult.textContent = '🔥 ' + s + ' 🍕';
+                        DOM.daily.streakResult.textContent = '🔥 ' + s + ` ${emoji}`;
                         setTimeout(() => this.finishDailyChallenge(), 1500);
                         return;
                     } else {
-                        UIManager.showPostVoteMessage(`#${State.runtime.dailyVotesCount} - Not edible! Keep looking! 🍴`);
+                        const msg = isVeganMode 
+                            ? `#${State.runtime.dailyVotesCount} - Not vegan! Keep looking! 🌱`
+                            : `#${State.runtime.dailyVotesCount} - Not edible! Keep looking! 🍴`;
+                        UIManager.showPostVoteMessage(msg);
                         setTimeout(() => { State.runtime.currentWordIndex++; this.nextWord(); }, 600);
                         return;
                     }
@@ -893,13 +898,95 @@ async vote(t, s = false) {
             'baked', 'fried', 'grilled', 'roasted', 'steamed', 'boiled'
         ];
         
+        // Non-vegan keywords - animal products
+        const nonVeganKeywords = [
+            // Meat
+            'meat', 'beef', 'pork', 'lamb', 'chicken', 'turkey', 'duck', 'goose',
+            'bacon', 'ham', 'sausage', 'steak', 'veal', 'venison', 'rabbit', 'game',
+            'poultry', 'fowl', 'flesh',
+            // Seafood
+            'fish', 'salmon', 'tuna', 'cod', 'haddock', 'mackerel', 'trout', 'sardine',
+            'anchovy', 'herring', 'seafood', 'shellfish', 'shrimp', 'prawn', 'lobster',
+            'crab', 'oyster', 'mussel', 'clam', 'scallop', 'squid', 'octopus', 'calamari',
+            // Dairy
+            'dairy', 'milk', 'cream', 'cheese', 'butter', 'yogurt', 'yoghurt', 'whey',
+            'casein', 'lactose', 'ghee', 'curd',
+            // Eggs
+            'egg', 'yolk', 'albumen', 'mayonnaise',
+            // Honey & other
+            'honey', 'gelatin', 'gelatine', 'lard', 'tallow', 'suet',
+            // Animal-derived
+            'animal', 'cow', 'pig', 'sheep', 'goat'
+        ];
+        
+        // Common non-vegan food items
+        const nonVeganFoods = [
+            'steak', 'burger', 'hotdog', 'bacon', 'ham', 'sausage', 'chicken', 'turkey',
+            'fish', 'salmon', 'tuna', 'shrimp', 'lobster', 'crab', 'oyster',
+            'milk', 'cheese', 'butter', 'yogurt', 'cream', 'egg', 'omelette', 'omelet',
+            'mayonnaise', 'honey', 'milkshake', 'icecream'
+        ];
+        
+        // Common vegan foods (plant-based)
+        const veganFoods = [
+            'apple', 'banana', 'orange', 'grape', 'strawberry', 'mango', 'pineapple',
+            'watermelon', 'melon', 'peach', 'pear', 'plum', 'cherry', 'blueberry',
+            'raspberry', 'blackberry', 'kiwi', 'papaya', 'coconut', 'avocado', 'lemon',
+            'lime', 'grapefruit', 'fig', 'date', 'pomegranate', 'passion',
+            'carrot', 'potato', 'tomato', 'onion', 'garlic', 'pepper', 'lettuce',
+            'spinach', 'broccoli', 'cauliflower', 'cabbage', 'kale', 'celery',
+            'cucumber', 'zucchini', 'squash', 'pumpkin', 'eggplant', 'aubergine',
+            'corn', 'pea', 'bean', 'lentil', 'chickpea', 'hummus', 'tofu', 'tempeh',
+            'mushroom', 'olive', 'artichoke', 'asparagus', 'beetroot', 'radish',
+            'rice', 'pasta', 'noodle', 'bread', 'oat', 'oatmeal', 'cereal', 'granola',
+            'quinoa', 'couscous', 'falafel', 'salad', 'soup', 'smoothie',
+            'almond', 'walnut', 'cashew', 'peanut', 'pistachio', 'hazelnut',
+            'coffee', 'tea', 'juice', 'lemonade', 'kombucha',
+            'chocolate', 'cocoa', 'popcorn', 'pretzel', 'chips', 'crisp',
+            'jam', 'jelly', 'marmalade', 'syrup', 'maple'
+        ];
+        
         // Helper function to check if a word is food based on its definition
         const isFoodWord = (word) => {
             if (!word) return false;
             const def = (word.definition || '').toLowerCase();
             const text = (word.text || '').toLowerCase();
+            const isVeganMode = State.data.settings.veganMode;
             
-            // Check definition for food keywords
+            // If vegan mode, first check if it's an animal product
+            if (isVeganMode) {
+                // Check definition for non-vegan keywords
+                for (const keyword of nonVeganKeywords) {
+                    if (def.includes(keyword)) return false;
+                }
+                // Check if word itself is a non-vegan food
+                if (nonVeganFoods.some(food => text.includes(food) || food.includes(text))) {
+                    return false;
+                }
+                
+                // For vegan mode, check if it's a known vegan food first
+                if (veganFoods.some(food => text.includes(food) || food.includes(text))) {
+                    return true;
+                }
+                
+                // Then check definition for plant-based food keywords
+                const veganKeywords = ['fruit', 'vegetable', 'plant', 'grain', 'legume', 
+                    'nut', 'seed', 'berry', 'herb', 'spice', 'vegan', 'plant-based'];
+                for (const keyword of veganKeywords) {
+                    if (def.includes(keyword)) return true;
+                }
+                
+                // General food check (but exclude if it might be animal-based)
+                const safeFoodKeywords = ['food', 'edible', 'snack', 'dessert', 'pastry', 
+                    'bread', 'baked', 'drink', 'beverage', 'juice', 'salad', 'soup'];
+                for (const keyword of safeFoodKeywords) {
+                    if (def.includes(keyword)) return true;
+                }
+                
+                return false;
+            }
+            
+            // Non-vegan mode: check definition for any food keywords
             if (def) {
                 for (const keyword of foodKeywords) {
                     if (def.includes(keyword)) return true;
@@ -950,8 +1037,14 @@ async vote(t, s = false) {
             // Find a Snack Challenge
             State.runtime.dailyChallengeType = 'snack';
             State.runtime.snackFound = false;
-            UIManager.showMessage('🍕 Find Something to Eat!');
-            if (DOM.game.dailyStatus) DOM.game.dailyStatus.innerHTML = `<span class="font-bold">🍕 Find a Snack!</span><br><span class="text-xs">Vote until you find food!</span>`;
+            const isVegan = State.data.settings.veganMode;
+            if (isVegan) {
+                UIManager.showMessage('🥬 Find a Vegan Snack!');
+                if (DOM.game.dailyStatus) DOM.game.dailyStatus.innerHTML = `<span class="font-bold">🥬 Find a Vegan Snack!</span><br><span class="text-xs">Plant-based foods only!</span>`;
+            } else {
+                UIManager.showMessage('🍕 Find Something to Eat!');
+                if (DOM.game.dailyStatus) DOM.game.dailyStatus.innerHTML = `<span class="font-bold">🍕 Find a Snack!</span><br><span class="text-xs">Vote until you find food!</span>`;
+            }
         }
         
         State.runtime.goldenWordFound = false;
