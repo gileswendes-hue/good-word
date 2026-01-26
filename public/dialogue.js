@@ -8,7 +8,7 @@ const GAME_DIALOGUE = {
     },
 
     // ========================================================================
-    // BAT DIALOGUE - New!
+    // BAT DIALOGUE
     // ========================================================================
     bat: {
         idle: {
@@ -104,7 +104,6 @@ const GAME_DIALOGUE = {
             "🦟": "Easy pickings!",
             "🪲": "Protein!",
             "🦋": "Delicate flavor~",
-            "🛸": "Wait, what?",
             default: "Tasty!"
         },
 
@@ -152,16 +151,6 @@ const GAME_DIALOGUE = {
             "Time to vanish."
         ],
 
-        // Meeting the spider
-        meetingSpider: [
-            "Hey web-head!",
-            "Nice silk!",
-            "Respect the hustle.",
-            "Fellow night creature!",
-            "Any leftovers?",
-            "Seen any moths?"
-        ],
-
         poked: [
             "Hey!",
             "Rude!",
@@ -171,10 +160,98 @@ const GAME_DIALOGUE = {
             "Do I poke you?",
             "*startled squeak*",
             "Not cool."
-        ]
+        ],
+
+        // ====== SPIDER INTERACTION DIALOGUE ======
+        
+        // Greeting the ceiling spider
+        greetSpider: [
+            "Hey, eight-legs!",
+            "Nice web up there!",
+            "Fellow night hunter!",
+            "Hanging around?",
+            "Web looks good today!",
+            "Catch anything lately?",
+            "Respect the hustle!",
+            "Staying sticky?"
+        ],
+
+        // Greeting the floor spider
+        greetFloorSpider: [
+            "Hey ground crawler!",
+            "Watch your step down there!",
+            "Floor patrol, huh?",
+            "Nice legs! All eight of them.",
+            "Keeping it low-key?",
+            "Ground control!",
+            "Scuttling along nicely!"
+        ],
+
+        // When bat steals spider's food
+        stoleBugSmug: [
+            "Yoink! Mine now!",
+            "Thanks for spotting it!",
+            "Finders keepers!",
+            "Too slow, web-head!",
+            "Air superiority!",
+            "Snooze you lose!",
+            "I'll take that!",
+            "Consider it a tip!"
+        ],
+
+        // Apologetic after stealing (if mood is friendly)
+        stoleBugSorry: [
+            "Sorry, instinct!",
+            "I owe you one...",
+            "My bad, I was hungry!",
+            "Reflex! Sorry!",
+            "I'll... share next time?",
+            "Oops. Bat brain moment."
+        ],
+
+        // Reacting to angry spider
+        reactToAngrySpider: [
+            "Whoa, calm down!",
+            "It's just a bug!",
+            "Don't be mad...",
+            "Hey, plenty for everyone!",
+            "Eep! Don't bite!",
+            "Let's be reasonable here..."
+        ],
+
+        // Playful teasing
+        teasingSpider: [
+            "Bet you can't catch me!",
+            "Too slow on that web!",
+            "Wings > legs, sorry!",
+            "Catch me if you can~",
+            "Nyoom!",
+            "Air mail delivery!"
+        ],
+
+        // Friendly/bonding moments
+        friendlyToSpider: [
+            "We make a good team!",
+            "Night shift buddies!",
+            "Partners in pest control!",
+            "You're alright, spider.",
+            "Same goals, different methods.",
+            "Respect."
+        ],
+
+        // Mood-based greetings
+        moodGreetings: {
+            happy: ["Great night, huh?", "Feeling good!", "Life is beautiful!"],
+            hungry: ["So hungry...", "Need food...", "Starving here!"],
+            grumpy: ["Hmph.", "Whatever.", "Leave me alone."],
+            playful: ["Wanna play?", "Catch me!", "Wheee!"],
+            smug: ["I'm the best.", "Too good.", "Perfection."]
+        }
     },
 
-    // All spider speech
+    // ========================================================================
+    // SPIDER DIALOGUE
+    // ========================================================================
     spider: {
         idle: {
             morning: [
@@ -360,7 +437,6 @@ const GAME_DIALOGUE = {
             "Ooh, good vibrations!"
         ],
 
-        // When realizing it was a trick (Retreating)
         trickedEnd: [
             "HEY! No food!", 
             "Stop playing with me!", 
@@ -385,7 +461,6 @@ const GAME_DIALOGUE = {
             "🐝": "Spicy snack!",
             "🦟": "Finally, quiet.",
             "🪲": "Tastes like metal!",
-            // New additions (assigned to potential new bugs)
             "🦋": "Tastes like chicken.",
             "🛸": "Finger lickin' good.",
             "🐜": "Pure protein shake!",
@@ -417,7 +492,7 @@ const GAME_DIALOGUE = {
             "I'll be in my room."
         ],
 
-        // Meeting Dialogue (Ceiling Spider)
+        // ====== CEILING SPIDER MEETING FLOOR SPIDER ======
         meetingTop: [
             "Hello down there!", 
             "Nice floor!", 
@@ -429,7 +504,6 @@ const GAME_DIALOGUE = {
             "I have the high ground!"
         ],
 
-        // Meeting Dialogue (Floor Spider)
         meetingBottom: [
             "Hello up there!", 
             "Nice web!", 
@@ -441,15 +515,132 @@ const GAME_DIALOGUE = {
             "Showoff."
         ],
 
-        // Reacting to bat
-        meetingBat: [
-            "Hey wing-head!",
-            "Flying competition?",
-            "Stay off my web!",
-            "Seen any flies?",
-            "Respect the turf.",
-            "Night shift buddy!",
-            "Don't eat my bugs!"
+        // ====== BAT INTERACTION DIALOGUE ======
+        
+        // Greeting the bat (friendly)
+        greetBatFriendly: [
+            "Hey, wing-face!",
+            "Air support's here!",
+            "Nice sonar!",
+            "Flying high today?",
+            "Fellow night creature!",
+            "Show off those wings!",
+            "Catch any good moths?"
+        ],
+
+        // Greeting the bat (grumpy)
+        greetBatGrumpy: [
+            "Oh. It's you.",
+            "Stay off my web.",
+            "Don't steal my bugs.",
+            "Hmph. Wings.",
+            "Airspace intruder.",
+            "Keep flying, bat."
+        ],
+
+        // When bat steals spider's food - ANGRY
+        batStoleMyFood: [
+            "HEY! THAT WAS MINE!",
+            "THIEF!",
+            "I SAW THAT FIRST!",
+            "MY BUG!!! 😤",
+            "BAT! YOU RAT!",
+            "UNBELIEVABLE!",
+            "I WILL REMEMBER THIS!",
+            "WEB CRIME! WEB CRIME!",
+            "That's it. We're enemies now.",
+            "I'm telling the moths on you!"
+        ],
+
+        // Still angry, follow-up
+        batStoleFollowUp: [
+            "Still mad about that...",
+            "I won't forget.",
+            "Hungry AND betrayed.",
+            "Some friend you are.",
+            "*angry leg tapping*",
+            "Justice will be served."
+        ],
+
+        // Forgiving the bat
+        forgiveBat: [
+            "Fine. I'll let it go.",
+            "Just this once...",
+            "You owe me a bug.",
+            "Consider us even. Maybe.",
+            "I'm too tired to be mad.",
+            "Okay okay, we're cool."
+        ],
+
+        // Responding to bat apology
+        acceptApology: [
+            "Apology accepted. Barely.",
+            "You better mean it.",
+            "Hmph. Fine.",
+            "Next time, ASK.",
+            "I'm watching you.",
+            "...okay. We're good."
+        ],
+
+        // Playful banter with bat
+        playfulToBat: [
+            "Race you to that fly!",
+            "Bet my web's faster!",
+            "Legs vs wings, GO!",
+            "Think you're quick?",
+            "Can you do THIS? *wiggles*",
+            "Teamwork?"
+        ],
+
+        // Bonding with bat
+        friendlyToBat: [
+            "Good hunting together!",
+            "We make a good team!",
+            "Air and ground covered!",
+            "Night crew best crew!",
+            "Partners!",
+            "You're alright, bat."
+        ],
+
+        // Mood-based responses
+        moodResponses: {
+            happy: ["Life is good!", "Great day!", "Feeling webby!"],
+            hungry: ["So hungry...", "Need bugs...", "Starving here..."],
+            grumpy: ["Go away.", "Not in the mood.", "Hmph."],
+            angry: ["STILL MAD.", "Don't talk to me.", "😤"],
+            content: ["Ahh, nice.", "This is pleasant.", "Cozy."]
+        },
+
+        // ====== MEANINGFUL EXCHANGES ======
+        
+        // Deep/philosophical spider thoughts (rare)
+        philosophical: [
+            "We're all just bugs in someone's web...",
+            "What if the web weaves us?",
+            "Eight legs, endless questions.",
+            "The fly I catch today was a larva yesterday.",
+            "Is the web half-sticky or half-empty?",
+            "In the end, we all return to the dust bunnies."
+        ],
+
+        // Sharing wisdom with floor spider
+        wisdomToFloor: [
+            "The floor has much to teach.",
+            "Stay low, aim high.",
+            "Patience is our greatest weapon.",
+            "The web catches more with honey.",
+            "Eight legs, one purpose.",
+            "We are spiders. We endure."
+        ],
+
+        // Floor spider responding with wisdom
+        wisdomFromFloor: [
+            "The ground sees all.",
+            "Every corner has a story.",
+            "Slow and steady catches the fly.",
+            "The shadows are my friend.",
+            "Patience, cousin. Patience.",
+            "We crawl, therefore we are."
         ],
 
         // Floor spider interactions
@@ -549,6 +740,24 @@ const GAME_DIALOGUE = {
                 "the shadows were nice.",
                 "couldn't stay away.",
                 "home sweet home!"
+            ],
+            // Floor spider greeting bat
+            greetBat: [
+                "Fly safe up there!",
+                "Watch out for webs!",
+                "Hello sky friend!",
+                "Wings look good!",
+                "Any bugs from above?",
+                "Greetings, air creature!"
+            ],
+            // Floor spider responding to bat stealing
+            batStoleReaction: [
+                "Ooh, ceiling spider's mad!",
+                "Drama in the air...",
+                "Yikes, bat's in trouble.",
+                "Not my bug, not my problem.",
+                "Staying out of this one.",
+                "*watches nervously*"
             ]
         }
     }
