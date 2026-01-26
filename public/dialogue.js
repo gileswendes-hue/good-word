@@ -107,6 +107,18 @@ const GAME_DIALOGUE = {
             default: "Tasty!"
         },
 
+        // Specifically for mid-air catches
+        caughtMidAir: [
+            "Got it! Mid-air!",
+            "Aerial snack!",
+            "Echolocation: PERFECT!",
+            "Snatched!",
+            "Air-to-air interception!",
+            "Skill shot!",
+            "Nothing escapes me!",
+            "Too easy!"
+        ],
+
         missed: [
             "Drat!",
             "It got away!",
