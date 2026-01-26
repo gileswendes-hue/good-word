@@ -36,94 +36,334 @@ Effects.halloween = function(active) {
             if (style) style.remove();
             const oldBat = document.getElementById('halloween-bat');
             if (oldBat) oldBat.remove();
+            // Clean up bat AI
+            if (Effects.batAI) {
+                Effects.batAI.destroy();
+                Effects.batAI = null;
+            }
             return;
         }
 
         // ====================================================================
-        // BATS
+        // CREATURE COORDINATOR - Manages screen density
         // ====================================================================
+        if (!Effects.CreatureCoordinator) {
+            Effects.CreatureCoordinator = {
+                activeBat: null,
+                batCooldown: false,
+                floorSpiderActive: false,
+                ceilingSpiderDropped: false,
+                
+                canSpawnBat() {
+                    if (this.ceilingSpiderDropped) return false;
+                    if (this.batCooldown) return false;
+                    return true;
+                },
+                
+                batSpawned() {
+                    this.activeBat = true;
+                    this.batCooldown = true;
+                },
+                
+                batDespawned() {
+                    this.activeBat = null;
+                    setTimeout(() => { this.batCooldown = false; }, 12000 + Math.random() * 18000);
+                },
+                
+                spiderDropping() { this.ceilingSpiderDropped = true; },
+                spiderRetreated() { this.ceilingSpiderDropped = false; }
+            };
+        }
+        const CreatureCoordinator = Effects.CreatureCoordinator;
+
+        // ====================================================================
+        // INTELLIGENT BAT AI SYSTEM
+        // ====================================================================
+        const BatAI = {
+            element: null,
+            bubbleElement: null,
+            state: 'idle',
+            currentX: 0,
+            currentY: 0,
+            animationFrame: null,
+            behaviorTimeout: null,
+            mood: 'neutral',
+            lastSpeech: 0,
+            flightPath: [],
+            pathIndex: 0,
+            
+            init() {
+                this.destroy();
+                
+                this.element = document.createElement('div');
+                this.element.id = 'halloween-bat';
+                this.element.innerHTML = `
+                    <div class="bat-body" style="font-size: 4rem; filter: drop-shadow(0 0 10px rgba(0,0,0,0.5)); cursor: pointer; pointer-events: auto;">
+                        <span class="bat-emoji" style="display: inline-block;">🦇</span>
+                    </div>
+                `;
+                this.element.style.cssText = `
+                    position: fixed;
+                    z-index: 5000;
+                    pointer-events: none;
+                    transition: none;
+                    will-change: transform, left, top;
+                `;
+                
+                document.body.appendChild(this.element);
+                
+                const batBody = this.element.querySelector('.bat-body');
+                batBody.onclick = (e) => { e.stopPropagation(); this.onPoked(); };
+                
+                const hour = new Date().getHours();
+                if (hour >= 20 || hour < 5) this.mood = Math.random() < 0.7 ? 'playful' : 'hungry';
+                else if (hour >= 5 && hour < 12) this.mood = 'grumpy';
+                else this.mood = 'neutral';
+                
+                this.enter();
+            },
+            
+            destroy() {
+                if (this.animationFrame) cancelAnimationFrame(this.animationFrame);
+                if (this.behaviorTimeout) clearTimeout(this.behaviorTimeout);
+                if (this.element) this.element.remove();
+                if (this.bubbleElement) this.bubbleElement.remove();
+                this.element = null;
+                this.bubbleElement = null;
+                this.state = 'idle';
+                CreatureCoordinator.batDespawned();
+            },
+            
+            say(textOrCategory) {
+                if (!this.element || Date.now() - this.lastSpeech < 3000) return;
+                this.lastSpeech = Date.now();
+                
+                let text = textOrCategory;
+                if (typeof GAME_DIALOGUE !== 'undefined' && GAME_DIALOGUE.bat) {
+                    if (GAME_DIALOGUE.bat[textOrCategory]) {
+                        const lines = GAME_DIALOGUE.bat[textOrCategory];
+                        if (Array.isArray(lines)) text = lines[Math.floor(Math.random() * lines.length)];
+                    } else if (textOrCategory === 'idle' && GAME_DIALOGUE.bat.getIdlePhrase) {
+                        text = GAME_DIALOGUE.bat.getIdlePhrase();
+                    }
+                }
+                
+                if (this.bubbleElement) this.bubbleElement.remove();
+                
+                const b = document.createElement('div');
+                b.id = 'bat-bubble';
+                Object.assign(b.style, {
+                    position: 'fixed', background: '#2d1b4e', color: '#e8d5ff',
+                    padding: '6px 12px', borderRadius: '12px', fontSize: '12px',
+                    fontWeight: 'bold', fontFamily: 'sans-serif', whiteSpace: 'nowrap',
+                    pointerEvents: 'none', opacity: '0', transition: 'opacity 0.3s',
+                    boxShadow: '0 3px 10px rgba(0,0,0,0.4)', border: '2px solid #8b5cf6', zIndex: '5001'
+                });
+                b.textContent = text;
+                
+                const arrow = document.createElement('div');
+                Object.assign(arrow.style, {
+                    position: 'absolute', bottom: '-8px', left: '50%', transform: 'translateX(-50%)',
+                    width: '0', height: '0', borderStyle: 'solid', borderWidth: '8px 8px 0 8px',
+                    borderColor: '#8b5cf6 transparent transparent transparent'
+                });
+                b.appendChild(arrow);
+                document.body.appendChild(b);
+                this.bubbleElement = b;
+                
+                const updatePos = () => {
+                    if (!b.parentNode || !this.element) return;
+                    const rect = this.element.getBoundingClientRect();
+                    const bubRect = b.getBoundingClientRect();
+                    let left = rect.left + rect.width / 2 - bubRect.width / 2;
+                    let top = rect.top - bubRect.height - 15;
+                    left = Math.max(10, Math.min(window.innerWidth - bubRect.width - 10, left));
+                    top = Math.max(10, top);
+                    b.style.left = left + 'px';
+                    b.style.top = top + 'px';
+                    if (b.parentNode && this.state !== 'idle') requestAnimationFrame(updatePos);
+                };
+                
+                requestAnimationFrame(() => { b.style.opacity = '1'; updatePos(); });
+                setTimeout(() => { if (b.parentNode) { b.style.opacity = '0'; setTimeout(() => b.remove(), 300); } }, 2500);
+            },
+            
+            onPoked() {
+                const lines = GAME_DIALOGUE?.bat?.poked || ["Hey!"];
+                this.say(lines[Math.floor(Math.random() * lines.length)]);
+                const emoji = this.element?.querySelector('.bat-emoji');
+                if (emoji) {
+                    emoji.style.animation = 'bat-startle 0.3s ease-out';
+                    setTimeout(() => { emoji.style.animation = ''; }, 300);
+                }
+                if (Math.random() < 0.4) { this.state = 'leaving'; this.leave(); }
+            },
+            
+            enter() {
+                if (!this.element) return;
+                CreatureCoordinator.batSpawned();
+                
+                const side = Math.floor(Math.random() * 4);
+                switch(side) {
+                    case 0: this.currentX = 20 + Math.random() * 60; this.currentY = -5; break;
+                    case 1: this.currentX = 105; this.currentY = 10 + Math.random() * 40; break;
+                    case 2: this.currentX = 20 + Math.random() * 60; this.currentY = 105; break;
+                    default: this.currentX = -5; this.currentY = 10 + Math.random() * 40;
+                }
+                
+                this.updatePosition();
+                this.element.style.opacity = '1';
+                this.generateFlightPath();
+                this.state = 'flying';
+                this.fly();
+                
+                if (Math.random() < 0.4) setTimeout(() => this.say('idle'), 1000);
+            },
+            
+            generateFlightPath() {
+                const numPoints = 4 + Math.floor(Math.random() * 4);
+                this.flightPath = [];
+                this.pathIndex = 0;
+                
+                for (let i = 0; i < numPoints; i++) {
+                    this.flightPath.push({
+                        x: 10 + Math.random() * 80,
+                        y: 5 + Math.random() * 50,
+                        restHere: Math.random() < 0.15,
+                        speed: 0.25 + Math.random() * 0.35
+                    });
+                }
+                
+                const exitSide = Math.floor(Math.random() * 4);
+                let exitPoint;
+                switch(exitSide) {
+                    case 0: exitPoint = { x: 30 + Math.random() * 40, y: -10 }; break;
+                    case 1: exitPoint = { x: 110, y: 20 + Math.random() * 30 }; break;
+                    case 2: exitPoint = { x: 30 + Math.random() * 40, y: 110 }; break;
+                    default: exitPoint = { x: -10, y: 20 + Math.random() * 30 };
+                }
+                this.flightPath.push({ ...exitPoint, exit: true, speed: 0.5 });
+            },
+            
+            fly() {
+                if (this.state !== 'flying' && this.state !== 'leaving') return;
+                if (!this.element || this.pathIndex >= this.flightPath.length) { this.destroy(); return; }
+                
+                const target = this.flightPath[this.pathIndex];
+                const dx = target.x - this.currentX;
+                const dy = target.y - this.currentY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                // Try hunting occasionally when hungry
+                if (this.state === 'flying' && this.mood === 'hungry' && Math.random() < 0.008) {
+                    this.tryHunt();
+                }
+                
+                if (distance < 2) {
+                    if (target.exit) { this.destroy(); return; }
+                    if (target.restHere && this.state === 'flying') { this.rest(); return; }
+                    this.pathIndex++;
+                    if (Math.random() < 0.15) this.say('flying');
+                } else {
+                    const speed = target.speed || 0.35;
+                    const moveRatio = Math.min(speed, distance * 0.04);
+                    const time = Date.now() / 1000;
+                    const waveX = Math.sin(time * 2.5) * 0.25;
+                    const waveY = Math.cos(time * 2) * 0.15;
+                    
+                    this.currentX += (dx / distance) * moveRatio * 1.8 + waveX;
+                    this.currentY += (dy / distance) * moveRatio * 1.8 + waveY;
+                    
+                    const emoji = this.element.querySelector('.bat-emoji');
+                    if (emoji) emoji.style.transform = dx < 0 ? 'scaleX(-1)' : 'scaleX(1)';
+                }
+                
+                this.updatePosition();
+                this.animationFrame = requestAnimationFrame(() => this.fly());
+            },
+            
+            rest() {
+                this.state = 'resting';
+                if (this.animationFrame) cancelAnimationFrame(this.animationFrame);
+                const body = this.element?.querySelector('.bat-body');
+                if (body) body.style.animation = 'bat-hang 2s ease-in-out infinite';
+                if (Math.random() < 0.5) this.say('resting');
+                
+                this.behaviorTimeout = setTimeout(() => {
+                    if (body) body.style.animation = 'bat-flap 0.2s ease-in-out infinite';
+                    this.pathIndex++;
+                    this.state = 'flying';
+                    this.fly();
+                }, 3000 + Math.random() * 5000);
+            },
+            
+            tryHunt() {
+                if (typeof MosquitoManager !== 'undefined' && MosquitoManager.state === 'flying') {
+                    const bugX = MosquitoManager.x;
+                    const bugY = MosquitoManager.y;
+                    const targetX = typeof bugX === 'number' ? bugX : 50;
+                    const targetY = typeof bugY === 'number' ? bugY : 30;
+                    
+                    const dx = targetX - this.currentX;
+                    const dy = targetY - this.currentY;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < 35) {
+                        this.say('startHunt');
+                        this.flightPath.splice(this.pathIndex, 0, { x: targetX, y: targetY, speed: 0.7, isHunt: true });
+                    }
+                }
+            },
+            
+            leave() {
+                this.state = 'leaving';
+                if (Math.random() < 0.4) this.say('leaving');
+                
+                const exits = [
+                    { x: this.currentX, y: -15 }, { x: 115, y: this.currentY },
+                    { x: this.currentX, y: 115 }, { x: -15, y: this.currentY }
+                ];
+                exits.sort((a, b) => {
+                    const distA = Math.abs(a.x - this.currentX) + Math.abs(a.y - this.currentY);
+                    const distB = Math.abs(b.x - this.currentX) + Math.abs(b.y - this.currentY);
+                    return distA - distB;
+                });
+                
+                this.flightPath = [{ ...exits[0], exit: true, speed: 0.7 }];
+                this.pathIndex = 0;
+                this.fly();
+            },
+            
+            updatePosition() {
+                if (!this.element) return;
+                this.element.style.left = this.currentX + '%';
+                this.element.style.top = this.currentY + '%';
+            }
+        };
+        
+        Effects.batAI = BatAI;
+        
+        // Spawn bat with intelligent timing
         const spawnBat = () => {
             if (!active) return;
+            
+            if (!CreatureCoordinator.canSpawnBat()) {
+                Effects.batTimeout = setTimeout(spawnBat, 10000 + Math.random() * 12000);
+                return;
+            }
+            
             const oldBat = document.getElementById('halloween-bat');
             if (oldBat) oldBat.remove();
-            const bat = document.createElement('div');
-            bat.id = 'halloween-bat';
-            const side = Math.floor(Math.random() * 4);
-            let startX, startY, endX, endY;
-            switch(side) {
-                case 0: // top
-                    startX = 20 + Math.random() * 60;
-                    startY = -10;
-                    endX = 30 + Math.random() * 40;
-                    endY = 110;
-                    break;
-                case 1: // right
-                    startX = 110;
-                    startY = 20 + Math.random() * 60;
-                    endX = -10;
-                    endY = 30 + Math.random() * 40;
-                    break;
-                case 2: // bottom
-                    startX = 20 + Math.random() * 60;
-                    startY = 110;
-                    endX = 30 + Math.random() * 40;
-                    endY = -10;
-                    break;
-                default: // left
-                    startX = -10;
-                    startY = 20 + Math.random() * 60;
-                    endX = 110;
-                    endY = 30 + Math.random() * 40;
-            }
-            const duration = 4 + Math.random() * 3;
-            bat.innerHTML = `
-                <div class="bat-body" style="font-size: 5rem; filter: drop-shadow(0 0 15px rgba(0,0,0,0.6));">
-                    <span class="bat-wing-left" style="display: inline-block; transform-origin: right center;">🦇</span>
-                </div>
-            `;
-            // Z-INDEX UPDATED TO 5000 TO ENSURE IT IS ON TOP
-            bat.style.cssText = `
-                position: fixed;
-                left: ${startX}%;
-                top: ${startY}%;
-                z-index: 5000;
-                pointer-events: none;
-                animation: bat-fly-${Date.now()} ${duration}s ease-in-out forwards;
-            `;
-            const styleEl = document.createElement('style');
-            styleEl.textContent = `
-                @keyframes bat-fly-${Date.now()} {
-                    0% {
-                        left: ${startX}%;
-                        top: ${startY}%;
-                        transform: scale(0.3);
-                    }
-                    50% {
-                        transform: scale(1.5);
-                    }
-                    100% {
-                        left: ${endX}%;
-                        top: ${endY}%;
-                        transform: scale(0.5);
-                    }
-                }
-                @keyframes bat-flap {
-                    0%, 100% { transform: scaleX(1) scaleY(1); }
-                    50% { transform: scaleX(0.6) scaleY(0.8); }
-                }
-                .bat-body {
-                    animation: bat-flap 0.15s ease-in-out infinite;
-                }
-            `;
-            document.head.appendChild(styleEl);
-            document.body.appendChild(bat);
-            setTimeout(() => {
-                bat.remove();
-                styleEl.remove();
-            }, duration * 1000);
-            Effects.batTimeout = setTimeout(spawnBat, 8000 + Math.random() * 12000);
+            
+            BatAI.init();
+            
+            Effects.batTimeout = setTimeout(() => {
+                if (BatAI.element) BatAI.destroy();
+                spawnBat();
+            }, 50000);
         };
-        Effects.batTimeout = setTimeout(spawnBat, 3000 + Math.random() * 5000);
+        
+        Effects.batTimeout = setTimeout(spawnBat, 18000 + Math.random() * 22000);
 
         // ====================================================================
         // STYLES
@@ -172,6 +412,23 @@ Effects.halloween = function(active) {
                 @keyframes leg-twitch {
                     0%, 100% { transform: rotate(0deg); }
                     50% { transform: rotate(8deg); }
+                }
+                /* Bat animations */
+                @keyframes bat-flap {
+                    0%, 100% { transform: scaleX(1) scaleY(1); }
+                    50% { transform: scaleX(0.7) scaleY(0.85); }
+                }
+                @keyframes bat-hang {
+                    0%, 100% { transform: rotate(0deg) scale(1); }
+                    50% { transform: rotate(3deg) scale(0.98); }
+                }
+                @keyframes bat-startle {
+                    0% { transform: scale(1); }
+                    50% { transform: scale(1.3) rotate(10deg); }
+                    100% { transform: scale(1); }
+                }
+                .bat-body {
+                    animation: bat-flap 0.2s ease-in-out infinite;
                 }
                 .scuttling-motion {
                     animation: spider-moving 0.8s infinite ease-in-out;
@@ -259,7 +516,7 @@ Effects.halloween = function(active) {
             targetX: 0,
             targetY: 0,
             state: 'idle', // idle, moving, pausing, looking, thinking, leaving, gone, hiding (for hunt), meeting
-            moveSpeed: 180, 
+            moveSpeed: 150, // Slightly slower for more natural movement
             element: null,
             bodyElement: null,
             animationFrame: null,
@@ -271,6 +528,7 @@ Effects.halloween = function(active) {
             behaviorCount: 0, 
             maxBehaviors: 0, 
             onLeaveCallback: null,
+            lastPauseTime: 0, // Track time since last pause for more natural pausing
             
             init(container) {
                 this.element = container;
@@ -278,8 +536,9 @@ Effects.halloween = function(active) {
                 this.currentX = window.innerWidth * 0.5;
                 this.currentY = window.innerHeight - 80;
                 this.behaviorCount = 0;
-                this.maxBehaviors = 3 + Math.floor(Math.random() * 5); 
+                this.maxBehaviors = 3 + Math.floor(Math.random() * 4); // Slightly fewer behaviors 
                 this.updatePosition();
+                if (Effects.CreatureCoordinator) Effects.CreatureCoordinator.floorSpiderActive = true;
             },
             
             say(textOrCategory) {
@@ -423,7 +682,10 @@ Effects.halloween = function(active) {
                 
                 if (this.state === 'moving') {
                     this.stepCount++;
-                    if (this.stepCount > 30 && Math.random() < 0.008) {
+                    // More natural pausing - check time since last pause
+                    const timeSinceLastPause = now - this.lastPauseTime;
+                    if (this.stepCount > 25 && timeSinceLastPause > 2500 && Math.random() < 0.012) {
+                        this.lastPauseTime = now;
                         this.pauseMidJourney(() => { this.moveTo(this.targetX, this.targetY, onComplete); });
                         return;
                     }
@@ -437,6 +699,7 @@ Effects.halloween = function(active) {
                     
                     if (this.state === 'leaving') {
                         this.state = 'gone';
+                        if (Effects.CreatureCoordinator) Effects.CreatureCoordinator.floorSpiderActive = false;
                         if (this.element) {
                             this.element.style.opacity = '0';
                             setTimeout(() => {
@@ -447,18 +710,20 @@ Effects.halloween = function(active) {
                         return;
                     }
                     this.state = 'idle';
-                    if (Math.random() < 0.35) this.say('arriving');
+                    if (Math.random() < 0.3) this.say('arriving');
                     if (onComplete) onComplete();
                     return;
                 }
                 
-                const speedVariation = 0.85 + Math.random() * 0.3;
+                // More variable speed for organic movement
+                const speedVariation = 0.7 + Math.random() * 0.5;
                 const currentSpeed = this.moveSpeed * speedVariation;
-                const slowdownDistance = 100;
-                const speedMultiplier = (this.state !== 'leaving' && distance < slowdownDistance) ? 0.3 + (distance / slowdownDistance) * 0.7 : 1;
+                const slowdownDistance = 120;
+                const speedMultiplier = (this.state !== 'leaving' && distance < slowdownDistance) ? 0.25 + (distance / slowdownDistance) * 0.75 : 1;
                 const moveDistance = currentSpeed * deltaTime * speedMultiplier;
                 const ratio = Math.min(moveDistance / distance, 1);
-                const wobble = Math.sin(now / 50) * 0.5;
+                // More pronounced wobble for natural feel
+                const wobble = Math.sin(now / 45) * 0.6;
                 this.currentX += dx * ratio + wobble * (dy / distance);
                 this.currentY += dy * ratio - wobble * (dx / distance);
                 if (this.state !== 'leaving') {
@@ -795,10 +1060,13 @@ Effects.halloween = function(active) {
                 floorSpiderAI.init(floorSpider);
                 
                 const scheduleReentry = () => {
-                    const reentryDelay = 15000 + Math.random() * 25000;
+                    // Longer delays between floor spider appearances
+                    const reentryDelay = 25000 + Math.random() * 35000;
                     Effects.floorSpiderTimeout = setTimeout(() => {
                         if (document.body.contains(floorSpider)) {
                             if (wrap && wrap.classList.contains('hunting')) { scheduleReentry(); return; }
+                            // Don't enter if bat is active
+                            if (Effects.CreatureCoordinator && Effects.CreatureCoordinator.activeBat) { scheduleReentry(); return; }
                             floorSpiderAI.enter(() => { floorSpiderAI.doBehavior(); });
                         }
                     }, reentryDelay);
@@ -821,9 +1089,10 @@ Effects.halloween = function(active) {
                     }, 300);
                 };
                 
+                // Longer initial delay before floor spider first appears
                 setTimeout(() => {
                     if (document.body.contains(floorSpider)) floorSpiderAI.doBehavior();
-                }, 3000);
+                }, 8000);
             }
             wrap.floorSpiderAI = floorSpiderAI;
         }
@@ -856,11 +1125,14 @@ Effects.halloween = function(active) {
             if (!document.body.contains(wrap)) return;
             if (wrap.classList.contains('hunting')) return;
             
+            // Track that ceiling spider is dropping
+            if (Effects.CreatureCoordinator) Effects.CreatureCoordinator.spiderDropping();
+            
             // LOGIC: Check if floor spider is home
             const isFloorSpiderHome = floorSpiderAI.state !== 'gone' && floorSpiderAI.state !== 'leaving' && floorSpiderAI.state !== 'entering' && floorSpiderAI.element.style.display !== 'none';
             
-            // 30% chance they meet, if floor spider is home. Otherwise, turf war.
-            const triggerMeeting = isFloorSpiderHome && Math.random() < 0.3;
+            // 25% chance they meet, if floor spider is home. Otherwise, turf war.
+            const triggerMeeting = isFloorSpiderHome && Math.random() < 0.25;
 
             if (isFloorSpiderHome && !triggerMeeting) {
                 // SCENARIO 1: TURF WAR
@@ -918,15 +1190,17 @@ Effects.halloween = function(active) {
                 if(wrap.showBubble) wrap.showBubble(topText, 'upside-down');
                 
                 setTimeout(() => {
-                    floorSpiderAI.say(botText); // Direct text injection isn't supported by 'say' unless it's a key, but I patched 'say' to handle keys
+                    floorSpiderAI.say(botText);
                     
                     setTimeout(() => {
                         // Retreat
                         body.classList.remove('spider-idle');
                         thread.style.height = '0';
+                        if (Effects.CreatureCoordinator) Effects.CreatureCoordinator.spiderRetreated();
                         floorSpiderAI.resumeAfterMeeting();
                         
-                        Effects.spiderTimeout = setTimeout(runDrop, 15000 + Math.random() * 20000);
+                        // Longer delay before next drop
+                        Effects.spiderTimeout = setTimeout(runDrop, 22000 + Math.random() * 25000);
                     }, 2000);
                 }, 1500);
             }, 2000);
@@ -952,8 +1226,8 @@ Effects.halloween = function(active) {
                 if (wrap.classList.contains('hunting')) return;
                 let text = 'Boo!';
                 if (typeof GAME_DIALOGUE !== 'undefined' && GAME_DIALOGUE.spider) {
-                     const phrases = Array.isArray(GAME_DIALOGUE.spider.idle) ? GAME_DIALOGUE.spider.idle : ['Boo!', 'Hi!', '🕷️'];
-                     text = phrases[Math.floor(Math.random() * phrases.length)];
+                     // Use getIdlePhrase for time-based messages
+                     text = GAME_DIALOGUE.spider.getIdlePhrase ? GAME_DIALOGUE.spider.getIdlePhrase() : 'Boo!';
                 }
                 if(wrap.showBubble) wrap.showBubble(text, 'upside-down');
                 
@@ -961,15 +1235,17 @@ Effects.halloween = function(active) {
                     if (wrap.classList.contains('hunting')) return;
                     body.classList.remove('spider-idle');
                     thread.style.height = '0';
-                    Effects.spiderTimeout = setTimeout(runDrop, 15000 + Math.random() * 20000);
+                    // Track that spider has retreated
+                    if (Effects.CreatureCoordinator) Effects.CreatureCoordinator.spiderRetreated();
+                    // Longer intervals between drops
+                    Effects.spiderTimeout = setTimeout(runDrop, 20000 + Math.random() * 25000);
                     
-                    // If floor spider was gone, maybe schedule it to come back? 
-                    // (Handled by the leave callback usually, but good to ensure)
                 }, 3000);
             }, 2500);
         };
 
-        Effects.spiderTimeout = setTimeout(runDrop, 5000);
+        // Longer initial delay before first drop
+        Effects.spiderTimeout = setTimeout(runDrop, 10000);
 
 
         // ... (Web Code remains same) ...
