@@ -1138,25 +1138,49 @@ checkDailyStatus() {
              DOM.game.dailyBanner.style.display = 'none';
              DOM.game.dailyBanner.classList.remove('daily-pulse');
         } else {
-             // Rotating messages - short and encouraging
+             // Rotating messages - encouraging engagement with streaks
              const streak = State.data.daily.streak || 0;
              const messages = streak > 0 ? [
-                 `🔥 ${streak}-day streak! Keep going?`,
-                 `⚡ Day ${streak + 1} awaits!`,
-                 `🎯 Continue your streak!`,
-                 `✨ ${streak} days strong!`,
-                 `🏆 Streak: ${streak}`
+                 `🔥 ${streak}-day streak! Don't stop now!`,
+                 `⚡ Day ${streak + 1} is calling!`,
+                 `🎯 Keep your ${streak}-day run alive!`,
+                 `✨ ${streak} days strong — make it ${streak + 1}!`,
+                 `🏆 Streak: ${streak} — You're on fire!`,
+                 `💪 ${streak} days in! Can you do ${streak + 1}?`,
+                 `🌟 Amazing ${streak}-day streak!`,
+                 `🚀 ${streak} days down, glory ahead!`,
+                 `⭐ Your ${streak}-day streak awaits!`,
+                 `🎪 Day ${streak + 1} — The show must go on!`
              ] : [
-                 `🎯 Daily Challenge`,
-                 `⚡ Start a streak!`,
-                 `✨ Challenge ready!`,
-                 `🎮 Tap to play!`,
-                 `🌟 Today's challenge`
+                 `🎯 Daily Challenge — Start a streak!`,
+                 `⚡ Begin your streak today!`,
+                 `✨ New challenge ready!`,
+                 `🎮 Tap to start your journey!`,
+                 `🌟 Today's challenge awaits!`,
+                 `🏆 Start a winning streak!`,
+                 `💫 Your streak starts here!`,
+                 `🚀 Launch your daily streak!`,
+                 `🎪 Step right up — Daily Challenge!`,
+                 `⭐ Day 1 begins now!`
+             ];
+             
+             // Color themes that rotate throughout the day
+             const colors = [
+                 { bg: 'linear-gradient(90deg, #f59e0b, #d97706)', shadow: 'rgba(245, 158, 11, 0.4)' }, // Amber
+                 { bg: 'linear-gradient(90deg, #8b5cf6, #a855f7)', shadow: 'rgba(139, 92, 246, 0.4)' }, // Purple (original)
+                 { bg: 'linear-gradient(90deg, #10b981, #059669)', shadow: 'rgba(16, 185, 129, 0.4)' }, // Emerald
+                 { bg: 'linear-gradient(90deg, #3b82f6, #6366f1)', shadow: 'rgba(59, 130, 246, 0.4)' }, // Blue
+                 { bg: 'linear-gradient(90deg, #ec4899, #f43f5e)', shadow: 'rgba(236, 72, 153, 0.4)' }, // Pink
+                 { bg: 'linear-gradient(90deg, #f97316, #ef4444)', shadow: 'rgba(249, 115, 22, 0.4)' }, // Orange-Red
+                 { bg: 'linear-gradient(90deg, #14b8a6, #0891b2)', shadow: 'rgba(20, 184, 166, 0.4)' }, // Teal
+                 { bg: 'linear-gradient(90deg, #84cc16, #22c55e)', shadow: 'rgba(132, 204, 22, 0.4)' }  // Lime-Green
              ];
              
              // Pick based on time so it changes throughout the day
              const hourSeed = new Date().getHours();
-             const msgIndex = hourSeed % messages.length;
+             const msgIndex = (hourSeed + Math.floor(Date.now() / 3600000)) % messages.length;
+             const colorIndex = Math.floor(hourSeed / 3) % colors.length;
+             const color = colors[colorIndex];
              
              // Add pulse animation style if not exists
              if (!document.getElementById('daily-pulse-style')) {
@@ -1173,16 +1197,27 @@ checkDailyStatus() {
                      .daily-banner.daily-pulse:hover {
                          animation: none;
                          transform: scale(1.03);
+                         filter: brightness(1.1);
                      }
                  `;
                  document.head.appendChild(style);
              }
              
-             // Keep the daily-banner class, just add pulse
+             // Apply dynamic styling
              DOM.game.dailyBanner.className = 'daily-banner daily-pulse';
-             DOM.game.dailyBanner.style.display = 'block';
-             DOM.game.dailyBanner.style.opacity = '1';
-             DOM.game.dailyBanner.style.pointerEvents = 'auto';
+             DOM.game.dailyBanner.style.cssText = `
+                 display: block;
+                 background: ${color.bg};
+                 box-shadow: 0 4px 15px ${color.shadow};
+                 color: white;
+                 padding: 10px 16px;
+                 border-radius: 12px;
+                 cursor: pointer;
+                 font-weight: bold;
+                 text-align: center;
+                 width: 100%;
+                 margin-bottom: 1rem;
+             `;
              
              DOM.game.dailyStatus.textContent = messages[msgIndex];
         }
