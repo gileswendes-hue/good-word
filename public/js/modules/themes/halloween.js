@@ -244,7 +244,7 @@ Effects.halloween = function(active) {
             currentY: 0,
             targetX: 0,
             targetY: 0,
-            state: 'idle', // idle, moving, pausing, looking, thinking
+            state: 'idle', // idle, moving, pausing, looking, thinking, leaving, gone
             moveSpeed: 180, // pixels per second
             element: null,
             bodyElement: null,
@@ -254,15 +254,9 @@ Effects.halloween = function(active) {
             thinkingTimeout: null,
             facingRight: true,
             stepCount: 0,
-            
-            // Dialogue for different states
-            dialogue: {
-                moving: ["*scuttle scuttle*", "...", "~", "hmm...", "*tap tap tap*"],
-                pausing: ["🤔", "..?", "*sniff sniff*", "hm.", "*looks around*", "where was I going?"],
-                thinking: ["what's over there?", "*contemplates*", "decisions...", "left or right?", "🕷️💭"],
-                arriving: ["ah, here.", "nice spot.", "*settles*", "perfect.", "yes, this'll do."],
-                startMoving: ["off I go!", "time to explore!", "*stretches legs*", "adventure awaits!", "let's see..."]
-            },
+            behaviorCount: 0, // Track how many behaviors before leaving
+            maxBehaviors: 0, // Random number of behaviors before leaving
+            onLeaveCallback: null, // Called when spider leaves
             
             // Initialize the floor spider
             init(container) {
@@ -270,13 +264,22 @@ Effects.halloween = function(active) {
                 this.bodyElement = container.querySelector('.floor-spider-body');
                 this.currentX = window.innerWidth * 0.5;
                 this.currentY = window.innerHeight - 80;
+                this.behaviorCount = 0;
+                this.maxBehaviors = 3 + Math.floor(Math.random() * 5); // 3-7 behaviors before leaving
                 this.updatePosition();
             },
             
-            // Get a random dialogue line
+            // Get a random dialogue line from GAME_DIALOGUE
             say(category) {
-                const lines = this.dialogue[category];
-                if (!lines || !this.bodyElement) return;
+                if (!this.bodyElement) return;
+                
+                // Get lines from GAME_DIALOGUE.spider.floor
+                let lines;
+                if (typeof GAME_DIALOGUE !== 'undefined' && GAME_DIALOGUE.spider && GAME_DIALOGUE.spider.floor) {
+                    lines = GAME_DIALOGUE.spider.floor[category];
+                }
+                if (!lines || !lines.length) return;
+                
                 const text = lines[Math.floor(Math.random() * lines.length)];
                 
                 // Create a bubble specifically for the floor spider
@@ -428,7 +431,7 @@ Effects.halloween = function(active) {
                 }
                 
                 // Occasionally say something when starting to move
-                if (Math.random() < 0.3) {
+                if (Math.random() < 0.25) {
                     this.say('startMoving');
                 }
                 
@@ -438,7 +441,7 @@ Effects.halloween = function(active) {
             
             // Animate the movement with realistic acceleration/deceleration
             animateMovement(onComplete) {
-                if (this.state !== 'moving') return;
+                if (this.state !== 'moving' && this.state !== 'leaving') return;
                 
                 const now = performance.now();
                 const deltaTime = (now - this.lastTime) / 1000;
@@ -448,13 +451,15 @@ Effects.halloween = function(active) {
                 const dy = this.targetY - this.currentY;
                 const distance = Math.sqrt(dx * dx + dy * dy);
                 
-                // Check if we should pause mid-journey
-                this.stepCount++;
-                if (this.stepCount > 30 && Math.random() < 0.008) {
-                    this.pauseMidJourney(() => {
-                        this.moveTo(this.targetX, this.targetY, onComplete);
-                    });
-                    return;
+                // Check if we should pause mid-journey (only if not leaving)
+                if (this.state === 'moving') {
+                    this.stepCount++;
+                    if (this.stepCount > 30 && Math.random() < 0.008) {
+                        this.pauseMidJourney(() => {
+                            this.moveTo(this.targetX, this.targetY, onComplete);
+                        });
+                        return;
+                    }
                 }
                 
                 // Arrived at destination
@@ -462,14 +467,28 @@ Effects.halloween = function(active) {
                     this.currentX = this.targetX;
                     this.currentY = this.targetY;
                     this.updatePosition();
-                    this.state = 'idle';
                     
                     if (this.bodyElement) {
                         this.bodyElement.classList.remove('scuttling');
                     }
                     
+                    // If leaving, actually remove
+                    if (this.state === 'leaving') {
+                        this.state = 'gone';
+                        if (this.element) {
+                            this.element.style.opacity = '0';
+                            setTimeout(() => {
+                                if (this.element) this.element.style.display = 'none';
+                                if (this.onLeaveCallback) this.onLeaveCallback();
+                            }, 300);
+                        }
+                        return;
+                    }
+                    
+                    this.state = 'idle';
+                    
                     // Sometimes say something on arrival
-                    if (Math.random() < 0.4) {
+                    if (Math.random() < 0.35) {
                         this.say('arriving');
                     }
                     
@@ -481,9 +500,9 @@ Effects.halloween = function(active) {
                 const speedVariation = 0.85 + Math.random() * 0.3;
                 const currentSpeed = this.moveSpeed * speedVariation;
                 
-                // Slow down when approaching target
+                // Slow down when approaching target (unless leaving)
                 const slowdownDistance = 100;
-                const speedMultiplier = distance < slowdownDistance ? 
+                const speedMultiplier = (this.state !== 'leaving' && distance < slowdownDistance) ? 
                     0.3 + (distance / slowdownDistance) * 0.7 : 1;
                 
                 const moveDistance = currentSpeed * deltaTime * speedMultiplier;
@@ -495,9 +514,11 @@ Effects.halloween = function(active) {
                 this.currentX += dx * ratio + wobble * (dy / distance);
                 this.currentY += dy * ratio - wobble * (dx / distance);
                 
-                // Keep in bounds
-                this.currentX = Math.max(30, Math.min(window.innerWidth - 30, this.currentX));
-                this.currentY = Math.max(100, Math.min(window.innerHeight - 30, this.currentY));
+                // Keep in bounds (unless leaving)
+                if (this.state !== 'leaving') {
+                    this.currentX = Math.max(30, Math.min(window.innerWidth - 30, this.currentX));
+                    this.currentY = Math.max(100, Math.min(window.innerHeight - 30, this.currentY));
+                }
                 
                 this.updatePosition();
                 
@@ -514,7 +535,7 @@ Effects.halloween = function(active) {
                 }
                 
                 // Say something while paused
-                if (Math.random() < 0.6) {
+                if (Math.random() < 0.5) {
                     setTimeout(() => this.say('pausing'), 300);
                 }
                 
@@ -577,6 +598,87 @@ Effects.halloween = function(active) {
                 }, 1500 + Math.random() * 2000);
             },
             
+            // Leave the screen
+            leave(onLeave) {
+                this.state = 'leaving';
+                this.onLeaveCallback = onLeave;
+                
+                // Say goodbye
+                this.say('leaving');
+                
+                // Pick an exit point (edge of screen)
+                const exits = [
+                    { x: -50, y: this.currentY }, // left
+                    { x: window.innerWidth + 50, y: this.currentY }, // right
+                    { x: this.currentX, y: window.innerHeight + 50 } // bottom
+                ];
+                const exit = exits[Math.floor(Math.random() * exits.length)];
+                
+                // Face the exit
+                this.facingRight = exit.x > this.currentX;
+                this.updatePosition();
+                
+                if (this.bodyElement) {
+                    this.bodyElement.classList.remove('paused', 'looking');
+                    this.bodyElement.classList.add('scuttling');
+                }
+                
+                this.moveSpeed = 220; // Slightly faster when leaving
+                this.targetX = exit.x;
+                this.targetY = exit.y;
+                this.lastTime = performance.now();
+                this.animateMovement(null);
+            },
+            
+            // Enter the screen
+            enter(onEnter) {
+                if (!this.element) return;
+                
+                this.state = 'entering';
+                this.element.style.display = '';
+                this.element.style.opacity = '1';
+                this.element.style.transition = 'opacity 0.3s';
+                
+                // Pick an entry point
+                const side = Math.floor(Math.random() * 3);
+                const margin = 60;
+                
+                switch(side) {
+                    case 0: // left
+                        this.currentX = -40;
+                        this.currentY = window.innerHeight * 0.5 + Math.random() * (window.innerHeight * 0.4);
+                        this.facingRight = true;
+                        break;
+                    case 1: // right
+                        this.currentX = window.innerWidth + 40;
+                        this.currentY = window.innerHeight * 0.5 + Math.random() * (window.innerHeight * 0.4);
+                        this.facingRight = false;
+                        break;
+                    default: // bottom
+                        this.currentX = margin + Math.random() * (window.innerWidth - margin * 2);
+                        this.currentY = window.innerHeight + 40;
+                        this.facingRight = Math.random() > 0.5;
+                }
+                
+                this.updatePosition();
+                
+                // Say hello (using 'returning' dialogue)
+                setTimeout(() => this.say('returning'), 500);
+                
+                // Move to a spot on screen
+                const dest = this.chooseDestination();
+                this.moveSpeed = 180;
+                this.behaviorCount = 0;
+                this.maxBehaviors = 3 + Math.floor(Math.random() * 5);
+                
+                setTimeout(() => {
+                    this.moveTo(dest.x, dest.y, () => {
+                        this.state = 'idle';
+                        if (onEnter) onEnter();
+                    });
+                }, 100);
+            },
+            
             // Stop all movement
             stop() {
                 this.state = 'idle';
@@ -600,6 +702,16 @@ Effects.halloween = function(active) {
             // Main behavior loop - decide what to do next
             doBehavior() {
                 if (this.state !== 'idle') return;
+                
+                this.behaviorCount++;
+                
+                // Check if it's time to leave
+                if (this.behaviorCount >= this.maxBehaviors) {
+                    this.leave(() => {
+                        // Spider is gone, will re-enter later via external timer
+                    });
+                    return;
+                }
                 
                 const action = Math.random();
                 
@@ -630,22 +742,22 @@ Effects.halloween = function(active) {
             }
         };
         
-        // Legacy scuttle object for ceiling movement (kept for compatibility)
+        // Legacy scuttle object - now just positions without animation (spider stays still on ceiling)
         const spiderScuttle = {
             active: false,
             targetX: 50,
             currentX: 50,
             start(wrap, body, targetPercent, onComplete) {
+                // Instead of sliding, just teleport (spider doesn't slide on ceiling anymore)
                 this.active = true;
                 this.targetX = targetPercent;
-                this.currentX = parseFloat(wrap.style.left) || 50;
-                body.classList.add('scuttling-motion');
-                wrap.style.transition = 'left 2s ease-in-out';
+                this.currentX = targetPercent;
+                wrap.style.transition = 'none';
                 wrap.style.left = targetPercent + '%';
+                // Immediately complete
                 setTimeout(() => {
-                    this.currentX = targetPercent;
                     this.stop(body, onComplete);
-                }, 2000);
+                }, 50);
             },
             stop(body, onComplete) {
                 this.active = false;
@@ -823,18 +935,39 @@ Effects.halloween = function(active) {
                 // Initialize the AI
                 floorSpiderAI.init(floorSpider);
                 
+                // Function to schedule re-entry after leaving
+                const scheduleReentry = () => {
+                    // Re-enter after 15-40 seconds
+                    const reentryDelay = 15000 + Math.random() * 25000;
+                    Effects.floorSpiderTimeout = setTimeout(() => {
+                        if (document.body.contains(floorSpider)) {
+                            floorSpiderAI.enter(() => {
+                                floorSpiderAI.doBehavior();
+                            });
+                        }
+                    }, reentryDelay);
+                };
+                
+                // Set the callback for when spider leaves
+                floorSpiderAI.onLeaveCallback = scheduleReentry;
+                
                 // Click handler for floor spider
                 const floorBody = floorSpider.querySelector('.floor-spider-body');
                 floorBody.onclick = (e) => {
                     e.stopPropagation();
                     State.unlockBadge('spider');
                     
+                    // Don't interrupt if leaving
+                    if (floorSpiderAI.state === 'leaving' || floorSpiderAI.state === 'gone') return;
+                    
                     // Stop current movement
                     floorSpiderAI.stop();
                     
                     const lines = GAME_DIALOGUE.spider.pokeHappy || ["Hey!", "Watch it!", "Excuse me!"];
                     const text = lines[Math.floor(Math.random() * lines.length)];
-                    showSpiderBubble(text);
+                    
+                    // Use the wrap's showBubble for consistency
+                    if (wrap.showBubble) wrap.showBubble(text);
                     
                     // Startle animation - jump back
                     floorBody.style.animation = 'shake 0.3s ease-in-out';
@@ -885,78 +1018,45 @@ const anchor = wrap.querySelector('#spider-anchor');
             }
             anchor.style.transform = `scale(${scale.toFixed(2)})`;
         }
+        // The ceiling spider only drops down on threads - no sliding
+        // Floor spider handles all the scuttling movement
         const runDrop = () => {
             if (!document.body.contains(wrap)) return;
             if (wrap.classList.contains('hunting')) return;
-            if (scuttle) scuttle.cancel(body);
-            const actionRoll = Math.random();
+            
             body.style.transform = 'rotate(0deg)';
             body.classList.remove('scuttling-motion', 'spider-paused', 'spider-idle');
             thread.style.opacity = '1';
-            if (actionRoll < 0.7) {
-                const safeLeft = Math.random() * 60 + 20;
-                if (scuttle) {
-                    scuttle.start(wrap, body, safeLeft, () => {
-                        if (wrap.classList.contains('hunting')) return;
-                        body.style.transform = 'rotate(180deg)';
-                        body.classList.add('spider-idle');
-                        thread.style.transition = 'height 2.5s ease-in-out';
-                        thread.style.height = '18vh';
-                        setTimeout(() => {
-                             if (wrap.classList.contains('hunting')) return;
-                             let text = 'Boo!';
-                             if (typeof GAME_DIALOGUE !== 'undefined' && GAME_DIALOGUE.spider) {
-                                 if (typeof GAME_DIALOGUE.spider.getIdlePhrase === 'function') {
-                                     text = GAME_DIALOGUE.spider.getIdlePhrase();
-                                 } else if (GAME_DIALOGUE.spider.idle) {
-                                     const phrases = Array.isArray(GAME_DIALOGUE.spider.idle) ? GAME_DIALOGUE.spider.idle : ['Boo!', 'Hi!', '🕷️'];
-                                     text = phrases[Math.floor(Math.random() * phrases.length)];
-                                 }
-                             }
-                             if(wrap.showBubble) wrap.showBubble(text, 'upside-down');
-                             setTimeout(() => {
-                                 if (wrap.classList.contains('hunting')) return;
-                                 body.classList.remove('spider-idle');
-                                 thread.style.height = '0';
-                                 Effects.spiderTimeout = setTimeout(runDrop, Math.random() * 5000 + 5000);
-                             }, 2500);
-                        }, 2500);
-                    });
+            
+            // Only behavior: drop down on thread and say something
+            body.style.transform = 'rotate(180deg)';
+            body.classList.add('spider-idle');
+            thread.style.transition = 'height 2.5s ease-in-out';
+            thread.style.height = '18vh';
+            
+            setTimeout(() => {
+                if (wrap.classList.contains('hunting')) return;
+                let text = 'Boo!';
+                if (typeof GAME_DIALOGUE !== 'undefined' && GAME_DIALOGUE.spider) {
+                    if (typeof GAME_DIALOGUE.spider.getIdlePhrase === 'function') {
+                        text = GAME_DIALOGUE.spider.getIdlePhrase();
+                    } else if (GAME_DIALOGUE.spider.idle) {
+                        const phrases = Array.isArray(GAME_DIALOGUE.spider.idle) ? GAME_DIALOGUE.spider.idle : ['Boo!', 'Hi!', '🕷️'];
+                        text = phrases[Math.floor(Math.random() * phrases.length)];
+                    }
                 }
-                return;
-            }
-            if (actionRoll < 0.9) {
-                const isLeft = Math.random() > 0.5;
-                const wallX = isLeft ? 5 : 85;
-                if (scuttle) {
-                    scuttle.start(wrap, body, wallX, () => {
-                        if (wrap.classList.contains('hunting')) return;
-                        thread.style.opacity = '0';
-                        body.style.transform = `rotate(${isLeft ? 90 : -90}deg)`;
-                        const climbDepth = Math.random() * 40 + 30;
-                        thread.style.transition = 'height 4s ease-in-out';
-                        thread.style.height = climbDepth + 'vh';
-                        setTimeout(() => {
-                             if (wrap.classList.contains('hunting')) return;
-                             thread.style.height = '0';
-                             setTimeout(() => {
-                                 body.style.transform = 'rotate(0deg)';
-                                 thread.style.opacity = '1';
-                                 Effects.spiderTimeout = setTimeout(runDrop, Math.random() * 5000 + 5000);
-                             }, 4000);
-                        }, 5000);
-                    });
-                }
-                return;
-            }
-            const safeLeft = Math.random() * 60 + 20;
-            if (scuttle) {
-                scuttle.start(wrap, body, safeLeft, () => {
-                    runDrop();
-                });
-            }
+                if(wrap.showBubble) wrap.showBubble(text, 'upside-down');
+                
+                setTimeout(() => {
+                    if (wrap.classList.contains('hunting')) return;
+                    body.classList.remove('spider-idle');
+                    thread.style.height = '0';
+                    // Schedule next drop with longer delay
+                    Effects.spiderTimeout = setTimeout(runDrop, 15000 + Math.random() * 20000);
+                }, 3000);
+            }, 2500);
         };
-        Effects.spiderTimeout = setTimeout(runDrop, 1000);
+        Effects.spiderTimeout = setTimeout(runDrop, 5000);
         if (!document.getElementById('spider-web-corner')) {
             const web = document.createElement('div');
             web.id = 'spider-web-corner';
