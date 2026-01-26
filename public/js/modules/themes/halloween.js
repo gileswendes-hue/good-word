@@ -3,10 +3,12 @@
  * HALLOWEEN THEME EFFECT
  * ============================================================================
  * Interactive spider with AI behavior, animated web, and flying bats
+ * Spider can hunt mosquitos from MosquitoManager
  * * UPDATE: "Turf War" & "Social Encounter" Logic
  * - Floor spider is Brown, Ceiling spider is Black.
  * - Usually, they avoid each other (Floor leaves before Ceiling drops).
  * - Occasionally, they meet, acknowledge each other, and chat.
+ * * UPDATE: Bat z-index increased to fly OVER everything.
  */
 
 (function() {
@@ -79,11 +81,12 @@ Effects.halloween = function(active) {
                     <span class="bat-wing-left" style="display: inline-block; transform-origin: right center;">🦇</span>
                 </div>
             `;
+            // Z-INDEX UPDATED TO 5000 TO ENSURE IT IS ON TOP
             bat.style.cssText = `
                 position: fixed;
                 left: ${startX}%;
                 top: ${startY}%;
-                z-index: 101;
+                z-index: 5000;
                 pointer-events: none;
                 animation: bat-fly-${Date.now()} ${duration}s ease-in-out forwards;
             `;
@@ -284,9 +287,17 @@ Effects.halloween = function(active) {
                 
                 let text = textOrCategory;
                 // Check if it's a category key in GAME_DIALOGUE
-                if (typeof GAME_DIALOGUE !== 'undefined' && GAME_DIALOGUE.spider && GAME_DIALOGUE.spider.floor && GAME_DIALOGUE.spider.floor[textOrCategory]) {
-                    const lines = GAME_DIALOGUE.spider.floor[textOrCategory];
-                    text = lines[Math.floor(Math.random() * lines.length)];
+                if (typeof GAME_DIALOGUE !== 'undefined' && GAME_DIALOGUE.spider) {
+                    // Check floor categories
+                    if (GAME_DIALOGUE.spider.floor && GAME_DIALOGUE.spider.floor[textOrCategory]) {
+                        const lines = GAME_DIALOGUE.spider.floor[textOrCategory];
+                        text = lines[Math.floor(Math.random() * lines.length)];
+                    }
+                    // Check generic categories (e.g. meetingBottom)
+                    else if (GAME_DIALOGUE.spider[textOrCategory]) {
+                        const lines = GAME_DIALOGUE.spider[textOrCategory];
+                        text = lines[Math.floor(Math.random() * lines.length)];
+                    }
                 }
                 
                 // Create a bubble specifically for the floor spider
@@ -854,7 +865,7 @@ Effects.halloween = function(active) {
             if (isFloorSpiderHome && !triggerMeeting) {
                 // SCENARIO 1: TURF WAR
                 // Floor spider scuttles away immediately
-                floorSpiderAI.say(["Occupied!", "Coming through!", "Scram!", "Too crowded!"][Math.floor(Math.random()*4)]);
+                floorSpiderAI.say('turfWar'); // Uses new dialogue key
                 floorSpiderAI.leave(() => {
                     // Only drop AFTER floor spider is gone
                     setTimeout(() => {
@@ -889,17 +900,25 @@ Effects.halloween = function(active) {
             thread.style.height = dropHeight + 'vh';
 
             setTimeout(() => {
-                // Dialogue Exchange
-                const topGreetings = ["Hello down there!", "Nice floor!", "Any bugs?", "How's the view?"];
-                const bottomGreetings = ["Hello up there!", "Nice web!", "All clear!", "Watch your step!"];
+                // Dialogue Exchange using new keys
+                let topText = "Hello!";
+                let botText = "Hi!";
                 
-                const topText = topGreetings[Math.floor(Math.random() * topGreetings.length)];
-                const botText = bottomGreetings[Math.floor(Math.random() * bottomGreetings.length)];
+                if (typeof GAME_DIALOGUE !== 'undefined' && GAME_DIALOGUE.spider) {
+                    if (GAME_DIALOGUE.spider.meetingTop) {
+                        const t = GAME_DIALOGUE.spider.meetingTop;
+                        topText = t[Math.floor(Math.random() * t.length)];
+                    }
+                    if (GAME_DIALOGUE.spider.meetingBottom) {
+                        const b = GAME_DIALOGUE.spider.meetingBottom;
+                        botText = b[Math.floor(Math.random() * b.length)];
+                    }
+                }
                 
                 if(wrap.showBubble) wrap.showBubble(topText, 'upside-down');
                 
                 setTimeout(() => {
-                    floorSpiderAI.say(botText);
+                    floorSpiderAI.say(botText); // Direct text injection isn't supported by 'say' unless it's a key, but I patched 'say' to handle keys
                     
                     setTimeout(() => {
                         // Retreat
