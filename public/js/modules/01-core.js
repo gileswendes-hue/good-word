@@ -1,22 +1,3 @@
-/**
- * ============================================================================
- * GOOD WORD / BAD WORD - CORE MODULE (01-core.js)
- * ============================================================================
- * 
- * Foundation module containing:
- * - CONFIG: All constants and settings
- * - ContentFilter: Profanity detection
- * - DOM: Element references (loadDOM function)
- * - State: Application state and localStorage
- * - DataManager: Import/export functionality
- * - OfflineManager: Offline mode handling
- * - Accessibility: Colorblind mode, large text
- * - Utils: Helper functions
- * - Haptics: Vibration feedback
- * 
- * This module must load FIRST - all other modules depend on it.
- * ============================================================================
- */
 
 (function() {
 'use strict';
@@ -28,7 +9,7 @@ const CONFIG = {
     API_BASE_URL: '/api/words',
     API_FETCH_URL: '/api/words/all',
     SCORE_API_URL: '/api/scores',
-    APP_VERSION: '6.7.1',
+    APP_VERSION: '6.7.2',
     KIDS_LIST_FILE: 'kids_words.txt',
     SPECIAL: {
         CAKE: { text: 'CAKE', prob: 0.005, fade: 300, msg: "The cake is a lie!", dur: 3000 },
