@@ -45,7 +45,7 @@ Effects.halloween = function(active) {
         }
 
         // ====================================================================
-        // CREATURE COORDINATOR - Manages screen density
+        // CREATURE COORDINATOR - Manages screen density & relationships
         // ====================================================================
         if (!Effects.CreatureCoordinator) {
             Effects.CreatureCoordinator = {
@@ -53,6 +53,57 @@ Effects.halloween = function(active) {
                 batCooldown: false,
                 floorSpiderActive: false,
                 ceilingSpiderDropped: false,
+                
+                // Mood and relationship system
+                moods: {
+                    ceilingSpider: 'content', // content, happy, hungry, grumpy, angry
+                    floorSpider: 'content',
+                    bat: 'neutral' // neutral, playful, hungry, grumpy, smug
+                },
+                
+                // Relationship tracking (-100 to 100)
+                relationships: {
+                    spiderToBat: 50,      // How ceiling spider feels about bat
+                    batToSpider: 50,      // How bat feels about ceiling spider
+                    floorToceiling: 70,   // Floor spider to ceiling spider (family!)
+                    floorToBat: 50        // Floor spider to bat
+                },
+                
+                // Track recent events for reactions
+                recentEvents: [],
+                
+                addEvent(event) {
+                    this.recentEvents.push({ type: event, time: Date.now() });
+                    // Keep only last 10 events
+                    if (this.recentEvents.length > 10) this.recentEvents.shift();
+                },
+                
+                getRecentEvent(type, withinMs = 30000) {
+                    const now = Date.now();
+                    return this.recentEvents.find(e => e.type === type && (now - e.time) < withinMs);
+                },
+                
+                // Modify relationship
+                modifyRelationship(key, delta) {
+                    if (this.relationships[key] !== undefined) {
+                        this.relationships[key] = Math.max(-100, Math.min(100, this.relationships[key] + delta));
+                    }
+                },
+                
+                // Get relationship descriptor
+                getRelationshipStatus(key) {
+                    const val = this.relationships[key] || 0;
+                    if (val >= 80) return 'friendly';
+                    if (val >= 40) return 'neutral';
+                    if (val >= 0) return 'wary';
+                    if (val >= -50) return 'hostile';
+                    return 'enemy';
+                },
+                
+                // Update mood based on events
+                updateMood(creature, newMood) {
+                    this.moods[creature] = newMood;
+                },
                 
                 canSpawnBat() {
                     if (this.ceilingSpiderDropped) return false;
@@ -91,9 +142,15 @@ Effects.halloween = function(active) {
             lastSpeech: 0,
             flightPath: [],
             pathIndex: 0,
+            hasGreetedSpider: false,
+            stolenFood: false,
+            interactionCooldown: 0,
             
             init() {
                 this.destroy();
+                this.hasGreetedSpider = false;
+                this.stolenFood = false;
+                this.interactionCooldown = 0;
                 
                 this.element = document.createElement('div');
                 this.element.id = 'halloween-bat';
@@ -119,6 +176,9 @@ Effects.halloween = function(active) {
                 if (hour >= 20 || hour < 5) this.mood = Math.random() < 0.7 ? 'playful' : 'hungry';
                 else if (hour >= 5 && hour < 12) this.mood = 'grumpy';
                 else this.mood = 'neutral';
+                
+                // Sync mood with coordinator
+                CreatureCoordinator.updateMood('bat', this.mood);
                 
                 this.enter();
             },
@@ -246,7 +306,7 @@ Effects.halloween = function(active) {
             },
             
             fly() {
-                if (this.state !== 'flying' && this.state !== 'leaving') return;
+                if (this.state !== 'flying' && this.state !== 'leaving' && this.state !== 'hunting') return;
                 if (!this.element || this.pathIndex >= this.flightPath.length) { this.destroy(); return; }
                 
                 const target = this.flightPath[this.pathIndex];
@@ -254,9 +314,24 @@ Effects.halloween = function(active) {
                 const dy = target.y - this.currentY;
                 const distance = Math.sqrt(dx * dx + dy * dy);
                 
+                // Check for spider interactions
+                if (this.state === 'flying' && Date.now() > this.interactionCooldown) {
+                    this.checkForSpiderInteraction();
+                }
+                
                 // Try hunting occasionally when hungry
-                if (this.state === 'flying' && this.mood === 'hungry' && Math.random() < 0.008) {
+                if ((this.state === 'flying' || this.state === 'hunting') && this.mood === 'hungry' && Math.random() < 0.01) {
                     this.tryHunt();
+                }
+                
+                // Check if we reached hunt target
+                if (target.isHunt && distance < 8) {
+                    this.completedHunt(target);
+                    this.pathIndex++;
+                    if (this.pathIndex < this.flightPath.length) {
+                        this.state = 'flying';
+                    }
+                    return;
                 }
                 
                 if (distance < 2) {
@@ -282,6 +357,88 @@ Effects.halloween = function(active) {
                 this.animationFrame = requestAnimationFrame(() => this.fly());
             },
             
+            checkForSpiderInteraction() {
+                // Check if ceiling spider is dropped and nearby
+                const wrap = document.getElementById('spider-wrap');
+                if (wrap && CreatureCoordinator.ceilingSpiderDropped && !this.hasGreetedSpider) {
+                    const spiderRect = wrap.getBoundingClientRect();
+                    const spiderX = (spiderRect.left / window.innerWidth) * 100;
+                    const spiderY = (spiderRect.top / window.innerHeight) * 100;
+                    
+                    const dx = spiderX - this.currentX;
+                    const dy = spiderY - this.currentY;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < 25) {
+                        this.greetSpider(wrap);
+                    }
+                }
+                
+                // Check for floor spider
+                const floorWrap = document.getElementById('floor-spider-container');
+                if (floorWrap && floorWrap.style.display !== 'none') {
+                    const floorRect = floorWrap.getBoundingClientRect();
+                    const floorX = (floorRect.left / window.innerWidth) * 100;
+                    const floorY = (floorRect.top / window.innerHeight) * 100;
+                    
+                    const dx = floorX - this.currentX;
+                    const dy = floorY - this.currentY;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < 30 && Math.random() < 0.3) {
+                        this.greetFloorSpider(floorWrap);
+                    }
+                }
+            },
+            
+            greetSpider(wrap) {
+                this.hasGreetedSpider = true;
+                this.interactionCooldown = Date.now() + 8000;
+                
+                const relationship = CreatureCoordinator.getRelationshipStatus('batToSpider');
+                let dialogueKey = 'greetSpider';
+                
+                if (this.mood === 'playful') {
+                    dialogueKey = Math.random() < 0.5 ? 'teasingSpider' : 'greetSpider';
+                } else if (relationship === 'friendly') {
+                    dialogueKey = 'friendlyToSpider';
+                }
+                
+                this.say(dialogueKey);
+                
+                // Spider responds after delay
+                setTimeout(() => {
+                    if (wrap.showBubble) {
+                        const spiderRelation = CreatureCoordinator.getRelationshipStatus('spiderToBat');
+                        let responseKey = spiderRelation === 'friendly' ? 'greetBatFriendly' : 'greetBatGrumpy';
+                        
+                        // Check if spider is still mad about stolen food
+                        if (CreatureCoordinator.getRecentEvent('batStoleFood')) {
+                            responseKey = 'batStoleFollowUp';
+                        }
+                        
+                        const lines = GAME_DIALOGUE?.spider?.[responseKey] || ["Hey."];
+                        const text = lines[Math.floor(Math.random() * lines.length)];
+                        wrap.showBubble(text, 'upside-down');
+                    }
+                }, 1200);
+            },
+            
+            greetFloorSpider(floorWrap) {
+                this.interactionCooldown = Date.now() + 10000;
+                this.say('greetFloorSpider');
+                
+                // Floor spider might respond
+                if (Math.random() < 0.6) {
+                    setTimeout(() => {
+                        const floorAI = document.getElementById('spider-wrap')?.floorSpiderAI;
+                        if (floorAI && floorAI.say) {
+                            floorAI.say('greetBat');
+                        }
+                    }, 1000);
+                }
+            },
+            
             rest() {
                 this.state = 'resting';
                 if (this.animationFrame) cancelAnimationFrame(this.animationFrame);
@@ -298,6 +455,24 @@ Effects.halloween = function(active) {
             },
             
             tryHunt() {
+                // Check for bugs in web first (stealing from spider!)
+                if (typeof MosquitoManager !== 'undefined' && MosquitoManager.state === 'stuck') {
+                    // Bug is in the web - should we steal it?
+                    const willSteal = this.mood === 'hungry' || Math.random() < 0.3;
+                    if (willSteal) {
+                        const bugX = MosquitoManager.x || 88;
+                        const bugY = MosquitoManager.y || 20;
+                        
+                        this.say('startHunt');
+                        this.state = 'hunting';
+                        this.flightPath.splice(this.pathIndex, 0, { 
+                            x: bugX, y: bugY, speed: 0.8, isHunt: true, isSteal: true 
+                        });
+                        return;
+                    }
+                }
+                
+                // Check for flying bugs
                 if (typeof MosquitoManager !== 'undefined' && MosquitoManager.state === 'flying') {
                     const bugX = MosquitoManager.x;
                     const bugY = MosquitoManager.y;
@@ -308,11 +483,112 @@ Effects.halloween = function(active) {
                     const dy = targetY - this.currentY;
                     const distance = Math.sqrt(dx * dx + dy * dy);
                     
-                    if (distance < 35) {
+                    if (distance < 40) {
                         this.say('startHunt');
-                        this.flightPath.splice(this.pathIndex, 0, { x: targetX, y: targetY, speed: 0.7, isHunt: true });
+                        this.state = 'hunting';
+                        this.flightPath.splice(this.pathIndex, 0, { 
+                            x: targetX, y: targetY, speed: 0.7, isHunt: true 
+                        });
                     }
                 }
+            },
+            
+            completedHunt(target) {
+                if (!target.isHunt) return;
+                
+                // Check if we successfully caught something
+                if (typeof MosquitoManager !== 'undefined') {
+                    const wasInWeb = target.isSteal && MosquitoManager.state === 'stuck';
+                    const wasFlying = MosquitoManager.state === 'flying';
+                    
+                    if (wasInWeb || wasFlying) {
+                        // We caught/stole the bug!
+                        const bugType = MosquitoManager.currentBug || '🦟';
+                        
+                        // Consume the bug
+                        if (typeof MosquitoManager.eat === 'function') {
+                            MosquitoManager.eat();
+                        } else if (typeof MosquitoManager.reset === 'function') {
+                            MosquitoManager.reset();
+                        }
+                        
+                        if (wasInWeb) {
+                            // We stole from the spider!
+                            this.stolenFood = true;
+                            CreatureCoordinator.addEvent('batStoleFood');
+                            CreatureCoordinator.modifyRelationship('spiderToBat', -30);
+                            CreatureCoordinator.updateMood('ceilingSpider', 'angry');
+                            
+                            // Bat's reaction based on mood
+                            const isApologetic = this.mood !== 'hungry' && Math.random() < 0.4;
+                            this.say(isApologetic ? 'stoleBugSorry' : 'stoleBugSmug');
+                            
+                            if (!isApologetic) {
+                                this.mood = 'smug';
+                                CreatureCoordinator.updateMood('bat', 'smug');
+                            }
+                            
+                            // Spider gets angry!
+                            this.triggerSpiderAnger();
+                        } else {
+                            // Just caught a flying bug - normal
+                            const eatLines = GAME_DIALOGUE?.bat?.eating || {};
+                            const eatText = eatLines[bugType] || eatLines.default || "Tasty!";
+                            this.say(eatText);
+                            this.mood = 'happy';
+                        }
+                    } else {
+                        // Missed!
+                        this.say('missed');
+                    }
+                }
+            },
+            
+            triggerSpiderAnger() {
+                const wrap = document.getElementById('spider-wrap');
+                if (!wrap || !wrap.showBubble) return;
+                
+                // Spider reacts angrily
+                setTimeout(() => {
+                    const angryLines = GAME_DIALOGUE?.spider?.batStoleMyFood || ["HEY!"];
+                    const angryText = angryLines[Math.floor(Math.random() * angryLines.length)];
+                    wrap.showBubble(angryText, 'upside-down');
+                    
+                    // Spider body shakes with anger
+                    const body = wrap.querySelector('#spider-body');
+                    if (body) {
+                        body.style.animation = 'shake 0.5s ease-in-out';
+                        setTimeout(() => { body.style.animation = ''; }, 500);
+                    }
+                }, 800);
+                
+                // Floor spider might comment
+                const floorAI = wrap.floorSpiderAI;
+                if (floorAI && floorAI.element && floorAI.element.style.display !== 'none') {
+                    setTimeout(() => {
+                        floorAI.say('batStoleReaction');
+                    }, 2000);
+                }
+                
+                // Bat might apologize or react to anger
+                setTimeout(() => {
+                    if (this.mood !== 'smug') {
+                        this.say('reactToAngrySpider');
+                        // Improve relationship slightly with apology
+                        CreatureCoordinator.modifyRelationship('spiderToBat', 10);
+                    }
+                }, 3000);
+                
+                // Spider might eventually forgive
+                setTimeout(() => {
+                    if (Math.random() < 0.5) {
+                        const forgiveLine = GAME_DIALOGUE?.spider?.forgiveBat || ["Fine."];
+                        const text = forgiveLine[Math.floor(Math.random() * forgiveLine.length)];
+                        if (wrap.showBubble) wrap.showBubble(text, 'upside-down');
+                        CreatureCoordinator.updateMood('ceilingSpider', 'grumpy');
+                        CreatureCoordinator.modifyRelationship('spiderToBat', 15);
+                    }
+                }, 6000);
             },
             
             leave() {
@@ -1171,37 +1447,104 @@ Effects.halloween = function(active) {
             const dropHeight = ((floorSpiderAI.currentY / window.innerHeight) * 100) - 30; // 30% above floor spider
             thread.style.height = dropHeight + 'vh';
 
+            // Determine conversation type based on moods and randomness
+            const conversationType = Math.random();
+            const isDeepConversation = conversationType < 0.15; // 15% chance of philosophical exchange
+            const isPlayful = conversationType >= 0.15 && conversationType < 0.4;
+            
             setTimeout(() => {
-                // Dialogue Exchange using new keys
                 let topText = "Hello!";
                 let botText = "Hi!";
+                let followUpTop = null;
+                let followUpBot = null;
                 
                 if (typeof GAME_DIALOGUE !== 'undefined' && GAME_DIALOGUE.spider) {
-                    if (GAME_DIALOGUE.spider.meetingTop) {
-                        const t = GAME_DIALOGUE.spider.meetingTop;
-                        topText = t[Math.floor(Math.random() * t.length)];
+                    if (isDeepConversation) {
+                        // Philosophical/meaningful exchange
+                        if (GAME_DIALOGUE.spider.wisdomToFloor) {
+                            const w = GAME_DIALOGUE.spider.wisdomToFloor;
+                            topText = w[Math.floor(Math.random() * w.length)];
+                        }
+                        if (GAME_DIALOGUE.spider.wisdomFromFloor) {
+                            const w = GAME_DIALOGUE.spider.wisdomFromFloor;
+                            botText = w[Math.floor(Math.random() * w.length)];
+                        }
+                        // Maybe a philosophical follow-up
+                        if (Math.random() < 0.5 && GAME_DIALOGUE.spider.philosophical) {
+                            const p = GAME_DIALOGUE.spider.philosophical;
+                            followUpTop = p[Math.floor(Math.random() * p.length)];
+                        }
+                    } else if (isPlayful) {
+                        // Playful banter
+                        if (GAME_DIALOGUE.spider.playfulToBat) {
+                            // Reuse playful dialogue
+                            const p = GAME_DIALOGUE.spider.meetingTop;
+                            topText = p[Math.floor(Math.random() * p.length)];
+                        }
+                        if (GAME_DIALOGUE.spider.meetingBottom) {
+                            const b = GAME_DIALOGUE.spider.meetingBottom;
+                            botText = b[Math.floor(Math.random() * b.length)];
+                        }
+                    } else {
+                        // Normal greeting
+                        if (GAME_DIALOGUE.spider.meetingTop) {
+                            const t = GAME_DIALOGUE.spider.meetingTop;
+                            topText = t[Math.floor(Math.random() * t.length)];
+                        }
+                        if (GAME_DIALOGUE.spider.meetingBottom) {
+                            const b = GAME_DIALOGUE.spider.meetingBottom;
+                            botText = b[Math.floor(Math.random() * b.length)];
+                        }
                     }
-                    if (GAME_DIALOGUE.spider.meetingBottom) {
-                        const b = GAME_DIALOGUE.spider.meetingBottom;
-                        botText = b[Math.floor(Math.random() * b.length)];
+                    
+                    // Check for mood-based responses
+                    const ceilingMood = CreatureCoordinator.moods.ceilingSpider;
+                    if (ceilingMood === 'angry' && CreatureCoordinator.getRecentEvent('batStoleFood')) {
+                        // Still upset about the bat
+                        topText = "That bat... unbelievable.";
+                        botText = "I saw. Rough.";
                     }
                 }
+                
+                // Improve relationship when they talk
+                CreatureCoordinator.modifyRelationship('floorToceiling', 5);
                 
                 if(wrap.showBubble) wrap.showBubble(topText, 'upside-down');
                 
                 setTimeout(() => {
                     floorSpiderAI.say(botText);
                     
-                    setTimeout(() => {
-                        // Retreat
-                        body.classList.remove('spider-idle');
-                        thread.style.height = '0';
-                        if (Effects.CreatureCoordinator) Effects.CreatureCoordinator.spiderRetreated();
-                        floorSpiderAI.resumeAfterMeeting();
-                        
-                        // Longer delay before next drop
-                        Effects.spiderTimeout = setTimeout(runDrop, 22000 + Math.random() * 25000);
-                    }, 2000);
+                    // Extended conversation if deep
+                    if (followUpTop) {
+                        setTimeout(() => {
+                            if(wrap.showBubble) wrap.showBubble(followUpTop, 'upside-down');
+                            
+                            // Floor spider contemplates
+                            setTimeout(() => {
+                                floorSpiderAI.say("...indeed.");
+                                
+                                setTimeout(() => {
+                                    // Retreat after deep conversation
+                                    body.classList.remove('spider-idle');
+                                    thread.style.height = '0';
+                                    if (Effects.CreatureCoordinator) Effects.CreatureCoordinator.spiderRetreated();
+                                    floorSpiderAI.resumeAfterMeeting();
+                                    Effects.spiderTimeout = setTimeout(runDrop, 25000 + Math.random() * 30000);
+                                }, 2000);
+                            }, 1500);
+                        }, 2000);
+                    } else {
+                        setTimeout(() => {
+                            // Retreat
+                            body.classList.remove('spider-idle');
+                            thread.style.height = '0';
+                            if (Effects.CreatureCoordinator) Effects.CreatureCoordinator.spiderRetreated();
+                            floorSpiderAI.resumeAfterMeeting();
+                            
+                            // Longer delay before next drop
+                            Effects.spiderTimeout = setTimeout(runDrop, 22000 + Math.random() * 25000);
+                        }, 2000);
+                    }
                 }, 1500);
             }, 2000);
         };
@@ -1224,12 +1567,54 @@ Effects.halloween = function(active) {
             
             setTimeout(() => {
                 if (wrap.classList.contains('hunting')) return;
+                
                 let text = 'Boo!';
+                const spiderMood = CreatureCoordinator.moods.ceilingSpider;
+                
                 if (typeof GAME_DIALOGUE !== 'undefined' && GAME_DIALOGUE.spider) {
-                     // Use getIdlePhrase for time-based messages
-                     text = GAME_DIALOGUE.spider.getIdlePhrase ? GAME_DIALOGUE.spider.getIdlePhrase() : 'Boo!';
+                    // Check mood for appropriate response
+                    if (spiderMood === 'angry' && CreatureCoordinator.getRecentEvent('batStoleFood')) {
+                        text = "Still thinking about that bat...";
+                    } else if (spiderMood === 'grumpy') {
+                        const grumpyLines = GAME_DIALOGUE.spider.moodResponses?.grumpy || ["Hmph."];
+                        text = grumpyLines[Math.floor(Math.random() * grumpyLines.length)];
+                    } else if (spiderMood === 'happy') {
+                        const happyLines = GAME_DIALOGUE.spider.moodResponses?.happy || ["Great day!"];
+                        text = happyLines[Math.floor(Math.random() * happyLines.length)];
+                    } else if (spiderMood === 'hungry') {
+                        const hungryLines = GAME_DIALOGUE.spider.moodResponses?.hungry || ["So hungry..."];
+                        text = hungryLines[Math.floor(Math.random() * hungryLines.length)];
+                    } else {
+                        // Normal - use time-based messages
+                        text = GAME_DIALOGUE.spider.getIdlePhrase ? GAME_DIALOGUE.spider.getIdlePhrase() : 'Boo!';
+                    }
                 }
+                
                 if(wrap.showBubble) wrap.showBubble(text, 'upside-down');
+                
+                // Check if bat is around and react
+                if (Effects.batAI && Effects.batAI.element) {
+                    const batX = Effects.batAI.currentX;
+                    const batY = Effects.batAI.currentY;
+                    const spiderX = parseFloat(wrap.style.left);
+                    
+                    // If bat is reasonably close
+                    if (Math.abs(batX - spiderX) < 30 && batY < 60) {
+                        setTimeout(() => {
+                            // Spider acknowledges bat
+                            const relationship = CreatureCoordinator.getRelationshipStatus('spiderToBat');
+                            let reactionKey = relationship === 'friendly' ? 'greetBatFriendly' : 'greetBatGrumpy';
+                            
+                            if (CreatureCoordinator.getRecentEvent('batStoleFood')) {
+                                reactionKey = 'batStoleFollowUp';
+                            }
+                            
+                            const lines = GAME_DIALOGUE?.spider?.[reactionKey] || ["Oh, you."];
+                            const reactionText = lines[Math.floor(Math.random() * lines.length)];
+                            if(wrap.showBubble) wrap.showBubble(reactionText, 'upside-down');
+                        }, 2500);
+                    }
+                }
                 
                 setTimeout(() => {
                     if (wrap.classList.contains('hunting')) return;
@@ -1237,10 +1622,18 @@ Effects.halloween = function(active) {
                     thread.style.height = '0';
                     // Track that spider has retreated
                     if (Effects.CreatureCoordinator) Effects.CreatureCoordinator.spiderRetreated();
+                    
+                    // Gradually improve mood over time
+                    if (spiderMood === 'angry') {
+                        CreatureCoordinator.updateMood('ceilingSpider', 'grumpy');
+                    } else if (spiderMood === 'grumpy' && Math.random() < 0.3) {
+                        CreatureCoordinator.updateMood('ceilingSpider', 'content');
+                    }
+                    
                     // Longer intervals between drops
                     Effects.spiderTimeout = setTimeout(runDrop, 20000 + Math.random() * 25000);
                     
-                }, 3000);
+                }, 4000);
             }, 2500);
         };
 
