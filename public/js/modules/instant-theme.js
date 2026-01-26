@@ -15,7 +15,7 @@
     const THEMES = {
         default: { bg: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' },
         banana: { bg: 'linear-gradient(135deg, #f6d365 0%, #fda085 100%)' },
-        fire: { bg: 'linear-gradient(135deg, #f12711 0%, #f5af19 100%)' },
+        fire: { bg: '#150500' },
         ocean: { bg: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' },
         submarine: { bg: 'linear-gradient(180deg, #0077b6 0%, #023e8a 50%, #001845 100%)' },
         winter: { bg: 'linear-gradient(180deg, #e0f7ff 0%, #87ceeb 30%, #b0e0e6 100%)' },
