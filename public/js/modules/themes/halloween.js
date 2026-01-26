@@ -1,15 +1,3 @@
-/**
- * ============================================================================
- * HALLOWEEN THEME EFFECT
- * ============================================================================
- * Interactive spider with AI behavior, animated web, and flying bats
- * Spider can hunt mosquitos from MosquitoManager
- * * UPDATE: "Turf War" & "Social Encounter" Logic
- * - Floor spider is Brown, Ceiling spider is Black.
- * - Usually, they avoid each other (Floor leaves before Ceiling drops).
- * - Occasionally, they meet, acknowledge each other, and chat.
- * * UPDATE: Bat z-index increased to fly OVER everything.
- */
 
 (function() {
 'use strict';
