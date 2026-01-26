@@ -623,6 +623,220 @@ Effects.halloween = function(active) {
                 return currentPos;
             },
             
+            // ============================================================
+            // ECHOLOCATION RADAR EFFECT
+            // ============================================================
+            createEcholocationPing(targetX, targetY, onHit) {
+                const batX = (this.currentX / 100) * window.innerWidth;
+                const batY = (this.currentY / 100) * window.innerHeight;
+                const bugX = (targetX / 100) * window.innerWidth;
+                const bugY = (targetY / 100) * window.innerHeight;
+                
+                // Create the expanding radar ring from bat
+                const ring = document.createElement('div');
+                ring.className = 'bat-echolocation-ring';
+                Object.assign(ring.style, {
+                    position: 'fixed',
+                    left: batX + 'px',
+                    top: batY + 'px',
+                    width: '20px',
+                    height: '20px',
+                    borderRadius: '50%',
+                    border: '2px solid rgba(138, 43, 226, 0.8)',
+                    boxShadow: '0 0 10px rgba(138, 43, 226, 0.5), inset 0 0 5px rgba(138, 43, 226, 0.3)',
+                    transform: 'translate(-50%, -50%)',
+                    pointerEvents: 'none',
+                    zIndex: '4999'
+                });
+                document.body.appendChild(ring);
+                
+                // Calculate distance to target
+                const dx = bugX - batX;
+                const dy = bugY - batY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                const expandDuration = Math.min(800, distance * 2); // Faster for closer targets
+                
+                // Animate the ring expanding
+                let startTime = null;
+                const maxRadius = distance + 30;
+                
+                const animateRing = (timestamp) => {
+                    if (!startTime) startTime = timestamp;
+                    const elapsed = timestamp - startTime;
+                    const progress = Math.min(elapsed / expandDuration, 1);
+                    
+                    // Ease out for natural feel
+                    const easeOut = 1 - Math.pow(1 - progress, 2);
+                    const currentRadius = 10 + (maxRadius - 10) * easeOut;
+                    
+                    ring.style.width = (currentRadius * 2) + 'px';
+                    ring.style.height = (currentRadius * 2) + 'px';
+                    ring.style.opacity = (1 - progress * 0.5).toString();
+                    ring.style.borderWidth = Math.max(1, 3 - progress * 2) + 'px';
+                    
+                    // Check if ring has reached the bug
+                    const ringReachedBug = currentRadius >= distance - 10;
+                    
+                    if (ringReachedBug && !ring.hitTriggered) {
+                        ring.hitTriggered = true;
+                        this.createEcholocationBounce(bugX, bugY);
+                        if (onHit) onHit();
+                    }
+                    
+                    if (progress < 1) {
+                        requestAnimationFrame(animateRing);
+                    } else {
+                        ring.remove();
+                    }
+                };
+                
+                requestAnimationFrame(animateRing);
+                
+                // Add some trailing rings for effect
+                setTimeout(() => this.createTrailingRing(batX, batY, maxRadius * 0.6, expandDuration * 0.8), 100);
+                setTimeout(() => this.createTrailingRing(batX, batY, maxRadius * 0.4, expandDuration * 0.6), 200);
+            },
+            
+            createTrailingRing(x, y, maxRadius, duration) {
+                const ring = document.createElement('div');
+                Object.assign(ring.style, {
+                    position: 'fixed',
+                    left: x + 'px',
+                    top: y + 'px',
+                    width: '10px',
+                    height: '10px',
+                    borderRadius: '50%',
+                    border: '1px solid rgba(138, 43, 226, 0.4)',
+                    transform: 'translate(-50%, -50%)',
+                    pointerEvents: 'none',
+                    zIndex: '4998'
+                });
+                document.body.appendChild(ring);
+                
+                let startTime = null;
+                const animateRing = (timestamp) => {
+                    if (!startTime) startTime = timestamp;
+                    const progress = Math.min((timestamp - startTime) / duration, 1);
+                    const easeOut = 1 - Math.pow(1 - progress, 2);
+                    const currentRadius = 5 + (maxRadius - 5) * easeOut;
+                    
+                    ring.style.width = (currentRadius * 2) + 'px';
+                    ring.style.height = (currentRadius * 2) + 'px';
+                    ring.style.opacity = (0.4 - progress * 0.4).toString();
+                    
+                    if (progress < 1) {
+                        requestAnimationFrame(animateRing);
+                    } else {
+                        ring.remove();
+                    }
+                };
+                requestAnimationFrame(animateRing);
+            },
+            
+            createEcholocationBounce(x, y) {
+                // Create the "ping" effect when echolocation hits the bug
+                const ping = document.createElement('div');
+                ping.className = 'echolocation-ping';
+                Object.assign(ping.style, {
+                    position: 'fixed',
+                    left: x + 'px',
+                    top: y + 'px',
+                    width: '30px',
+                    height: '30px',
+                    borderRadius: '50%',
+                    background: 'radial-gradient(circle, rgba(255,100,100,0.9) 0%, rgba(255,50,50,0.6) 40%, transparent 70%)',
+                    boxShadow: '0 0 20px rgba(255,100,100,0.8), 0 0 40px rgba(255,50,50,0.4)',
+                    transform: 'translate(-50%, -50%) scale(0.5)',
+                    pointerEvents: 'none',
+                    zIndex: '5000'
+                });
+                document.body.appendChild(ping);
+                
+                // Animate the ping - burst then fade
+                let startTime = null;
+                const animatePing = (timestamp) => {
+                    if (!startTime) startTime = timestamp;
+                    const elapsed = timestamp - startTime;
+                    const duration = 500;
+                    const progress = Math.min(elapsed / duration, 1);
+                    
+                    // Quick expand then fade
+                    const scale = progress < 0.3 
+                        ? 0.5 + (progress / 0.3) * 1.5  // Expand to 2x
+                        : 2 - (progress - 0.3) / 0.7 * 0.5; // Shrink slightly
+                    
+                    ping.style.transform = `translate(-50%, -50%) scale(${scale})`;
+                    ping.style.opacity = (1 - progress * 0.8).toString();
+                    
+                    if (progress < 1) {
+                        requestAnimationFrame(animatePing);
+                    } else {
+                        ping.remove();
+                    }
+                };
+                requestAnimationFrame(animatePing);
+                
+                // Create ripple rings from the hit point
+                for (let i = 0; i < 3; i++) {
+                    setTimeout(() => this.createBounceRipple(x, y), i * 80);
+                }
+                
+                // Add a brief flash on the bug itself
+                this.flashBugTarget();
+            },
+            
+            createBounceRipple(x, y) {
+                const ripple = document.createElement('div');
+                Object.assign(ripple.style, {
+                    position: 'fixed',
+                    left: x + 'px',
+                    top: y + 'px',
+                    width: '10px',
+                    height: '10px',
+                    borderRadius: '50%',
+                    border: '2px solid rgba(255, 150, 150, 0.8)',
+                    transform: 'translate(-50%, -50%)',
+                    pointerEvents: 'none',
+                    zIndex: '4999'
+                });
+                document.body.appendChild(ripple);
+                
+                let startTime = null;
+                const animateRipple = (timestamp) => {
+                    if (!startTime) startTime = timestamp;
+                    const progress = Math.min((timestamp - startTime) / 400, 1);
+                    const size = 10 + progress * 60;
+                    
+                    ripple.style.width = size + 'px';
+                    ripple.style.height = size + 'px';
+                    ripple.style.opacity = (0.8 - progress * 0.8).toString();
+                    ripple.style.borderWidth = Math.max(0.5, 2 - progress * 1.5) + 'px';
+                    
+                    if (progress < 1) {
+                        requestAnimationFrame(animateRipple);
+                    } else {
+                        ripple.remove();
+                    }
+                };
+                requestAnimationFrame(animateRipple);
+            },
+            
+            flashBugTarget() {
+                // Find the bug element and flash it
+                if (typeof MosquitoManager !== 'undefined' && MosquitoManager.el) {
+                    const bugEl = MosquitoManager.el;
+                    const originalFilter = bugEl.style.filter || '';
+                    
+                    // Flash red briefly
+                    bugEl.style.filter = 'brightness(2) drop-shadow(0 0 10px red)';
+                    bugEl.style.transition = 'filter 0.1s';
+                    
+                    setTimeout(() => {
+                        bugEl.style.filter = originalFilter;
+                    }, 200);
+                }
+            },
+            
             tryHunt() {
                 if (typeof MosquitoManager === 'undefined') return;
                 
@@ -659,17 +873,26 @@ Effects.halloween = function(active) {
                         // Predict where bug will be
                         const predictedPos = this.predictBugPosition(bugPos, 0.8);
                         
+                        // *** ECHOLOCATION EFFECT ***
+                        // Send out radar ping, then start hunting after it hits
                         this.say('startHunt');
-                        this.state = 'hunting';
-                        this.huntStartTime = Date.now();
-                        this.huntTargetMoving = true;
-                        
-                        this.flightPath.splice(this.pathIndex, 0, { 
-                            x: predictedPos.x, 
-                            y: predictedPos.y, 
-                            speed: 0.35, 
-                            isHunt: true,
-                            isAirCatch: true
+                        this.createEcholocationPing(bugPos.x, bugPos.y, () => {
+                            // Callback when ping hits the bug - NOW start the actual chase
+                            this.state = 'hunting';
+                            this.huntStartTime = Date.now();
+                            this.huntTargetMoving = true;
+                            
+                            // Re-predict position since time has passed
+                            const newBugPos = this.getBugPosition();
+                            const newPredicted = newBugPos ? this.predictBugPosition(newBugPos, 0.6) : predictedPos;
+                            
+                            this.flightPath.splice(this.pathIndex, 0, { 
+                                x: newPredicted.x, 
+                                y: newPredicted.y, 
+                                speed: 0.45, // Faster after lock-on
+                                isHunt: true,
+                                isAirCatch: true
+                            });
                         });
                     }
                 }
@@ -922,6 +1145,22 @@ Effects.halloween = function(active) {
                     0% { transform: scale(1); }
                     50% { transform: scale(1.3) rotate(10deg); }
                     100% { transform: scale(1); }
+                }
+                /* Echolocation radar effect */
+                @keyframes echolocation-pulse {
+                    0% { transform: translate(-50%, -50%) scale(0.5); opacity: 1; }
+                    100% { transform: translate(-50%, -50%) scale(3); opacity: 0; }
+                }
+                @keyframes echolocation-ping {
+                    0% { transform: translate(-50%, -50%) scale(0.5); opacity: 1; }
+                    50% { transform: translate(-50%, -50%) scale(2); opacity: 0.8; }
+                    100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
+                }
+                .bat-echolocation-ring {
+                    animation: echolocation-pulse 0.8s ease-out forwards;
+                }
+                .echolocation-ping {
+                    animation: echolocation-ping 0.5s ease-out forwards;
                 }
                 .bat-body {
                     animation: bat-flap 0.2s ease-in-out infinite;
