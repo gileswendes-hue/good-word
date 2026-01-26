@@ -1166,9 +1166,15 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
         const bub = wrap.showBubble ? wrap.showBubble(text) : null;
         const destX = isFood ? targetXPercent : 88;
         const destY = isFood ? targetYPercent : 20;
-        const currentX = parseFloat(wrap.style.left) || 50;
-        wrap.style.transition = 'left 1s ease-in-out';
+        
+        // Instantly reposition (no sliding) - spider is off-screen so this is invisible
+        wrap.style.transition = 'none';
         wrap.style.left = destX + '%';
+        
+        // Force reflow then start the drop
+        void wrap.offsetWidth;
+        
+        // Small delay then drop on thread
         setTimeout(() => {
             body.classList.remove('hunting-scuttle');
             const anchor = document.getElementById('spider-anchor');
@@ -1240,7 +1246,7 @@ if (Date.now() < (State.data.spiderFullUntil || 0)) {
                         }, 1500);
                     }
                 }, 2000); // Wait for drop animation
-            }, 1000); // Wait for horizontal movement
+            }, 100); // Small delay before dropping (no horizontal slide anymore)
     },
 Effects.spiderFall = function(wrap, thread, body, bub) {
         if(bub) {
