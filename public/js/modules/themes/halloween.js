@@ -20,7 +20,8 @@ console.log('%c[Halloween] v2.7.0 Enhanced loaded! 🦇🎃🕷️', 'color: #ff
 (function() {
 'use strict';
 
-Effects.halloween = function(active) {
+// Store the real function so the stub can find it even if 05-effects.js loads after us
+const halloweenMain = function(active) {
         if (Effects.spiderTimeout) clearTimeout(Effects.spiderTimeout);
         if (Effects.webRaf) cancelAnimationFrame(Effects.webRaf);
         if (Effects.batTimeout) clearTimeout(Effects.batTimeout);
@@ -2514,7 +2515,12 @@ Effects.halloween = function(active) {
             };
             animateWeb()
         }
-    },
+    };
+
+// Store as _halloweenReal so the stub can call it
+Effects._halloweenReal = halloweenMain;
+// Also set as the main function
+Effects.halloween = halloweenMain;
 
 Effects.spiderHunt = function(targetXPercent, targetYPercent, isFood) {
         const wrap = document.getElementById('spider-wrap');
