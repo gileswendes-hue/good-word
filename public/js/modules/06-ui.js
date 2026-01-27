@@ -243,7 +243,9 @@ openProfile() {
             { k: 'tropical', i: '🐠', t: 'Tropical Fish', d: 'Found in the deep.' },
             { k: 'puffer', i: '🐡', t: 'Pufferfish', d: 'Spiky friend.' },
             { k: 'shark', i: '🦈', t: 'Shark', d: 'Gonna need a bigger boat.' },
-            { k: 'octopus', i: '🐙', t: 'The Kraken', d: 'Ink-credible!' }
+            { k: 'octopus', i: '🐙', t: 'The Kraken', d: 'Ink-credible!' },
+            { k: 'jellyfish', i: '🪼', t: 'Jellyfish', d: 'Blobby beauty from the deep!' },
+            { k: 'seal', i: '🦭', t: 'Seal', d: 'Arf arf!' }
         ];
         const row3 = [
             { k: 'exterminator', i: '☠️', t: 'The Exterminator', d: 'Fed 100 bugs', val: d.insectStats.eaten, gold: 1000 },
@@ -3526,6 +3528,23 @@ window.InputHandler = InputHandler;
 window.ModalManager = ModalManager;
 window.DiscoveryManager = DiscoveryManager;
 window.SeededShuffle = SeededShuffle;
+
+// Retroactive badge check - runs on load to award badges for existing progress
+setTimeout(() => {
+    if (typeof State !== 'undefined' && State.data) {
+        const d = State.data;
+        // Check all achievement badges retroactively
+        if (d.insectStats.saved >= 100 && !d.badges.saint) State.unlockBadge('saint');
+        if (d.insectStats.eaten >= 100 && !d.badges.exterminator) State.unlockBadge('exterminator');
+        if (d.insectStats.teased >= 50 && !d.badges.prankster) State.unlockBadge('prankster');
+        if (d.voteCount >= 1000 && !d.badges.judge) State.unlockBadge('judge');
+        if (d.contributorCount >= 5 && !d.badges.bard) State.unlockBadge('bard');
+        if ((d.unlockedThemes.length + 1) >= 5 && !d.badges.traveler) State.unlockBadge('traveler');
+        if (d.fishStats.caught >= 250 && !d.badges.angler) State.unlockBadge('angler');
+        if (d.fishStats.spared >= 250 && !d.badges.shepherd) State.unlockBadge('shepherd');
+        console.log('[UI] Retroactive badge check complete');
+    }
+}, 1000);
 
 console.log('%c[UI] Module loaded', 'color: #06b6d4; font-weight: bold');
 
