@@ -1,3 +1,15 @@
+/**
+ * ============================================================================
+ * HALLOWEEN THEME EFFECT
+ * ============================================================================
+ * Interactive spider with AI behavior, animated web, and flying bats
+ * Spider can hunt mosquitos from MosquitoManager
+ * * UPDATE: "Turf War" & "Social Encounter" Logic
+ * - Floor spider is Brown, Ceiling spider is Black.
+ * - Usually, they avoid each other (Floor leaves before Ceiling drops).
+ * - Occasionally, they meet, acknowledge each other, and chat.
+ * * UPDATE: Bat z-index increased to fly OVER everything.
+ */
 
 (function() {
 'use strict';
@@ -133,6 +145,8 @@ Effects.halloween = function(active) {
             hasGreetedSpider: false,
             stolenFood: false,
             interactionCooldown: 0,
+            bugsEaten: 0,
+            baseSize: 4, // Base font size in rem
             
             init() {
                 this.destroy();
@@ -140,11 +154,15 @@ Effects.halloween = function(active) {
                 this.stolenFood = false;
                 this.interactionCooldown = 0;
                 
+                // Load bugs eaten from state if available
+                this.bugsEaten = State?.data?.batEatCount || 0;
+                const currentSize = this.baseSize + Math.min(this.bugsEaten * 0.3, 3); // Max +3rem
+                
                 this.element = document.createElement('div');
                 this.element.id = 'halloween-bat';
                 this.element.innerHTML = `
-                    <div class="bat-body" style="font-size: 4rem; filter: drop-shadow(0 0 10px rgba(0,0,0,0.5)); cursor: pointer; pointer-events: auto;">
-                        <span class="bat-emoji" style="display: inline-block;">🦇</span>
+                    <div class="bat-body" style="font-size: ${currentSize}rem; filter: drop-shadow(0 0 10px rgba(0,0,0,0.5)); cursor: pointer; pointer-events: auto; transition: font-size 0.5s ease;">
+                        <span class="bat-emoji" style="display: inline-block; transition: transform 0.3s ease;">🦇</span>
                     </div>
                 `;
                 this.element.style.cssText = `
@@ -169,6 +187,33 @@ Effects.halloween = function(active) {
                 CreatureCoordinator.updateMood('bat', this.mood);
                 
                 this.enter();
+            },
+            
+            // Increase bat size after eating
+            growAfterEating() {
+                this.bugsEaten++;
+                
+                // Save to state
+                if (State?.data) {
+                    State.data.batEatCount = this.bugsEaten;
+                    if (State.save) State.save('batEatCount', this.bugsEaten);
+                }
+                
+                // Update size with animation
+                const newSize = this.baseSize + Math.min(this.bugsEaten * 0.3, 3);
+                const batBody = this.element?.querySelector('.bat-body');
+                if (batBody) {
+                    batBody.style.fontSize = newSize + 'rem';
+                    
+                    // Brief "gulp" animation
+                    const emoji = this.element.querySelector('.bat-emoji');
+                    if (emoji) {
+                        emoji.style.transform = 'scale(1.3)';
+                        setTimeout(() => {
+                            emoji.style.transform = '';
+                        }, 300);
+                    }
+                }
             },
             
             destroy() {
@@ -372,13 +417,16 @@ Effects.halloween = function(active) {
                     this.checkForSpiderInteraction();
                 }
                 
-                // Try hunting occasionally when hungry
-                if ((this.state === 'flying') && this.mood === 'hungry' && Math.random() < 0.01) {
-                    this.tryHunt();
+                // Try hunting - more frequently and not just when hungry
+                if (this.state === 'flying') {
+                    const huntChance = this.mood === 'hungry' ? 0.03 : 0.015;
+                    if (Math.random() < huntChance) {
+                        this.tryHunt();
+                    }
                 }
                 
                 // Check if we reached hunt target (use larger radius for air catches)
-                const catchRadius = target.isAirCatch ? 12 : 8;
+                const catchRadius = target.isAirCatch ? 18 : 10;
                 if (target.isHunt && distance < catchRadius) {
                     this.completedHunt(target);
                     this.pathIndex++;
@@ -388,8 +436,8 @@ Effects.halloween = function(active) {
                     return;
                 }
                 
-                // Timeout hunts that take too long
-                if (target.isHunt && this.huntStartTime && (Date.now() - this.huntStartTime > 5000)) {
+                // Timeout hunts that take too long (give more time)
+                if (target.isHunt && this.huntStartTime && (Date.now() - this.huntStartTime > 8000)) {
                     this.say('missed');
                     this.huntTargetMoving = false;
                     this.pathIndex++;
@@ -509,16 +557,39 @@ Effects.halloween = function(active) {
             rest() {
                 this.state = 'resting';
                 if (this.animationFrame) cancelAnimationFrame(this.animationFrame);
+                
                 const body = this.element?.querySelector('.bat-body');
-                if (body) body.style.animation = 'bat-hang 2s ease-in-out infinite';
+                const emoji = this.element?.querySelector('.bat-emoji');
+                
+                if (body && emoji) {
+                    // Stop flapping
+                    body.style.animation = 'none';
+                    
+                    // Flip upside down and fold wings (compress horizontally)
+                    emoji.style.transform = 'rotate(180deg) scaleX(0.7)';
+                    emoji.style.transition = 'transform 0.5s ease';
+                    
+                    // Add gentle swaying animation after settling
+                    setTimeout(() => {
+                        if (this.state === 'resting') {
+                            body.style.animation = 'bat-hang-sway 3s ease-in-out infinite';
+                        }
+                    }, 500);
+                }
+                
                 if (Math.random() < 0.5) this.say('resting');
                 
+                // Rest for longer
                 this.behaviorTimeout = setTimeout(() => {
-                    if (body) body.style.animation = 'bat-flap 0.2s ease-in-out infinite';
+                    if (body && emoji) {
+                        // Unfold wings and flip right-side up
+                        emoji.style.transform = '';
+                        body.style.animation = 'bat-flap 0.2s ease-in-out infinite';
+                    }
                     this.pathIndex++;
                     this.state = 'flying';
                     this.fly();
-                }, 3000 + Math.random() * 5000);
+                }, 4000 + Math.random() * 6000);
             },
             
             // Get the current bug position from MosquitoManager or DOM
@@ -913,28 +984,43 @@ Effects.halloween = function(active) {
                     const wasInWeb = target.isSteal && MosquitoManager.state === 'stuck';
                     const wasFlying = MosquitoManager.state === 'flying';
                     
-                    // For mid-air catch, check if we're close enough to the bug
+                    // For mid-air catch, use more generous detection
                     let caughtMidAir = false;
-                    if (target.isAirCatch && wasFlying) {
+                    if (target.isAirCatch) {
                         const bugPos = this.getBugPosition();
-                        if (bugPos) {
+                        if (bugPos && wasFlying) {
                             const dx = bugPos.x - this.currentX;
                             const dy = bugPos.y - this.currentY;
                             const distance = Math.sqrt(dx * dx + dy * dy);
-                            caughtMidAir = distance < 12; // Close enough to catch
+                            // More generous catch radius (18% of screen)
+                            caughtMidAir = distance < 18;
+                        }
+                        // Also catch if bug is still flying and we reached our target
+                        // (bat successfully intercepted the predicted position)
+                        if (!caughtMidAir && wasFlying) {
+                            caughtMidAir = true; // If we completed the hunt path, we caught it
                         }
                     }
                     
                     if (wasInWeb || caughtMidAir) {
                         // We caught/stole the bug!
-                        const bugType = MosquitoManager.currentBug || '🦟';
+                        const bugType = MosquitoManager.currentBug || MosquitoManager.type || '🦟';
                         
-                        // Consume the bug
-                        if (typeof MosquitoManager.eat === 'function') {
-                            MosquitoManager.eat();
-                        } else if (typeof MosquitoManager.reset === 'function') {
-                            MosquitoManager.reset();
+                        // Consume the bug - try multiple methods
+                        let consumed = false;
+                        if (typeof MosquitoManager.splat === 'function') {
+                            MosquitoManager.splat();
+                            consumed = true;
+                        } else if (typeof MosquitoManager.finish === 'function') {
+                            MosquitoManager.finish();
+                            consumed = true;
+                        } else if (typeof MosquitoManager.remove === 'function') {
+                            MosquitoManager.remove();
+                            consumed = true;
                         }
+                        
+                        // Grow bigger after eating!
+                        this.growAfterEating();
                         
                         if (wasInWeb) {
                             // We stole from the spider!
@@ -1128,6 +1214,11 @@ Effects.halloween = function(active) {
                 @keyframes bat-hang {
                     0%, 100% { transform: rotate(0deg) scale(1); }
                     50% { transform: rotate(3deg) scale(0.98); }
+                }
+                @keyframes bat-hang-sway {
+                    0%, 100% { transform: rotate(180deg) scaleX(0.7) translateY(0); }
+                    25% { transform: rotate(183deg) scaleX(0.7) translateY(2px); }
+                    75% { transform: rotate(177deg) scaleX(0.7) translateY(-2px); }
                 }
                 @keyframes bat-startle {
                     0% { transform: scale(1); }
