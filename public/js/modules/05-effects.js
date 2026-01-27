@@ -624,8 +624,14 @@ spawnFish() {
     },
     summer() { const c = DOM.theme.effects.summer; c.innerHTML = ''; const g = document.createElement('div'); g.className = 'summer-grass'; c.appendChild(g); for (let i = 0; i < 8; i++) { const d = document.createElement('div'); d.className = `summer-cloud v${Math.floor(Math.random()*3)+1}`; const w = Math.random() * 100 + 100; d.style.width = `${w}px`; d.style.height = `${w*.35}px`; d.style.top = `${Math.random()*60}%`; d.style.animationDuration = `${Math.random()*60+60}s`; d.style.animationDelay = `-${Math.random()*100}s`; c.appendChild(d) } },
     // Halloween theme is now handled by /js/modules/themes/halloween.js
-    // This stub delegates to the external file once it's loaded
+    // Only use this stub if the real function hasn't been loaded yet
     halloween(active) {
+        // Check if the real halloween.js has loaded and defined the full function
+        // The real function has CreatureCoordinator, this stub doesn't
+        if (Effects._halloweenReal) {
+            return Effects._halloweenReal(active);
+        }
+        
         // Clean up any old elements if deactivating
         if (!active) {
             const oldSpider = document.getElementById('spider-wrap');
@@ -639,10 +645,8 @@ spawnFish() {
             const oldFloorSpider = document.getElementById('floor-spider-wrap');
             if (oldFloorSpider) oldFloorSpider.remove();
         }
-        // halloween.js overrides this function when it loads
-        // If we get here with active=true, the theme file hasn't loaded yet
-        // It will auto-initialize when it does load
-        console.log('[Effects] Halloween stub called, active:', active);
+        // halloween.js will set Effects._halloweenReal when it loads
+        console.log('[Effects] Halloween stub called, waiting for halloween.js...');
     },
     ballpit(active) {
         const c = DOM.theme.effects.ballpit;
