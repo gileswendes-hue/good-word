@@ -5,11 +5,11 @@
  * * Contains:
  * - Effects: Visual effects for themes not yet moved to standalone files
  * - rain, weatherSnow, snow (Winter)
- * - fire, bubbles (Submarine), summer
- * - ballpit, space, plymouth
+ * - bubbles (Submarine), summer
+ * - space, plymouth
  * - ShareManager: QR code and image sharing
  * * * NOTE: The following themes are now loaded via smart-loader from /themes/:
- * - Halloween, Woodland, Flight, Ocean
+ * - Halloween, Woodland, Flight, Ocean, Ballpit, Fire
  * ============================================================================
  */
 
@@ -208,125 +208,7 @@ const StandardEffects = {
         this.spawnRealStreak();
     },
 
-    fire() { 
-        const c = DOM.theme.effects.fire; 
-        c.innerHTML = ''; 
-        
-        // Add heat distortion overlay
-        if (!document.getElementById('fire-heat-style')) {
-            const style = document.createElement('style');
-            style.id = 'fire-heat-style';
-            style.textContent = `
-                @keyframes heat-shimmer {
-                    0%, 100% { transform: translateY(0) scaleY(1); }
-                    25% { transform: translateY(-2px) scaleY(1.01); }
-                    50% { transform: translateY(0) scaleY(0.99); }
-                    75% { transform: translateY(2px) scaleY(1.01); }
-                }
-                @keyframes ember-float {
-                    0% { transform: translateY(0) translateX(0) scale(1); opacity: 1; }
-                    50% { transform: translateY(-30vh) translateX(var(--ember-sway)) scale(0.8); opacity: 0.8; }
-                    100% { transform: translateY(-60vh) translateX(calc(var(--ember-sway) * -0.5)) scale(0.3); opacity: 0; }
-                }
-                @keyframes flame-dance {
-                    0%, 100% { transform: scaleX(1) scaleY(1) translateY(0); }
-                    25% { transform: scaleX(0.95) scaleY(1.05) translateY(-5px); }
-                    50% { transform: scaleX(1.05) scaleY(0.95) translateY(0); }
-                    75% { transform: scaleX(0.98) scaleY(1.02) translateY(-3px); }
-                }
-                .fire-base {
-                    position: absolute;
-                    bottom: 0;
-                    left: 0;
-                    right: 0;
-                    height: 30vh;
-                    background: linear-gradient(to top, 
-                        rgba(255, 100, 0, 0.9) 0%, 
-                        rgba(255, 150, 0, 0.7) 30%, 
-                        rgba(255, 200, 0, 0.4) 60%, 
-                        transparent 100%);
-                    filter: blur(20px);
-                    animation: flame-dance 0.5s ease-in-out infinite;
-                    pointer-events: none;
-                }
-                .ember-particle {
-                    position: absolute;
-                    width: 4px;
-                    height: 4px;
-                    background: radial-gradient(circle, #ffff00 0%, #ff6600 50%, #ff0000 100%);
-                    border-radius: 50%;
-                    box-shadow: 0 0 6px #ff6600, 0 0 12px #ff3300;
-                    animation: ember-float linear infinite;
-                    pointer-events: none;
-                }
-                .fire-glow {
-                    position: absolute;
-                    bottom: 0;
-                    left: 50%;
-                    transform: translateX(-50%);
-                    width: 120%;
-                    height: 50vh;
-                    background: radial-gradient(ellipse at bottom center, 
-                        rgba(255, 100, 0, 0.4) 0%, 
-                        rgba(255, 50, 0, 0.2) 40%, 
-                        transparent 70%);
-                    pointer-events: none;
-                }
-            `;
-            document.head.appendChild(style);
-        }
-        
-        // Base fire glow
-        const glow = document.createElement('div');
-        glow.className = 'fire-glow';
-        c.appendChild(glow);
-        
-        // Fire base layer
-        const base = document.createElement('div');
-        base.className = 'fire-base';
-        c.appendChild(base);
-        
-        // Main fire particles (larger, more varied)
-        for (let i = 0; i < 60; i++) { 
-            const p = document.createElement('div'); 
-            p.className = 'fire-particle'; 
-            const duration = Math.random() * 1.2 + 0.4;
-            p.style.animationDuration = `${duration}s`; 
-            p.style.animationDelay = `${Math.random() * duration}s`; 
-            // Concentrate flames more toward center
-            const xPos = 50 + (Math.random() - 0.5) * 70;
-            p.style.left = `${xPos}%`; 
-            const size = Math.random() * 4 + 1.5; 
-            p.style.width = p.style.height = `${size}em`; 
-            p.style.setProperty('--sway', `${(Math.random()-.5) * 30}px`); 
-            c.appendChild(p);
-        }
-        
-        // Add floating embers
-        for (let i = 0; i < 25; i++) {
-            const ember = document.createElement('div');
-            ember.className = 'ember-particle';
-            ember.style.left = `${Math.random() * 80 + 10}%`;
-            ember.style.bottom = `${Math.random() * 20}%`;
-            ember.style.animationDuration = `${Math.random() * 3 + 2}s`;
-            ember.style.animationDelay = `${Math.random() * 4}s`;
-            ember.style.setProperty('--ember-sway', `${(Math.random() - 0.5) * 100}px`);
-            const size = Math.random() * 4 + 2;
-            ember.style.width = ember.style.height = `${size}px`;
-            c.appendChild(ember);
-        }
-        
-        // Smoke particles (darker, more realistic)
-        for (let i = 0; i < 12; i++) { 
-            const s = document.createElement('div'); 
-            s.className = 'smoke-particle'; 
-            s.style.animationDelay = `${Math.random() * 4}s`; 
-            s.style.left = `${Math.random() * 60 + 20}%`; 
-            s.style.setProperty('--sway', `${(Math.random()-.5) * 200}px`);
-            s.style.opacity = Math.random() * 0.3 + 0.2;
-            c.appendChild(s);
-        }
-    },
+    // FIRE REMOVED - loaded by /themes/fire.js
 
     bubbles(active) {
         const c = DOM.theme.effects.bubble;
@@ -631,88 +513,7 @@ const StandardEffects = {
 
     summer() { const c = DOM.theme.effects.summer; c.innerHTML = ''; const g = document.createElement('div'); g.className = 'summer-grass'; c.appendChild(g); for (let i = 0; i < 8; i++) { const d = document.createElement('div'); d.className = `summer-cloud v${Math.floor(Math.random()*3)+1}`; const w = Math.random() * 100 + 100; d.style.width = `${w}px`; d.style.height = `${w*.35}px`; d.style.top = `${Math.random()*60}%`; d.style.animationDuration = `${Math.random()*60+60}s`; d.style.animationDelay = `-${Math.random()*100}s`; c.appendChild(d) } },
     
-    ballpit(active) {
-        const c = DOM.theme.effects.ballpit;
-        if (this.ballLoop) cancelAnimationFrame(this.ballLoop);
-        if (!active) { c.innerHTML = ''; window.removeEventListener('deviceorientation', Physics.handleOrientation); return }
-        window.addEventListener('deviceorientation', Physics.handleOrientation);
-        c.innerHTML = '';
-        Physics.balls = [];
-        const colors = ['#ef4444', '#3b82f6', '#eab308', '#22c55e', '#a855f7'];
-        const rareItems = ['💩', '🐧', '🦂', '🍄', '💉', '💎'];
-        const rareMap = { '💩': 'poop', '🐧': 'penguin', '🦂': 'scorpion', '🍄': 'mushroom', '💉': 'needle', '💎': 'diamond' };
-        const r = 30;
-        const W = window.innerWidth, H = window.innerHeight;
-        const cylW = Math.min(W, 500);
-        const minX = (W - cylW) / 2, maxX = minX + cylW - r * 2;
-        const showThought = (ballObj, cont) => {
-            const b = document.createElement('div');
-            b.className = 'thought-bubble';
-            b.innerHTML = cont || "Because we're grown-ups now, and it's our turn to decide what that means.";
-            b.innerHTML += '<div class="dot-1"></div><div class="dot-2"></div>';
-            document.body.appendChild(b);
-            ballObj.bubble = b;
-            requestAnimationFrame(() => b.style.opacity = '1');
-            setTimeout(() => {
-                b.style.opacity = '0';
-                setTimeout(() => { b.remove(); ballObj.bubble = null }, 300)
-            }, 4000)
-        };
-        const addBall = (type) => {
-            const el = document.createElement('div');
-            el.className = 'ball-particle';
-            el.style.cssText = `width:${r*2}px;height:${r*2}px;will-change:transform;`;
-            let content = '';
-            if (type === 'germ') {
-                content = '🦠';
-                el.title = "Click me!";
-                el.classList.add('interactable-ball');
-                el.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)]
-            } else if (type === 'rare') {
-                content = rareItems[Math.floor(Math.random() * rareItems.length)];
-                el.classList.add('interactable-ball');
-                el.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)]
-            } else {
-                el.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)]
-            }
-            if (content) el.innerHTML = `<span class="ball-content">${content}</span>`;
-            c.appendChild(el);
-            const b = { el, x: minX + Math.random() * (maxX - minX), y: Math.random() * (H / 2), vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 0.5) * 10, r, drag: false, lastX: 0, lastY: 0, bubble: null, type, content };
-            Physics.balls.push(b);
-            let sx = 0, sy = 0;
-            el.onpointerdown = (e) => {
-                b.drag = true;
-                b.vx = b.vy = 0;
-                b.lastX = e.clientX;
-                b.lastY = e.clientY;
-                sx = e.clientX;
-                sy = e.clientY;
-                e.preventDefault();
-                el.setPointerCapture(e.pointerId);
-            };
-            el.onpointerup = (e) => {
-                b.drag = false;
-                if ((type === 'germ' || type === 'rare') && Math.abs(e.clientX - sx) < 50 && Math.abs(e.clientY - sy) < 50) {
-                    if (type === 'germ') State.unlockBadge('germ');
-                    if (type === 'rare' && rareMap[content]) State.unlockBadge(rareMap[content]);
-                    showThought(b, type === 'rare' ? `<span style="font-size:2em">${content}</span>` : null)
-                }
-            };
-            el.onpointermove = (e) => {
-                if (b.drag) {
-                    b.vx = (e.clientX - b.lastX) * 0.5;
-                    b.vy = (e.clientY - b.lastY) * 0.5;
-                    b.x = e.clientX - b.r;
-                    b.y = e.clientY - b.r;
-                    b.lastX = e.clientX;
-                    b.lastY = e.clientY;
-                }
-            };
-        };
-        for (let i = 0; i < 50; i++) addBall(Math.random() < 0.008 ? 'rare' : 'normal');
-        for (let i = 0; i < 4; i++) addBall('germ');
-        Physics.run()
-    },
+    // BALLPIT REMOVED - loaded by /themes/ballpit.js
 
     space(active) {
         const c = DOM.theme.effects.space;
