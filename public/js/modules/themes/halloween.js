@@ -135,7 +135,7 @@ const halloweenMain = function(active) {
         const CreatureCoordinator = Effects.CreatureCoordinator;
 
 // ====================================================================
-        // INTELLIGENT BAT AI SYSTEM
+        // INTELLIGENT BAT AI SYSTEM (Fixed & Enhanced)
         // ====================================================================
         const BatAI = {
             element: null,
