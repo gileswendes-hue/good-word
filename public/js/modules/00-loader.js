@@ -91,30 +91,39 @@ function checkComplete() {
         updateProgress(100);
         if (statusText) statusText.textContent = "Found: GOODWORD";
         
-        setTimeout(() => {
-            // --- CRITICAL SCROLL UNLOCK ---
-            
-            // 1. Remove the blocking CSS styles
-            const loaderStyles = document.getElementById('loader-css');
-            if (loaderStyles) loaderStyles.remove();
-            
-            // 2. Force reset body/html styles to allow scrolling
+        // 1. UNLOCK EVERYTHING BEHIND THE SCENES (Invisible to user)
+        // This forces the "jump" to happen now, while the screen is black
+        const loaderStyles = document.getElementById('loader-css');
+        if (loaderStyles) {
+            // We can't just remove it or the black background vanishes instantly.
+            // Instead, we manually override the overflow on body/html
             document.documentElement.style.overflow = 'auto';
             document.body.style.overflow = 'auto';
             document.documentElement.style.height = 'auto';
             document.body.style.height = 'auto';
-            document.documentElement.style.backgroundColor = '';
-            document.body.style.backgroundColor = '';
-            
-            // 3. Ensure we start at the top
-            window.scrollTo(0, 0);
+        }
+        window.scrollTo(0, 0);
 
-            // 4. Fade out loader
+        // 2. Wait for layout to settle (The "Curtain" effect)
+        setTimeout(() => {
+            // 3. Fade out
             if (loaderOverlay) {
                 loaderOverlay.style.opacity = '0';
-                setTimeout(() => loaderOverlay.remove(), 600);
+                
+                // 4. Final Cleanup after fade is done
+                setTimeout(() => {
+                    if (loaderStyles) loaderStyles.remove();
+                    loaderOverlay.remove();
+                    // Clean manual overrides
+                    document.documentElement.style.overflow = '';
+                    document.body.style.overflow = '';
+                    document.documentElement.style.height = '';
+                    document.body.style.height = '';
+                    document.documentElement.style.backgroundColor = '';
+                    document.body.style.backgroundColor = '';
+                }, 600);
             }
-        }, 1200); 
+        }, 800); // 800ms delay to ensure jump is done
     }
 }
 
