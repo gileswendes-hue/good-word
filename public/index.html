@@ -35,13 +35,19 @@
             pointer-events: all;
         }
 
+        .bbc-line {
+            min-height: 1.2em;
+            display: flex;
+            align-items: center;
+            margin-bottom: 2px;
+        }
+
         .bbc-cursor {
             display: inline-block;
             width: 12px;
             height: 1.2em;
             background-color: #FFFF00;
             animation: blink 1s step-end infinite;
-            vertical-align: text-bottom;
             margin-left: 2px;
         }
 
@@ -54,7 +60,7 @@
             max-width: 600px;
             border: 2px solid #FFFF00;
             padding: 2px;
-            display: none; /* Hidden until typed */
+            display: none; /* Hidden until RUN */
         }
 
         #bbc-bar-fill {
@@ -88,9 +94,16 @@
 <body class="flex flex-col items-center justify-start min-h-screen p-4 pb-16 theme-default">
     
     <div id="bbc-loader-overlay">
-        <div>BBC Computer 32K</div>
-        <div style="margin-bottom: 20px;">BASIC</div>
-        <div id="bbc-terminal-line">> <span id="bbc-typewriter"></span><span class="bbc-cursor"></span></div>
+        <div class="bbc-line">BBC Computer 32K</div>
+        <div class="bbc-line" style="margin-bottom: 20px;">BASIC</div>
+        
+        <div class="bbc-line" id="line-1">
+            <span>></span><span id="typewriter-1"></span><span class="bbc-cursor" id="cursor-1"></span>
+        </div>
+        
+        <div class="bbc-line" id="line-2" style="display:none">
+            <span>></span><span id="typewriter-2"></span><span class="bbc-cursor" id="cursor-2"></span>
+        </div>
         
         <div id="bbc-bar-container">
             <div id="bbc-bar-fill"></div>
