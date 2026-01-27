@@ -2696,6 +2696,23 @@ Effects.retreatSpider = function(thread, wrap, bub, duration) {
         }, parseFloat(duration) * 1000);
     },
 
+// Auto-initialize if halloween theme is active
+// Check current theme and start if we're the active theme
+setTimeout(() => {
+    try {
+        const saved = localStorage.getItem('gw_settings');
+        if (saved) {
+            const settings = JSON.parse(saved);
+            if (settings.theme === 'halloween') {
+                console.log('[Halloween] Auto-starting theme...');
+                Effects.halloween(true);
+            }
+        }
+    } catch (e) {
+        console.warn('[Halloween] Could not check theme:', e);
+    }
+}, 100);
+
 console.log('%c[Theme: Halloween] Loaded', 'color: #f97316');
 
 })();
