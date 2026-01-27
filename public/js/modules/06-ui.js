@@ -3546,6 +3546,43 @@ setTimeout(() => {
     }
 }, 1000);
 
+// Debug stats display - click version indicator to see achievement progress
+setTimeout(() => {
+    const versionEl = document.querySelector('.version-indicator');
+    if (versionEl) {
+        versionEl.style.cursor = 'pointer';
+        versionEl.addEventListener('click', () => {
+            const d = State.data;
+            const stats = `
+🐛 DEBUG STATS 🐛
+
+BUGS:
+• Saved: ${d.insectStats.saved}/100 ${d.insectStats.saved >= 100 ? '✅ SAINT' : ''}
+• Eaten: ${d.insectStats.eaten}/100 ${d.insectStats.eaten >= 100 ? '✅ EXTERMINATOR' : ''}
+• Teased: ${d.insectStats.teased}/50 ${d.insectStats.teased >= 50 ? '✅ PRANKSTER' : ''}
+• Splatted: ${d.insectStats.splatted || 0}
+
+VOTING:
+• Total Votes: ${d.voteCount}/1000 ${d.voteCount >= 1000 ? '✅ JUDGE' : ''}
+• Contributions: ${d.contributorCount}/5 ${d.contributorCount >= 5 ? '✅ BARD' : ''}
+
+FISH:
+• Caught: ${d.fishStats.caught}/250 ${d.fishStats.caught >= 250 ? '✅ ANGLER' : ''}
+• Spared: ${d.fishStats.spared}/250 ${d.fishStats.spared >= 250 ? '✅ SHEPHERD' : ''}
+
+THEMES:
+• Unlocked: ${d.unlockedThemes.length + 1}/5 ${d.unlockedThemes.length + 1 >= 5 ? '✅ TRAVELER' : ''}
+
+BADGES UNLOCKED:
+${Object.entries(d.badges).filter(([k,v]) => v).map(([k]) => '• ' + k).join('\n') || '(none)'}
+
+Version: ${CONFIG.APP_VERSION}
+            `.trim();
+            alert(stats);
+        });
+    }
+}, 1500);
+
 console.log('%c[UI] Module loaded', 'color: #06b6d4; font-weight: bold');
 
 })();
