@@ -2,6 +2,7 @@
 'use strict';
 
 const MODULE_PATH = '/js/modules/';
+const CACHE_VERSION = '2.5'; // Increment this to bust cache!
 
 const MODULES = [
     '01-core.js',
@@ -20,7 +21,7 @@ let loadedCount = 0;
 function loadScript(src) {
     return new Promise((resolve, reject) => {
         const script = document.createElement('script');
-        script.src = MODULE_PATH + src;
+        script.src = MODULE_PATH + src + '?v=' + CACHE_VERSION;
         script.onload = () => {
             loadedCount++;
             console.log(`[Loader] ${loadedCount}/${MODULES.length} - ${src}`);
@@ -32,7 +33,7 @@ function loadScript(src) {
 }
 
 async function loadModules() {
-    console.log('%c[Loader] Starting module load...', 'color: #8b5cf6; font-weight: bold');
+    console.log('%c[Loader] Starting module load... (v' + CACHE_VERSION + ')', 'color: #8b5cf6; font-weight: bold');
     
     for (const module of MODULES) {
         try {
