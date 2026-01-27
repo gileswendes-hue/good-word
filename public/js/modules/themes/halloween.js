@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * HALLOWEEN THEME EFFECT - v2.6.0 (Fixed Bat Dialogue + Catch)
+ * HALLOWEEN THEME EFFECT - v2.7.0 (Improved Hunting + Floor Spider Activities)
  * ============================================================================
  * Interactive spider with AI behavior, animated web, and flying bats
  * Spider can hunt mosquitos from MosquitoManager
@@ -11,10 +11,11 @@
  * * UPDATE: Bat z-index increased to fly OVER everything.
  * * v2.5: Echolocation radar, mid-air catching, bat grows when eating
  * * v2.6: Fixed dialogue size, no more "Splat!" when bat catches
+ * * v2.7: Better hunting, web stealing, floor spider activities
  */
 
 // Log version immediately so we know which file loaded
-console.log('%c[Halloween] v2.6.0 Enhanced loaded! 🦇🎃', 'color: #ff6600; font-weight: bold; font-size: 14px;');
+console.log('%c[Halloween] v2.7.0 Enhanced loaded! 🦇🎃🕷️', 'color: #ff6600; font-weight: bold; font-size: 14px;');
 
 (function() {
 'use strict';
@@ -929,17 +930,23 @@ Effects.halloween = function(active) {
                 // Check for bugs in web first (stealing from spider!)
                 if (MosquitoManager.state === 'stuck') {
                     // Bug is in the web - should we steal it?
-                    const willSteal = this.mood === 'hungry' || Math.random() < 0.3;
+                    // More likely to steal if spider is full or bat is hungry
+                    const spiderIsFull = State?.data?.spiderFullUntil > Date.now();
+                    const willSteal = this.mood === 'hungry' || spiderIsFull || Math.random() < 0.25;
+                    
                     if (willSteal) {
                         const bugPos = this.getBugPosition();
                         const bugX = bugPos?.x || 88;
                         const bugY = bugPos?.y || 20;
                         
-                        this.say('startHunt');
-                        this.state = 'hunting';
-                        this.huntStartTime = Date.now();
-                        this.flightPath.splice(this.pathIndex, 0, { 
-                            x: bugX, y: bugY, speed: 0.4, isHunt: true, isSteal: true 
+                        // Echolocation ping on web bug too!
+                        this.createEcholocationPing(bugX, bugY, () => {
+                            this.say('startHunt');
+                            this.state = 'hunting';
+                            this.huntStartTime = Date.now();
+                            this.flightPath.splice(this.pathIndex, 0, { 
+                                x: bugX, y: bugY, speed: 0.5, isHunt: true, isSteal: true 
+                            });
                         });
                         return;
                     }
@@ -955,9 +962,10 @@ Effects.halloween = function(active) {
                     const dy = bugPos.y - this.currentY;
                     const distance = Math.sqrt(dx * dx + dy * dy);
                     
-                    if (distance < 50) { // Within hunting range
-                        // Predict where bug will be
-                        const predictedPos = this.predictBugPosition(bugPos, 0.8);
+                    if (distance < 55) { // Within hunting range (increased slightly)
+                        // Predict where bug will be - factor in bat's speed
+                        const interceptTime = distance / 45; // Estimate time to reach
+                        const predictedPos = this.predictBugPosition(bugPos, Math.min(interceptTime, 1.2));
                         
                         // *** ECHOLOCATION EFFECT ***
                         // Send out radar ping, then start hunting after it hits
@@ -970,12 +978,12 @@ Effects.halloween = function(active) {
                             
                             // Re-predict position since time has passed
                             const newBugPos = this.getBugPosition();
-                            const newPredicted = newBugPos ? this.predictBugPosition(newBugPos, 0.6) : predictedPos;
+                            const newPredicted = newBugPos ? this.predictBugPosition(newBugPos, 0.5) : predictedPos;
                             
                             this.flightPath.splice(this.pathIndex, 0, { 
                                 x: newPredicted.x, 
                                 y: newPredicted.y, 
-                                speed: 0.45, // Faster after lock-on
+                                speed: 0.55, // Faster chase after lock-on
                                 isHunt: true,
                                 isAirCatch: true
                             });
@@ -992,12 +1000,60 @@ Effects.halloween = function(active) {
                 const target = this.flightPath[this.pathIndex];
                 if (!target.isHunt || !target.isAirCatch) return;
                 
-                // Update target position based on current bug location
+                // Update target position based on current bug location more aggressively
                 const bugPos = this.getBugPosition();
                 if (bugPos) {
-                    const predictedPos = this.predictBugPosition(bugPos, 0.4);
+                    // Shorter prediction = more direct pursuit
+                    const predictedPos = this.predictBugPosition(bugPos, 0.25);
                     target.x = predictedPos.x;
                     target.y = predictedPos.y;
+                }
+            },
+            
+            // Visual chomp effect when eating
+            showChompEffect() {
+                if (!this.element) return;
+                const emoji = this.element.querySelector('.bat-emoji');
+                if (emoji) {
+                    // Quick scale animation for "chomp"
+                    emoji.style.transition = 'transform 0.15s ease-out';
+                    emoji.style.transform = (emoji.style.transform || '') + ' scale(1.4)';
+                    setTimeout(() => {
+                        emoji.style.transform = emoji.style.transform.replace(' scale(1.4)', ' scale(0.9)');
+                        setTimeout(() => {
+                            emoji.style.transform = emoji.style.transform.replace(' scale(0.9)', '');
+                            emoji.style.transition = '';
+                        }, 100);
+                    }, 150);
+                }
+                
+                // Small particle burst
+                for (let i = 0; i < 5; i++) {
+                    const particle = document.createElement('div');
+                    particle.textContent = '✨';
+                    Object.assign(particle.style, {
+                        position: 'fixed',
+                        left: this.currentX + '%',
+                        top: this.currentY + '%',
+                        transform: 'translate(-50%, -50%)',
+                        fontSize: '16px',
+                        pointerEvents: 'none',
+                        zIndex: '5000',
+                        opacity: '1',
+                        transition: 'all 0.5s ease-out'
+                    });
+                    document.body.appendChild(particle);
+                    
+                    // Scatter outward
+                    setTimeout(() => {
+                        const angle = (i / 5) * Math.PI * 2;
+                        const dist = 30 + Math.random() * 20;
+                        particle.style.left = `calc(${this.currentX}% + ${Math.cos(angle) * dist}px)`;
+                        particle.style.top = `calc(${this.currentY}% + ${Math.sin(angle) * dist}px)`;
+                        particle.style.opacity = '0';
+                    }, 50);
+                    
+                    setTimeout(() => particle.remove(), 600);
                 }
             },
             
@@ -1011,7 +1067,7 @@ Effects.halloween = function(active) {
                     const wasInWeb = target.isSteal && MosquitoManager.state === 'stuck';
                     const wasFlying = MosquitoManager.state === 'flying';
                     
-                    // For mid-air catch, use more generous detection
+                    // For mid-air catch, check distance to ACTUAL bug
                     let caughtMidAir = false;
                     if (target.isAirCatch) {
                         const bugPos = this.getBugPosition();
@@ -1019,13 +1075,12 @@ Effects.halloween = function(active) {
                             const dx = bugPos.x - this.currentX;
                             const dy = bugPos.y - this.currentY;
                             const distance = Math.sqrt(dx * dx + dy * dy);
-                            // More generous catch radius (18% of screen)
-                            caughtMidAir = distance < 18;
+                            // Generous catch radius (20% of screen)
+                            caughtMidAir = distance < 20;
                         }
                         // Also catch if bug is still flying and we reached our target
-                        // (bat successfully intercepted the predicted position)
                         if (!caughtMidAir && wasFlying) {
-                            caughtMidAir = true; // If we completed the hunt path, we caught it
+                            caughtMidAir = true;
                         }
                     }
                     
@@ -1033,12 +1088,14 @@ Effects.halloween = function(active) {
                         // We caught/stole the bug!
                         const bugType = MosquitoManager.currentBug || MosquitoManager.type || '🦟';
                         
-                        // Remove the bug silently (don't use splat() which shows "Splat!")
-                        // Use remove() or finish() instead
-                        if (typeof MosquitoManager.remove === 'function') {
+                        // Show chomp animation!
+                        this.showChompEffect();
+                        
+                        // Use splat() to properly remove and show eaten effect
+                        if (typeof MosquitoManager.splat === 'function') {
+                            MosquitoManager.splat();
+                        } else if (typeof MosquitoManager.remove === 'function') {
                             MosquitoManager.remove();
-                        } else if (typeof MosquitoManager.finish === 'function') {
-                            MosquitoManager.finish();
                         }
                         
                         // Grow bigger after eating!
@@ -1738,15 +1795,157 @@ Effects.halloween = function(active) {
                     this.leave(() => { });
                     return;
                 }
+                
                 const action = Math.random();
-                if (action < 0.15) {
+                
+                if (action < 0.10) {
+                    // Think/pause behavior
                     this.think(() => { setTimeout(() => this.doBehavior(), 500 + Math.random() * 1000); });
+                } else if (action < 0.18) {
+                    // Explore corner - spider investigates a corner curiously
+                    this.exploreCorner();
+                } else if (action < 0.25) {
+                    // Find something interesting on the ground
+                    this.findSomething();
+                } else if (action < 0.32) {
+                    // Look up at ceiling spider or bat
+                    this.lookUp();
+                } else if (action < 0.38) {
+                    // Do a little spin/dance
+                    this.doSpin();
                 } else {
+                    // Normal movement to random destination
                     const dest = this.chooseDestination();
                     this.moveTo(dest.x, dest.y, () => {
-                        const waitTime = 2000 + Math.random() * 4000;
+                        const waitTime = 1500 + Math.random() * 3000;
                         setTimeout(() => this.doBehavior(), waitTime);
                     });
+                }
+            },
+            
+            // New behavior: explore a corner
+            exploreCorner() {
+                this.state = 'exploring';
+                const corners = [
+                    { x: 60, y: window.innerHeight - 60 },
+                    { x: window.innerWidth - 60, y: window.innerHeight - 60 },
+                    { x: 60, y: window.innerHeight - 150 },
+                    { x: window.innerWidth - 60, y: window.innerHeight - 150 }
+                ];
+                const corner = corners[Math.floor(Math.random() * corners.length)];
+                
+                this.say('exploring');
+                this.moveTo(corner.x, corner.y, () => {
+                    // Arrived at corner, look around
+                    if (this.bodyElement) {
+                        this.bodyElement.classList.add('looking');
+                    }
+                    setTimeout(() => {
+                        if (this.bodyElement) this.bodyElement.classList.remove('looking');
+                        if (Math.random() < 0.5) this.say('commentary');
+                        this.state = 'idle';
+                        setTimeout(() => this.doBehavior(), 1000 + Math.random() * 2000);
+                    }, 1500 + Math.random() * 1500);
+                });
+            },
+            
+            // New behavior: find something on the ground
+            findSomething() {
+                this.state = 'finding';
+                const things = ['🪨', '🍂', '🌰', '✨', '🔮', '💀'];
+                const thing = things[Math.floor(Math.random() * things.length)];
+                
+                // Move to a random spot
+                const dest = this.chooseDestination();
+                this.moveTo(dest.x, dest.y, () => {
+                    // "Find" something
+                    if (this.bodyElement) {
+                        this.bodyElement.classList.add('paused');
+                    }
+                    
+                    // Show the found item briefly
+                    const foundEl = document.createElement('div');
+                    foundEl.textContent = thing;
+                    Object.assign(foundEl.style, {
+                        position: 'fixed',
+                        left: this.currentX + 'px',
+                        top: (this.currentY + 20) + 'px',
+                        fontSize: '20px',
+                        opacity: '0',
+                        transform: 'scale(0.5)',
+                        transition: 'all 0.3s ease-out',
+                        pointerEvents: 'none',
+                        zIndex: '999'
+                    });
+                    document.body.appendChild(foundEl);
+                    
+                    setTimeout(() => {
+                        foundEl.style.opacity = '1';
+                        foundEl.style.transform = 'scale(1)';
+                    }, 50);
+                    
+                    setTimeout(() => {
+                        this.say('foundSomething');
+                        if (this.bodyElement) this.bodyElement.classList.remove('paused');
+                    }, 500);
+                    
+                    setTimeout(() => {
+                        foundEl.style.opacity = '0';
+                        foundEl.style.transform = 'scale(0.5) translateY(-20px)';
+                        setTimeout(() => foundEl.remove(), 300);
+                        this.state = 'idle';
+                        setTimeout(() => this.doBehavior(), 1500 + Math.random() * 2000);
+                    }, 2500);
+                });
+            },
+            
+            // New behavior: look up at ceiling
+            lookUp() {
+                this.state = 'lookingUp';
+                if (this.bodyElement) {
+                    this.bodyElement.classList.add('looking');
+                }
+                
+                // Comment on what's above
+                const hasBat = document.getElementById('halloween-bat');
+                const hasWeb = document.getElementById('spider-wrap');
+                
+                setTimeout(() => {
+                    if (hasBat && Math.random() < 0.6) {
+                        this.say('seeBat');
+                    } else if (hasWeb) {
+                        this.say('seeWeb');
+                    } else {
+                        this.say('lookingAround');
+                    }
+                    
+                    setTimeout(() => {
+                        if (this.bodyElement) this.bodyElement.classList.remove('looking');
+                        this.state = 'idle';
+                        setTimeout(() => this.doBehavior(), 1000 + Math.random() * 1500);
+                    }, 2000);
+                }, 800);
+            },
+            
+            // New behavior: do a little spin
+            doSpin() {
+                this.state = 'spinning';
+                if (this.bodyElement) {
+                    this.bodyElement.style.transition = 'transform 0.6s ease-in-out';
+                    const currentScale = this.facingRight ? 'scaleX(1)' : 'scaleX(-1)';
+                    this.bodyElement.style.transform = currentScale + ' rotate(360deg)';
+                    
+                    setTimeout(() => {
+                        this.bodyElement.style.transform = currentScale;
+                        this.bodyElement.style.transition = '';
+                        
+                        if (Math.random() < 0.4) this.say('happy');
+                        this.state = 'idle';
+                        setTimeout(() => this.doBehavior(), 800 + Math.random() * 1200);
+                    }, 700);
+                } else {
+                    this.state = 'idle';
+                    setTimeout(() => this.doBehavior(), 500);
                 }
             },
             
