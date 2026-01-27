@@ -16,6 +16,15 @@ const io = new Server(server, { cors: { origin: "*" } });
 
 app.use(cors());
 app.use(express.json());
+
+// Prevent caching of JS files (especially theme files that change frequently)
+app.use('/js', (req, res, next) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    next();
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 if (!MONGO_URI) {
