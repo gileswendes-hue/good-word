@@ -2,25 +2,23 @@
  * ============================================================================
  * GOOD WORD / BAD WORD - EFFECTS MODULE (05-effects.js)
  * ============================================================================
- * 
- * Contains:
+ * * Contains:
  * - Effects: All visual effects for themes
- *   - rain, weatherSnow, snow
- *   - fire, bubbles, summer
- *   - halloween (spider, web, bat)
- *   - ballpit, space, woodland
- *   - flight, ocean, plymouth
- *   - confetti
+ * - rain, weatherSnow, snow
+ * - fire, bubbles, summer
+ * - ballpit, space, woodland
+ * - flight, ocean, plymouth
+ * - confetti
  * - ShareManager: QR code and image sharing
- * 
- * Dependencies: 01-core.js, 02-sound.js, 04-themes.js
+ * * Dependencies: 01-core.js, 02-sound.js, 04-themes.js
  * ============================================================================
  */
 
 (function() {
 'use strict';
 
-const Effects = {
+// We define the standard effects here
+const StandardEffects = {
     spiderTimeout: null,
     webRaf: null,
     ballLoop: null,
@@ -28,7 +26,8 @@ const Effects = {
     spaceRareTimeout: null,
     snowmanTimeout: null,
     plymouthShooterTimeout: null,
-rain(active) {
+
+    rain(active) {
         const c = document.getElementById('rain-effect');
         if (!c) return;
         if (!active) {
@@ -51,7 +50,8 @@ rain(active) {
             c.appendChild(drop);
         }
     },
-weatherSnow(active) {
+    
+    weatherSnow(active) {
         const c = document.getElementById('snow-effect');
         if (!c) return;
         if (!active) {
@@ -82,7 +82,8 @@ weatherSnow(active) {
             c.appendChild(f);
         }
     },
-plymouth(a) {
+
+    plymouth(a) {
         const c = DOM.theme.effects.plymouth;
         if (this.plymouthShooterTimeout) clearTimeout(this.plymouthShooterTimeout);
         if (this.satelliteTimeout) clearTimeout(this.satelliteTimeout);
@@ -205,6 +206,7 @@ plymouth(a) {
         this.spawnSatellite();
         this.spawnRealStreak();
     },
+
     fire() { 
         const c = DOM.theme.effects.fire; 
         c.innerHTML = ''; 
@@ -324,7 +326,8 @@ plymouth(a) {
             c.appendChild(s);
         }
     },
-bubbles(active) {
+
+    bubbles(active) {
         const c = DOM.theme.effects.bubble;
         if (this.fishTimeout) clearTimeout(this.fishTimeout);
         if (!active) { c.innerHTML = ''; return; }
@@ -345,7 +348,8 @@ bubbles(active) {
         }
         this.spawnFish();
     },
-spawnFish() {
+
+    spawnFish() {
         const c = DOM.theme.effects.bubble;
         if (!c) return; // Safety check
         if (!document.getElementById('octopus-style')) {
@@ -571,6 +575,7 @@ spawnFish() {
         }, duration * 1000 + 3000);
         this.fishTimeout = setTimeout(() => this.spawnFish(), Math.random() * 4000 + 1000);
     },
+
     snow() {
         const c = DOM.theme.effects.snow;
         c.innerHTML = '';
@@ -622,32 +627,11 @@ spawnFish() {
         };
         this.snowmanTimeout = setTimeout(spawnSnowman, Math.random() * 5000 + 5000);
     },
+
     summer() { const c = DOM.theme.effects.summer; c.innerHTML = ''; const g = document.createElement('div'); g.className = 'summer-grass'; c.appendChild(g); for (let i = 0; i < 8; i++) { const d = document.createElement('div'); d.className = `summer-cloud v${Math.floor(Math.random()*3)+1}`; const w = Math.random() * 100 + 100; d.style.width = `${w}px`; d.style.height = `${w*.35}px`; d.style.top = `${Math.random()*60}%`; d.style.animationDuration = `${Math.random()*60+60}s`; d.style.animationDelay = `-${Math.random()*100}s`; c.appendChild(d) } },
-    // Halloween theme is now handled by /js/modules/themes/halloween.js
-    // Only use this stub if the real function hasn't been loaded yet
-    halloween(active) {
-        // Check if the real halloween.js has loaded and defined the full function
-        // The real function has CreatureCoordinator, this stub doesn't
-        if (Effects._halloweenReal) {
-            return Effects._halloweenReal(active);
-        }
-        
-        // Clean up any old elements if deactivating
-        if (!active) {
-            const oldSpider = document.getElementById('spider-wrap');
-            if (oldSpider) oldSpider.remove();
-            const oldBat = document.getElementById('halloween-bat');
-            if (oldBat) oldBat.remove();
-            const oldWeb = document.getElementById('spider-web-corner');
-            if (oldWeb) oldWeb.remove();
-            const oldStyle = document.getElementById('spider-motion-style');
-            if (oldStyle) oldStyle.remove();
-            const oldFloorSpider = document.getElementById('floor-spider-wrap');
-            if (oldFloorSpider) oldFloorSpider.remove();
-        }
-        // halloween.js will set Effects._halloweenReal when it loads
-        console.log('[Effects] Halloween stub called, waiting for halloween.js...');
-    },
+    
+    // HALLOWEEN REMOVED - loaded by /themes/halloween.js
+    
     ballpit(active) {
         const c = DOM.theme.effects.ballpit;
         if (this.ballLoop) cancelAnimationFrame(this.ballLoop);
@@ -730,6 +714,7 @@ spawnFish() {
         for (let i = 0; i < 4; i++) addBall('germ');
         Physics.run()
     },
+
     space(active) {
         const c = DOM.theme.effects.space;
         if (this.spaceRareTimeout) clearTimeout(this.spaceRareTimeout);
@@ -797,6 +782,7 @@ spawnFish() {
         };
         this.spaceRareTimeout = setTimeout(spawnRock, 3000);
     },
+
     woodlandTimeout: null,
     woodlandCreatureTimeout: null,
     woodland(active) {
@@ -1181,7 +1167,7 @@ spawnFish() {
     flightTimeout: null,
     flightObjects: [],
 
-flight(active) {
+    flight(active) {
         let c = DOM.theme.effects.flight;
         if (!c) {
             c = document.createElement('div');
@@ -1409,7 +1395,7 @@ flight(active) {
             return g;
         };
 
-const compass = document.createElement('div');
+        const compass = document.createElement('div');
         compass.style.cssText = `position: absolute; bottom: 230px; left: 50%; transform: translateX(-50%); width: 70px; height: 35px; background: #111; border: 3px solid #546e7a; border-radius: 5px; box-shadow: inset 0 0 8px #000; overflow: hidden; z-index: 24;`;
         compass.innerHTML = `
             <div id="compass-tape" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); white-space: nowrap; font-size: 10px; font-weight: bold; color: #b0bec5; font-family: monospace;">
@@ -2364,7 +2350,8 @@ const ShareManager = {
 // ============================================================================
 // EXPORTS
 // ============================================================================
-window.Effects = Effects;
+// Use Object.assign to merge with any effects loaded by smart-loader.js
+window.Effects = Object.assign(window.Effects || {}, StandardEffects);
 window.ShareManager = ShareManager;
 window.GAME_DIALOGUE = GAME_DIALOGUE;
 
