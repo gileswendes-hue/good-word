@@ -88,49 +88,47 @@ function updateProgress(percent) {
 function checkComplete() {
     // Wait for Typing + Scripts + Theme + Data
     if (isTypingDone && modulesFinished && themeFinished && dataFinished) {
+        // 1. Trigger the visual bar animation (takes 1.5s via CSS)
         updateProgress(100);
         if (statusText) statusText.textContent = "Found: GOODWORD";
         
-        setTimeout(() => {
-            // 1. UNLOCK EVERYTHING BEHIND THE SCENES (Invisible to user)
-            // This forces the "jump" to happen now, while the screen is black
-            const loaderStyles = document.getElementById('loader-css');
-            if (loaderStyles) {
-                // Manually override styles to unlock scroll before removing the block
-                document.documentElement.style.overflow = 'auto';
-                document.body.style.overflow = 'auto';
-                document.documentElement.style.height = 'auto';
-                document.body.style.height = 'auto';
-            }
-            
-            // 2. Reveal the App (it was opacity: 0)
-            const app = document.getElementById('app');
-            if (app) app.style.opacity = '1';
-            
-            // 3. Scroll top
-            window.scrollTo(0, 0);
+        // 2. UNLOCK EVERYTHING BEHIND THE CURTAIN
+        // Doing this now forces the layout to "jump" while invisible
+        const loaderStyles = document.getElementById('loader-css');
+        if (loaderStyles) {
+            document.documentElement.style.overflow = 'auto';
+            document.body.style.overflow = 'auto';
+            document.documentElement.style.height = 'auto';
+            document.body.style.height = 'auto';
+        }
+        
+        // Reveal App Content (Opacity 0 -> 1)
+        const app = document.getElementById('app');
+        if (app) app.style.opacity = '1';
+        
+        // Force scroll top
+        window.scrollTo(0, 0);
 
-            // 4. Wait for layout to settle (The "Curtain" effect)
-            setTimeout(() => {
-                // 5. Fade out loader
-                if (loaderOverlay) {
-                    loaderOverlay.style.opacity = '0';
-                    
-                    // 6. Final Cleanup after fade is done
-                    setTimeout(() => {
-                        if (loaderStyles) loaderStyles.remove();
-                        loaderOverlay.remove();
-                        // Clean manual overrides
-                        document.documentElement.style.overflow = '';
-                        document.body.style.overflow = '';
-                        document.documentElement.style.height = '';
-                        document.body.style.height = '';
-                        document.documentElement.style.backgroundColor = '';
-                        document.body.style.backgroundColor = '';
-                    }, 1000);
-                }
-            }, 500); // 500ms delay to ensure jump is done
-        }, 800); 
+        // 3. WAIT for bar animation (1.5s) + small buffer (200ms)
+        setTimeout(() => {
+            // 4. Fade out loader
+            if (loaderOverlay) {
+                loaderOverlay.style.opacity = '0';
+                
+                // 5. Cleanup DOM
+                setTimeout(() => {
+                    if (loaderStyles) loaderStyles.remove();
+                    loaderOverlay.remove();
+                    // Clean styles
+                    document.documentElement.style.overflow = '';
+                    document.body.style.overflow = '';
+                    document.documentElement.style.height = '';
+                    document.body.style.height = '';
+                    document.documentElement.style.backgroundColor = '';
+                    document.body.style.backgroundColor = '';
+                }, 1000);
+            }
+        }, 1700); // 1.7s wait to match 1.5s transition
     }
 }
 
@@ -162,7 +160,6 @@ window.addEventListener('themeReady', () => {
 // 3. Data Listener (Wait for word content)
 const dataCheckInterval = setInterval(() => {
     const wordEl = document.getElementById('wordDisplay');
-    // Check if the element exists and text is not the default "Loading..."
     if (wordEl && 
         wordEl.innerText.trim() !== 'Loading...' && 
         wordEl.innerText.trim() !== '') {
@@ -175,7 +172,7 @@ const dataCheckInterval = setInterval(() => {
     }
 }, 100);
 
-// Safety Timeout (6s) - Prevents infinite load if something breaks
+// Safety Timeout (6s)
 setTimeout(() => {
     if (!dataFinished || !themeFinished || !modulesFinished) {
         console.warn('[Loader] Timeout. Forcing load.');
