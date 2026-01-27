@@ -2,7 +2,7 @@
 'use strict';
 
 const MODULE_PATH = '/js/modules/';
-const CACHE_VERSION = '2.5'; // Increment this to bust cache!
+const CACHE_VERSION = '2.6'; // Increment this to bust cache!
 
 const MODULES = [
     '01-core.js',
