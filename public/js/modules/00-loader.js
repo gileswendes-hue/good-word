@@ -31,21 +31,15 @@ function typeCommand() {
     if (charIndex < command.length) {
         typeWriterEl.textContent += command.charAt(charIndex);
         charIndex++;
-        // Type speed variation for realism
         setTimeout(typeCommand, 50 + Math.random() * 80);
     } else {
-        // Typing finished -> Simulate Enter -> Show loading bar
+        // Typing finished
         setTimeout(() => {
-            // Remove cursor from line
             const cursor = document.querySelector('.bbc-cursor');
             if(cursor) cursor.style.display = 'none';
-            
-            // Show bar and status
             if (barContainer) barContainer.style.display = 'block';
             if (statusText) statusText.style.display = 'block';
             isTypingDone = true;
-            
-            // Check if we were already waiting for animation to finish
             checkComplete();
         }, 600);
     }
@@ -59,7 +53,7 @@ setTimeout(typeCommand, 500);
 let loadedCount = 0;
 let modulesFinished = false;
 let themeFinished = false;
-let dataFinished = false; // New flag for Words
+let dataFinished = false; 
 
 function updateProgress(percent) {
     if (barFill && isTypingDone) {
@@ -74,32 +68,37 @@ function checkComplete() {
         if (statusText) statusText.textContent = "Found: GOODWORD";
         
         setTimeout(() => {
-            // SCROLLING FIX: Reset global styles
+            // --- CRITICAL SCROLL FIX ---
+            // 1. Remove the style tag that forces overflow:hidden
+            const loaderStyles = document.getElementById('loader-css');
+            if (loaderStyles) loaderStyles.remove();
+            
+            // 2. Ensure body/html are clean
             document.documentElement.style.overflow = '';
             document.body.style.overflow = '';
             document.documentElement.style.backgroundColor = '';
             document.body.style.backgroundColor = '';
             document.body.style.height = '';
             
-            // Ensure we are at top
+            // 3. Scroll to top
             window.scrollTo(0, 0);
 
+            // 4. Fade out loader
             if (loaderOverlay) {
                 loaderOverlay.style.opacity = '0';
                 setTimeout(() => loaderOverlay.remove(), 600);
             }
-        }, 1200); // Pause to read "Found: GOODWORD"
+        }, 1200); 
     }
 }
 
-// 1. Listen for Scripts
+// 1. Script Loader
 function loadScript(src) {
     return new Promise((resolve, reject) => {
         const script = document.createElement('script');
         script.src = MODULE_PATH + src;
         script.onload = () => {
             loadedCount++;
-            // Calculate percentage, leaving room for theme/data steps
             const percent = Math.floor((loadedCount / MODULES.length) * 70); 
             updateProgress(percent);
             console.log(`[Loader] ${loadedCount}/${MODULES.length} - ${src}`);
@@ -110,7 +109,7 @@ function loadScript(src) {
     });
 }
 
-// 2. Listen for Theme
+// 2. Theme Listener
 window.addEventListener('themeReady', () => {
     console.log('[Loader] Theme signal received.');
     themeFinished = true;
@@ -118,15 +117,12 @@ window.addEventListener('themeReady', () => {
     checkComplete();
 });
 
-// 3. Listen for Data (Polling #wordDisplay)
+// 3. Data Listener (Wait for word)
 const dataCheckInterval = setInterval(() => {
     const wordEl = document.getElementById('wordDisplay');
-    
-    // Check if element text has changed from default
     if (wordEl && 
         wordEl.innerText.trim() !== 'Loading...' && 
         wordEl.innerText.trim() !== '') {
-            
         console.log('[Loader] Data loaded.');
         clearInterval(dataCheckInterval);
         dataFinished = true;
@@ -137,14 +133,12 @@ const dataCheckInterval = setInterval(() => {
 
 // Safety Timeout (6s)
 setTimeout(() => {
-    // If stuck, force finish
     if (!dataFinished || !themeFinished || !modulesFinished) {
         console.warn('[Loader] Timeout. Forcing load.');
         clearInterval(dataCheckInterval);
         dataFinished = true;
         themeFinished = true;
         modulesFinished = true;
-        // If typing isn't done, rush it
         if (!isTypingDone) {
             isTypingDone = true;
             if (barContainer) barContainer.style.display = 'block';
@@ -155,7 +149,6 @@ setTimeout(() => {
 
 async function loadModules() {
     console.log('%c[Loader] Starting module load...', 'color: #8b5cf6; font-weight: bold');
-    
     for (const module of MODULES) {
         try {
             await loadScript(module);
@@ -163,10 +156,8 @@ async function loadModules() {
             console.error(`[Loader] Failed to load ${module}:`, e);
         }
     }
-    
     console.log('%c[Loader] All modules loaded!', 'color: #22c55e; font-weight: bold');
     window.dispatchEvent(new CustomEvent('modulesLoaded'));
-    
     modulesFinished = true;
     checkComplete();
 }
