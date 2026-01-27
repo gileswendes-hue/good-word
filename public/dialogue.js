@@ -753,6 +753,78 @@ const GAME_DIALOGUE = {
                 "couldn't stay away.",
                 "home sweet home!"
             ],
+            // New: exploring corners
+            exploring: [
+                "what's in this corner?",
+                "investigating...",
+                "*explores curiously*",
+                "hmm, let me check here.",
+                "corner patrol!",
+                "this looks interesting...",
+                "must inspect everything.",
+                "security sweep!",
+                "*investigative mode*"
+            ],
+            // New: finding something
+            foundSomething: [
+                "ooh, what's this?",
+                "I found a thing!",
+                "*pokes discovery*",
+                "treasure!",
+                "finders keepers!",
+                "look what I found!",
+                "interesting...",
+                "mine now!",
+                "*excited clicking*",
+                "jackpot!"
+            ],
+            // New: looking up
+            seeBat: [
+                "bat's up there!",
+                "nice flying!",
+                "*waves at bat*",
+                "hello up there!",
+                "show-off with wings...",
+                "I wish I could fly."
+            ],
+            seeWeb: [
+                "nice web, ceiling friend!",
+                "*admires web*",
+                "how do they hang like that?",
+                "web goals.",
+                "ceiling life looks cozy.",
+                "gravity? never heard of her."
+            ],
+            lookingAround: [
+                "what's up there?",
+                "*looks at ceiling*",
+                "so much space up there...",
+                "ceiling's far away.",
+                "*neck stretch*",
+                "the view from down here..."
+            ],
+            // New: commentary
+            commentary: [
+                "interesting.",
+                "noted.",
+                "yep, that's a corner.",
+                "as I suspected.",
+                "quality floor work.",
+                "hmm, dusty.",
+                "could use a bug here.",
+                "spider approved.",
+                "10/10 corner."
+            ],
+            // New: happy moments
+            happy: [
+                "wheee!",
+                "*happy wiggles*",
+                "life is good!",
+                "best day ever!",
+                "I love being a spider!",
+                "*spins joyfully*",
+                "🕷️✨"
+            ],
             // Floor spider greeting bat
             greetBat: [
                 "Fly safe up there!",
