@@ -10,7 +10,6 @@
 'use strict';
 
 const THEME_PATH = '/js/modules/themes/';
-const CACHE_VERSION = '2.6'; // Increment this to bust cache!
 
 // Map theme names to their effect files
 const THEME_MAP = {
@@ -52,7 +51,7 @@ function loadScript(filename) {
             return;
         }
         const script = document.createElement('script');
-        script.src = THEME_PATH + filename + '?v=' + CACHE_VERSION;
+        script.src = THEME_PATH + filename;
         script.onload = () => {
             loadedThemes.add(filename);
             resolve();
@@ -63,7 +62,7 @@ function loadScript(filename) {
 }
 
 async function loadThemesSmartly() {
-    console.log('%c[Themes] Smart loading... (v' + CACHE_VERSION + ')', 'color: #ec4899; font-weight: bold');
+    console.log('%c[Themes] Smart loading...', 'color: #ec4899; font-weight: bold');
     
     // 1. Always load base first
     await loadScript('00-effects-base.js');
