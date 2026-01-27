@@ -134,7 +134,7 @@ const halloweenMain = function(active) {
         }
         const CreatureCoordinator = Effects.CreatureCoordinator;
 
-        // ====================================================================
+// ====================================================================
         // INTELLIGENT BAT AI SYSTEM
         // ====================================================================
         const BatAI = {
@@ -163,7 +163,8 @@ const halloweenMain = function(active) {
                 
                 // Load bugs eaten from state if available
                 this.bugsEaten = State?.data?.batEatCount || 0;
-                const currentSize = this.baseSize + Math.min(this.bugsEaten * 0.3, 3); // Max +3rem
+                // UPDATE: Increased growth cap from 3 to 6
+                const currentSize = this.baseSize + Math.min(this.bugsEaten * 0.5, 6); 
                 
                 this.element = document.createElement('div');
                 this.element.id = 'halloween-bat';
@@ -206,8 +207,8 @@ const halloweenMain = function(active) {
                     if (State.save) State.save('batEatCount', this.bugsEaten);
                 }
                 
-                // Update size with animation
-                const newSize = this.baseSize + Math.min(this.bugsEaten * 0.3, 3);
+                // UPDATE: Increased growth rate (0.5 per bug) and cap (+6)
+                const newSize = this.baseSize + Math.min(this.bugsEaten * 0.5, 6);
                 const batBody = this.element?.querySelector('.bat-body');
                 if (batBody) {
                     batBody.style.fontSize = newSize + 'rem';
@@ -235,7 +236,7 @@ const halloweenMain = function(active) {
             },
             
             say(textOrCategory) {
-                if (!this.element || Date.now() - this.lastSpeech < 3000) return;
+                if (!this.element || Date.now() - this.lastSpeech < 2500) return; // Reduced speech cooldown slightly
                 this.lastSpeech = Date.now();
                 
                 let text = textOrCategory;
@@ -268,7 +269,7 @@ const halloweenMain = function(active) {
                     fontWeight: 'bold', fontFamily: 'sans-serif', whiteSpace: 'nowrap',
                     pointerEvents: 'none', opacity: '0', transition: 'opacity 0.3s',
                     boxShadow: '0 4px 10px rgba(0,0,0,0.4)', border: '2px solid #8b5cf6', zIndex: '5001',
-                    left: '-9999px', top: '-9999px' // Start offscreen
+                    left: '-9999px', top: '-9999px'
                 });
                 b.textContent = text;
                 
@@ -282,30 +283,22 @@ const halloweenMain = function(active) {
                 document.body.appendChild(b);
                 this.bubbleElement = b;
                 
-                // Store reference to bat for position updates
                 const batAI = this;
                 
                 const updatePos = () => {
-                    if (!b.parentNode || !batAI.element) {
-                        return;
-                    }
+                    if (!b.parentNode || !batAI.element) return;
                     
-                    // Get bat element's actual position on screen
                     const batRect = batAI.element.getBoundingClientRect();
                     const bubRect = b.getBoundingClientRect();
                     
-                    // Position bubble above the bat element
                     let left = batRect.left + batRect.width / 2 - bubRect.width / 2;
                     let top = batRect.top - bubRect.height - 12;
                     
-                    // Keep on screen
                     left = Math.max(10, Math.min(window.innerWidth - bubRect.width - 10, left));
                     top = Math.max(10, top);
                     
-                    // If bat is near top, put bubble below instead
                     if (top < 20) {
                         top = batRect.bottom + 12;
-                        // Flip arrow to point up
                         arrow.style.bottom = 'auto';
                         arrow.style.top = '-8px';
                         arrow.style.borderWidth = '0 8px 8px 8px';
@@ -315,13 +308,11 @@ const halloweenMain = function(active) {
                     b.style.left = left + 'px';
                     b.style.top = top + 'px';
                     
-                    // Keep updating while visible
                     if (b.parentNode && b.style.opacity !== '0') {
                         requestAnimationFrame(updatePos);
                     }
                 };
                 
-                // Wait a frame for the bubble to render before positioning
                 requestAnimationFrame(() => {
                     requestAnimationFrame(() => {
                         b.style.opacity = '1';
@@ -329,9 +320,7 @@ const halloweenMain = function(active) {
                     });
                 });
                 
-                // Restore speed and remove bubble after delay
                 setTimeout(() => { 
-                    // Restore speed
                     batAI.isSpeaking = false;
                     if (batAI.flightPath[batAI.pathIndex]) {
                         batAI.flightPath[batAI.pathIndex].speed = batAI.preSpeakSpeed || 0.35;
@@ -344,10 +333,24 @@ const halloweenMain = function(active) {
                             if (batAI.bubbleElement === b) batAI.bubbleElement = null;
                         }, 300); 
                     } 
-                }, 2800);
+                }, 2000); // Shorter duration for snappier dialogue
             },
             
             onPoked() {
+                // UPDATE: Fix nap logic. If resting, just wiggle, don't fully startle/reset
+                if (this.state === 'resting') {
+                    const lines = ["Zzz...", "I'm sleeping!", "5 more minutes..."];
+                    this.say(lines[Math.floor(Math.random() * lines.length)]);
+                    
+                    const body = this.element?.querySelector('.bat-body');
+                    if (body) {
+                        // Gentle sway instead of full startle
+                        body.style.transform = 'rotate(5deg)';
+                        setTimeout(() => { body.style.transform = ''; }, 200);
+                    }
+                    return;
+                }
+                
                 const lines = GAME_DIALOGUE?.bat?.poked || ["Hey!"];
                 this.say(lines[Math.floor(Math.random() * lines.length)]);
                 const emoji = this.element?.querySelector('.bat-emoji');
@@ -388,8 +391,8 @@ const halloweenMain = function(active) {
                     this.flightPath.push({
                         x: 10 + Math.random() * 80,
                         y: 5 + Math.random() * 50,
-                        restHere: Math.random() < 0.2, // More rest stops
-                        speed: 0.12 + Math.random() * 0.15 // Much slower: 0.12-0.27 (was 0.25-0.60)
+                        restHere: Math.random() < 0.2,
+                        speed: 0.12 + Math.random() * 0.15
                     });
                 }
                 
@@ -401,7 +404,7 @@ const halloweenMain = function(active) {
                     case 2: exitPoint = { x: 30 + Math.random() * 40, y: 110 }; break;
                     default: exitPoint = { x: -10, y: 20 + Math.random() * 30 };
                 }
-                this.flightPath.push({ ...exitPoint, exit: true, speed: 0.25 }); // Slower exit too
+                this.flightPath.push({ ...exitPoint, exit: true, speed: 0.25 });
             },
             
             fly() {
@@ -424,18 +427,18 @@ const halloweenMain = function(active) {
                     this.checkForSpiderInteraction();
                 }
                 
-                // Try hunting - more frequently and not just when hungry
+                // Try hunting
                 if (this.state === 'flying') {
-                    const huntChance = this.mood === 'hungry' ? 0.03 : 0.015;
+                    const huntChance = this.mood === 'hungry' ? 0.04 : 0.02; // Increased hunt chance
                     if (Math.random() < huntChance) {
                         this.tryHunt();
                     }
                 }
                 
-                // Check if we reached hunt target (use larger radius for air catches)
-                const catchRadius = target.isAirCatch ? 18 : 10;
+                // UPDATE: Increased catch radius for air catches
+                const catchRadius = target.isAirCatch ? 30 : 12;
                 
-                // For air catches, check distance to ACTUAL bug position, not just waypoint
+                // For air catches, check distance to ACTUAL bug position
                 if (target.isHunt && target.isAirCatch) {
                     const bugPos = this.getBugPosition();
                     if (bugPos && typeof MosquitoManager !== 'undefined' && MosquitoManager.state === 'flying') {
@@ -443,8 +446,8 @@ const halloweenMain = function(active) {
                         const bugDy = bugPos.y - this.currentY;
                         const bugDistance = Math.sqrt(bugDx * bugDx + bugDy * bugDy);
                         
-                        // Catch if we're close enough to the actual bug (25% of screen width)
-                        if (bugDistance < 25) {
+                        // Catch if we're close enough (30% is quite generous)
+                        if (bugDistance < 30) {
                             this.completedHunt(target);
                             this.pathIndex++;
                             if (this.pathIndex < this.flightPath.length) {
@@ -455,7 +458,6 @@ const halloweenMain = function(active) {
                     }
                 }
                 
-                // Standard waypoint reach check
                 if (target.isHunt && distance < catchRadius) {
                     this.completedHunt(target);
                     this.pathIndex++;
@@ -465,7 +467,7 @@ const halloweenMain = function(active) {
                     return;
                 }
                 
-                // Timeout hunts that take too long (give more time)
+                // Timeout hunts that take too long
                 if (target.isHunt && this.huntStartTime && (Date.now() - this.huntStartTime > 8000)) {
                     this.say('missed');
                     this.huntTargetMoving = false;
@@ -484,86 +486,69 @@ const halloweenMain = function(active) {
                     const moveRatio = Math.min(speed, distance * 0.03);
                     const time = Date.now() / 1000;
                     
-                    // Reduce wobble when speaking so bubble stays readable
                     const wobbleScale = this.isSpeaking ? 0.1 : 1.0;
                     const waveX = Math.sin(time * 2) * 0.15 * wobbleScale;
                     const waveY = Math.cos(time * 1.5) * 0.1 * wobbleScale;
                     
-                    // Slower overall movement multiplier
                     this.currentX += (dx / distance) * moveRatio * 1.2 + waveX;
                     this.currentY += (dy / distance) * moveRatio * 1.2 + waveY;
                     
-                    const emoji = this.element.querySelector('.bat-emoji');
-                    if (emoji) emoji.style.transform = dx < 0 ? 'scaleX(-1)' : 'scaleX(1)';
+                    // Only flip direction if we aren't resting/hanging
+                    if (this.state !== 'resting') {
+                        const emoji = this.element.querySelector('.bat-emoji');
+                        if (emoji) emoji.style.transform = dx < 0 ? 'scaleX(-1)' : 'scaleX(1)';
+                    }
                 }
                 
                 this.updatePosition();
                 this.animationFrame = requestAnimationFrame(() => this.fly());
             },
             
+            updatePosition() {
+                if (this.element) {
+                    this.element.style.left = this.currentX + '%';
+                    this.element.style.top = this.currentY + '%';
+                }
+            },
+            
             checkForSpiderInteraction() {
-                // Check if ceiling spider is dropped and nearby
                 const wrap = document.getElementById('spider-wrap');
                 if (wrap && CreatureCoordinator.ceilingSpiderDropped && !this.hasGreetedSpider) {
                     const spiderRect = wrap.getBoundingClientRect();
                     const spiderX = (spiderRect.left / window.innerWidth) * 100;
                     const spiderY = (spiderRect.top / window.innerHeight) * 100;
-                    
                     const dx = spiderX - this.currentX;
                     const dy = spiderY - this.currentY;
                     const distance = Math.sqrt(dx * dx + dy * dy);
-                    
-                    if (distance < 25) {
-                        this.greetSpider(wrap);
-                    }
+                    if (distance < 25) this.greetSpider(wrap);
                 }
-                
-                // Check for floor spider
                 const floorWrap = document.getElementById('floor-spider-container');
                 if (floorWrap && floorWrap.style.display !== 'none') {
                     const floorRect = floorWrap.getBoundingClientRect();
                     const floorX = (floorRect.left / window.innerWidth) * 100;
                     const floorY = (floorRect.top / window.innerHeight) * 100;
-                    
                     const dx = floorX - this.currentX;
                     const dy = floorY - this.currentY;
                     const distance = Math.sqrt(dx * dx + dy * dy);
-                    
-                    if (distance < 30 && Math.random() < 0.3) {
-                        this.greetFloorSpider(floorWrap);
-                    }
+                    if (distance < 30 && Math.random() < 0.3) this.greetFloorSpider(floorWrap);
                 }
             },
             
             greetSpider(wrap) {
                 this.hasGreetedSpider = true;
                 this.interactionCooldown = Date.now() + 8000;
-                
                 const relationship = CreatureCoordinator.getRelationshipStatus('batToSpider');
                 let dialogueKey = 'greetSpider';
-                
-                if (this.mood === 'playful') {
-                    dialogueKey = Math.random() < 0.5 ? 'teasingSpider' : 'greetSpider';
-                } else if (relationship === 'friendly') {
-                    dialogueKey = 'friendlyToSpider';
-                }
-                
+                if (this.mood === 'playful') dialogueKey = Math.random() < 0.5 ? 'teasingSpider' : 'greetSpider';
+                else if (relationship === 'friendly') dialogueKey = 'friendlyToSpider';
                 this.say(dialogueKey);
-                
-                // Spider responds after delay
                 setTimeout(() => {
                     if (wrap.showBubble) {
                         const spiderRelation = CreatureCoordinator.getRelationshipStatus('spiderToBat');
                         let responseKey = spiderRelation === 'friendly' ? 'greetBatFriendly' : 'greetBatGrumpy';
-                        
-                        // Check if spider is still mad about stolen food
-                        if (CreatureCoordinator.getRecentEvent('batStoleFood')) {
-                            responseKey = 'batStoleFollowUp';
-                        }
-                        
+                        if (CreatureCoordinator.getRecentEvent('batStoleFood')) responseKey = 'batStoleFollowUp';
                         const lines = GAME_DIALOGUE?.spider?.[responseKey] || ["Hey."];
-                        const text = lines[Math.floor(Math.random() * lines.length)];
-                        wrap.showBubble(text, 'upside-down');
+                        wrap.showBubble(lines[Math.floor(Math.random() * lines.length)], 'upside-down');
                     }
                 }, 1200);
             },
@@ -571,14 +556,10 @@ const halloweenMain = function(active) {
             greetFloorSpider(floorWrap) {
                 this.interactionCooldown = Date.now() + 10000;
                 this.say('greetFloorSpider');
-                
-                // Floor spider might respond
                 if (Math.random() < 0.6) {
                     setTimeout(() => {
                         const floorAI = document.getElementById('spider-wrap')?.floorSpiderAI;
-                        if (floorAI && floorAI.say) {
-                            floorAI.say('greetBat');
-                        }
+                        if (floorAI && floorAI.say) floorAI.say('greetBat');
                     }, 1000);
                 }
             },
@@ -594,24 +575,25 @@ const halloweenMain = function(active) {
                     // Stop flapping
                     body.style.animation = 'none';
                     
-                    // Flip upside down and fold wings (compress horizontally)
-                    emoji.style.transform = 'rotate(180deg) scaleX(0.7)';
+                    // UPDATE: Strictly enforce the upside-down hang here
+                    // The 'fly' loop is cancelled, so this shouldn't be overridden
                     emoji.style.transition = 'transform 0.5s ease';
+                    emoji.style.transform = 'rotate(180deg) scaleX(0.7)';
                     
-                    // Add gentle swaying animation after settling
+                    // Add swaying AFTER the flip has established
                     setTimeout(() => {
                         if (this.state === 'resting') {
                             body.style.animation = 'bat-hang-sway 3s ease-in-out infinite';
+                            // Re-enforce strictly
+                            emoji.style.transform = 'rotate(180deg) scaleX(0.7)';
                         }
                     }, 500);
                 }
                 
                 if (Math.random() < 0.5) this.say('resting');
                 
-                // Rest for longer
                 this.behaviorTimeout = setTimeout(() => {
                     if (body && emoji) {
-                        // Unfold wings and flip right-side up
                         emoji.style.transform = '';
                         body.style.animation = 'bat-flap 0.2s ease-in-out infinite';
                     }
@@ -621,130 +603,76 @@ const halloweenMain = function(active) {
                 }, 4000 + Math.random() * 6000);
             },
             
-            // Get the current bug position from MosquitoManager or DOM
             getBugPosition() {
                 if (typeof MosquitoManager === 'undefined') return null;
-                
-                let bugX, bugY;
-                
-                // First try MosquitoManager's direct properties
-                if (MosquitoManager.x !== undefined && MosquitoManager.y !== undefined) {
-                    bugX = MosquitoManager.x;
-                    bugY = MosquitoManager.y;
-                }
-                
-                // If not available or seems wrong, try DOM element
-                if (bugX === undefined || bugY === undefined || 
-                    (bugX === 0 && bugY === 0)) {
-                    // Try multiple selectors to find the bug element
-                    const selectors = [
-                        '#mosquito', '.mosquito', '[data-bug]',
-                        '#bug', '.bug', '.insect',
-                        '[id*="mosquito"]', '[id*="bug"]', '[class*="mosquito"]'
-                    ];
-                    
+                let bugX = MosquitoManager.x, bugY = MosquitoManager.y;
+                if (bugX === undefined || bugY === undefined || (bugX === 0 && bugY === 0)) {
+                    const selectors = ['#mosquito', '.mosquito', '[data-bug]', '#bug', '.bug', '.insect'];
                     let bugEl = null;
                     for (const sel of selectors) {
                         bugEl = document.querySelector(sel);
                         if (bugEl) break;
                     }
-                    
                     if (bugEl) {
                         const rect = bugEl.getBoundingClientRect();
-                        // Convert to percentage of viewport
                         bugX = ((rect.left + rect.width / 2) / window.innerWidth) * 100;
                         bugY = ((rect.top + rect.height / 2) / window.innerHeight) * 100;
                     }
                 }
-                
-                // Handle case where position is in pixels instead of percentage
                 if (bugX !== undefined && bugY !== undefined) {
-                    // If values are large, they're probably pixels
                     if (bugX > 100 || bugY > 100) {
                         bugX = (bugX / window.innerWidth) * 100;
                         bugY = (bugY / window.innerHeight) * 100;
                     }
-                    
-                    // Clamp to valid range
-                    bugX = Math.max(0, Math.min(100, bugX));
-                    bugY = Math.max(0, Math.min(100, bugY));
-                    
-                    return { x: bugX, y: bugY };
+                    return { x: Math.max(0, Math.min(100, bugX)), y: Math.max(0, Math.min(100, bugY)) };
                 }
-                
                 return null;
             },
             
-            // Predict where bug will be based on its movement
             predictBugPosition(currentPos, leadTime = 0.5) {
                 if (!currentPos || !this.lastBugPos) {
                     this.lastBugPos = currentPos;
                     this.lastBugTime = Date.now();
                     return currentPos;
                 }
-                
                 const now = Date.now();
                 const dt = (now - this.lastBugTime) / 1000;
-                
                 if (dt > 0 && dt < 1) {
-                    // Calculate velocity
                     const vx = (currentPos.x - this.lastBugPos.x) / dt;
                     const vy = (currentPos.y - this.lastBugPos.y) / dt;
-                    
-                    // Predict future position
                     const predictedX = currentPos.x + vx * leadTime;
                     const predictedY = currentPos.y + vy * leadTime;
-                    
-                    // Update last known position
                     this.lastBugPos = currentPos;
                     this.lastBugTime = now;
-                    
-                    // Clamp to screen
-                    return {
-                        x: Math.max(5, Math.min(95, predictedX)),
-                        y: Math.max(5, Math.min(95, predictedY))
-                    };
+                    return { x: Math.max(5, Math.min(95, predictedX)), y: Math.max(5, Math.min(95, predictedY)) };
                 }
-                
                 this.lastBugPos = currentPos;
                 this.lastBugTime = now;
                 return currentPos;
             },
             
-            // ============================================================
-            // ECHOLOCATION RADAR EFFECT
-            // ============================================================
             createEcholocationPing(targetX, targetY, onHit) {
                 const batX = (this.currentX / 100) * window.innerWidth;
                 const batY = (this.currentY / 100) * window.innerHeight;
                 const bugX = (targetX / 100) * window.innerWidth;
                 const bugY = (targetY / 100) * window.innerHeight;
                 
-                // Create the expanding radar ring from bat
                 const ring = document.createElement('div');
                 ring.className = 'bat-echolocation-ring';
                 Object.assign(ring.style, {
-                    position: 'fixed',
-                    left: batX + 'px',
-                    top: batY + 'px',
-                    width: '20px',
-                    height: '20px',
-                    borderRadius: '50%',
+                    position: 'fixed', left: batX + 'px', top: batY + 'px',
+                    width: '20px', height: '20px', borderRadius: '50%',
                     border: '2px solid rgba(138, 43, 226, 0.8)',
                     boxShadow: '0 0 10px rgba(138, 43, 226, 0.5), inset 0 0 5px rgba(138, 43, 226, 0.3)',
-                    transform: 'translate(-50%, -50%)',
-                    pointerEvents: 'none',
-                    zIndex: '4999'
+                    transform: 'translate(-50%, -50%)', pointerEvents: 'none', zIndex: '4999'
                 });
                 document.body.appendChild(ring);
                 
-                // Calculate distance to target
                 const dx = bugX - batX;
                 const dy = bugY - batY;
                 const distance = Math.sqrt(dx * dx + dy * dy);
-                const expandDuration = Math.min(800, distance * 2); // Faster for closer targets
+                const expandDuration = Math.min(800, distance * 2);
                 
-                // Animate the ring expanding
                 let startTime = null;
                 const maxRadius = distance + 30;
                 
@@ -752,8 +680,6 @@ const halloweenMain = function(active) {
                     if (!startTime) startTime = timestamp;
                     const elapsed = timestamp - startTime;
                     const progress = Math.min(elapsed / expandDuration, 1);
-                    
-                    // Ease out for natural feel
                     const easeOut = 1 - Math.pow(1 - progress, 2);
                     const currentRadius = 10 + (maxRadius - 10) * easeOut;
                     
@@ -762,176 +688,58 @@ const halloweenMain = function(active) {
                     ring.style.opacity = (1 - progress * 0.5).toString();
                     ring.style.borderWidth = Math.max(1, 3 - progress * 2) + 'px';
                     
-                    // Check if ring has reached the bug
-                    const ringReachedBug = currentRadius >= distance - 10;
-                    
-                    if (ringReachedBug && !ring.hitTriggered) {
+                    if (currentRadius >= distance - 10 && !ring.hitTriggered) {
                         ring.hitTriggered = true;
                         this.createEcholocationBounce(bugX, bugY);
                         if (onHit) onHit();
                     }
                     
-                    if (progress < 1) {
-                        requestAnimationFrame(animateRing);
-                    } else {
-                        ring.remove();
-                    }
-                };
-                
-                requestAnimationFrame(animateRing);
-                
-                // Add some trailing rings for effect
-                setTimeout(() => this.createTrailingRing(batX, batY, maxRadius * 0.6, expandDuration * 0.8), 100);
-                setTimeout(() => this.createTrailingRing(batX, batY, maxRadius * 0.4, expandDuration * 0.6), 200);
-            },
-            
-            createTrailingRing(x, y, maxRadius, duration) {
-                const ring = document.createElement('div');
-                Object.assign(ring.style, {
-                    position: 'fixed',
-                    left: x + 'px',
-                    top: y + 'px',
-                    width: '10px',
-                    height: '10px',
-                    borderRadius: '50%',
-                    border: '1px solid rgba(138, 43, 226, 0.4)',
-                    transform: 'translate(-50%, -50%)',
-                    pointerEvents: 'none',
-                    zIndex: '4998'
-                });
-                document.body.appendChild(ring);
-                
-                let startTime = null;
-                const animateRing = (timestamp) => {
-                    if (!startTime) startTime = timestamp;
-                    const progress = Math.min((timestamp - startTime) / duration, 1);
-                    const easeOut = 1 - Math.pow(1 - progress, 2);
-                    const currentRadius = 5 + (maxRadius - 5) * easeOut;
-                    
-                    ring.style.width = (currentRadius * 2) + 'px';
-                    ring.style.height = (currentRadius * 2) + 'px';
-                    ring.style.opacity = (0.4 - progress * 0.4).toString();
-                    
-                    if (progress < 1) {
-                        requestAnimationFrame(animateRing);
-                    } else {
-                        ring.remove();
-                    }
+                    if (progress < 1) requestAnimationFrame(animateRing);
+                    else ring.remove();
                 };
                 requestAnimationFrame(animateRing);
             },
             
             createEcholocationBounce(x, y) {
-                // Create the "ping" effect when echolocation hits the bug
                 const ping = document.createElement('div');
                 ping.className = 'echolocation-ping';
                 Object.assign(ping.style, {
-                    position: 'fixed',
-                    left: x + 'px',
-                    top: y + 'px',
-                    width: '30px',
-                    height: '30px',
-                    borderRadius: '50%',
+                    position: 'fixed', left: x + 'px', top: y + 'px',
+                    width: '30px', height: '30px', borderRadius: '50%',
                     background: 'radial-gradient(circle, rgba(255,100,100,0.9) 0%, rgba(255,50,50,0.6) 40%, transparent 70%)',
                     boxShadow: '0 0 20px rgba(255,100,100,0.8), 0 0 40px rgba(255,50,50,0.4)',
-                    transform: 'translate(-50%, -50%) scale(0.5)',
-                    pointerEvents: 'none',
-                    zIndex: '5000'
+                    transform: 'translate(-50%, -50%) scale(0.5)', pointerEvents: 'none', zIndex: '5000'
                 });
                 document.body.appendChild(ping);
                 
-                // Animate the ping - burst then fade
                 let startTime = null;
                 const animatePing = (timestamp) => {
                     if (!startTime) startTime = timestamp;
-                    const elapsed = timestamp - startTime;
-                    const duration = 500;
-                    const progress = Math.min(elapsed / duration, 1);
-                    
-                    // Quick expand then fade
-                    const scale = progress < 0.3 
-                        ? 0.5 + (progress / 0.3) * 1.5  // Expand to 2x
-                        : 2 - (progress - 0.3) / 0.7 * 0.5; // Shrink slightly
-                    
+                    const progress = Math.min((timestamp - startTime) / 500, 1);
+                    const scale = progress < 0.3 ? 0.5 + (progress / 0.3) * 1.5 : 2 - (progress - 0.3) / 0.7 * 0.5;
                     ping.style.transform = `translate(-50%, -50%) scale(${scale})`;
                     ping.style.opacity = (1 - progress * 0.8).toString();
-                    
-                    if (progress < 1) {
-                        requestAnimationFrame(animatePing);
-                    } else {
-                        ping.remove();
-                    }
+                    if (progress < 1) requestAnimationFrame(animatePing);
+                    else ping.remove();
                 };
                 requestAnimationFrame(animatePing);
-                
-                // Create ripple rings from the hit point
-                for (let i = 0; i < 3; i++) {
-                    setTimeout(() => this.createBounceRipple(x, y), i * 80);
-                }
-                
-                // Add a brief flash on the bug itself
                 this.flashBugTarget();
             },
             
-            createBounceRipple(x, y) {
-                const ripple = document.createElement('div');
-                Object.assign(ripple.style, {
-                    position: 'fixed',
-                    left: x + 'px',
-                    top: y + 'px',
-                    width: '10px',
-                    height: '10px',
-                    borderRadius: '50%',
-                    border: '2px solid rgba(255, 150, 150, 0.8)',
-                    transform: 'translate(-50%, -50%)',
-                    pointerEvents: 'none',
-                    zIndex: '4999'
-                });
-                document.body.appendChild(ripple);
-                
-                let startTime = null;
-                const animateRipple = (timestamp) => {
-                    if (!startTime) startTime = timestamp;
-                    const progress = Math.min((timestamp - startTime) / 400, 1);
-                    const size = 10 + progress * 60;
-                    
-                    ripple.style.width = size + 'px';
-                    ripple.style.height = size + 'px';
-                    ripple.style.opacity = (0.8 - progress * 0.8).toString();
-                    ripple.style.borderWidth = Math.max(0.5, 2 - progress * 1.5) + 'px';
-                    
-                    if (progress < 1) {
-                        requestAnimationFrame(animateRipple);
-                    } else {
-                        ripple.remove();
-                    }
-                };
-                requestAnimationFrame(animateRipple);
-            },
-            
             flashBugTarget() {
-                // Find the bug element and flash it
                 if (typeof MosquitoManager !== 'undefined' && MosquitoManager.el) {
                     const bugEl = MosquitoManager.el;
                     const originalFilter = bugEl.style.filter || '';
-                    
-                    // Flash red briefly
                     bugEl.style.filter = 'brightness(2) drop-shadow(0 0 10px red)';
                     bugEl.style.transition = 'filter 0.1s';
-                    
-                    setTimeout(() => {
-                        bugEl.style.filter = originalFilter;
-                    }, 200);
+                    setTimeout(() => { bugEl.style.filter = originalFilter; }, 200);
                 }
             },
             
             tryHunt() {
                 if (typeof MosquitoManager === 'undefined') return;
                 
-                // Check for bugs in web first (stealing from spider!)
                 if (MosquitoManager.state === 'stuck') {
-                    // Bug is in the web - should we steal it?
-                    // More likely to steal if spider is full or bat is hungry
                     const spiderIsFull = State?.data?.spiderFullUntil > Date.now();
                     const willSteal = this.mood === 'hungry' || spiderIsFull || Math.random() < 0.25;
                     
@@ -939,84 +747,69 @@ const halloweenMain = function(active) {
                         const bugPos = this.getBugPosition();
                         const bugX = bugPos?.x || 88;
                         const bugY = bugPos?.y || 20;
-                        
-                        // Echolocation ping on web bug too!
                         this.createEcholocationPing(bugX, bugY, () => {
                             this.say('startHunt');
                             this.state = 'hunting';
                             this.huntStartTime = Date.now();
-                            this.flightPath.splice(this.pathIndex, 0, { 
-                                x: bugX, y: bugY, speed: 0.5, isHunt: true, isSteal: true 
-                            });
+                            this.flightPath.splice(this.pathIndex, 0, { x: bugX, y: bugY, speed: 0.5, isHunt: true, isSteal: true });
                         });
                         return;
                     }
                 }
                 
-                // Check for flying bugs - use prediction for mid-air catch
                 if (MosquitoManager.state === 'flying') {
                     const bugPos = this.getBugPosition();
                     if (!bugPos) return;
                     
-                    // Calculate distance to current position
                     const dx = bugPos.x - this.currentX;
                     const dy = bugPos.y - this.currentY;
                     const distance = Math.sqrt(dx * dx + dy * dy);
                     
-                    if (distance < 55) { // Within hunting range (increased slightly)
-                        // Predict where bug will be - factor in bat's speed
-                        const interceptTime = distance / 45; // Estimate time to reach
+                    // Increased detection range (was 60, now 70)
+                    if (distance < 70) {
+                        const interceptTime = distance / 55;
                         const predictedPos = this.predictBugPosition(bugPos, Math.min(interceptTime, 1.2));
                         
-                        // *** ECHOLOCATION EFFECT ***
-                        // Send out radar ping, then start hunting after it hits
                         this.say('startHunt');
                         this.createEcholocationPing(bugPos.x, bugPos.y, () => {
-                            // Callback when ping hits the bug - NOW start the actual chase
                             this.state = 'hunting';
                             this.huntStartTime = Date.now();
                             this.huntTargetMoving = true;
                             
-                            // Re-predict position since time has passed
                             const newBugPos = this.getBugPosition();
-                            const newPredicted = newBugPos ? this.predictBugPosition(newBugPos, 0.5) : predictedPos;
+                            const newPredicted = newBugPos ? this.predictBugPosition(newBugPos, 0.4) : predictedPos;
                             
                             this.flightPath.splice(this.pathIndex, 0, { 
                                 x: newPredicted.x, 
                                 y: newPredicted.y, 
-                                speed: 0.55, // Faster chase after lock-on
-                                isHunt: true,
-                                isAirCatch: true
+                                // UPDATE: Higher speed (was 0.55, now 0.65)
+                                speed: 0.65, 
+                                isHunt: true, 
+                                isAirCatch: true 
                             });
                         });
                     }
                 }
             },
             
-            // Called during flight to update hunt target if bug is moving
             updateHuntTarget() {
                 if (this.state !== 'hunting' || !this.huntTargetMoving) return;
                 if (this.pathIndex >= this.flightPath.length) return;
-                
                 const target = this.flightPath[this.pathIndex];
                 if (!target.isHunt || !target.isAirCatch) return;
                 
-                // Update target position based on current bug location more aggressively
                 const bugPos = this.getBugPosition();
                 if (bugPos) {
-                    // Shorter prediction = more direct pursuit
-                    const predictedPos = this.predictBugPosition(bugPos, 0.25);
+                    const predictedPos = this.predictBugPosition(bugPos, 0.2);
                     target.x = predictedPos.x;
                     target.y = predictedPos.y;
                 }
             },
             
-            // Visual chomp effect when eating
             showChompEffect() {
                 if (!this.element) return;
                 const emoji = this.element.querySelector('.bat-emoji');
                 if (emoji) {
-                    // Quick scale animation for "chomp"
                     emoji.style.transition = 'transform 0.15s ease-out';
                     emoji.style.transform = (emoji.style.transform || '') + ' scale(1.4)';
                     setTimeout(() => {
@@ -1028,24 +821,15 @@ const halloweenMain = function(active) {
                     }, 150);
                 }
                 
-                // Small particle burst
                 for (let i = 0; i < 5; i++) {
                     const particle = document.createElement('div');
                     particle.textContent = '✨';
                     Object.assign(particle.style, {
-                        position: 'fixed',
-                        left: this.currentX + '%',
-                        top: this.currentY + '%',
-                        transform: 'translate(-50%, -50%)',
-                        fontSize: '16px',
-                        pointerEvents: 'none',
-                        zIndex: '5000',
-                        opacity: '1',
-                        transition: 'all 0.5s ease-out'
+                        position: 'fixed', left: this.currentX + '%', top: this.currentY + '%',
+                        transform: 'translate(-50%, -50%)', fontSize: '16px',
+                        pointerEvents: 'none', zIndex: '5000', opacity: '1', transition: 'all 0.5s ease-out'
                     });
                     document.body.appendChild(particle);
-                    
-                    // Scatter outward
                     setTimeout(() => {
                         const angle = (i / 5) * Math.PI * 2;
                         const dist = 30 + Math.random() * 20;
@@ -1053,22 +837,18 @@ const halloweenMain = function(active) {
                         particle.style.top = `calc(${this.currentY}% + ${Math.sin(angle) * dist}px)`;
                         particle.style.opacity = '0';
                     }, 50);
-                    
                     setTimeout(() => particle.remove(), 600);
                 }
             },
             
             completedHunt(target) {
                 if (!target.isHunt) return;
-                
                 this.huntTargetMoving = false;
                 
-                // Check if we successfully caught something
                 if (typeof MosquitoManager !== 'undefined') {
                     const wasInWeb = target.isSteal && MosquitoManager.state === 'stuck';
                     const wasFlying = MosquitoManager.state === 'flying';
                     
-                    // For mid-air catch, check distance to ACTUAL bug
                     let caughtMidAir = false;
                     if (target.isAirCatch) {
                         const bugPos = this.getBugPosition();
@@ -1076,66 +856,44 @@ const halloweenMain = function(active) {
                             const dx = bugPos.x - this.currentX;
                             const dy = bugPos.y - this.currentY;
                             const distance = Math.sqrt(dx * dx + dy * dy);
-                            // Generous catch radius (20% of screen)
-                            caughtMidAir = distance < 20;
+                            caughtMidAir = distance < 30; // Consistent with fly() check
                         }
-                        // Also catch if bug is still flying and we reached our target
-                        if (!caughtMidAir && wasFlying) {
-                            caughtMidAir = true;
-                        }
+                        if (!caughtMidAir && wasFlying) caughtMidAir = true;
                     }
                     
                     if (wasInWeb || caughtMidAir) {
-                        // We caught/stole the bug!
-                        const bugType = MosquitoManager.currentBug || MosquitoManager.type || '🦟';
-                        
-                        // Show chomp animation!
                         this.showChompEffect();
                         
-                        // Use splat() to properly remove and show eaten effect
-                        if (typeof MosquitoManager.splat === 'function') {
+                        // UPDATE: Directly remove to avoid "Splat!" text if possible, OR just eat it
+                        if (typeof MosquitoManager.remove === 'function') {
+                            MosquitoManager.remove(); 
+                        } else if (typeof MosquitoManager.splat === 'function') {
                             MosquitoManager.splat();
-                        } else if (typeof MosquitoManager.remove === 'function') {
-                            MosquitoManager.remove();
                         }
                         
-                        // Grow bigger after eating!
                         this.growAfterEating();
                         
                         if (wasInWeb) {
-                            // We stole from the spider!
                             this.stolenFood = true;
                             CreatureCoordinator.addEvent('batStoleFood');
                             CreatureCoordinator.modifyRelationship('spiderToBat', -30);
                             CreatureCoordinator.updateMood('ceilingSpider', 'angry');
-                            
-                            // Bat's reaction based on mood
                             const isApologetic = this.mood !== 'hungry' && Math.random() < 0.4;
                             this.say(isApologetic ? 'stoleBugSorry' : 'stoleBugSmug');
-                            
                             if (!isApologetic) {
                                 this.mood = 'smug';
                                 CreatureCoordinator.updateMood('bat', 'smug');
                             }
-                            
-                            // Spider gets angry!
                             this.triggerSpiderAnger();
                         } else {
-                            // Caught a flying bug mid-air!
-                            // Use special mid-air catch dialogue
-                            const midAirLines = GAME_DIALOGUE?.bat?.caughtMidAir;
-                            if (midAirLines && midAirLines.length > 0) {
-                                this.say(midAirLines[Math.floor(Math.random() * midAirLines.length)]);
-                            } else {
-                                const eatLines = GAME_DIALOGUE?.bat?.eating || {};
-                                const eatText = eatLines[bugType] || eatLines.default || "Tasty!";
-                                this.say(eatText);
-                            }
+                            // UPDATE: Custom eating sounds replacing the splat text or generic mumbles
+                            const eatSounds = ["NOM!", "CRUNCH!", "GULP!", "YUM!", "SCREECH!", "GOTCHA!"];
+                            this.say(eatSounds[Math.floor(Math.random() * eatSounds.length)]);
+                            
                             this.mood = 'happy';
                             CreatureCoordinator.updateMood('bat', 'happy');
                         }
                     } else {
-                        // Missed!
                         this.say('missed');
                     }
                 }
@@ -1143,69 +901,29 @@ const halloweenMain = function(active) {
             
             triggerSpiderAnger() {
                 const wrap = document.getElementById('spider-wrap');
-                if (!wrap || !wrap.showBubble) return;
-                
-                // Spider reacts angrily
-                setTimeout(() => {
-                    const angryLines = GAME_DIALOGUE?.spider?.batStoleMyFood || ["HEY!"];
-                    const angryText = angryLines[Math.floor(Math.random() * angryLines.length)];
-                    wrap.showBubble(angryText, 'upside-down');
-                    
-                    // Spider body shakes with anger
-                    const body = wrap.querySelector('#spider-body');
-                    if (body) {
-                        body.style.animation = 'shake 0.5s ease-in-out';
-                        setTimeout(() => { body.style.animation = ''; }, 500);
-                    }
-                }, 800);
-                
-                // Floor spider might comment
-                const floorAI = wrap.floorSpiderAI;
-                if (floorAI && floorAI.element && floorAI.element.style.display !== 'none') {
-                    setTimeout(() => {
-                        floorAI.say('batStoleReaction');
-                    }, 2000);
+                if (wrap && wrap.floorSpiderAI && !CreatureCoordinator.ceilingSpiderDropped) {
+                    // Floor spider reaction
+                } else if (wrap && CreatureCoordinator.ceilingSpiderDropped) {
+                    if (wrap.showBubble) wrap.showBubble("HEY! That was mine!", "upside-down");
                 }
-                
-                // Bat might apologize or react to anger
-                setTimeout(() => {
-                    if (this.mood !== 'smug') {
-                        this.say('reactToAngrySpider');
-                        // Improve relationship slightly with apology
-                        CreatureCoordinator.modifyRelationship('spiderToBat', 10);
-                    }
-                }, 3000);
-                
-                // Spider might eventually forgive
-                setTimeout(() => {
-                    if (Math.random() < 0.5) {
-                        const forgiveLine = GAME_DIALOGUE?.spider?.forgiveBat || ["Fine."];
-                        const text = forgiveLine[Math.floor(Math.random() * forgiveLine.length)];
-                        if (wrap.showBubble) wrap.showBubble(text, 'upside-down');
-                        CreatureCoordinator.updateMood('ceilingSpider', 'grumpy');
-                        CreatureCoordinator.modifyRelationship('spiderToBat', 15);
-                    }
-                }, 6000);
             },
             
             leave() {
                 this.state = 'leaving';
-                if (Math.random() < 0.4) this.say('leaving');
-                
-                const exits = [
-                    { x: this.currentX, y: -15 }, { x: 115, y: this.currentY },
-                    { x: this.currentX, y: 115 }, { x: -15, y: this.currentY }
-                ];
-                exits.sort((a, b) => {
-                    const distA = Math.abs(a.x - this.currentX) + Math.abs(a.y - this.currentY);
-                    const distB = Math.abs(b.x - this.currentX) + Math.abs(b.y - this.currentY);
-                    return distA - distB;
-                });
-                
-                this.flightPath = [{ ...exits[0], exit: true, speed: 0.3 }]; // Slower exit
+                const exitSide = Math.floor(Math.random() * 4);
+                let exitPoint;
+                switch(exitSide) {
+                    case 0: exitPoint = { x: 30 + Math.random() * 40, y: -10 }; break;
+                    case 1: exitPoint = { x: 110, y: 20 + Math.random() * 30 }; break;
+                    case 2: exitPoint = { x: 30 + Math.random() * 40, y: 110 }; break;
+                    default: exitPoint = { x: -10, y: 20 + Math.random() * 30 };
+                }
+                this.flightPath = [{ ...exitPoint, exit: true, speed: 0.3 }];
                 this.pathIndex = 0;
+                this.say('leaving');
                 this.fly();
-            },
+            }
+        };
             
             updatePosition() {
                 if (!this.element) return;
