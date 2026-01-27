@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * HALLOWEEN THEME EFFECT - v2.5.0 (Enhanced Bat Hunting)
+ * HALLOWEEN THEME EFFECT - v2.6.0 (Fixed Bat Dialogue + Catch)
  * ============================================================================
  * Interactive spider with AI behavior, animated web, and flying bats
  * Spider can hunt mosquitos from MosquitoManager
@@ -10,10 +10,11 @@
  * - Occasionally, they meet, acknowledge each other, and chat.
  * * UPDATE: Bat z-index increased to fly OVER everything.
  * * v2.5: Echolocation radar, mid-air catching, bat grows when eating
+ * * v2.6: Fixed dialogue size, no more "Splat!" when bat catches
  */
 
 // Log version immediately so we know which file loaded
-console.log('%c[Halloween] v2.5.0 Enhanced loaded! 🦇🎃', 'color: #ff6600; font-weight: bold; font-size: 14px;');
+console.log('%c[Halloween] v2.6.0 Enhanced loaded! 🦇🎃', 'color: #ff6600; font-weight: bold; font-size: 14px;');
 
 (function() {
 'use strict';
@@ -261,10 +262,10 @@ Effects.halloween = function(active) {
                 b.id = 'bat-bubble';
                 Object.assign(b.style, {
                     position: 'fixed', background: '#2d1b4e', color: '#e8d5ff',
-                    padding: '6px 12px', borderRadius: '12px', fontSize: '12px',
+                    padding: '8px 14px', borderRadius: '16px', fontSize: '14px',
                     fontWeight: 'bold', fontFamily: 'sans-serif', whiteSpace: 'nowrap',
                     pointerEvents: 'none', opacity: '0', transition: 'opacity 0.3s',
-                    boxShadow: '0 3px 10px rgba(0,0,0,0.4)', border: '2px solid #8b5cf6', zIndex: '5001',
+                    boxShadow: '0 4px 10px rgba(0,0,0,0.4)', border: '2px solid #8b5cf6', zIndex: '5001',
                     left: '-9999px', top: '-9999px' // Start offscreen
                 });
                 b.textContent = text;
@@ -1032,17 +1033,12 @@ Effects.halloween = function(active) {
                         // We caught/stole the bug!
                         const bugType = MosquitoManager.currentBug || MosquitoManager.type || '🦟';
                         
-                        // Consume the bug - try multiple methods
-                        let consumed = false;
-                        if (typeof MosquitoManager.splat === 'function') {
-                            MosquitoManager.splat();
-                            consumed = true;
+                        // Remove the bug silently (don't use splat() which shows "Splat!")
+                        // Use remove() or finish() instead
+                        if (typeof MosquitoManager.remove === 'function') {
+                            MosquitoManager.remove();
                         } else if (typeof MosquitoManager.finish === 'function') {
                             MosquitoManager.finish();
-                            consumed = true;
-                        } else if (typeof MosquitoManager.remove === 'function') {
-                            MosquitoManager.remove();
-                            consumed = true;
                         }
                         
                         // Grow bigger after eating!
