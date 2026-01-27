@@ -6,14 +6,22 @@
     <title>GOOD WORD / BAD WORD - Daily Edition</title>
     
     <style id="loader-css">
-        /* Force dark background immediately */
-        html, body {
-            background-color: #000000 !important; /* BBC Micro Black */
+        /* CRITICAL: overflow-y: scroll forces the scrollbar track to exist immediately.
+           This prevents the page width from "jumping" when the loader vanishes.
+        */
+        html {
+            background-color: #000000 !important;
             height: 100%;
-            width: 100%;
-            overflow: hidden; /* Locked ONLY during load */
+            overflow-y: scroll; /* Force scrollbar track always */
+        }
+        
+        body {
+            background-color: #000000 !important;
             margin: 0;
             padding: 0;
+            /* Lock interaction but allow layout to render behind */
+            height: 100%;
+            overflow: hidden; 
         }
         
         #bbc-loader-overlay {
@@ -23,16 +31,16 @@
             background-color: #000000;
             font-family: 'Courier New', Courier, monospace;
             padding: 40px;
-            color: #FFFF00; /* BBC Micro Yellow */
+            color: #FFFF00; /* BBC Yellow */
             font-weight: bold;
             font-size: 18px;
-            text-shadow: 0 0 2px #FFFF00; /* Slight CRT glow */
+            text-shadow: 0 0 2px #FFFF00;
             display: flex;
             flex-direction: column;
-            justify-content: flex-start; /* Top aligned like a terminal */
+            justify-content: flex-start;
             align-items: flex-start;
             transition: opacity 0.5s ease-out;
-            pointer-events: all;
+            pointer-events: all; /* Blocks clicks on game behind */
         }
 
         .bbc-line {
@@ -40,6 +48,7 @@
             display: flex;
             align-items: center;
             margin-bottom: 2px;
+            width: 100%;
         }
 
         .bbc-cursor {
@@ -53,7 +62,6 @@
 
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 
-        /* The loading bar container (hidden initially) */
         #bbc-bar-container {
             margin-top: 20px;
             width: 100%;
@@ -72,8 +80,25 @@
         
         #bbc-status { margin-top: 10px; display: none; color: #00FF00; }
 
+        .bbc-footer {
+            margin-top: auto; /* Pushes to bottom */
+            width: 100%;
+            text-align: center;
+            color: #00FF00; /* BBC Green */
+            font-size: 24px;
+            letter-spacing: 4px;
+            text-shadow: 2px 2px #003300;
+            padding-bottom: 20px;
+            opacity: 0;
+            animation: fadeIn 2s ease-in forwards;
+            animation-delay: 1s;
+        }
+        
+        @keyframes fadeIn { to { opacity: 1; } }
+
         @media (max-width: 600px) {
             #bbc-loader-overlay { padding: 20px; font-size: 14px; }
+            .bbc-footer { font-size: 16px; }
         }
     </style>
     <script src="/js/modules/instant-theme.js"></script>
@@ -97,12 +122,18 @@
         <div class="bbc-line">BBC Computer 32K</div>
         <div class="bbc-line" style="margin-bottom: 20px;">BASIC</div>
         
-        <div class="bbc-line">> <span id="bbc-typewriter"></span><span class="bbc-cursor"></span></div>
+        <div class="bbc-line">> <span id="typewriter-1"></span><span class="bbc-cursor" id="cursor-1"></span></div>
+        
+        <div class="bbc-line" id="line-2" style="display:none">
+            > <span id="typewriter-2"></span><span class="bbc-cursor" id="cursor-2"></span>
+        </div>
         
         <div id="bbc-bar-container">
             <div id="bbc-bar-fill"></div>
         </div>
         <div id="bbc-status">Searching...</div>
+        
+        <div class="bbc-footer">SHARE AND ENJOY</div>
     </div>
     <div id="snow-effect" class="hidden"></div>
     <div id="bubble-effect" class="hidden"></div>
