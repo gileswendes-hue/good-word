@@ -81,13 +81,26 @@
         
         #bbc-status { margin-top: 20px; display: none; color: #00FF00; font-size: 20px; }
 
+        /* QR CODE STYLE */
+        #bbc-qr {
+            margin-top: auto; /* Pushes itself (and footer) to the bottom */
+            align-self: center; /* Center horizontally */
+            width: 260px; /* Matches width of text below */
+            height: auto;
+            margin-bottom: 20px;
+            image-rendering: pixelated; /* Crisp edges */
+            opacity: 0;
+            animation: fadeIn 1s ease-in forwards;
+            animation-delay: 0.2s;
+        }
+
         /* PIXEL ART FOOTER */
         .bbc-footer {
-            margin-top: auto;
+            /* margin-top handled by QR code now */
             width: 100%;
             text-align: center;
+            align-self: center;
             color: #00FF00; /* Green */
-            /* Use the imported pixel font */
             font-family: 'Press Start 2P', cursive; 
             font-size: 24px; /* Big & Blocky */
             line-height: 1.5;
@@ -106,6 +119,7 @@
             #bbc-loader-overlay { padding: 20px; font-size: 14px; }
             .bbc-footer { font-size: 16px; padding-bottom: 20px; }
             #bbc-bar-fill { height: 20px; }
+            #bbc-qr { width: 180px; }
         }
     </style>
     <script src="/js/modules/instant-theme.js"></script>
@@ -139,6 +153,7 @@
         </div>
         <div id="bbc-status">Searching...</div>
         
+        <img id="bbc-qr" src="/main-qr.png" alt="QR Code" />
         <div class="bbc-footer">SHARE AND ENJOY</div>
     </div>
 
