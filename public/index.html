@@ -6,22 +6,14 @@
     <title>GOOD WORD / BAD WORD - Daily Edition</title>
     
     <style id="loader-css">
-        /* CRITICAL: overflow-y: scroll forces the scrollbar track to exist immediately.
-           This prevents the page width from "jumping" when the loader vanishes.
-        */
-        html {
+        /* LOCK SCROLLING INITIALLY */
+        html, body {
             background-color: #000000 !important;
             height: 100%;
-            overflow-y: scroll; /* Force scrollbar track always */
-        }
-        
-        body {
-            background-color: #000000 !important;
+            width: 100%;
             margin: 0;
             padding: 0;
-            /* Lock interaction but allow layout to render behind */
-            height: 100%;
-            overflow: hidden; 
+            overflow: hidden !important; /* Locked */
         }
         
         #bbc-loader-overlay {
@@ -39,8 +31,8 @@
             flex-direction: column;
             justify-content: flex-start;
             align-items: flex-start;
-            transition: opacity 0.5s ease-out;
-            pointer-events: all; /* Blocks clicks on game behind */
+            transition: opacity 1.0s ease-out; /* Slow fade */
+            pointer-events: all;
         }
 
         .bbc-line {
@@ -68,7 +60,7 @@
             max-width: 600px;
             border: 2px solid #FFFF00;
             padding: 2px;
-            display: none; /* Hidden until RUN */
+            display: none;
         }
 
         #bbc-bar-fill {
@@ -80,25 +72,29 @@
         
         #bbc-status { margin-top: 10px; display: none; color: #00FF00; }
 
+        /* PIXEL ART FOOTER STYLE */
         .bbc-footer {
-            margin-top: auto; /* Pushes to bottom */
+            margin-top: auto;
             width: 100%;
             text-align: center;
-            color: #00FF00; /* BBC Green */
-            font-size: 24px;
-            letter-spacing: 4px;
-            text-shadow: 2px 2px #003300;
-            padding-bottom: 20px;
+            color: #00FF00;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 20px;
+            font-weight: 900;
+            letter-spacing: 6px;
+            text-transform: uppercase;
+            text-shadow: 2px 2px 0px #003300; /* Block shadow effect */
             opacity: 0;
             animation: fadeIn 2s ease-in forwards;
-            animation-delay: 1s;
+            animation-delay: 0.5s;
+            transform: scaleY(1.2); /* Stretch vertically for retro look */
         }
         
         @keyframes fadeIn { to { opacity: 1; } }
 
         @media (max-width: 600px) {
             #bbc-loader-overlay { padding: 20px; font-size: 14px; }
-            .bbc-footer { font-size: 16px; }
+            .bbc-footer { font-size: 14px; letter-spacing: 3px; }
         }
     </style>
     <script src="/js/modules/instant-theme.js"></script>
@@ -123,7 +119,6 @@
         <div class="bbc-line" style="margin-bottom: 20px;">BASIC</div>
         
         <div class="bbc-line">> <span id="typewriter-1"></span><span class="bbc-cursor" id="cursor-1"></span></div>
-        
         <div class="bbc-line" id="line-2" style="display:none">
             > <span id="typewriter-2"></span><span class="bbc-cursor" id="cursor-2"></span>
         </div>
@@ -135,6 +130,7 @@
         
         <div class="bbc-footer">SHARE AND ENJOY</div>
     </div>
+
     <div id="snow-effect" class="hidden"></div>
     <div id="bubble-effect" class="hidden"></div>
     <div id="fire-effect" class="hidden"></div>
