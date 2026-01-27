@@ -65,7 +65,7 @@ loaderHTML.id = 'retro-loader-overlay';
 loaderHTML.innerHTML = `
     <div class="scanline"></div>
     <div class="loader-content">
-        <div class="loader-title">INITIALIZING</div>
+        <div class="loader-title">LOADING</div>
         <div class="loader-bar-box"><div class="loader-bar-fill" id="loader-fill"></div></div>
         <div class="loader-status" id="loader-text">Loading Core...</div>
     </div>
