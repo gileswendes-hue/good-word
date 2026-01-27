@@ -1,6 +1,13 @@
 (function() {
 'use strict';
 
+// --- 1. PREVENT SCROLL JUMP (The Fix) ---
+// Tell browser NOT to restore scroll position from previous session
+if ('scrollRestoration' in history) {
+    history.scrollRestoration = 'manual';
+}
+window.scrollTo(0, 0);
+
 const MODULE_PATH = '/js/modules/';
 
 const MODULES = [
@@ -68,7 +75,7 @@ function checkComplete() {
         if (statusText) statusText.textContent = "Found: GOODWORD";
         
         setTimeout(() => {
-            // --- CRITICAL SCROLL FIX ---
+            // --- CLEANUP ---
             // 1. Remove the style tag that forces overflow:hidden
             const loaderStyles = document.getElementById('loader-css');
             if (loaderStyles) loaderStyles.remove();
@@ -80,7 +87,7 @@ function checkComplete() {
             document.body.style.backgroundColor = '';
             document.body.style.height = '';
             
-            // 3. Scroll to top
+            // 3. Double check we are at the top before revealing
             window.scrollTo(0, 0);
 
             // 4. Fade out loader
