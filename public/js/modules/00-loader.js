@@ -1,13 +1,6 @@
 (function() {
 'use strict';
 
-// --- 1. INSTANT VISUAL BLOCK (Execute Immediately) ---
-// Prevents the "white flash" or "default theme flash" by forcing the root background
-// to match the loader color before the DOM is even fully constructed.
-if (document.documentElement) {
-    document.documentElement.style.backgroundColor = '#0d1117';
-}
-
 const MODULE_PATH = '/js/modules/';
 
 const MODULES = [
@@ -21,127 +14,42 @@ const MODULES = [
     '08-streakmanager.js'
 ];
 
-// --- 2. INJECT CSS SYNCHRONOUSLY ---
-// We inject the style into the head immediately so the browser knows 
-// how to render the loader before it parses the body.
-const loaderStyle = document.createElement('style');
-loaderStyle.innerHTML = `
-    /* Force body/html to stay dark and hidden scrollbars during load */
-    html, body { 
-        background-color: #0d1117 !important; 
-        margin: 0; 
-        overflow: hidden !important; 
-        height: 100%;
-    }
-    
-    #retro-loader-overlay {
-        position: fixed; 
-        inset: 0; 
-        z-index: 2147483647; /* Maximum Safe Integer Z-Index */
-        background-color: #0d1117;
-        display: flex; 
-        flex-direction: column;
-        align-items: center; 
-        justify-content: center;
-        font-family: 'Courier New', Courier, monospace;
-        transition: opacity 0.8s ease-out;
-        cursor: wait;
-        opacity: 1;
-    }
-    .loader-content { width: 300px; max-width: 80%; }
-    .loader-title {
-        color: #4ade80; font-size: 24px; font-weight: bold;
-        text-align: center; margin-bottom: 15px;
-        text-shadow: 0 0 8px rgba(74, 222, 128, 0.4);
-        letter-spacing: 2px;
-    }
-    .loader-bar-box {
-        width: 100%; height: 24px;
-        border: 3px solid #4ade80;
-        padding: 3px;
-        box-shadow: 0 0 10px rgba(74, 222, 128, 0.2);
-    }
-    .loader-bar-fill {
-        height: 100%; width: 0%;
-        background-color: #4ade80;
-        transition: width 0.2s linear;
-        box-shadow: inset 0 0 5px rgba(0,0,0,0.3);
-    }
-    .loader-status {
-        color: #86efac; font-size: 12px; margin-top: 10px;
-        text-align: right; height: 16px;
-    }
-    .scanline {
-        position: absolute; inset: 0; pointer-events: none;
-        background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.2));
-        background-size: 100% 4px;
-        opacity: 0.15;
-    }
-`;
-document.head.appendChild(loaderStyle);
+// --- LOCATE EXISTING HTML UI ---
+// Since the UI is hardcoded in index.html for zero-flash, we just find it.
+const fillEl = document.getElementById('loader-fill');
+const textEl = document.getElementById('loader-text');
+const loaderHTML = document.getElementById('retro-loader-overlay');
 
-// --- 3. INJECT HTML ASAP ---
-let fillEl, textEl, loaderHTML;
-
-function createLoaderUI() {
-    if (document.getElementById('retro-loader-overlay')) return;
-
-    loaderHTML = document.createElement('div');
-    loaderHTML.id = 'retro-loader-overlay';
-    loaderHTML.innerHTML = `
-        <div class="scanline"></div>
-        <div class="loader-content">
-            <div class="loader-title">INITIALIZING</div>
-            <div class="loader-bar-box"><div class="loader-bar-fill" id="loader-fill"></div></div>
-            <div class="loader-status" id="loader-text">LOADING...</div>
-        </div>
-    `;
-
-    // Try to prepend to body (puts it at the very top of the stack)
-    if (document.body) {
-        document.body.prepend(loaderHTML);
-    } else {
-        // If script runs in <head>, wait for body to exist
-        document.addEventListener('DOMContentLoaded', () => {
-            document.body.prepend(loaderHTML);
-        });
-    }
-
-    fillEl = loaderHTML.querySelector('#loader-fill');
-    textEl = loaderHTML.querySelector('#loader-text');
-}
-
-// Call immediately
-createLoaderUI();
-
-// --- 4. LOADING LOGIC ---
+// --- LOADING LOGIC ---
 
 let loadedCount = 0;
 let modulesFinished = false;
 let themeFinished = false;
 
 function updateProgress(percent, statusText) {
-    if (!fillEl && document.getElementById('loader-fill')) {
-        fillEl = document.getElementById('loader-fill');
-        textEl = document.getElementById('loader-text');
-    }
     if (fillEl) fillEl.style.width = `${percent}%`;
     if (textEl && statusText) textEl.innerText = statusText;
 }
 
 function checkComplete() {
+    // Only fade out when everything is loaded AND the theme is applied
     if (modulesFinished && themeFinished) {
         updateProgress(100, "SYSTEM READY");
         setTimeout(() => {
-            const overlay = document.getElementById('retro-loader-overlay');
-            if (overlay) {
-                overlay.style.opacity = '0';
-                // Remove scroll lock
+            if (loaderHTML) {
+                loaderHTML.style.opacity = '0';
+                
+                // Allow scrolling again
                 document.documentElement.style.overflow = '';
                 document.body.style.overflow = '';
-                setTimeout(() => overlay.remove(), 800);
+                
+                // Revert the background color hack on html/body so themes can take over
+                document.documentElement.style.backgroundColor = '';
+                document.body.style.backgroundColor = '';
+                
+                setTimeout(() => loaderHTML.remove(), 800);
             }
-        }, 300);
+        }, 300); // Short pause at 100%
     }
 }
 
@@ -152,7 +60,7 @@ window.addEventListener('themeReady', () => {
     checkComplete();
 });
 
-// Fallback safety net
+// Fallback: If smart-loader isn't used or fails to fire, force finish after timeout
 setTimeout(() => {
     if (!themeFinished) {
         console.warn('[Loader] No theme signal. Forcing load.');
@@ -167,7 +75,7 @@ function loadScript(src) {
         script.src = MODULE_PATH + src;
         script.onload = () => {
             loadedCount++;
-            const percent = Math.floor((loadedCount / MODULES.length) * 85);
+            const percent = Math.floor((loadedCount / MODULES.length) * 85); // Save last 15% for theme
             updateProgress(percent, `Loaded ${src.split('-')[1] || 'Module'}...`);
             console.log(`[Loader] ${loadedCount}/${MODULES.length} - ${src}`);
             resolve();
@@ -180,25 +88,25 @@ function loadScript(src) {
 async function loadModules() {
     console.log('%c[Loader] Starting module load...', 'color: #8b5cf6; font-weight: bold');
     
-    // Create UI again just in case DOM wasn't ready during first pass
-    createLoaderUI();
-    
     for (const module of MODULES) {
         try {
             await loadScript(module);
         } catch (e) {
             console.error(`[Loader] Failed to load ${module}:`, e);
+            // Continue loading other modules
         }
     }
     
     console.log('%c[Loader] All modules loaded!', 'color: #22c55e; font-weight: bold');
+    
+    // Dispatch event for game initialization
     window.dispatchEvent(new CustomEvent('modulesLoaded'));
     
     modulesFinished = true;
     checkComplete();
 }
 
-// Lazy loader export
+// Lazy loader for minigames
 window.loadMinigames = async function() {
     if (window.MiniGames) return;
     try {
@@ -208,7 +116,7 @@ window.loadMinigames = async function() {
     }
 };
 
-// Execution start
+// Start loading
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', loadModules);
 } else {
