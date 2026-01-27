@@ -1,9 +1,9 @@
 (function() {
 'use strict';
 
-// --- 1. PREVENT SCROLL JUMP (The Fix) ---
-// Tell browser NOT to restore scroll position from previous session
-if ('scrollRestoration' in history) {
+// --- 1. PREVENT SCROLL JUMP & BOUNCE ---
+// Force browser to start at top (0,0) and ignore previous scroll position
+if (history.scrollRestoration) {
     history.scrollRestoration = 'manual';
 }
 window.scrollTo(0, 0);
@@ -38,14 +38,17 @@ function typeCommand() {
     if (charIndex < command.length) {
         typeWriterEl.textContent += command.charAt(charIndex);
         charIndex++;
+        // Random typing delay for realism
         setTimeout(typeCommand, 50 + Math.random() * 80);
     } else {
         // Typing finished
         setTimeout(() => {
             const cursor = document.querySelector('.bbc-cursor');
             if(cursor) cursor.style.display = 'none';
+            
             if (barContainer) barContainer.style.display = 'block';
             if (statusText) statusText.style.display = 'block';
+            
             isTypingDone = true;
             checkComplete();
         }, 600);
@@ -75,19 +78,21 @@ function checkComplete() {
         if (statusText) statusText.textContent = "Found: GOODWORD";
         
         setTimeout(() => {
-            // --- CLEANUP ---
-            // 1. Remove the style tag that forces overflow:hidden
+            // --- CRITICAL SCROLL UNLOCK ---
+            
+            // 1. Remove the blocking CSS styles
             const loaderStyles = document.getElementById('loader-css');
             if (loaderStyles) loaderStyles.remove();
             
-            // 2. Ensure body/html are clean
-            document.documentElement.style.overflow = '';
-            document.body.style.overflow = '';
+            // 2. Force reset body/html styles to allow scrolling
+            document.documentElement.style.overflow = 'auto';
+            document.body.style.overflow = 'auto';
+            document.documentElement.style.height = 'auto';
+            document.body.style.height = 'auto';
             document.documentElement.style.backgroundColor = '';
             document.body.style.backgroundColor = '';
-            document.body.style.height = '';
             
-            // 3. Double check we are at the top before revealing
+            // 3. Ensure we start at the top
             window.scrollTo(0, 0);
 
             // 4. Fade out loader
@@ -95,7 +100,7 @@ function checkComplete() {
                 loaderOverlay.style.opacity = '0';
                 setTimeout(() => loaderOverlay.remove(), 600);
             }
-        }, 1200); 
+        }, 1200); // Short pause to read success message
     }
 }
 
@@ -124,12 +129,14 @@ window.addEventListener('themeReady', () => {
     checkComplete();
 });
 
-// 3. Data Listener (Wait for word)
+// 3. Data Listener (Wait for word content)
 const dataCheckInterval = setInterval(() => {
     const wordEl = document.getElementById('wordDisplay');
+    // Check if the element exists and text is not the default "Loading..."
     if (wordEl && 
         wordEl.innerText.trim() !== 'Loading...' && 
         wordEl.innerText.trim() !== '') {
+        
         console.log('[Loader] Data loaded.');
         clearInterval(dataCheckInterval);
         dataFinished = true;
@@ -138,7 +145,7 @@ const dataCheckInterval = setInterval(() => {
     }
 }, 100);
 
-// Safety Timeout (6s)
+// Safety Timeout (6s) - Prevents infinite load if something breaks
 setTimeout(() => {
     if (!dataFinished || !themeFinished || !modulesFinished) {
         console.warn('[Loader] Timeout. Forcing load.');
@@ -146,6 +153,7 @@ setTimeout(() => {
         dataFinished = true;
         themeFinished = true;
         modulesFinished = true;
+        
         if (!isTypingDone) {
             isTypingDone = true;
             if (barContainer) barContainer.style.display = 'block';
@@ -156,6 +164,7 @@ setTimeout(() => {
 
 async function loadModules() {
     console.log('%c[Loader] Starting module load...', 'color: #8b5cf6; font-weight: bold');
+    
     for (const module of MODULES) {
         try {
             await loadScript(module);
@@ -163,17 +172,21 @@ async function loadModules() {
             console.error(`[Loader] Failed to load ${module}:`, e);
         }
     }
+    
     console.log('%c[Loader] All modules loaded!', 'color: #22c55e; font-weight: bold');
     window.dispatchEvent(new CustomEvent('modulesLoaded'));
+    
     modulesFinished = true;
     checkComplete();
 }
 
+// Lazy loader export
 window.loadMinigames = async function() {
     if (window.MiniGames) return;
     try { await loadScript('09-minigames.js'); } catch (e) {}
 };
 
+// Start execution
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', loadModules);
 } else {
