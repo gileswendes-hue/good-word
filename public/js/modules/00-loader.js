@@ -22,40 +22,55 @@ const MODULES = [
 
 // --- LOCATE EXISTING HTML UI ---
 const loaderOverlay = document.getElementById('bbc-loader-overlay');
-const typeWriterEl = document.getElementById('bbc-typewriter');
 const barContainer = document.getElementById('bbc-bar-container');
 const barFill = document.getElementById('bbc-bar-fill');
 const statusText = document.getElementById('bbc-status');
 
 // --- TYPING ANIMATION ---
-const command = 'LOAD "GOODWORD/BADWORD"';
+const cmd1 = 'LOAD "GOODWORD/BADWORD"';
+const cmd2 = 'RUN';
+
+let currentLine = 1;
 let charIndex = 0;
 let isTypingDone = false;
 
-function typeCommand() {
-    if (!typeWriterEl) return;
-    if (charIndex < command.length) {
-        typeWriterEl.textContent += command.charAt(charIndex);
+function typeLine() {
+    const targetId = currentLine === 1 ? 'typewriter-1' : 'typewriter-2';
+    const text = currentLine === 1 ? cmd1 : cmd2;
+    const el = document.getElementById(targetId);
+    
+    if (!el) return;
+
+    if (charIndex < text.length) {
+        el.textContent += text.charAt(charIndex);
         charIndex++;
-        // Random typing delay
-        setTimeout(typeCommand, 50 + Math.random() * 80);
+        setTimeout(typeLine, 50 + Math.random() * 60);
     } else {
-        // Typing finished
-        setTimeout(() => {
-            const cursor = document.querySelector('.bbc-cursor');
-            if(cursor) cursor.style.display = 'none';
-            
-            if (barContainer) barContainer.style.display = 'block';
-            if (statusText) statusText.style.display = 'block';
-            
-            isTypingDone = true;
-            checkComplete();
-        }, 600);
+        // Line finished
+        if (currentLine === 1) {
+            // Move to line 2
+            setTimeout(() => {
+                document.getElementById('cursor-1').style.display = 'none';
+                document.getElementById('line-2').style.display = 'flex';
+                currentLine = 2;
+                charIndex = 0;
+                typeLine();
+            }, 400);
+        } else {
+            // All done
+            setTimeout(() => {
+                document.getElementById('cursor-2').style.display = 'none';
+                if (barContainer) barContainer.style.display = 'block';
+                if (statusText) statusText.style.display = 'block';
+                isTypingDone = true;
+                checkComplete();
+            }, 400);
+        }
     }
 }
 
 // Start typing immediately
-setTimeout(typeCommand, 500);
+setTimeout(typeLine, 500);
 
 // --- LOADING LOGIC ---
 
@@ -76,13 +91,14 @@ function checkComplete() {
         updateProgress(100);
         if (statusText) statusText.textContent = "Found: GOODWORD";
         
-        // Step 1: Wait for user to read the success message
         setTimeout(() => {
+            // --- CRITICAL SCROLL UNLOCK ---
             
-            // Step 2: UNLOCK SCROLLING (The Jump happens here, invisible)
+            // 1. Remove the blocking CSS styles
             const loaderStyles = document.getElementById('loader-css');
             if (loaderStyles) loaderStyles.remove();
             
+            // 2. Force reset body/html styles to allow scrolling
             document.documentElement.style.overflow = 'auto';
             document.body.style.overflow = 'auto';
             document.documentElement.style.height = 'auto';
@@ -90,18 +106,15 @@ function checkComplete() {
             document.documentElement.style.backgroundColor = '';
             document.body.style.backgroundColor = '';
             
+            // 3. Ensure we start at the top
             window.scrollTo(0, 0);
 
-            // Step 3: THE CURTAIN WAIT (Wait for layout to settle)
-            setTimeout(() => {
-                // Step 4: Fade out
-                if (loaderOverlay) {
-                    loaderOverlay.style.opacity = '0';
-                    setTimeout(() => loaderOverlay.remove(), 600);
-                }
-            }, 500); // 500ms delay prevents seeing the jump
-            
-        }, 1000); 
+            // 4. Fade out loader
+            if (loaderOverlay) {
+                loaderOverlay.style.opacity = '0';
+                setTimeout(() => loaderOverlay.remove(), 600);
+            }
+        }, 1200); 
     }
 }
 
@@ -130,9 +143,10 @@ window.addEventListener('themeReady', () => {
     checkComplete();
 });
 
-// 3. Data Listener
+// 3. Data Listener (Wait for word content)
 const dataCheckInterval = setInterval(() => {
     const wordEl = document.getElementById('wordDisplay');
+    // Check if the element exists and text is not the default "Loading..."
     if (wordEl && 
         wordEl.innerText.trim() !== 'Loading...' && 
         wordEl.innerText.trim() !== '') {
@@ -145,7 +159,7 @@ const dataCheckInterval = setInterval(() => {
     }
 }, 100);
 
-// Safety Timeout
+// Safety Timeout (6s) - Prevents infinite load if something breaks
 setTimeout(() => {
     if (!dataFinished || !themeFinished || !modulesFinished) {
         console.warn('[Loader] Timeout. Forcing load.');
@@ -180,11 +194,13 @@ async function loadModules() {
     checkComplete();
 }
 
+// Lazy loader export
 window.loadMinigames = async function() {
     if (window.MiniGames) return;
     try { await loadScript('09-minigames.js'); } catch (e) {}
 };
 
+// Start execution
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', loadModules);
 } else {
