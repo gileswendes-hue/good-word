@@ -18,7 +18,7 @@
             overflow: hidden !important; /* Locked during load */
         }
         
-        /* Hide the app initially so the "jump" happens invisibly */
+        /* Hide the app initially so the layout shift happens unseen */
         #app {
             opacity: 0;
             transition: opacity 0.5s ease-in;
@@ -30,16 +30,16 @@
             z-index: 2147483647;
             background-color: #000000;
             font-family: 'Courier New', Courier, monospace;
-            padding: 60px; /* Larger padding */
+            padding: 40px;
             color: #FFFF00; /* BBC Yellow */
             font-weight: bold;
-            font-size: 24px; /* Larger text */
+            font-size: 20px;
             text-shadow: 0 0 4px #FFFF00;
             display: flex;
             flex-direction: column;
             justify-content: flex-start;
             align-items: flex-start;
-            transition: opacity 1.0s ease-out;
+            transition: opacity 0.8s ease-out;
             pointer-events: all;
         }
 
@@ -66,45 +66,46 @@
             margin-top: 40px;
             width: 100%;
             max-width: 800px;
-            border: 4px solid #FFFF00; /* Thicker border */
+            border: 4px solid #FFFF00;
             padding: 4px;
             display: none; 
         }
 
         #bbc-bar-fill {
             width: 0%;
-            height: 40px; /* Thicker bar */
+            height: 30px;
             background-color: #FFFF00;
-            transition: width 0.1s linear;
+            /* SMOOTH ANIMATION: 1.5s is the sweet spot */
+            transition: width 1.5s linear;
         }
         
         #bbc-status { margin-top: 20px; display: none; color: #00FF00; font-size: 20px; }
 
-        /* PIXEL ART FOOTER STYLE */
+        /* PIXEL ART FOOTER */
         .bbc-footer {
             margin-top: auto;
             width: 100%;
             text-align: center;
-            color: #00FF00;
-            /* True Pixel Font */
+            color: #00FF00; /* Green */
+            /* Use the imported pixel font */
             font-family: 'Press Start 2P', cursive; 
-            font-size: 32px; /* Large */
+            font-size: 24px; /* Big & Blocky */
             line-height: 1.5;
             text-shadow: 
-                4px 4px 0px #003300, 
-                0 0 20px rgba(0, 255, 0, 0.5); /* 3D Block Shadow + Glow */
+                3px 3px 0px #003300, 
+                0 0 15px rgba(0, 255, 0, 0.6); /* Glow */
             padding-bottom: 40px;
             opacity: 0;
-            animation: fadeIn 2s ease-in forwards;
-            animation-delay: 0.5s;
+            animation: fadeIn 1s ease-in forwards;
+            animation-delay: 0.2s;
         }
         
         @keyframes fadeIn { to { opacity: 1; } }
 
         @media (max-width: 600px) {
-            #bbc-loader-overlay { padding: 20px; font-size: 16px; }
-            .bbc-footer { font-size: 18px; padding-bottom: 20px; }
-            #bbc-bar-fill { height: 25px; }
+            #bbc-loader-overlay { padding: 20px; font-size: 14px; }
+            .bbc-footer { font-size: 16px; padding-bottom: 20px; }
+            #bbc-bar-fill { height: 20px; }
         }
     </style>
     <script src="/js/modules/instant-theme.js"></script>
@@ -181,48 +182,48 @@
                 </div>
 
                 <div id="headerStatsCard" class="md:col-span-3 bg-white/90 backdrop-blur-sm shadow-md rounded-xl p-3 border border-gray-100 flex flex-col justify-center cursor-pointer hover:bg-white hover:scale-[1.02] transition-all relative" title="Click to view Statistics Graphs">
-            
-            <div class="flex justify-between items-center mb-2 px-2">
-                <div class="text-center">
-                    <div class="text-[9px] text-gray-400 font-bold uppercase tracking-wide">Dictionary</div>
-                    <div id="headerTotalWords" class="text-xl font-black text-gray-600 leading-none">0</div>
-                </div>
-                <div class="text-center">
-                    <div class="text-[9px] text-gray-400 font-bold uppercase tracking-wide">Total Votes</div>
-                    <div id="headerGlobalVotes" class="text-2xl font-black text-indigo-700 leading-none">0</div>
-                </div>
-            </div>
+    
+    <div class="flex justify-between items-center mb-2 px-2">
+        <div class="text-center">
+            <div class="text-[9px] text-gray-400 font-bold uppercase tracking-wide">Dictionary</div>
+            <div id="headerTotalWords" class="text-xl font-black text-gray-600 leading-none">0</div>
+        </div>
+        <div class="text-center">
+            <div class="text-[9px] text-gray-400 font-bold uppercase tracking-wide">Total Votes</div>
+            <div id="headerGlobalVotes" class="text-2xl font-black text-indigo-700 leading-none">0</div>
+        </div>
+    </div>
 
-            <div class="w-full bg-gray-200 rounded-full h-3 mb-2 overflow-hidden shadow-inner relative">
-                <div id="communityGoalBar" class="h-full transition-all duration-1000 ease-out" style="width: 0%; background: linear-gradient(90deg, #f59e0b, #eab308);"></div>
-                <span id="communityGoalText" class="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-gray-700"></span>
-            </div>
+    <div class="w-full bg-gray-200 rounded-full h-3 mb-2 overflow-hidden shadow-inner relative">
+        <div id="communityGoalBar" class="h-full transition-all duration-1000 ease-out" style="width: 0%; background: linear-gradient(90deg, #f59e0b, #eab308);"></div>
+        <span id="communityGoalText" class="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-gray-700"></span>
+    </div>
 
-            <div class="w-full bg-gray-200 rounded-full h-2 mb-1 flex overflow-hidden shadow-inner">
-                <div id="headerBarGood" class="bg-green-500 h-full transition-all duration-1000 ease-out" style="width: 50%"></div>
-                <div id="headerBarBad" class="bg-red-500 h-full transition-all duration-1000 ease-out" style="width: 50%"></div>
-            </div>
+    <div class="w-full bg-gray-200 rounded-full h-2 mb-1 flex overflow-hidden shadow-inner">
+        <div id="headerBarGood" class="bg-green-500 h-full transition-all duration-1000 ease-out" style="width: 50%"></div>
+        <div id="headerBarBad" class="bg-red-500 h-full transition-all duration-1000 ease-out" style="width: 50%"></div>
+    </div>
 
-            <div class="flex justify-between px-3 mt-1 items-end">
-                <div class="flex flex-col items-start">
-                    <div class="text-[10px] font-bold text-green-600/70 uppercase tracking-wider mb-[-2px]">Good</div>
-                    <div class="flex items-center text-green-600">
-                        <span class="text-xl mr-2">👍</span> 
-                        <span id="headerGood" class="text-2xl font-black tracking-tight leading-none">0</span>
-                    </div>
-                </div>
-                
-                <div class="flex flex-col items-end">
-                    <div class="text-[10px] font-bold text-red-600/70 uppercase tracking-wider mb-[-2px]">Bad</div>
-                    <div class="flex items-center text-red-600">
-                        <span id="headerBad" class="text-2xl font-black tracking-tight leading-none">0</span> 
-                        <span class="text-xl ml-2">👎</span>
-                    </div>
-                </div>
+    <div class="flex justify-between px-3 mt-1 items-end">
+        <div class="flex flex-col items-start">
+            <div class="text-[10px] font-bold text-green-600/70 uppercase tracking-wider mb-[-2px]">Good</div>
+            <div class="flex items-center text-green-600">
+                <span class="text-xl mr-2">👍</span> 
+                <span id="headerGood" class="text-2xl font-black tracking-tight leading-none">0</span>
             </div>
         </div>
+        
+        <div class="flex flex-col items-end">
+            <div class="text-[10px] font-bold text-red-600/70 uppercase tracking-wider mb-[-2px]">Bad</div>
+            <div class="flex items-center text-red-600">
+                <span id="headerBad" class="text-2xl font-black tracking-tight leading-none">0</span> 
+                <span class="text-xl ml-2">👎</span>
+            </div>
+        </div>
+    </div>
+</div>
 
-        </header>
+</header>
 
         <main id="gameCard" class="card p-8 w-full max-w-sm flex flex-col items-center rounded-2xl relative z-10">
             <div id="dailyBanner" class="daily-banner">
