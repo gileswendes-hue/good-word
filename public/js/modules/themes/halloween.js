@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * HALLOWEEN THEME EFFECT
+ * HALLOWEEN THEME EFFECT - v2.5.0 (Enhanced Bat Hunting)
  * ============================================================================
  * Interactive spider with AI behavior, animated web, and flying bats
  * Spider can hunt mosquitos from MosquitoManager
@@ -9,7 +9,11 @@
  * - Usually, they avoid each other (Floor leaves before Ceiling drops).
  * - Occasionally, they meet, acknowledge each other, and chat.
  * * UPDATE: Bat z-index increased to fly OVER everything.
+ * * v2.5: Echolocation radar, mid-air catching, bat grows when eating
  */
+
+// Log version immediately so we know which file loaded
+console.log('%c[Halloween] v2.5.0 Enhanced loaded! 🦇🎃', 'color: #ff6600; font-weight: bold; font-size: 14px;');
 
 (function() {
 'use strict';
@@ -427,6 +431,28 @@ Effects.halloween = function(active) {
                 
                 // Check if we reached hunt target (use larger radius for air catches)
                 const catchRadius = target.isAirCatch ? 18 : 10;
+                
+                // For air catches, check distance to ACTUAL bug position, not just waypoint
+                if (target.isHunt && target.isAirCatch) {
+                    const bugPos = this.getBugPosition();
+                    if (bugPos && typeof MosquitoManager !== 'undefined' && MosquitoManager.state === 'flying') {
+                        const bugDx = bugPos.x - this.currentX;
+                        const bugDy = bugPos.y - this.currentY;
+                        const bugDistance = Math.sqrt(bugDx * bugDx + bugDy * bugDy);
+                        
+                        // Catch if we're close enough to the actual bug (25% of screen width)
+                        if (bugDistance < 25) {
+                            this.completedHunt(target);
+                            this.pathIndex++;
+                            if (this.pathIndex < this.flightPath.length) {
+                                this.state = 'flying';
+                            }
+                            return;
+                        }
+                    }
+                }
+                
+                // Standard waypoint reach check
                 if (target.isHunt && distance < catchRadius) {
                     this.completedHunt(target);
                     this.pathIndex++;
