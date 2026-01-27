@@ -10,7 +10,7 @@
 'use strict';
 
 const THEME_PATH = '/js/modules/themes/';
-const CACHE_VERSION = '2.5'; // Increment this to bust cache!
+const CACHE_VERSION = '2.6'; // Increment this to bust cache!
 
 // Map theme names to their effect files
 const THEME_MAP = {
