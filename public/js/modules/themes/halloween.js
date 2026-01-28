@@ -652,8 +652,8 @@ const halloweenMain = function(active) {
                 
                 // Also update hunt target periodically even if not at the exact frame check
                 if (this.state === 'hunting' && target.isAirCatch && this.huntTargetMoving) {
-                    // Update every few frames for smoother pursuit
-                    if (!this.lastHuntUpdate || Date.now() - this.lastHuntUpdate > 100) {
+                    // Update more frequently for smoother pursuit (every 80ms instead of 100ms)
+                    if (!this.lastHuntUpdate || Date.now() - this.lastHuntUpdate > 80) {
                         this.updateHuntTarget();
                         this.lastHuntUpdate = Date.now();
                     }
@@ -698,13 +698,15 @@ const halloweenMain = function(active) {
                 // For air catches, check distance to ACTUAL bug position, not just waypoint
                 if (target.isHunt && target.isAirCatch) {
                     const bugPos = this.getBugPosition();
-                    if (bugPos && typeof MosquitoManager !== 'undefined' && MosquitoManager.state === 'flying') {
+                    if (bugPos && typeof MosquitoManager !== 'undefined') {
+                        // Check catch even if bug state changed (might have been caught already)
                         const bugDx = bugPos.x - this.currentX;
                         const bugDy = bugPos.y - this.currentY;
                         const bugDistance = Math.sqrt(bugDx * bugDx + bugDy * bugDy);
                         
                         // Catch if we're close enough to the actual bug (improved radius for better catches)
-                        if (bugDistance < 32) {
+                        // Also catch if bug was flying and we're very close (even if state changed)
+                        if (bugDistance < 35 || (MosquitoManager.state === 'flying' && bugDistance < 40)) {
                             this.completedHunt(target);
                             this.pathIndex++;
                             if (this.pathIndex < this.flightPath.length) {
@@ -715,14 +717,33 @@ const halloweenMain = function(active) {
                     }
                 }
                 
-                // Standard waypoint reach check
-                if (target.isHunt && distance < catchRadius) {
+                // Standard waypoint reach check (for web steals and non-air catches)
+                if (target.isHunt && !target.isAirCatch && distance < catchRadius) {
                     this.completedHunt(target);
                     this.pathIndex++;
                     if (this.pathIndex < this.flightPath.length) {
                         this.state = 'flying';
                     }
                     return;
+                }
+                
+                // For air catches, also check if we're close to waypoint AND bug is nearby
+                if (target.isHunt && target.isAirCatch && distance < catchRadius) {
+                    const bugPos = this.getBugPosition();
+                    if (bugPos) {
+                        const bugDx = bugPos.x - this.currentX;
+                        const bugDy = bugPos.y - this.currentY;
+                        const bugDist = Math.sqrt(bugDx * bugDx + bugDy * bugDy);
+                        // If we reached waypoint and bug is reasonably close, catch it
+                        if (bugDist < 45) {
+                            this.completedHunt(target);
+                            this.pathIndex++;
+                            if (this.pathIndex < this.flightPath.length) {
+                                this.state = 'flying';
+                            }
+                            return;
+                        }
+                    }
                 }
                 
                 // Timeout hunts that take too long (give more time)
@@ -1448,9 +1469,10 @@ const halloweenMain = function(active) {
                 
                 // Update target position based on current bug location more aggressively
                 const bugPos = this.getBugPosition();
-                if (bugPos && typeof MosquitoManager !== 'undefined' && MosquitoManager.state === 'flying') {
+                if (bugPos && typeof MosquitoManager !== 'undefined') {
+                    // Update even if bug state changed (might still be catchable)
                     // Use a slightly longer prediction for smoother interception
-                    const predictedPos = this.predictBugPosition(bugPos, 0.4);
+                    const predictedPos = this.predictBugPosition(bugPos, 0.35);
                     target.x = predictedPos.x;
                     target.y = predictedPos.y;
                 }
@@ -1517,19 +1539,38 @@ const halloweenMain = function(active) {
                     let caughtMidAir = false;
                     if (target.isAirCatch) {
                         const bugPos = this.getBugPosition();
-                        if (bugPos && wasFlying) {
+                        
+                        // Primary check: distance to actual bug position
+                        if (bugPos) {
                             const dx = bugPos.x - this.currentX;
                             const dy = bugPos.y - this.currentY;
                             const distance = Math.sqrt(dx * dx + dy * dy);
-                            // More generous catch radius for air catches (30 units = ~30% of screen)
-                            caughtMidAir = distance < 30;
+                            // More generous catch radius for air catches (35 units)
+                            caughtMidAir = distance < 35;
                         }
-                        // Also catch if bug is still flying and we're very close to our predicted target
-                        if (!caughtMidAir && wasFlying) {
+                        
+                        // Fallback: if we reached the predicted target position, consider it caught
+                        // (bug might have moved slightly but we were close enough)
+                        if (!caughtMidAir) {
                             const targetDx = target.x - this.currentX;
                             const targetDy = target.y - this.currentY;
                             const targetDist = Math.sqrt(targetDx * targetDx + targetDy * targetDy);
-                            caughtMidAir = targetDist < 15; // Close enough to predicted position
+                            // If we're very close to predicted position and bug was flying, catch it
+                            if (targetDist < 18 && wasFlying) {
+                                caughtMidAir = true;
+                            }
+                        }
+                        
+                        // Extra fallback: if bug was flying and we're hunting, be more lenient
+                        // (bug might have been removed/caught already)
+                        if (!caughtMidAir && wasFlying && this.state === 'hunting') {
+                            const bugPos2 = this.getBugPosition();
+                            if (bugPos2) {
+                                const dx = bugPos2.x - this.currentX;
+                                const dy = bugPos2.y - this.currentY;
+                                const distance = Math.sqrt(dx * dx + dy * dy);
+                                caughtMidAir = distance < 40; // Even more generous if actively hunting
+                            }
                         }
                     }
                     
