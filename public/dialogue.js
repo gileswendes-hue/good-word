@@ -1038,6 +1038,37 @@ const GAME_DIALOGUE = {
                 "Hey bat! Time to fly!",
                 "Wake up, sleepyhead!",
                 "You've been hanging there forever!"
+            ],
+            // Floor spider interacting with word card
+            sittingOnCard: [
+                "Comfy spot!",
+                "This card is mine now.",
+                "Perfect perch.",
+                "I'll just sit here...",
+                "Nice and warm.",
+                "Claimed!",
+                "*settles in*",
+                "My card now."
+            ],
+            pushingCard: [
+                "Hmm, can I move this?",
+                "*pushes*",
+                "Heavy...",
+                "Nope, too big.",
+                "*tries pushing*",
+                "Stuck fast.",
+                "Won't budge!",
+                "*strains*"
+            ],
+            cardMoved: [
+                "Whoa!",
+                "Hey!",
+                "Moving?!",
+                "What?!",
+                "*tumbles*",
+                "Not fair!",
+                "I was sitting there!",
+                "Rude!"
             ]
         }
     }
