@@ -2102,7 +2102,8 @@ const halloweenMain = function(active) {
                 if (!card) return false;
                 
                 const cardRect = card.getBoundingClientRect();
-                const spiderRect = this.bodyElement?.getBoundingClientRect();
+                if (!this.bodyElement) return false;
+                const spiderRect = this.bodyElement.getBoundingClientRect();
                 if (!spiderRect) return false;
                 
                 // Check if spider is overlapping with card (within 30px margin)
@@ -2208,12 +2209,14 @@ const halloweenMain = function(active) {
                         
                         // Check for card movement periodically
                         const checkMovement = () => {
-                            if (this.isOnCard && this.state === 'sittingOnCard') {
+                            if (this.isOnCard && this.state === 'sittingOnCard' && this.cardInteractionTimeout !== null) {
                                 this.checkCardMovement();
-                                this.cardInteractionTimeout = setTimeout(checkMovement, 100);
+                                this.cardInteractionTimeout = setTimeout(checkMovement, 150);
+                            } else {
+                                this.cardInteractionTimeout = null;
                             }
                         };
-                        checkMovement();
+                        this.cardInteractionTimeout = setTimeout(checkMovement, 150);
                         
                         // Stay for a while, then leave
                         setTimeout(() => {
@@ -2337,11 +2340,6 @@ const halloweenMain = function(active) {
                     this.currentY = Math.max(100, Math.min(window.innerHeight - 30, this.currentY));
                 }
                 this.updatePosition();
-                
-                // If sitting on card, check for card movement
-                if (this.isOnCard && this.state === 'sittingOnCard') {
-                    this.checkCardMovement();
-                }
                 
                 this.animationFrame = requestAnimationFrame(() => this.animateMovement(onComplete));
             },
@@ -2511,10 +2509,10 @@ const halloweenMain = function(active) {
                 } else if (action < 0.32) {
                     // Look up at ceiling spider or bat
                     this.lookUp();
-                } else                 } else if (action < 0.45) {
+                } else if (action < 0.38) {
                     // Do a little spin/dance
                     this.doSpin();
-                } else if (action < 0.55) {
+                } else if (action < 0.48) {
                     // Interact with word card (sit on it, push it)
                     this.interactWithCard();
                 } else {
