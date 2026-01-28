@@ -695,14 +695,33 @@ const halloweenMain = function(active) {
                 // For air catches, ALWAYS check distance to actual bug EVERY FRAME and pursue directly
                 if (target.isHunt && target.isAirCatch && this.state === 'hunting') {
                     const bugPos = this.getBugPosition();
+                    
+                    // Check if spider got there first (bug is now stuck in web)
+                    if (typeof MosquitoManager !== 'undefined' && MosquitoManager.state === 'stuck') {
+                        // Spider caught it! React and abort
+                        this.say('spiderGotItFirst');
+                        CreatureCoordinator.addEvent('spiderBeatBatToBug');
+                        CreatureCoordinator.modifyRelationship('batToSpider', -5);
+                        this.huntTargetMoving = false;
+                        this.pathIndex++;
+                        this.state = 'flying';
+                        return;
+                    }
+                    
                     if (bugPos && typeof MosquitoManager !== 'undefined' && MosquitoManager.state === 'flying') {
+                        // Check if spider is also hunting (competition!)
+                        const spiderWrap = document.getElementById('spider-wrap');
+                        const spiderIsHunting = spiderWrap && spiderWrap.classList.contains('hunting');
+                        
                         const bugDx = bugPos.x - this.currentX;
                         const bugDy = bugPos.y - this.currentY;
                         const bugDistance = Math.sqrt(bugDx * bugDx + bugDy * bugDy);
                         
                         // CATCH CHECK: If we're close enough, catch it immediately!
                         // Use a reasonable catch radius - bat's wingspan + reaction time
-                        if (bugDistance < 28) {
+                        // Be more aggressive if spider is also hunting!
+                        const catchRadius = spiderIsHunting ? 32 : 28; // Larger radius when competing
+                        if (bugDistance < catchRadius) {
                             this.completedHunt(target);
                             this.pathIndex++;
                             if (this.pathIndex < this.flightPath.length) {
@@ -713,21 +732,54 @@ const halloweenMain = function(active) {
                         
                         // DIRECT PURSUIT: Move directly toward bug instead of waypoint when hunting
                         // This ensures we're always chasing the actual bug, not a stale prediction
-                        // Use faster speed for pursuit - bat should be faster than bugs!
-                        const basePursuitSpeed = 0.6; // Faster than normal flight
-                        const speedMultiplier = bugDistance > 40 ? 1.2 : 0.8; // Faster when far, slower when close for precision
-                        const pursuitSpeed = basePursuitSpeed * speedMultiplier;
-                        const moveRatio = Math.min(pursuitSpeed, bugDistance * 0.08);
-                        const time = Date.now() / 1000;
+                        // Use MUCH faster speed for pursuit - bat should be faster than bugs AND spider!
+                        let basePursuitSpeed = 0.75; // Very fast pursuit
+                        if (spiderIsHunting) {
+                            // EXTRA FAST when competing with spider!
+                            basePursuitSpeed = 1.0;
+                        }
                         
-                        // Add slight wobble for natural flight
-                        const wobbleScale = this.isSpeaking ? 0.1 : 1.0;
+                        // Speed multiplier: faster when far away, precise when close
+                        const speedMultiplier = bugDistance > 50 ? 1.4 : (bugDistance > 30 ? 1.1 : 0.9);
+                        const pursuitSpeed = basePursuitSpeed * speedMultiplier;
+                        const moveRatio = Math.min(pursuitSpeed, bugDistance * 0.12); // More aggressive movement
+                        
+                        // Add slight wobble for natural flight (less wobble when competing)
+                        const time = Date.now() / 1000;
+                        const wobbleScale = (this.isSpeaking ? 0.1 : (spiderIsHunting ? 0.3 : 1.0));
                         const waveX = Math.sin(time * 2) * 0.1 * wobbleScale;
                         const waveY = Math.cos(time * 1.5) * 0.08 * wobbleScale;
                         
-                        // Move directly toward bug
-                        this.currentX += (bugDx / bugDistance) * moveRatio + waveX;
-                        this.currentY += (bugDy / bugDistance) * moveRatio + waveY;
+                        // Move directly toward bug with anticipation (lead the target slightly)
+                        // Predict where bug will be in next frame for better interception
+                        // Use longer prediction when competing with spider for better interception
+                        const predictionTime = spiderIsHunting ? 0.2 : 0.15;
+                        const predictedBugPos = this.predictBugPosition(bugPos, predictionTime);
+                        const predDx = predictedBugPos.x - this.currentX;
+                        const predDy = predictedBugPos.y - this.currentY;
+                        const predDistance = Math.sqrt(predDx * predDx + predDy * predDy);
+                        
+                        // Move toward predicted position for better interception
+                        // Blend prediction with direct pursuit for smoother movement
+                        const predictionBlend = spiderIsHunting ? 0.7 : 0.5; // More prediction when competing
+                        const directDx = bugDx / bugDistance;
+                        const directDy = bugDy / bugDistance;
+                        const predDxNorm = predDistance > 0.1 ? predDx / predDistance : directDx;
+                        const predDyNorm = predDistance > 0.1 ? predDy / predDistance : directDy;
+                        
+                        // Blend direct and predicted directions
+                        const finalDx = directDx * (1 - predictionBlend) + predDxNorm * predictionBlend;
+                        const finalDy = directDy * (1 - predictionBlend) + predDyNorm * predictionBlend;
+                        const finalDist = Math.sqrt(finalDx * finalDx + finalDy * finalDy);
+                        
+                        if (finalDist > 0.01) {
+                            this.currentX += (finalDx / finalDist) * moveRatio + waveX;
+                            this.currentY += (finalDy / finalDist) * moveRatio + waveY;
+                        } else {
+                            // Fallback to direct position if everything fails
+                            this.currentX += (bugDx / bugDistance) * moveRatio + waveX;
+                            this.currentY += (bugDy / bugDistance) * moveRatio + waveY;
+                        }
                         
                         // Update waypoint to match so other logic doesn't conflict
                         target.x = bugPos.x;
@@ -743,8 +795,16 @@ const halloweenMain = function(active) {
                         this.animationFrame = requestAnimationFrame(() => this.fly());
                         return; // Skip normal waypoint movement for air catches
                     } else if (!bugPos || MosquitoManager.state !== 'flying') {
-                        // Bug disappeared or was caught - abort hunt
-                        this.say('missed');
+                        // Bug disappeared or state changed - check if spider got it first
+                        if (MosquitoManager.state === 'stuck') {
+                            // Spider got there first! React accordingly
+                            this.say('spiderGotItFirst');
+                            CreatureCoordinator.addEvent('spiderBeatBatToBug');
+                            CreatureCoordinator.modifyRelationship('batToSpider', -5);
+                        } else {
+                            // Bug disappeared for other reason
+                            this.say('missed');
+                        }
                         this.huntTargetMoving = false;
                         this.pathIndex++;
                         this.state = 'flying';
@@ -1155,9 +1215,13 @@ const halloweenMain = function(active) {
                 return null;
             },
             
-            // Predict where bug will be based on its movement
+            // Predict where bug will be based on its movement (improved for better interception)
             predictBugPosition(currentPos, leadTime = 0.5) {
-                if (!currentPos || !this.lastBugPos) {
+                if (!currentPos) {
+                    return currentPos || { x: 50, y: 50 };
+                }
+                
+                if (!this.lastBugPos) {
                     this.lastBugPos = currentPos;
                     this.lastBugTime = Date.now();
                     return currentPos;
@@ -1166,26 +1230,31 @@ const halloweenMain = function(active) {
                 const now = Date.now();
                 const dt = (now - this.lastBugTime) / 1000;
                 
+                // Only use prediction if we have recent data (within 1 second)
                 if (dt > 0 && dt < 1) {
-                    // Calculate velocity
+                    // Calculate velocity (movement per second in percentage units)
                     const vx = (currentPos.x - this.lastBugPos.x) / dt;
                     const vy = (currentPos.y - this.lastBugPos.y) / dt;
                     
-                    // Predict future position
+                    // Predict future position with slight smoothing
                     const predictedX = currentPos.x + vx * leadTime;
                     const predictedY = currentPos.y + vy * leadTime;
+                    
+                    // Clamp to screen bounds
+                    const clampedX = Math.max(5, Math.min(95, predictedX));
+                    const clampedY = Math.max(5, Math.min(95, predictedY));
                     
                     // Update last known position
                     this.lastBugPos = currentPos;
                     this.lastBugTime = now;
                     
-                    // Clamp to screen
                     return {
-                        x: Math.max(5, Math.min(95, predictedX)),
-                        y: Math.max(5, Math.min(95, predictedY))
+                        x: clampedX,
+                        y: clampedY
                     };
                 }
                 
+                // If prediction data is stale, just return current position
                 this.lastBugPos = currentPos;
                 this.lastBugTime = now;
                 return currentPos;
@@ -1453,38 +1522,67 @@ const halloweenMain = function(active) {
                     const distance = Math.sqrt(dx * dx + dy * dy);
                     
                     // Within hunting range (increased so bat engages more often)
-                    if (distance < 75) {
+                    if (distance < 85) {
+                        // Check if spider is also hunting - if so, be MORE aggressive!
+                        const spiderWrap = document.getElementById('spider-wrap');
+                        const spiderIsHunting = spiderWrap && spiderWrap.classList.contains('hunting');
+                        
                         // Predict where bug will be - factor in bat's speed
-                        const interceptTime = distance / 45; // Estimate time to reach
-                        const predictedPos = this.predictBugPosition(bugPos, Math.min(interceptTime, 1.2));
+                        // Use shorter prediction if competing with spider (more direct)
+                        const interceptTime = spiderIsHunting ? distance / 60 : distance / 45;
+                        const predictedPos = this.predictBugPosition(bugPos, Math.min(interceptTime, spiderIsHunting ? 0.8 : 1.2));
                         
                         // *** ECHOLOCATION EFFECT ***
                         // Send out radar ping, then start hunting after it hits
-                        this.say('startHunt');
-                        this.createEcholocationPing(bugPos.x, bugPos.y, () => {
-                            // Callback when ping hits the bug - NOW start the actual chase
+                        // Skip ping delay if competing with spider for speed!
+                        if (spiderIsHunting) {
+                            // Immediate pursuit when competing!
+                            this.say('startHunt');
                             this.state = 'hunting';
                             this.huntStartTime = Date.now();
                             this.huntTargetMoving = true;
                             
-                            // Get current bug position (it may have moved during ping animation)
                             const newBugPos = this.getBugPosition();
                             if (!newBugPos || typeof MosquitoManager === 'undefined' || MosquitoManager.state !== 'flying') {
-                                // Bug disappeared or was caught - abort
                                 this.state = 'flying';
                                 return;
                             }
                             
-                            // Replace the current waypoint with bug's CURRENT position
-                            // Direct pursuit will handle movement toward bug every frame
                             this.flightPath[this.pathIndex] = { 
                                 x: newBugPos.x, 
                                 y: newBugPos.y, 
-                                speed: 0.4, // Speed doesn't matter much - direct pursuit handles it
+                                speed: 0.8, // Fast speed for competition
                                 isHunt: true,
                                 isAirCatch: true
                             };
-                        });
+                        } else {
+                            // Normal echolocation ping for non-competitive hunts
+                            this.say('startHunt');
+                            this.createEcholocationPing(bugPos.x, bugPos.y, () => {
+                                // Callback when ping hits the bug - NOW start the actual chase
+                                this.state = 'hunting';
+                                this.huntStartTime = Date.now();
+                                this.huntTargetMoving = true;
+                                
+                                // Get current bug position (it may have moved during ping animation)
+                                const newBugPos = this.getBugPosition();
+                                if (!newBugPos || typeof MosquitoManager === 'undefined' || MosquitoManager.state !== 'flying') {
+                                    // Bug disappeared or was caught - abort
+                                    this.state = 'flying';
+                                    return;
+                                }
+                                
+                                // Replace the current waypoint with bug's CURRENT position
+                                // Direct pursuit will handle movement toward bug every frame
+                                this.flightPath[this.pathIndex] = { 
+                                    x: newBugPos.x, 
+                                    y: newBugPos.y, 
+                                    speed: 0.4, // Speed doesn't matter much - direct pursuit handles it
+                                    isHunt: true,
+                                    isAirCatch: true
+                                };
+                            });
+                        }
                     }
                 }
             },
@@ -1569,34 +1667,63 @@ const halloweenMain = function(active) {
                     if (target.isAirCatch) {
                         const bugPos = this.getBugPosition();
                         
-                        // Primary check: distance to actual bug position (very generous for direct pursuit)
-                        if (bugPos && wasFlying) {
+                        // Check if spider got there first
+                        if (MosquitoManager.state === 'stuck') {
+                            // Spider caught it! Don't claim the catch
+                            caughtMidAir = false;
+                            // This will be handled by the calling code
+                        } else if (bugPos && wasFlying) {
+                            // Primary check: distance to actual bug position (very generous for direct pursuit)
                             const dx = bugPos.x - this.currentX;
                             const dy = bugPos.y - this.currentY;
                             const distance = Math.sqrt(dx * dx + dy * dy);
                             // Generous catch radius - if we're actively hunting and close, catch it!
-                            caughtMidAir = distance < 30;
+                            caughtMidAir = distance < 32;
                         }
                         
                         // Fallback: if bug was flying and we're hunting, be very lenient
                         // (we were actively pursuing, so if bug disappeared we probably caught it)
-                        if (!caughtMidAir && wasFlying && this.state === 'hunting') {
+                        if (!caughtMidAir && wasFlying && this.state === 'hunting' && MosquitoManager.state !== 'stuck') {
                             // If bug is gone but was flying when we started hunting, assume we caught it
                             if (!bugPos || MosquitoManager.state !== 'flying') {
-                                // Bug disappeared while we were hunting - we probably caught it!
-                                caughtMidAir = true;
+                                // Bug disappeared while we were hunting - check if spider got it
+                                const spiderWrap = document.getElementById('spider-wrap');
+                                const spiderGotIt = spiderWrap && spiderWrap.classList.contains('hunting');
+                                if (!spiderGotIt) {
+                                    // We probably caught it!
+                                    caughtMidAir = true;
+                                }
                             } else {
                                 // Bug still exists, check distance one more time with generous radius
                                 const dx = bugPos.x - this.currentX;
                                 const dy = bugPos.y - this.currentY;
                                 const distance = Math.sqrt(dx * dx + dy * dy);
-                                caughtMidAir = distance < 40;
+                                caughtMidAir = distance < 42;
                             }
                         }
                     }
                     
+                    // Double-check spider didn't get there first
+                    const spiderWrap = document.getElementById('spider-wrap');
+                    const spiderGotItFirst = (spiderWrap && spiderWrap.classList.contains('hunting') && 
+                                             MosquitoManager.state === 'stuck') ||
+                                             (target.isAirCatch && MosquitoManager.state === 'stuck');
+                    
+                    if (spiderGotItFirst) {
+                        // Spider got there first! React accordingly
+                        this.say('spiderGotItFirst');
+                        CreatureCoordinator.addEvent('spiderBeatBatToBug');
+                        CreatureCoordinator.modifyRelationship('batToSpider', -5);
+                        this.huntTargetMoving = false;
+                        this.pathIndex++;
+                        if (this.pathIndex < this.flightPath.length) {
+                            this.state = 'flying';
+                        }
+                        return;
+                    }
+                    
                     if (wasInWeb || caughtMidAir) {
-                        // We caught/stole the bug!
+                        // We caught/stole the bug! (and spider didn't get there first)
                         const bugType = MosquitoManager.currentBug || MosquitoManager.type || '🦟';
                         
                         // Show chomp animation!
