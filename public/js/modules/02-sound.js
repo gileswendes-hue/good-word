@@ -511,12 +511,12 @@ const MosquitoManager = {
         }
     },
     
-    // Handle screen boundaries smoothly
+    // Handle screen boundaries smoothly (avoid long straight runs at the edges)
     handleBoundaries() {
-        const margin = 8;
-        const turnStrength = 0.15;
+        const margin = 12;
+        const turnStrength = 0.16;
         
-        // Soft boundary avoidance - gradually turn away from edges
+        // Soft boundary avoidance - gently bias angle away from edges
         if (this.x < margin) {
             // Near left edge - turn right
             this.targetAngle = this.smoothTurnTowards(0, turnStrength);
@@ -535,13 +535,15 @@ const MosquitoManager = {
         }
         
         if (this.y < margin) {
-            // Near top - turn down
+            // Near top - bias downwards but keep a little freedom
             this.targetAngle = this.smoothTurnTowards(Math.PI / 2, turnStrength);
-            this.y = Math.max(margin, this.y);
+            if (this.y < -2) this.y = -2;
         } else if (this.y > 100 - margin) {
-            // Near bottom - turn up
+            // Near bottom - bias upwards and add a tiny vertical wobble so they don't hug a flat line
             this.targetAngle = this.smoothTurnTowards(-Math.PI / 2, turnStrength);
-            this.y = Math.min(100 - margin, this.y);
+            this.y = Math.min(this.y, 102);
+            // Extra subtle bob to break perfectly straight horizontals
+            this.y += Math.sin(Date.now() / 220) * 0.05;
         }
     },
     
