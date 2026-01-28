@@ -417,7 +417,8 @@ const halloweenMain = function(active) {
                 }
 
                 const loop = () => {
-                    if (this.state !== 'resting') {
+                    // Only snore while actually resting AND hanging upside-down
+                    if (this.state !== 'resting' || !this.isHanging) {
                         this.sleepBubbleTimeout = null;
                         return;
                     }
