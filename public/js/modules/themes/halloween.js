@@ -162,6 +162,7 @@ const halloweenMain = function(active) {
             isHanging: false, // Tracks if bat is currently napping upside-down
             isDreaming: false,
             lastPositionX: 0, // Track position to detect if stuck
+            lastHuntUpdate: 0, // Track when we last updated hunt target for smoother pursuit
             lastPositionY: 0,
             lastPositionTime: 0, // When we last moved significantly
             stuckThreshold: 3000, // Max time allowed stationary (except when napping)
@@ -263,6 +264,8 @@ const halloweenMain = function(active) {
             },
             
             say(textOrCategory) {
+                // Don't show speech bubbles while dreaming (thought bubble takes priority)
+                if (this.isDreaming || this.dreamBubbleElement) return;
                 if (!this.element || Date.now() - this.lastSpeech < 3000) return;
                 this.lastSpeech = Date.now();
 
@@ -411,14 +414,17 @@ const halloweenMain = function(active) {
              * Uses the normal speech bubble system but only runs while in 'resting' state.
              */
             startSleepBubbles() {
+                // Don't start snore bubbles if we're dreaming (thought bubble takes priority)
+                if (this.isDreaming || this.dreamBubbleElement) return;
+                
                 if (this.sleepBubbleTimeout) {
                     clearTimeout(this.sleepBubbleTimeout);
                     this.sleepBubbleTimeout = null;
                 }
 
                 const loop = () => {
-                    // Only snore while actually resting AND hanging upside-down
-                    if (this.state !== 'resting' || !this.isHanging) {
+                    // Only snore while actually resting AND hanging upside-down AND not dreaming
+                    if (this.state !== 'resting' || !this.isHanging || this.isDreaming || this.dreamBubbleElement) {
                         this.sleepBubbleTimeout = null;
                         return;
                     }
@@ -478,21 +484,30 @@ const halloweenMain = function(active) {
                 });
 
                 const randomDreamText = () => {
-                    // Get emoji pool from dialogue.js
+                    // Get emoji pool from dialogue.js - only ONE emoji at a time
                     const emojis = GAME_DIALOGUE?.bat?.dreamEmojis || [
                         '🦇','🦟','🕷','🕸','🌙','⭐','💤','🎃','🍎','🍬',
                         '🌧','⛈','🌫','🌌','✨','👻','🧛','🧙','🧟','🪲'
                     ];
-                    const count = 3 + Math.floor(Math.random() * 4); // 3–6 emojis
-                    let out = '';
-                    for (let i = 0; i < count; i++) {
-                        const e = emojis[Math.floor(Math.random() * emojis.length)];
-                        out += (i === 0 ? '' : ' ') + e;
-                    }
-                    return out;
+                    return emojis[Math.floor(Math.random() * emojis.length)];
                 };
 
-                bubble.textContent = randomDreamText();
+                // Animate thought bubble: one dot, two dots, then thought cloud
+                const animateThoughtBubble = () => {
+                    bubble.textContent = '•';
+                    setTimeout(() => {
+                        if (bubble.parentNode && batAI.state === 'resting') {
+                            bubble.textContent = '• •';
+                            setTimeout(() => {
+                                if (bubble.parentNode && batAI.state === 'resting') {
+                                    bubble.textContent = randomDreamText();
+                                }
+                            }, 300);
+                        }
+                    }, 300);
+                };
+
+                animateThoughtBubble();
                 document.body.appendChild(bubble);
                 this.dreamBubbleElement = bubble;
 
@@ -530,7 +545,7 @@ const halloweenMain = function(active) {
                     });
                 });
 
-                // Update dream contents every ~1.2s while resting
+                // Update dream contents every ~1.5s while resting (one emoji at a time)
                 this.dreamInterval = setInterval(() => {
                     if (!bubble.parentNode || batAI.state !== 'resting') {
                         if (batAI.dreamInterval) {
@@ -543,8 +558,19 @@ const halloweenMain = function(active) {
                         batAI.isDreaming = false;
                         return;
                     }
-                    bubble.textContent = randomDreamText();
-                }, 1200);
+                    // Animate the transition: dots then new emoji
+                    bubble.textContent = '•';
+                    setTimeout(() => {
+                        if (bubble.parentNode && batAI.state === 'resting') {
+                            bubble.textContent = '• •';
+                            setTimeout(() => {
+                                if (bubble.parentNode && batAI.state === 'resting') {
+                                    bubble.textContent = randomDreamText();
+                                }
+                            }, 300);
+                        }
+                    }, 300);
+                }, 1500);
             },
             
             enter() {
@@ -619,9 +645,18 @@ const halloweenMain = function(active) {
                 
                 const target = this.flightPath[this.pathIndex];
                 
-                // Update hunt target if chasing a moving bug
+                // Update hunt target if chasing a moving bug - do this more frequently for better tracking
                 if (this.state === 'hunting' && target.isAirCatch) {
                     this.updateHuntTarget();
+                }
+                
+                // Also update hunt target periodically even if not at the exact frame check
+                if (this.state === 'hunting' && target.isAirCatch && this.huntTargetMoving) {
+                    // Update every few frames for smoother pursuit
+                    if (!this.lastHuntUpdate || Date.now() - this.lastHuntUpdate > 100) {
+                        this.updateHuntTarget();
+                        this.lastHuntUpdate = Date.now();
+                    }
                 }
                 
                 const dx = target.x - this.currentX;
@@ -668,8 +703,8 @@ const halloweenMain = function(active) {
                         const bugDy = bugPos.y - this.currentY;
                         const bugDistance = Math.sqrt(bugDx * bugDx + bugDy * bugDy);
                         
-                        // Catch if we're close enough to the actual bug
-                        if (bugDistance < 28) {
+                        // Catch if we're close enough to the actual bug (improved radius for better catches)
+                        if (bugDistance < 32) {
                             this.completedHunt(target);
                             this.pathIndex++;
                             if (this.pathIndex < this.flightPath.length) {
@@ -951,15 +986,17 @@ const halloweenMain = function(active) {
                     }, 500);
                 }
 
-                // Start gentle snore / zzz bubbles while sleeping
-                this.startSleepBubbles();
-
-                // Occasionally enter a special dreaming mode with a thought bubble of emojis
+                // Either dream OR snore, not both
                 if (Math.random() < 0.65) {
+                    // Enter dreaming mode (thought bubble takes priority, no snore bubbles)
                     this.startDreaming();
-                } else if (Math.random() < 0.5) {
-                    // If not dreaming, sometimes still mutter a proper "resting" line
-                    this.say('resting');
+                } else {
+                    // If not dreaming, start snore bubbles
+                    this.startSleepBubbles();
+                    // Sometimes also mutter a proper "resting" line
+                    if (Math.random() < 0.5) {
+                        this.say('resting');
+                    }
                 }
                 
                 // Rest for longer (naps can last longer than most events)
@@ -1411,9 +1448,9 @@ const halloweenMain = function(active) {
                 
                 // Update target position based on current bug location more aggressively
                 const bugPos = this.getBugPosition();
-                if (bugPos) {
-                    // Shorter prediction = more direct pursuit
-                    const predictedPos = this.predictBugPosition(bugPos, 0.25);
+                if (bugPos && typeof MosquitoManager !== 'undefined' && MosquitoManager.state === 'flying') {
+                    // Use a slightly longer prediction for smoother interception
+                    const predictedPos = this.predictBugPosition(bugPos, 0.4);
                     target.x = predictedPos.x;
                     target.y = predictedPos.y;
                 }
@@ -1476,7 +1513,7 @@ const halloweenMain = function(active) {
                     const wasInWeb = target.isSteal && MosquitoManager.state === 'stuck';
                     const wasFlying = MosquitoManager.state === 'flying';
                     
-                    // For mid-air catch, check distance to ACTUAL bug
+                    // For mid-air catch, check distance to ACTUAL bug with improved detection
                     let caughtMidAir = false;
                     if (target.isAirCatch) {
                         const bugPos = this.getBugPosition();
@@ -1484,12 +1521,15 @@ const halloweenMain = function(active) {
                             const dx = bugPos.x - this.currentX;
                             const dy = bugPos.y - this.currentY;
                             const distance = Math.sqrt(dx * dx + dy * dy);
-                            // Generous catch radius (20% of screen)
-                            caughtMidAir = distance < 20;
+                            // More generous catch radius for air catches (30 units = ~30% of screen)
+                            caughtMidAir = distance < 30;
                         }
-                        // Also catch if bug is still flying and we reached our target
+                        // Also catch if bug is still flying and we're very close to our predicted target
                         if (!caughtMidAir && wasFlying) {
-                            caughtMidAir = true;
+                            const targetDx = target.x - this.currentX;
+                            const targetDy = target.y - this.currentY;
+                            const targetDist = Math.sqrt(targetDx * targetDx + targetDy * targetDy);
+                            caughtMidAir = targetDist < 15; // Close enough to predicted position
                         }
                     }
                     
