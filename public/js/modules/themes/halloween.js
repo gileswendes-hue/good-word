@@ -140,11 +140,16 @@ const halloweenMain = function(active) {
         const BatAI = {
             element: null,
             bubbleElement: null,
+            // Separate bubble for dreaming so it can persist and animate independently
+            dreamBubbleElement: null,
             state: 'idle',
             currentX: 0,
             currentY: 0,
             animationFrame: null,
             behaviorTimeout: null,
+            // Timers/intervals for sleep-related effects
+            sleepBubbleTimeout: null,
+            dreamInterval: null,
             mood: 'neutral',
             lastSpeech: 0,
             flightPath: [],
@@ -155,6 +160,7 @@ const halloweenMain = function(active) {
             bugsEaten: 0,
             baseSize: 4, // Base font size in rem
             isHanging: false, // Tracks if bat is currently napping upside-down
+            isDreaming: false,
             
             init() {
                 this.destroy();
@@ -227,10 +233,15 @@ const halloweenMain = function(active) {
             destroy() {
                 if (this.animationFrame) cancelAnimationFrame(this.animationFrame);
                 if (this.behaviorTimeout) clearTimeout(this.behaviorTimeout);
+                if (this.sleepBubbleTimeout) clearTimeout(this.sleepBubbleTimeout);
+                if (this.dreamInterval) clearInterval(this.dreamInterval);
                 if (this.element) this.element.remove();
                 if (this.bubbleElement) this.bubbleElement.remove();
+                if (this.dreamBubbleElement) this.dreamBubbleElement.remove();
                 this.element = null;
                 this.bubbleElement = null;
+                this.dreamBubbleElement = null;
+                this.isDreaming = false;
                 this.state = 'idle';
                 CreatureCoordinator.batDespawned();
             },
@@ -377,6 +388,146 @@ const halloweenMain = function(active) {
                     setTimeout(() => { emoji.style.animation = ''; }, 300);
                 }
                 if (Math.random() < 0.4) { this.state = 'leaving'; this.leave(); }
+            },
+
+            /**
+             * While the bat is resting, periodically show little snore / zzz bubbles.
+             * Uses the normal speech bubble system but only runs while in 'resting' state.
+             */
+            startSleepBubbles() {
+                if (this.sleepBubbleTimeout) {
+                    clearTimeout(this.sleepBubbleTimeout);
+                    this.sleepBubbleTimeout = null;
+                }
+
+                const loop = () => {
+                    if (this.state !== 'resting') {
+                        this.sleepBubbleTimeout = null;
+                        return;
+                    }
+
+                    // Get snore options from dialogue.js
+                    const options = GAME_DIALOGUE?.bat?.snore || ['*snore*', 'zzz', 'Zzz', 'zzZ'];
+                    const text = options[Math.floor(Math.random() * options.length)];
+                    this.say(text);
+
+                    // Schedule next snore while still resting
+                    const delay = 2200 + Math.random() * 1800;
+                    this.sleepBubbleTimeout = setTimeout(loop, delay);
+                };
+
+                // Small delay before first snore so the bat can settle
+                this.sleepBubbleTimeout = setTimeout(loop, 900);
+            },
+
+            /**
+             * Enter a dreaming mode: show a persistent thought bubble with random emojis
+             * that updates every second or so while the bat is resting.
+             */
+            startDreaming() {
+                if (!this.element) return;
+
+                this.isDreaming = true;
+
+                // Clean up any existing dream bubble/interval first
+                if (this.dreamInterval) {
+                    clearInterval(this.dreamInterval);
+                    this.dreamInterval = null;
+                }
+                if (this.dreamBubbleElement) {
+                    this.dreamBubbleElement.remove();
+                    this.dreamBubbleElement = null;
+                }
+
+                const bubble = document.createElement('div');
+                bubble.id = 'bat-dream-bubble';
+                Object.assign(bubble.style, {
+                    position: 'fixed',
+                    background: 'rgba(15,23,42,0.9)',
+                    color: '#fef9c3',
+                    padding: '10px 16px',
+                    borderRadius: '20px',
+                    fontSize: '20px',
+                    fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
+                    whiteSpace: 'nowrap',
+                    pointerEvents: 'none',
+                    opacity: '0',
+                    transition: 'opacity 0.35s',
+                    boxShadow: '0 6px 16px rgba(0,0,0,0.55)',
+                    border: '2px solid rgba(250,204,21,0.85)',
+                    zIndex: '5002',
+                    left: '-9999px',
+                    top: '-9999px'
+                });
+
+                const randomDreamText = () => {
+                    // Get emoji pool from dialogue.js
+                    const emojis = GAME_DIALOGUE?.bat?.dreamEmojis || [
+                        '🦇','🦟','🕷','🕸','🌙','⭐','💤','🎃','🍎','🍬',
+                        '🌧','⛈','🌫','🌌','✨','👻','🧛','🧙','🧟','🪲'
+                    ];
+                    const count = 3 + Math.floor(Math.random() * 4); // 3–6 emojis
+                    let out = '';
+                    for (let i = 0; i < count; i++) {
+                        const e = emojis[Math.floor(Math.random() * emojis.length)];
+                        out += (i === 0 ? '' : ' ') + e;
+                    }
+                    return out;
+                };
+
+                bubble.textContent = randomDreamText();
+                document.body.appendChild(bubble);
+                this.dreamBubbleElement = bubble;
+
+                const batAI = this;
+
+                const updatePos = () => {
+                    if (!bubble.parentNode || !batAI.element || batAI.state !== 'resting') {
+                        return;
+                    }
+
+                    const batRect = batAI.element.getBoundingClientRect();
+                    const bubRect = bubble.getBoundingClientRect();
+
+                    // Thought bubble slightly above and to the side of the bat
+                    let left = batRect.left + batRect.width * 0.6;
+                    let top = batRect.top - bubRect.height - 18;
+
+                    // Keep on screen
+                    left = Math.max(10, Math.min(window.innerWidth - bubRect.width - 10, left));
+                    top = Math.max(10, top);
+
+                    bubble.style.left = left + 'px';
+                    bubble.style.top = top + 'px';
+
+                    if (bubble.style.opacity !== '0') {
+                        requestAnimationFrame(updatePos);
+                    }
+                };
+
+                // Fade in and start positional tracking
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        bubble.style.opacity = '1';
+                        updatePos();
+                    });
+                });
+
+                // Update dream contents every ~1.2s while resting
+                this.dreamInterval = setInterval(() => {
+                    if (!bubble.parentNode || batAI.state !== 'resting') {
+                        if (batAI.dreamInterval) {
+                            clearInterval(batAI.dreamInterval);
+                            batAI.dreamInterval = null;
+                        }
+                        if (batAI.dreamBubbleElement && !batAI.dreamBubbleElement.parentNode) {
+                            batAI.dreamBubbleElement = null;
+                        }
+                        batAI.isDreaming = false;
+                        return;
+                    }
+                    bubble.textContent = randomDreamText();
+                }, 1200);
             },
             
             enter() {
@@ -726,6 +877,7 @@ const halloweenMain = function(active) {
                     
                     // Mark as hanging
                     this.isHanging = true;
+                    this.isDreaming = false;
                     
                     // Apply initial upside-down transform with folded wings to body
                     // The bat-hang-sway animation will take over after a brief delay
@@ -740,8 +892,17 @@ const halloweenMain = function(active) {
                         }
                     }, 500);
                 }
-                
-                if (Math.random() < 0.5) this.say('resting');
+
+                // Start gentle snore / zzz bubbles while sleeping
+                this.startSleepBubbles();
+
+                // Occasionally enter a special dreaming mode with a thought bubble of emojis
+                if (Math.random() < 0.65) {
+                    this.startDreaming();
+                } else if (Math.random() < 0.5) {
+                    // If not dreaming, sometimes still mutter a proper "resting" line
+                    this.say('resting');
+                }
                 
                 // Rest for longer
                 this.behaviorTimeout = setTimeout(() => {
@@ -750,6 +911,21 @@ const halloweenMain = function(active) {
                         body.style.animation = 'none';
                         body.style.transform = '';
                         emoji.style.transform = '';
+
+                        // Clear any sleep-related effects
+                        if (this.sleepBubbleTimeout) {
+                            clearTimeout(this.sleepBubbleTimeout);
+                            this.sleepBubbleTimeout = null;
+                        }
+                        if (this.dreamInterval) {
+                            clearInterval(this.dreamInterval);
+                            this.dreamInterval = null;
+                        }
+                        if (this.dreamBubbleElement) {
+                            this.dreamBubbleElement.remove();
+                            this.dreamBubbleElement = null;
+                        }
+                        this.isDreaming = false;
                         
                         // Unfold wings and flip right-side up
                         this.isHanging = false;
