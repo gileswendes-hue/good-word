@@ -94,29 +94,44 @@ const GAME_DIALOGUE = {
             else if (hour >= 17 && hour < 21) timeKey = 'evening';
             else timeKey = 'night';
 
-            // Lightweight pseudo-weather based on time of day
+            // Work out a weather key. Prefer REAL weather if enabled, otherwise fall back to pseudo-weather.
             let weatherKey = 'clear';
-            const roll = Math.random();
-            if (hour >= 5 && hour < 11) {
-                // Morning: dew, mist, occasional drizzle
-                if (roll < 0.5) weatherKey = 'clear';
-                else if (roll < 0.8) weatherKey = 'foggy';
-                else weatherKey = 'rainy';
-            } else if (hour >= 11 && hour < 17) {
-                // Daytime: more wind
-                if (roll < 0.5) weatherKey = 'clear';
-                else if (roll < 0.85) weatherKey = 'windy';
-                else weatherKey = 'rainy';
-            } else if (hour >= 17 && hour < 22) {
-                // Evening: mix of clear and windy, some rain
-                if (roll < 0.4) weatherKey = 'clear';
-                else if (roll < 0.8) weatherKey = 'windy';
-                else weatherKey = 'rainy';
+
+            const hasRealWeather =
+                typeof WeatherManager !== 'undefined' &&
+                State?.data?.settings?.enableWeather &&
+                WeatherManager.hasChecked;
+
+            if (hasRealWeather) {
+                if (WeatherManager.isRaining || WeatherManager.isSnowing) {
+                    weatherKey = 'rainy';
+                } else {
+                    weatherKey = 'clear';
+                }
             } else {
-                // Late night: clear or foggy most often
-                if (roll < 0.5) weatherKey = 'clear';
-                else if (roll < 0.85) weatherKey = 'foggy';
-                else weatherKey = 'rainy';
+                // Lightweight pseudo-weather based on time of day (used only when real weather is off)
+                const roll = Math.random();
+                if (hour >= 5 && hour < 11) {
+                    // Morning: dew, mist, occasional drizzle
+                    if (roll < 0.5) weatherKey = 'clear';
+                    else if (roll < 0.8) weatherKey = 'foggy';
+                    else weatherKey = 'rainy';
+                } else if (hour >= 11 && hour < 17) {
+                    // Daytime: more wind
+                    if (roll < 0.5) weatherKey = 'clear';
+                    else if (roll < 0.85) weatherKey = 'windy';
+                    else weatherKey = 'rainy';
+                } else if (hour >= 17 && hour < 22) {
+                    // Evening: mix of clear and windy, some rain
+                    if (roll < 0.4) weatherKey = 'clear';
+                    else if (roll < 0.8) weatherKey = 'windy';
+                    else weatherKey = 'rainy';
+                } else {
+                    // Late night: clear or foggy most often
+                    if (roll < 0.5) weatherKey = 'clear';
+                    else if (roll < 0.85) weatherKey = 'foggy';
+                    else weatherKey = 'rainy';
+                }
             }
 
             // Sometimes return a weather-specific line instead of normal idle
@@ -478,25 +493,40 @@ const GAME_DIALOGUE = {
             else if (hour >= 17 && hour < 21) timeKey = 'evening';
             else timeKey = 'night';
 
-            // Lightweight pseudo-weather based on time of day
+            // Work out a weather key. Prefer REAL weather if enabled, otherwise fall back to pseudo-weather.
             let weatherKey = 'clear';
-            const roll = Math.random();
-            if (hour >= 5 && hour < 11) {
-                if (roll < 0.5) weatherKey = 'clear';
-                else if (roll < 0.85) weatherKey = 'foggy';
-                else weatherKey = 'rainy';
-            } else if (hour >= 11 && hour < 17) {
-                if (roll < 0.55) weatherKey = 'clear';
-                else if (roll < 0.85) weatherKey = 'windy';
-                else weatherKey = 'rainy';
-            } else if (hour >= 17 && hour < 22) {
-                if (roll < 0.45) weatherKey = 'clear';
-                else if (roll < 0.8) weatherKey = 'windy';
-                else weatherKey = 'rainy';
+
+            const hasRealWeather =
+                typeof WeatherManager !== 'undefined' &&
+                State?.data?.settings?.enableWeather &&
+                WeatherManager.hasChecked;
+
+            if (hasRealWeather) {
+                if (WeatherManager.isRaining || WeatherManager.isSnowing) {
+                    weatherKey = 'rainy';
+                } else {
+                    weatherKey = 'clear';
+                }
             } else {
-                if (roll < 0.5) weatherKey = 'clear';
-                else if (roll < 0.85) weatherKey = 'foggy';
-                else weatherKey = 'rainy';
+                // Lightweight pseudo-weather based on time of day (used only when real weather is off)
+                const roll = Math.random();
+                if (hour >= 5 && hour < 11) {
+                    if (roll < 0.5) weatherKey = 'clear';
+                    else if (roll < 0.85) weatherKey = 'foggy';
+                    else weatherKey = 'rainy';
+                } else if (hour >= 11 && hour < 17) {
+                    if (roll < 0.55) weatherKey = 'clear';
+                    else if (roll < 0.85) weatherKey = 'windy';
+                    else weatherKey = 'rainy';
+                } else if (hour >= 17 && hour < 22) {
+                    if (roll < 0.45) weatherKey = 'clear';
+                    else if (roll < 0.8) weatherKey = 'windy';
+                    else weatherKey = 'rainy';
+                } else {
+                    if (roll < 0.5) weatherKey = 'clear';
+                    else if (roll < 0.85) weatherKey = 'foggy';
+                    else weatherKey = 'rainy';
+                }
             }
 
             // Sometimes talk explicitly about the weather instead of general idle
