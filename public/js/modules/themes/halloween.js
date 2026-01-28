@@ -238,14 +238,34 @@ const halloweenMain = function(active) {
             say(textOrCategory) {
                 if (!this.element || Date.now() - this.lastSpeech < 3000) return;
                 this.lastSpeech = Date.now();
-                
+
                 let text = textOrCategory;
                 if (typeof GAME_DIALOGUE !== 'undefined' && GAME_DIALOGUE.bat) {
+                    // If a category exists on GAME_DIALOGUE.bat, use it
                     if (GAME_DIALOGUE.bat[textOrCategory]) {
                         const lines = GAME_DIALOGUE.bat[textOrCategory];
-                        if (Array.isArray(lines)) text = lines[Math.floor(Math.random() * lines.length)];
+                        if (Array.isArray(lines)) {
+                            text = lines[Math.floor(Math.random() * lines.length)];
+                        }
                     } else if (textOrCategory === 'idle' && GAME_DIALOGUE.bat.getIdlePhrase) {
+                        // Standard idle selection (already weather-aware in dialogue.js)
                         text = GAME_DIALOGUE.bat.getIdlePhrase();
+                    } else if (!textOrCategory || textOrCategory === 'auto') {
+                        // Automatic context-aware line when just "say()" is called with no category
+                        const hour = new Date().getHours();
+                        const isNight = hour >= 21 || hour < 5;
+                        const isEvening = hour >= 17 && hour < 21;
+
+                        // Prefer a hunting-related line if bat is actively hunting
+                        if (this.state === 'hunting' && GAME_DIALOGUE.bat.startHunt) {
+                            const lines = GAME_DIALOGUE.bat.startHunt;
+                            text = lines[Math.floor(Math.random() * lines.length)];
+                        } else if ((this.state === 'flying' || this.state === 'idle') && GAME_DIALOGUE.bat.getIdlePhrase) {
+                            text = GAME_DIALOGUE.bat.getIdlePhrase();
+                        } else if ((isNight || isEvening) && GAME_DIALOGUE.bat.flying) {
+                            const lines = GAME_DIALOGUE.bat.flying;
+                            text = lines[Math.floor(Math.random() * lines.length)];
+                        }
                     }
                 }
                 
@@ -427,8 +447,23 @@ const halloweenMain = function(active) {
                 
                 // Try hunting - more frequently and not just when hungry
                 if (this.state === 'flying') {
-                    // Slightly higher hunt chance so the bat is more active
-                    const huntChance = this.mood === 'hungry' ? 0.06 : 0.03;
+                    // Base chance
+                    let huntChance = this.mood === 'hungry' ? 0.06 : 0.03;
+
+                    // If real weather says it's raining, bugs tend to cluster around the web,
+                    // so the bat is more tempted to swoop in.
+                    if (typeof WeatherManager !== 'undefined' &&
+                        State.data.settings.enableWeather &&
+                        WeatherManager.isRaining) {
+                        huntChance *= 1.5;
+                    }
+
+                    // At deep night hours, bat is at peak hunting focus
+                    const hour = new Date().getHours();
+                    if (hour >= 22 || hour < 4) {
+                        huntChance *= 1.3;
+                    }
+
                     if (Math.random() < huntChance) {
                         this.tryHunt();
                     }
@@ -496,7 +531,7 @@ const halloweenMain = function(active) {
                     this.currentY += (dy / distance) * moveRatio * 1.2 + waveY;
                     
                     const emoji = this.element.querySelector('.bat-emoji');
-                    // While napping, don't override the upside-down hang transform
+                    // While napping, don't override the upside-down hang orientation
                     if (emoji && !this.isHanging) {
                         emoji.style.transform = dx < 0 ? 'scaleX(-1)' : 'scaleX(1)';
                     }
@@ -555,20 +590,66 @@ const halloweenMain = function(active) {
                 
                 this.say(dialogueKey);
                 
-                // Spider responds after delay
+                // Spider responds after delay, with a chance of a small back-and-forth
                 setTimeout(() => {
-                    if (wrap.showBubble) {
-                        const spiderRelation = CreatureCoordinator.getRelationshipStatus('spiderToBat');
-                        let responseKey = spiderRelation === 'friendly' ? 'greetBatFriendly' : 'greetBatGrumpy';
-                        
-                        // Check if spider is still mad about stolen food
-                        if (CreatureCoordinator.getRecentEvent('batStoleFood')) {
-                            responseKey = 'batStoleFollowUp';
-                        }
-                        
-                        const lines = GAME_DIALOGUE?.spider?.[responseKey] || ["Hey."];
-                        const text = lines[Math.floor(Math.random() * lines.length)];
-                        wrap.showBubble(text, 'upside-down');
+                    if (!wrap.showBubble) return;
+                    
+                    const spiderRelation = CreatureCoordinator.getRelationshipStatus('spiderToBat');
+                    let responseKey = spiderRelation === 'friendly' ? 'greetBatFriendly' : 'greetBatGrumpy';
+                    
+                    // Check if spider is still mad about stolen food
+                    if (CreatureCoordinator.getRecentEvent('batStoleFood')) {
+                        responseKey = 'batStoleFollowUp';
+                    }
+                    
+                    const lines = GAME_DIALOGUE?.spider?.[responseKey] || ["Hey."];
+                    const firstReply = lines[Math.floor(Math.random() * lines.length)];
+                    wrap.showBubble(firstReply, 'upside-down');
+                    
+                    // Sometimes extend into a mini-conversation
+                    if (Math.random() < 0.45) {
+                        // Bat reacts based on its current mood
+                        setTimeout(() => {
+                            const batMood = this.mood || CreatureCoordinator.moods.bat;
+                            let batText = null;
+                            
+                            const moodMap = GAME_DIALOGUE?.bat?.moodGreetings || {};
+                            const moodLines = batMood ? moodMap[batMood] : null;
+                            if (Array.isArray(moodLines) && moodLines.length) {
+                                batText = moodLines[Math.floor(Math.random() * moodLines.length)];
+                            } else if (batMood === 'playful' && Array.isArray(GAME_DIALOGUE?.bat?.teasingSpider)) {
+                                const arr = GAME_DIALOGUE.bat.teasingSpider;
+                                batText = arr[Math.floor(Math.random() * arr.length)];
+                            } else if (Array.isArray(GAME_DIALOGUE?.bat?.friendlyToSpider)) {
+                                const arr = GAME_DIALOGUE.bat.friendlyToSpider;
+                                batText = arr[Math.floor(Math.random() * arr.length)];
+                            }
+                            
+                            if (batText) {
+                                // Pass literal text so we don't depend on a category name
+                                this.say(batText);
+                            }
+                            
+                            // And the spider may give one more short mood-based response
+                            setTimeout(() => {
+                                const ceilingMood = CreatureCoordinator.moods.ceilingSpider;
+                                const moodResponses = GAME_DIALOGUE?.spider?.moodResponses || {};
+                                let spiderText = null;
+                                
+                                const moodLines2 = ceilingMood ? moodResponses[ceilingMood] : null;
+                                if (Array.isArray(moodLines2) && moodLines2.length) {
+                                    spiderText = moodLines2[Math.floor(Math.random() * moodLines2.length)];
+                                } else if (CreatureCoordinator.getRelationshipStatus('spiderToBat') === 'friendly' &&
+                                           Array.isArray(GAME_DIALOGUE?.spider?.friendlyToBat)) {
+                                    const arr = GAME_DIALOGUE.spider.friendlyToBat;
+                                    spiderText = arr[Math.floor(Math.random() * arr.length)];
+                                }
+                                
+                                if (spiderText && wrap.showBubble) {
+                                    wrap.showBubble(spiderText, 'upside-down');
+                                }
+                            }, 1700);
+                        }, 1600);
                     }
                 }, 1200);
             },
@@ -597,6 +678,34 @@ const halloweenMain = function(active) {
                                 floorAI.say('greetBat');
                                 CreatureCoordinator.modifyRelationship('floorToBat', 3);
                             }
+                            
+                            // Occasionally extend into a short "gossip" exchange
+                            if (Math.random() < 0.4) {
+                                setTimeout(() => {
+                                    // Bat comments back, based on mood
+                                    const batMood = this.mood || CreatureCoordinator.moods.bat;
+                                    const moodMap = GAME_DIALOGUE?.bat?.moodGreetings || {};
+                                    const moodLines = batMood ? moodMap[batMood] : null;
+                                    let batText = null;
+                                    
+                                    if (Array.isArray(moodLines) && moodLines.length) {
+                                        batText = moodLines[Math.floor(Math.random() * moodLines.length)];
+                                    }
+                                    
+                                    if (batText) {
+                                        this.say(batText);
+                                    }
+                                    
+                                    // Floor spider may end with a small comment about the scene
+                                    setTimeout(() => {
+                                        const floorLines = GAME_DIALOGUE?.spider?.floor?.commentary;
+                                        if (Array.isArray(floorLines) && floorLines.length && floorAI && floorAI.say) {
+                                            const txt = floorLines[Math.floor(Math.random() * floorLines.length)];
+                                            floorAI.sayLiteral ? floorAI.sayLiteral(txt) : floorAI.say('commentary');
+                                        }
+                                    }, 1600);
+                                }, 1500);
+                            }
                         }
                     }, 1000);
                 }
@@ -613,10 +722,12 @@ const halloweenMain = function(active) {
                     // Stop flapping
                     body.style.animation = 'none';
                     
-                    // Flip upside down and fold wings (compress horizontally)
+                    // Flip upside down using the dedicated rotate property so
+                    // other code that tweaks transform/scale doesn't undo it.
                     this.isHanging = true;
-                    emoji.style.transform = 'rotate(180deg) scaleX(0.7)';
-                    emoji.style.transition = 'transform 0.5s ease';
+                    emoji.style.rotate = '180deg';
+                    emoji.style.transform = 'scaleX(0.7)';
+                    emoji.style.transition = 'transform 0.5s ease, rotate 0.5s ease';
                     
                     // Add gentle swaying animation after settling
                     setTimeout(() => {
@@ -633,6 +744,7 @@ const halloweenMain = function(active) {
                     if (body && emoji) {
                         // Unfold wings and flip right-side up
                         this.isHanging = false;
+                        emoji.style.rotate = '';
                         emoji.style.transform = '';
                         body.style.animation = 'bat-flap 0.2s ease-in-out infinite';
                     }
@@ -2456,6 +2568,27 @@ const halloweenMain = function(active) {
                             const lines = GAME_DIALOGUE?.spider?.[reactionKey] || ["Oh, you."];
                             const reactionText = lines[Math.floor(Math.random() * lines.length)];
                             if(wrap.showBubble) wrap.showBubble(reactionText, 'upside-down');
+                            
+                            // Sometimes continue the chat briefly
+                            if (Math.random() < 0.35 && Effects.batAI) {
+                                setTimeout(() => {
+                                    const batMood = Effects.batAI.mood || CreatureCoordinator.moods.bat;
+                                    const moodMap = GAME_DIALOGUE?.bat?.moodGreetings || {};
+                                    const moodLines = batMood ? moodMap[batMood] : null;
+                                    let batText = null;
+                                    
+                                    if (Array.isArray(moodLines) && moodLines.length) {
+                                        batText = moodLines[Math.floor(Math.random() * moodLines.length)];
+                                    } else if (Array.isArray(GAME_DIALOGUE?.bat?.friendlyToSpider)) {
+                                        const arr = GAME_DIALOGUE.bat.friendlyToSpider;
+                                        batText = arr[Math.floor(Math.random() * arr.length)];
+                                    }
+                                    
+                                    if (batText && Effects.batAI) {
+                                        Effects.batAI.say(batText);
+                                    }
+                                }, 1600);
+                            }
                         }, 2500);
                     }
                 }
@@ -2504,6 +2637,25 @@ const halloweenMain = function(active) {
             const svg = document.getElementById('web-svg');
             const cx = 300, cy = 0;
             const baseAnchors = [{ x: 0, y: 0 }, { x: 60, y: 100 }, { x: 140, y: 200 }, { x: 220, y: 270 }, { x: 300, y: 300 }];
+            
+            // Pre-compute a few dew-drop positions along the web so they feel stable
+            const dewDrops = [];
+            (function initDewDrops() {
+                const levels = 7;
+                const candidates = [];
+                for (let i = 3; i <= levels; i++) {
+                    const t = i / levels;
+                    for (let j = 1; j < baseAnchors.length; j++) {
+                        candidates.push({ level: t, segment: j });
+                    }
+                }
+                // Pick a small number of random but fixed positions
+                for (let k = 0; k < 6 && candidates.length; k++) {
+                    const idx = Math.floor(Math.random() * candidates.length);
+                    dewDrops.push(candidates.splice(idx, 1)[0]);
+                }
+            })();
+
             const animateWeb = () => {
                 const time = Date.now();
                 let pathStr = '';
@@ -2540,6 +2692,29 @@ const halloweenMain = function(active) {
                         }
                     }
                     pathStr += `<path d="${d}" stroke="rgba(255,255,255,0.3)" stroke-width="2.5" fill="none"/>`
+                }
+                
+                // Morning dew drops: appear based on either local time or real-weather snow/rain
+                const hour = new Date().getHours();
+                const weatherIsDamp = (typeof WeatherManager !== 'undefined' &&
+                    State.data.settings.enableWeather &&
+                    (WeatherManager.isRaining || WeatherManager.isSnowing));
+                if ((hour >= 5 && hour < 10) || weatherIsDamp) {
+                    dewDrops.forEach(dd => {
+                        const t = dd.level;
+                        const j = dd.segment;
+                        const a = curAnchors[j];
+                        const prev = curAnchors[j - 1];
+                        const ax = cx + (a.x - cx) * t;
+                        const ay = cy + (a.y - cy) * t;
+                        const px = cx + (prev.x - cx) * t;
+                        const py = cy + (prev.y - cy) * t;
+                        const mx = (ax + px) / 2;
+                        const my = (ay + py) / 2;
+                        const pulse = 0.8 + 0.3 * Math.sin(time / 700 + j * 0.7);
+                        const radius = 3 * pulse;
+                        pathStr += `<circle cx="${mx.toFixed(1)}" cy="${my.toFixed(1)}" r="${radius.toFixed(1)}" fill="rgba(173, 216, 230, 0.9)" stroke="rgba(255,255,255,0.9)" stroke-width="1.2"/>`;
+                    });
                 }
                 svg.innerHTML = pathStr;
                 Effects.webRaf = requestAnimationFrame(animateWeb)
