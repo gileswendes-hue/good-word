@@ -154,6 +154,7 @@ const halloweenMain = function(active) {
             interactionCooldown: 0,
             bugsEaten: 0,
             baseSize: 4, // Base font size in rem
+            isHanging: false, // Tracks if bat is currently napping upside-down
             
             init() {
                 this.destroy();
@@ -426,14 +427,15 @@ const halloweenMain = function(active) {
                 
                 // Try hunting - more frequently and not just when hungry
                 if (this.state === 'flying') {
-                    const huntChance = this.mood === 'hungry' ? 0.03 : 0.015;
+                    // Slightly higher hunt chance so the bat is more active
+                    const huntChance = this.mood === 'hungry' ? 0.06 : 0.03;
                     if (Math.random() < huntChance) {
                         this.tryHunt();
                     }
                 }
                 
                 // Check if we reached hunt target (use larger radius for air catches)
-                const catchRadius = target.isAirCatch ? 18 : 10;
+                const catchRadius = target.isAirCatch ? 22 : 12;
                 
                 // For air catches, check distance to ACTUAL bug position, not just waypoint
                 if (target.isHunt && target.isAirCatch) {
@@ -443,8 +445,8 @@ const halloweenMain = function(active) {
                         const bugDy = bugPos.y - this.currentY;
                         const bugDistance = Math.sqrt(bugDx * bugDx + bugDy * bugDy);
                         
-                        // Catch if we're close enough to the actual bug (25% of screen width)
-                        if (bugDistance < 25) {
+                        // Catch if we're close enough to the actual bug
+                        if (bugDistance < 28) {
                             this.completedHunt(target);
                             this.pathIndex++;
                             if (this.pathIndex < this.flightPath.length) {
@@ -494,7 +496,10 @@ const halloweenMain = function(active) {
                     this.currentY += (dy / distance) * moveRatio * 1.2 + waveY;
                     
                     const emoji = this.element.querySelector('.bat-emoji');
-                    if (emoji) emoji.style.transform = dx < 0 ? 'scaleX(-1)' : 'scaleX(1)';
+                    // While napping, don't override the upside-down hang transform
+                    if (emoji && !this.isHanging) {
+                        emoji.style.transform = dx < 0 ? 'scaleX(-1)' : 'scaleX(1)';
+                    }
                 }
                 
                 this.updatePosition();
@@ -570,14 +575,28 @@ const halloweenMain = function(active) {
             
             greetFloorSpider(floorWrap) {
                 this.interactionCooldown = Date.now() + 10000;
-                this.say('greetFloorSpider');
+                
+                // Bat chooses how to greet the floor spider based on recent drama
+                if (CreatureCoordinator.getRecentEvent('batStoleFood')) {
+                    // If the bat recently stole from the ceiling spider, it may try to be extra charming with the floor spider
+                    this.say('greetFloorSpider');
+                } else {
+                    this.say('greetFloorSpider');
+                }
                 
                 // Floor spider might respond
                 if (Math.random() < 0.6) {
                     setTimeout(() => {
                         const floorAI = document.getElementById('spider-wrap')?.floorSpiderAI;
                         if (floorAI && floorAI.say) {
-                            floorAI.say('greetBat');
+                            // If the bat annoyed the ceiling spider, the floor spider's response is more likely to be a remark about it
+                            if (CreatureCoordinator.getRecentEvent('batStoleFood') && Math.random() < 0.6) {
+                                floorAI.say('batStoleReaction');
+                                CreatureCoordinator.modifyRelationship('floorToBat', -5);
+                            } else {
+                                floorAI.say('greetBat');
+                                CreatureCoordinator.modifyRelationship('floorToBat', 3);
+                            }
                         }
                     }, 1000);
                 }
@@ -595,6 +614,7 @@ const halloweenMain = function(active) {
                     body.style.animation = 'none';
                     
                     // Flip upside down and fold wings (compress horizontally)
+                    this.isHanging = true;
                     emoji.style.transform = 'rotate(180deg) scaleX(0.7)';
                     emoji.style.transition = 'transform 0.5s ease';
                     
@@ -612,6 +632,7 @@ const halloweenMain = function(active) {
                 this.behaviorTimeout = setTimeout(() => {
                     if (body && emoji) {
                         // Unfold wings and flip right-side up
+                        this.isHanging = false;
                         emoji.style.transform = '';
                         body.style.animation = 'bat-flap 0.2s ease-in-out infinite';
                     }
@@ -1092,14 +1113,17 @@ const halloweenMain = function(active) {
                         // Show chomp animation!
                         this.showChompEffect();
                         
-                        // Use splat() to properly remove and show eaten effect
-                        if (typeof MosquitoManager.splat === 'function') {
-                            MosquitoManager.splat();
+                        // Prefer "eating" style removal over a generic splat so the bat feels like it's really chomping
+                        if (typeof MosquitoManager.eat === 'function') {
+                            MosquitoManager.eat();
                         } else if (typeof MosquitoManager.remove === 'function') {
                             MosquitoManager.remove();
+                        } else if (typeof MosquitoManager.splat === 'function') {
+                            // Fallback if nothing else exists
+                            MosquitoManager.splat();
                         }
                         
-                        // Grow bigger after eating!
+                        // Grow bigger after eating – mirrors the spider's belly growth
                         this.growAfterEating();
                         
                         if (wasInWeb) {
@@ -1107,6 +1131,8 @@ const halloweenMain = function(active) {
                             this.stolenFood = true;
                             CreatureCoordinator.addEvent('batStoleFood');
                             CreatureCoordinator.modifyRelationship('spiderToBat', -30);
+                            // Floor spider is also a bit unimpressed with this behaviour
+                            CreatureCoordinator.modifyRelationship('floorToBat', -10);
                             CreatureCoordinator.updateMood('ceilingSpider', 'angry');
                             
                             // Bat's reaction based on mood
@@ -1128,9 +1154,12 @@ const halloweenMain = function(active) {
                                 this.say(midAirLines[Math.floor(Math.random() * midAirLines.length)]);
                             } else {
                                 const eatLines = GAME_DIALOGUE?.bat?.eating || {};
-                                const eatText = eatLines[bugType] || eatLines.default || "Tasty!";
+                                const eatText = eatLines[bugType] || eatLines.default || "NOM!";
                                 this.say(eatText);
                             }
+                            
+                            // Successful solo hunts make the bat a bit happier and slightly friendlier towards the ceiling spider
+                            CreatureCoordinator.modifyRelationship('batToSpider', 5);
                             this.mood = 'happy';
                             CreatureCoordinator.updateMood('bat', 'happy');
                         }
@@ -1164,6 +1193,8 @@ const halloweenMain = function(active) {
                 if (floorAI && floorAI.element && floorAI.element.style.display !== 'none') {
                     setTimeout(() => {
                         floorAI.say('batStoleReaction');
+                        // The more often this happens, the more the floor spider sides with the ceiling spider
+                        CreatureCoordinator.modifyRelationship('floorToBat', -10);
                     }, 2000);
                 }
                 
