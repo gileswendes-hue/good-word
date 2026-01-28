@@ -1345,9 +1345,14 @@ const halloweenMain = function(active) {
                             this.say('startHunt');
                             this.state = 'hunting';
                             this.huntStartTime = Date.now();
-                            this.flightPath.splice(this.pathIndex, 0, { 
-                                x: bugX, y: bugY, speed: 0.5, isHunt: true, isSteal: true 
-                            });
+                            // Replace the current waypoint with a direct steal target
+                            this.flightPath[this.pathIndex] = { 
+                                x: bugX, 
+                                y: bugY, 
+                                speed: 0.5, 
+                                isHunt: true, 
+                                isSteal: true 
+                            };
                         });
                         return;
                     }
@@ -1382,13 +1387,14 @@ const halloweenMain = function(active) {
                             const newBugPos = this.getBugPosition();
                             const newPredicted = newBugPos ? this.predictBugPosition(newBugPos, 0.5) : predictedPos;
                             
-                            this.flightPath.splice(this.pathIndex, 0, { 
+                            // Replace the current waypoint with a moving air-catch target
+                            this.flightPath[this.pathIndex] = { 
                                 x: newPredicted.x, 
                                 y: newPredicted.y, 
                                 speed: 0.55, // Faster chase after lock-on
                                 isHunt: true,
                                 isAirCatch: true
-                            });
+                            };
                         });
                     }
                 }
