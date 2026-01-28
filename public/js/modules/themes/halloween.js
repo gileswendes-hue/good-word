@@ -161,6 +161,10 @@ const halloweenMain = function(active) {
             baseSize: 5, // Base font size in rem (larger default bat)
             isHanging: false, // Tracks if bat is currently napping upside-down
             isDreaming: false,
+            lastPositionX: 0, // Track position to detect if stuck
+            lastPositionY: 0,
+            lastPositionTime: 0, // When we last moved significantly
+            stuckThreshold: 3000, // Max time allowed stationary (except when napping)
             
             init() {
                 this.destroy();
@@ -546,17 +550,37 @@ const halloweenMain = function(active) {
                 if (!this.element) return;
                 CreatureCoordinator.batSpawned();
                 
-                const side = Math.floor(Math.random() * 4);
-                switch(side) {
-                    case 0: this.currentX = 20 + Math.random() * 60; this.currentY = -5; break;
-                    case 1: this.currentX = 105; this.currentY = 10 + Math.random() * 40; break;
-                    case 2: this.currentX = 20 + Math.random() * 60; this.currentY = 105; break;
-                    default: this.currentX = -5; this.currentY = 10 + Math.random() * 40;
+                // If bat already exists and is visible, smoothly move to entry point instead of teleporting
+                const wasVisible = this.element && this.element.style.opacity !== '0' && 
+                                   this.currentX > 0 && this.currentY > 0;
+                const entryX = wasVisible ? this.currentX : (() => {
+                    const side = Math.floor(Math.random() * 4);
+                    switch(side) {
+                        case 0: return { x: 20 + Math.random() * 60, y: -5 };
+                        case 1: return { x: 105, y: 10 + Math.random() * 40 };
+                        case 2: return { x: 20 + Math.random() * 60, y: 105 };
+                        default: return { x: -5, y: 10 + Math.random() * 40 };
+                    }
+                })();
+                
+                if (!wasVisible) {
+                    this.currentX = entryX.x;
+                    this.currentY = entryX.y;
+                } else {
+                    // Smoothly move from current position to entry point
+                    this.flightPath = [{ x: entryX.x, y: entryX.y, speed: 0.25 }];
+                    this.pathIndex = 0;
                 }
                 
                 this.updatePosition();
                 this.element.style.opacity = '1';
-                this.generateFlightPath();
+                this.lastPositionX = this.currentX;
+                this.lastPositionY = this.currentY;
+                this.lastPositionTime = Date.now();
+                
+                if (!wasVisible) {
+                    this.generateFlightPath();
+                }
                 this.state = 'flying';
                 this.fly();
                 
@@ -692,6 +716,26 @@ const halloweenMain = function(active) {
                     // Slower overall movement multiplier
                     this.currentX += (dx / distance) * moveRatio * 1.2 + waveX;
                     this.currentY += (dy / distance) * moveRatio * 1.2 + waveY;
+                    
+                    // Track movement to detect if stuck
+                    const movedDistance = Math.sqrt(
+                        Math.pow(this.currentX - this.lastPositionX, 2) + 
+                        Math.pow(this.currentY - this.lastPositionY, 2)
+                    );
+                    if (movedDistance > 0.5) {
+                        // Significant movement detected
+                        this.lastPositionX = this.currentX;
+                        this.lastPositionY = this.currentY;
+                        this.lastPositionTime = Date.now();
+                    } else {
+                        // Check if we've been stuck too long (except when napping)
+                        if (this.state !== 'resting' && Date.now() - this.lastPositionTime > this.stuckThreshold) {
+                            // Force new movement - generate a new flight path
+                            this.generateFlightPath();
+                            this.pathIndex = 0;
+                            this.lastPositionTime = Date.now();
+                        }
+                    }
                     
                     const emoji = this.element.querySelector('.bat-emoji');
                     // While napping, don't override the upside-down hang orientation
@@ -887,9 +931,10 @@ const halloweenMain = function(active) {
                     body.style.transform = '';
                     emoji.style.transform = '';
                     
-                    // Mark as hanging
+                    // Mark as hanging and reset stuck detection (naps are allowed to be long)
                     this.isHanging = true;
                     this.isDreaming = false;
+                    this.lastPositionTime = Date.now(); // Reset stuck timer for nap
                     
                     // Apply initial upside-down transform with folded wings to body
                     // The bat-hang-sway animation will take over after a brief delay
@@ -916,37 +961,60 @@ const halloweenMain = function(active) {
                     this.say('resting');
                 }
                 
-                // Rest for longer
+                // Rest for longer (naps can last longer than most events)
                 this.behaviorTimeout = setTimeout(() => {
-                    if (body && emoji) {
-                        // Stop hanging animation and clear transforms
-                        body.style.animation = 'none';
-                        body.style.transform = '';
-                        emoji.style.transform = '';
-
-                        // Clear any sleep-related effects
-                        if (this.sleepBubbleTimeout) {
-                            clearTimeout(this.sleepBubbleTimeout);
-                            this.sleepBubbleTimeout = null;
-                        }
-                        if (this.dreamInterval) {
-                            clearInterval(this.dreamInterval);
-                            this.dreamInterval = null;
-                        }
-                        if (this.dreamBubbleElement) {
-                            this.dreamBubbleElement.remove();
-                            this.dreamBubbleElement = null;
-                        }
-                        this.isDreaming = false;
-                        
-                        // Unfold wings and flip right-side up
-                        this.isHanging = false;
-                        body.style.animation = 'bat-flap 0.2s ease-in-out infinite';
-                    }
-                    this.pathIndex++;
-                    this.state = 'flying';
-                    this.fly();
+                    this.wakeFromNap();
                 }, 4000 + Math.random() * 6000);
+            },
+            
+            // Wake up from nap (can be called by floor spider or naturally)
+            wakeFromNap() {
+                if (this.state !== 'resting') return;
+                
+                const body = this.element?.querySelector('.bat-body');
+                const emoji = this.element?.querySelector('.bat-emoji');
+                
+                if (body && emoji) {
+                    // Stop hanging animation and clear transforms
+                    body.style.animation = 'none';
+                    body.style.transform = '';
+                    emoji.style.transform = '';
+                    
+                    // Clear any sleep-related effects
+                    if (this.sleepBubbleTimeout) {
+                        clearTimeout(this.sleepBubbleTimeout);
+                        this.sleepBubbleTimeout = null;
+                    }
+                    if (this.dreamInterval) {
+                        clearInterval(this.dreamInterval);
+                        this.dreamInterval = null;
+                    }
+                    if (this.dreamBubbleElement) {
+                        this.dreamBubbleElement.remove();
+                        this.dreamBubbleElement = null;
+                    }
+                    this.isDreaming = false;
+                    
+                    // Unfold wings and flip right-side up
+                    this.isHanging = false;
+                    body.style.animation = 'bat-flap 0.2s ease-in-out infinite';
+                }
+                
+                // Clear the rest timeout if it exists
+                if (this.behaviorTimeout) {
+                    clearTimeout(this.behaviorTimeout);
+                    this.behaviorTimeout = null;
+                }
+                
+                // Sometimes grumble about being woken up
+                if (Math.random() < 0.4) {
+                    this.say('wokenUp');
+                }
+                
+                this.pathIndex++;
+                this.state = 'flying';
+                this.lastPositionTime = Date.now(); // Reset stuck timer
+                this.fly();
             },
             
             // Get the current bug position from MosquitoManager or DOM
@@ -2263,8 +2331,21 @@ const halloweenMain = function(active) {
                 const hasWeb = document.getElementById('spider-wrap');
                 
                 setTimeout(() => {
-                    if (hasBat && Math.random() < 0.6) {
-                        this.say('seeBat');
+                    if (hasBat) {
+                        // Check if bat is napping - occasionally wake it up!
+                        const batAI = Effects.batAI;
+                        if (batAI && batAI.state === 'resting' && Math.random() < 0.35) {
+                            // Shout at the napping bat to wake it up
+                            this.say('wakeBat');
+                            // Wake the bat after a short delay
+                            setTimeout(() => {
+                                if (batAI && batAI.state === 'resting') {
+                                    batAI.wakeFromNap();
+                                }
+                            }, 1500);
+                        } else if (Math.random() < 0.6) {
+                            this.say('seeBat');
+                        }
                     } else if (hasWeb) {
                         this.say('seeWeb');
                     } else {
