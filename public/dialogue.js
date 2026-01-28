@@ -287,7 +287,18 @@ const GAME_DIALOGUE = {
             "I'll take that!",
             "Consider it a tip!"
         ],
-
+        
+        // Extra smug lines specifically when the spider is already full
+        stoleBugFromFullSpider: [
+            "You're full anyway.",
+            "You weren't going to eat it!",
+            "You literally can't move, I'll help.",
+            "I'm doing you a favour.",
+            "Call it portion control.",
+            "Think of it as leftovers!",
+            "You've already had dinner, this one's mine."
+        ],
+        
         // Apologetic after stealing (if mood is friendly)
         stoleBugSorry: [
             "Sorry, instinct!",
