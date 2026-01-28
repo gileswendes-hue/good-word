@@ -204,6 +204,18 @@ const GAME_DIALOGUE = {
             "Technical difficulties."
         ],
 
+        // When spider gets to bug first
+        spiderGotItFirst: [
+            "Hey! That was mine!",
+            "Spider got there first...",
+            "No fair!",
+            "I was going for that!",
+            "Spider's too fast!",
+            "Darn it, spider!",
+            "I had that one!",
+            "Spider stole my catch!"
+        ],
+
         startHunt: [
             "Ooh, what's that?",
             "Movement detected!",
