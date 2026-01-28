@@ -638,6 +638,36 @@ const halloweenMain = function(active) {
                 }
                 this.flightPath.push({ ...exitPoint, exit: true, speed: 0.25 }); // Slower exit too
             },
+
+            // When the bat gets "stuck" hovering, prefer a quiet nap (corner or just off-screen)
+            // instead of flapping in place.
+            generateQuietRestPath() {
+                const topY = 6 + Math.random() * 6; // Near ceiling for hanging naps
+                const preferOffscreen = Math.random() < 0.45;
+
+                this.flightPath = [];
+                this.pathIndex = 0;
+
+                if (preferOffscreen) {
+                    // Slip just outside the viewport and nap there
+                    const offX = Math.random() < 0.5 ? -15 : 115;
+                    this.flightPath.push({
+                        x: offX,
+                        y: topY,
+                        restHere: true,
+                        speed: 0.35
+                    });
+                } else {
+                    // Pick a top corner and nap there
+                    const cornerX = Math.random() < 0.5 ? 8 : 92;
+                    this.flightPath.push({
+                        x: cornerX,
+                        y: topY,
+                        restHere: true,
+                        speed: 0.30
+                    });
+                }
+            },
             
             fly() {
                 if (this.state !== 'flying' && this.state !== 'leaving' && this.state !== 'hunting') return;
@@ -867,7 +897,11 @@ const halloweenMain = function(active) {
                         Math.pow(this.currentX - this.lastPositionX, 2) + 
                         Math.pow(this.currentY - this.lastPositionY, 2)
                     );
-                    if (movedDistance > 0.5) {
+                    // NOTE: the bat has a built-in wobble, so tiny movement can look like "hovering".
+                    // Use a higher threshold for "significant movement" while flying so we can detect
+                    // and resolve long hover-in-place periods by sending him to nap.
+                    const significantMoveThreshold = (this.state === 'flying') ? 1.6 : 0.5;
+                    if (movedDistance > significantMoveThreshold) {
                         // Significant movement detected
                         this.lastPositionX = this.currentX;
                         this.lastPositionY = this.currentY;
@@ -875,8 +909,14 @@ const halloweenMain = function(active) {
                     } else {
                         // Check if we've been stuck too long (except when napping)
                         if (this.state !== 'resting' && Date.now() - this.lastPositionTime > this.stuckThreshold) {
-                            // Force new movement - generate a new flight path
-                            this.generateFlightPath();
+                            // If we're just hovering/flapping in place, prefer a quiet nap instead.
+                            // Only do this for normal flying (not active hunts).
+                            if (this.state === 'flying' && !target.isHunt) {
+                                this.generateQuietRestPath();
+                            } else {
+                                // Otherwise force new movement
+                                this.generateFlightPath();
+                            }
                             this.pathIndex = 0;
                             this.lastPositionTime = Date.now();
                         }
@@ -1161,6 +1201,11 @@ const halloweenMain = function(active) {
                 this.pathIndex++;
                 this.state = 'flying';
                 this.lastPositionTime = Date.now(); // Reset stuck timer
+                // If the rest waypoint was the last point, generate a fresh path so we don't "destroy" immediately.
+                if (!this.flightPath || this.pathIndex >= this.flightPath.length) {
+                    this.generateFlightPath();
+                    this.pathIndex = 0;
+                }
                 this.fly();
             },
             
