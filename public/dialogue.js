@@ -746,7 +746,7 @@ const GAME_DIALOGUE = {
             "Eight legs, endless questions.",
             "The fly I catch today was a larva yesterday.",
             "Is the web half-sticky or half-empty?",
-            "In the end, we all return to the dust bunnies."
+            "In the end, we all return to the sky..."
         ],
 
         // Sharing wisdom with floor spider
@@ -765,7 +765,7 @@ const GAME_DIALOGUE = {
             "Every corner has a story.",
             "Slow and steady catches the fly.",
             "The shadows are my friend.",
-            "Patience, cousin. Patience.",
+            "Patience, mate. Patience.",
             "We crawl, therefore we are."
         ],
 
