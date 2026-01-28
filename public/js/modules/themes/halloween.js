@@ -158,7 +158,7 @@ const halloweenMain = function(active) {
             stolenFood: false,
             interactionCooldown: 0,
             bugsEaten: 0,
-            baseSize: 4, // Base font size in rem
+            baseSize: 5, // Base font size in rem (larger default bat)
             isHanging: false, // Tracks if bat is currently napping upside-down
             isDreaming: false,
             
@@ -213,21 +213,33 @@ const halloweenMain = function(active) {
                     if (State.save) State.save('batEatCount', this.bugsEaten);
                 }
                 
-                // Update size with animation
-                const newSize = this.baseSize + Math.min(this.bugsEaten * 0.3, 3);
                 const batBody = this.element?.querySelector('.bat-body');
-                if (batBody) {
-                    batBody.style.fontSize = newSize + 'rem';
-                    
-                    // Brief "gulp" animation
-                    const emoji = this.element.querySelector('.bat-emoji');
-                    if (emoji) {
-                        emoji.style.transform = 'scale(1.3)';
-                        setTimeout(() => {
-                            emoji.style.transform = '';
-                        }, 300);
-                    }
+                const emoji = this.element?.querySelector('.bat-emoji');
+                if (!batBody) return;
+
+                // Persistent growth (like levelling up)
+                const baseGrowth = this.baseSize + Math.min(this.bugsEaten * 0.3, 3);
+                batBody.style.fontSize = baseGrowth + 'rem';
+
+                // Temporary extra "stuffed" bump each time he eats
+                const tempBoost = 0.9; // extra rem for the immediate gulp
+                const boostedSize = baseGrowth + tempBoost;
+
+                // Apply boosted size + stronger gulp scale, then settle back
+                batBody.style.transition = 'font-size 0.25s ease-out';
+                batBody.style.fontSize = boostedSize + 'rem';
+
+                if (emoji) {
+                    emoji.style.transform = 'scale(1.6)';
                 }
+
+                setTimeout(() => {
+                    // Settle back to the persistent size
+                    batBody.style.fontSize = baseGrowth + 'rem';
+                    setTimeout(() => {
+                        if (emoji) emoji.style.transform = '';
+                    }, 220);
+                }, 260);
             },
             
             destroy() {
@@ -598,8 +610,8 @@ const halloweenMain = function(active) {
                 
                 // Try hunting - more frequently and not just when hungry
                 if (this.state === 'flying') {
-                    // Base chance
-                    let huntChance = this.mood === 'hungry' ? 0.06 : 0.03;
+                    // Base chance – significantly higher so he actually hunts
+                    let huntChance = this.mood === 'hungry' ? 0.16 : 0.08;
 
                     // If real weather says it's raining, bugs tend to cluster around the web,
                     // so the bat is more tempted to swoop in.
@@ -1247,9 +1259,13 @@ const halloweenMain = function(active) {
                 // Check for bugs in web first (stealing from spider!)
                 if (MosquitoManager.state === 'stuck') {
                     // Bug is in the web - should we steal it?
-                    // More likely to steal if spider is full or bat is hungry
+                    // Much more eager to steal now, especially when hungry or spider is already full
                     const spiderIsFull = State?.data?.spiderFullUntil > Date.now();
-                    const willSteal = this.mood === 'hungry' || spiderIsFull || Math.random() < 0.25;
+                    const baseChance = 0.6; // was 0.25 – make stealing a lot more common
+                    const willSteal =
+                        this.mood === 'hungry' ||                  // always steal when hungry
+                        spiderIsFull ||                             // or when the spider has already feasted
+                        Math.random() < baseChance;                 // otherwise, fairly high chance
                     
                     if (willSteal) {
                         const bugPos = this.getBugPosition();
@@ -1279,7 +1295,8 @@ const halloweenMain = function(active) {
                     const dy = bugPos.y - this.currentY;
                     const distance = Math.sqrt(dx * dx + dy * dy);
                     
-                    if (distance < 55) { // Within hunting range (increased slightly)
+                    // Within hunting range (increased so bat engages more often)
+                    if (distance < 75) {
                         // Predict where bug will be - factor in bat's speed
                         const interceptTime = distance / 45; // Estimate time to reach
                         const predictedPos = this.predictBugPosition(bugPos, Math.min(interceptTime, 1.2));
@@ -1430,9 +1447,17 @@ const halloweenMain = function(active) {
                             CreatureCoordinator.modifyRelationship('floorToBat', -10);
                             CreatureCoordinator.updateMood('ceilingSpider', 'angry');
                             
-                            // Bat's reaction based on mood
-                            const isApologetic = this.mood !== 'hungry' && Math.random() < 0.4;
-                            this.say(isApologetic ? 'stoleBugSorry' : 'stoleBugSmug');
+                            // Bat's reaction based on mood and whether the spider is already full
+                            const spiderIsFull = State?.data?.spiderFullUntil > Date.now();
+                            const isApologetic = this.mood !== 'hungry' && Math.random() < 0.4 && !spiderIsFull;
+                            
+                            if (spiderIsFull && GAME_DIALOGUE?.bat?.stoleBugFromFullSpider) {
+                                // Special lines that explicitly call out the spider being full
+                                const lines = GAME_DIALOGUE.bat.stoleBugFromFullSpider;
+                                this.say(lines[Math.floor(Math.random() * lines.length)]);
+                            } else {
+                                this.say(isApologetic ? 'stoleBugSorry' : 'stoleBugSmug');
+                            }
                             
                             if (!isApologetic) {
                                 this.mood = 'smug';
