@@ -720,8 +720,11 @@ const halloweenMain = function(active) {
                         // CATCH CHECK: If we're close enough, catch it immediately!
                         // Use a reasonable catch radius - bat's wingspan + reaction time
                         // Be more aggressive if spider is also hunting!
-                        const catchRadius = spiderIsHunting ? 32 : 28; // Larger radius when competing
+                        const catchRadius = spiderIsHunting ? 35 : 30; // Larger radius when competing
                         if (bugDistance < catchRadius) {
+                            // Mark that we've verified the catch at this distance
+                            target.verifiedCatch = true;
+                            target.catchDistance = bugDistance;
                             this.completedHunt(target);
                             this.pathIndex++;
                             if (this.pathIndex < this.flightPath.length) {
@@ -1665,20 +1668,25 @@ const halloweenMain = function(active) {
                     // For mid-air catch, check distance to ACTUAL bug with improved detection
                     let caughtMidAir = false;
                     if (target.isAirCatch) {
-                        const bugPos = this.getBugPosition();
-                        
-                        // Check if spider got there first
-                        if (MosquitoManager.state === 'stuck') {
-                            // Spider caught it! Don't claim the catch
-                            caughtMidAir = false;
-                            // This will be handled by the calling code
-                        } else if (bugPos && wasFlying) {
-                            // Primary check: distance to actual bug position (very generous for direct pursuit)
-                            const dx = bugPos.x - this.currentX;
-                            const dy = bugPos.y - this.currentY;
-                            const distance = Math.sqrt(dx * dx + dy * dy);
-                            // Generous catch radius - if we're actively hunting and close, catch it!
-                            caughtMidAir = distance < 32;
+                        // If catch was already verified in fly(), trust it!
+                        if (target.verifiedCatch) {
+                            caughtMidAir = true;
+                        } else {
+                            const bugPos = this.getBugPosition();
+                            
+                            // Check if spider got there first
+                            if (MosquitoManager.state === 'stuck') {
+                                // Spider caught it! Don't claim the catch
+                                caughtMidAir = false;
+                                // This will be handled by the calling code
+                            } else if (bugPos && wasFlying) {
+                                // Primary check: distance to actual bug position (very generous for direct pursuit)
+                                const dx = bugPos.x - this.currentX;
+                                const dy = bugPos.y - this.currentY;
+                                const distance = Math.sqrt(dx * dx + dy * dy);
+                                // Generous catch radius - if we're actively hunting and close, catch it!
+                                caughtMidAir = distance < 35; // Increased from 32
+                            }
                         }
                         
                         // Fallback: if bug was flying and we're hunting, be very lenient
@@ -1694,11 +1702,11 @@ const halloweenMain = function(active) {
                                     caughtMidAir = true;
                                 }
                             } else {
-                                // Bug still exists, check distance one more time with generous radius
+                                // Bug still exists, check distance one more time with very generous radius
                                 const dx = bugPos.x - this.currentX;
                                 const dy = bugPos.y - this.currentY;
                                 const distance = Math.sqrt(dx * dx + dy * dy);
-                                caughtMidAir = distance < 42;
+                                caughtMidAir = distance < 45; // Increased from 42 for more reliability
                             }
                         }
                     }
@@ -1729,14 +1737,41 @@ const halloweenMain = function(active) {
                         // Show chomp animation!
                         this.showChompEffect();
                         
-                        // Prefer "eating" style removal over a generic splat so the bat feels like it's really chomping
-                        if (typeof MosquitoManager.eat === 'function') {
-                            MosquitoManager.eat();
-                        } else if (typeof MosquitoManager.remove === 'function') {
-                            MosquitoManager.remove();
-                        } else if (typeof MosquitoManager.splat === 'function') {
-                            // Fallback if nothing else exists
-                            MosquitoManager.splat();
+                        // Remove the bug - use different methods based on state
+                        if (wasInWeb) {
+                            // Bug was in web - use eat() which handles stuck state
+                            if (typeof MosquitoManager.eat === 'function') {
+                                MosquitoManager.eat();
+                            } else if (typeof MosquitoManager.finish === 'function') {
+                                MosquitoManager.finish();
+                            } else if (typeof MosquitoManager.remove === 'function') {
+                                MosquitoManager.remove();
+                            }
+                        } else if (caughtMidAir) {
+                            // Bug was flying - use finish() or remove() since eat() only works for stuck bugs
+                            // Track bat eating stats manually
+                            if (typeof State !== 'undefined' && State.data && State.data.insectStats) {
+                                State.data.insectStats.eaten = (State.data.insectStats.eaten || 0) + 1;
+                                State.save('insectStats', State.data.insectStats);
+                                if (State.data.insectStats.eaten >= 100 && typeof State.unlockBadge === 'function') {
+                                    State.unlockBadge('exterminator');
+                                }
+                            }
+                            
+                            // Show message
+                            if (typeof UIManager !== 'undefined' && UIManager.showPostVoteMessage) {
+                                UIManager.showPostVoteMessage("Bat caught it! 🦇");
+                            }
+                            
+                            // Remove the bug
+                            if (typeof MosquitoManager.finish === 'function') {
+                                MosquitoManager.finish();
+                            } else if (typeof MosquitoManager.remove === 'function') {
+                                MosquitoManager.remove();
+                            } else if (typeof MosquitoManager.splat === 'function') {
+                                // Fallback
+                                MosquitoManager.splat();
+                            }
                         }
                         
                         // Grow bigger after eating – mirrors the spider's belly growth
