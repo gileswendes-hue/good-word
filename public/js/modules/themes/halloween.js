@@ -719,17 +719,23 @@ const halloweenMain = function(active) {
                 const emoji = this.element?.querySelector('.bat-emoji');
                 
                 if (body && emoji) {
-                    // Stop flapping
+                    // Stop flapping and clear any existing transforms
                     body.style.animation = 'none';
+                    body.style.transform = '';
+                    emoji.style.transform = '';
                     
-                    // Flip upside down and fold wings using a single transform so it works reliably
+                    // Mark as hanging
                     this.isHanging = true;
-                    emoji.style.transform = 'rotate(180deg) scaleX(0.7)';
-                    emoji.style.transition = 'transform 0.5s ease';
                     
-                    // Add gentle swaying animation after settling (applied to the body container)
+                    // Apply initial upside-down transform with folded wings to body
+                    // The bat-hang-sway animation will take over after a brief delay
+                    body.style.transform = 'rotate(180deg) scaleX(0.5)';
+                    body.style.transition = 'transform 0.5s ease';
+                    
+                    // Add gentle swaying animation after settling
                     setTimeout(() => {
-                        if (this.state === 'resting') {
+                        if (this.state === 'resting' && body) {
+                            body.style.transition = 'none'; // Remove transition so animation works smoothly
                             body.style.animation = 'bat-hang-sway 3s ease-in-out infinite';
                         }
                     }, 500);
@@ -740,9 +746,13 @@ const halloweenMain = function(active) {
                 // Rest for longer
                 this.behaviorTimeout = setTimeout(() => {
                     if (body && emoji) {
+                        // Stop hanging animation and clear transforms
+                        body.style.animation = 'none';
+                        body.style.transform = '';
+                        emoji.style.transform = '';
+                        
                         // Unfold wings and flip right-side up
                         this.isHanging = false;
-                        emoji.style.transform = '';
                         body.style.animation = 'bat-flap 0.2s ease-in-out infinite';
                     }
                     this.pathIndex++;
@@ -1436,9 +1446,9 @@ const halloweenMain = function(active) {
                     50% { transform: rotate(3deg) scale(0.98); }
                 }
                 @keyframes bat-hang-sway {
-                    0%, 100% { transform: rotate(180deg) scaleX(0.7) translateY(0); }
-                    25% { transform: rotate(183deg) scaleX(0.7) translateY(2px); }
-                    75% { transform: rotate(177deg) scaleX(0.7) translateY(-2px); }
+                    0%, 100% { transform: rotate(180deg) scaleX(0.5) translateY(0); }
+                    25% { transform: rotate(183deg) scaleX(0.5) translateY(2px); }
+                    75% { transform: rotate(177deg) scaleX(0.5) translateY(-2px); }
                 }
                 @keyframes bat-startle {
                     0% { transform: scale(1); }
