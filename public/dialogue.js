@@ -240,6 +240,18 @@ const GAME_DIALOGUE = {
             "Time to vanish."
         ],
 
+        // When woken up from nap (by floor spider or naturally)
+        wokenUp: [
+            "Huh? What?",
+            "Five more minutes...",
+            "Who woke me?",
+            "I was having a good dream!",
+            "Ugh, fine...",
+            "Was I snoring?",
+            "Just resting my wings!",
+            "Alright, I'm up!"
+        ],
+
         poked: [
             "Hey!",
             "Rude!",
@@ -985,6 +997,17 @@ const GAME_DIALOGUE = {
                 "Not my bug, not my problem.",
                 "Staying out of this one.",
                 "*watches nervously*"
+            ],
+            // Floor spider shouting at napping bat to wake it up
+            wakeBat: [
+                "Hey! Wake up!",
+                "Bat! You're sleeping!",
+                "Wakey wakey!",
+                "Come on, rise and shine!",
+                "Too much napping up there!",
+                "Hey bat! Time to fly!",
+                "Wake up, sleepyhead!",
+                "You've been hanging there forever!"
             ]
         }
     }
