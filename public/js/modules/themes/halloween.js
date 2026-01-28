@@ -722,14 +722,12 @@ const halloweenMain = function(active) {
                     // Stop flapping
                     body.style.animation = 'none';
                     
-                    // Flip upside down using the dedicated rotate property so
-                    // other code that tweaks transform/scale doesn't undo it.
+                    // Flip upside down and fold wings using a single transform so it works reliably
                     this.isHanging = true;
-                    emoji.style.rotate = '180deg';
-                    emoji.style.transform = 'scaleX(0.7)';
-                    emoji.style.transition = 'transform 0.5s ease, rotate 0.5s ease';
+                    emoji.style.transform = 'rotate(180deg) scaleX(0.7)';
+                    emoji.style.transition = 'transform 0.5s ease';
                     
-                    // Add gentle swaying animation after settling
+                    // Add gentle swaying animation after settling (applied to the body container)
                     setTimeout(() => {
                         if (this.state === 'resting') {
                             body.style.animation = 'bat-hang-sway 3s ease-in-out infinite';
@@ -744,7 +742,6 @@ const halloweenMain = function(active) {
                     if (body && emoji) {
                         // Unfold wings and flip right-side up
                         this.isHanging = false;
-                        emoji.style.rotate = '';
                         emoji.style.transform = '';
                         body.style.animation = 'bat-flap 0.2s ease-in-out infinite';
                     }
@@ -2732,12 +2729,36 @@ Effects.spiderHunt = function(targetXPercent, targetYPercent, isFood) {
         const wrap = document.getElementById('spider-wrap');
         if (!wrap) return;
 
-        // Force Floor spider to hide immediately during a hunt (Priority 1)
-        if (wrap.floorSpiderAI) {
-            wrap.floorSpiderAI.stop();
-            if (wrap.floorSpiderAI.element) {
-                wrap.floorSpiderAI.element.style.display = 'none';
-                wrap.floorSpiderAI.state = 'hiding';
+        // Ask the floor spider to get out of the way during a hunt so the scene
+        // doesn't get too busy, but keep it as a separate visible creature.
+        const floorAI = wrap.floorSpiderAI;
+        if (floorAI && floorAI.element) {
+            // If it's already off-screen or in the middle of leaving, don't touch it
+            const rect = floorAI.element.getBoundingClientRect();
+            const offscreen = (
+                rect.right < -20 || rect.left > window.innerWidth + 20 ||
+                rect.bottom < -20 || rect.top > window.innerHeight + 20
+            );
+            if (!offscreen && floorAI.state !== 'leaving' && floorAI.state !== 'gone') {
+                // Most of the time, gently scuttle to a safer corner near the bottom
+                const margin = 40;
+                const safeX = Math.random() < 0.5 ? margin : (window.innerWidth - margin);
+                const safeY = window.innerHeight - margin * 1.5;
+                const originalSpeed = floorAI.moveSpeed;
+                floorAI.moveSpeed = originalSpeed * 1.4;
+                floorAI.moveTo(safeX, safeY, () => {
+                    // Restore normal speed and resume idle behaviour once settled
+                    floorAI.moveSpeed = originalSpeed;
+                    if (floorAI.state === 'moving') {
+                        floorAI.state = 'idle';
+                        floorAI.doBehavior();
+                    }
+                });
+
+                // Occasionally have it fully leave the stage with its usual animated exit
+                if (Math.random() < 0.25) {
+                    floorAI.leave(floorAI.onLeaveCallback || null);
+                }
             }
         }
 
