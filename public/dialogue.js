@@ -58,6 +58,34 @@ const GAME_DIALOGUE = {
             ]
         },
 
+        // Occasional weather-aware idle lines, chosen based on time of day
+        weatherIdle: {
+            clear: [
+                "Perfect clear skies tonight.",
+                "Stars are out, great flying weather.",
+                "No clouds, all wings.",
+                "Crystal clear night for hunting."
+            ],
+            rainy: [
+                "Rain on my wings...",
+                "Wet wings, bad aerodynamics.",
+                "Rain makes flying... interesting.",
+                "Who ordered the sky shower?"
+            ],
+            windy: [
+                "So much turbulence up here!",
+                "Getting tossed around by the wind!",
+                "Crosswind training, I guess.",
+                "Hold onto your wings!"
+            ],
+            foggy: [
+                "Foggy night... good thing I have sonar.",
+                "Visibility low, echolocation high.",
+                "Mist everywhere.",
+                "Flying by ear in this fog."
+            ]
+        },
+
         getIdlePhrase() {
             const hour = new Date().getHours();
             let timeKey;
@@ -65,7 +93,38 @@ const GAME_DIALOGUE = {
             else if (hour >= 12 && hour < 17) timeKey = 'afternoon';
             else if (hour >= 17 && hour < 21) timeKey = 'evening';
             else timeKey = 'night';
-            
+
+            // Lightweight pseudo-weather based on time of day
+            let weatherKey = 'clear';
+            const roll = Math.random();
+            if (hour >= 5 && hour < 11) {
+                // Morning: dew, mist, occasional drizzle
+                if (roll < 0.5) weatherKey = 'clear';
+                else if (roll < 0.8) weatherKey = 'foggy';
+                else weatherKey = 'rainy';
+            } else if (hour >= 11 && hour < 17) {
+                // Daytime: more wind
+                if (roll < 0.5) weatherKey = 'clear';
+                else if (roll < 0.85) weatherKey = 'windy';
+                else weatherKey = 'rainy';
+            } else if (hour >= 17 && hour < 22) {
+                // Evening: mix of clear and windy, some rain
+                if (roll < 0.4) weatherKey = 'clear';
+                else if (roll < 0.8) weatherKey = 'windy';
+                else weatherKey = 'rainy';
+            } else {
+                // Late night: clear or foggy most often
+                if (roll < 0.5) weatherKey = 'clear';
+                else if (roll < 0.85) weatherKey = 'foggy';
+                else weatherKey = 'rainy';
+            }
+
+            // Sometimes return a weather-specific line instead of normal idle
+            if (Math.random() < 0.35 && GAME_DIALOGUE.bat.weatherIdle?.[weatherKey]) {
+                const w = GAME_DIALOGUE.bat.weatherIdle[weatherKey];
+                return w[Math.floor(Math.random() * w.length)];
+            }
+
             const phrases = GAME_DIALOGUE.bat.idle[timeKey];
             return phrases[Math.floor(Math.random() * phrases.length)];
         },
@@ -342,6 +401,34 @@ const GAME_DIALOGUE = {
             ]
         },
 
+        // Weather-aware flavour lines (used occasionally)
+        weatherIdle: {
+            clear: [
+                "Clear skies, perfect web conditions.",
+                "No rain, no problem.",
+                "Nice dry evening for hunting.",
+                "Stars out, web shining."
+            ],
+            rainy: [
+                "Rain makes the web heavy...",
+                "Drip... drip... my poor web.",
+                "Soggy silk today.",
+                "Rainy days, fewer flies."
+            ],
+            windy: [
+                "Wind keeps shaking my web!",
+                "Hold still, web!",
+                "Windy out there...",
+                "Drafty corner tonight."
+            ],
+            foggy: [
+                "Web disappearing into the mist.",
+                "Fog makes everything spooky.",
+                "Misty strands, hidden traps.",
+                "Can't see far in this fog..."
+            ]
+        },
+
         getIdlePhrase() {
             const hour = new Date().getHours();
             let timeKey;
@@ -349,7 +436,34 @@ const GAME_DIALOGUE = {
             else if (hour >= 12 && hour < 17) timeKey = 'afternoon';
             else if (hour >= 17 && hour < 21) timeKey = 'evening';
             else timeKey = 'night';
-            
+
+            // Lightweight pseudo-weather based on time of day
+            let weatherKey = 'clear';
+            const roll = Math.random();
+            if (hour >= 5 && hour < 11) {
+                if (roll < 0.5) weatherKey = 'clear';
+                else if (roll < 0.85) weatherKey = 'foggy';
+                else weatherKey = 'rainy';
+            } else if (hour >= 11 && hour < 17) {
+                if (roll < 0.55) weatherKey = 'clear';
+                else if (roll < 0.85) weatherKey = 'windy';
+                else weatherKey = 'rainy';
+            } else if (hour >= 17 && hour < 22) {
+                if (roll < 0.45) weatherKey = 'clear';
+                else if (roll < 0.8) weatherKey = 'windy';
+                else weatherKey = 'rainy';
+            } else {
+                if (roll < 0.5) weatherKey = 'clear';
+                else if (roll < 0.85) weatherKey = 'foggy';
+                else weatherKey = 'rainy';
+            }
+
+            // Sometimes talk explicitly about the weather instead of general idle
+            if (Math.random() < 0.35 && GAME_DIALOGUE.spider.weatherIdle?.[weatherKey]) {
+                const w = GAME_DIALOGUE.spider.weatherIdle[weatherKey];
+                return w[Math.floor(Math.random() * w.length)];
+            }
+
             const phrases = GAME_DIALOGUE.spider.idle[timeKey];
             return phrases[Math.floor(Math.random() * phrases.length)];
         },
