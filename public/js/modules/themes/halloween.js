@@ -1930,6 +1930,9 @@ const halloweenMain = function(active) {
             maxBehaviors: 0, 
             onLeaveCallback: null,
             lastPauseTime: 0, // Track time since last pause for more natural pausing
+            isOnCard: false, // Track if spider is sitting on the word card
+            cardLastPosition: null, // Track card position to detect movement
+            cardInteractionTimeout: null, // Timeout for card interactions
             
             init(container) {
                 this.element = container;
@@ -2093,6 +2096,187 @@ const halloweenMain = function(active) {
                 this.animateMovement(onComplete);
             },
             
+            // Check if spider is near or on the word card
+            checkCardProximity() {
+                const card = document.getElementById('gameCard');
+                if (!card) return false;
+                
+                const cardRect = card.getBoundingClientRect();
+                const spiderRect = this.bodyElement?.getBoundingClientRect();
+                if (!spiderRect) return false;
+                
+                // Check if spider is overlapping with card (within 30px margin)
+                const margin = 30;
+                const overlapX = spiderRect.right > cardRect.left - margin && spiderRect.left < cardRect.right + margin;
+                const overlapY = spiderRect.bottom > cardRect.top - margin && spiderRect.top < cardRect.bottom + margin;
+                
+                return overlapX && overlapY;
+            },
+            
+            // Detect if card moved and sweep spider away
+            checkCardMovement() {
+                const card = document.getElementById('gameCard');
+                if (!card || !this.isOnCard) return;
+                
+                const cardRect = card.getBoundingClientRect();
+                const currentPos = { x: cardRect.left, y: cardRect.top };
+                
+                if (this.cardLastPosition) {
+                    const dx = currentPos.x - this.cardLastPosition.x;
+                    const dy = currentPos.y - this.cardLastPosition.y;
+                    const moved = Math.sqrt(dx * dx + dy * dy);
+                    
+                    // If card moved significantly, sweep spider away
+                    if (moved > 10) {
+                        this.sweptAwayByCard(dx, dy);
+                    }
+                }
+                
+                this.cardLastPosition = currentPos;
+            },
+            
+            // Spider gets swept away when card moves
+            sweptAwayByCard(cardDx, cardDy) {
+                this.isOnCard = false;
+                this.cardLastPosition = null;
+                if (this.cardInteractionTimeout) {
+                    clearTimeout(this.cardInteractionTimeout);
+                    this.cardInteractionTimeout = null;
+                }
+                
+                this.stop();
+                this.state = 'moving';
+                
+                // Calculate sweep direction (opposite to card movement, with some randomness)
+                const sweepAngle = Math.atan2(cardDy, cardDx) + Math.PI + (Math.random() - 0.5) * 0.5;
+                const sweepDistance = 80 + Math.random() * 60;
+                const sweepX = this.currentX + Math.cos(sweepAngle) * sweepDistance;
+                const sweepY = this.currentY + Math.sin(sweepAngle) * sweepDistance;
+                
+                // Keep within bounds
+                const finalX = Math.max(30, Math.min(window.innerWidth - 30, sweepX));
+                const finalY = Math.max(100, Math.min(window.innerHeight - 30, sweepY));
+                
+                this.facingRight = finalX > this.currentX;
+                if (this.bodyElement) {
+                    this.bodyElement.classList.remove('paused');
+                    this.bodyElement.classList.add('scuttling');
+                }
+                
+                this.say('cardMoved');
+                this.moveTo(finalX, finalY, () => {
+                    this.state = 'idle';
+                    setTimeout(() => this.doBehavior(), 1000 + Math.random() * 1500);
+                });
+            },
+            
+            // New behavior: interact with word card
+            interactWithCard() {
+                const card = document.getElementById('gameCard');
+                if (!card) {
+                    // No card, do normal behavior instead
+                    const dest = this.chooseDestination();
+                    this.moveTo(dest.x, dest.y, () => {
+                        setTimeout(() => this.doBehavior(), 1500 + Math.random() * 3000);
+                    });
+                    return;
+                }
+                
+                this.state = 'cardInteracting';
+                const cardRect = card.getBoundingClientRect();
+                
+                // Move to card (bottom edge, slightly offset)
+                const targetX = cardRect.left + cardRect.width / 2 + (Math.random() - 0.5) * (cardRect.width * 0.3);
+                const targetY = cardRect.bottom - 15; // Sit on bottom edge
+                
+                this.moveTo(targetX, targetY, () => {
+                    // Arrived at card
+                    this.isOnCard = true;
+                    this.cardLastPosition = { x: cardRect.left, y: cardRect.top };
+                    
+                    if (this.bodyElement) {
+                        this.bodyElement.classList.remove('scuttling');
+                        this.bodyElement.classList.add('paused');
+                    }
+                    
+                    // Decide what to do: sit on it or try to push it
+                    const action = Math.random();
+                    if (action < 0.6) {
+                        // Sit on card
+                        this.say('sittingOnCard');
+                        this.state = 'sittingOnCard';
+                        
+                        // Check for card movement periodically
+                        const checkMovement = () => {
+                            if (this.isOnCard && this.state === 'sittingOnCard') {
+                                this.checkCardMovement();
+                                this.cardInteractionTimeout = setTimeout(checkMovement, 100);
+                            }
+                        };
+                        checkMovement();
+                        
+                        // Stay for a while, then leave
+                        setTimeout(() => {
+                            if (this.isOnCard && this.state === 'sittingOnCard') {
+                                this.isOnCard = false;
+                                this.cardLastPosition = null;
+                                if (this.cardInteractionTimeout) {
+                                    clearTimeout(this.cardInteractionTimeout);
+                                    this.cardInteractionTimeout = null;
+                                }
+                                const dest = this.chooseDestination();
+                                this.moveTo(dest.x, dest.y, () => {
+                                    this.state = 'idle';
+                                    setTimeout(() => this.doBehavior(), 1000 + Math.random() * 2000);
+                                });
+                            }
+                        }, 3000 + Math.random() * 4000);
+                    } else {
+                        // Try to push the card slightly
+                        this.say('pushingCard');
+                        this.state = 'pushingCard';
+                        
+                        // Animate pushing motion
+                        if (this.bodyElement) {
+                            this.bodyElement.style.transition = 'transform 0.3s ease-in-out';
+                            const pushDirection = Math.random() > 0.5 ? 1 : -1;
+                            
+                            // Push animation
+                            for (let i = 0; i < 3; i++) {
+                                setTimeout(() => {
+                                    if (this.bodyElement && this.state === 'pushingCard') {
+                                        this.bodyElement.style.transform = `scaleX(${pushDirection}) translateX(${pushDirection * 5}px)`;
+                                        setTimeout(() => {
+                                            if (this.bodyElement && this.state === 'pushingCard') {
+                                                this.bodyElement.style.transform = `scaleX(${pushDirection})`;
+                                            }
+                                        }, 200);
+                                    }
+                                }, i * 400);
+                            }
+                        }
+                        
+                        // Try to move card slightly (visual only - card position is controlled elsewhere)
+                        // Instead, just move spider slightly to simulate pushing
+                        setTimeout(() => {
+                            if (this.state === 'pushingCard') {
+                                const pushOffset = (Math.random() - 0.5) * 20;
+                                this.currentX += pushOffset;
+                                this.updatePosition();
+                                
+                                this.isOnCard = false;
+                                this.cardLastPosition = null;
+                                const dest = this.chooseDestination();
+                                this.moveTo(dest.x, dest.y, () => {
+                                    this.state = 'idle';
+                                    setTimeout(() => this.doBehavior(), 1000 + Math.random() * 2000);
+                                });
+                            }
+                        }, 2000);
+                    }
+                });
+            },
+            
             animateMovement(onComplete) {
                 if (this.state !== 'moving' && this.state !== 'leaving') return;
                 const now = performance.now();
@@ -2153,6 +2337,12 @@ const halloweenMain = function(active) {
                     this.currentY = Math.max(100, Math.min(window.innerHeight - 30, this.currentY));
                 }
                 this.updatePosition();
+                
+                // If sitting on card, check for card movement
+                if (this.isOnCard && this.state === 'sittingOnCard') {
+                    this.checkCardMovement();
+                }
+                
                 this.animationFrame = requestAnimationFrame(() => this.animateMovement(onComplete));
             },
             
@@ -2293,6 +2483,9 @@ const halloweenMain = function(active) {
                 if (this.animationFrame) { cancelAnimationFrame(this.animationFrame); this.animationFrame = null; }
                 if (this.pauseTimeout) { clearTimeout(this.pauseTimeout); this.pauseTimeout = null; }
                 if (this.thinkingTimeout) { clearTimeout(this.thinkingTimeout); this.thinkingTimeout = null; }
+                if (this.cardInteractionTimeout) { clearTimeout(this.cardInteractionTimeout); this.cardInteractionTimeout = null; }
+                this.isOnCard = false;
+                this.cardLastPosition = null;
                 if (this.bodyElement) this.bodyElement.classList.remove('scuttling', 'paused', 'looking');
             },
             
@@ -2318,9 +2511,12 @@ const halloweenMain = function(active) {
                 } else if (action < 0.32) {
                     // Look up at ceiling spider or bat
                     this.lookUp();
-                } else if (action < 0.38) {
+                } else                 } else if (action < 0.45) {
                     // Do a little spin/dance
                     this.doSpin();
+                } else if (action < 0.55) {
+                    // Interact with word card (sit on it, push it)
+                    this.interactWithCard();
                 } else {
                     // Normal movement to random destination
                     const dest = this.chooseDestination();
