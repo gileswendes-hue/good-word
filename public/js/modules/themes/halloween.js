@@ -2753,21 +2753,30 @@ const halloweenMain = function(active) {
                 if (action < 0.10) {
                     // Think/pause behavior
                     this.think(() => { setTimeout(() => this.doBehavior(), 500 + Math.random() * 1000); });
-                } else if (action < 0.18) {
+                } else if (action < 0.16) {
                     // Explore corner - spider investigates a corner curiously
                     this.exploreCorner();
-                } else if (action < 0.25) {
+                } else if (action < 0.26) {
                     // Find something interesting on the ground
                     this.findSomething();
-                } else if (action < 0.32) {
+                } else if (action < 0.34) {
                     // Look up at ceiling spider or bat
                     this.lookUp();
-                } else if (action < 0.38) {
+                } else if (action < 0.42) {
                     // Do a little spin/dance
                     this.doSpin();
-                } else if (action < 0.48) {
+                } else if (action < 0.56) {
                     // Interact with word card (sit on it, push it)
                     this.interactWithCard();
+                } else if (action < 0.66) {
+                    // Nudge the card (gentle shove)
+                    this.nudgeCard();
+                } else if (action < 0.78) {
+                    // Play a little fetch with a small object
+                    this.playFetch();
+                } else if (action < 0.86) {
+                    // Borrow a strand of web (visual) to interact with bat/objects
+                    this.borrowWeb();
                 } else {
                     // Normal movement to random destination
                     const dest = this.chooseDestination();
@@ -2852,6 +2861,148 @@ const halloweenMain = function(active) {
                         setTimeout(() => this.doBehavior(), 1500 + Math.random() * 2000);
                     }, 2500);
                 });
+            },
+            
+            // Gentle nudge the game card to get attention (visual only)
+            nudgeCard() {
+                const card = document.getElementById('gameCard');
+                if (!card) { this.doBehavior(); return; }
+                this.state = 'nudgeCard';
+                this.say('turfWar'); // reuse a short exclamation
+                // Small visual nudge via transform
+                const original = card.style.transform || '';
+                card.style.transition = 'transform 0.18s ease';
+                const nudgeX = (Math.random() - 0.5) * 12;
+                card.style.transform = `${original} translateX(${nudgeX}px)`;
+                // Little scuttle animation on spider
+                if (this.bodyElement) {
+                    this.bodyElement.classList.add('paused');
+                    setTimeout(() => this.bodyElement.classList.remove('paused'), 500);
+                }
+                // Revert card
+                setTimeout(() => {
+                    card.style.transform = original;
+                    setTimeout(() => {
+                        this.state = 'idle';
+                        setTimeout(() => this.doBehavior(), 800 + Math.random() * 1200);
+                    }, 200);
+                }, 300 + Math.random() * 300);
+            },
+
+            // Play fetch: create a small silk-ball, push it, then chase it
+            playFetch() {
+                this.state = 'playing';
+                this.say('startMoving');
+                // Create a temporary fetch object
+                const ball = document.createElement('div');
+                ball.className = 'spider-fetch-ball';
+                ball.textContent = '🕸️';
+                Object.assign(ball.style, {
+                    position: 'fixed',
+                    left: (this.currentX) + 'px',
+                    top: (this.currentY + 16) + 'px',
+                    fontSize: '20px',
+                    transition: 'transform 0.6s ease, left 0.6s ease, top 0.6s ease',
+                    pointerEvents: 'none',
+                    zIndex: '9999'
+                });
+                document.body.appendChild(ball);
+
+                // Toss it a short distance
+                const tossX = this.currentX + (Math.random() * 120 - 60);
+                const tossY = this.currentY - (40 + Math.random() * 40);
+                setTimeout(() => {
+                    ball.style.left = tossX + 'px';
+                    ball.style.top = tossY + 'px';
+                }, 40);
+
+                // Spider pursues the ball
+                setTimeout(() => {
+                    this.say('foundSomething');
+                    // Move to ball
+                    this.moveTo(tossX, tossY + 10, () => {
+                        // Pick it up (visual)
+                        ball.style.opacity = '0';
+                        setTimeout(() => ball.remove(), 300);
+                        // Maybe "bring" it back or hide it
+                        setTimeout(() => {
+                            this.state = 'idle';
+                            setTimeout(() => this.doBehavior(), 800 + Math.random() * 1600);
+                        }, 400 + Math.random() * 800);
+                    });
+                }, 700);
+            },
+
+            // Borrow a strand of web: visually extend a silk line toward the bat or an object
+            borrowWeb() {
+                const batEl = document.getElementById('halloween-bat');
+                const body = this.bodyElement;
+                const card = document.getElementById('gameCard');
+                this.state = 'borrowing';
+                this.say('seeWeb');
+
+                // Create a temporary silk line element (svg)
+                const line = document.createElement('div');
+                line.className = 'spider-silk-line';
+                Object.assign(line.style, {
+                    position: 'fixed', left: '0px', top: '0px', pointerEvents: 'none', zIndex: '105'
+                });
+                const svgNS = 'http://www.w3.org/2000/svg';
+                const svg = document.createElementNS(svgNS, 'svg');
+                svg.setAttribute('width', window.innerWidth);
+                svg.setAttribute('height', window.innerHeight);
+                Object.assign(svg.style, { position: 'absolute', left: 0, top: 0 });
+                const path = document.createElementNS(svgNS, 'path');
+                path.setAttribute('stroke', 'rgba(255,255,255,0.9)');
+                path.setAttribute('stroke-width', '2');
+                path.setAttribute('fill', 'none');
+                svg.appendChild(path);
+                line.appendChild(svg);
+                document.body.appendChild(line);
+
+                const startRect = body ? body.getBoundingClientRect() : null;
+                const startX = startRect ? (startRect.left + startRect.width / 2) : (window.innerWidth * 0.5);
+                const startY = startRect ? (startRect.top + startRect.height / 2) : (window.innerHeight * 0.5);
+                const targetRect = (batEl && batEl.getBoundingClientRect()) || (card && card.getBoundingClientRect());
+                const endX = targetRect ? (targetRect.left + targetRect.width / 2) : (startX + 60);
+                const endY = targetRect ? (targetRect.top + targetRect.height / 2) : (startY - 60);
+
+                // Animate the path from spider to target
+                let t = 0;
+                const anim = () => {
+                    t += 0.06;
+                    const lerpX = startX + (endX - startX) * t;
+                    const lerpY = startY + (endY - startY) * t;
+                    const midX = (startX + lerpX) / 2 + Math.sin(t * Math.PI * 2) * 20;
+                    const d = `M ${startX} ${startY} Q ${midX} ${startY - 40} ${lerpX} ${lerpY}`;
+                    path.setAttribute('d', d);
+                    if (t < 1) {
+                        requestAnimationFrame(anim);
+                    } else {
+                        // Hold briefly then retract
+                        setTimeout(() => {
+                            // Retract
+                            let rt = 0;
+                            const retract = () => {
+                                rt += 0.08;
+                                const rr = 1 - rt;
+                                const lerpX2 = startX + (endX - startX) * rr;
+                                const lerpY2 = startY + (endY - startY) * rr;
+                                const midX2 = (startX + lerpX2) / 2 + Math.sin(rt * Math.PI * 2) * 10;
+                                const d2 = `M ${startX} ${startY} Q ${midX2} ${startY - 20} ${lerpX2} ${lerpY2}`;
+                                path.setAttribute('d', d2);
+                                if (rt < 1) requestAnimationFrame(retract);
+                                else {
+                                    line.remove();
+                                    this.state = 'idle';
+                                    setTimeout(() => this.doBehavior(), 800 + Math.random() * 1200);
+                                }
+                            };
+                            requestAnimationFrame(retract);
+                        }, 600 + Math.random() * 600);
+                    }
+                };
+                requestAnimationFrame(anim);
             },
             
             // New behavior: look up at ceiling
