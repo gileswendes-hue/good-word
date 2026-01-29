@@ -165,7 +165,7 @@ const halloweenMain = function(active) {
             lastHuntUpdate: 0, // Track when we last updated hunt target for smoother pursuit
             lastPositionY: 0,
             lastPositionTime: 0, // When we last moved significantly
-            stuckThreshold: 3000, // Max time allowed stationary (except when napping)
+            stuckThreshold: 2000, // Max time allowed stationary (except when napping) - shorter so naps happen sooner
             
             init() {
                 this.destroy();
@@ -615,16 +615,16 @@ const halloweenMain = function(active) {
             },
             
             generateFlightPath() {
-                const numPoints = 4 + Math.floor(Math.random() * 4);
+                const numPoints = 5 + Math.floor(Math.random() * 5); // more waypoints for variety
                 this.flightPath = [];
                 this.pathIndex = 0;
                 
                 for (let i = 0; i < numPoints; i++) {
                     this.flightPath.push({
-                        x: 10 + Math.random() * 80,
-                        y: 5 + Math.random() * 50,
-                        restHere: Math.random() < 0.2, // More rest stops
-                        speed: 0.12 + Math.random() * 0.15 // Much slower: 0.12-0.27 (was 0.25-0.60)
+                        x: 8 + Math.random() * 84,
+                        y: 4 + Math.random() * 56,
+                        restHere: Math.random() < 0.4, // increase chance to rest
+                        speed: 0.10 + Math.random() * 0.22 // slightly varied speed
                     });
                 }
                 
@@ -945,7 +945,7 @@ const halloweenMain = function(active) {
                     const dy = spiderY - this.currentY;
                     const distance = Math.sqrt(dx * dx + dy * dy);
                     
-                    if (distance < 25) {
+                    if (distance < 40) {
                         this.greetSpider(wrap);
                     }
                 }
@@ -961,7 +961,8 @@ const halloweenMain = function(active) {
                     const dy = floorY - this.currentY;
                     const distance = Math.sqrt(dx * dx + dy * dy);
                     
-                    if (distance < 30 && Math.random() < 0.3) {
+                    // Be more likely to interact with the floor spider and at longer range
+                    if (distance < 45 && Math.random() < 0.6) {
                         this.greetFloorSpider(floorWrap);
                     }
                 }
@@ -969,7 +970,7 @@ const halloweenMain = function(active) {
             
             greetSpider(wrap) {
                 this.hasGreetedSpider = true;
-                this.interactionCooldown = Date.now() + 8000;
+                this.interactionCooldown = Date.now() + 6000;
                 
                 const relationship = CreatureCoordinator.getRelationshipStatus('batToSpider');
                 let dialogueKey = 'greetSpider';
@@ -1047,7 +1048,7 @@ const halloweenMain = function(active) {
             },
             
             greetFloorSpider(floorWrap) {
-                this.interactionCooldown = Date.now() + 10000;
+                this.interactionCooldown = Date.now() + 6000;
                 
                 // Bat chooses how to greet the floor spider based on recent drama
                 if (CreatureCoordinator.getRecentEvent('batStoleFood')) {
@@ -1096,6 +1097,20 @@ const halloweenMain = function(active) {
                                             floorAI.sayLiteral ? floorAI.sayLiteral(txt) : floorAI.say('commentary');
                                         }
                                     }, 1600);
+                                    
+                                    // Briefly make the floor spider visually distinct to emphasize interaction
+                                    const floorEl = document.getElementById('floor-spider-container');
+                                    if (floorEl) {
+                                        const prevTransform = floorEl.style.transform || '';
+                                        const prevFilter = floorEl.style.filter || '';
+                                        floorEl.style.transition = 'transform 0.25s ease, filter 0.25s ease';
+                                        floorEl.style.transform = (prevTransform ? prevTransform + ' ' : '') + 'scale(1.18)';
+                                        floorEl.style.filter = 'drop-shadow(0 8px 14px rgba(0,0,0,0.5)) saturate(1.2) hue-rotate(-8deg)';
+                                        setTimeout(() => {
+                                            floorEl.style.transform = prevTransform;
+                                            floorEl.style.filter = prevFilter;
+                                        }, 2200);
+                                    }
                                 }, 1500);
                             }
                         }
@@ -1149,9 +1164,10 @@ const halloweenMain = function(active) {
                 }
                 
                 // Rest for longer (naps can last longer than most events)
+                // Make naps more substantial and more common
                 this.behaviorTimeout = setTimeout(() => {
                     this.wakeFromNap();
-                }, 4000 + Math.random() * 6000);
+                }, 8000 + Math.random() * 12000); // 8-20s nap
             },
             
             // Wake up from nap (can be called by floor spider or naturally)
@@ -1821,6 +1837,15 @@ const halloweenMain = function(active) {
                         
                         // Grow bigger after eating – mirrors the spider's belly growth
                         this.growAfterEating();
+                        
+                        // After a successful catch, sometimes the bat wants to have a quiet nap.
+                        if (Math.random() < 0.6) {
+                            // Send the bat to a quiet rest spot (corner or off-screen)
+                            this.generateQuietRestPath();
+                            this.pathIndex = 0;
+                            this.state = 'flying';
+                            this.lastPositionTime = Date.now();
+                        }
                         
                         if (wasInWeb) {
                             // We stole from the spider!
