@@ -1079,6 +1079,28 @@ const GAME_DIALOGUE = {
                 "Won't budge!",
                 "*strains*"
             ],
+            // New lines for nudge, fetch and borrow-web actions
+            nudging: [
+                "Excuse me, card.",
+                "Move over, please.",
+                "Just a tiny nudge.",
+                "Shift left... now.",
+                "A gentle reminder."
+            ],
+            playingFetch: [
+                "Catch!",
+                "Go fetch!",
+                "Bring it back!",
+                "Good throw!",
+                "*excited clicking*"
+            ],
+            borrowingWeb: [
+                "Borrow a strand?",
+                "I'll lend you silk.",
+                "Web on loan.",
+                "A little help from my web.",
+                "*spins a helper thread*"
+            ],
             cardMoved: [
                 "Whoa!",
                 "Hey!",
