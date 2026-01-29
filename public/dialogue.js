@@ -302,6 +302,9 @@ const GAME_DIALOGUE = {
             "Catch anything lately?",
             "Respect the hustle!",
             "Staying sticky?"
+            , "Lovely silkwork — teach me your ways.",
+            "Got a spare corner? I'm looking for a nap.",
+            "Nice to see a friendly face above the chaos."
         ],
 
         // Greeting the floor spider
@@ -366,6 +369,8 @@ const GAME_DIALOGUE = {
             "Catch me if you can~",
             "Nyoom!",
             "Air mail delivery!"
+            , "Try and keep up, nimble legs!",
+            "Don't blink or I'll be gone."
         ],
 
         // Friendly/bonding moments
@@ -799,6 +804,8 @@ const GAME_DIALOGUE = {
             "Think you're quick?",
             "Can you do THIS? *wiggles*",
             "Teamwork?"
+            , "Let's make a little wager — loser stitches the web!",
+            "You're fast, but can you stick to a deadline?"
         ],
 
         // Bonding with bat
