@@ -160,6 +160,45 @@ const SoundManager = {
             this.mosquitoOsc = null;
         }
     }
+    ,
+    // Rain sound: simple filtered noise source
+    _rainNodes: null,
+    startRain(intensity = 'medium') {
+        if (State.data.settings.muteSounds) return;
+        if (!this.ctx) this.init();
+        if (this._rainNodes) return; // already playing
+        const ctx = this.ctx;
+        // Create noise buffer
+        const bufferSize = ctx.sampleRate * 2;
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+        const src = ctx.createBufferSource();
+        src.buffer = buffer;
+        src.loop = true;
+        const band = ctx.createBiquadFilter();
+        band.type = 'bandpass';
+        // center frequency depends on intensity
+        const freq = intensity === 'heavy' ? 1500 : intensity === 'light' ? 3000 : 2000;
+        band.frequency.setValueAtTime(freq, ctx.currentTime);
+        band.Q.setValueAtTime(intensity === 'heavy' ? 0.7 : 1.2, ctx.currentTime);
+        const gain = ctx.createGain();
+        const vol = intensity === 'heavy' ? 0.18 : intensity === 'light' ? 0.05 : 0.12;
+        gain.gain.setValueAtTime(vol, ctx.currentTime);
+        src.connect(band);
+        band.connect(gain);
+        gain.connect(this.masterGain);
+        src.start();
+        this._rainNodes = { src, band, gain };
+    },
+    stopRain() {
+        if (!this._rainNodes) return;
+        try { this._rainNodes.src.stop(); } catch (e) {}
+        try { this._rainNodes.src.disconnect(); } catch (e) {}
+        try { this._rainNodes.band.disconnect(); } catch (e) {}
+        try { this._rainNodes.gain.disconnect(); } catch (e) {}
+        this._rainNodes = null;
+    }
 };
 
 // ============================================================================
