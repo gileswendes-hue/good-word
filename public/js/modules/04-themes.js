@@ -481,6 +481,15 @@ const WeatherManager = {
                     const code = data.current_weather.weathercode;
                     this.isRaining = this.RAIN_CODES.includes(code);
                     this.isSnowing = this.SNOW_CODES.includes(code);
+                    // Estimate rain intensity using weather code and windspeed
+                    // Default to medium; thunder codes -> heavy; else use windspeed as proxy
+                    const wind = data.current_weather.windspeed || 0;
+                    let intensity = 'medium';
+                    if ([95,96,99].includes(code)) intensity = 'heavy';
+                    else if (wind > 10) intensity = 'heavy';
+                    else if (wind > 5) intensity = 'medium';
+                    else intensity = 'light';
+                    this.rainIntensity = intensity;
                     this.hasChecked = true;
                     if (this.isSnowing) UIManager.showPostVoteMessage("It's snowing! ❄️");
                     else if (this.isRaining) UIManager.showPostVoteMessage("It's raining! 🌧️");
