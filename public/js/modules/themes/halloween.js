@@ -133,6 +133,51 @@ const halloweenMain = function(active) {
             };
         }
         const CreatureCoordinator = Effects.CreatureCoordinator;
+        
+        // Configuration & cached DOM for performance tuning (single-file optimization)
+        const HALLOWEEN_CONFIG = {
+            // Movement / hunting
+            bat: {
+                basePursuitSpeed: 0.75,
+                competitiveSpeed: 1.0,
+                catchRadius: { normal: 30, competing: 35 },
+                pursuitMoveFactor: 0.12,
+                huntUpdateMs: 80
+            },
+            spider: {
+                cardProximityMargin: 30,
+                cardMovementThresholdPx: 10
+            },
+            performance: {
+                // Minimum ms between expensive DOM refreshes
+                domCacheRefreshMs: 1000
+            }
+        };
+
+        const DOM_CACHE = {
+            spiderWrap: null,
+            floorWrap: null,
+            gameCard: null
+        };
+
+        // Refresh cached DOM references (call sparingly)
+        function refreshDOMCache(force) {
+            const now = Date.now();
+            if (!force && refreshDOMCache._last && (now - refreshDOMCache._last) < HALLOWEEN_CONFIG.performance.domCacheRefreshMs) return;
+            refreshDOMCache._last = now;
+            DOM_CACHE.spiderWrap = document.getElementById('spider-wrap');
+            DOM_CACHE.floorWrap = document.getElementById('floor-spider-container');
+            DOM_CACHE.gameCard = document.getElementById('gameCard');
+        }
+
+        // Utility coordinate converters
+        function pxToPctX(px) { return (px / window.innerWidth) * 100; }
+        function pxToPctY(py) { return (py / window.innerHeight) * 100; }
+
+        // Refresh cache on resize (throttled by refreshDOMCache)
+        window.addEventListener('resize', () => refreshDOMCache(false));
+        // Initial population
+        refreshDOMCache(true);
 
         // Helper: orchestrate short multi-turn conversations between creatures.
         // Sequence is array of { who: 'bat'|'ceiling'|'floor', text: '...' }
@@ -309,6 +354,13 @@ const halloweenMain = function(active) {
                 this.hasGreetedSpider = false;
                 this.stolenFood = false;
                 this.interactionCooldown = 0;
+                // Bat 'brain' memory & mood timers
+                this.memory = []; // {event, ts}
+                this.moodTimer = Date.now();
+                this.moodDecayInterval = 30 * 1000; // moods can decay over time
+                
+                // Ensure DOM cache is fresh for performance-critical loops
+                try { refreshDOMCache(true); } catch (e) {}
                 
                 // Load bugs eaten from state if available
                 this.bugsEaten = State?.data?.batEatCount || 0;
@@ -462,6 +514,32 @@ const halloweenMain = function(active) {
                         if (emoji) emoji.style.transform = '';
                     }, 220);
                 }, 260);
+            },
+            
+            // Simple memory: remember an event (string), used to bias behavior/mood temporarily
+            remember(eventKey) {
+                this.memory = this.memory || [];
+                this.memory.push({ event: eventKey, ts: Date.now() });
+                // Keep memory short
+                this.memory = this.memory.filter(m => (Date.now() - m.ts) < 60 * 1000);
+            },
+            // Check memory for a recent event
+            recalls(eventKey) {
+                return (this.memory || []).some(m => m.event === eventKey);
+            },
+            // Mood decay: called periodically to relax moods toward neutral
+            decayMood() {
+                try {
+                    if (Date.now() - (this.moodTimer || 0) > (this.moodDecayInterval || 30000)) {
+                        // Move toward neutral gently
+                        if (this.mood === 'angry' || this.mood === 'grumpy') this.mood = 'neutral';
+                        else if (this.mood === 'happy' || this.mood === 'playful') {
+                            if (Math.random() < 0.5) this.mood = 'neutral';
+                        }
+                        CreatureCoordinator.updateMood('bat', this.mood);
+                        this.moodTimer = Date.now();
+                    }
+                } catch (e) {}
             },
             
             destroy() {
