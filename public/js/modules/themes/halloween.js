@@ -134,6 +134,143 @@ const halloweenMain = function(active) {
         }
         const CreatureCoordinator = Effects.CreatureCoordinator;
 
+        // Helper: orchestrate short multi-turn conversations between creatures.
+        // Sequence is array of { who: 'bat'|'ceiling'|'floor', text: '...' }
+        window.startConversation = function(sequence, interval = 900, onComplete) {
+            if (!Array.isArray(sequence) || sequence.length === 0) {
+                if (onComplete) onComplete(); return;
+            }
+            // Delegate to DialogueEngine for better control
+            if (window.DialogueEngine && typeof window.DialogueEngine.start === 'function') {
+                window.DialogueEngine.start(sequence, interval, onComplete);
+                return;
+            }
+            sequence.forEach((msg, i) => {
+                setTimeout(() => {
+                    try {
+                        if (msg.who === 'bat') {
+                            if (window.Effects && Effects.batAI) Effects.batAI.say(msg.text);
+                        } else if (msg.who === 'ceiling') {
+                            const wrap = document.getElementById('spider-wrap');
+                            if (wrap && wrap.showBubble) wrap.showBubble(msg.text, 'upside-down');
+                        } else if (msg.who === 'floor') {
+                            const floorAI = document.getElementById('spider-wrap')?.floorSpiderAI;
+                            if (floorAI) {
+                                if (typeof floorAI.sayLiteral === 'function') floorAI.sayLiteral(msg.text);
+                                else floorAI.say ? floorAI.say(msg.text) : null;
+                            }
+                        }
+                    } catch (e) { /* ignore */ }
+                    if (i === sequence.length - 1 && typeof onComplete === 'function') onComplete();
+                }, i * interval);
+            });
+        };
+
+        // Simple Dialogue Engine for multi-turn conversations with queueing and interruption control
+        window.DialogueEngine = {
+            queue: [],
+            running: false,
+            currentTimer: null,
+            start(sequence, interval = 900, onComplete) {
+                if (!Array.isArray(sequence) || sequence.length === 0) {
+                    if (onComplete) onComplete(); return;
+                }
+                // push to queue
+                this.queue.push({ sequence, interval, onComplete });
+                if (!this.running) this._runNext();
+            },
+            _runNext() {
+                const next = this.queue.shift();
+                if (!next) { this.running = false; return; }
+                this.running = true;
+                const { sequence, interval, onComplete } = next;
+                let i = 0;
+                const tick = () => {
+                    if (i >= sequence.length) {
+                        if (onComplete) onComplete();
+                        // small delay then next
+                        setTimeout(() => this._runNext(), 200);
+                        return;
+                    }
+                    const msg = sequence[i++];
+                    try {
+                        if (msg.who === 'bat') {
+                            if (window.Effects && Effects.batAI) Effects.batAI.say(msg.text);
+                        } else if (msg.who === 'ceiling') {
+                            const wrap = document.getElementById('spider-wrap');
+                            if (wrap && wrap.showBubble) wrap.showBubble(msg.text, 'upside-down');
+                        } else if (msg.who === 'floor') {
+                            const floorAI = document.getElementById('spider-wrap')?.floorSpiderAI;
+                            if (floorAI) {
+                                if (typeof floorAI.sayLiteral === 'function') floorAI.sayLiteral(msg.text);
+                                else floorAI.say ? floorAI.say(msg.text) : null;
+                            }
+                        }
+                    } catch (e) {}
+                    this.currentTimer = setTimeout(tick, interval);
+                };
+                tick();
+            },
+            stop() {
+                if (this.currentTimer) clearTimeout(this.currentTimer);
+                this.queue = [];
+                this.running = false;
+                this.currentTimer = null;
+            }
+        };
+
+        // Helper: spawn a persistent fetch object at pixel coords (respawns after timeout)
+        window.spawnFetchAt = function(px, py, lifetime = 15000) {
+            try {
+                const ball = document.createElement('div');
+                ball.className = 'persistent-fetch';
+                ball.textContent = '🕸️';
+                Object.assign(ball.style, {
+                    position: 'fixed',
+                    left: px + 'px',
+                    top: py + 'px',
+                    fontSize: '20px',
+                    transition: 'opacity 0.3s',
+                    pointerEvents: 'auto',
+                    zIndex: '9999',
+                    cursor: 'pointer'
+                });
+                document.body.appendChild(ball);
+                ball.onclick = () => {
+                    try { window.dispatchEvent(new CustomEvent('spiderFetchClick', { detail: { x: px, y: py } })); } catch (e) {}
+                    ball.style.opacity = '0';
+                    setTimeout(() => { try { ball.remove(); } catch (e) {} }, 300);
+                };
+                // Auto-remove after lifetime, respawn later
+                setTimeout(() => {
+                    try { ball.style.opacity = '0'; } catch (e) {}
+                    setTimeout(() => {
+                        try { if (ball && ball.parentNode) ball.remove(); } catch (e) {}
+                        // respawn at a nearby random spot after delay
+                        const rx = Math.max(30, Math.min(window.innerWidth - 60, px + (Math.random() * 200 - 100)));
+                        const ry = Math.max(120, Math.min(window.innerHeight - 120, py + (Math.random() * 120 - 60)));
+                        setTimeout(() => window.spawnFetchAt(rx, ry, lifetime), 4000 + Math.random() * 8000);
+                    }, 300);
+                }, lifetime);
+                return ball;
+            } catch (e) { return null; }
+        };
+
+        // Inject minimal CSS for new behaviors (swinging, persistent fetch visuals, floor highlight)
+        (function(){
+            try {
+                const css = `
+                .bat-swinging { transition: transform 0.3s ease; transform-origin: center; }
+                .persistent-fetch { font-size: 22px; opacity: 1; transition: opacity 0.3s ease; }
+                .floor-spider-distinct { /* subtle permanent highlight */ }
+                `;
+                const style = document.createElement('style');
+                style.id = 'halloween-enhancements-style';
+                style.appendChild(document.createTextNode(css));
+                document.head.appendChild(style);
+            } catch(e) {}
+        })();
+
         // ====================================================================
         // INTELLIGENT BAT AI SYSTEM
         // ====================================================================
@@ -206,6 +343,86 @@ const halloweenMain = function(active) {
                 CreatureCoordinator.updateMood('bat', this.mood);
                 
                 this.enter();
+                
+                // Listen for spider fetch tosses and borrow-web actions so bat can respond
+                this._handleSpiderFetch = (e) => {
+                    const d = e?.detail || {};
+                    if (!d || typeof d.x === 'undefined') return;
+                    // Small chance to ignore if resting
+                    if (this.state === 'resting' && Math.random() < 0.6) return;
+                    // If busy hunting, ignore
+                    if (this.state === 'hunting') return;
+                    // Insert an interception waypoint to chase the fetch object
+                    const px = d.x;
+                    const py = d.y;
+                    // Convert px/py (pixels) to percentage coords roughly
+                    const percentX = Math.max(0, Math.min(100, (px / window.innerWidth) * 100));
+                    const percentY = Math.max(0, Math.min(100, (py / window.innerHeight) * 100));
+                    // Prepend a fast flight path to intercept
+                    this.flightPath.splice(this.pathIndex + 1, 0, { x: percentX, y: percentY, speed: 0.9, isHunt: false });
+                };
+                this._handleBorrowWeb = (e) => {
+                    const d = e?.detail || {};
+                    if (!d) return;
+                    // If bat is napping, 50% chance to wake and react
+                    if (this.state === 'resting') {
+                        if (Math.random() < 0.5) this.wakeFromNap();
+                        else return;
+                    }
+                    // Swing toward the target point briefly (visual)
+                    const targetX = d.x;
+                    const targetY = d.y;
+                    if (typeof targetX === 'number' && typeof targetY === 'number') {
+                        // Convert pixels->percent
+                        const px = Math.max(0, Math.min(100, (targetX / window.innerWidth) * 100));
+                        const py = Math.max(0, Math.min(100, (targetY / window.innerHeight) * 100));
+                        // Insert a quick swoop towards the borrowed web, then return to normal path
+                        this.flightPath.splice(this.pathIndex + 1, 0, { x: px, y: py, speed: 1.1, isHunt: false, isSwing: true });
+
+                        // Visual rope: create an svg line between spider anchor and bat
+                        try {
+                            if (!this.swingRopeEl) {
+                                const ropeWrap = document.createElement('div');
+                                ropeWrap.id = 'bat-swing-rope';
+                                Object.assign(ropeWrap.style, { position: 'fixed', left: 0, top: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 150 });
+                                const ns = 'http://www.w3.org/2000/svg';
+                                const svg = document.createElementNS(ns, 'svg');
+                                svg.setAttribute('width', window.innerWidth);
+                                svg.setAttribute('height', window.innerHeight);
+                                svg.setAttribute('preserveAspectRatio', 'none');
+                                const path = document.createElementNS(ns, 'path');
+                                path.setAttribute('stroke', 'rgba(255,255,255,0.95)');
+                                path.setAttribute('stroke-width', '2');
+                                path.setAttribute('fill', 'none');
+                                svg.appendChild(path);
+                                ropeWrap.appendChild(svg);
+                                document.body.appendChild(ropeWrap);
+                                this.swingRopeEl = ropeWrap;
+                                this.swingRopePath = path;
+                            }
+                        } catch (e) {}
+
+                        // Visual cue: bat tilts and "grabs" briefly
+                        const batBodyEl = this.element?.querySelector('.bat-body');
+                        const emojiEl = this.element?.querySelector('.bat-emoji');
+                        if (emojiEl) {
+                            const prev = emojiEl.style.transform || '';
+                            emojiEl.style.transition = 'transform 0.35s ease';
+                            emojiEl.style.transform = prev + ' rotate(-22deg) translateY(-6px)';
+                            setTimeout(() => {
+                                try { emojiEl.style.transform = prev; } catch (e) {}
+                            }, 1200);
+                        }
+                        if (batBodyEl) {
+                            batBodyEl.classList.add('bat-swinging');
+                            setTimeout(() => {
+                                try { batBodyEl.classList.remove('bat-swinging'); } catch (e) {}
+                            }, 1200);
+                        }
+                    }
+                };
+                window.addEventListener('spiderFetchToss', this._handleSpiderFetch);
+                window.addEventListener('spiderBorrowWeb', this._handleBorrowWeb);
             },
             
             // Increase bat size after eating
@@ -252,6 +469,8 @@ const halloweenMain = function(active) {
                 if (this.behaviorTimeout) clearTimeout(this.behaviorTimeout);
                 if (this.sleepBubbleTimeout) clearTimeout(this.sleepBubbleTimeout);
                 if (this.dreamInterval) clearInterval(this.dreamInterval);
+                // Remove event listeners registered during init
+                if (typeof this.destroyListeners === 'function') this.destroyListeners();
                 if (this.element) this.element.remove();
                 if (this.bubbleElement) this.bubbleElement.remove();
                 if (this.dreamBubbleElement) this.dreamBubbleElement.remove();
@@ -675,6 +894,25 @@ const halloweenMain = function(active) {
                 
                 const target = this.flightPath[this.pathIndex];
                 
+                // If a swing rope exists, update its path each frame to connect spider anchor -> bat current pixel pos.
+                if (this.swingRopeEl && this.swingRopePath) {
+                    try {
+                        const spiderAnchor = document.getElementById('spider-anchor');
+                        const startRect = spiderAnchor ? spiderAnchor.getBoundingClientRect() : null;
+                        const startX = startRect ? (startRect.left + startRect.width / 2) : (window.innerWidth / 2);
+                        const startY = startRect ? (startRect.top + startRect.height / 2) : 50;
+                        const batPxX = (this.currentX / 100) * window.innerWidth;
+                        const batPxY = (this.currentY / 100) * window.innerHeight;
+                        const midX = (startX + batPxX) / 2 + Math.sin(Date.now() / 200) * 18;
+                        const d = `M ${startX} ${startY} Q ${midX} ${startY - 40} ${batPxX} ${batPxY}`;
+                        this.swingRopePath.setAttribute('d', d);
+                    } catch (e) {
+                        try { this.swingRopeEl.remove(); } catch (e) {}
+                        this.swingRopeEl = null;
+                        this.swingRopePath = null;
+                    }
+                }
+                
                 // Update hunt target if chasing a moving bug - do this more frequently for better tracking
                 if (this.state === 'hunting' && target.isAirCatch) {
                     this.updateHuntTarget();
@@ -877,6 +1115,15 @@ const halloweenMain = function(active) {
                     if (target.exit) { this.destroy(); return; }
                     if (target.restHere && this.state === 'flying') { this.rest(); return; }
                     this.pathIndex++;
+                    // If we just passed a swing waypoint, remove rope
+                    try {
+                        const stillHasSwing = this.flightPath && this.flightPath.some(t => t && t.isSwing);
+                        if (!stillHasSwing && this.swingRopeEl) {
+                            this.swingRopeEl.remove();
+                            this.swingRopeEl = null;
+                            this.swingRopePath = null;
+                        }
+                    } catch (e) {}
                     if (Math.random() < 0.15) this.say('flying');
                 } else {
                     const speed = target.speed || 0.18;
@@ -1164,10 +1411,10 @@ const halloweenMain = function(active) {
                 }
                 
                 // Rest for longer (naps can last longer than most events)
-                // Make naps more substantial and more common
+                // Make naps more substantial and more common (10-30s)
                 this.behaviorTimeout = setTimeout(() => {
                     this.wakeFromNap();
-                }, 8000 + Math.random() * 12000); // 8-20s nap
+                }, 10000 + Math.random() * 20000); // 10-30s nap
             },
             
             // Wake up from nap (can be called by floor spider or naturally)
@@ -1277,6 +1524,14 @@ const halloweenMain = function(active) {
                 }
                 
                 return null;
+            },
+            
+            // Cleanup event listeners and extras
+            destroyListeners() {
+                if (this._handleSpiderFetch) window.removeEventListener('spiderFetchToss', this._handleSpiderFetch);
+                if (this._handleBorrowWeb) window.removeEventListener('spiderBorrowWeb', this._handleBorrowWeb);
+                this._handleSpiderFetch = null;
+                this._handleBorrowWeb = null;
             },
             
             // Predict where bug will be based on its movement (improved for better interception)
@@ -1875,6 +2130,20 @@ const halloweenMain = function(active) {
                             
                             // Spider gets angry!
                             this.triggerSpiderAnger();
+                            // Start a short multi-turn conversation: bat smug -> ceiling angry -> floor reaction
+                            try {
+                                const batLines = GAME_DIALOGUE?.bat?.stoleBugSmug || [];
+                                const ceilingLines = GAME_DIALOGUE?.spider?.batStoleMyFood || GAME_DIALOGUE?.spider?.batStoleMyFood || [];
+                                const floorLines = GAME_DIALOGUE?.spider?.floor?.batStoleReaction || [];
+                                const batText = Array.isArray(batLines) && batLines.length ? batLines[Math.floor(Math.random() * batLines.length)] : 'Yoink!';
+                                const ceilingText = Array.isArray(ceilingLines) && ceilingLines.length ? ceilingLines[Math.floor(Math.random() * ceilingLines.length)] : 'HEY!';
+                                const floorText = Array.isArray(floorLines) && floorLines.length ? floorLines[Math.floor(Math.random() * floorLines.length)] : "Not my problem.";
+                                window.startConversation([
+                                    { who: 'bat', text: batText },
+                                    { who: 'ceiling', text: ceilingText },
+                                    { who: 'floor', text: floorText }
+                                ], 900);
+                            } catch (e) {}
                         } else {
                             // Caught a flying bug mid-air!
                             // Use special mid-air catch dialogue
@@ -2872,7 +3141,10 @@ const halloweenMain = function(active) {
                 // Small visual nudge via transform
                 const original = card.style.transform || '';
                 card.style.transition = 'transform 0.18s ease';
-                const nudgeX = (Math.random() - 0.5) * 12;
+                let nudgeX = (Math.random() - 0.5) * 12;
+                // Sometimes perform a stronger nudge that actually moves the card noticeably.
+                const forceNudge = (State?.data?.settings?.enableCardForce) || Math.random() < 0.22;
+                if (forceNudge) nudgeX *= 4;
                 card.style.transform = `${original} translateX(${nudgeX}px)`;
                 // Little scuttle animation on spider
                 if (this.bodyElement) {
@@ -2881,7 +3153,29 @@ const halloweenMain = function(active) {
                 }
                 // Revert card
                 setTimeout(() => {
-                    card.style.transform = original;
+                    // If we forced the card, attempt a more persistent move so it feels "real"
+                    if (forceNudge) {
+                        try {
+                            const rect = card.getBoundingClientRect();
+                            // If card is positioned (fixed/absolute), update its left style to persist movement
+                            const cs = window.getComputedStyle(card);
+                            if (cs.position === 'fixed' || cs.position === 'absolute') {
+                                const newLeft = rect.left + nudgeX;
+                                card.style.left = Math.max(8, Math.min(window.innerWidth - rect.width - 8, newLeft)) + 'px';
+                                // clear transform so new left/top takes effect visually
+                                card.style.transform = '';
+                            } else {
+                                // Fallback: keep the transform but notify other systems
+                                card.style.transform = `${original} translateX(${nudgeX}px)`;
+                            }
+                        } catch (e) {
+                            card.style.transform = original;
+                        }
+                        // Trigger movement detection so spiders react
+                        setTimeout(() => { try { this.checkCardMovement(); } catch (e) {} }, 120);
+                    } else {
+                        card.style.transform = original;
+                    }
                     setTimeout(() => {
                         this.state = 'idle';
                         setTimeout(() => this.doBehavior(), 800 + Math.random() * 1200);
@@ -2914,6 +3208,8 @@ const halloweenMain = function(active) {
                 setTimeout(() => {
                     ball.style.left = tossX + 'px';
                     ball.style.top = tossY + 'px';
+                    // Announce the fetch toss so other creatures (bat) can react
+                    try { window.dispatchEvent(new CustomEvent('spiderFetchToss', { detail: { x: tossX, y: tossY } })); } catch (e) {}
                 }, 40);
 
                 // Spider pursues the ball
@@ -2922,8 +3218,21 @@ const halloweenMain = function(active) {
                     // Move to ball
                     this.moveTo(tossX, tossY + 10, () => {
                         // Pick it up (visual)
+                        // Allow player to click the ball briefly to 'interact' before it's removed
+                        ball.style.pointerEvents = 'auto';
+                        ball.onclick = () => {
+                            try { window.dispatchEvent(new CustomEvent('spiderFetchClick', { detail: { x: tossX, y: tossY } })); } catch (e) {}
+                            ball.style.opacity = '0';
+                            setTimeout(() => ball.remove(), 200);
+                        };
                         ball.style.opacity = '0';
-                        setTimeout(() => ball.remove(), 300);
+                        setTimeout(() => {
+                            try { if (ball && ball.parentNode) ball.remove(); } catch (e) {}
+                            // Schedule a respawn of a persistent fetch nearby
+                            const rx = Math.max(40, Math.min(window.innerWidth - 80, tossX + (Math.random() * 200 - 100)));
+                            const ry = Math.max(140, Math.min(window.innerHeight - 140, tossY + (Math.random() * 120 - 60)));
+                            setTimeout(() => { try { window.spawnFetchAt(rx, ry); } catch (e) {} }, 6000 + Math.random() * 8000);
+                        }, 300);
                         // Maybe "bring" it back or hide it
                         setTimeout(() => {
                             this.state = 'idle';
@@ -3003,6 +3312,8 @@ const halloweenMain = function(active) {
                     }
                 };
                 requestAnimationFrame(anim);
+                // Notify others that a borrow-web action targeted a point (bat may react)
+                try { window.dispatchEvent(new CustomEvent('spiderBorrowWeb', { detail: { x: endX, y: endY } })); } catch (e) {}
             },
             
             // New behavior: look up at ceiling
@@ -3126,6 +3437,16 @@ const halloweenMain = function(active) {
             document.body.appendChild(wrap);
             const body = wrap.querySelector('#spider-body');
             const thread = wrap.querySelector('#spider-thread');
+            // If floor spider exists, make it visually distinct permanently (subtle highlight)
+            setTimeout(() => {
+                const floorEl = document.getElementById('floor-spider-container');
+                if (floorEl) {
+                    floorEl.style.transition = 'transform 0.25s ease, filter 0.25s ease';
+                    floorEl.style.transform = (floorEl.style.transform || '') + ' translateZ(0)';
+                    floorEl.style.filter = 'drop-shadow(0 8px 14px rgba(0,0,0,0.45)) saturate(1.08) hue-rotate(-6deg)';
+                    floorEl.classList.add('floor-spider-distinct');
+                }
+            }, 600);
 
             const showSpiderBubble = (text, type = 'normal') => {
                 const old = document.getElementById('spider-bubble-dynamic');
