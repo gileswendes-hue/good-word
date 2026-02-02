@@ -11,7 +11,7 @@
 (function() {
 'use strict';
 
-const WOODLAND_VERSION = '1.1.0';
+const WOODLAND_VERSION = '1.2.0';
 
 Effects.woodland = function(active) {
     const c = DOM.theme.effects.woodland;
@@ -299,32 +299,46 @@ Effects.woodland = function(active) {
     for (let i = 0; i < 6; i++) setTimeout(spawnFallingLeaf, i * 400);
     
     // ========================================================================
-    // TREES — cartoon-realistic: clear trunk (bark, taper, base), 3-layer foliage
+    // TREES — each one distinct: shape (round / conical / lumpy), trunk, greens
     // ========================================================================
-    const createTree = (side, size, zIndex) => {
+    const treePresets = [
+        { trunkRatio: 0.32, trunkW: 0.2, crownW: 1.15, crownH: 0.7, layers: 3, radius: '50%', hue: 0, trunkTint: 0, conical: false },
+        { trunkRatio: 0.42, trunkW: 0.14, crownW: 0.9, crownH: 0.65, layers: 2, radius: '45% 45% 52% 48%', radiusTop: '38% 38% 58% 52%', hue: 12, trunkTint: 4, conical: true },
+        { trunkRatio: 0.26, trunkW: 0.24, crownW: 1.35, crownH: 0.85, layers: 4, radius: '48% 52% 55% 45%', radiusLower: '52% 48% 48% 52%', radiusMid: '48% 52% 50% 48%', hue: -8, trunkTint: -3, conical: false },
+        { trunkRatio: 0.38, trunkW: 0.12, crownW: 0.95, crownH: 0.55, layers: 2, radius: '52% 48% 48% 52%', radiusTop: '50% 50% 50% 50%', hue: 6, trunkTint: 2, conical: false },
+        { trunkRatio: 0.28, trunkW: 0.22, crownW: 1.25, crownH: 0.8, layers: 4, radius: '50%', radiusLower: '55% 45% 45% 55%', radiusMid: '48% 52% 52% 48%', hue: -4, trunkTint: -2, conical: false },
+        { trunkRatio: 0.3, trunkW: 0.18, crownW: 1.1, crownH: 0.75, layers: 3, radius: '42% 58% 55% 45% / 55% 42% 58% 45%', radiusTop: '45% 55% 52% 48%', hue: 10, trunkTint: 3, conical: true }
+    ];
+    
+    const createTree = (side, size, zIndex, treeIndex) => {
+        const idx = Number(treeIndex) || 0;
+        const preset = treePresets[idx % treePresets.length];
         const tree = document.createElement('div');
-        const xOffset = Math.random() * 15 - 5;
+        const xOffset = (idx % 3) * 6 + (Math.random() * 10 - 5);
         const brightness = timeOfDay === 'night' ? 0.4 : (1 - (3 - zIndex) * 0.15);
-        const swayX = (3 - zIndex) * 3 + (side === 'left' ? -1 : 1) * 2;
-        const swaySkew = (3 - zIndex) * 0.4;
-        const shapeVary = 0.85 + Math.random() * 0.3;
+        const swayX = (3 - zIndex) * (2 + idx % 2) + (side === 'left' ? -1 : 1) * (1 + idx % 2);
+        const swaySkew = (3 - zIndex) * (0.3 + (idx % 3) * 0.1);
+        const swayDur = 11 + zIndex * 2 + (idx % 4);
         tree.style.cssText = `
             position: absolute; bottom: 0; ${side}: ${xOffset}%;
-            width: ${size * 1.6 * shapeVary}px; height: ${size * 3.2}px; z-index: ${zIndex};
-            filter: brightness(${brightness}) ${zIndex < 3 ? `blur(${(3 - zIndex) * 0.3}px)` : ''};
+            width: ${size * preset.crownW * (0.95 + (idx % 5) * 0.05)}px; height: ${size * 3.2}px; z-index: ${zIndex};
+            filter: brightness(${brightness}) ${zIndex < 3 ? `blur(${(3 - zIndex) * 0.28}px)` : ''};
             --sway-x: ${swayX}px; --sway-skew: ${swaySkew}deg;
-            animation: woodlandTreeSway ${12 + zIndex * 3}s ease-in-out infinite;
+            animation: woodlandTreeSway ${swayDur}s ease-in-out infinite;
+            animation-delay: ${(idx * 0.7) % 4}s;
         `;
         
-        const trunkH = size * 1.35;
-        const trunkWBase = size * 0.22;
-        const trunkWTop = size * 0.08;
+        const trunkH = size * (1.1 + preset.trunkRatio * 1.4);
+        const trunkWBase = size * preset.trunkW;
+        const trunkWTop = size * (preset.trunkW * 0.35);
         const trunk = document.createElement('div');
+        const trunkTint = preset.trunkTint || 0;
         trunk.style.cssText = `
             position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
             width: ${trunkWBase}px; height: ${trunkH}px;
             background: linear-gradient(90deg,
                 #0f0a06 0%, #251a0e 15%, #4a3520 35%, #6b4a2e 50%, #4a3520 68%, #2a1c10 88%, #151008 100%);
+            filter: hue-rotate(${trunkTint}deg) saturate(${0.9 + (idx % 3) * 0.05});
             clip-path: polygon(${(trunkWBase - trunkWTop) / 2}px 0, ${trunkWBase - (trunkWBase - trunkWTop) / 2}px 0,
                 ${trunkWBase - 3}px 100%, 3px 100%);
             border-radius: 3px 3px 0 0;
@@ -362,61 +376,72 @@ Effects.woodland = function(active) {
         trunk.appendChild(baseShadow);
         tree.appendChild(trunk);
         
-        const foliageColors = timeOfDay === 'night'
+        const foliageWrap = document.createElement('div');
+        foliageWrap.style.cssText = `position: absolute; inset: 0; pointer-events: none; filter: hue-rotate(${preset.hue}deg);`;
+        
+        const shapeVary = 0.92 + (preset.crownW * 0.08);
+        const foliageBaseColors = timeOfDay === 'night'
             ? ['#0d1f0d', '#152515', '#1a2f1a', '#0f1a0f']
             : timeOfDay === 'dusk'
             ? ['#2d4a2d', '#3d5a3d', '#4a6b4a', '#375237']
             : ['#1e4d1e', '#2d5a2d', '#3a6b3a', '#275227', '#1f4a1f', '#3d7a3d'];
         const highlightColor = timeOfDay === 'night' ? 'rgba(70,95,70,0.2)' : timeOfDay === 'dusk' ? 'rgba(130,160,110,0.28)' : 'rgba(200,235,170,0.35)';
         const shadowColor = 'rgba(0,0,0,0.15)';
-        const c0 = foliageColors[0];
-        const c1 = foliageColors[1];
-        const c2 = foliageColors[2];
+        const c0 = foliageBaseColors[0];
+        const c1 = foliageBaseColors[1];
+        const c2 = foliageBaseColors[2];
         
-        const foliageBottom = size * 1.25;
-        const foliageWidth = size * 1.1 * shapeVary;
-        const foliageMidWidth = size * 0.85 * shapeVary;
-        const foliageTopWidth = size * 0.5 * shapeVary;
+        const foliageBottom = size * (1.1 + preset.trunkRatio * 0.3);
+        const crownH = size * preset.crownH;
+        const foliageWidth = size * preset.crownW * shapeVary;
+        const foliageMidWidth = size * preset.crownW * 0.78 * shapeVary;
+        const foliageTopWidth = size * preset.crownW * (preset.conical ? 0.35 : 0.5) * shapeVary;
+        const radiusLower = preset.radiusLower || preset.radius;
+        const radiusMid = preset.radiusMid || preset.radius;
+        const radiusTop = preset.radiusTop || (preset.conical ? '40% 40% 55% 45%' : preset.radius);
         
-        const lowerFoliage = document.createElement('div');
-        lowerFoliage.style.cssText = `
-            position: absolute; bottom: ${foliageBottom}px; left: 50%; transform: translateX(-50%);
-            width: ${foliageWidth}px; height: ${size * 0.75}px;
-            background: radial-gradient(ellipse 55% 50% at 35% 30%, ${highlightColor} 0%, ${c0} 28%, ${c1} 55%, ${c2} 85%, transparent 100%);
-            border-radius: 50% 50% 48% 52% / 50% 50% 45% 55%;
-            box-shadow: inset 0 -12px 20px ${shadowColor}, inset 4px 4px 12px rgba(255,255,255,0.04), 0 2px 8px rgba(0,0,0,0.12);
-        `;
-        tree.appendChild(lowerFoliage);
-        
-        const midFoliage = document.createElement('div');
-        midFoliage.style.cssText = `
-            position: absolute; bottom: ${foliageBottom + size * 0.55}px; left: 50%; transform: translateX(-50%);
-            width: ${foliageMidWidth}px; height: ${size * 0.7}px;
-            background: radial-gradient(ellipse 50% 55% at 40% 28%, ${highlightColor} 0%, ${c1} 25%, ${c0} 52%, ${c2} 82%, transparent 100%);
-            border-radius: 52% 48% 50% 50% / 48% 52% 48% 52%;
-            box-shadow: inset 0 -10px 18px ${shadowColor}, inset 3px 3px 10px rgba(255,255,255,0.05), 0 2px 6px rgba(0,0,0,0.1);
-        `;
-        tree.appendChild(midFoliage);
-        
+        if (preset.layers >= 2) {
+            const lowerFoliage = document.createElement('div');
+            lowerFoliage.style.cssText = `
+                position: absolute; bottom: ${foliageBottom}px; left: 50%; transform: translateX(-50%);
+                width: ${foliageWidth}px; height: ${crownH * 0.5}px;
+                background: radial-gradient(ellipse 55% 50% at 35% 30%, ${highlightColor} 0%, ${c0} 28%, ${c1} 55%, ${c2} 85%, transparent 100%);
+                border-radius: ${radiusLower};
+                box-shadow: inset 0 -12px 20px ${shadowColor}, inset 4px 4px 12px rgba(255,255,255,0.04), 0 2px 8px rgba(0,0,0,0.12);
+            `;
+            foliageWrap.appendChild(lowerFoliage);
+        }
+        if (preset.layers >= 3) {
+            const midFoliage = document.createElement('div');
+            midFoliage.style.cssText = `
+                position: absolute; bottom: ${foliageBottom + crownH * 0.4}px; left: 50%; transform: translateX(-50%);
+                width: ${foliageMidWidth}px; height: ${crownH * 0.5}px;
+                background: radial-gradient(ellipse 50% 55% at 40% 28%, ${highlightColor} 0%, ${c1} 25%, ${c0} 52%, ${c2} 82%, transparent 100%);
+                border-radius: ${radiusMid};
+                box-shadow: inset 0 -10px 18px ${shadowColor}, inset 3px 3px 10px rgba(255,255,255,0.05), 0 2px 6px rgba(0,0,0,0.1);
+            `;
+            foliageWrap.appendChild(midFoliage);
+        }
         const topFoliage = document.createElement('div');
         topFoliage.style.cssText = `
-            position: absolute; bottom: ${foliageBottom + size * 1.15}px; left: 50%; transform: translateX(-50%);
-            width: ${foliageTopWidth}px; height: ${size * 0.55}px;
+            position: absolute; bottom: ${foliageBottom + crownH * (preset.layers >= 3 ? 0.85 : preset.layers >= 2 ? 0.5 : 0)}px; left: 50%; transform: translateX(-50%);
+            width: ${foliageTopWidth}px; height: ${crownH * 0.45}px;
             background: radial-gradient(ellipse 45% 50% at 42% 25%, ${highlightColor} 0%, ${c1} 22%, ${c0} 60%, transparent 100%);
-            border-radius: 50%;
+            border-radius: ${radiusTop};
             box-shadow: inset 0 -6px 12px ${shadowColor}, 0 2px 6px rgba(0,0,0,0.08);
         `;
-        tree.appendChild(topFoliage);
+        foliageWrap.appendChild(topFoliage);
+        tree.appendChild(foliageWrap);
         
         return tree;
     };
     
-    c.appendChild(createTree('left', 55, 1));
-    c.appendChild(createTree('right', 50, 1));
-    c.appendChild(createTree('left', 85, 2));
-    c.appendChild(createTree('right', 70, 2));
-    c.appendChild(createTree('left', 120, 3));
-    c.appendChild(createTree('right', 100, 3));
+    c.appendChild(createTree('left', 55, 1, 0));
+    c.appendChild(createTree('right', 50, 1, 1));
+    c.appendChild(createTree('left', 85, 2, 2));
+    c.appendChild(createTree('right', 70, 2, 3));
+    c.appendChild(createTree('left', 120, 3, 4));
+    c.appendChild(createTree('right', 100, 3, 5));
     
     // ========================================================================
     // HIDING SPOTS & CREATURES
