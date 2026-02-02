@@ -11,7 +11,7 @@
 (function() {
 'use strict';
 
-const WOODLAND_VERSION = '1.0.0';
+const WOODLAND_VERSION = '1.1.0';
 
 Effects.woodland = function(active) {
     const c = DOM.theme.effects.woodland;
@@ -143,6 +143,14 @@ Effects.woodland = function(active) {
             .woodland-rare { animation: rarePrize 1.2s ease-in-out infinite; cursor: pointer; pointer-events: auto; }
             .woodland-mushroom { transition: transform 0.2s ease, opacity 0.2s ease; }
             .woodland-mushroom:hover { transform: scale(1.1); }
+            .woodland-creature { position: relative; }
+            .woodland-creature-emoji { line-height: 1; user-select: none; }
+            .woodland-creature-label {
+                padding: 2px 6px; border-radius: 4px;
+                background: rgba(255,250,240,0.85); box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+                font-family: system-ui, -apple-system, sans-serif;
+            }
+            .woodland-creature-eyes { z-index: 1; }
         `;
         document.head.appendChild(style);
     }
@@ -183,7 +191,7 @@ Effects.woodland = function(active) {
     }
     
     // ========================================================================
-    // FOREST FLOOR — refined gradient and edge
+    // FOREST FLOOR — refined gradient; ground plane at bottom: 0
     // ========================================================================
     const floor = document.createElement('div');
     floor.style.cssText = `
@@ -195,47 +203,52 @@ Effects.woodland = function(active) {
     `;
     c.appendChild(floor);
     
-    // Ground details
+    // Ground details — anchored on the ground (bottom 0–9%) so nothing floats
     for (let i = 0; i < 30; i++) {
         const detail = document.createElement('div');
         const type = Math.random();
+        const bottomPct = Math.random() * 7 + 0.5;
         if (type < 0.4) {
             detail.style.cssText = `
-                position: absolute; bottom: ${Math.random() * 10 + 2}%; left: ${Math.random() * 100}%;
+                position: absolute; bottom: ${bottomPct}%; left: ${Math.random() * 100}%;
                 width: ${4 + Math.random() * 8}px; height: ${3 + Math.random() * 5}px;
-                background: rgba(80, 70, 60, ${0.3 + Math.random() * 0.3}); border-radius: 50%; z-index: 3;
+                background: rgba(80, 70, 60, ${0.3 + Math.random() * 0.3}); border-radius: 50%;
+                z-index: 3; box-shadow: 0 2px 4px rgba(0,0,0,0.25);
             `;
         } else if (type < 0.7) {
             detail.style.cssText = `
-                position: absolute; bottom: ${Math.random() * 8 + 5}%; left: ${Math.random() * 100}%;
+                position: absolute; bottom: ${bottomPct}%; left: ${Math.random() * 100}%;
                 width: 0; height: 0;
                 border-left: ${2 + Math.random() * 3}px solid transparent;
                 border-right: ${2 + Math.random() * 3}px solid transparent;
                 border-bottom: ${8 + Math.random() * 12}px solid rgba(60, 90, 40, ${0.4 + Math.random() * 0.3});
                 z-index: 3; transform: rotate(${Math.random() * 20 - 10}deg);
+                filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2));
             `;
         } else {
             detail.style.cssText = `
-                position: absolute; bottom: ${Math.random() * 6 + 2}%; left: ${Math.random() * 100}%;
+                position: absolute; bottom: ${bottomPct}%; left: ${Math.random() * 100}%;
                 width: ${15 + Math.random() * 25}px; height: 2px; background: rgba(60, 40, 20, 0.5);
                 transform: rotate(${Math.random() * 40 - 20}deg); z-index: 3;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.2);
             `;
         }
         c.appendChild(detail);
     }
     
     // ========================================================================
-    // FALLEN LEAVES ON GROUND
+    // FALLEN LEAVES ON GROUND — on the ground plane (bottom 0–8%), with shadow
     // ========================================================================
     const leafEmojis = ['🍂', '🍁', '🍃'];
     for (let i = 0; i < 25; i++) {
         const leaf = document.createElement('div');
         leaf.textContent = leafEmojis[Math.floor(Math.random() * leafEmojis.length)];
+        const leafBottom = Math.random() * 6 + 1;
         leaf.style.cssText = `
-            position: absolute; bottom: ${Math.random() * 12 + 3}%; left: ${Math.random() * 100}%;
-            font-size: ${8 + Math.random() * 10}px; opacity: ${0.4 + Math.random() * 0.4};
+            position: absolute; bottom: ${leafBottom}%; left: ${Math.random() * 100}%;
+            font-size: ${8 + Math.random() * 10}px; opacity: ${0.45 + Math.random() * 0.35};
             transform: rotate(${Math.random() * 360}deg); z-index: 4;
-            filter: ${timeOfDay === 'night' ? 'brightness(0.5)' : 'none'};
+            filter: drop-shadow(0 2px 3px rgba(0,0,0,0.3)) ${timeOfDay === 'night' ? 'brightness(0.5)' : 'none'};
         `;
         c.appendChild(leaf);
     }
@@ -263,86 +276,105 @@ Effects.woodland = function(active) {
     for (let i = 0; i < 3; i++) setTimeout(spawnFallingLeaf, i * 500);
     
     // ========================================================================
-    // TREES WITH PARALLAX LAYERS
+    // TREES — more realistic trunk (taper, bark, base) and foliage (clusters, highlight)
     // ========================================================================
     const createTree = (side, size, zIndex) => {
         const tree = document.createElement('div');
         const xOffset = Math.random() * 15 - 5;
         const brightness = timeOfDay === 'night' ? 0.4 : (1 - (3 - zIndex) * 0.15);
-        
         const swayX = (3 - zIndex) * 3 + (side === 'left' ? -1 : 1) * 2;
         const swaySkew = (3 - zIndex) * 0.4;
+        const treeBottom = 0;
         tree.style.cssText = `
-            position: absolute; bottom: ${10 + (3 - zIndex) * 2}%; ${side}: ${xOffset}%;
+            position: absolute; bottom: ${treeBottom}px; ${side}: ${xOffset}%;
             width: ${size * 1.8}px; height: ${size * 3.5}px; z-index: ${zIndex};
-            filter: brightness(${brightness}) ${zIndex < 3 ? `blur(${(3 - zIndex) * 0.4}px)` : ''};
+            filter: brightness(${brightness}) ${zIndex < 3 ? `blur(${(3 - zIndex) * 0.35}px)` : ''};
             --sway-x: ${swayX}px; --sway-skew: ${swaySkew}deg;
             animation: woodlandTreeSway ${12 + zIndex * 3}s ease-in-out infinite;
         `;
         
+        const trunkH = size * 1.5;
+        const trunkWBase = size * 0.28;
+        const trunkWTop = size * 0.12;
         const trunk = document.createElement('div');
-        const trunkW = size * 0.2;
         trunk.style.cssText = `
             position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
-            width: ${trunkW}px; height: ${size * 1.4}px;
-            background: linear-gradient(90deg, #1a1208 0%, #3d2914 25%, #5a4025 50%, #3d2914 75%, #1a1208 100%);
-            border-radius: 4px 4px 10px 10px;
-            box-shadow: inset -4px 0 10px rgba(0,0,0,0.5), inset 4px 0 8px rgba(0,0,0,0.3);
+            width: ${trunkWBase}px; height: ${trunkH}px;
+            background: linear-gradient(90deg,
+                #151008 0%, #2a1c10 8%, #4a3520 20%, #5a4025 35%, #4a3520 50%, #5a4025 65%, #3d2914 82%, #1a1208 100%);
+            clip-path: polygon(${(trunkWBase - trunkWTop) / 2}px 0, ${trunkWBase - (trunkWBase - trunkWTop) / 2}px 0, ${trunkWBase - 2}px 100%, 2px 100%);
+            border-radius: 2px 2px 0 0;
+            box-shadow: inset 3px 0 12px rgba(0,0,0,0.5), inset -2px 0 8px rgba(0,0,0,0.35),
+                0 0 0 1px rgba(40,28,15,0.4), 0 4px 12px rgba(0,0,0,0.4);
         `;
-        
-        for (let b = 0; b < 8; b++) {
+        for (let b = 0; b < 12; b++) {
             const line = document.createElement('div');
+            const tw = 1.2 + Math.random() * 1.8;
             line.style.cssText = `
-                position: absolute; left: ${15 + Math.random() * 70}%; top: ${b * 12 + Math.random() * 5}%;
-                width: ${1 + Math.random() * 2}px; height: ${6 + Math.random() * 15}px;
-                background: rgba(0,0,0,${0.2 + Math.random() * 0.2}); border-radius: 1px;
+                position: absolute; left: ${10 + Math.random() * 80}%; top: ${b * 8 + Math.random() * 4}%;
+                width: ${tw}px; height: ${4 + Math.random() * 18}px;
+                background: linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.15));
+                border-radius: 1px; transform: rotate(${(Math.random() - 0.5) * 8}deg);
             `;
             trunk.appendChild(line);
         }
+        const baseShadow = document.createElement('div');
+        baseShadow.style.cssText = `
+            position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%);
+            width: ${trunkWBase * 1.4}px; height: 8px;
+            background: radial-gradient(ellipse 80% 50%, rgba(0,0,0,0.4), transparent 70%);
+            border-radius: 50%;
+        `;
+        trunk.appendChild(baseShadow);
         tree.appendChild(trunk);
         
         const foliageColors = timeOfDay === 'night'
             ? ['#0d1f0d', '#152515', '#1a2f1a', '#0f1a0f', '#0a150a']
             : timeOfDay === 'dusk'
             ? ['#2d4a2d', '#3d5a3d', '#4a6b4a', '#375237', '#2f4a2f']
-            : ['#1e4d1e', '#2d5a2d', '#3a6b3a', '#275227', '#1f4a1f', '#3d7a3d'];
+            : ['#1e4d1e', '#2d5a2d', '#3a6b3a', '#275227', '#1f4a1f', '#2a6a2a', '#3d7a3d'];
+        const highlightColor = timeOfDay === 'night' ? 'rgba(80,100,80,0.15)' : timeOfDay === 'dusk' ? 'rgba(120,140,100,0.2)' : 'rgba(180,220,160,0.25)';
         
-        const clusters = 10 + Math.floor(Math.random() * 5);
+        const clusters = 11 + Math.floor(Math.random() * 6);
         for (let i = 0; i < clusters; i++) {
             const cluster = document.createElement('div');
-            const clusterSize = size * (0.35 + Math.random() * 0.4);
-            const angle = (i / clusters) * Math.PI * 2;
-            const radius = size * (0.35 + Math.random() * 0.25);
+            const clusterSize = size * (0.32 + Math.random() * 0.42);
+            const angle = (i / clusters) * Math.PI * 1.9 + Math.random() * 0.2;
+            const radius = size * (0.38 + Math.random() * 0.28);
             const cx = Math.cos(angle) * radius;
-            const cy = Math.sin(angle) * radius * 0.55;
-            const baseY = size * 1.5;
-            
+            const cy = Math.sin(angle) * radius * 0.5;
+            const baseY = size * 1.55;
+            const c1 = foliageColors[Math.floor(Math.random() * foliageColors.length)];
+            const c2 = foliageColors[Math.floor(Math.random() * foliageColors.length)];
+            const cxGrad = 25 + Math.random() * 25;
+            const cyGrad = 20 + Math.random() * 20;
             cluster.style.cssText = `
                 position: absolute; bottom: ${baseY + cy}px; left: calc(50% + ${cx}px);
-                transform: translateX(-50%); width: ${clusterSize}px; height: ${clusterSize * 0.8}px;
-                background: radial-gradient(ellipse at ${30 + Math.random() * 20}% ${25 + Math.random() * 15}%,
-                    ${foliageColors[Math.floor(Math.random() * foliageColors.length)]} 0%,
-                    ${foliageColors[Math.floor(Math.random() * foliageColors.length)]} 60%, transparent 100%);
-                border-radius: 50% 50% 45% 55% / 55% 50% 50% 45%;
+                transform: translateX(-50%); width: ${clusterSize}px; height: ${clusterSize * 0.85}px;
+                background: radial-gradient(ellipse ${clusterSize * 0.6}px ${clusterSize * 0.5}px at ${cxGrad}% ${cyGrad}%,
+                    ${highlightColor} 0%, ${c1} 25%, ${c2} 65%, transparent 100%);
+                border-radius: 48% 52% 52% 48% / 55% 48% 52% 45%;
+                box-shadow: inset 0 -8px 12px rgba(0,0,0,0.08);
             `;
             tree.appendChild(cluster);
         }
         
         const centerCluster = document.createElement('div');
         centerCluster.style.cssText = `
-            position: absolute; bottom: ${size * 1.7}px; left: 50%; transform: translateX(-50%);
-            width: ${size * 0.8}px; height: ${size * 0.7}px;
-            background: radial-gradient(ellipse at 40% 35%, ${foliageColors[1]} 0%, ${foliageColors[0]} 55%, transparent 100%);
+            position: absolute; bottom: ${size * 1.75}px; left: 50%; transform: translateX(-50%);
+            width: ${size * 0.82}px; height: ${size * 0.72}px;
+            background: radial-gradient(ellipse at 38% 32%, ${highlightColor} 0%, ${foliageColors[1]} 22%, ${foliageColors[0]} 58%, transparent 100%);
             border-radius: 50%;
+            box-shadow: inset 0 -6px 10px rgba(0,0,0,0.06);
         `;
         tree.appendChild(centerCluster);
         
         const topCluster = document.createElement('div');
         topCluster.style.cssText = `
-            position: absolute; bottom: ${size * 2.3}px; left: 50%; transform: translateX(-50%);
-            width: ${size * 0.55}px; height: ${size * 0.5}px;
-            background: radial-gradient(ellipse at 35% 30%, ${foliageColors[2]} 0%, ${foliageColors[0]} 65%, transparent 100%);
-            border-radius: 45% 55% 50% 50% / 60% 60% 40% 40%;
+            position: absolute; bottom: ${size * 2.35}px; left: 50%; transform: translateX(-50%);
+            width: ${size * 0.52}px; height: ${size * 0.48}px;
+            background: radial-gradient(ellipse at 40% 35%, ${highlightColor} 0%, ${foliageColors[2]} 30%, ${foliageColors[0]} 68%, transparent 100%);
+            border-radius: 45% 55% 50% 50% / 58% 58% 42% 42%;
         `;
         tree.appendChild(topCluster);
         
@@ -366,16 +398,16 @@ Effects.woodland = function(active) {
         const spotType = spotTypes[Math.floor(Math.random() * spotTypes.length)];
         const spot = document.createElement('div');
         const leftPos = 12 + (i * 18) + (Math.random() * 8 - 4);
-        
+        const bottomPct = Math.random() * 5 + 0;
         spot.className = 'woodland-hiding-spot';
         spot.style.cssText = `
-            position: absolute; bottom: ${13 + Math.random() * 6}%; left: ${leftPos}%;
+            position: absolute; bottom: ${bottomPct}%; left: ${leftPos}%;
             font-size: ${26 + Math.random() * 14}px; z-index: 10; cursor: default;
-            filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.45)) drop-shadow(0 1px 2px rgba(0,0,0,0.2)) ${timeOfDay === 'night' ? 'brightness(0.58)' : ''};
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5)) drop-shadow(0 2px 4px rgba(0,0,0,0.3)) ${timeOfDay === 'night' ? 'brightness(0.58)' : ''};
         `;
         spot.textContent = spotType.emoji;
         c.appendChild(spot);
-        hidingSpots.push({ el: spot, left: leftPos, creature: null });
+        hidingSpots.push({ el: spot, left: leftPos, bottom: bottomPct, creature: null });
     }
     
     const creatures = {
@@ -384,13 +416,26 @@ Effects.woodland = function(active) {
         rare: ['🦌', '🐻', '🦡']
     };
     
-    const creatureMessages = {
-        '🐿️': 'A curious squirrel! 🐿️', '🦊': 'A sly fox appears! 🦊',
-        '🐺': 'A wolf watches silently... 🐺', '🦉': 'Hoo! A wise owl! 🦉',
-        '🦔': 'A hedgehog snuffles about! 🦔', '🐁': 'A tiny mouse scurries! 🐁',
-        '🐰': 'A fluffy bunny! 🐰', '🦇': 'A bat flutters by! 🦇',
-        '🦝': 'A sneaky raccoon! 🦝', '🦌': '✨ A majestic deer! ✨',
-        '🐻': '✨ A friendly bear! ✨', '🦡': '✨ A rare badger! ✨'
+    // Creature identity: name, size, peek duration, filter, shadow, eye glow, messages
+    const creatureProfile = {
+        '🐿️': { name: 'Squirrel', size: 28, duration: 7, filter: 'brightness(1.05) saturate(1.1)', shadow: '2px 3px 5px rgba(80,50,20,0.4)', eyes: null, messages: ['Chitter chitter! Busy gathering.', 'Quick and curious — that\'s me!', 'Found a nut. Don\'t tell the fox.'] },
+        '🦊': { name: 'Fox', size: 34, duration: 8.5, filter: 'brightness(1) saturate(1.15) hue-rotate(-5deg)', shadow: '3px 4px 8px rgba(180,80,30,0.35)', eyes: null, messages: ['Sly? I prefer "strategic."', 'Something tasty around here...', 'Just passing through. Nothing to see.'] },
+        '🦔': { name: 'Hedgehog', size: 30, duration: 9, filter: 'brightness(0.98) contrast(1.05)', shadow: '2px 3px 6px rgba(60,50,40,0.5)', eyes: null, messages: ['Snuffle snuffle. Cozy spot.', 'Don\'t touch the spines!', 'Night crawler, at your service.'] },
+        '🐁': { name: 'Mouse', size: 22, duration: 6, filter: 'brightness(1.02)', shadow: '1px 2px 4px rgba(0,0,0,0.5)', eyes: null, messages: ['Squeak! You found me.', 'Shhh — the owl might hear.', 'Tiny but mighty!'] },
+        '🐰': { name: 'Rabbit', size: 32, duration: 7.5, filter: 'brightness(1.08) saturate(0.95)', shadow: '2px 3px 5px rgba(120,90,70,0.35)', eyes: null, messages: ['Hop! Nice to meet you.', 'Carrot season is the best.', 'Ears up — always listening.'] },
+        '🦉': { name: 'Owl', size: 36, duration: 10, filter: 'brightness(0.9) contrast(1.1)', shadow: '3px 4px 10px rgba(20,15,30,0.6)', eyes: '#ffcc00', messages: ['Hoo. The night is mine.', 'Wise? I\'ve seen a few things.', 'Who goes there? ... It\'s you.'] },
+        '🐺': { name: 'Wolf', size: 38, duration: 9.5, filter: 'brightness(0.85) contrast(1.08)', shadow: '4px 5px 12px rgba(40,40,60,0.5)', eyes: '#88ff88', messages: ['... No howl today. Just watching.', 'The pack is elsewhere. I guard.', 'Silent night. Stay calm.'] },
+        '🦇': { name: 'Bat', size: 26, duration: 6.5, filter: 'brightness(0.88) saturate(0.9)', shadow: '2px 3px 6px rgba(30,20,50,0.5)', eyes: null, messages: ['Echo echo. Found you!', 'Best bugs are at dusk.', 'Upside-down is right-side up.'] },
+        '🦝': { name: 'Raccoon', size: 32, duration: 8, filter: 'brightness(0.95) contrast(1.05)', shadow: '2px 4px 7px rgba(50,45,60,0.45)', eyes: '#aaddff', messages: ['Washing my paws. Very important.', 'Sneaky? I prefer "selective."', 'Anything shiny? Just asking.'] },
+        '🦌': { name: 'Deer', size: 48, duration: 0, filter: 'brightness(1.05) drop-shadow(0 0 12px rgba(200,180,120,0.5))', shadow: '0 0 14px rgba(255,220,150,0.4)', eyes: null, messages: ['A moment of grace in the forest.', 'The herd is near. I lead.', 'Gentle steps. Quiet heart.'] },
+        '🐻': { name: 'Bear', size: 52, duration: 0, filter: 'brightness(0.95) contrast(1.05)', shadow: '0 0 16px rgba(180,140,80,0.45)', eyes: null, messages: ['Just browsing. No honey? Oh well.', 'Big and friendly. Don\'t run.', 'The forest respects a full belly.'] },
+        '🦡': { name: 'Badger', size: 34, duration: 0, filter: 'brightness(1) contrast(1.1)', shadow: '0 0 12px rgba(220,200,120,0.4)', eyes: null, messages: ['Rare sight. You\'re lucky.', 'Stripe squad. We dig deep.', 'Tough and tidy. That\'s the way.'] }
+    };
+    
+    const getCreatureMessage = (emoji) => {
+        const p = creatureProfile[emoji];
+        if (!p || !p.messages || !p.messages.length) return 'A woodland friend!';
+        return p.messages[Math.floor(Math.random() * p.messages.length)];
     };
     
     const spawnCreature = () => {
@@ -405,27 +450,55 @@ Effects.woodland = function(active) {
         const spot = emptySpots[Math.floor(Math.random() * emptySpots.length)];
         const pool = timeOfDay === 'night' || timeOfDay === 'dusk' ? creatures.night : creatures.day;
         const creature = pool[Math.floor(Math.random() * pool.length)];
+        const profile = creatureProfile[creature] || { name: 'Friend', size: 32, duration: 8, filter: '', shadow: '2px 2px 4px rgba(0,0,0,0.4)', eyes: null, messages: ['Hello from the forest!'] };
+        const peekDuration = profile.duration || 8;
         
         const critterEl = document.createElement('div');
-        critterEl.className = 'woodland-creature';
-        critterEl.textContent = creature;
+        critterEl.className = 'woodland-creature woodland-creature-' + (profile.name || 'friend').toLowerCase().replace(/\s/g, '-');
+        critterEl.setAttribute('data-creature', creature);
+        critterEl.style.animationDuration = peekDuration + 's';
+        
+        const inner = document.createElement('div');
+        inner.className = 'woodland-creature-emoji';
+        inner.textContent = creature;
+        inner.style.cssText = `
+            font-size: ${profile.size}px;
+            filter: ${profile.filter || 'none'};
+            text-shadow: ${profile.shadow};
+            line-height: 1;
+        `;
+        critterEl.appendChild(inner);
+        
+        const label = document.createElement('div');
+        label.className = 'woodland-creature-label';
+        label.textContent = profile.name;
+        label.style.cssText = `
+            position: absolute; left: 50%; transform: translateX(-50%); bottom: -16px;
+            font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+            color: #2a2218; white-space: nowrap; pointer-events: none;
+            ${timeOfDay === 'night' ? 'background: rgba(40,45,55,0.9); color: rgba(230,225,215,0.98);' : ''}
+        `;
+        critterEl.appendChild(label);
+        
+        const creatureBottom = (typeof spot.bottom === 'number' ? spot.bottom : parseFloat(spot.el.style.bottom) || 0) + 4;
         critterEl.style.cssText = `
-            position: absolute; bottom: ${parseInt(spot.el.style.bottom) + 4}%;
-            left: ${spot.left + 1.5}%; font-size: 32px; z-index: 9;
+            position: absolute; bottom: ${creatureBottom}%;
+            left: ${spot.left + 1.5}%; z-index: 9;
             pointer-events: auto; cursor: pointer;
-            filter: drop-shadow(2px 2px 3px rgba(0,0,0,0.5));
+            display: flex; flex-direction: column; align-items: center;
         `;
         
-        if (timeOfDay === 'night' && ['🦉', '🐺', '🦝'].includes(creature)) {
+        if (profile.eyes && (timeOfDay === 'night' || timeOfDay === 'dusk')) {
             const eyes = document.createElement('div');
-            const eyeColor = creature === '🦉' ? '#ffcc00' : '#88ff88';
+            eyes.className = 'woodland-creature-eyes';
             eyes.style.cssText = `
-                position: absolute; top: 30%; left: 50%; transform: translateX(-50%);
-                width: 18px; height: 6px; display: flex; justify-content: space-between; pointer-events: none;
+                position: absolute; top: 28%; left: 50%; transform: translateX(-50%);
+                width: 20px; height: 6px; display: flex; justify-content: space-between; gap: 6px;
+                pointer-events: none;
             `;
             eyes.innerHTML = `
-                <div style="width:5px;height:5px;background:${eyeColor};border-radius:50%;animation:eyeGlow 2s ease-in-out infinite;color:${eyeColor};"></div>
-                <div style="width:5px;height:5px;background:${eyeColor};border-radius:50%;animation:eyeGlow 2s ease-in-out infinite;animation-delay:0.3s;color:${eyeColor};"></div>
+                <div style="width:5px;height:5px;background:${profile.eyes};border-radius:50%;animation:eyeGlow 2.2s ease-in-out infinite;box-shadow:0 0 8px ${profile.eyes};"></div>
+                <div style="width:5px;height:5px;background:${profile.eyes};border-radius:50%;animation:eyeGlow 2.2s ease-in-out infinite;animation-delay:0.4s;box-shadow:0 0 8px ${profile.eyes};"></div>
             `;
             critterEl.appendChild(eyes);
         }
@@ -435,17 +508,17 @@ Effects.woodland = function(active) {
         
         critterEl.onclick = (e) => {
             e.stopPropagation();
-            UIManager.showPostVoteMessage(creatureMessages[creature]);
+            UIManager.showPostVoteMessage(getCreatureMessage(creature));
             SoundManager.playPop();
             Haptics.light();
             critterEl.style.animation = 'none';
-            critterEl.style.transform = 'scale(1.4) translateY(-20px)';
+            critterEl.style.transform = 'scale(1.35) translateY(-18px)';
             critterEl.style.opacity = '0';
             critterEl.style.transition = 'all 0.3s ease-out';
             setTimeout(() => { critterEl.remove(); spot.creature = null; }, 300);
         };
         
-        setTimeout(() => { if (critterEl.parentNode) { critterEl.remove(); spot.creature = null; } }, 8000);
+        setTimeout(() => { if (critterEl.parentNode) { critterEl.remove(); spot.creature = null; } }, peekDuration * 1000);
         
         const nextDelay = timeOfDay === 'night' ? 12000 : 6000;
         Effects.woodlandCreatureTimeout = setTimeout(spawnCreature, Math.random() * nextDelay + 4000);
@@ -454,32 +527,53 @@ Effects.woodland = function(active) {
     Effects.woodlandCreatureTimeout = setTimeout(spawnCreature, 2000);
     
     // ========================================================================
-    // RARE CREATURE SPAWNER
+    // RARE CREATURE SPAWNER — each with distinct size, glow, and personality
     // ========================================================================
     const spawnRareCreature = () => {
         if (State.runtime.currentTheme !== 'woodland') return;
         
         const rare = creatures.rare[Math.floor(Math.random() * creatures.rare.length)];
+        const profile = creatureProfile[rare] || { name: 'Rare', size: 45, filter: '', shadow: '0 0 12px rgba(255,215,0,0.5)' };
+        
         const rareEl = document.createElement('div');
-        rareEl.className = 'woodland-rare';
-        rareEl.textContent = rare;
+        rareEl.className = 'woodland-rare woodland-rare-' + (profile.name || 'rare').toLowerCase();
+        rareEl.setAttribute('data-creature', rare);
+        
+        const rareInner = document.createElement('div');
+        rareInner.className = 'woodland-rare-emoji';
+        rareInner.textContent = rare;
+        rareInner.style.cssText = `
+            font-size: ${profile.size}px; line-height: 1;
+            filter: ${profile.filter}; text-shadow: ${profile.shadow};
+        `;
+        rareEl.appendChild(rareInner);
+        
+        const rareLabel = document.createElement('div');
+        rareLabel.className = 'woodland-rare-label';
+        rareLabel.textContent = '✨ ' + profile.name + ' ✨';
+        rareLabel.style.cssText = `
+            font-size: 11px; font-weight: 800; letter-spacing: 0.08em;
+            color: rgba(40,30,15,0.95); text-shadow: 0 0 8px rgba(255,220,150,0.8), 0 1px 2px rgba(255,255,255,0.9);
+            white-space: nowrap; margin-top: 2px;
+        `;
+        rareEl.appendChild(rareLabel);
         
         const startLeft = Math.random() > 0.5;
         rareEl.style.cssText = `
             position: absolute; bottom: ${18 + Math.random() * 10}%;
-            ${startLeft ? 'left' : 'right'}: -60px; font-size: 45px; z-index: 12;
+            ${startLeft ? 'left' : 'right'}: -70px; z-index: 12;
+            display: flex; flex-direction: column; align-items: center;
             transition: left 8s linear, right 8s linear;
-            filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.6));
         `;
         c.appendChild(rareEl);
         
-        requestAnimationFrame(() => { rareEl.style[startLeft ? 'left' : 'right'] = '110%'; });
+        requestAnimationFrame(() => { rareEl.style[startLeft ? 'left' : 'right'] = '112%'; });
         
         rareEl.onclick = (e) => {
             e.stopPropagation();
             const badges = { '🦌': 'deer', '🐻': 'bear', '🦡': 'badger' };
             if (badges[rare]) State.unlockBadge(badges[rare]);
-            UIManager.showPostVoteMessage(creatureMessages[rare]);
+            UIManager.showPostVoteMessage(getCreatureMessage(rare));
             SoundManager.playPop();
             Haptics.medium();
             
@@ -497,7 +591,7 @@ Effects.woodland = function(active) {
             }
             
             rareEl.style.transition = 'transform 0.3s, opacity 0.3s';
-            rareEl.style.transform = 'scale(2)';
+            rareEl.style.transform = 'scale(1.8)';
             rareEl.style.opacity = '0';
             setTimeout(() => rareEl.remove(), 300);
         };
@@ -591,10 +685,10 @@ Effects.woodland = function(active) {
         mushroom.textContent = isRare ? '🍄‍🟫' : mushroomTypes[Math.floor(Math.random() * mushroomTypes.length)];
         mushroom.className = 'woodland-mushroom';
         mushroom.style.cssText = `
-            position: absolute; bottom: ${8 + Math.random() * 10}%; left: ${5 + Math.random() * 90}%;
+            position: absolute; bottom: ${Math.random() * 6 + 0.5}%; left: ${5 + Math.random() * 90}%;
             font-size: ${12 + Math.random() * 12}px; opacity: ${0.8 + Math.random() * 0.2}; z-index: 5;
             transform: scaleX(${Math.random() > 0.5 ? 1 : -1});
-            filter: drop-shadow(1px 2px 2px rgba(0,0,0,0.4)) ${timeOfDay === 'night' ? 'brightness(0.5)' : ''};
+            filter: drop-shadow(0 3px 5px rgba(0,0,0,0.4)) ${timeOfDay === 'night' ? 'brightness(0.5)' : ''};
             cursor: pointer; pointer-events: auto;
             transition: transform 0.2s, opacity 0.2s;
         `;
