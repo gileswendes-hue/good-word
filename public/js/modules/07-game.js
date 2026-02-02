@@ -354,23 +354,12 @@ async vote(t, s = false) {
                     }
                 }
                 
-                // STREAK CHALLENGE
+                // STREAK CHALLENGE — any vote (good, bad, notWord) counts toward target
                 if (State.runtime.dailyChallengeType === 'streak') {
-                    State.runtime.dailyVotesCount = (State.runtime.dailyVotesCount || 0) + 1;
-                    
-                    // Check if vote matches previous vote type
-                    if (!State.runtime.lastDailyVoteType) {
-                        State.runtime.lastDailyVoteType = t;
-                        State.runtime.dailyStreakCount = 1;
-                    } else if (State.runtime.lastDailyVoteType === t) {
-                        State.runtime.dailyStreakCount++;
-                    } else {
-                        State.runtime.lastDailyVoteType = t;
-                        State.runtime.dailyStreakCount = 1;
-                    }
+                    State.runtime.dailyStreakCount = (State.runtime.dailyStreakCount || 0) + 1;
                     
                     if (State.runtime.dailyStreakCount >= State.runtime.dailyStreakTarget) {
-                        UIManager.showPostVoteMessage(`🔥 ${State.runtime.dailyStreakTarget}-STREAK! Challenge Complete!`);
+                        UIManager.showPostVoteMessage(`🔥 ${State.runtime.dailyStreakTarget} words! Challenge Complete!`);
                         const last = State.data.daily.lastDate;
                         let s = State.data.daily.streak;
                         if (last) {
@@ -384,8 +373,8 @@ async vote(t, s = false) {
                         return;
                     } else {
                         const remaining = State.runtime.dailyStreakTarget - State.runtime.dailyStreakCount;
-                        UIManager.showPostVoteMessage(`🔥 Streak: ${State.runtime.dailyStreakCount}/${State.runtime.dailyStreakTarget} - ${remaining} more!`);
-                        if (DOM.game.dailyStatus) DOM.game.dailyStatus.innerHTML = `<span class="font-bold">🔥 Streak: ${State.runtime.dailyStreakCount}/${State.runtime.dailyStreakTarget}</span>`;
+                        UIManager.showPostVoteMessage(`🔥 Words: ${State.runtime.dailyStreakCount}/${State.runtime.dailyStreakTarget} — ${remaining} to go!`);
+                        if (DOM.game.dailyStatus) DOM.game.dailyStatus.innerHTML = `<span class="font-bold">🔥 Words: ${State.runtime.dailyStreakCount}/${State.runtime.dailyStreakTarget}</span>`;
                         setTimeout(() => { State.runtime.currentWordIndex++; this.nextWord(); }, 600);
                         return;
                     }
@@ -851,6 +840,46 @@ async vote(t, s = false) {
         setTimeout(() => ModalManager.toggle('dailyResult', true), 600);
         this.refreshData(true);
     },
+    showDailyStreakSpinner(target, onComplete) {
+        const pop = document.createElement('div');
+        pop.id = 'daily-streak-spinner-popup';
+        pop.className = 'fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 backdrop-blur-sm';
+        pop.innerHTML = `
+            <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-xs w-full mx-4 text-center border-4 border-amber-400">
+                <div class="text-amber-600 font-black text-sm uppercase tracking-wider mb-2">Words to vote</div>
+                <div id="daily-streak-spinner-digit" class="text-6xl font-black text-amber-500 tabular-nums min-h-[4rem] flex items-center justify-center">–</div>
+                <p class="text-gray-500 text-xs mt-3">Any vote counts — good, bad, or not a word!</p>
+            </div>
+        `;
+        document.body.appendChild(pop);
+        const digitEl = document.getElementById('daily-streak-spinner-digit');
+        const minVal = 3, maxVal = 10;
+        let frame = 0;
+        const totalFrames = 90;
+        const spinInterval = setInterval(() => {
+            frame++;
+            const progress = frame / totalFrames;
+            if (progress < 0.7) {
+                const speed = Math.floor(4 + (1 - progress) * 12);
+                const show = minVal + (frame * speed) % (maxVal - minVal + 1);
+                digitEl.textContent = show;
+            } else {
+                const settle = (progress - 0.7) / 0.3;
+                const wobble = settle < 1 ? (minVal + Math.floor((frame * 2) % (maxVal - minVal + 1))) : target;
+                digitEl.textContent = settle >= 0.85 ? target : wobble;
+            }
+        }, 35);
+        setTimeout(() => {
+            clearInterval(spinInterval);
+            digitEl.textContent = target;
+            digitEl.style.transition = 'transform 0.2s ease-out';
+            digitEl.style.transform = 'scale(1.15)';
+            setTimeout(() => {
+                pop.remove();
+                if (typeof onComplete === 'function') onComplete();
+            }, 600);
+        }, totalFrames * 35 + 200);
+    },
     activateDailyMode() {
         if (State.runtime.isDailyMode) return;
         const t = new Date().toISOString().split('T')[0];
@@ -1027,12 +1056,29 @@ async vote(t, s = false) {
             UIManager.showMessage('📝 Vote on Today\'s Word!');
             if (DOM.game.dailyStatus) DOM.game.dailyStatus.innerHTML = `<span class="font-bold">📝 Daily Word</span><br><span class="text-xs">Cast your vote!</span>`;
         } else if (challengeType === 2) {
-            // Start a Streak Challenge
+            // Start a Streak Challenge — target from spinning random number (3–10), any vote counts
             State.runtime.dailyChallengeType = 'streak';
-            State.runtime.dailyStreakTarget = 5;
-            State.runtime.dailyStreakCount = 0;
-            UIManager.showMessage('🔥 Start a 5-Word Streak!');
-            if (DOM.game.dailyStatus) DOM.game.dailyStatus.innerHTML = `<span class="font-bold">🔥 Get a Streak!</span><br><span class="text-xs">Vote the same way 5x in a row!</span>`;
+            const streakTarget = 3 + (seed % 8); // 3 to 10 words, deterministic per day
+            this.showDailyStreakSpinner(streakTarget, () => {
+                State.runtime.dailyStreakTarget = streakTarget;
+                State.runtime.dailyStreakCount = 0;
+                UIManager.showMessage(`🔥 Vote on ${streakTarget} words!`);
+                if (DOM.game.dailyStatus) DOM.game.dailyStatus.innerHTML = `<span class="font-bold">🔥 Daily Streak</span><br><span class="text-xs">Vote on ${streakTarget} words — any vote counts!</span>`;
+                State.runtime.goldenWordFound = false;
+                State.runtime.dailyVotesCount = 0;
+                API.getAllWords().then(words => {
+                    const sortedWords = words.sort((a, b) => a.text.localeCompare(b.text));
+                    const shuffled = [...words];
+                    for (let i = shuffled.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+                    }
+                    State.runtime.allWords = shuffled;
+                    State.runtime.currentWordIndex = 0;
+                    UIManager.displayWord(shuffled[0]);
+                });
+            });
+            return;
         } else {
             // Find a Snack Challenge
             State.runtime.dailyChallengeType = 'snack';
