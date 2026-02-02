@@ -11,7 +11,7 @@
 (function() {
 'use strict';
 
-const WOODLAND_VERSION = '1.2.0';
+const WOODLAND_VERSION = '1.3.0';
 
 Effects.woodland = function(active) {
     const c = DOM.theme.effects.woodland;
@@ -206,17 +206,20 @@ Effects.woodland = function(active) {
     `;
     c.appendChild(floor);
     
-    // Ground details — on the floor band (bottom 0–11%)
+    // Ground details — spread across depth (front/mid/back) for receding feel
     for (let i = 0; i < 55; i++) {
         const detail = document.createElement('div');
         const type = Math.random();
-        const bottomPct = Math.random() * 9 + 1;
+        const depthBand = i % 3;
+        const bottomPct = depthBand === 0 ? Math.random() * 10 + 1 : depthBand === 1 ? Math.random() * 10 + 13 : Math.random() * 10 + 24;
+        const depthScale = depthBand === 0 ? 1 : depthBand === 1 ? 0.7 : 0.5;
+        const z = depthBand === 0 ? 3 : depthBand === 1 ? 2 : 1;
         if (type < 0.4) {
             detail.style.cssText = `
                 position: absolute; bottom: ${bottomPct}%; left: ${Math.random() * 100}%;
-                width: ${4 + Math.random() * 8}px; height: ${3 + Math.random() * 5}px;
-                background: rgba(80, 70, 60, ${0.3 + Math.random() * 0.3}); border-radius: 50%;
-                z-index: 3; box-shadow: 0 2px 4px rgba(0,0,0,0.25);
+                width: ${(4 + Math.random() * 8) * depthScale}px; height: ${(3 + Math.random() * 5) * depthScale}px;
+                background: rgba(80, 70, 60, ${0.25 + Math.random() * 0.35}); border-radius: 50%;
+                z-index: ${z}; box-shadow: 0 2px 4px rgba(0,0,0,0.25);
             `;
         } else if (type < 0.7) {
             const rot = Math.random() * 20 - 10;
@@ -224,10 +227,10 @@ Effects.woodland = function(active) {
             detail.style.cssText = `
                 position: absolute; bottom: ${bottomPct}%; left: ${Math.random() * 100}%;
                 width: 0; height: 0;
-                border-left: ${2 + Math.random() * 3}px solid transparent;
-                border-right: ${2 + Math.random() * 3}px solid transparent;
-                border-bottom: ${8 + Math.random() * 12}px solid rgba(60, 90, 40, ${0.4 + Math.random() * 0.3});
-                z-index: 3; --grass-rot: ${rot}deg;
+                border-left: ${(2 + Math.random() * 3) * depthScale}px solid transparent;
+                border-right: ${(2 + Math.random() * 3) * depthScale}px solid transparent;
+                border-bottom: ${(8 + Math.random() * 12) * depthScale}px solid rgba(60, 90, 40, ${0.35 + Math.random() * 0.35});
+                z-index: ${z}; --grass-rot: ${rot}deg;
                 filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2));
                 animation: grassSway ${4 + Math.random() * 3}s ease-in-out infinite;
                 animation-delay: ${Math.random() * 2}s;
@@ -235,8 +238,8 @@ Effects.woodland = function(active) {
         } else {
             detail.style.cssText = `
                 position: absolute; bottom: ${bottomPct}%; left: ${Math.random() * 100}%;
-                width: ${15 + Math.random() * 25}px; height: 2px; background: rgba(60, 40, 20, 0.5);
-                transform: rotate(${Math.random() * 40 - 20}deg); z-index: 3;
+                width: ${(15 + Math.random() * 25) * depthScale}px; height: 2px; background: rgba(60, 40, 20, 0.5);
+                transform: rotate(${Math.random() * 40 - 20}deg); z-index: ${z};
                 box-shadow: 0 1px 2px rgba(0,0,0,0.2);
             `;
         }
@@ -250,11 +253,14 @@ Effects.woodland = function(active) {
     for (let i = 0; i < 45; i++) {
         const leaf = document.createElement('div');
         leaf.textContent = leafEmojis[Math.floor(Math.random() * leafEmojis.length)];
-        const leafBottom = Math.random() * 10 + 2;
+        const depthBand = i % 3;
+        const leafBottom = depthBand === 0 ? Math.random() * 10 + 2 : depthBand === 1 ? Math.random() * 10 + 14 : Math.random() * 10 + 26;
+        const leafScale = depthBand === 0 ? 1 : depthBand === 1 ? 0.75 : 0.55;
+        const leafZ = depthBand === 0 ? 4 : depthBand === 1 ? 3 : 2;
         leaf.style.cssText = `
             position: absolute; bottom: ${leafBottom}%; left: ${Math.random() * 100}%;
-            font-size: ${8 + Math.random() * 10}px; opacity: ${0.45 + Math.random() * 0.35};
-            transform: rotate(${Math.random() * 360}deg); z-index: 4;
+            font-size: ${(8 + Math.random() * 10) * leafScale}px; opacity: ${0.4 + Math.random() * 0.4};
+            transform: rotate(${Math.random() * 360}deg); z-index: ${leafZ};
             filter: drop-shadow(0 2px 3px rgba(0,0,0,0.3)) ${timeOfDay === 'night' ? 'brightness(0.5)' : 'none'};
         `;
         c.appendChild(leaf);
@@ -267,10 +273,14 @@ Effects.woodland = function(active) {
     for (let i = 0; i < 18; i++) {
         const ug = document.createElement('div');
         ug.textContent = undergrowthEmojis[Math.floor(Math.random() * undergrowthEmojis.length)];
+        const ugDepth = i % 3;
+        const ugBottom = ugDepth === 0 ? Math.random() * 12 + 2 : ugDepth === 1 ? Math.random() * 10 + 15 : Math.random() * 10 + 27;
+        const ugScale = ugDepth === 0 ? 1 : ugDepth === 1 ? 0.78 : 0.58;
+        const ugZ = ugDepth === 0 ? 4 : ugDepth === 1 ? 3 : 2;
         ug.style.cssText = `
-            position: absolute; bottom: ${Math.random() * 14 + 2}%; left: ${Math.random() * 100}%;
-            font-size: ${14 + Math.random() * 18}px; opacity: ${0.5 + Math.random() * 0.4};
-            transform: rotate(${Math.random() * 25 - 12}deg); z-index: 4;
+            position: absolute; bottom: ${ugBottom}%; left: ${Math.random() * 100}%;
+            font-size: ${(14 + Math.random() * 18) * ugScale}px; opacity: ${0.45 + Math.random() * 0.45};
+            transform: rotate(${Math.random() * 25 - 12}deg); z-index: ${ugZ};
             filter: drop-shadow(0 2px 4px rgba(0,0,0,0.25)) ${timeOfDay === 'night' ? 'brightness(0.6)' : ''};
         `;
         c.appendChild(ug);
@@ -303,26 +313,27 @@ Effects.woodland = function(active) {
     // ========================================================================
     const treePresets = [
         { trunkRatio: 0.32, trunkW: 0.2, crownW: 1.15, crownH: 0.7, layers: 3, radius: '50%', hue: 0, trunkTint: 0, conical: false },
-        { trunkRatio: 0.42, trunkW: 0.14, crownW: 0.9, crownH: 0.65, layers: 2, radius: '45% 45% 52% 48%', radiusTop: '38% 38% 58% 52%', hue: 12, trunkTint: 4, conical: true },
-        { trunkRatio: 0.26, trunkW: 0.24, crownW: 1.35, crownH: 0.85, layers: 4, radius: '48% 52% 55% 45%', radiusLower: '52% 48% 48% 52%', radiusMid: '48% 52% 50% 48%', hue: -8, trunkTint: -3, conical: false },
-        { trunkRatio: 0.38, trunkW: 0.12, crownW: 0.95, crownH: 0.55, layers: 2, radius: '52% 48% 48% 52%', radiusTop: '50% 50% 50% 50%', hue: 6, trunkTint: 2, conical: false },
-        { trunkRatio: 0.28, trunkW: 0.22, crownW: 1.25, crownH: 0.8, layers: 4, radius: '50%', radiusLower: '55% 45% 45% 55%', radiusMid: '48% 52% 52% 48%', hue: -4, trunkTint: -2, conical: false },
-        { trunkRatio: 0.3, trunkW: 0.18, crownW: 1.1, crownH: 0.75, layers: 3, radius: '42% 58% 55% 45% / 55% 42% 58% 45%', radiusTop: '45% 55% 52% 48%', hue: 10, trunkTint: 3, conical: true }
+        { trunkRatio: 0.48, trunkW: 0.1, crownW: 0.65, crownH: 1.1, layers: 2, radius: '42% 42% 58% 58%', radiusTop: '35% 35% 62% 58%', hue: 15, trunkTint: 5, conical: true },
+        { trunkRatio: 0.26, trunkW: 0.24, crownW: 1.4, crownH: 0.82, layers: 4, radius: '48% 52% 55% 45%', radiusLower: '52% 48% 48% 52%', radiusMid: '48% 52% 50% 48%', hue: -10, trunkTint: -3, conical: false },
+        { trunkRatio: 0.38, trunkW: 0.12, crownW: 1.5, crownH: 0.5, layers: 2, radius: '55% 55% 45% 45%', radiusTop: '50% 50% 50% 50%', hue: 8, trunkTint: 2, conical: false },
+        { trunkRatio: 0.28, trunkW: 0.22, crownW: 1.25, crownH: 0.8, layers: 4, radius: '50%', radiusLower: '55% 45% 45% 55%', radiusMid: '48% 52% 52% 48%', hue: -5, trunkTint: -2, conical: false },
+        { trunkRatio: 0.3, trunkW: 0.18, crownW: 1.08, crownH: 0.78, layers: 3, radius: '38% 62% 58% 42%', radiusTop: '42% 58% 52% 48%', hue: 12, trunkTint: 3, conical: true }
     ];
     
-    const createTree = (side, size, zIndex, treeIndex) => {
+    const createTree = (side, size, zIndex, treeIndex, bottomPct) => {
         const idx = Number(treeIndex) || 0;
         const preset = treePresets[idx % treePresets.length];
         const tree = document.createElement('div');
-        const xOffset = (idx % 3) * 6 + (Math.random() * 10 - 5);
-        const brightness = timeOfDay === 'night' ? 0.4 : (1 - (3 - zIndex) * 0.15);
+        const xOffset = (idx % 3) * 5 + (idx * 7 % 11) + (side === 'left' ? -2 : 2);
+        const brightness = timeOfDay === 'night' ? 0.4 : (1 - (3 - zIndex) * 0.12);
         const swayX = (3 - zIndex) * (2 + idx % 2) + (side === 'left' ? -1 : 1) * (1 + idx % 2);
         const swaySkew = (3 - zIndex) * (0.3 + (idx % 3) * 0.1);
         const swayDur = 11 + zIndex * 2 + (idx % 4);
+        const b = Math.max(0, Math.min(100, bottomPct != null ? bottomPct : 0));
         tree.style.cssText = `
-            position: absolute; bottom: 0; ${side}: ${xOffset}%;
-            width: ${size * preset.crownW * (0.95 + (idx % 5) * 0.05)}px; height: ${size * 3.2}px; z-index: ${zIndex};
-            filter: brightness(${brightness}) ${zIndex < 3 ? `blur(${(3 - zIndex) * 0.28}px)` : ''};
+            position: absolute; bottom: ${b}%; ${side}: ${xOffset}%;
+            width: ${size * preset.crownW * (0.92 + (idx % 6) * 0.04)}px; height: ${size * 3.2}px; z-index: ${zIndex};
+            filter: brightness(${brightness}) ${zIndex < 3 ? `blur(${(3 - zIndex) * 0.32}px)` : ''};
             --sway-x: ${swayX}px; --sway-skew: ${swaySkew}deg;
             animation: woodlandTreeSway ${swayDur}s ease-in-out infinite;
             animation-delay: ${(idx * 0.7) % 4}s;
@@ -436,12 +447,17 @@ Effects.woodland = function(active) {
         return tree;
     };
     
-    c.appendChild(createTree('left', 55, 1, 0));
-    c.appendChild(createTree('right', 50, 1, 1));
-    c.appendChild(createTree('left', 85, 2, 2));
-    c.appendChild(createTree('right', 70, 2, 3));
-    c.appendChild(createTree('left', 120, 3, 4));
-    c.appendChild(createTree('right', 100, 3, 5));
+    // Depth layers: back (high bottom, small) → front (low bottom, large) = looking into the wood
+    c.appendChild(createTree('left', 42, 1, 0, 38));
+    c.appendChild(createTree('right', 48, 1, 1, 40));
+    c.appendChild(createTree('left', 38, 1, 2, 36));
+    c.appendChild(createTree('right', 72, 2, 3, 22));
+    c.appendChild(createTree('left', 78, 2, 4, 20));
+    c.appendChild(createTree('right', 65, 2, 5, 24));
+    c.appendChild(createTree('left', 110, 3, 0, 4));
+    c.appendChild(createTree('right', 95, 3, 1, 2));
+    c.appendChild(createTree('left', 100, 3, 2, 0));
+    c.appendChild(createTree('right', 88, 3, 3, 6));
     
     // ========================================================================
     // HIDING SPOTS & CREATURES
@@ -449,20 +465,25 @@ Effects.woodland = function(active) {
     const hidingSpots = [];
     const spotTypes = [{ emoji: '🪨', name: 'rock' }, { emoji: '🪵', name: 'log' }, { emoji: '🌿', name: 'bush' }];
     
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 10; i++) {
         const spotType = spotTypes[Math.floor(Math.random() * spotTypes.length)];
         const spot = document.createElement('div');
-        const leftPos = 6 + (i * 11) + (Math.random() * 6 - 3);
-        const bottomPct = Math.random() * 5 + 0;
+        const leftPos = 5 + (i * 9) + (Math.random() * 8 - 4);
+        const depthTier = i % 3;
+        const bottomPct = depthTier === 0 ? 2 + Math.random() * 6 : depthTier === 1 ? 14 + Math.random() * 10 : 26 + Math.random() * 10;
+        const z = depthTier === 0 ? 11 : depthTier === 1 ? 8 : 5;
+        const scale = depthTier === 0 ? 1 : depthTier === 1 ? 0.88 : 0.76;
         spot.className = 'woodland-hiding-spot';
         spot.style.cssText = `
             position: absolute; bottom: ${bottomPct}%; left: ${leftPos}%;
-            font-size: ${26 + Math.random() * 14}px; z-index: 10; cursor: default;
+            font-size: ${(26 + Math.random() * 14) * scale}px; z-index: ${z}; cursor: default;
+            transform: scale(${scale});
+            transform-origin: center bottom;
             filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5)) drop-shadow(0 2px 4px rgba(0,0,0,0.3)) ${timeOfDay === 'night' ? 'brightness(0.58)' : ''};
         `;
         spot.textContent = spotType.emoji;
         c.appendChild(spot);
-        hidingSpots.push({ el: spot, left: leftPos, bottom: bottomPct, creature: null });
+        hidingSpots.push({ el: spot, left: leftPos, bottom: bottomPct, creature: null, depthTier, scale });
     }
     
     const creatures = {
@@ -513,21 +534,23 @@ Effects.woodland = function(active) {
         critterEl.setAttribute('data-creature', creature);
         critterEl.style.animationDuration = peekDuration + 's';
         
+        const creatureBottom = (typeof spot.bottom === 'number' ? spot.bottom : parseFloat(spot.el.style.bottom) || 0) + (spot.depthTier === 0 ? 4 : spot.depthTier === 1 ? 3 : 2);
+        const creatureZ = (spot.depthTier === 0 ? 9 : spot.depthTier === 1 ? 7 : 6);
+        const creatureScale = (spot.scale != null ? spot.scale : 1);
         const inner = document.createElement('div');
         inner.className = 'woodland-creature-emoji';
         inner.textContent = creature;
         inner.style.cssText = `
-            font-size: ${profile.size}px;
+            font-size: ${Math.round(profile.size * creatureScale)}px;
             filter: ${profile.filter || 'none'};
             text-shadow: ${profile.shadow};
             line-height: 1;
         `;
         critterEl.appendChild(inner);
         
-        const creatureBottom = (typeof spot.bottom === 'number' ? spot.bottom : parseFloat(spot.el.style.bottom) || 0) + 4;
         critterEl.style.cssText = `
             position: absolute; bottom: ${creatureBottom}%;
-            left: ${spot.left + 1.5}%; z-index: 9;
+            left: ${spot.left + 1.5}%; z-index: ${creatureZ};
             pointer-events: auto; cursor: pointer;
             display: flex; flex-direction: column; align-items: center;
             --creature-dur: ${peekDuration}s;
@@ -594,8 +617,9 @@ Effects.woodland = function(active) {
         rareEl.appendChild(rareInner);
         
         const startLeft = Math.random() > 0.5;
+        const rareBottom = 12 + Math.random() * 22;
         rareEl.style.cssText = `
-            position: absolute; bottom: ${18 + Math.random() * 10}%;
+            position: absolute; bottom: ${rareBottom}%;
             ${startLeft ? 'left' : 'right'}: -70px; z-index: 12;
             display: flex; flex-direction: column; align-items: center;
             transition: left 8s linear, right 8s linear;
