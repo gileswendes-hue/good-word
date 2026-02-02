@@ -91,7 +91,7 @@ const StandardEffects = {
             const style = document.createElement('style');
             style.id = 'effects-rain-styles';
             style.textContent = `
-                .rain-drop { position: fixed; top: -4vh; width: 1.5px; height: 5vh; background: linear-gradient(to bottom, rgba(255,255,255,0.9) 0%, rgba(200,220,255,0.4) 50%, transparent 100%); opacity: .65; transform: translateZ(0); border-radius: 1px; box-shadow: 0 0 2px rgba(255,255,255,0.2); }
+                .rain-drop { position: fixed; top: -4vh; width: 1.5px; height: 5vh; background: linear-gradient(to bottom, transparent 0%, rgba(200,220,255,0.35) 45%, rgba(255,255,255,0.9) 100%); opacity: .65; transform: translateZ(0); border-radius: 1px; box-shadow: 0 0 2px rgba(255,255,255,0.15); }
                 .rain-drop.far { width: 1px; height: 3.5vh; opacity: .3; }
                 .rain-drop.near { width: 2px; height: 6.5vh; opacity: .7; }
                 @keyframes rain-fall {
@@ -205,16 +205,20 @@ const StandardEffects = {
                         d.x = Math.random() * window.innerWidth;
                     }
                     const alpha = 0.4 + d.depth * 0.5;
-                    const grad = ctx.createLinearGradient(d.x, d.y, d.x + d.rot * d.len, d.y + d.len);
-                    grad.addColorStop(0, `rgba(220,235,255,${alpha})`);
-                    grad.addColorStop(0.3, `rgba(190,210,255,${alpha * 0.8})`);
-                    grad.addColorStop(1, `rgba(160,185,220,0.15)`);
+                    const xHead = d.x + d.rot * d.len * 0.5;
+                    const yHead = d.y + d.len;
+                    const xTail = d.x - d.rot * d.len * 0.5;
+                    const yTail = d.y;
+                    const grad = ctx.createLinearGradient(xHead, yHead, xTail, yTail);
+                    grad.addColorStop(0, `rgba(255,255,255,${alpha})`);
+                    grad.addColorStop(0.25, `rgba(220,235,255,${alpha * 0.9})`);
+                    grad.addColorStop(1, `rgba(160,185,220,0.08)`);
                     ctx.strokeStyle = grad;
                     ctx.lineWidth = 0.8 + d.depth * 1;
                     ctx.lineCap = 'round';
                     ctx.beginPath();
-                    ctx.moveTo(d.x - d.rot * d.len * 0.5, d.y);
-                    ctx.lineTo(d.x + d.rot * d.len * 0.5, d.y + d.len);
+                    ctx.moveTo(xTail, yTail);
+                    ctx.lineTo(xHead, yHead);
                     ctx.stroke();
                 }
                 this.rainCanvas.raf = requestAnimationFrame(rafLoop);
