@@ -62,7 +62,8 @@ const StandardEffects = {
         c.style.position = 'fixed';
         c.style.inset = '0';
         c.style.pointerEvents = 'none';
-        c.style.zIndex = '60';
+        // Sit behind game card/UI so rain feels like it's in the world, not over the content
+        c.style.zIndex = opts.zIndex !== undefined ? String(opts.zIndex) : '35';
 
         // If already populated, leave it running (avoid recreating)
         if (c.dataset.rainInitialized === '1') {
@@ -90,11 +91,11 @@ const StandardEffects = {
             const style = document.createElement('style');
             style.id = 'effects-rain-styles';
             style.textContent = `
-                .rain-drop { position: fixed; top: -8vh; width: 2px; height: 14vh; background: linear-gradient(to bottom, rgba(255,255,255,0.95) 0%, rgba(200,220,255,0.5) 40%, rgba(180,200,255,0.15) 100%); opacity: .6; transform: translateZ(0); border-radius: 1px; box-shadow: 0 0 4px rgba(255,255,255,0.3); }
-                .rain-drop.far { width: 1px; height: 10vh; opacity: .35; }
-                .rain-drop.near { width: 2.5px; height: 18vh; opacity: .75; }
+                .rain-drop { position: fixed; top: -4vh; width: 1.5px; height: 5vh; background: linear-gradient(to bottom, rgba(255,255,255,0.9) 0%, rgba(200,220,255,0.4) 50%, transparent 100%); opacity: .65; transform: translateZ(0); border-radius: 1px; box-shadow: 0 0 2px rgba(255,255,255,0.2); }
+                .rain-drop.far { width: 1px; height: 3.5vh; opacity: .3; }
+                .rain-drop.near { width: 2px; height: 6.5vh; opacity: .7; }
                 @keyframes rain-fall {
-                    0% { transform: translate3d(var(--wind,0px), -10vh, 0) rotate(var(--rot,0deg)); opacity: 0.5; }
+                    0% { transform: translate3d(var(--wind,0px), -4vh, 0) rotate(var(--rot,0deg)); opacity: 0.5; }
                     15% { opacity: 0.85; }
                     85% { opacity: 0.9; }
                     100% { transform: translate3d(calc(var(--wind,0px) + 0px), 110vh, 0) rotate(var(--rot,0deg)); opacity: 0.0; }
@@ -158,7 +159,7 @@ const StandardEffects = {
             }
             const canvas = document.createElement('canvas');
             canvas.id = 'rain-canvas';
-            Object.assign(canvas.style, { position: 'fixed', left: 0, top: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 60 });
+            Object.assign(canvas.style, { position: 'fixed', left: 0, top: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: opts.zIndex !== undefined ? opts.zIndex : 35 });
             document.body.appendChild(canvas);
             const ctx = canvas.getContext('2d');
             const DPR = window.devicePixelRatio || 1;
@@ -178,12 +179,12 @@ const StandardEffects = {
             for (let i = 0; i < total; i++) {
                 const x = Math.random() * window.innerWidth;
                 const y = Math.random() * window.innerHeight - window.innerHeight;
-                const depth = Math.random(); // 0 = far, 1 = near
-                const len = 6 + depth * 14 + Math.random() * 4;
+                const depth = Math.random();
+                const len = 3 + depth * 5 + Math.random() * 2;
                 const speedMul = 0.7 + depth * 0.6;
                 const speed = (Math.random() * (dropSpeedMax - dropSpeedMin) + dropSpeedMin) * (2.5 + Math.random() * 2) * speedMul;
-                const wobble = (Math.random() - 0.5) * 0.15;
-                drops.push({ x, y, len, speed, rot: (Math.random() - 0.5) * 0.25, depth, wobble, phase: Math.random() * Math.PI * 2 });
+                const wobble = (Math.random() - 0.5) * 0.12;
+                drops.push({ x, y, len, speed, rot: (Math.random() - 0.5) * 0.2, depth, wobble, phase: Math.random() * Math.PI * 2 });
             }
 
             let last = performance.now();
@@ -240,14 +241,19 @@ const StandardEffects = {
             }
         };
 
-        // Periodically spawn splashes (based on intensity)
+        // Periodically spawn splashes — bias away from center (game card) so rain interacts with "world" not UI
+        const centerW = window.innerWidth * 0.5;
+        const cardW = window.innerWidth * 0.4;
+        const leftBand = centerW - cardW * 0.6;
+        const rightBand = centerW + cardW * 0.6;
         this.rainSplashInterval = setInterval(() => {
-            // choose a random x position, bias to visible area
-            const x = Math.random() * window.innerWidth;
-            // higher intensity -> more frequent multi-splashes
+            let x;
+            if (Math.random() < 0.5) x = Math.random() * leftBand;
+            else x = rightBand + Math.random() * (window.innerWidth - rightBand);
+            x = Math.max(20, Math.min(window.innerWidth - 20, x));
             const multi = (intensity === 'heavy' && Math.random() < 0.6) ? 2 + Math.floor(Math.random()*3) : 1;
             for (let i = 0; i < multi; i++) {
-                setTimeout(() => createSplashAt(Math.min(window.innerWidth, Math.max(0, x + (Math.random()*80-40)))), i * 60);
+                setTimeout(() => createSplashAt(Math.min(window.innerWidth - 10, Math.max(10, x + (Math.random()*60-30)))), i * 50);
             }
         }, splashRate);
 
@@ -272,12 +278,12 @@ const StandardEffects = {
             }
         }, 350);
 
-        // Respawn small additional drops occasionally to keep density feeling natural
+        // Respawn short drops occasionally to keep density natural
         this.rainRespawnInterval = setInterval(() => {
             const extra = Math.random() < 0.5 ? 1 : Math.random() < 0.2 ? 2 : 0;
             for (let e = 0; e < extra; e++) {
                 const drop = document.createElement('div');
-                drop.className = 'rain-drop';
+                drop.className = 'rain-drop' + (Math.random() < 0.33 ? ' far' : Math.random() < 0.5 ? ' near' : '');
                 const left = Math.random() * 100;
                 drop.style.left = `${left}vw`;
                 const duration = (Math.random() * (dropSpeedMax - dropSpeedMin) + dropSpeedMin).toFixed(2) + 's';
@@ -285,13 +291,12 @@ const StandardEffects = {
                 drop.style.animationTimingFunction = 'linear';
                 drop.style.animationDelay = '0s';
                 drop.style.setProperty('animation-name', 'rain-fall');
-                const rot = (Math.random() - 0.5) * 10;
+                const rot = (Math.random() - 0.5) * 8;
                 drop.style.setProperty('--rot', rot + 'deg');
-                drop.style.opacity = (Math.random() * 0.6 + 0.25).toFixed(2);
+                drop.style.opacity = (Math.random() * 0.5 + 0.3).toFixed(2);
                 drop.style.animationIterationCount = 'infinite';
                 c.appendChild(drop);
-                // clean up after a while to avoid runaway DOM growth
-                setTimeout(() => { try { drop.remove(); } catch (e) {} }, 30 * 1000);
+                setTimeout(() => { try { drop.remove(); } catch (e) {} }, 25 * 1000);
             }
         }, 2500);
 
