@@ -1,20 +1,17 @@
 /**
  * ============================================================================
- * WOODLAND THEME EFFECT - ENHANCED
+ * WOODLAND THEME - Final release
  * ============================================================================
- * Immersive forest scene with:
- * - Dynamic time-of-day lighting (dawn/day/dusk/night)
- * - Parallax layered trees
- * - Falling leaves animation
- * - Creatures that peek from hiding spots
- * - Rare collectible animals (deer, bear, badger) with badges
- * - Fireflies at night, birds during day
- * - Morning mist, night stars
- * - Mushrooms and forest floor details
+ * Immersive forest scene with dynamic time-of-day, parallax trees, falling
+ * leaves, peek creatures, rare collectibles (deer/bear/badger), fireflies,
+ * birds, morning mist, night stars, mushrooms, and forest spirit.
+ * Rain in woodland uses short streaks and sits behind the game UI.
  */
 
 (function() {
 'use strict';
+
+const WOODLAND_VERSION = '1.0.0';
 
 Effects.woodland = function(active) {
     const c = DOM.theme.effects.woodland;
@@ -62,7 +59,7 @@ Effects.woodland = function(active) {
         bgGradient = 'linear-gradient(180deg, #0f1419 0%, #1a2332 25%, #1f3a28 60%, #152010 100%)';
     }
     
-    // Container setup
+    // Container setup — clean, final-release layout
     c.style.cssText = `
         position: fixed;
         inset: 0;
@@ -70,6 +67,8 @@ Effects.woodland = function(active) {
         z-index: 0;
         overflow: hidden;
         background: ${bgGradient};
+        image-rendering: -webkit-optimize-contrast;
+        image-rendering: crisp-edges;
     `;
     
     // ========================================================================
@@ -80,56 +79,70 @@ Effects.woodland = function(active) {
         style.id = 'woodland-enhanced-styles';
         style.textContent = `
             @keyframes woodlandLightSway {
-                0% { transform: skewX(-8deg) translateX(-15px); opacity: var(--light-opacity); }
-                100% { transform: skewX(8deg) translateX(15px); opacity: calc(var(--light-opacity) * 0.6); }
+                0% { transform: skewX(-6deg) translateX(-12px); opacity: var(--light-opacity); }
+                100% { transform: skewX(6deg) translateX(12px); opacity: calc(var(--light-opacity) * 0.65); }
+            }
+            @keyframes woodlandTreeSway {
+                0%, 100% { transform: translateX(0) skewX(0deg); }
+                50% { transform: translateX(var(--sway-x, 4px)) skewX(var(--sway-skew, 1deg)); }
             }
             @keyframes leafFall {
                 0% { transform: translateY(-20px) rotate(0deg) translateX(0); opacity: 0; }
-                10% { opacity: 1; }
-                90% { opacity: 0.8; }
+                8% { opacity: 1; }
+                92% { opacity: 0.85; }
                 100% { transform: translateY(100vh) rotate(720deg) translateX(var(--leaf-sway)); opacity: 0; }
             }
             @keyframes creaturePeek {
-                0% { transform: translateY(100%) scale(0.7); opacity: 0; }
-                15% { transform: translateY(10%) scale(1.1); opacity: 1; }
-                25% { transform: translateY(0%) scale(1); }
-                75% { transform: translateY(0%) scale(1); opacity: 1; }
-                85% { transform: translateY(10%) scale(1.1); }
-                100% { transform: translateY(100%) scale(0.7); opacity: 0; }
+                0% { transform: translateY(100%) scale(0.75); opacity: 0; }
+                18% { transform: translateY(8%) scale(1.05); opacity: 1; }
+                28% { transform: translateY(0%) scale(1); }
+                72% { transform: translateY(0%) scale(1); opacity: 1; }
+                82% { transform: translateY(8%) scale(1.05); }
+                100% { transform: translateY(100%) scale(0.75); opacity: 0; }
             }
             @keyframes eyeGlow {
-                0%, 100% { opacity: 0.4; box-shadow: 0 0 4px currentColor; }
-                50% { opacity: 1; box-shadow: 0 0 12px currentColor; }
+                0%, 100% { opacity: 0.45; box-shadow: 0 0 5px currentColor; }
+                50% { opacity: 1; box-shadow: 0 0 14px currentColor; }
             }
             @keyframes birdFly {
                 0% { transform: translateX(0) translateY(0) scaleX(var(--bird-dir)); }
-                25% { transform: translateX(25vw) translateY(-20px) scaleX(var(--bird-dir)); }
-                50% { transform: translateX(50vw) translateY(10px) scaleX(var(--bird-dir)); }
-                75% { transform: translateX(75vw) translateY(-15px) scaleX(var(--bird-dir)); }
+                25% { transform: translateX(25vw) translateY(-18px) scaleX(var(--bird-dir)); }
+                50% { transform: translateX(50vw) translateY(8px) scaleX(var(--bird-dir)); }
+                75% { transform: translateX(75vw) translateY(-12px) scaleX(var(--bird-dir)); }
                 100% { transform: translateX(110vw) translateY(0) scaleX(var(--bird-dir)); }
             }
             @keyframes mistDrift {
-                0% { transform: translateX(-10%) scaleX(1); opacity: 0.3; }
-                50% { transform: translateX(5%) scaleX(1.1); opacity: 0.5; }
-                100% { transform: translateX(-10%) scaleX(1); opacity: 0.3; }
+                0% { transform: translateX(-8%) scaleX(1); opacity: 0.28; }
+                50% { transform: translateX(4%) scaleX(1.08); opacity: 0.48; }
+                100% { transform: translateX(-8%) scaleX(1); opacity: 0.28; }
             }
             @keyframes twinkle {
-                0%, 100% { opacity: 0.3; transform: scale(0.8); }
-                50% { opacity: 1; transform: scale(1.2); }
+                0%, 100% { opacity: 0.35; transform: scale(0.85); }
+                50% { opacity: 1; transform: scale(1.15); }
             }
             @keyframes fireflyFloat {
-                0%, 100% { transform: translate(0, 0); opacity: 0.2; box-shadow: 0 0 2px rgba(180, 255, 100, 0.5); }
-                50% { transform: translate(var(--ff-x), var(--ff-y)); opacity: 1; box-shadow: 0 0 10px rgba(180, 255, 100, 0.9); }
+                0%, 100% { transform: translate(0, 0); opacity: 0.25; box-shadow: 0 0 3px rgba(180, 255, 100, 0.5); }
+                50% { transform: translate(var(--ff-x), var(--ff-y)); opacity: 1; box-shadow: 0 0 12px rgba(180, 255, 100, 0.85); }
             }
             @keyframes rarePrize {
-                0%, 100% { transform: scale(1); filter: drop-shadow(0 0 5px gold); }
-                50% { transform: scale(1.1); filter: drop-shadow(0 0 15px gold); }
+                0%, 100% { transform: scale(1); filter: drop-shadow(0 0 6px rgba(255, 215, 0, 0.8)); }
+                50% { transform: scale(1.08); filter: drop-shadow(0 0 18px rgba(255, 215, 0, 0.9)); }
             }
-            .woodland-creature { animation: creaturePeek 8s ease-in-out forwards; transition: transform 0.2s; }
-            .woodland-creature:hover { transform: scale(1.2) !important; }
-            .woodland-hiding-spot { transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
-            .woodland-hiding-spot:hover { transform: scale(1.08) rotate(-2deg); }
-            .woodland-rare { animation: rarePrize 1s ease-in-out infinite; cursor: pointer; pointer-events: auto; }
+            @keyframes spiritPulse {
+                0%, 100% { transform: scale(1); opacity: 0.82; }
+                50% { transform: scale(1.25); opacity: 1; }
+            }
+            @keyframes spiritTrail {
+                0% { opacity: 0.55; transform: scale(1); }
+                100% { opacity: 0; transform: scale(0.35); }
+            }
+            .woodland-creature { animation: creaturePeek 8.5s ease-in-out forwards; transition: transform 0.25s ease; }
+            .woodland-creature:hover { transform: scale(1.15) !important; }
+            .woodland-hiding-spot { transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); }
+            .woodland-hiding-spot:hover { transform: scale(1.06) rotate(-1.5deg); }
+            .woodland-rare { animation: rarePrize 1.2s ease-in-out infinite; cursor: pointer; pointer-events: auto; }
+            .woodland-mushroom { transition: transform 0.2s ease, opacity 0.2s ease; }
+            .woodland-mushroom:hover { transform: scale(1.1); }
         `;
         document.head.appendChild(style);
     }
@@ -170,14 +183,15 @@ Effects.woodland = function(active) {
     }
     
     // ========================================================================
-    // FOREST FLOOR
+    // FOREST FLOOR — refined gradient and edge
     // ========================================================================
     const floor = document.createElement('div');
     floor.style.cssText = `
-        position: absolute; bottom: 0; left: 0; right: 0; height: 28%;
-        background: linear-gradient(180deg, transparent 0%, rgba(61, 41, 20, 0.7) 20%,
-            #3d2914 40%, #2a1f0f 70%, #1a1208 100%);
+        position: absolute; bottom: 0; left: 0; right: 0; height: 30%;
+        background: linear-gradient(180deg, transparent 0%, rgba(55, 38, 22, 0.6) 15%,
+            #3d2914 35%, #2e2212 65%, #1a1208 95%);
         z-index: 2;
+        box-shadow: inset 0 -2px 20px rgba(0,0,0,0.15);
     `;
     c.appendChild(floor);
     
@@ -256,10 +270,14 @@ Effects.woodland = function(active) {
         const xOffset = Math.random() * 15 - 5;
         const brightness = timeOfDay === 'night' ? 0.4 : (1 - (3 - zIndex) * 0.15);
         
+        const swayX = (3 - zIndex) * 3 + (side === 'left' ? -1 : 1) * 2;
+        const swaySkew = (3 - zIndex) * 0.4;
         tree.style.cssText = `
             position: absolute; bottom: ${10 + (3 - zIndex) * 2}%; ${side}: ${xOffset}%;
             width: ${size * 1.8}px; height: ${size * 3.5}px; z-index: ${zIndex};
-            filter: brightness(${brightness}) ${zIndex < 3 ? `blur(${(3 - zIndex) * 0.5}px)` : ''};
+            filter: brightness(${brightness}) ${zIndex < 3 ? `blur(${(3 - zIndex) * 0.4}px)` : ''};
+            --sway-x: ${swayX}px; --sway-skew: ${swaySkew}deg;
+            animation: woodlandTreeSway ${12 + zIndex * 3}s ease-in-out infinite;
         `;
         
         const trunk = document.createElement('div');
@@ -352,8 +370,8 @@ Effects.woodland = function(active) {
         spot.className = 'woodland-hiding-spot';
         spot.style.cssText = `
             position: absolute; bottom: ${13 + Math.random() * 6}%; left: ${leftPos}%;
-            font-size: ${28 + Math.random() * 12}px; z-index: 10; cursor: default;
-            filter: drop-shadow(2px 3px 4px rgba(0,0,0,0.5)) ${timeOfDay === 'night' ? 'brightness(0.6)' : ''};
+            font-size: ${26 + Math.random() * 14}px; z-index: 10; cursor: default;
+            filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.45)) drop-shadow(0 1px 2px rgba(0,0,0,0.2)) ${timeOfDay === 'night' ? 'brightness(0.58)' : ''};
         `;
         spot.textContent = spotType.emoji;
         c.appendChild(spot);
@@ -616,10 +634,10 @@ Effects.woodland = function(active) {
         spirit.innerHTML = `
             <div style="
                 width: 20px; height: 20px;
-                background: radial-gradient(circle, rgba(150, 255, 200, 1) 0%, rgba(100, 200, 255, 0.8) 40%, transparent 70%);
+                background: radial-gradient(circle, rgba(150, 255, 200, 1) 0%, rgba(100, 200, 255, 0.85) 45%, transparent 72%);
                 border-radius: 50%;
-                animation: spiritPulse 1.5s ease-in-out infinite;
-                box-shadow: 0 0 20px rgba(150, 255, 200, 0.8), 0 0 40px rgba(100, 200, 255, 0.5);
+                animation: spiritPulse 1.6s ease-in-out infinite;
+                box-shadow: 0 0 22px rgba(150, 255, 200, 0.75), 0 0 44px rgba(100, 200, 255, 0.45);
             "></div>
         `;
         
@@ -636,23 +654,6 @@ Effects.woodland = function(active) {
             cursor: pointer;
             transition: left 12s cubic-bezier(0.4, 0, 0.2, 1), right 12s cubic-bezier(0.4, 0, 0.2, 1), top 12s ease-in-out;
         `;
-        
-        // Add animation style if not exists
-        if (!document.getElementById('spirit-style')) {
-            const style = document.createElement('style');
-            style.id = 'spirit-style';
-            style.textContent = `
-                @keyframes spiritPulse {
-                    0%, 100% { transform: scale(1); opacity: 0.8; }
-                    50% { transform: scale(1.3); opacity: 1; }
-                }
-                @keyframes spiritTrail {
-                    0% { opacity: 0.6; transform: scale(1); }
-                    100% { opacity: 0; transform: scale(0.3); }
-                }
-            `;
-            document.head.appendChild(style);
-        }
         
         c.appendChild(spirit);
         
@@ -738,18 +739,21 @@ Effects.woodland = function(active) {
     Effects.woodlandSpiritTimeout = setTimeout(spawnForestSpirit, 20000 + Math.random() * 20000);
     
     // ========================================================================
-    // WEATHER CHANCE (Gentle rain in woodland)
+    // WEATHER CHANCE — light rain behind game UI, short streaks
     // ========================================================================
     if (Math.random() < 0.2 && timeOfDay !== 'night') {
-        // 20% chance of light rain during day
         setTimeout(() => {
             if (State.runtime.currentTheme !== 'woodland') return;
-            Effects.rain(true);
-            UIManager.showPostVoteMessage('🌧️ A gentle forest rain begins...');
+            if (typeof Effects !== 'undefined' && Effects.rain) {
+                Effects.rain(true, { intensity: 'light', zIndex: 35 });
+            }
+            if (typeof UIManager !== 'undefined' && UIManager.showPostVoteMessage) {
+                UIManager.showPostVoteMessage('🌧️ A gentle forest rain begins...');
+            }
         }, 5000);
     }
 };
 
-console.log('%c[Theme: Woodland Enhanced] Loaded', 'color: #16a34a; font-weight: bold');
+console.log('%c[Woodland] v' + (typeof WOODLAND_VERSION !== 'undefined' ? WOODLAND_VERSION : '1.0') + ' loaded', 'color: #16a34a; font-weight: bold');
 
 })();
