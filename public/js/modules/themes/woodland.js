@@ -92,13 +92,17 @@ Effects.woodland = function(active) {
                 92% { opacity: 0.85; }
                 100% { transform: translateY(100vh) rotate(720deg) translateX(var(--leaf-sway)); opacity: 0; }
             }
-            @keyframes creaturePeek {
-                0% { transform: translateY(100%) scale(0.75); opacity: 0; }
-                18% { transform: translateY(8%) scale(1.05); opacity: 1; }
-                28% { transform: translateY(0%) scale(1); }
-                72% { transform: translateY(0%) scale(1); opacity: 1; }
-                82% { transform: translateY(8%) scale(1.05); }
-                100% { transform: translateY(100%) scale(0.75); opacity: 0; }
+            @keyframes creaturePopInOut {
+                0% { transform: translateY(115%) scale(0.7); opacity: 0; }
+                14% { transform: translateY(-10%) scale(1.06); opacity: 1; }
+                22% { transform: translateY(0) scale(1); }
+                72% { transform: translateY(0) scale(1); opacity: 1; }
+                80% { transform: translateY(6%) scale(0.96); }
+                100% { transform: translateY(105%) scale(0.72); opacity: 0; }
+            }
+            @keyframes creatureIdle {
+                0%, 100% { transform: translateY(0) scale(1); }
+                50% { transform: translateY(-5px) scale(1.02); }
             }
             @keyframes eyeGlow {
                 0%, 100% { opacity: 0.45; box-shadow: 0 0 5px currentColor; }
@@ -136,20 +140,18 @@ Effects.woodland = function(active) {
                 0% { opacity: 0.55; transform: scale(1); }
                 100% { opacity: 0; transform: scale(0.35); }
             }
-            .woodland-creature { animation: creaturePeek 8.5s ease-in-out forwards; transition: transform 0.25s ease; }
-            .woodland-creature:hover { transform: scale(1.15) !important; }
+            @keyframes grassSway {
+                0%, 100% { transform: rotate(var(--grass-rot)) translateX(0); }
+                50% { transform: rotate(calc(var(--grass-rot) + 4deg)) translateX(2px); }
+            }
+            .woodland-creature { animation: creaturePopInOut var(--creature-dur, 8s) cubic-bezier(0.34, 1.4, 0.64, 1) forwards; position: relative; }
+            .woodland-creature-emoji { line-height: 1; user-select: none; animation: creatureIdle 2.8s ease-in-out infinite; animation-delay: 0.4s; }
+            .woodland-creature:hover .woodland-creature-emoji { animation: none; transform: scale(1.08); }
             .woodland-hiding-spot { transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); }
             .woodland-hiding-spot:hover { transform: scale(1.06) rotate(-1.5deg); }
             .woodland-rare { animation: rarePrize 1.2s ease-in-out infinite; cursor: pointer; pointer-events: auto; }
             .woodland-mushroom { transition: transform 0.2s ease, opacity 0.2s ease; }
             .woodland-mushroom:hover { transform: scale(1.1); }
-            .woodland-creature { position: relative; }
-            .woodland-creature-emoji { line-height: 1; user-select: none; }
-            .woodland-creature-label {
-                padding: 2px 6px; border-radius: 4px;
-                background: rgba(255,250,240,0.85); box-shadow: 0 1px 3px rgba(0,0,0,0.15);
-                font-family: system-ui, -apple-system, sans-serif;
-            }
             .woodland-creature-eyes { z-index: 1; }
         `;
         document.head.appendChild(style);
@@ -176,7 +178,7 @@ Effects.woodland = function(active) {
     // MORNING MIST
     // ========================================================================
     if (timeOfDay === 'dawn') {
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < 5; i++) {
             const mist = document.createElement('div');
             mist.style.cssText = `
                 position: absolute; bottom: ${15 + i * 12}%; left: -10%; width: 120%;
@@ -205,7 +207,7 @@ Effects.woodland = function(active) {
     c.appendChild(floor);
     
     // Ground details — on the floor band (bottom 0–11%)
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 55; i++) {
         const detail = document.createElement('div');
         const type = Math.random();
         const bottomPct = Math.random() * 9 + 1;
@@ -217,14 +219,18 @@ Effects.woodland = function(active) {
                 z-index: 3; box-shadow: 0 2px 4px rgba(0,0,0,0.25);
             `;
         } else if (type < 0.7) {
+            const rot = Math.random() * 20 - 10;
+            detail.className = 'woodland-grass';
             detail.style.cssText = `
                 position: absolute; bottom: ${bottomPct}%; left: ${Math.random() * 100}%;
                 width: 0; height: 0;
                 border-left: ${2 + Math.random() * 3}px solid transparent;
                 border-right: ${2 + Math.random() * 3}px solid transparent;
                 border-bottom: ${8 + Math.random() * 12}px solid rgba(60, 90, 40, ${0.4 + Math.random() * 0.3});
-                z-index: 3; transform: rotate(${Math.random() * 20 - 10}deg);
+                z-index: 3; --grass-rot: ${rot}deg;
                 filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2));
+                animation: grassSway ${4 + Math.random() * 3}s ease-in-out infinite;
+                animation-delay: ${Math.random() * 2}s;
             `;
         } else {
             detail.style.cssText = `
@@ -241,7 +247,7 @@ Effects.woodland = function(active) {
     // FALLEN LEAVES ON GROUND — on the floor band, with shadow
     // ========================================================================
     const leafEmojis = ['🍂', '🍁', '🍃'];
-    for (let i = 0; i < 25; i++) {
+    for (let i = 0; i < 45; i++) {
         const leaf = document.createElement('div');
         leaf.textContent = leafEmojis[Math.floor(Math.random() * leafEmojis.length)];
         const leafBottom = Math.random() * 10 + 2;
@@ -252,6 +258,22 @@ Effects.woodland = function(active) {
             filter: drop-shadow(0 2px 3px rgba(0,0,0,0.3)) ${timeOfDay === 'night' ? 'brightness(0.5)' : 'none'};
         `;
         c.appendChild(leaf);
+    }
+    
+    // ========================================================================
+    // UNDERGROWTH — ferns and small bushes along the floor
+    // ========================================================================
+    const undergrowthEmojis = ['🌿', '🌱', '🪴', '🌾'];
+    for (let i = 0; i < 18; i++) {
+        const ug = document.createElement('div');
+        ug.textContent = undergrowthEmojis[Math.floor(Math.random() * undergrowthEmojis.length)];
+        ug.style.cssText = `
+            position: absolute; bottom: ${Math.random() * 14 + 2}%; left: ${Math.random() * 100}%;
+            font-size: ${14 + Math.random() * 18}px; opacity: ${0.5 + Math.random() * 0.4};
+            transform: rotate(${Math.random() * 25 - 12}deg); z-index: 4;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.25)) ${timeOfDay === 'night' ? 'brightness(0.6)' : ''};
+        `;
+        c.appendChild(ug);
     }
     
     // ========================================================================
@@ -273,8 +295,8 @@ Effects.woodland = function(active) {
         setTimeout(() => leaf.remove(), 15000);
     };
     
-    Effects.woodlandLeafInterval = setInterval(spawnFallingLeaf, 2000);
-    for (let i = 0; i < 3; i++) setTimeout(spawnFallingLeaf, i * 500);
+    Effects.woodlandLeafInterval = setInterval(spawnFallingLeaf, 1200);
+    for (let i = 0; i < 6; i++) setTimeout(spawnFallingLeaf, i * 400);
     
     // ========================================================================
     // TREES — cartoon-realistic: clear trunk (bark, taper, base), 3-layer foliage
@@ -402,10 +424,10 @@ Effects.woodland = function(active) {
     const hidingSpots = [];
     const spotTypes = [{ emoji: '🪨', name: 'rock' }, { emoji: '🪵', name: 'log' }, { emoji: '🌿', name: 'bush' }];
     
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 8; i++) {
         const spotType = spotTypes[Math.floor(Math.random() * spotTypes.length)];
         const spot = document.createElement('div');
-        const leftPos = 12 + (i * 18) + (Math.random() * 8 - 4);
+        const leftPos = 6 + (i * 11) + (Math.random() * 6 - 3);
         const bottomPct = Math.random() * 5 + 0;
         spot.className = 'woodland-hiding-spot';
         spot.style.cssText = `
@@ -477,23 +499,13 @@ Effects.woodland = function(active) {
         `;
         critterEl.appendChild(inner);
         
-        const label = document.createElement('div');
-        label.className = 'woodland-creature-label';
-        label.textContent = profile.name;
-        label.style.cssText = `
-            position: absolute; left: 50%; transform: translateX(-50%); bottom: -16px;
-            font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
-            color: #2a2218; white-space: nowrap; pointer-events: none;
-            ${timeOfDay === 'night' ? 'background: rgba(40,45,55,0.9); color: rgba(230,225,215,0.98);' : ''}
-        `;
-        critterEl.appendChild(label);
-        
         const creatureBottom = (typeof spot.bottom === 'number' ? spot.bottom : parseFloat(spot.el.style.bottom) || 0) + 4;
         critterEl.style.cssText = `
             position: absolute; bottom: ${creatureBottom}%;
             left: ${spot.left + 1.5}%; z-index: 9;
             pointer-events: auto; cursor: pointer;
             display: flex; flex-direction: column; align-items: center;
+            --creature-dur: ${peekDuration}s;
         `;
         
         if (profile.eyes && (timeOfDay === 'night' || timeOfDay === 'dusk')) {
@@ -528,11 +540,11 @@ Effects.woodland = function(active) {
         
         setTimeout(() => { if (critterEl.parentNode) { critterEl.remove(); spot.creature = null; } }, peekDuration * 1000);
         
-        const nextDelay = timeOfDay === 'night' ? 12000 : 6000;
-        Effects.woodlandCreatureTimeout = setTimeout(spawnCreature, Math.random() * nextDelay + 4000);
+        const nextDelay = timeOfDay === 'night' ? 8000 : 4000;
+        Effects.woodlandCreatureTimeout = setTimeout(spawnCreature, Math.random() * nextDelay + 2500);
     };
     
-    Effects.woodlandCreatureTimeout = setTimeout(spawnCreature, 2000);
+    Effects.woodlandCreatureTimeout = setTimeout(spawnCreature, 1200);
     
     // ========================================================================
     // RARE CREATURE SPAWNER — each with distinct size, glow, and personality
@@ -555,16 +567,6 @@ Effects.woodland = function(active) {
             filter: ${profile.filter}; text-shadow: ${profile.shadow};
         `;
         rareEl.appendChild(rareInner);
-        
-        const rareLabel = document.createElement('div');
-        rareLabel.className = 'woodland-rare-label';
-        rareLabel.textContent = '✨ ' + profile.name + ' ✨';
-        rareLabel.style.cssText = `
-            font-size: 11px; font-weight: 800; letter-spacing: 0.08em;
-            color: rgba(40,30,15,0.95); text-shadow: 0 0 8px rgba(255,220,150,0.8), 0 1px 2px rgba(255,255,255,0.9);
-            white-space: nowrap; margin-top: 2px;
-        `;
-        rareEl.appendChild(rareLabel);
         
         const startLeft = Math.random() > 0.5;
         rareEl.style.cssText = `
@@ -635,7 +637,7 @@ Effects.woodland = function(active) {
     // ========================================================================
     // FIREFLIES (Night/Dusk) or DUST MOTES (Day)
     // ========================================================================
-    const particleCount = timeOfDay === 'night' ? 20 : (timeOfDay === 'dusk' ? 12 : 8);
+    const particleCount = timeOfDay === 'night' ? 35 : (timeOfDay === 'dusk' ? 22 : 18);
     const isFirefly = timeOfDay === 'night' || timeOfDay === 'dusk';
     
     for (let i = 0; i < particleCount; i++) {
@@ -687,7 +689,7 @@ Effects.woodland = function(active) {
     }
     
     const mushroomTypes = ['🍄', '🍄‍🟫'];
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 14; i++) {
         const mushroom = document.createElement('div');
         const isRare = Math.random() < 0.15;
         mushroom.textContent = isRare ? '🍄‍🟫' : mushroomTypes[Math.floor(Math.random() * mushroomTypes.length)];
