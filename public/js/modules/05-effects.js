@@ -26,28 +26,275 @@ const StandardEffects = {
     plymouthStreakTimeout: null,
     satelliteTimeout: null,
 
-    rain(active) {
+    rain(active, opts = {}) {
+        // Improved rain: variable intensity, wind/gusts, ground splashes, continuous spawn
         const c = document.getElementById('rain-effect');
         if (!c) return;
-        if (!active) {
+
+        // Normalize active and options
+        let enabled = !!active;
+        let intensity = opts.intensity || 'medium'; // 'light'|'medium'|'heavy'
+        if (typeof active === 'object' && !opts) {
+            intensity = active.intensity || intensity;
+            enabled = true;
+        }
+
+        // Cleanup helper
+        const cleanup = () => {
             c.innerHTML = '';
             c.classList.add('hidden');
             c.style.display = 'none';
+            // clear intervals/timeouts if previously set
+            if (this.rainWindInterval) { clearInterval(this.rainWindInterval); this.rainWindInterval = null; }
+            if (this.rainSplashInterval) { clearInterval(this.rainSplashInterval); this.rainSplashInterval = null; }
+            if (this.rainRespawnInterval) { clearInterval(this.rainRespawnInterval); this.rainRespawnInterval = null; }
+            if (this.rainGustTimeout) { clearTimeout(this.rainGustTimeout); this.rainGustTimeout = null; }
+        };
+
+        if (!enabled) {
+            cleanup();
             return;
         }
+
+        // Show container
         c.style.display = '';
         c.classList.remove('hidden');
-        if (c.children.length > 0) return;
-        const count = 80;
+        c.style.position = 'fixed';
+        c.style.inset = '0';
+        c.style.pointerEvents = 'none';
+        c.style.zIndex = '60';
+
+        // If already populated, leave it running (avoid recreating)
+        if (c.dataset.rainInitialized === '1') {
+            // If switching intensity, we may want to switch to canvas mode
+            if (this._rainIntensity !== intensity) {
+                // cleanup and re-init
+                cleanup();
+            } else return;
+        }
+        c.dataset.rainInitialized = '1';
+
+        // Decide whether to use canvas renderer for heavy rain
+        const useCanvas = opts.useCanvas || intensity === 'heavy';
+
+        // Intensity tuning
+        let count = 80;
+        let splashRate = 700; // ms between splash attempts
+        let dropSpeedMin = 0.9;
+        let dropSpeedMax = 1.4;
+        if (intensity === 'light') { count = 60; splashRate = 1200; dropSpeedMin = 1.2; dropSpeedMax = 1.8; }
+        else if (intensity === 'heavy') { count = 220; splashRate = 280; dropSpeedMin = 0.6; dropSpeedMax = 1.1; }
+
+        // Inject minimal CSS for rain if not present (improved realism: depth, taper, splashes)
+        if (!document.getElementById('effects-rain-styles')) {
+            const style = document.createElement('style');
+            style.id = 'effects-rain-styles';
+            style.textContent = `
+                .rain-drop { position: fixed; top: -8vh; width: 2px; height: 14vh; background: linear-gradient(to bottom, rgba(255,255,255,0.95) 0%, rgba(200,220,255,0.5) 40%, rgba(180,200,255,0.15) 100%); opacity: .6; transform: translateZ(0); border-radius: 1px; box-shadow: 0 0 4px rgba(255,255,255,0.3); }
+                .rain-drop.far { width: 1px; height: 10vh; opacity: .35; }
+                .rain-drop.near { width: 2.5px; height: 18vh; opacity: .75; }
+                @keyframes rain-fall {
+                    0% { transform: translate3d(var(--wind,0px), -10vh, 0) rotate(var(--rot,0deg)); opacity: 0.5; }
+                    15% { opacity: 0.85; }
+                    85% { opacity: 0.9; }
+                    100% { transform: translate3d(calc(var(--wind,0px) + 0px), 110vh, 0) rotate(var(--rot,0deg)); opacity: 0.0; }
+                }
+                .rain-splash { position: fixed; bottom: 4px; width: 12px; height: 8px; border-radius: 50%; background: radial-gradient(ellipse 60% 40% at 50% 50%, rgba(255,255,255,0.7), rgba(180,200,255,0.2)); transform-origin: center bottom; opacity: 0; pointer-events: none; }
+                .rain-splash-ring { position: fixed; bottom: 4px; width: 16px; height: 4px; border: 1px solid rgba(255,255,255,0.5); border-radius: 50%; transform-origin: center bottom; opacity: 0; pointer-events: none; }
+                @keyframes splash-pop {
+                    0% { transform: translateY(0) scaleX(0.3) scaleY(0.2); opacity: 0.95; }
+                    50% { transform: translateY(-8px) scaleX(1.2) scaleY(0.6); opacity: 0.6; }
+                    100% { transform: translateY(-14px) scaleX(1.5) scaleY(0.25); opacity: 0; }
+                }
+                @keyframes splash-ring {
+                    0% { transform: translateY(0) scaleX(0.2) scaleY(0.2); opacity: 0.8; }
+                    100% { transform: translateY(-6px) scaleX(1.8) scaleY(0.4); opacity: 0; }
+                }
+                .rain-mist { position: fixed; bottom: 0; left: 0; right: 0; height: 25vh; background: linear-gradient(to top, rgba(100,120,140,0.12), transparent); pointer-events: none; }
+            `;
+            document.head.appendChild(style);
+        }
+
+        // Create drops with depth layers (near = slower/larger, far = faster/smaller)
+        const depthRatio = 0.25; // 25% far, 50% default, 25% near
         for (let i = 0; i < count; i++) {
+            const r = Math.random();
+            let depthClass = '';
+            let durationMul = 1;
+            if (r < depthRatio) { depthClass = 'far'; durationMul = 0.75; }
+            else if (r > 1 - depthRatio) { depthClass = 'near'; durationMul = 1.25; }
             const drop = document.createElement('div');
-            drop.className = 'rain-drop';
-            drop.style.left = Math.random() * 100 + 'vw';
-            drop.style.animationDuration = (Math.random() * 0.5 + 0.8) + 's';
-            drop.style.animationDelay = (Math.random() * 2) + 's';
-            drop.style.opacity = Math.random() * 0.5 + 0.3;
+            drop.className = 'rain-drop' + (depthClass ? ' ' + depthClass : '');
+            const left = Math.random() * 100;
+            drop.style.left = `${left}vw`;
+            const duration = ((Math.random() * (dropSpeedMax - dropSpeedMin) + dropSpeedMin) * durationMul).toFixed(2) + 's';
+            drop.style.animationDuration = duration;
+            drop.style.animationTimingFunction = 'linear';
+            drop.style.animationDelay = (Math.random() * 2.5) + 's';
+            drop.style.setProperty('animation-name', 'rain-fall');
+            const rot = (Math.random() - 0.5) * 12;
+            drop.style.setProperty('--rot', rot + 'deg');
+            drop.style.opacity = (Math.random() * 0.5 + 0.3).toFixed(2);
+            drop.style.animationIterationCount = 'infinite';
             c.appendChild(drop);
         }
+        // Optional mist layer at bottom for heavy rain
+        if (intensity === 'heavy' && !c.querySelector('.rain-mist')) {
+            const mist = document.createElement('div');
+            mist.className = 'rain-mist';
+            c.appendChild(mist);
+        }
+
+        // Canvas renderer for heavy rain (higher particle counts, better perf)
+        if (useCanvas) {
+            // Cleanup DOM drops created above to avoid duplicate visuals
+            try {
+                c.innerHTML = '';
+            } catch (e) {}
+            if (this.rainCanvas) {
+                try { cancelAnimationFrame(this.rainCanvas.raf); } catch (e) {}
+                try { this.rainCanvas.el.remove(); } catch (e) {}
+                this.rainCanvas = null;
+            }
+            const canvas = document.createElement('canvas');
+            canvas.id = 'rain-canvas';
+            Object.assign(canvas.style, { position: 'fixed', left: 0, top: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 60 });
+            document.body.appendChild(canvas);
+            const ctx = canvas.getContext('2d');
+            const DPR = window.devicePixelRatio || 1;
+            const resize = () => {
+                canvas.width = window.innerWidth * DPR;
+                canvas.height = window.innerHeight * DPR;
+                canvas.style.width = window.innerWidth + 'px';
+                canvas.style.height = window.innerHeight + 'px';
+                ctx.scale(DPR, DPR);
+            };
+            resize();
+            window.addEventListener('resize', resize);
+
+            // create drops with depth (near = longer/slower, far = shorter/faster)
+            const drops = [];
+            const total = Math.max(count, 200);
+            for (let i = 0; i < total; i++) {
+                const x = Math.random() * window.innerWidth;
+                const y = Math.random() * window.innerHeight - window.innerHeight;
+                const depth = Math.random(); // 0 = far, 1 = near
+                const len = 6 + depth * 14 + Math.random() * 4;
+                const speedMul = 0.7 + depth * 0.6;
+                const speed = (Math.random() * (dropSpeedMax - dropSpeedMin) + dropSpeedMin) * (2.5 + Math.random() * 2) * speedMul;
+                const wobble = (Math.random() - 0.5) * 0.15;
+                drops.push({ x, y, len, speed, rot: (Math.random() - 0.5) * 0.25, depth, wobble, phase: Math.random() * Math.PI * 2 });
+            }
+
+            let last = performance.now();
+            const rafLoop = () => {
+                const now = performance.now();
+                const dt = (now - last) / 1000;
+                last = now;
+                ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+                const windBase = Math.sin(now / 1200) * 25 + Math.sin(now / 400) * 8;
+                const wind = windBase * (intensity === 'heavy' ? 1.4 : 0.7);
+                for (let i = 0; i < drops.length; i++) {
+                    const d = drops[i];
+                    const sway = Math.sin(now / 500 + d.phase) * d.wobble * 40 * dt;
+                    d.x += (wind * 0.35 + sway) * dt;
+                    d.y += d.speed * dt * 55;
+                    if (d.y > window.innerHeight + 30) {
+                        d.y = -Math.random() * 250;
+                        d.x = Math.random() * window.innerWidth;
+                    }
+                    const alpha = 0.4 + d.depth * 0.5;
+                    const grad = ctx.createLinearGradient(d.x, d.y, d.x + d.rot * d.len, d.y + d.len);
+                    grad.addColorStop(0, `rgba(220,235,255,${alpha})`);
+                    grad.addColorStop(0.3, `rgba(190,210,255,${alpha * 0.8})`);
+                    grad.addColorStop(1, `rgba(160,185,220,0.15)`);
+                    ctx.strokeStyle = grad;
+                    ctx.lineWidth = 0.8 + d.depth * 1;
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+                    ctx.moveTo(d.x - d.rot * d.len * 0.5, d.y);
+                    ctx.lineTo(d.x + d.rot * d.len * 0.5, d.y + d.len);
+                    ctx.stroke();
+                }
+                this.rainCanvas.raf = requestAnimationFrame(rafLoop);
+            };
+            this.rainCanvas = { el: canvas, ctx, raf: null, resize };
+            this.rainCanvas.raf = requestAnimationFrame(rafLoop);
+        }
+
+        // Splashes: main blob + optional ring for realism
+        const createSplashAt = (xPx) => {
+            const s = document.createElement('div');
+            s.className = 'rain-splash';
+            s.style.left = (xPx - 6) + 'px';
+            s.style.animation = `splash-pop ${0.4 + Math.random() * 0.28}s ease-out forwards`;
+            document.body.appendChild(s);
+            setTimeout(() => { try { s.remove(); } catch (e) {} }, 1000);
+            if (Math.random() < 0.4) {
+                const ring = document.createElement('div');
+                ring.className = 'rain-splash-ring';
+                ring.style.left = (xPx - 8) + 'px';
+                ring.style.animation = `splash-ring ${0.35 + Math.random() * 0.2}s ease-out forwards`;
+                document.body.appendChild(ring);
+                setTimeout(() => { try { ring.remove(); } catch (e) {} }, 800);
+            }
+        };
+
+        // Periodically spawn splashes (based on intensity)
+        this.rainSplashInterval = setInterval(() => {
+            // choose a random x position, bias to visible area
+            const x = Math.random() * window.innerWidth;
+            // higher intensity -> more frequent multi-splashes
+            const multi = (intensity === 'heavy' && Math.random() < 0.6) ? 2 + Math.floor(Math.random()*3) : 1;
+            for (let i = 0; i < multi; i++) {
+                setTimeout(() => createSplashAt(Math.min(window.innerWidth, Math.max(0, x + (Math.random()*80-40)))), i * 60);
+            }
+        }, splashRate);
+
+        // remember intensity for potential re-init checks
+        this._rainIntensity = intensity;
+
+        // Wind: update --wind CSS variable on the container periodically to simulate gusts
+        let windPx = 0;
+        const applyWind = (w) => { c.style.setProperty('--wind', `${w}px`); };
+        applyWind(0);
+        this.rainWindInterval = setInterval(() => {
+            // gentle swing with occasional gusts
+            const base = (Math.random() - 0.5) * (intensity === 'heavy' ? 18 : 8);
+            windPx = base;
+            applyWind(windPx);
+            // occasional gust
+            if (Math.random() < 0.08) {
+                const gust = (Math.random() - 0.5) * (intensity === 'heavy' ? 120 : 60);
+                applyWind(gust);
+                if (this.rainGustTimeout) clearTimeout(this.rainGustTimeout);
+                this.rainGustTimeout = setTimeout(() => applyWind(0), 300 + Math.random() * 600);
+            }
+        }, 350);
+
+        // Respawn small additional drops occasionally to keep density feeling natural
+        this.rainRespawnInterval = setInterval(() => {
+            const extra = Math.random() < 0.5 ? 1 : Math.random() < 0.2 ? 2 : 0;
+            for (let e = 0; e < extra; e++) {
+                const drop = document.createElement('div');
+                drop.className = 'rain-drop';
+                const left = Math.random() * 100;
+                drop.style.left = `${left}vw`;
+                const duration = (Math.random() * (dropSpeedMax - dropSpeedMin) + dropSpeedMin).toFixed(2) + 's';
+                drop.style.animationDuration = duration;
+                drop.style.animationTimingFunction = 'linear';
+                drop.style.animationDelay = '0s';
+                drop.style.setProperty('animation-name', 'rain-fall');
+                const rot = (Math.random() - 0.5) * 10;
+                drop.style.setProperty('--rot', rot + 'deg');
+                drop.style.opacity = (Math.random() * 0.6 + 0.25).toFixed(2);
+                drop.style.animationIterationCount = 'infinite';
+                c.appendChild(drop);
+                // clean up after a while to avoid runaway DOM growth
+                setTimeout(() => { try { drop.remove(); } catch (e) {} }, 30 * 1000);
+            }
+        }, 2500);
+
     },
     
     // Global weather effect (distinct from Winter theme)
