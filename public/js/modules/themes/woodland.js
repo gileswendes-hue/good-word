@@ -191,23 +191,24 @@ Effects.woodland = function(active) {
     }
     
     // ========================================================================
-    // FOREST FLOOR — refined gradient; ground plane at bottom: 0
+    // FOREST FLOOR — starts higher (bottom 42% of screen) so ground is visible
     // ========================================================================
+    const FLOOR_HEIGHT_PCT = 42;
     const floor = document.createElement('div');
     floor.style.cssText = `
-        position: absolute; bottom: 0; left: 0; right: 0; height: 30%;
-        background: linear-gradient(180deg, transparent 0%, rgba(55, 38, 22, 0.6) 15%,
-            #3d2914 35%, #2e2212 65%, #1a1208 95%);
+        position: absolute; bottom: 0; left: 0; right: 0; height: ${FLOOR_HEIGHT_PCT}%;
+        background: linear-gradient(180deg, transparent 0%, rgba(60, 42, 24, 0.5) 12%,
+            rgba(55, 38, 22, 0.75) 25%, #3d2914 45%, #2e2212 75%, #1a1208 98%);
         z-index: 2;
-        box-shadow: inset 0 -2px 20px rgba(0,0,0,0.15);
+        box-shadow: inset 0 -3px 25px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.03);
     `;
     c.appendChild(floor);
     
-    // Ground details — anchored on the ground (bottom 0–9%) so nothing floats
+    // Ground details — on the floor band (bottom 0–11%)
     for (let i = 0; i < 30; i++) {
         const detail = document.createElement('div');
         const type = Math.random();
-        const bottomPct = Math.random() * 7 + 0.5;
+        const bottomPct = Math.random() * 9 + 1;
         if (type < 0.4) {
             detail.style.cssText = `
                 position: absolute; bottom: ${bottomPct}%; left: ${Math.random() * 100}%;
@@ -237,13 +238,13 @@ Effects.woodland = function(active) {
     }
     
     // ========================================================================
-    // FALLEN LEAVES ON GROUND — on the ground plane (bottom 0–8%), with shadow
+    // FALLEN LEAVES ON GROUND — on the floor band, with shadow
     // ========================================================================
     const leafEmojis = ['🍂', '🍁', '🍃'];
     for (let i = 0; i < 25; i++) {
         const leaf = document.createElement('div');
         leaf.textContent = leafEmojis[Math.floor(Math.random() * leafEmojis.length)];
-        const leafBottom = Math.random() * 6 + 1;
+        const leafBottom = Math.random() * 10 + 2;
         leaf.style.cssText = `
             position: absolute; bottom: ${leafBottom}%; left: ${Math.random() * 100}%;
             font-size: ${8 + Math.random() * 10}px; opacity: ${0.45 + Math.random() * 0.35};
@@ -276,7 +277,7 @@ Effects.woodland = function(active) {
     for (let i = 0; i < 3; i++) setTimeout(spawnFallingLeaf, i * 500);
     
     // ========================================================================
-    // TREES — more realistic trunk (taper, bark, base) and foliage (clusters, highlight)
+    // TREES — cartoon-realistic: clear trunk (bark, taper, base), 3-layer foliage
     // ========================================================================
     const createTree = (side, size, zIndex) => {
         const tree = document.createElement('div');
@@ -284,99 +285,106 @@ Effects.woodland = function(active) {
         const brightness = timeOfDay === 'night' ? 0.4 : (1 - (3 - zIndex) * 0.15);
         const swayX = (3 - zIndex) * 3 + (side === 'left' ? -1 : 1) * 2;
         const swaySkew = (3 - zIndex) * 0.4;
-        const treeBottom = 0;
+        const shapeVary = 0.85 + Math.random() * 0.3;
         tree.style.cssText = `
-            position: absolute; bottom: ${treeBottom}px; ${side}: ${xOffset}%;
-            width: ${size * 1.8}px; height: ${size * 3.5}px; z-index: ${zIndex};
-            filter: brightness(${brightness}) ${zIndex < 3 ? `blur(${(3 - zIndex) * 0.35}px)` : ''};
+            position: absolute; bottom: 0; ${side}: ${xOffset}%;
+            width: ${size * 1.6 * shapeVary}px; height: ${size * 3.2}px; z-index: ${zIndex};
+            filter: brightness(${brightness}) ${zIndex < 3 ? `blur(${(3 - zIndex) * 0.3}px)` : ''};
             --sway-x: ${swayX}px; --sway-skew: ${swaySkew}deg;
             animation: woodlandTreeSway ${12 + zIndex * 3}s ease-in-out infinite;
         `;
         
-        const trunkH = size * 1.5;
-        const trunkWBase = size * 0.28;
-        const trunkWTop = size * 0.12;
+        const trunkH = size * 1.35;
+        const trunkWBase = size * 0.22;
+        const trunkWTop = size * 0.08;
         const trunk = document.createElement('div');
         trunk.style.cssText = `
             position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
             width: ${trunkWBase}px; height: ${trunkH}px;
             background: linear-gradient(90deg,
-                #151008 0%, #2a1c10 8%, #4a3520 20%, #5a4025 35%, #4a3520 50%, #5a4025 65%, #3d2914 82%, #1a1208 100%);
-            clip-path: polygon(${(trunkWBase - trunkWTop) / 2}px 0, ${trunkWBase - (trunkWBase - trunkWTop) / 2}px 0, ${trunkWBase - 2}px 100%, 2px 100%);
-            border-radius: 2px 2px 0 0;
-            box-shadow: inset 3px 0 12px rgba(0,0,0,0.5), inset -2px 0 8px rgba(0,0,0,0.35),
-                0 0 0 1px rgba(40,28,15,0.4), 0 4px 12px rgba(0,0,0,0.4);
+                #0f0a06 0%, #251a0e 15%, #4a3520 35%, #6b4a2e 50%, #4a3520 68%, #2a1c10 88%, #151008 100%);
+            clip-path: polygon(${(trunkWBase - trunkWTop) / 2}px 0, ${trunkWBase - (trunkWBase - trunkWTop) / 2}px 0,
+                ${trunkWBase - 3}px 100%, 3px 100%);
+            border-radius: 3px 3px 0 0;
+            box-shadow: inset 4px 0 14px rgba(0,0,0,0.45), inset -3px 0 10px rgba(0,0,0,0.3),
+                0 0 0 2px rgba(60,45,30,0.5), 0 6px 16px rgba(0,0,0,0.35);
         `;
-        for (let b = 0; b < 12; b++) {
+        for (let b = 0; b < 10; b++) {
             const line = document.createElement('div');
-            const tw = 1.2 + Math.random() * 1.8;
+            const tw = 2 + Math.random() * 2;
+            const topPct = (b / 10) * 85 + Math.random() * 8;
             line.style.cssText = `
-                position: absolute; left: ${10 + Math.random() * 80}%; top: ${b * 8 + Math.random() * 4}%;
-                width: ${tw}px; height: ${4 + Math.random() * 18}px;
-                background: linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.15));
-                border-radius: 1px; transform: rotate(${(Math.random() - 0.5) * 8}deg);
+                position: absolute; left: ${15 + Math.random() * 70}%; top: ${topPct}%;
+                width: ${tw}px; height: ${6 + Math.random() * 14}px;
+                background: linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.2) 100%);
+                border-radius: 2px; transform: rotate(${(Math.random() - 0.5) * 6}deg);
             `;
             trunk.appendChild(line);
         }
+        const rootFlare = document.createElement('div');
+        rootFlare.style.cssText = `
+            position: absolute; bottom: -2px; left: 50%; transform: translateX(-50%);
+            width: ${trunkWBase * 1.5}px; height: ${trunkWBase * 0.6}px;
+            background: linear-gradient(180deg, #2a1c10 0%, #1a1208 60%, transparent 100%);
+            border-radius: 0 0 50% 50% / 0 0 40% 40%;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        `;
+        trunk.appendChild(rootFlare);
         const baseShadow = document.createElement('div');
         baseShadow.style.cssText = `
-            position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%);
-            width: ${trunkWBase * 1.4}px; height: 8px;
-            background: radial-gradient(ellipse 80% 50%, rgba(0,0,0,0.4), transparent 70%);
+            position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%);
+            width: ${trunkWBase * 1.8}px; height: 10px;
+            background: radial-gradient(ellipse 85% 50%, rgba(0,0,0,0.45), transparent 72%);
             border-radius: 50%;
         `;
         trunk.appendChild(baseShadow);
         tree.appendChild(trunk);
         
         const foliageColors = timeOfDay === 'night'
-            ? ['#0d1f0d', '#152515', '#1a2f1a', '#0f1a0f', '#0a150a']
+            ? ['#0d1f0d', '#152515', '#1a2f1a', '#0f1a0f']
             : timeOfDay === 'dusk'
-            ? ['#2d4a2d', '#3d5a3d', '#4a6b4a', '#375237', '#2f4a2f']
-            : ['#1e4d1e', '#2d5a2d', '#3a6b3a', '#275227', '#1f4a1f', '#2a6a2a', '#3d7a3d'];
-        const highlightColor = timeOfDay === 'night' ? 'rgba(80,100,80,0.15)' : timeOfDay === 'dusk' ? 'rgba(120,140,100,0.2)' : 'rgba(180,220,160,0.25)';
+            ? ['#2d4a2d', '#3d5a3d', '#4a6b4a', '#375237']
+            : ['#1e4d1e', '#2d5a2d', '#3a6b3a', '#275227', '#1f4a1f', '#3d7a3d'];
+        const highlightColor = timeOfDay === 'night' ? 'rgba(70,95,70,0.2)' : timeOfDay === 'dusk' ? 'rgba(130,160,110,0.28)' : 'rgba(200,235,170,0.35)';
+        const shadowColor = 'rgba(0,0,0,0.15)';
+        const c0 = foliageColors[0];
+        const c1 = foliageColors[1];
+        const c2 = foliageColors[2];
         
-        const clusters = 11 + Math.floor(Math.random() * 6);
-        for (let i = 0; i < clusters; i++) {
-            const cluster = document.createElement('div');
-            const clusterSize = size * (0.32 + Math.random() * 0.42);
-            const angle = (i / clusters) * Math.PI * 1.9 + Math.random() * 0.2;
-            const radius = size * (0.38 + Math.random() * 0.28);
-            const cx = Math.cos(angle) * radius;
-            const cy = Math.sin(angle) * radius * 0.5;
-            const baseY = size * 1.55;
-            const c1 = foliageColors[Math.floor(Math.random() * foliageColors.length)];
-            const c2 = foliageColors[Math.floor(Math.random() * foliageColors.length)];
-            const cxGrad = 25 + Math.random() * 25;
-            const cyGrad = 20 + Math.random() * 20;
-            cluster.style.cssText = `
-                position: absolute; bottom: ${baseY + cy}px; left: calc(50% + ${cx}px);
-                transform: translateX(-50%); width: ${clusterSize}px; height: ${clusterSize * 0.85}px;
-                background: radial-gradient(ellipse ${clusterSize * 0.6}px ${clusterSize * 0.5}px at ${cxGrad}% ${cyGrad}%,
-                    ${highlightColor} 0%, ${c1} 25%, ${c2} 65%, transparent 100%);
-                border-radius: 48% 52% 52% 48% / 55% 48% 52% 45%;
-                box-shadow: inset 0 -8px 12px rgba(0,0,0,0.08);
-            `;
-            tree.appendChild(cluster);
-        }
+        const foliageBottom = size * 1.25;
+        const foliageWidth = size * 1.1 * shapeVary;
+        const foliageMidWidth = size * 0.85 * shapeVary;
+        const foliageTopWidth = size * 0.5 * shapeVary;
         
-        const centerCluster = document.createElement('div');
-        centerCluster.style.cssText = `
-            position: absolute; bottom: ${size * 1.75}px; left: 50%; transform: translateX(-50%);
-            width: ${size * 0.82}px; height: ${size * 0.72}px;
-            background: radial-gradient(ellipse at 38% 32%, ${highlightColor} 0%, ${foliageColors[1]} 22%, ${foliageColors[0]} 58%, transparent 100%);
+        const lowerFoliage = document.createElement('div');
+        lowerFoliage.style.cssText = `
+            position: absolute; bottom: ${foliageBottom}px; left: 50%; transform: translateX(-50%);
+            width: ${foliageWidth}px; height: ${size * 0.75}px;
+            background: radial-gradient(ellipse 55% 50% at 35% 30%, ${highlightColor} 0%, ${c0} 28%, ${c1} 55%, ${c2} 85%, transparent 100%);
+            border-radius: 50% 50% 48% 52% / 50% 50% 45% 55%;
+            box-shadow: inset 0 -12px 20px ${shadowColor}, inset 4px 4px 12px rgba(255,255,255,0.04), 0 2px 8px rgba(0,0,0,0.12);
+        `;
+        tree.appendChild(lowerFoliage);
+        
+        const midFoliage = document.createElement('div');
+        midFoliage.style.cssText = `
+            position: absolute; bottom: ${foliageBottom + size * 0.55}px; left: 50%; transform: translateX(-50%);
+            width: ${foliageMidWidth}px; height: ${size * 0.7}px;
+            background: radial-gradient(ellipse 50% 55% at 40% 28%, ${highlightColor} 0%, ${c1} 25%, ${c0} 52%, ${c2} 82%, transparent 100%);
+            border-radius: 52% 48% 50% 50% / 48% 52% 48% 52%;
+            box-shadow: inset 0 -10px 18px ${shadowColor}, inset 3px 3px 10px rgba(255,255,255,0.05), 0 2px 6px rgba(0,0,0,0.1);
+        `;
+        tree.appendChild(midFoliage);
+        
+        const topFoliage = document.createElement('div');
+        topFoliage.style.cssText = `
+            position: absolute; bottom: ${foliageBottom + size * 1.15}px; left: 50%; transform: translateX(-50%);
+            width: ${foliageTopWidth}px; height: ${size * 0.55}px;
+            background: radial-gradient(ellipse 45% 50% at 42% 25%, ${highlightColor} 0%, ${c1} 22%, ${c0} 60%, transparent 100%);
             border-radius: 50%;
-            box-shadow: inset 0 -6px 10px rgba(0,0,0,0.06);
+            box-shadow: inset 0 -6px 12px ${shadowColor}, 0 2px 6px rgba(0,0,0,0.08);
         `;
-        tree.appendChild(centerCluster);
-        
-        const topCluster = document.createElement('div');
-        topCluster.style.cssText = `
-            position: absolute; bottom: ${size * 2.35}px; left: 50%; transform: translateX(-50%);
-            width: ${size * 0.52}px; height: ${size * 0.48}px;
-            background: radial-gradient(ellipse at 40% 35%, ${highlightColor} 0%, ${foliageColors[2]} 30%, ${foliageColors[0]} 68%, transparent 100%);
-            border-radius: 45% 55% 50% 50% / 58% 58% 42% 42%;
-        `;
-        tree.appendChild(topCluster);
+        tree.appendChild(topFoliage);
         
         return tree;
     };
