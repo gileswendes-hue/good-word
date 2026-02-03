@@ -1417,14 +1417,19 @@ async renderLeaderboardTable() {
             const Y_PLOT_MIN = H - P;
             ctx.clearRect(0, 0, W, H);
             const toNum = (v) => Math.max(0, Number(v) || 0);
+            const getVoteCount = (h) => toNum(h.totalVotes ?? h.voteCount ?? h.votes ?? h.total ?? 0);
             let voteHistory = globalHistory
-                .filter(h => toNum(h.totalVotes) > 0)
-                .map(h => ({ date: h.date, totalVotes: toNum(h.totalVotes) }));
+                .filter(h => h && (h.date || h.day || h.timestamp))
+                .map(h => ({ date: h.date || h.day || (h.timestamp ? new Date(h.timestamp).toISOString().split('T')[0] : ''), totalVotes: getVoteCount(h) }))
+                .filter(h => h.date && h.totalVotes > 0);
             if (voteHistory.length === 0 && totalVotes > 0) {
                 const today = new Date().toISOString().split('T')[0];
                 voteHistory = [{ date: today, totalVotes: toNum(totalVotes) }];
             }
-            voteHistory = voteHistory.filter(h => h.totalVotes > 0);
+            voteHistory.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+            for (let i = 1; i < voteHistory.length; i++) {
+                voteHistory[i].totalVotes = Math.max(voteHistory[i - 1].totalVotes, voteHistory[i].totalVotes);
+            }
             const formatTrackingDate = (dateStr) => {
                 const date = new Date(dateStr + 'T00:00:00');
                 const now = new Date();
