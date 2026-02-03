@@ -977,68 +977,82 @@ async vote(t, s = false) {
             'jam', 'jelly', 'marmalade', 'syrup', 'maple'
         ];
         
+        // Non-food words: definitions may mention food (e.g. "cooking range", "mountain range") but word is not edible
+        const nonFoodExact = new Set([
+            'range', 'stove', 'cooker', 'oven', 'fridge', 'refrigerator', 'freezer',
+            'microwave', 'toaster', 'blender', 'mixer', 'fryer', 'grill',
+            'kitchen', 'recipe', 'menu', 'plate', 'bowl', 'cup', 'spoon', 'fork', 'knife',
+            'diner', 'restaurant', 'cafe', 'bistro', 'cuisine'
+        ]);
+        
+        // Phrases that indicate the definition is about food-as-edible (not appliances or abstract)
+        const foodDefinitionPhrases = [
+            'type of food', 'kind of food', 'edible', 'eaten as', 'eaten for', 'eaten with',
+            'a food', 'a dish', 'a drink', 'a beverage', 'a fruit', 'a vegetable', 'a nut',
+            'a meat', 'a fish', 'a seafood', 'a dairy', 'a grain', 'a dessert', 'a snack',
+            'food made', 'dish made', 'eaten', 'consumed as food', 'cooked and eaten',
+            'sweet food', 'savory food', 'breakfast food', 'dessert', 'pastry', 'confection'
+        ];
+        
         // Helper function to check if a word is food based on its definition
         const isFoodWord = (word) => {
             if (!word) return false;
             const def = (word.definition || '').toLowerCase();
-            const text = (word.text || '').toLowerCase();
+            const text = (word.text || '').toLowerCase().trim();
             const isVeganMode = State.data.settings.veganMode;
+            
+            if (!text) return false;
+            if (nonFoodExact.has(text)) return false;
             
             // If vegan mode, first check if it's an animal product
             if (isVeganMode) {
-                // Check definition for non-vegan keywords
                 for (const keyword of nonVeganKeywords) {
                     if (def.includes(keyword)) return false;
                 }
-                // Check if word itself is a non-vegan food
                 if (nonVeganFoods.some(food => text.includes(food) || food.includes(text))) {
                     return false;
                 }
-                
-                // For vegan mode, check if it's a known vegan food first
-                if (veganFoods.some(food => text.includes(food) || food.includes(text))) {
+                if (veganFoods.some(food => text === food || text.includes(food) || (food.length >= 4 && food.includes(text)))) {
                     return true;
                 }
-                
-                // Then check definition for plant-based food keywords
                 const veganKeywords = ['fruit', 'vegetable', 'plant', 'grain', 'legume', 
                     'nut', 'seed', 'berry', 'herb', 'spice', 'vegan', 'plant-based'];
                 for (const keyword of veganKeywords) {
                     if (def.includes(keyword)) return true;
                 }
-                
-                // General food check (but exclude if it might be animal-based)
                 const safeFoodKeywords = ['food', 'edible', 'snack', 'dessert', 'pastry', 
                     'bread', 'baked', 'drink', 'beverage', 'juice', 'salad', 'soup'];
                 for (const keyword of safeFoodKeywords) {
                     if (def.includes(keyword)) return true;
                 }
-                
                 return false;
             }
             
-            // Non-vegan mode: check definition for any food keywords
-            if (def) {
-                for (const keyword of foodKeywords) {
-                    if (def.includes(keyword)) return true;
-                }
+            // Word is in a curated list of common food words (exact or contained)
+            const commonFoods = [
+                'apple', 'banana', 'orange', 'grape', 'strawberry', 'mango', 'pineapple', 'watermelon', 'melon', 'peach', 'pear', 'plum', 'cherry', 'blueberry', 'raspberry', 'blackberry', 'kiwi', 'papaya', 'coconut', 'avocado', 'lemon', 'lime', 'grapefruit', 'fig', 'date', 'pomegranate', 'cantaloupe', 'honeydew', 'cranberry', 'apricot', 'nectarine', 'tangerine', 'clementine', 'persimmon', 'dragonfruit', 'lychee', 'guava', 'passionfruit', 'mulberry', 'gooseberry', 'elderberry', 'boysenberry', 'currant', 'raisin', 'prune',
+                'pizza', 'burger', 'taco', 'burrito', 'sushi', 'sashimi', 'pasta', 'noodle', 'rice', 'bread', 'cake', 'cookie', 'pie', 'donut', 'muffin', 'croissant', 'bagel', 'waffle', 'pancake', 'crepe', 'brownie', 'cupcake', 'eclair', 'danish', 'strudel', 'biscuit', 'scone', 'roll', 'loaf', 'toast', 'cereal', 'oatmeal', 'granola', 'yogurt', 'cheese', 'milk', 'butter', 'cream', 'curd', 'whey', 'egg', 'bacon', 'sausage', 'ham', 'steak', 'chicken', 'turkey', 'duck', 'fish', 'shrimp', 'lobster', 'crab', 'salmon', 'tuna', 'cod', 'tilapia', 'scallop', 'clam', 'oyster', 'mussel', 'squid', 'octopus',
+                'soup', 'salad', 'sandwich', 'wrap', 'quesadilla', 'nachos', 'hummus', 'guacamole', 'salsa', 'dip', 'fries', 'chips', 'popcorn', 'pretzel', 'candy', 'chocolate', 'fudge', 'toffee', 'caramel', 'nougat', 'marshmallow', 'licorice', 'gummy', 'jellybean', 'lollipop', 'cotton candy', 'icecream', 'gelato', 'sorbet', 'pudding', 'custard', 'mousse', 'tiramisu', 'cheesecake', 'coffee', 'tea', 'juice', 'smoothie', 'lemonade', 'milkshake', 'soda', 'cola', 'kombucha', 'cider', 'wine', 'beer', 'cocktail', 'whiskey', 'rum', 'vodka',
+                'carrot', 'potato', 'tomato', 'onion', 'garlic', 'pepper', 'lettuce', 'spinach', 'broccoli', 'cauliflower', 'cabbage', 'kale', 'celery', 'cucumber', 'zucchini', 'squash', 'pumpkin', 'eggplant', 'aubergine', 'corn', 'bean', 'pea', 'mushroom', 'olive', 'artichoke', 'asparagus', 'beet', 'beetroot', 'radish', 'turnip', 'parsnip', 'rutabaga', 'brussels', 'chard', 'collard', 'bok choy', 'leek', 'shallot', 'ginger', 'turmeric', 'basil', 'oregano', 'cilantro', 'parsley', 'mint', 'thyme', 'rosemary', 'sage', 'dill', 'tarragon', 'cumin', 'cinnamon', 'nutmeg', 'vanilla', 'saffron', 'paprika', 'mustard', 'ketchup', 'mayo', 'relish', 'vinegar', 'soy', 'tofu', 'tempeh', 'seitan', 'lentil', 'chickpea', 'quinoa', 'couscous', 'bulgur', 'barley', 'millet', 'farro', 'polenta', 'grits', 'tortilla', 'naan', 'pita', 'focaccia', 'ciabatta', 'baguette', 'sourdough', 'rye', 'whole wheat', 'flatbread', 'chapati', 'matzo', 'cracker', 'biscotti', 'macaroon', 'meringue', 'truffle', 'ganache', 'frosting', 'icing', 'syrup', 'honey', 'jam', 'jelly', 'marmalade', 'preserve', 'compote', 'chutney', 'salsa', 'pesto', 'gravy', 'stock', 'broth', 'bisque', 'gazpacho', 'chowder', 'stew', 'curry', 'chili', 'goulash', 'ragu', 'marinara', 'alfredo', 'carbonara', 'risotto', 'paella', 'jambalaya', 'gumbo', 'falafel', 'kebab', 'gyro', 'satay', 'tempura', 'dumpling', 'spring roll', 'empanada', 'samosa', 'pierogi', 'ravioli', 'lasagna', 'cannelloni', 'gnocchi', 'udon', 'ramen', 'pho', 'soba', 'vermicelli', 'couscous', 'tabbouleh', 'coleslaw', 'caesar', 'waldorf', 'caprese', 'niçoise', 'cobb', 'wedge', 'taco', 'burrito', 'enchilada', 'tamale', 'queso', 'guac', 'pico', 'sriracha', 'wasabi', 'teriyaki', 'soy sauce', 'fish sauce', 'oyster sauce', 'hoisin', 'tahini', 'nutella', 'peanut butter', 'almond butter', 'jam', 'marmalade'
+            ];
+            const normalizedCommon = commonFoods.flatMap(s => s.split(',').map(x => x.trim().toLowerCase())).filter(x => x.length >= 2).filter((x, i, a) => a.indexOf(x) === i);
+            for (const food of normalizedCommon) {
+                if (food.length < 3) continue;
+                if (text === food || text === food + 's' || text === food + 'es') return true;
+                if (text.includes(food) && food.length >= 4) return true;
+                if (food.includes(text) && text.length >= 4) return true;
             }
             
-            // Also check if the word itself is a common food term
-            const commonFoods = [
-                'apple', 'banana', 'orange', 'grape', 'strawberry', 'mango', 'pineapple',
-                'pizza', 'burger', 'taco', 'sushi', 'pasta', 'rice', 'bread', 'cake',
-                'cookie', 'pie', 'donut', 'muffin', 'croissant', 'bagel', 'waffle',
-                'pancake', 'cereal', 'oatmeal', 'yogurt', 'cheese', 'milk', 'butter',
-                'egg', 'bacon', 'sausage', 'ham', 'steak', 'chicken', 'fish', 'shrimp',
-                'lobster', 'crab', 'salmon', 'tuna', 'soup', 'salad', 'sandwich',
-                'fries', 'chips', 'popcorn', 'pretzel', 'nachos', 'candy', 'chocolate',
-                'coffee', 'tea', 'juice', 'smoothie', 'lemonade', 'milkshake',
-                'carrot', 'potato', 'tomato', 'onion', 'garlic', 'pepper', 'lettuce',
-                'spinach', 'broccoli', 'corn', 'bean', 'pea', 'mushroom', 'olive'
-            ];
-            if (commonFoods.some(food => text.includes(food) || food.includes(text))) {
-                return true;
+            // Definition: require a phrase that clearly means "food as something you eat" to avoid "cooking range", "mountain range", etc.
+            if (def) {
+                const hasFoodPhrase = foodDefinitionPhrases.some(phrase => def.includes(phrase));
+                if (hasFoodPhrase) return true;
+                for (const keyword of foodKeywords) {
+                    if (keyword.length <= 3) continue;
+                    if (def.includes(keyword) && (def.includes(' food') || def.includes(' edible') || def.includes(' eaten') || def.includes(' dish') || def.includes(' drink') || def.includes(' fruit') || def.includes(' vegetable') || def.includes(' meat') || def.includes(' dessert') || def.includes(' snack'))) {
+                        return true;
+                    }
+                }
             }
             
             return false;
@@ -1402,11 +1416,15 @@ async renderLeaderboardTable() {
             const Y_PLOT_MAX = P;
             const Y_PLOT_MIN = H - P;
             ctx.clearRect(0, 0, W, H);
-            let voteHistory = globalHistory.filter(h => h.totalVotes > 0);
+            const toNum = (v) => Math.max(0, Number(v) || 0);
+            let voteHistory = globalHistory
+                .filter(h => toNum(h.totalVotes) > 0)
+                .map(h => ({ date: h.date, totalVotes: toNum(h.totalVotes) }));
             if (voteHistory.length === 0 && totalVotes > 0) {
                 const today = new Date().toISOString().split('T')[0];
-                voteHistory = [{ date: today, totalVotes: totalVotes }];
+                voteHistory = [{ date: today, totalVotes: toNum(totalVotes) }];
             }
+            voteHistory = voteHistory.filter(h => h.totalVotes > 0);
             const formatTrackingDate = (dateStr) => {
                 const date = new Date(dateStr + 'T00:00:00');
                 const now = new Date();
@@ -1426,7 +1444,7 @@ async renderLeaderboardTable() {
             if (voteTrackingEl && startDate) {
                 voteTrackingEl.textContent = formatTrackingDate(startDate);
             }
-            const maxVotes = Math.max(...voteHistory.map(h => h.totalVotes || 0), 1);
+            const maxVotes = Math.max(...voteHistory.map(h => h.totalVotes), 1);
             const Y_MIN_VALUE = 0;
             const Y_MAX_VALUE = Math.ceil(maxVotes / 10000) * 10000 || 100000;
             const VALUE_RANGE = Y_MAX_VALUE - Y_MIN_VALUE;
@@ -1450,26 +1468,27 @@ async renderLeaderboardTable() {
                 ctx.stroke();
                 drawText(ctx, val.toLocaleString(), P - 5, y + 5, "#666", 9);
             }
-            if (voteHistory.length > 0) {
-                const xDivisor = voteHistory.length > 1 ? voteHistory.length - 1 : 1;
+            const plotData = voteHistory.filter(h => h.totalVotes > 0);
+            if (plotData.length > 0) {
+                const xDivisor = plotData.length > 1 ? plotData.length - 1 : 1;
                 ctx.beginPath();
                 ctx.strokeStyle = "#10b981"; // Green for votes
                 ctx.lineWidth = 3;
-                voteHistory.forEach((h, i) => {
+                plotData.forEach((h, i) => {
                     const x = P + (i / xDivisor) * (W - 2 * P);
-                    const y = getYVotes(h.totalVotes || 0);
+                    const y = getYVotes(h.totalVotes);
                     if (i === 0) ctx.moveTo(x, y);
                     else ctx.lineTo(x, y);
                 });
                 ctx.stroke();
-                voteHistory.forEach((h, i) => {
+                plotData.forEach((h, i) => {
                     const x = P + (i / xDivisor) * (W - 2 * P);
-                    const y = getYVotes(h.totalVotes || 0);
+                    const y = getYVotes(h.totalVotes);
                     ctx.beginPath();
                     ctx.fillStyle = "#10b981";
                     ctx.arc(x, y, 4, 0, Math.PI * 2);
                     ctx.fill();
-                    if (i === voteHistory.length - 1) {
+                    if (i === plotData.length - 1) {
                          ctx.beginPath();
                          ctx.strokeStyle = "#ffffff";
                          ctx.lineWidth = 2;
@@ -1478,17 +1497,17 @@ async renderLeaderboardTable() {
                     }
                 });
             }
-            if (voteHistory.length > 0) {
+            if (plotData.length > 0) {
                 const formatShortDate = (dateStr) => {
                     const d = new Date(dateStr + 'T00:00:00');
                     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                     return `${monthNames[d.getMonth()]} ${d.getDate()}`;
                 };
                 ctx.textAlign = "left";
-                drawText(ctx, formatShortDate(voteHistory[0].date), P, H - P + 15, "#999", 9);
-                if (voteHistory.length > 1) {
+                drawText(ctx, formatShortDate(plotData[0].date), P, H - P + 15, "#999", 9);
+                if (plotData.length > 1) {
                     ctx.textAlign = "right";
-                    drawText(ctx, formatShortDate(voteHistory[voteHistory.length - 1].date), W - P, H - P + 15, "#999", 9);
+                    drawText(ctx, formatShortDate(plotData[plotData.length - 1].date), W - P, H - P + 15, "#999", 9);
                 }
             }
             ctx.textAlign = "center";
