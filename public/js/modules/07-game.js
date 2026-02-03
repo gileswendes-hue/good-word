@@ -390,8 +390,10 @@ async vote(t, s = false) {
                     
                     if (isSnack && !State.runtime.snackFound) {
                         State.runtime.snackFound = true;
+                        State.runtime.snackWordFound = w.text;
                         const emoji = isVeganMode ? '🥬' : '🍕';
-                        UIManager.showPostVoteMessage(`${emoji} YUM! Found "${w.text}"! 🍴`);
+                        const label = isVeganMode ? 'The vegan snack word was' : 'The snack word was';
+                        UIManager.showPostVoteMessage(`${emoji} ${label}: "${w.text.toUpperCase()}"! YUM! 🍴`);
                         const last = State.data.daily.lastDate;
                         let s = State.data.daily.streak;
                         if (last) {
@@ -1401,7 +1403,7 @@ async renderLeaderboardTable() {
             const Y_PLOT_MIN = H - P;
             ctx.clearRect(0, 0, W, H);
             let voteHistory = globalHistory.filter(h => h.totalVotes > 0);
-            if (voteHistory.length === 0) {
+            if (voteHistory.length === 0 && totalVotes > 0) {
                 const today = new Date().toISOString().split('T')[0];
                 voteHistory = [{ date: today, totalVotes: totalVotes }];
             }
@@ -1424,7 +1426,7 @@ async renderLeaderboardTable() {
             if (voteTrackingEl && startDate) {
                 voteTrackingEl.textContent = formatTrackingDate(startDate);
             }
-            const maxVotes = Math.max(...voteHistory.map(h => h.totalVotes || 0), 1000);
+            const maxVotes = Math.max(...voteHistory.map(h => h.totalVotes || 0), 1);
             const Y_MIN_VALUE = 0;
             const Y_MAX_VALUE = Math.ceil(maxVotes / 10000) * 10000 || 100000;
             const VALUE_RANGE = Y_MAX_VALUE - Y_MIN_VALUE;
